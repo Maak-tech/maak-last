@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
     "build:web": "expo export --platform web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "clear-cache": "expo start --clear"
   },
   "dependencies": {
     "@expo-google-fonts/cairo": "^0.2.3",

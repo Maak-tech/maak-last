@@ -1,58 +1,75 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
 
 export const useNotifications = () => {
   const notificationListener = useRef<any>();
   const responseListener = useRef<any>();
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      // Notifications not available on web
+    if (Platform.OS === 'web' || isInitialized.current) {
       return;
     }
 
-    try {
-      const Notifications = require('expo-notifications');
-      
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: true,
-          shouldSetBadge: false,
-        }),
-      });
+    const initializeNotifications = async () => {
+      try {
+        const [Notifications, Device] = await Promise.all([
+          import('expo-notifications'),
+          import('expo-device')
+        ]);
+        
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: false,
+          }),
+        });
 
-      registerForPushNotificationsAsync();
+        await registerForPushNotificationsAsync(Notifications, Device);
 
-      notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
-        console.log('Notification received:', notification);
-      });
+        notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
+          console.log('Notification received:', notification);
+        });
 
-      responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
-        console.log('Notification response:', response);
-      });
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
+          console.log('Notification response:', response);
+        });
 
-      return () => {
-        if (notificationListener.current) {
-          Notifications.removeNotificationSubscription(notificationListener.current);
+        isInitialized.current = true;
+      } catch (error) {
+        console.warn('Failed to initialize notifications:', error);
+      }
+    };
+
+    initializeNotifications();
+
+    return () => {
+      if (notificationListener.current) {
+        try {
+          notificationListener.current.remove();
+        } catch (error) {
+          console.warn('Error removing notification listener:', error);
         }
-        if (responseListener.current) {
-          Notifications.removeNotificationSubscription(responseListener.current);
+      }
+      if (responseListener.current) {
+        try {
+          responseListener.current.remove();
+        } catch (error) {
+          console.warn('Error removing response listener:', error);
         }
-      };
-    } catch (error) {
-      console.warn('Notifications not available:', error);
-    }
+      }
+    };
   }, []);
 
-  const scheduleNotification = async (title: string, body: string, trigger: Date) => {
+  const scheduleNotification = useCallback(async (title: string, body: string, trigger: Date) => {
     if (Platform.OS === 'web') {
       console.log('Notification scheduled (web):', { title, body, trigger });
       return;
     }
 
     try {
-      const Notifications = require('expo-notifications');
+      const Notifications = await import('expo-notifications');
       await Notifications.scheduleNotificationAsync({
         content: {
           title,
@@ -64,15 +81,15 @@ export const useNotifications = () => {
     } catch (error) {
       console.warn('Failed to schedule notification:', error);
     }
-  };
+  }, []);
 
-  const scheduleMedicationReminder = async (medicationName: string, time: Date) => {
+  const scheduleMedicationReminder = useCallback(async (medicationName: string, time: Date) => {
     await scheduleNotification(
       'Medication Reminder',
       `Time to take your ${medicationName}`,
       time
     );
-  };
+  }, [scheduleNotification]);
 
   return {
     scheduleNotification,
@@ -80,15 +97,8 @@ export const useNotifications = () => {
   };
 };
 
-async function registerForPushNotificationsAsync() {
-  if (Platform.OS === 'web') {
-    return;
-  }
-
+async function registerForPushNotificationsAsync(Notifications: any, Device: any) {
   try {
-    const Notifications = require('expo-notifications');
-    const Device = require('expo-device');
-
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -101,14 +111,20 @@ async function registerForPushNotificationsAsync() {
     if (Device.isDevice) {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
+      
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
+      
       if (finalStatus !== 'granted') {
-        console.warn('Failed to get push token for push notification!');
+        console.warn('Push notification permissions not granted');
         return;
       }
+      
+      console.log('Push notifications registered successfully');
+    } else {
+      console.warn('Must use physical device for push notifications');
     }
   } catch (error) {
     console.warn('Failed to register for push notifications:', error);

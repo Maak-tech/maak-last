@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, AppState } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useFonts } from 'expo-font';
@@ -19,29 +19,43 @@ import {
 } from '@expo-google-fonts/cairo';
 import '@/lib/i18n';
 
-// Add error boundary to catch and handle errors gracefully
+// Enhanced error boundary with better error handling
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  { hasError: boolean }
+  { hasError: boolean; error?: Error }
 > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: any) {
     console.error('Error caught by boundary:', error, errorInfo);
+    
+    // Log error details for debugging
+    if (Platform.OS !== 'web') {
+      console.error('Stack trace:', error.stack);
+      console.error('Component stack:', errorInfo.componentStack);
+    }
   }
 
   render() {
     if (this.state.hasError) {
       return (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Something went wrong. Please restart the app.</Text>
+          <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+          <Text style={styles.errorText}>
+            The app encountered an unexpected error. Please restart the app.
+          </Text>
+          {__DEV__ && this.state.error && (
+            <Text style={styles.errorDetails}>
+              {this.state.error.message}
+            </Text>
+          )}
         </View>
       );
     }
@@ -54,6 +68,7 @@ export default function RootLayout() {
   useFrameworkReady();
   
   const [appIsReady, setAppIsReady] = useState(false);
+  const [appState, setAppState] = useState(AppState.currentState);
   
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
@@ -67,15 +82,36 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('App has come to the foreground!');
+      }
+      setAppState(nextAppState);
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [appState]);
+
+  useEffect(() => {
     async function prepare() {
       try {
-        // Add error handling for initialization
+        // Ensure proper initialization timing
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Additional platform-specific initialization
         if (Platform.OS !== 'web') {
-          // Only run native-specific initialization on native platforms
+          // Ensure native modules are properly initialized
           await new Promise(resolve => setTimeout(resolve, 100));
         }
+        
+        console.log('App initialization completed');
       } catch (e) {
         console.warn('Initialization error:', e);
+        // Continue with app loading even if initialization fails
       } finally {
         setAppIsReady(true);
       }
@@ -86,10 +122,10 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Add error handling for font loading
+  // Handle font loading errors gracefully
   if (fontError) {
     console.error('Font loading error:', fontError);
-    // Continue with app loading even if fonts fail
+    // Continue with app loading using system fonts
     if (!appIsReady) {
       setAppIsReady(true);
     }
@@ -98,7 +134,7 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading fonts...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -114,7 +150,12 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack 
+          screenOptions={{ 
+            headerShown: false,
+            animation: Platform.OS === 'ios' ? 'default' : 'fade',
+          }}
+        >
           <Stack.Screen name="index" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(auth)" />
@@ -150,14 +191,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     padding: 20,
   },
-  errorText: {
-    fontSize: 16,
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#DC2626',
+    marginBottom: 10,
     textAlign: 'center',
     fontFamily: Platform.select({
       ios: 'System',
       android: 'Roboto',
       web: 'system-ui',
     }),
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#DC2626',
+    textAlign: 'center',
+    marginBottom: 10,
+    fontFamily: Platform.select({
+      ios: 'System',
+      android: 'Roboto',
+      web: 'system-ui',
+    }),
+  },
+  errorDetails: {
+    fontSize: 12,
+    color: '#7F1D1D',
+    textAlign: 'center',
+    fontFamily: 'monospace',
+    marginTop: 10,
   },
 });
