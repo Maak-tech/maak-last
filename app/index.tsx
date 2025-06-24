@@ -8,7 +8,7 @@ export default function Index() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && router.isReady) {
       if (!user) {
         router.replace('/(auth)/login');
       } else if (!user.onboardingCompleted) {
@@ -17,7 +17,7 @@ export default function Index() {
         router.replace('/(tabs)');
       }
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, router.isReady]);
 
   return <View style={styles.container} />;
 }
