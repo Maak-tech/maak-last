@@ -1,12 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { Platform } from 'react-native';
 import { User } from '@/types';
 
 interface AuthContextType {
   user: User | null;
-  firebaseUser: FirebaseUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
@@ -26,54 +23,67 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
-      
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
-            setUser({
-              ...userData,
-              createdAt: userData.createdAt?.toDate?.() || new Date(),
-            });
+    // Initialize auth state
+    const initializeAuth = async () => {
+      try {
+        if (Platform.OS === 'web') {
+          // For web, check localStorage for demo purposes
+          const savedUser = localStorage.getItem('demoUser');
+          if (savedUser) {
+            setUser(JSON.parse(savedUser));
           }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
         }
-      } else {
-        setUser(null);
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
-    });
+    };
 
-    return unsubscribe;
+    initializeAuth();
   }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // Demo implementation - replace with actual Firebase auth
+      const demoUser: User = {
+        id: '1',
+        email,
+        name: 'Demo User',
+        role: 'admin',
+        createdAt: new Date(),
+        onboardingCompleted: true,
+        preferences: {
+          language: 'en',
+          notifications: true,
+          emergencyContacts: [],
+        },
+      };
+      
+      if (Platform.OS === 'web') {
+        localStorage.setItem('demoUser', JSON.stringify(demoUser));
+      }
+      
+      setUser(demoUser);
     } catch (error) {
-      setLoading(false);
+      console.error('Sign in error:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     setLoading(true);
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      
-      const newUser: User = {
-        id: result.user.uid,
-        email: result.user.email!,
+      // Demo implementation - replace with actual Firebase auth
+      const demoUser: User = {
+        id: '1',
+        email,
         name,
         role: 'admin',
         createdAt: new Date(),
@@ -84,19 +94,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           emergencyContacts: [],
         },
       };
-
-      await setDoc(doc(db, 'users', result.user.uid), newUser);
-      setUser(newUser);
+      
+      if (Platform.OS === 'web') {
+        localStorage.setItem('demoUser', JSON.stringify(demoUser));
+      }
+      
+      setUser(demoUser);
     } catch (error) {
-      setLoading(false);
+      console.error('Sign up error:', error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      if (Platform.OS === 'web') {
+        localStorage.removeItem('demoUser');
+      }
+      setUser(null);
     } catch (error) {
+      console.error('Logout error:', error);
       throw error;
     }
   };
@@ -106,16 +125,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const updatedUser = { ...user, ...userData };
-      await setDoc(doc(db, 'users', user.id), updatedUser, { merge: true });
+      
+      if (Platform.OS === 'web') {
+        localStorage.setItem('demoUser', JSON.stringify(updatedUser));
+      }
+      
       setUser(updatedUser);
     } catch (error) {
+      console.error('Update user error:', error);
       throw error;
     }
   };
 
   const value = {
     user,
-    firebaseUser,
     loading,
     signIn,
     signUp,
