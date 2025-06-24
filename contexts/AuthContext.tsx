@@ -26,18 +26,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize auth state
+    // Initialize auth state with error handling
     const initializeAuth = async () => {
       try {
         if (Platform.OS === 'web') {
           // For web, check localStorage for demo purposes
           const savedUser = localStorage.getItem('demoUser');
           if (savedUser) {
-            setUser(JSON.parse(savedUser));
+            const parsedUser = JSON.parse(savedUser);
+            // Ensure createdAt is a Date object
+            if (parsedUser.createdAt) {
+              parsedUser.createdAt = new Date(parsedUser.createdAt);
+            }
+            setUser(parsedUser);
           }
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+        // Clear corrupted data
+        if (Platform.OS === 'web') {
+          try {
+            localStorage.removeItem('demoUser');
+          } catch (storageError) {
+            console.error('Failed to clear storage:', storageError);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -71,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(demoUser);
     } catch (error) {
       console.error('Sign in error:', error);
-      throw error;
+      throw new Error('Failed to sign in. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -102,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(demoUser);
     } catch (error) {
       console.error('Sign up error:', error);
-      throw error;
+      throw new Error('Failed to create account. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -116,7 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
-      throw error;
+      // Force logout even if storage fails
+      setUser(null);
     }
   };
 
@@ -133,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(updatedUser);
     } catch (error) {
       console.error('Update user error:', error);
-      throw error;
+      throw new Error('Failed to update user. Please try again.');
     }
   };
 
