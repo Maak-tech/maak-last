@@ -26,29 +26,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize auth state with error handling
+    // Initialize auth state with enhanced error handling
     const initializeAuth = async () => {
       try {
+        // Add delay to ensure proper initialization
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         if (Platform.OS === 'web') {
           // For web, check localStorage for demo purposes
-          const savedUser = localStorage.getItem('demoUser');
-          if (savedUser) {
-            const parsedUser = JSON.parse(savedUser);
-            // Ensure createdAt is a Date object
-            if (parsedUser.createdAt) {
-              parsedUser.createdAt = new Date(parsedUser.createdAt);
+          try {
+            const savedUser = localStorage.getItem('demoUser');
+            if (savedUser) {
+              const parsedUser = JSON.parse(savedUser);
+              // Ensure createdAt is a Date object
+              if (parsedUser.createdAt) {
+                parsedUser.createdAt = new Date(parsedUser.createdAt);
+              }
+              setUser(parsedUser);
             }
-            setUser(parsedUser);
+          } catch (storageError) {
+            console.warn('Failed to parse saved user data:', storageError);
+            localStorage.removeItem('demoUser');
           }
+        } else {
+          // For native platforms, implement secure storage or Firebase auth
+          // This is a demo implementation
+          console.log('Native auth initialization');
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        // Clear corrupted data
+        // Clear any corrupted data
         if (Platform.OS === 'web') {
           try {
             localStorage.removeItem('demoUser');
-          } catch (storageError) {
-            console.error('Failed to clear storage:', storageError);
+          } catch (clearError) {
+            console.error('Failed to clear corrupted storage:', clearError);
           }
         }
       } finally {
@@ -62,6 +74,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
+      // Add artificial delay to simulate network request
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Demo implementation - replace with actual Firebase auth
       const demoUser: User = {
         id: '1',
@@ -78,13 +93,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       if (Platform.OS === 'web') {
-        localStorage.setItem('demoUser', JSON.stringify(demoUser));
+        try {
+          localStorage.setItem('demoUser', JSON.stringify(demoUser));
+        } catch (storageError) {
+          console.warn('Failed to save user to storage:', storageError);
+        }
       }
       
       setUser(demoUser);
     } catch (error) {
       console.error('Sign in error:', error);
-      throw new Error('Failed to sign in. Please try again.');
+      throw new Error('Failed to sign in. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -93,9 +112,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string) => {
     setLoading(true);
     try {
+      // Add artificial delay to simulate network request
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Demo implementation - replace with actual Firebase auth
       const demoUser: User = {
-        id: '1',
+        id: Date.now().toString(),
         email,
         name,
         role: 'admin',
@@ -109,7 +131,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       if (Platform.OS === 'web') {
-        localStorage.setItem('demoUser', JSON.stringify(demoUser));
+        try {
+          localStorage.setItem('demoUser', JSON.stringify(demoUser));
+        } catch (storageError) {
+          console.warn('Failed to save user to storage:', storageError);
+        }
       }
       
       setUser(demoUser);
@@ -124,12 +150,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       if (Platform.OS === 'web') {
-        localStorage.removeItem('demoUser');
+        try {
+          localStorage.removeItem('demoUser');
+        } catch (storageError) {
+          console.warn('Failed to clear user from storage:', storageError);
+        }
       }
       setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
-      // Force logout even if storage fails
+      // Force logout even if storage operations fail
       setUser(null);
     }
   };
@@ -141,7 +171,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { ...user, ...userData };
       
       if (Platform.OS === 'web') {
-        localStorage.setItem('demoUser', JSON.stringify(updatedUser));
+        try {
+          localStorage.setItem('demoUser', JSON.stringify(updatedUser));
+        } catch (storageError) {
+          console.warn('Failed to update user in storage:', storageError);
+        }
       }
       
       setUser(updatedUser);
