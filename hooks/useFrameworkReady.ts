@@ -8,6 +8,7 @@ declare global {
 
 export function useFrameworkReady() {
   useEffect(() => {
-    window.frameworkReady?.();
+    // Disable framework ready calls that might cause C++ exceptions
+    // window.frameworkReady?.();
   });
 }

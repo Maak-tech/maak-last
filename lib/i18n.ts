@@ -1,6 +1,5 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import * as Localization from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const resources = {
@@ -20,7 +19,7 @@ const resources = {
       loading: 'Loading...',
       error: 'Error',
       success: 'Success',
-      
+
       // Auth
       signIn: 'Sign In',
       signUp: 'Sign Up',
@@ -32,47 +31,48 @@ const resources = {
       createAccount: 'Create Account',
       alreadyHaveAccount: 'Already have an account?',
       dontHaveAccount: "Don't have an account?",
-      
+
       // Onboarding
       onboardingTitle1: 'Track Your Health',
-      onboardingDesc1: 'Monitor your symptoms, medications, and vitals in one place',
+      onboardingDesc1:
+        'Monitor your symptoms, medications, and vitals in one place',
       onboardingTitle2: 'Family Care',
       onboardingDesc2: 'Keep your entire family healthy with shared monitoring',
       onboardingTitle3: 'Smart Alerts',
       onboardingDesc3: 'Get timely reminders and emergency notifications',
-      
+
       // Navigation
       dashboard: 'Dashboard',
       symptoms: 'Symptoms',
       medications: 'Medications',
       family: 'Family',
       profile: 'Profile',
-      
+
       // Dashboard
       healthOverview: 'Health Overview',
       recentSymptoms: 'Recent Symptoms',
       upcomingMeds: 'Upcoming Medications',
       familyAlerts: 'Family Alerts',
-      
+
       // Symptoms
       logSymptom: 'Log Symptom',
       symptomType: 'Symptom Type',
       severity: 'Severity',
       description: 'Description',
       painLevel: 'Pain Level',
-      
+
       // Medications
       addMedication: 'Add Medication',
       medicationName: 'Medication Name',
       dosage: 'Dosage',
       frequency: 'Frequency',
       setReminder: 'Set Reminder',
-      
+
       // Family
       inviteFamily: 'Invite Family Member',
       familyMembers: 'Family Members',
       healthStatus: 'Health Status',
-      
+
       // Common symptoms
       headache: 'Headache',
       fever: 'Fever',
@@ -82,13 +82,13 @@ const resources = {
       dizziness: 'Dizziness',
       chestPain: 'Chest Pain',
       backPain: 'Back Pain',
-      
+
       // Severity levels
       mild: 'Mild',
       moderate: 'Moderate',
       severe: 'Severe',
       verySevere: 'Very Severe',
-      
+
       // Relations
       father: 'Father',
       mother: 'Mother',
@@ -97,7 +97,23 @@ const resources = {
       sibling: 'Sibling',
       grandparent: 'Grandparent',
       other: 'Other',
-    }
+
+      // Profile
+      personalInformation: 'Personal Information',
+      medicalHistory: 'Medical History',
+      healthReports: 'Health Reports',
+      helpSupport: 'Help & Support',
+      termsConditions: 'Terms & Conditions',
+      privacyPolicy: 'Privacy Policy',
+      healthScore: 'Health Score',
+      symptomsThisMonth: 'Symptoms This Month',
+      activeMedications: 'Active Medications',
+      notifications: 'Notifications',
+      fallDetection: 'Fall Detection',
+      language: 'Language',
+      comingSoon: 'Coming Soon',
+      ok: 'OK',
+    },
   },
   ar: {
     translation: {
@@ -115,7 +131,7 @@ const resources = {
       loading: 'جاري التحميل...',
       error: 'خطأ',
       success: 'نجح',
-      
+
       // Auth
       signIn: 'تسجيل الدخول',
       signUp: 'إنشاء حساب',
@@ -127,7 +143,7 @@ const resources = {
       createAccount: 'إنشاء حساب',
       alreadyHaveAccount: 'لديك حساب بالفعل؟',
       dontHaveAccount: 'ليس لديك حساب؟',
-      
+
       // Onboarding
       onboardingTitle1: 'تتبع صحتك',
       onboardingDesc1: 'راقب أعراضك وأدويتك وعلاماتك الحيوية في مكان واحد',
@@ -135,39 +151,39 @@ const resources = {
       onboardingDesc2: 'حافظ على صحة عائلتك بالكامل مع المراقبة المشتركة',
       onboardingTitle3: 'تنبيهات ذكية',
       onboardingDesc3: 'احصل على تذكيرات في الوقت المناسب وإشعارات الطوارئ',
-      
+
       // Navigation
       dashboard: 'لوحة التحكم',
       symptoms: 'الأعراض',
       medications: 'الأدوية',
       family: 'العائلة',
       profile: 'الملف الشخصي',
-      
+
       // Dashboard
       healthOverview: 'نظرة عامة على الصحة',
       recentSymptoms: 'الأعراض الأخيرة',
       upcomingMeds: 'الأدوية القادمة',
       familyAlerts: 'تنبيهات العائلة',
-      
+
       // Symptoms
       logSymptom: 'تسجيل عرض',
       symptomType: 'نوع العرض',
       severity: 'الشدة',
       description: 'الوصف',
       painLevel: 'مستوى الألم',
-      
+
       // Medications
       addMedication: 'إضافة دواء',
       medicationName: 'اسم الدواء',
       dosage: 'الجرعة',
       frequency: 'التكرار',
       setReminder: 'تعيين تذكير',
-      
+
       // Family
       inviteFamily: 'دعوة فرد من العائلة',
       familyMembers: 'أفراد العائلة',
       healthStatus: 'الحالة الصحية',
-      
+
       // Common symptoms
       headache: 'صداع',
       fever: 'حمى',
@@ -177,13 +193,13 @@ const resources = {
       dizziness: 'دوخة',
       chestPain: 'ألم في الصدر',
       backPain: 'ألم في الظهر',
-      
+
       // Severity levels
       mild: 'خفيف',
       moderate: 'متوسط',
       severe: 'شديد',
       verySevere: 'شديد جداً',
-      
+
       // Relations
       father: 'الأب',
       mother: 'الأم',
@@ -192,20 +208,56 @@ const resources = {
       sibling: 'الأخ/الأخت',
       grandparent: 'الجد/الجدة',
       other: 'آخر',
-    }
-  }
+
+      // Profile
+      personalInformation: 'المعلومات الشخصية',
+      medicalHistory: 'التاريخ الطبي',
+      healthReports: 'التقارير الصحية',
+      helpSupport: 'المساعدة والدعم',
+      termsConditions: 'الشروط والأحكام',
+      privacyPolicy: 'سياسة الخصوصية',
+      healthScore: 'نقاط الصحة',
+      symptomsThisMonth: 'أعراض هذا الشهر',
+      activeMedications: 'أدوية نشطة',
+      notifications: 'الإشعارات',
+      fallDetection: 'كشف السقوط',
+      language: 'اللغة',
+      comingSoon: 'قريباً',
+      ok: 'موافق',
+    },
+  },
 };
 
-i18n
-  .use(initReactI18next)
-  .init({
-    compatibilityJSON: 'v3',
-    resources,
-    lng: Localization.locale.startsWith('ar') ? 'ar' : 'en',
-    fallbackLng: 'en',
-    interpolation: {
-      escapeValue: false,
-    },
-  });
+// Initialize i18n with proper configuration for react-i18next
+const initI18n = () => {
+  i18n
+    .use(initReactI18next) // Pass the i18n instance to react-i18next
+    .init({
+      compatibilityJSON: 'v3', // Fix Intl.PluralRules compatibility
+      resources,
+      lng: 'en', // Default to English for now
+      fallbackLng: 'en',
+
+      interpolation: {
+        escapeValue: false, // React already does escaping
+      },
+
+      // React Native specific options
+      react: {
+        useSuspense: false, // Disable suspense for React Native
+      },
+
+      // Cache configuration for React Native
+      cache: {
+        enabled: false, // Disable caching for now to avoid issues
+      },
+    })
+    .catch((error) => {
+      console.error('i18n initialization error:', error);
+    });
+};
+
+// Initialize i18n
+initI18n();
 
 export default i18n;

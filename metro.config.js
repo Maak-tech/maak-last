@@ -1,19 +1,16 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
+/** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-// Add resolver configuration to handle platform-specific modules
-config.resolver.platforms = ['ios', 'android', 'native', 'web'];
+// Basic configuration without experimental features
+config.transformer.unstable_allowRequireContext = true;
 
-// Configure transformer to handle large bundles
-config.transformer.minifierConfig = {
-  keep_fnames: true,
-  mangle: {
-    keep_fnames: true,
-  },
-};
+// SDK 51 compatible resolver settings
+config.resolver.unstable_enableSymlinks = false;
+config.resolver.unstable_enablePackageExports = false;
 
-// Increase memory limits
-config.transformer.maxWorkers = 2;
+// Ensure compatibility with Metro 0.80.x
+config.resetCache = true;
 
 module.exports = config;

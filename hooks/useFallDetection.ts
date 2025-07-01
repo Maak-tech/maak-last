@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
+import { alertService } from '@/lib/services/alertService';
 
 interface AccelerometerData {
   x: number;
@@ -8,17 +9,28 @@ interface AccelerometerData {
   timestamp: number;
 }
 
-export const useFallDetection = (onFallDetected: () => void) => {
+export const useFallDetection = (
+  userId: string | null,
+  onFallDetected: (alertId: string) => void
+) => {
   const [isActive, setIsActive] = useState(false);
   const [lastData, setLastData] = useState<AccelerometerData | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const handleFallDetected = useCallback(() => {
+  const handleFallDetected = useCallback(async () => {
     try {
-      onFallDetected();
+      if (userId) {
+        // Create alert in Firebase
+        const alertId = await alertService.createFallAlert(userId);
+        onFallDetected(alertId);
+      } else {
+        onFallDetected('demo-alert');
+      }
     } catch (error) {
-      console.error('Error in fall detection callback:', error);
+      console.error('Error creating fall alert:', error);
+      onFallDetected('error-alert');
     }
-  }, [onFallDetected]);
+  }, [userId, onFallDetected]);
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -28,26 +40,52 @@ export const useFallDetection = (onFallDetected: () => void) => {
 
     let subscription: any;
     let isSubscriptionActive = false;
+    let initializationTimeout: NodeJS.Timeout | undefined;
 
-    if (isActive) {
+    if (isActive && !isInitialized) {
       try {
-        // Dynamically import expo-sensors only on native platforms
+        // Add timeout to prevent hanging initialization
+        initializationTimeout = setTimeout(() => {
+          console.warn('Fall detection initialization timeout');
+          setIsInitialized(false);
+        }, 5000);
+
+        // Dynamically import expo-sensors only on native platforms with better error handling
         const initializeSensors = async () => {
           try {
+            // Add delay to ensure React Native bridge is ready
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
             const { DeviceMotion } = await import('expo-sensors');
-            
-            // Check if DeviceMotion is available
-            const isAvailable = await DeviceMotion.isAvailableAsync();
+
+            // Clear timeout if initialization succeeds
+            if (initializationTimeout) {
+              clearTimeout(initializationTimeout);
+            }
+
+            // Check if DeviceMotion is available with timeout
+            const availabilityPromise = DeviceMotion.isAvailableAsync();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout')), 3000)
+            );
+
+            const isAvailable = (await Promise.race([
+              availabilityPromise,
+              timeoutPromise,
+            ])) as boolean;
+
             if (!isAvailable) {
               console.warn('DeviceMotion is not available on this device');
+              setIsInitialized(false);
               return;
             }
 
-            DeviceMotion.setUpdateInterval(200); // Reduced frequency to prevent crashes
-            
+            // Set conservative update interval to prevent crashes
+            DeviceMotion.setUpdateInterval(1000); // Increased to 1 second
+
             subscription = DeviceMotion.addListener((data: any) => {
-              if (!isSubscriptionActive) return;
-              
+              if (!isSubscriptionActive || !data) return;
+
               try {
                 if (data.acceleration) {
                   const currentData: AccelerometerData = {
@@ -57,16 +95,20 @@ export const useFallDetection = (onFallDetected: () => void) => {
                     timestamp: Date.now(),
                   };
 
-                  // Simple fall detection algorithm with safety checks
+                  // More conservative fall detection algorithm
                   const totalAcceleration = Math.sqrt(
-                    currentData.x ** 2 + currentData.y ** 2 + currentData.z ** 2
+                    Math.pow(currentData.x, 2) +
+                      Math.pow(currentData.y, 2) +
+                      Math.pow(currentData.z, 2)
                   );
 
-                  // More conservative thresholds to prevent false positives
-                  if (totalAcceleration > 3.0 || totalAcceleration < 0.3) {
+                  // Very conservative thresholds to prevent false positives and crashes
+                  if (totalAcceleration > 4.0 || totalAcceleration < 0.2) {
                     if (lastData) {
-                      const timeDiff = currentData.timestamp - lastData.timestamp;
-                      if (timeDiff < 2000 && timeDiff > 100) { // Between 100ms and 2 seconds
+                      const timeDiff =
+                        currentData.timestamp - lastData.timestamp;
+                      if (timeDiff < 3000 && timeDiff > 500) {
+                        // Between 500ms and 3 seconds
                         handleFallDetected();
                       }
                     }
@@ -76,23 +118,37 @@ export const useFallDetection = (onFallDetected: () => void) => {
                 }
               } catch (dataError) {
                 console.warn('Error processing sensor data:', dataError);
+                // Stop subscription on repeated errors to prevent crashes
+                isSubscriptionActive = false;
               }
             });
-            
+
             isSubscriptionActive = true;
+            setIsInitialized(true);
           } catch (importError) {
             console.warn('Failed to initialize DeviceMotion:', importError);
+            setIsInitialized(false);
+            if (initializationTimeout) {
+              clearTimeout(initializationTimeout);
+            }
           }
         };
 
         initializeSensors();
       } catch (error) {
         console.warn('DeviceMotion initialization error:', error);
+        setIsInitialized(false);
+        if (initializationTimeout) {
+          clearTimeout(initializationTimeout);
+        }
       }
     }
 
     return () => {
       isSubscriptionActive = false;
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+      }
       if (subscription) {
         try {
           subscription.remove();
@@ -101,7 +157,7 @@ export const useFallDetection = (onFallDetected: () => void) => {
         }
       }
     };
-  }, [isActive, lastData, handleFallDetected]);
+  }, [isActive, isInitialized, handleFallDetected]);
 
   const startFallDetection = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -113,11 +169,12 @@ export const useFallDetection = (onFallDetected: () => void) => {
 
   const stopFallDetection = useCallback(() => {
     setIsActive(false);
+    setIsInitialized(false);
     setLastData(null);
   }, []);
 
   return {
-    isActive,
+    isActive: isActive && isInitialized,
     startFallDetection,
     stopFallDetection,
   };
