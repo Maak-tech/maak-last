@@ -30,7 +30,7 @@ export default function TabLayout() {
         options={{
           title: t('dashboard'),
           tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} />
+            <Home size={size || 24} color={color} />
           ),
         }}
       />
@@ -39,7 +39,7 @@ export default function TabLayout() {
         options={{
           title: t('symptoms'),
           tabBarIcon: ({ size, color }) => (
-            <Activity size={size} color={color} />
+            <Activity size={size || 24} color={color} />
           ),
         }}
       />
@@ -48,7 +48,7 @@ export default function TabLayout() {
         options={{
           title: t('medications'),
           tabBarIcon: ({ size, color }) => (
-            <Pill size={size} color={color} />
+            <Pill size={size || 24} color={color} />
           ),
         }}
       />
@@ -57,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: t('family'),
           tabBarIcon: ({ size, color }) => (
-            <Users size={size} color={color} />
+            <Users size={size || 24} color={color} />
           ),
         }}
       />
@@ -66,7 +66,7 @@ export default function TabLayout() {
         options={{
           title: t('profile'),
           tabBarIcon: ({ size, color }) => (
-            <User size={size} color={color} />
+            <User size={size || 24} color={color} />
           ),
         }}
       />

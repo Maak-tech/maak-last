@@ -1,34 +1,56 @@
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, initializeAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Mock Firebase for web platform to prevent crashes
-const mockAuth = {
-  currentUser: null,
-  onAuthStateChanged: () => () => {},
-  signInWithEmailAndPassword: async () => ({ user: { uid: 'demo' } }),
-  createUserWithEmailAndPassword: async () => ({ user: { uid: 'demo' } }),
-  signOut: async () => {},
+// Firebase configuration - Replace these with your actual Firebase config
+const firebaseConfig = {
+  apiKey:
+    process.env.EXPO_PUBLIC_FIREBASE_API_KEY ||
+    'AIzaSyBzfNXpiKb5LhpX347PTXIODpZ6M9XFblQ',
+  authDomain:
+    process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ||
+    'maak-5caad.firebaseapp.com',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'maak-5caad',
+  storageBucket:
+    process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    'maak-5caad.firebasestorage.app',
+  messagingSenderId:
+    process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '827176918437',
+  appId:
+    process.env.EXPO_PUBLIC_FIREBASE_APP_ID ||
+    '1:827176918437:web:356fe7e2b4ecb3b99b1c4c',
+  measurementId:
+    process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-KZ279W9ELM',
 };
 
-const mockDb = {
-  collection: () => ({
-    doc: () => ({
-      get: async () => ({ exists: false, data: () => ({}) }),
-      set: async () => {},
-    }),
-  }),
-};
+// Initialize Firebase App (only if not already initialized)
+let app;
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0];
+}
 
-const mockStorage = {
-  ref: () => ({
-    put: async () => ({ ref: { getDownloadURL: async () => 'mock-url' } }),
-  }),
-};
+// Initialize Firebase Auth
+// Note: AsyncStorage persistence is automatically handled by Firebase v10+ when @react-native-async-storage/async-storage is installed
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
-// For web platform, use mock implementations
-export const auth = Platform.OS === 'web' ? mockAuth : mockAuth;
-export const db = Platform.OS === 'web' ? mockDb : mockDb;
-export const storage = Platform.OS === 'web' ? mockStorage : mockStorage;
+// Connect to emulators in development (optional)
+if (__DEV__ && Platform.OS !== 'web') {
+  // Uncomment these lines if you want to use Firebase emulators for development
+  // Note: Make sure emulators are running first
+  // try {
+  //   connectAuthEmulator(auth, 'http://localhost:9099');
+  //   connectFirestoreEmulator(db, 'localhost', 8080);
+  //   connectStorageEmulator(storage, 'localhost', 9199);
+  // } catch (error) {
+  //   console.log('Emulator connection failed:', error);
+  // }
+}
 
-// Mock Firebase app
-const app = { name: 'mock-app' };
 export default app;

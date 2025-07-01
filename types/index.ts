@@ -42,7 +42,7 @@ export interface MedicationReminder {
   id: string;
   time: string;
   taken: boolean;
-  takenAt?: Date;
+  takenAt?: Date | any; // Can be Date or Firestore Timestamp
 }
 
 export interface MedicalHistory {
@@ -86,4 +86,27 @@ export interface EmergencyAlert {
   timestamp: Date;
   resolved: boolean;
   responders?: string[];
+}
+
+export interface FamilyInvitationCode {
+  id: string;
+  code: string;
+  familyId: string;
+  invitedBy: string; // userId who created the invitation
+  invitedUserName: string;
+  invitedUserRelation: string;
+  status: 'pending' | 'used' | 'expired';
+  createdAt: Date;
+  expiresAt: Date;
+  usedAt?: Date;
+  usedBy?: string; // userId who used the code
+}
+
+export interface Family {
+  id: string;
+  name: string;
+  createdBy: string;
+  members: string[]; // array of user IDs
+  status: 'active' | 'inactive';
+  createdAt: Date;
 }
