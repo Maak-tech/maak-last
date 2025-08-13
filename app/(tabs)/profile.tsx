@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFallDetectionContext } from '@/contexts/FallDetectionContext';
 import { firebaseValidation } from '@/lib/services/firebaseValidation';
@@ -62,6 +63,7 @@ export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [healthData, setHealthData] = useState({
     symptoms: [] as Symptom[],
     medications: [] as Medication[],
@@ -69,6 +71,14 @@ export default function ProfileScreen() {
   });
 
   const isRTL = i18n.language === 'ar';
+
+  // Refresh data when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadHealthData();
+      loadUserSettings();
+    }, [user])
+  );
 
   useEffect(() => {
     loadUserSettings();
@@ -87,11 +97,15 @@ export default function ProfileScreen() {
     }
   };
 
-  const loadHealthData = async () => {
+  const loadHealthData = async (isRefresh = false) => {
     if (!user?.id) return;
 
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const [symptoms, medications] = await Promise.all([
         symptomService.getUserSymptoms(user.id),
         medicationService.getUserMedications(user.id),
@@ -118,6 +132,7 @@ export default function ProfileScreen() {
       console.error('Error loading health data:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -274,6 +289,11 @@ export default function ProfileScreen() {
           onPress: () => router.push('/debug-notifications' as any),
         },
         {
+          icon: Heart,
+          label: isRTL ? 'مساعد الصحة الذكي' : 'AI Health Assistant',
+          onPress: () => router.push('/ai-assistant' as any),
+        },
+        {
           icon: Globe,
           label: isRTL ? 'اللغة' : 'Language',
           value: isRTL ? 'العربية' : 'English',
@@ -311,7 +331,16 @@ export default function ProfileScreen() {
         </Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadHealthData(true)}
+            tintColor="#2563EB"
+          />
+        }>
         {/* User Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>

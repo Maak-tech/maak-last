@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,12 @@ import {
   TextInput,
   Modal,
   Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFocusEffect } from 'expo-router';
 import {
   Plus,
   Clock,
@@ -44,6 +47,7 @@ export default function MedicationsScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [newMedication, setNewMedication] = useState({
     name: '',
     dosage: '',
@@ -66,11 +70,15 @@ export default function MedicationsScreen() {
   const isAdmin = user?.role === 'admin';
   const hasFamily = Boolean(user?.familyId);
 
-  const loadMedications = async () => {
+  const loadMedications = async (isRefresh = false) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
       // Always load family members first if user has family
       let members: UserType[] = [];
@@ -106,8 +114,16 @@ export default function MedicationsScreen() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  // Refresh data when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadMedications();
+    }, [user, selectedFilter])
+  );
 
   useEffect(() => {
     loadMedications();
@@ -453,7 +469,16 @@ export default function MedicationsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadMedications(true)}
+            tintColor="#2563EB"
+          />
+        }>
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
           familyMembers={familyMembers}

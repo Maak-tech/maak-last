@@ -1,8 +1,7 @@
 import { userService } from './userService';
 import { fcmService } from './fcmService';
 import { User } from '@/types';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { httpsCallable, getFunctions } from 'firebase/functions';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
@@ -28,6 +27,26 @@ export interface PushNotificationData {
   notificationType?: 'fall' | 'medication' | 'symptom' | 'family' | 'general';
 }
 
+// Helper to get authenticated functions instance
+async function getAuthenticatedFunctions() {
+  const { auth, app } = await import('@/lib/firebase');
+  
+  // Wait for auth to be ready
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    // Force token refresh to ensure we have a valid token
+    try {
+      await currentUser.getIdToken(true);
+      console.log('🔑 Auth token refreshed for push notification');
+    } catch (e) {
+      console.warn('⚠️ Could not refresh token:', e);
+    }
+  }
+  
+  // Return the functions instance (it will use the current auth state)
+  return getFunctions(app, 'us-central1');
+}
+
 export const pushNotificationService = {
   // Send notification to specific user
   async sendToUser(
@@ -40,7 +59,8 @@ export const pushNotificationService = {
 
       if (isFCMAvailable) {
         console.log('📱 Attempting FCM notification for user:', userId);
-        const success = await fcmService.sendPushNotification([userId], {
+        // Use HTTP endpoint to bypass auth issues
+        const success = await fcmService.sendPushNotificationHTTP([userId], {
           title: notification.title,
           body: notification.body,
           data: notification.data,
@@ -113,7 +133,8 @@ export const pushNotificationService = {
         );
         const userIds = membersToNotify.map((member) => member.id);
 
-        const success = await fcmService.sendPushNotification(userIds, {
+        // Use HTTP endpoint to bypass auth issues
+        const success = await fcmService.sendPushNotificationHTTP(userIds, {
           title: notification.title,
           body: notification.body,
           data: notification.data,
@@ -175,7 +196,8 @@ export const pushNotificationService = {
         const currentUser = auth.currentUser;
         console.log('🔐 Current auth user:', currentUser ? currentUser.uid : 'NOT AUTHENTICATED');
         
-        // Use the main sendPushNotification function which is working
+        // Use the main sendPushNotification function with authenticated context
+        const functions = await getAuthenticatedFunctions();
         const sendPushFunc = httpsCallable(functions, 'sendPushNotification');
         
         // Get family members
@@ -202,6 +224,7 @@ export const pushNotificationService = {
             badge: 1,
           },
           notificationType: 'fall',
+          senderId: currentUser?.uid || userId, // Include senderId as fallback
         });
         
         console.log('🚨 Fall alert sent via Cloud Function:', result.data);
@@ -250,10 +273,13 @@ export const pushNotificationService = {
       
       if (isFCMAvailable) {
         console.log('💊 Sending medication reminder via Cloud Function');
-        // Use the configured functions instance
-        
-        // Use the main sendPushNotification function which is working
+        // Use the configured functions instance with authenticated context
+        const functions = await getAuthenticatedFunctions();
         const sendPushFunc = httpsCallable(functions, 'sendPushNotification');
+        
+        // Get current user for senderId
+        const { auth } = await import('@/lib/firebase');
+        const currentUser = auth.currentUser;
         
         await sendPushFunc({
           userIds: [userId],
@@ -271,6 +297,7 @@ export const pushNotificationService = {
             color: '#10B981',
           },
           notificationType: 'medication',
+          senderId: currentUser?.uid || userId, // Include senderId as fallback
         });
         return;
       }
@@ -367,9 +394,8 @@ export const pushNotificationService = {
       
       if (isFCMAvailable) {
         console.log('⚠️ Sending symptom alert via Cloud Function');
-        // Use the configured functions instance
-        
-        // Use the main sendPushNotification function which is working
+        // Use the configured functions instance with authenticated context
+        const functions = await getAuthenticatedFunctions();
         const sendPushFunc = httpsCallable(functions, 'sendPushNotification');
         
         // Get family members
@@ -379,6 +405,11 @@ export const pushNotificationService = {
           .map(m => m.id);
         
         const severityText = severity === 5 ? 'very severe' : 'severe';
+        
+        // Get current user for senderId
+        const { auth } = await import('@/lib/firebase');
+        const currentUser = auth.currentUser;
+        
         await sendPushFunc({
           userIds: memberIds,
           notification: {
@@ -395,6 +426,7 @@ export const pushNotificationService = {
             color: severity === 5 ? '#EF4444' : '#F59E0B',
           },
           notificationType: 'symptom',
+          senderId: currentUser?.uid || userId, // Include senderId as fallback
         });
         return;
       }
@@ -455,7 +487,8 @@ export const pushNotificationService = {
     }
   ): Promise<void> {
     try {
-      // Use the configured functions instance
+      // Use the configured functions instance with authenticated context
+      const functions = await getAuthenticatedFunctions();
       const saveFCMTokenFunc = httpsCallable(functions, 'saveFCMToken');
       
       await saveFCMTokenFunc({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Heart,
   AlertTriangle,
@@ -210,6 +210,13 @@ export default function DashboardScreen() {
   useEffect(() => {
     loadDashboardData();
   }, [user, selectedFilter]);
+
+  // Refresh data when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboardData();
+    }, [user, selectedFilter])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  FlatList,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,9 +16,6 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  User as UserIcon,
-  Phone,
-  MessageCircle,
 } from 'lucide-react-native';
 
 interface AlertsCardProps {
@@ -27,7 +23,7 @@ interface AlertsCardProps {
 }
 
 export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,7 +59,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     }
   };
 
-  const handleRespond = async (alertId: string, alertUserId: string) => {
+  const handleRespond = async (alertId: string) => {
     if (!user?.id) return;
 
     try {
@@ -128,7 +124,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     return member?.name || (isRTL ? 'عضو غير معروف' : 'Unknown Member');
   };
 
-  const getAlertIcon = (type: string, severity: string) => {
+  const getAlertIcon = (type: string) => {
     switch (type) {
       case 'fall':
         return <AlertTriangle size={24} color="#EF4444" />;
@@ -182,7 +178,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       >
         <View style={styles.alertHeader}>
           <View style={styles.alertIcon}>
-            {getAlertIcon(item.type, item.severity)}
+            {getAlertIcon(item.type)}
           </View>
           <View style={styles.alertInfo}>
             <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
@@ -220,7 +216,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
           {!hasResponded && (
             <TouchableOpacity
               style={[styles.actionButton, styles.respondButton]}
-              onPress={() => handleRespond(item.id, item.userId)}
+              onPress={() => handleRespond(item.id)}
               disabled={isResponding}
             >
               {isResponding ? (
@@ -301,13 +297,13 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         </View>
       </View>
 
-      <FlatList
-        data={alerts}
-        renderItem={renderAlert}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.alertsList}
-      />
+      <View style={styles.alertsList}>
+        {alerts.map((item) => (
+          <View key={item.id}>
+            {renderAlert({ item })}
+          </View>
+        ))}
+      </View>
     </View>
   );
 }

@@ -44,6 +44,27 @@ service cloud.firestore {
       
       // Allow authenticated users to query and list users (simplified for debugging)
       allow list, read: if request.auth != null;
+      
+      // Subcollections under user document
+      match /medications/{medicationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /symptoms/{symptomId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /family/{familyMemberId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /alerts/{alertId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /chatSessions/{sessionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     // Symptoms collection (simplified for debugging)

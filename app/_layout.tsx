@@ -9,11 +9,10 @@ import '@/lib/i18n';
 // Configure how notifications should be displayed when app is in foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,  // Show notification banner at top
+    shouldShowList: true,    // Show in notification list
     shouldPlaySound: true,
     shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
   }),
 });
 

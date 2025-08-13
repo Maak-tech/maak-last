@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,12 @@ import {
   TextInput,
   Modal,
   Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFocusEffect } from 'expo-router';
 import {
   Plus,
   Calendar,
@@ -50,6 +53,7 @@ export default function SymptomsScreen() {
   const [severity, setSeverity] = useState(1);
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
@@ -70,11 +74,15 @@ export default function SymptomsScreen() {
   const isAdmin = user?.role === 'admin';
   const hasFamily = Boolean(user?.familyId);
 
-  const loadSymptoms = async () => {
+  const loadSymptoms = async (isRefresh = false) => {
     if (!user) return;
 
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
       // Always load family members first if user has family
       let members: UserType[] = [];
@@ -120,8 +128,16 @@ export default function SymptomsScreen() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  // Refresh data when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadSymptoms();
+    }, [user, selectedFilter])
+  );
 
   useEffect(() => {
     loadSymptoms();
@@ -424,7 +440,16 @@ export default function SymptomsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadSymptoms(true)}
+            tintColor="#2563EB"
+          />
+        }>
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
           familyMembers={familyMembers}

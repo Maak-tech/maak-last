@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,11 @@ import {
   ActivityIndicator,
   Clipboard,
   Share,
+  RefreshControl,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFocusEffect } from 'expo-router';
 import { userService } from '@/lib/services/userService';
 import { familyInviteService } from '@/lib/services/familyInviteService';
 import { User } from '@/types';
@@ -51,6 +53,7 @@ export default function FamilyScreen() {
   const [showEditMemberModal, setShowEditMemberModal] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -74,13 +77,20 @@ export default function FamilyScreen() {
     loadFamilyMembers();
   }, [user]);
 
-  const loadFamilyMembers = async () => {
+  const loadFamilyMembers = async (isRefresh = false) => {
     if (!user?.familyId) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
 
     try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members);
     } catch (error) {
@@ -91,8 +101,16 @@ export default function FamilyScreen() {
       );
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  // Refresh data when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadFamilyMembers();
+    }, [user])
+  );
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
@@ -561,7 +579,16 @@ export default function FamilyScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadFamilyMembers(true)}
+            tintColor="#2563EB"
+          />
+        }>
         {/* Family Overview */}
         <View style={styles.overviewCard}>
           <Text style={[styles.overviewTitle, isRTL && styles.rtlText]}>

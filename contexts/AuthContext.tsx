@@ -150,22 +150,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           setUser(userData);
 
-          // Initialize FCM for push notifications
-          console.log('📱 Initializing FCM for user:', userData.id);
-          fcmService
-            .initializeFCM(userData.id)
-            .then((success) => {
-              if (success) {
-                console.log('✅ FCM initialized successfully');
-              } else {
-                console.log(
-                  '⚠️ FCM initialization failed - will use local notifications'
-                );
-              }
-            })
-            .catch((error) => {
-              console.log('❌ FCM initialization error:', error);
-            });
+          // Initialize FCM for push notifications (with delay to ensure auth is ready)
+          console.log('📱 Scheduling FCM initialization for user:', userData.id);
+          setTimeout(() => {
+            console.log('📱 Now initializing FCM for user:', userData.id);
+            fcmService
+              .initializeFCM(userData.id)
+              .then((success) => {
+                if (success) {
+                  console.log('✅ FCM initialized successfully');
+                } else {
+                  console.log(
+                    '⚠️ FCM initialization failed - will use local notifications'
+                  );
+                }
+              })
+              .catch((error) => {
+                console.log('❌ FCM initialization error:', error);
+              });
+          }, 3000); // Wait 3 seconds to ensure auth is fully ready
 
           // Check for pending family code after authentication
           console.log('🔍 Checking for pending family code...');
