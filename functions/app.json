@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "3AD54BD9-14D3-4AAB-8EA5-1A38A923BF73"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.ahmad-alstaty.functions"
+    }
+  }
+}

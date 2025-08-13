@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFallDetectionContext } from '@/contexts/FallDetectionContext';
 import { firebaseValidation } from '@/lib/services/firebaseValidation';
 import { symptomService } from '@/lib/services/symptomService';
 import { medicationService } from '@/lib/services/medicationService';
@@ -55,9 +56,10 @@ interface ProfileSection {
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
+  const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
+    useFallDetectionContext();
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [fallDetectionEnabled, setFallDetectionEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [healthData, setHealthData] = useState({
@@ -76,15 +78,9 @@ export default function ProfileScreen() {
   const loadUserSettings = async () => {
     try {
       const notifications = await AsyncStorage.getItem('notifications_enabled');
-      const fallDetection = await AsyncStorage.getItem(
-        'fall_detection_enabled'
-      );
 
       if (notifications !== null) {
         setNotificationsEnabled(JSON.parse(notifications));
-      }
-      if (fallDetection !== null) {
-        setFallDetectionEnabled(JSON.parse(fallDetection));
       }
     } catch (error) {
       console.log('Error loading settings:', error);
@@ -131,8 +127,7 @@ export default function ProfileScreen() {
   };
 
   const handleFallDetectionToggle = async (value: boolean) => {
-    setFallDetectionEnabled(value);
-    await AsyncStorage.setItem('fall_detection_enabled', JSON.stringify(value));
+    await toggleFallDetection(value);
   };
 
   const handleLanguageChange = async (languageCode: 'en' | 'ar') => {
@@ -263,6 +258,7 @@ export default function ProfileScreen() {
           hasSwitch: true,
           switchValue: notificationsEnabled,
           onSwitchChange: handleNotificationToggle,
+          onPress: () => router.push('/profile/notification-settings'),
         },
         {
           icon: Shield,
@@ -270,6 +266,12 @@ export default function ProfileScreen() {
           hasSwitch: true,
           switchValue: fallDetectionEnabled,
           onSwitchChange: handleFallDetectionToggle,
+          onPress: () => router.push('/profile/fall-detection'),
+        },
+        {
+          icon: Settings,
+          label: isRTL ? 'تجربة الإشعارات' : 'Debug Notifications',
+          onPress: () => router.push('/debug-notifications' as any),
         },
         {
           icon: Globe,
@@ -420,7 +422,7 @@ export default function ProfileScreen() {
                         styles.lastSectionItem,
                     ]}
                     onPress={item.onPress}
-                    disabled={item.hasSwitch || false}
+                    disabled={!item.onPress}
                   >
                     <View style={styles.sectionItemLeft}>
                       <View style={styles.sectionItemIcon}>

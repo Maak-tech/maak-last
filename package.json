@@ -11,7 +11,9 @@
     "firebase:init": "npx tsx scripts/firebase-init-collections.ts",
     "firebase:check": "npx tsx scripts/firebase-setup-check.ts",
     "firebase:create-collections": "npx tsx scripts/create-user-collections.ts",
-    "firebase:fix-medications": "node scripts/fix-medications.js"
+    "firebase:fix-medications": "node scripts/fix-medications.js",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo-google-fonts/cairo": "^0.2.3",
@@ -27,6 +29,7 @@
     "expo-blur": "~14.1.5",
     "expo-camera": "~16.1.8",
     "expo-constants": "~17.1.6",
+    "expo-dev-client": "~5.2.4",
     "expo-device": "~7.1.4",
     "expo-font": "~13.3.1",
     "expo-haptics": "~14.1.4",

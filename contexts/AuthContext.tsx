@@ -16,6 +16,7 @@ import {
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { userService } from '@/lib/services/userService';
+import { fcmService } from '@/lib/services/fcmService';
 import { familyInviteService } from '@/lib/services/familyInviteService';
 import { User } from '@/types';
 
@@ -148,6 +149,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             '🔄 AuthContext: Setting user state via onAuthStateChanged'
           );
           setUser(userData);
+
+          // Initialize FCM for push notifications
+          console.log('📱 Initializing FCM for user:', userData.id);
+          fcmService
+            .initializeFCM(userData.id)
+            .then((success) => {
+              if (success) {
+                console.log('✅ FCM initialized successfully');
+              } else {
+                console.log(
+                  '⚠️ FCM initialization failed - will use local notifications'
+                );
+              }
+            })
+            .catch((error) => {
+              console.log('❌ FCM initialization error:', error);
+            });
 
           // Check for pending family code after authentication
           console.log('🔍 Checking for pending family code...');

@@ -30,6 +30,7 @@ import {
   Trash2,
   Settings,
 } from 'lucide-react-native';
+import AlertsCard from '@/app/components/AlertsCard';
 
 const RELATIONS = [
   { key: 'father', labelEn: 'Father', labelAr: 'الأب' },
@@ -599,6 +600,9 @@ export default function FamilyScreen() {
             </View>
           </View>
         </View>
+
+        {/* Active Alerts */}
+        <AlertsCard />
 
         {/* Family Members */}
         <View style={styles.section}>

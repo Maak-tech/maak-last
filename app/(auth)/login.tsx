@@ -10,13 +10,14 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { familyInviteService } from '@/lib/services/familyInviteService';
 import { userService } from '@/lib/services/userService';
-import { Heart, Users } from 'lucide-react-native';
+import { Users } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const { t, i18n } = useTranslation();
@@ -115,7 +116,11 @@ export default function LoginScreen() {
 
           <View style={styles.logoContainer}>
             <View style={styles.logo}>
-              <Heart size={40} color="#2563EB" />
+              <Image
+                source={require('@/assets/images/icon.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={[styles.appName, isRTL && styles.rtlText]}>Maak</Text>
             <Text style={[styles.tagline, isRTL && styles.rtlText]}>
@@ -292,6 +297,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  logoImage: {
+    width: 60,
+    height: 60,
   },
   appName: {
     fontSize: 32,

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "827176918437",
+    "project_id": "maak-5caad",
+    "storage_bucket": "maak-5caad.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827176918437:android:2fdd3c9e662310e69b1c4c",
+        "android_client_info": {
+          "package_name": "com.maak.health"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBejWVJIY6RCzQ41R1xVd4ZYrFTtID3vGk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

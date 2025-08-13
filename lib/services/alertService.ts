@@ -12,6 +12,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { EmergencyAlert } from '@/types';
+import { pushNotificationService } from './pushNotificationService';
+import { userService } from './userService';
 
 export const alertService = {
   // Create emergency alert
@@ -136,7 +138,35 @@ export const alertService = {
         responders: [],
       };
 
-      return await this.createAlert(alertData);
+      const alertId = await this.createAlert(alertData);
+
+      // Send push notification to family members
+      try {
+        const user = await userService.getUser(userId);
+        if (user && user.familyId) {
+          await pushNotificationService.sendFallAlert(
+            userId,
+            alertId,
+            user.name,
+            user.familyId
+          );
+        } else {
+          // If no family, send test notification to user
+          await pushNotificationService.sendFallAlert(
+            userId,
+            alertId,
+            user?.name || 'User'
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          'Error sending fall alert notification:',
+          notificationError
+        );
+        // Don't throw error here - alert was created successfully
+      }
+
+      return alertId;
     } catch (error) {
       console.error('Error creating fall alert:', error);
       throw error;

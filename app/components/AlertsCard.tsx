@@ -1,0 +1,452 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  FlatList,
+} from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/contexts/AuthContext';
+import { alertService } from '@/lib/services/alertService';
+import { userService } from '@/lib/services/userService';
+import { EmergencyAlert, User } from '@/types';
+import {
+  AlertTriangle,
+  Clock,
+  CheckCircle,
+  User as UserIcon,
+  Phone,
+  MessageCircle,
+} from 'lucide-react-native';
+
+interface AlertsCardProps {
+  refreshTrigger?: number;
+}
+
+export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
+  const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<User[]>([]);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
+
+  const isRTL = i18n.language === 'ar';
+
+  useEffect(() => {
+    loadAlerts();
+  }, [user, refreshTrigger]);
+
+  const loadAlerts = async () => {
+    if (!user?.familyId) return;
+
+    try {
+      setLoading(true);
+
+      // Load family members first
+      const members = await userService.getFamilyMembers(user.familyId);
+      setFamilyMembers(members);
+
+      // Get user IDs for family alerts
+      const userIds = members.map((member) => member.id);
+
+      // Load family alerts
+      const familyAlerts = await alertService.getFamilyAlerts(userIds, 10);
+      setAlerts(familyAlerts);
+    } catch (error) {
+      console.error('Error loading alerts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRespond = async (alertId: string, alertUserId: string) => {
+    if (!user?.id) return;
+
+    try {
+      setRespondingTo(alertId);
+
+      // Add current user as responder
+      await alertService.addResponder(alertId, user.id);
+
+      // Show success message
+      Alert.alert(
+        isRTL ? 'تم التجاوب' : 'Response Recorded',
+        isRTL
+          ? 'تم تسجيل استجابتك للتنبيه. تواصل مع المريض للتأكد من سلامته.'
+          : 'Your response has been recorded. Please contact the patient to ensure they are safe.',
+        [{ text: isRTL ? 'موافق' : 'OK' }]
+      );
+
+      // Reload alerts
+      await loadAlerts();
+    } catch (error) {
+      console.error('Error responding to alert:', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل في تسجيل الاستجابة' : 'Failed to record response'
+      );
+    } finally {
+      setRespondingTo(null);
+    }
+  };
+
+  const handleResolve = async (alertId: string) => {
+    if (!user?.id) return;
+
+    Alert.alert(
+      isRTL ? 'حل التنبيه' : 'Resolve Alert',
+      isRTL
+        ? 'هل أنت متأكد أن الموقف تم حله؟'
+        : 'Are you sure the situation has been resolved?',
+      [
+        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
+        {
+          text: isRTL ? 'نعم' : 'Yes',
+          onPress: async () => {
+            try {
+              await alertService.resolveAlert(alertId, user.id);
+              await loadAlerts();
+            } catch (error) {
+              console.error('Error resolving alert:', error);
+              Alert.alert(
+                isRTL ? 'خطأ' : 'Error',
+                isRTL ? 'فشل في حل التنبيه' : 'Failed to resolve alert'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const getMemberName = (userId: string): string => {
+    const member = familyMembers.find((m) => m.id === userId);
+    return member?.name || (isRTL ? 'عضو غير معروف' : 'Unknown Member');
+  };
+
+  const getAlertIcon = (type: string, severity: string) => {
+    switch (type) {
+      case 'fall':
+        return <AlertTriangle size={24} color="#EF4444" />;
+      case 'medication':
+        return <Clock size={24} color="#F59E0B" />;
+      case 'emergency':
+        return <AlertTriangle size={24} color="#DC2626" />;
+      default:
+        return <AlertTriangle size={24} color="#6B7280" />;
+    }
+  };
+
+  const getAlertColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return '#DC2626';
+      case 'high':
+        return '#EF4444';
+      case 'medium':
+        return '#F59E0B';
+      case 'low':
+        return '#10B981';
+      default:
+        return '#6B7280';
+    }
+  };
+
+  const formatTimestamp = (timestamp: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - timestamp.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+
+    if (minutes < 1) return isRTL ? 'الآن' : 'now';
+    if (minutes < 60) return isRTL ? `منذ ${minutes}د` : `${minutes}m ago`;
+    if (hours < 24) return isRTL ? `منذ ${hours}س` : `${hours}h ago`;
+    return timestamp.toLocaleDateString();
+  };
+
+  const renderAlert = ({ item }: { item: EmergencyAlert }) => {
+    const memberName = getMemberName(item.userId);
+    const isResponding = respondingTo === item.id;
+    const hasResponded = item.responders?.includes(user?.id || '');
+
+    return (
+      <View
+        style={[
+          styles.alertCard,
+          { borderLeftColor: getAlertColor(item.severity) },
+        ]}
+      >
+        <View style={styles.alertHeader}>
+          <View style={styles.alertIcon}>
+            {getAlertIcon(item.type, item.severity)}
+          </View>
+          <View style={styles.alertInfo}>
+            <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
+              {item.type === 'fall' && (isRTL ? 'تنبيه سقوط' : 'Fall Alert')}
+              {item.type === 'medication' &&
+                (isRTL ? 'تنبيه دواء' : 'Medication Alert')}
+              {item.type === 'emergency' &&
+                (isRTL ? 'تنبيه طوارئ' : 'Emergency Alert')}
+            </Text>
+            <Text style={[styles.alertMember, isRTL && styles.rtlText]}>
+              {memberName}
+            </Text>
+          </View>
+          <Text style={[styles.alertTime, isRTL && styles.rtlText]}>
+            {formatTimestamp(item.timestamp)}
+          </Text>
+        </View>
+
+        <Text style={[styles.alertMessage, isRTL && styles.rtlText]}>
+          {item.message}
+        </Text>
+
+        {item.responders && item.responders.length > 0 && (
+          <View style={styles.respondersSection}>
+            <Text style={[styles.respondersLabel, isRTL && styles.rtlText]}>
+              {isRTL ? 'المتجاوبون:' : 'Responders:'}
+            </Text>
+            <Text style={[styles.respondersText, isRTL && styles.rtlText]}>
+              {item.responders.map((id) => getMemberName(id)).join(', ')}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.alertActions}>
+          {!hasResponded && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.respondButton]}
+              onPress={() => handleRespond(item.id, item.userId)}
+              disabled={isResponding}
+            >
+              {isResponding ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <CheckCircle size={16} color="#FFFFFF" />
+              )}
+              <Text style={[styles.actionButtonText, isRTL && styles.rtlText]}>
+                {isRTL ? 'تجاوب' : 'Respond'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.resolveButton]}
+            onPress={() => handleResolve(item.id)}
+          >
+            <CheckCircle size={16} color="#10B981" />
+            <Text
+              style={[
+                styles.actionButtonTextSecondary,
+                isRTL && styles.rtlText,
+              ]}
+            >
+              {isRTL ? 'حل' : 'Resolve'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  if (!user?.familyId) {
+    return null; // Don't show alerts if user is not in a family
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>
+            {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'}
+          </Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+      </View>
+    );
+  }
+
+  if (alerts.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={[styles.title, isRTL && styles.rtlText]}>
+            {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'}
+          </Text>
+        </View>
+        <View style={styles.emptyContainer}>
+          <CheckCircle size={48} color="#10B981" />
+          <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+            {isRTL ? 'لا توجد تنبيهات نشطة' : 'No active alerts'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={[styles.title, isRTL && styles.rtlText]}>
+          {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'}
+        </Text>
+        <View style={styles.alertBadge}>
+          <Text style={styles.alertBadgeText}>{alerts.length}</Text>
+        </View>
+      </View>
+
+      <FlatList
+        data={alerts}
+        renderItem={renderAlert}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.alertsList}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  alertBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  alertBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  loadingContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 8,
+  },
+  alertsList: {
+    padding: 16,
+  },
+  alertCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  alertIcon: {
+    marginRight: 12,
+  },
+  alertInfo: {
+    flex: 1,
+  },
+  alertTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  alertMember: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  alertTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  alertMessage: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  respondersSection: {
+    marginBottom: 12,
+  },
+  respondersLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  respondersText: {
+    fontSize: 12,
+    color: '#4B5563',
+  },
+  alertActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 4,
+  },
+  respondButton: {
+    backgroundColor: '#2563EB',
+  },
+  resolveButton: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  actionButtonTextSecondary: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  rtlText: {
+    textAlign: 'right',
+  },
+});

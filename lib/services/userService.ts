@@ -71,7 +71,7 @@ export const userService = {
         name,
         role: 'admin', // First user in family is admin
         createdAt: new Date(),
-        onboardingCompleted: true, // Set to true since they've signed up
+        onboardingCompleted: false, // New users should see onboarding flow
         preferences: {
           language: 'en',
           notifications: true,
