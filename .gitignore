@@ -33,3 +33,35 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# iOS build artifacts
+MaakHealth.app/
+*.app/
+build/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcworkspace
+!default.xcworkspace
+*.xcuserstate
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Debug files
+*.debug.dylib
+*.dylib
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+
+# Logs
+*.log
+pglite-debug.log
