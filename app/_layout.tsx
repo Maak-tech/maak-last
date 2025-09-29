@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FallDetectionProvider } from '@/contexts/FallDetectionContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import * as Notifications from 'expo-notifications';
 import '@/lib/i18n';
 
@@ -31,21 +32,23 @@ export default function RootLayout() {
     requestPermissions();
   }, []);
   return (
-    <AuthProvider>
-      <FallDetectionProvider>
-        <StatusBar style="auto" />
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="debug-notifications"
-            options={{ title: 'Debug Notifications' }}
-          />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </FallDetectionProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <FallDetectionProvider>
+          <StatusBar style="auto" />
+          <Stack>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="debug-notifications"
+              options={{ title: 'Debug Notifications' }}
+            />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+        </FallDetectionProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

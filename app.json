@@ -25,7 +25,9 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "This app uses the camera for profile photos.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photos for profile pictures."
+        "NSPhotoLibraryUsageDescription": "This app accesses your photos for profile pictures.",
+        "NSHealthShareUsageDescription": "This app reads health data to provide personalized health insights and track your wellness progress.",
+        "NSHealthUpdateUsageDescription": "This app writes health data to keep your health information synchronized across all your devices."
       }
     },
     "android": {
@@ -44,7 +46,14 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "com.google.android.c2dm.permission.RECEIVE"
+        "com.google.android.c2dm.permission.RECEIVE",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_BODY_TEMPERATURE",
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.activity_recognition"
       ]
     },
     "web": {

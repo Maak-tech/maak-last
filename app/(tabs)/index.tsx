@@ -3,14 +3,18 @@ import {
   View,
   Text,
   ScrollView,
-  StyleSheet,
   SafeAreaView,
   TouchableOpacity,
   RefreshControl,
+  Alert,
+  Linking,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { router, useFocusEffect } from 'expo-router';
+import { createThemedStyles, getTextStyle } from '@/utils/styles';
 import {
   Heart,
   AlertTriangle,
@@ -20,6 +24,8 @@ import {
   TrendingUp,
   ChevronRight,
   User,
+  Phone,
+  AlertCircle,
 } from 'lucide-react-native';
 import { symptomService } from '@/lib/services/symptomService';
 import { medicationService } from '@/lib/services/medicationService';
@@ -33,6 +39,7 @@ import FamilyDataFilter, {
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
@@ -54,6 +61,287 @@ export default function DashboardScreen() {
   const isRTL = i18n.language === 'ar';
   const isAdmin = user?.role === 'admin';
   const hasFamily = Boolean(user?.familyId);
+  
+  // Create themed styles
+  const styles = createThemedStyles((theme) => ({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background.primary,
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    content: {
+      flex: 1,
+      padding: theme.spacing.base,
+    },
+    header: {
+      marginBottom: theme.spacing.xl,
+    },
+    welcomeText: {
+      ...getTextStyle(theme, 'heading', 'bold', theme.colors.primary.main),
+      marginBottom: 4,
+    },
+    dateText: {
+      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.secondary),
+    },
+    statsContainer: {
+      flexDirection: 'row' as const,
+      marginBottom: theme.spacing.xl,
+      gap: theme.spacing.md,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.base,
+      alignItems: 'center' as const,
+      ...theme.shadows.md,
+    },
+    statValue: {
+      ...getTextStyle(theme, 'heading', 'bold', theme.colors.secondary.main),
+      marginTop: theme.spacing.sm,
+      marginBottom: 4,
+    },
+    statLabel: {
+      ...getTextStyle(theme, 'caption', 'medium', theme.colors.text.secondary),
+      textAlign: 'center' as const,
+    },
+    alertCard: {
+      backgroundColor: theme.colors.accent.error + '10',
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.base,
+      marginBottom: theme.spacing.xl,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.colors.accent.error,
+    },
+    alertContent: {
+      marginLeft: theme.spacing.md,
+      flex: 1,
+    },
+    alertTitle: {
+      ...getTextStyle(theme, 'subheading', 'bold', theme.colors.accent.error),
+      marginBottom: 4,
+    },
+    alertText: {
+      ...getTextStyle(theme, 'body', 'regular', theme.colors.accent.error),
+    },
+    section: {
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.base,
+      marginBottom: theme.spacing.base,
+      ...theme.shadows.md,
+    },
+    sectionTitle: {
+      ...getTextStyle(theme, 'subheading', 'bold', theme.colors.primary.main),
+      marginBottom: theme.spacing.base,
+    },
+    sectionHeader: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      marginBottom: theme.spacing.base,
+    },
+    viewAllButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 4,
+    },
+    viewAllText: {
+      ...getTextStyle(theme, 'body', 'medium', theme.colors.primary.main),
+    },
+    medicationItem: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      paddingVertical: theme.spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.light,
+    },
+    medicationIcon: {
+      width: 40,
+      height: 40,
+      backgroundColor: theme.colors.primary[50],
+      borderRadius: 20,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      marginRight: theme.spacing.md,
+    },
+    medicationInfo: {
+      flex: 1,
+    },
+    medicationName: {
+      ...getTextStyle(theme, 'body', 'semibold', theme.colors.text.primary),
+      marginBottom: 4,
+    },
+    medicationDosage: {
+      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+    },
+    medicationStatus: {
+      alignItems: 'center' as const,
+    },
+    statusDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    symptomItem: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'center' as const,
+      paddingVertical: theme.spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.light,
+    },
+    symptomInfo: {
+      flex: 1,
+    },
+    symptomType: {
+      ...getTextStyle(theme, 'body', 'semibold', theme.colors.text.primary),
+      marginBottom: 4,
+    },
+    symptomTime: {
+      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+    },
+    severityDisplay: {
+      flexDirection: 'row' as const,
+      gap: 3,
+    },
+    severityDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    healthScoreCard: {
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      marginBottom: theme.spacing.xl,
+      ...theme.shadows.md,
+    },
+    healthScoreInfo: {
+      marginLeft: theme.spacing.base,
+      flex: 1,
+    },
+    healthScoreTitle: {
+      ...getTextStyle(theme, 'body', 'medium', theme.colors.text.secondary),
+      marginBottom: 4,
+    },
+    healthScoreValue: {
+      ...getTextStyle(theme, 'heading', 'bold', theme.colors.accent.success),
+      fontSize: 32,
+    },
+    healthScoreDesc: {
+      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+    },
+    emptyText: {
+      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.tertiary),
+      textAlign: 'center' as const,
+      fontStyle: 'italic' as const,
+      paddingVertical: theme.spacing.lg,
+    },
+    emptyContainer: {
+      paddingVertical: theme.spacing.lg,
+      alignItems: 'center' as const,
+    },
+    errorText: {
+      ...getTextStyle(theme, 'body', 'regular', theme.colors.accent.error),
+      textAlign: 'center' as const,
+    },
+    rtlText: {
+      textAlign: 'right' as const,
+    },
+    memberIndicator: {
+      ...getTextStyle(theme, 'caption', 'medium', theme.colors.secondary.main),
+      marginTop: 2,
+    },
+    sosButton: {
+      backgroundColor: theme.colors.accent.error,
+      borderRadius: theme.borderRadius.full,
+      width: 60,
+      height: 60,
+      justifyContent: 'center' as const,
+      alignItems: 'center' as const,
+      position: 'absolute' as const,
+      bottom: theme.spacing.xl,
+      right: theme.spacing.base,
+      ...theme.shadows.lg,
+      zIndex: 1000,
+    },
+    sosButtonText: {
+      ...getTextStyle(theme, 'caption', 'bold', theme.colors.neutral.white),
+      fontSize: 10,
+      marginTop: 2,
+    },
+    headerWithSOS: {
+      flexDirection: 'row' as const,
+      justifyContent: 'space-between' as const,
+      alignItems: 'flex-start' as const,
+      marginBottom: theme.spacing.xl,
+    },
+    headerContent: {
+      flex: 1,
+    },
+    sosHeaderButton: {
+      backgroundColor: theme.colors.accent.error,
+      borderRadius: theme.borderRadius.lg,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: theme.spacing.sm,
+      ...theme.shadows.md,
+    },
+    sosHeaderText: {
+      ...getTextStyle(theme, 'body', 'bold', theme.colors.neutral.white),
+    },
+    onelineCard: {
+      backgroundColor: theme.colors.secondary[50],
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      marginBottom: theme.spacing.xl,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.colors.secondary.main,
+      ...theme.shadows.sm,
+    },
+    onelineText: {
+      ...getTextStyle(theme, 'subheading', 'semibold', theme.colors.primary.main),
+      fontStyle: 'italic' as const,
+      marginBottom: theme.spacing.sm,
+      textAlign: 'center' as const,
+    },
+    onelineSource: {
+      ...getTextStyle(theme, 'caption', 'medium', theme.colors.secondary.main),
+      textAlign: 'center' as const,
+    },
+    quickActionsGrid: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: theme.spacing.md,
+    },
+    quickActionCard: {
+      flex: 1,
+      minWidth: '45%',
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      alignItems: 'center' as const,
+      ...theme.shadows.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.border.light,
+    },
+    quickActionText: {
+      ...getTextStyle(theme, 'caption', 'medium', theme.colors.text.primary),
+      marginTop: theme.spacing.sm,
+      textAlign: 'center' as const,
+    },
+  }))(theme);
 
   const getMemberName = (userId: string): string => {
     if (userId === user?.id) {
@@ -232,20 +520,7 @@ export default function DashboardScreen() {
   };
 
   const getSeverityColor = (severity: number) => {
-    switch (severity) {
-      case 1:
-        return '#10B981';
-      case 2:
-        return '#F59E0B';
-      case 3:
-        return '#EF4444';
-      case 4:
-        return '#DC2626';
-      case 5:
-        return '#991B1B';
-      default:
-        return '#6B7280';
-    }
+    return theme.colors.severity[severity as keyof typeof theme.colors.severity] || theme.colors.neutral[500];
   };
 
   const getDataSourceLabel = () => {
@@ -258,6 +533,42 @@ export default function DashboardScreen() {
     } else {
       return isRTL ? 'بياناتي الشخصية' : 'My Personal Data';
     }
+  };
+
+  const handleSOS = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    
+    Alert.alert(
+      isRTL ? 'طوارئ' : 'Emergency',
+      isRTL 
+        ? 'هل تريد الاتصال بخدمات الطوارئ؟'
+        : 'Do you want to call emergency services?',
+      [
+        {
+          text: isRTL ? 'إلغاء' : 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: isRTL ? 'اتصال بـ 911' : 'Call 911',
+          style: 'destructive',
+          onPress: () => {
+            Linking.openURL('tel:911');
+          },
+        },
+        {
+          text: isRTL ? 'إشعار العائلة' : 'Notify Family',
+          onPress: () => {
+            // TODO: Implement family notification
+            Alert.alert(
+              isRTL ? 'تم إرسال الإشعار' : 'Notification Sent',
+              isRTL 
+                ? 'تم إرسال إشعار طوارئ لجميع أفراد العائلة'
+                : 'Emergency notification sent to all family members'
+            );
+          },
+        },
+      ]
+    );
   };
 
   if (!user) {
@@ -281,19 +592,27 @@ export default function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.welcomeText, isRTL && styles.rtlText]}>
-            {isRTL ? `مرحباً، ${user.name}` : `Welcome, ${user.name}`}
-          </Text>
-          <Text style={[styles.dateText, isRTL && styles.rtlText]}>
-            {new Date().toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </Text>
+        {/* Header with SOS Button */}
+        <View style={styles.headerWithSOS}>
+          <View style={styles.headerContent}>
+            <Text style={[styles.welcomeText, isRTL && styles.rtlText]}>
+              {isRTL ? `مرحباً، ${user.name}` : `Welcome, ${user.name}`}
+            </Text>
+            <Text style={[styles.dateText, isRTL && styles.rtlText]}>
+              {new Date().toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.sosHeaderButton} onPress={handleSOS}>
+            <Phone size={20} color={theme.colors.neutral.white} />
+            <Text style={styles.sosHeaderText}>
+              {isRTL ? 'SOS' : 'SOS'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Enhanced Data Filter */}
@@ -309,7 +628,7 @@ export default function DashboardScreen() {
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Activity size={24} color="#2563EB" />
+            <Activity size={24} color={theme.colors.primary.main} />
             <Text style={[styles.statValue, isRTL && styles.rtlText]}>
               {stats.symptomsThisWeek}
             </Text>
@@ -319,7 +638,7 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.statCard}>
-            <Pill size={24} color="#10B981" />
+            <Pill size={24} color={theme.colors.accent.success} />
             <Text style={[styles.statValue, isRTL && styles.rtlText]}>
               {stats.medicationCompliance}%
             </Text>
@@ -332,7 +651,7 @@ export default function DashboardScreen() {
             style={styles.statCard}
             onPress={() => router.push('/(tabs)/family')}
           >
-            <Users size={24} color="#8B5CF6" />
+            <Users size={24} color={theme.colors.secondary.main} />
             <Text style={[styles.statValue, isRTL && styles.rtlText]}>
               {familyMembersCount}
             </Text>
@@ -345,7 +664,7 @@ export default function DashboardScreen() {
         {/* Alerts */}
         {alertsCount > 0 && (
           <TouchableOpacity style={styles.alertCard}>
-            <AlertTriangle size={24} color="#EF4444" />
+            <AlertTriangle size={24} color={theme.colors.accent.error} />
             <View style={styles.alertContent}>
               <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
                 {isRTL ? 'تنبيهات نشطة' : 'Active Alerts'}
@@ -376,7 +695,7 @@ export default function DashboardScreen() {
               <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
                 {isRTL ? 'عرض الكل' : 'View All'}
               </Text>
-              <ChevronRight size={16} color="#2563EB" />
+              <ChevronRight size={16} color={theme.colors.primary.main} />
             </TouchableOpacity>
           </View>
 
@@ -388,7 +707,7 @@ export default function DashboardScreen() {
                 onPress={() => router.push('/(tabs)/medications')}
               >
                 <View style={styles.medicationIcon}>
-                  <Pill size={20} color="#2563EB" />
+                  <Pill size={20} color={theme.colors.primary.main} />
                 </View>
                 <View style={styles.medicationInfo}>
                   <Text
@@ -421,8 +740,8 @@ export default function DashboardScreen() {
                         backgroundColor:
                           Array.isArray(medication.reminders) &&
                           medication.reminders.some((r) => r.taken)
-                            ? '#10B981'
-                            : '#F59E0B',
+                            ? theme.colors.accent.success
+                            : theme.colors.secondary.main,
                       },
                     ]}
                   />
@@ -456,7 +775,7 @@ export default function DashboardScreen() {
               <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
                 {isRTL ? 'عرض الكل' : 'View All'}
               </Text>
-              <ChevronRight size={16} color="#2563EB" />
+              <ChevronRight size={16} color={theme.colors.primary.main} />
             </TouchableOpacity>
           </View>
 
@@ -496,7 +815,7 @@ export default function DashboardScreen() {
                           backgroundColor:
                             i < symptom.severity
                               ? getSeverityColor(symptom.severity)
-                              : '#E5E7EB',
+                              : theme.colors.neutral[200],
                         },
                       ]}
                     />
@@ -518,9 +837,9 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Health Score */}
+        {/* Health Score with Maak One-liner */}
         <View style={styles.healthScoreCard}>
-          <Heart size={32} color="#EF4444" />
+          <Heart size={32} color={theme.colors.accent.error} />
           <View style={styles.healthScoreInfo}>
             <Text style={[styles.healthScoreTitle, isRTL && styles.rtlText]}>
               {isRTL ? 'نقاط الصحة' : 'Health Score'}
@@ -538,297 +857,68 @@ export default function DashboardScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Quick Actions Hub */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {isRTL ? 'إجراءات سريعة' : 'Quick Actions'}
+            </Text>
+          </View>
+
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity 
+              style={styles.quickActionCard}
+              onPress={() => router.push('/(tabs)/track')}
+            >
+              <Activity size={24} color={theme.colors.primary.main} />
+              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
+                {isRTL ? 'تتبع الصحة' : 'Track Health'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionCard}
+              onPress={() => router.push('/(tabs)/medications')}
+            >
+              <Pill size={24} color={theme.colors.accent.success} />
+              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
+                {isRTL ? 'إدارة الأدوية' : 'Medications'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionCard}
+              onPress={() => router.push('/(tabs)/vitals')}
+            >
+              <Heart size={24} color={theme.colors.secondary.main} />
+              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
+                {isRTL ? 'المؤشرات الحيوية' : 'Vital Signs'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.quickActionCard}
+              onPress={() => router.push('/(tabs)/family')}
+            >
+              <Users size={24} color={theme.colors.primary.light} />
+              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
+                {isRTL ? 'إدارة العائلة' : 'Manage Family'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Maak One-liner */}
+        <View style={styles.onelineCard}>
+          <Text style={[styles.onelineText, isRTL && styles.rtlText]}>
+            {isRTL ? '"خليهم دايمًا معك"' : '"Health starts at home"'}
+          </Text>
+          <Text style={[styles.onelineSource, isRTL && styles.rtlText]}>
+            - Maak
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  dateText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#64748B',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    marginBottom: 24,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  statValue: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
-    color: '#1E293B',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  alertCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
-  },
-  alertContent: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  alertTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: '#B91C1C',
-    marginBottom: 4,
-  },
-  alertText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#7F1D1D',
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: '#1E293B',
-    marginBottom: 16,
-  },
-  medicationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  medicationIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#EBF4FF',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  medicationInfo: {
-    flex: 1,
-  },
-  medicationName: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  medicationDosage: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#64748B',
-  },
-  medicationStatus: {
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  symptomItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  symptomInfo: {
-    flex: 1,
-  },
-  symptomType: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  symptomTime: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#64748B',
-  },
-  severityDisplay: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  severityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  healthScoreCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  healthScoreInfo: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  healthScoreTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  healthScoreValue: {
-    fontSize: 32,
-    fontFamily: 'Inter-Bold',
-    color: '#1E293B',
-  },
-  healthScoreDesc: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#64748B',
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#9CA3AF',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    paddingVertical: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#EF4444',
-    textAlign: 'center',
-  },
-  rtlText: {
-    textAlign: 'right',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  viewAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  viewAllText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#2563EB',
-  },
-  emptyContainer: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  viewModeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  viewModeLabel: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginRight: 12,
-  },
-  viewModeToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  viewModeOption: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 4,
-  },
-  viewModeOptionActive: {
-    borderColor: '#2563EB',
-  },
-  viewModeText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-  },
-  viewModeTextActive: {
-    color: '#2563EB',
-  },
-  familyIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  familyIndicatorText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#64748B',
-    marginLeft: 8,
-  },
-  memberIndicator: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#6366F1',
-    marginTop: 2,
-  },
-});

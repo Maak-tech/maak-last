@@ -1,20 +1,22 @@
 import { Tabs } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Home, Activity, Pill, Users, User } from 'lucide-react-native';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Home, Activity, Pill, Users, User, BookOpen } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { t } = useTranslation();
+  const { theme } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: theme.colors.primary.main,
+        tabBarInactiveTintColor: theme.colors.text.secondary,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: theme.colors.background.secondary,
           borderTopWidth: 1,
-          borderTopColor: '#E2E8F0',
+          borderTopColor: theme.colors.border.light,
           height: 80,
           paddingBottom: 20,
           paddingTop: 8,
@@ -28,28 +30,25 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t('dashboard'),
+          title: t('home') || 'Home',
           tabBarIcon: ({ size, color }) => (
             <Home size={size || 24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="symptoms"
+        name="track"
         options={{
-          title: t('symptoms'),
+          title: t('track') || 'Track',
           tabBarIcon: ({ size, color }) => (
             <Activity size={size || 24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="medications"
+        name="symptoms"
         options={{
-          title: t('medications'),
-          tabBarIcon: ({ size, color }) => (
-            <Pill size={size || 24} color={color} />
-          ),
+          href: null, // Access via track tab
         }}
       />
       <Tabs.Screen
@@ -68,6 +67,24 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => (
             <User size={size || 24} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="medications"
+        options={{
+          href: null, // Access via symptoms/track tab
+        }}
+      />
+      <Tabs.Screen
+        name="resources"
+        options={{
+          href: null, // Access via profile tab
+        }}
+      />
+      <Tabs.Screen
+        name="vitals"
+        options={{
+          href: null, // Access via track tab
         }}
       />
     </Tabs>

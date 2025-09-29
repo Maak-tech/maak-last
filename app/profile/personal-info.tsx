@@ -7,10 +7,14 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
+  TextInput,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { userService } from '@/lib/services/userService';
 import {
   ArrowLeft,
   User,
@@ -21,24 +25,65 @@ import {
   MapPin,
   Phone,
   Heart,
+  X,
+  Save,
 } from 'lucide-react-native';
 
 export default function PersonalInfoScreen() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: user?.name || '',
+    phoneNumber: '',
+  });
 
   const isRTL = i18n.language === 'ar';
 
   const handleEdit = () => {
-    Alert.alert(
-      isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile',
-      isRTL
-        ? 'ستتوفر إمكانية تعديل الملف الشخصي قريباً'
-        : 'Profile editing will be available soon',
-      [{ text: isRTL ? 'موافق' : 'OK' }]
-    );
+    setEditForm({
+      name: user?.name || '',
+      phoneNumber: '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editForm.name.trim()) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'يرجى إدخال الاسم' : 'Please enter a name'
+      );
+      return;
+    }
+
+    if (!user?.id) return;
+
+    setLoading(true);
+    try {
+      const updates = {
+        name: editForm.name.trim(),
+      };
+
+      await userService.updateUser(user.id, updates);
+      await updateUser(updates);
+
+      setShowEditModal(false);
+      Alert.alert(
+        isRTL ? 'تم الحفظ' : 'Saved',
+        isRTL ? 'تم تحديث الملف الشخصي بنجاح' : 'Profile updated successfully'
+      );
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'حدث خطأ في تحديث الملف الشخصي' : 'Failed to update profile'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const InfoCard = ({ icon: Icon, label, value, description }: any) => (
@@ -278,6 +323,88 @@ export default function PersonalInfoScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+              {isRTL ? 'تعديل الملف الشخصي' : 'Edit Profile'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowEditModal(false)}
+              style={styles.closeButton}
+            >
+              <X size={24} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Name Field */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                {isRTL ? 'الاسم الكامل' : 'Full Name'} *
+              </Text>
+              <TextInput
+                style={[styles.textInput, isRTL && styles.rtlInput]}
+                value={editForm.name}
+                onChangeText={(text) =>
+                  setEditForm({ ...editForm, name: text })
+                }
+                placeholder={isRTL ? 'ادخل اسمك الكامل' : 'Enter your full name'}
+                textAlign={isRTL ? 'right' : 'left'}
+              />
+            </View>
+
+            {/* Phone Number Field */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                {isRTL ? 'رقم الهاتف' : 'Phone Number'}
+              </Text>
+              <TextInput
+                style={[styles.textInput, isRTL && styles.rtlInput]}
+                value={editForm.phoneNumber}
+                onChangeText={(text) =>
+                  setEditForm({ ...editForm, phoneNumber: text })
+                }
+                placeholder={isRTL ? 'ادخل رقم الهاتف' : 'Enter phone number'}
+                textAlign={isRTL ? 'right' : 'left'}
+                keyboardType="phone-pad"
+              />
+              <Text style={[styles.fieldDescription, isRTL && styles.rtlText]}>
+                {isRTL 
+                  ? 'سيستخدم للطوارئ والإشعارات المهمة'
+                  : 'Used for emergencies and important notifications'}
+              </Text>
+            </View>
+
+            {/* Save Button */}
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                loading && styles.saveButtonDisabled,
+              ]}
+              onPress={handleSaveProfile}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Save size={20} color="#FFFFFF" />
+              )}
+              <Text style={styles.saveButtonText}>
+                {loading 
+                  ? (isRTL ? 'جاري الحفظ...' : 'Saving...')
+                  : (isRTL ? 'حفظ التغييرات' : 'Save Changes')}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -506,5 +633,81 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     fontFamily: 'Cairo-Regular',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1E293B',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  fieldContainer: {
+    marginBottom: 20,
+  },
+  fieldLabel: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    backgroundColor: '#FFFFFF',
+  },
+  rtlInput: {
+    fontFamily: 'Cairo-Regular',
+  },
+  fieldDescription: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#64748B',
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginTop: 20,
+    gap: 8,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#94A3B8',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
   },
 });

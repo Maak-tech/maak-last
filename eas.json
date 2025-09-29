@@ -10,6 +10,9 @@
       "ios": {
         "resourceClass": "m-medium",
         "simulator": false
+      },
+      "android": {
+        "resourceClass": "medium"
       }
     },
     "preview": {
@@ -18,15 +21,32 @@
         "resourceClass": "m-medium",
         "simulator": false,
         "buildConfiguration": "Release"
+      },
+      "android": {
+        "resourceClass": "medium",
+        "buildType": "apk"
       }
     },
     "production": {
       "ios": {
         "resourceClass": "m-medium"
+      },
+      "android": {
+        "resourceClass": "medium"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "ahmad.alstaty@gmail.com",
+        "ascAppId": "placeholder",
+        "appleTeamId": "placeholder"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
+      }
+    }
   }
 }

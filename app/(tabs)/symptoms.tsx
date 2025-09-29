@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useFocusEffect } from 'expo-router';
 import {
   Plus,
@@ -44,9 +45,10 @@ const COMMON_SYMPTOMS = [
   'backPain',
 ];
 
-export default function SymptomsScreen() {
+export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSymptom, setSelectedSymptom] = useState('');
   const [customSymptom, setCustomSymptom] = useState('');

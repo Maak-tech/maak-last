@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFallDetectionContext } from '@/contexts/FallDetectionContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { firebaseValidation } from '@/lib/services/firebaseValidation';
 import { symptomService } from '@/lib/services/symptomService';
 import { medicationService } from '@/lib/services/medicationService';
@@ -35,9 +36,13 @@ import {
   Calendar,
   Phone,
   Check,
+  Moon,
+  Sun,
+  BookOpen,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Symptom, Medication, MedicalHistory } from '@/types';
+import Avatar from '@/components/Avatar';
 
 interface ProfileSectionItem {
   icon: any;
@@ -59,6 +64,7 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
+  const { themeMode, setThemeMode, isDark } = useTheme();
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
@@ -262,6 +268,11 @@ export default function ProfileScreen() {
           label: isRTL ? 'التقارير الصحية' : 'Health Reports',
           onPress: handleHealthReports,
         },
+        {
+          icon: BookOpen,
+          label: isRTL ? 'المصادر التعليمية' : 'Health Resources',
+          onPress: () => router.push('/(tabs)/resources'),
+        },
       ],
     },
     {
@@ -292,6 +303,15 @@ export default function ProfileScreen() {
           icon: Heart,
           label: isRTL ? 'مساعد الصحة الذكي' : 'AI Health Assistant',
           onPress: () => router.push('/ai-assistant' as any),
+        },
+        {
+          icon: isDark ? Sun : Moon,
+          label: isRTL ? 'المظهر الداكن' : 'Dark Mode',
+          hasSwitch: true,
+          switchValue: isDark,
+          onSwitchChange: (value: boolean) => {
+            setThemeMode(value ? 'dark' : 'light');
+          },
         },
         {
           icon: Globe,
@@ -344,15 +364,18 @@ export default function ProfileScreen() {
         {/* User Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user?.name
-                  ?.split(' ')
-                  .map((n) => n[0])
-                  .join('')
-                  .toUpperCase() || 'U'}
-              </Text>
-            </View>
+            <Avatar
+              source={user?.avatar ? { uri: user.avatar } : undefined}
+              name={user?.name}
+              size="xl"
+              onPress={() => {
+                // TODO: Implement avatar change functionality
+                Alert.alert(
+                  isRTL ? 'تغيير الصورة' : 'Change Avatar',
+                  isRTL ? 'ستتوفر هذه الميزة قريباً' : 'This feature will be available soon'
+                );
+              }}
+            />
           </View>
 
           <View style={styles.userInfo}>

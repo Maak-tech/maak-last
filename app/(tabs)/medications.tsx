@@ -32,6 +32,7 @@ import { Medication, MedicationReminder, User as UserType } from '@/types';
 import FamilyDataFilter, {
   FilterOption,
 } from '@/app/components/FamilyDataFilter';
+import AnimatedCheckButton from '@/components/AnimatedCheckButton';
 
 const FREQUENCY_OPTIONS = [
   { key: 'once', labelEn: 'Once daily', labelAr: 'مرة واحدة يومياً' },
@@ -596,32 +597,28 @@ export default function MedicationsScreen() {
                   </View>
 
                   <View style={styles.medicationActions}>
-                    {/* Show all reminders with individual checkboxes */}
+                    {/* Show all reminders with animated check buttons */}
                     <View style={styles.remindersDisplay}>
-                      {medication.reminders.map((reminder) => (
-                        <TouchableOpacity
-                          key={reminder.id}
-                          style={[
-                            styles.checkButton,
-                            reminder.taken && styles.checkButtonTaken,
-                          ]}
-                          onPress={() =>
-                            toggleMedicationTaken(medication.id, reminder.id)
-                          }
-                        >
-                          {reminder.taken && (
-                            <Check size={12} color="#FFFFFF" />
-                          )}
-                          <Text
-                            style={[
-                              styles.reminderTimeText,
-                              reminder.taken && styles.reminderTimeTaken,
-                            ]}
-                          >
-                            {reminder.time}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                      {medication.reminders.map((reminder) => {
+                        // Check if user can mark this medication as taken
+                        const canMarkTaken = 
+                          medication.userId === user.id || // Owner can mark their own
+                          (isAdmin && user.familyId); // Admin can mark for family members
+                        
+                        return (
+                          <AnimatedCheckButton
+                            key={reminder.id}
+                            isChecked={reminder.taken}
+                            onPress={() =>
+                              toggleMedicationTaken(medication.id, reminder.id)
+                            }
+                            label={reminder.time}
+                            size="sm"
+                            disabled={!canMarkTaken}
+                            style={styles.reminderButton}
+                          />
+                        );
+                      })}
                     </View>
 
                     {/* Show action buttons only for medications user can manage */}
@@ -1038,20 +1035,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#64748B',
   },
-  checkButton: {
-    minWidth: 50,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkButtonTaken: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+  reminderButton: {
+    marginBottom: 4,
   },
   modalContainer: {
     flex: 1,

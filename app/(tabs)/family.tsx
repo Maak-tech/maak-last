@@ -17,6 +17,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFocusEffect } from 'expo-router';
+import { useTheme } from '@/contexts/ThemeContext';
+import { createThemedStyles, getTextStyle } from '@/utils/styles';
 import { userService } from '@/lib/services/userService';
 import { familyInviteService } from '@/lib/services/familyInviteService';
 import { User } from '@/types';
@@ -33,6 +35,7 @@ import {
   Settings,
 } from 'lucide-react-native';
 import AlertsCard from '@/app/components/AlertsCard';
+import Avatar from '@/components/Avatar';
 
 const RELATIONS = [
   { key: 'father', labelEn: 'Father', labelAr: 'الأب' },
@@ -69,6 +72,8 @@ export default function FamilyScreen() {
   });
   const [joinFamilyCode, setJoinFamilyCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [emergencyContacts, setEmergencyContacts] = useState<{id: string, name: string, phone: string}[]>([]);
+  const [newContact, setNewContact] = useState({ name: '', phone: '' });
 
   const isRTL = i18n.language === 'ar';
 
@@ -385,6 +390,64 @@ export default function FamilyScreen() {
     setShowEmergencyModal(true);
   };
 
+  const handleAddEmergencyContact = () => {
+    if (!newContact.name.trim() || !newContact.phone.trim()) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'يرجى ملء جميع الحقول' : 'Please fill in all fields'
+      );
+      return;
+    }
+
+    // Simple phone number validation
+    const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/;
+    if (!phoneRegex.test(newContact.phone.trim())) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'يرجى إدخال رقم هاتف صحيح' : 'Please enter a valid phone number'
+      );
+      return;
+    }
+
+    const contact = {
+      id: Date.now().toString(),
+      name: newContact.name.trim(),
+      phone: newContact.phone.trim(),
+    };
+
+    setEmergencyContacts([...emergencyContacts, contact]);
+    setNewContact({ name: '', phone: '' });
+
+    Alert.alert(
+      isRTL ? 'تم الحفظ' : 'Saved',
+      isRTL ? 'تم إضافة جهة الاتصال بنجاح' : 'Emergency contact added successfully'
+    );
+  };
+
+  const handleDeleteEmergencyContact = (contactId: string) => {
+    Alert.alert(
+      isRTL ? 'حذف جهة الاتصال' : 'Delete Contact',
+      isRTL ? 'هل أنت متأكد من حذف جهة الاتصال هذه؟' : 'Are you sure you want to delete this contact?',
+      [
+        {
+          text: isRTL ? 'إلغاء' : 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: isRTL ? 'حذف' : 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setEmergencyContacts(emergencyContacts.filter(c => c.id !== contactId));
+            Alert.alert(
+              isRTL ? 'تم الحذف' : 'Deleted',
+              isRTL ? 'تم حذف جهة الاتصال بنجاح' : 'Emergency contact deleted successfully'
+            );
+          },
+        },
+      ]
+    );
+  };
+
   const copyInviteCode = async () => {
     if (!user?.familyId) {
       Alert.alert(
@@ -642,15 +705,13 @@ export default function FamilyScreen() {
               <View key={member.id} style={styles.memberItem}>
                 <View style={styles.memberLeft}>
                   <View style={styles.avatarContainer}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {member.name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .toUpperCase()}
-                      </Text>
-                    </View>
+                    <Avatar
+                      source={member.avatar ? { uri: member.avatar } : undefined}
+                      name={member.name}
+                      size="md"
+                      showBadge={member.id === user?.id}
+                      badgeColor="#10B981"
+                    />
                   </View>
 
                   <View style={styles.memberInfo}>
@@ -899,12 +960,59 @@ export default function FamilyScreen() {
                   : 'These contacts will be notified in case of emergency'}
               </Text>
 
-              <TouchableOpacity style={styles.addContactButton}>
-                <Plus size={20} color="#2563EB" />
-                <Text style={[styles.addContactText, isRTL && styles.rtlText]}>
-                  {isRTL ? 'إضافة جهة اتصال' : 'Add Contact'}
+              {/* Emergency Contacts List */}
+              {emergencyContacts.map((contact) => (
+                <View key={contact.id} style={styles.contactItem}>
+                  <View style={styles.contactInfo}>
+                    <Text style={[styles.contactName, isRTL && styles.rtlText]}>
+                      {contact.name}
+                    </Text>
+                    <Text style={[styles.contactPhone, isRTL && styles.rtlText]}>
+                      {contact.phone}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.deleteContactButton}
+                    onPress={() => handleDeleteEmergencyContact(contact.id)}
+                  >
+                    <X size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {/* Add New Contact Form */}
+              <View style={styles.addContactForm}>
+                <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? 'إضافة جهة اتصال جديدة' : 'Add New Contact'}
                 </Text>
-              </TouchableOpacity>
+                
+                <TextInput
+                  style={[styles.textInput, isRTL && styles.rtlInput]}
+                  value={newContact.name}
+                  onChangeText={(text) => setNewContact({ ...newContact, name: text })}
+                  placeholder={isRTL ? 'اسم جهة الاتصال' : 'Contact Name'}
+                  textAlign={isRTL ? 'right' : 'left'}
+                />
+                
+                <TextInput
+                  style={[styles.textInput, isRTL && styles.rtlInput, { marginTop: 8 }]}
+                  value={newContact.phone}
+                  onChangeText={(text) => setNewContact({ ...newContact, phone: text })}
+                  placeholder={isRTL ? 'رقم الهاتف' : 'Phone Number'}
+                  textAlign={isRTL ? 'right' : 'left'}
+                  keyboardType="phone-pad"
+                />
+                
+                <TouchableOpacity 
+                  style={styles.addContactButton}
+                  onPress={handleAddEmergencyContact}
+                >
+                  <Plus size={20} color="#2563EB" />
+                  <Text style={[styles.addContactText, isRTL && styles.rtlText]}>
+                    {isRTL ? 'إضافة جهة اتصال' : 'Add Contact'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.fieldContainer}>
@@ -1583,5 +1691,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
+  },
+  contactItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  contactPhone: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#64748B',
+  },
+  deleteContactButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#FEF2F2',
+  },
+  addContactForm: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
 });
