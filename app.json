@@ -22,7 +22,6 @@
         "resizeMode": "contain",
         "backgroundColor": "#F8FAFC"
       },
-      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "This app uses the camera for profile photos.",
         "NSPhotoLibraryUsageDescription": "This app accesses your photos for profile pictures.",
