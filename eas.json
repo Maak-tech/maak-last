@@ -29,10 +29,14 @@
     },
     "production": {
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Release",
+        "autoIncrement": true
       },
       "android": {
-        "resourceClass": "medium"
+        "resourceClass": "medium",
+        "buildType": "app-bundle",
+        "autoIncrement": true
       }
     }
   },
@@ -40,8 +44,8 @@
     "production": {
       "ios": {
         "appleId": "ahmad.alstaty@gmail.com",
-        "ascAppId": "placeholder",
-        "appleTeamId": "placeholder"
+        "ascAppId": "TO_BE_FILLED_AFTER_APP_STORE_CONNECT_SETUP",
+        "appleTeamId": "TO_BE_FILLED_AFTER_DEVELOPER_ACCOUNT_SETUP"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",

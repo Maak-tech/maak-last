@@ -3,26 +3,28 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Sensors from 'expo-sensors';
 
-// iOS HealthKit types
+// iOS HealthKit permissions - correct format for react-native-health
 const HealthKitPermissions = {
-  read: [
-    'HeartRate',
-    'StepCount', 
-    'SleepAnalysis',
-    'BloodPressure',
-    'BodyTemperature',
-    'Weight',
-    'Height',
-    'RespiratoryRate',
-    'OxygenSaturation',
-    'ActiveEnergyBurned',
-    'DistanceWalkingRunning',
-  ],
-  write: [
-    'StepCount',
-    'Weight',
-    'Height',
-  ]
+  permissions: {
+    read: [
+      'HeartRate',
+      'StepCount', 
+      'SleepAnalysis',
+      'BloodPressure',
+      'BodyTemperature',
+      'Weight',
+      'Height',
+      'RespiratoryRate',
+      'OxygenSaturation',
+      'ActiveEnergyBurned',
+      'DistanceWalkingRunning',
+    ],
+    write: [
+      'StepCount',
+      'Weight',
+      'Height',
+    ]
+  }
 };
 
 // Android Health Connect types
@@ -94,7 +96,20 @@ export const healthDataService = {
         } else {
           // Try to initialize HealthKit in standalone app
           try {
-            const AppleHealthKit = require('react-native-health').default;
+            // Import the HealthKit module
+            const { NativeModules } = require('react-native');
+            const AppleHealthKit = NativeModules.AppleHealthKit;
+            
+            // Debug: Log available native modules
+            console.log('🔍 Available native modules:', Object.keys(NativeModules).filter(key => key.includes('Health') || key.includes('Apple')));
+            console.log('🔍 AppleHealthKit module:', AppleHealthKit ? 'Found' : 'Not found');
+            
+            // Check if the native module is available
+            if (!AppleHealthKit || typeof AppleHealthKit.initHealthKit !== 'function') {
+              console.log('⚠️ HealthKit native module not available, using simulated data');
+              await this.savePermissionStatus(true);
+              return true;
+            }
             
             return new Promise((resolve, reject) => {
               AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
@@ -181,9 +196,10 @@ export const healthDataService = {
     try {
       // Check if HealthKit is available
       try {
-        const AppleHealthKit = require('react-native-health').default;
+        const { NativeModules } = require('react-native');
+        const AppleHealthKit = NativeModules.AppleHealthKit;
         
-        if (!AppleHealthKit || typeof AppleHealthKit.initHealthKit !== 'function') {
+        if (!AppleHealthKit || typeof AppleHealthKit.getHeartRateSamples !== 'function') {
           throw new Error('HealthKit not available');
         }
 

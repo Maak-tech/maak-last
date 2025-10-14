@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,66 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Shield } from 'lucide-react-native';
+import { ArrowLeft, Shield, Calendar } from 'lucide-react-native';
+import { documentService, type ParsedDocument } from '../../lib/services/documentService';
 
 export default function PrivacyPolicyScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const [document, setDocument] = useState<ParsedDocument | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const isRTL = i18n.language === 'ar';
+
+  useEffect(() => {
+    loadPrivacyPolicy();
+  }, []);
+
+  const loadPrivacyPolicy = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const privacyDoc = await documentService.getPrivacyPolicy();
+      setDocument(privacyDoc);
+    } catch (err) {
+      console.error('Error loading privacy policy:', err);
+      setError(isRTL 
+        ? 'حدث خطأ في تحميل سياسة الخصوصية' 
+        : 'Error loading privacy policy');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const SectionCard = ({
+    title,
+    content,
+    level,
+  }: {
+    title: string;
+    content: string;
+    level: number;
+  }) => (
+    <View style={[styles.sectionCard, level > 2 && styles.subsectionCard]}>
+      <Text style={[
+        styles.sectionTitle,
+        isRTL && styles.rtlText,
+        level === 2 && styles.mainSectionTitle,
+        level > 2 && styles.subsectionTitle,
+      ]}>
+        {title}
+      </Text>
+      <Text style={[styles.sectionContent, isRTL && styles.rtlText]}>
+        {content}
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -40,26 +90,67 @@ export default function PrivacyPolicyScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Introduction */}
-        <View style={styles.introSection}>
-          <View style={styles.introIcon}>
-            <Shield size={40} color="#2563EB" />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2563EB" />
+            <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+              {isRTL ? 'جاري التحميل...' : 'Loading...'}
+            </Text>
           </View>
-          <Text style={[styles.introTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'سياسة خصوصية تطبيق معاك' : 'Maak App Privacy Policy'}
-          </Text>
-          <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
-            {isRTL
-              ? 'نحن نحترم خصوصيتك ونلتزم بحماية معلوماتك الشخصية والصحية. تشرح هذه السياسة كيفية جمع واستخدام وحماية بياناتك.'
-              : 'We respect your privacy and are committed to protecting your personal and health information. This policy explains how we collect, use, and protect your data.'}
-          </Text>
-        </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, isRTL && styles.rtlText]}>
+              {error}
+            </Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={loadPrivacyPolicy}
+            >
+              <Text style={[styles.retryButtonText, isRTL && styles.rtlText]}>
+                {isRTL ? 'إعادة المحاولة' : 'Retry'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : document ? (
+          <>
+            {/* Introduction */}
+            <View style={styles.introSection}>
+              <View style={styles.introIcon}>
+                <Shield size={40} color="#2563EB" />
+              </View>
+              <Text style={[styles.introTitle, isRTL && styles.rtlText]}>
+                {isRTL ? 'سياسة خصوصية تطبيق معاك' : document.title}
+              </Text>
+              <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? 'نحن نحترم خصوصيتك ونلتزم بحماية معلوماتك الشخصية والصحية. تشرح هذه السياسة كيفية جمع واستخدام وحماية بياناتك.'
+                  : 'We respect your privacy and are committed to protecting your personal and health information. This policy explains how we collect, use, and protect your data.'}
+              </Text>
+              {document.lastUpdated && (
+                <View style={styles.lastUpdated}>
+                  <Calendar size={16} color="#64748B" />
+                  <Text style={[styles.lastUpdatedText, isRTL && styles.rtlText]}>
+                    {isRTL ? `آخر تحديث: ${document.lastUpdated}` : `Last Updated: ${document.lastUpdated}`}
+                  </Text>
+                </View>
+              )}
+            </View>
 
-        <Text style={[styles.comingSoon, isRTL && styles.rtlText]}>
-          {isRTL
-            ? 'جاري إعداد سياسة الخصوصية الشاملة...'
-            : 'Comprehensive privacy policy content is being prepared...'}
-        </Text>
+            {/* Document Sections */}
+            {document.sections.map((section) => (
+              <SectionCard
+                key={section.id}
+                title={section.title}
+                content={section.content}
+                level={section.level}
+              />
+            ))}
+          </>
+        ) : (
+          <Text style={[styles.noContentText, isRTL && styles.rtlText]}>
+            {isRTL ? 'لا يوجد محتوى متاح' : 'No content available'}
+          </Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -139,7 +230,94 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 16,
   },
-  comingSoon: {
+  lastUpdated: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+    marginTop: 16,
+  },
+  lastUpdatedText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+  },
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  subsectionCard: {
+    marginLeft: 16,
+    backgroundColor: '#F8FAFC',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  mainSectionTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+  },
+  subsectionTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  sectionContent: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#374151',
+    lineHeight: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+  },
+  noContentText: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#64748B',

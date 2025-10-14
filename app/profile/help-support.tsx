@@ -165,7 +165,7 @@ export default function HelpSupportScreen() {
                 ? 'للحالات العاجلة والدعم المباشر'
                 : 'For urgent issues and direct support'
             }
-            value="+966 12 345 6789"
+            value="+970 594521902"
             method="phone"
             color="#10B981"
           />
@@ -178,7 +178,7 @@ export default function HelpSupportScreen() {
                 ? 'للاستفسارات العامة والدعم التقني'
                 : 'For general inquiries and technical support'
             }
-            value="support@maak.app"
+            value="info@maaktech.net"
             method="email"
             color="#3B82F6"
           />
@@ -204,7 +204,7 @@ export default function HelpSupportScreen() {
                 ? 'معلومات شاملة ومركز المساعدة'
                 : 'Comprehensive information and help center'
             }
-            value="www.maak.app"
+            value="https://maaktech.net/"
             method="website"
             color="#F59E0B"
           />
@@ -342,8 +342,8 @@ export default function HelpSupportScreen() {
             </Text>
             <Text style={[styles.locationText, isRTL && styles.rtlText]}>
               {isRTL
-                ? 'الرياض، المملكة العربية السعودية'
-                : 'Riyadh, Saudi Arabia'}
+                ? 'رام الله، فلسطين'
+                : 'Palestine, Ramallah'}
             </Text>
           </View>
         </View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
@@ -17,44 +18,112 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react-native';
+import { documentService, type ParsedDocument } from '../../lib/services/documentService';
 
 export default function TermsConditionsScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const [document, setDocument] = useState<ParsedDocument | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const isRTL = i18n.language === 'ar';
 
+  useEffect(() => {
+    loadTermsAndConditions();
+  }, []);
+
+  const loadTermsAndConditions = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const termsDoc = await documentService.getTermsAndConditions();
+      setDocument(termsDoc);
+    } catch (err) {
+      console.error('Error loading terms and conditions:', err);
+      setError(isRTL 
+        ? 'حدث خطأ في تحميل الشروط والأحكام' 
+        : 'Error loading terms and conditions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSectionIcon = (title: string) => {
+    if (title.toLowerCase().includes('acceptance') || title.toLowerCase().includes('قبول')) {
+      return Shield;
+    }
+    if (title.toLowerCase().includes('use') || title.toLowerCase().includes('استخدام')) {
+      return Info;
+    }
+    if (title.toLowerCase().includes('medical') || title.toLowerCase().includes('طبية')) {
+      return AlertTriangle;
+    }
+    if (title.toLowerCase().includes('privacy') || title.toLowerCase().includes('خصوصية')) {
+      return Shield;
+    }
+    if (title.toLowerCase().includes('liability') || title.toLowerCase().includes('مسؤولية')) {
+      return AlertTriangle;
+    }
+    return FileText;
+  };
+
+  const getSectionColor = (title: string) => {
+    if (title.toLowerCase().includes('acceptance') || title.toLowerCase().includes('قبول')) {
+      return '#10B981';
+    }
+    if (title.toLowerCase().includes('use') || title.toLowerCase().includes('استخدام')) {
+      return '#3B82F6';
+    }
+    if (title.toLowerCase().includes('medical') || title.toLowerCase().includes('طبية')) {
+      return '#F59E0B';
+    }
+    if (title.toLowerCase().includes('privacy') || title.toLowerCase().includes('خصوصية')) {
+      return '#8B5CF6';
+    }
+    if (title.toLowerCase().includes('liability') || title.toLowerCase().includes('مسؤولية')) {
+      return '#F59E0B';
+    }
+    return '#2563EB';
+  };
+
   const SectionCard = ({
-    icon: Icon,
     title,
-    children,
-    color = '#2563EB',
-  }: any) => (
-    <View style={styles.sectionCard}>
-      <View style={styles.sectionHeader}>
-        <View style={[styles.sectionIcon, { backgroundColor: color + '20' }]}>
-          <Icon size={20} color={color} />
+    content,
+    level,
+  }: {
+    title: string;
+    content: string;
+    level: number;
+  }) => {
+    const Icon = getSectionIcon(title);
+    const color = getSectionColor(title);
+    
+    return (
+      <View style={[styles.sectionCard, level > 2 && styles.subsectionCard]}>
+        {level === 2 && (
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: color + '20' }]}>
+              <Icon size={20} color={color} />
+            </View>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {title}
+            </Text>
+          </View>
+        )}
+        {level > 2 && (
+          <Text style={[styles.subsectionTitle, isRTL && styles.rtlText]}>
+            {title}
+          </Text>
+        )}
+        <View style={level === 2 ? styles.sectionContent : undefined}>
+          <Text style={[styles.paragraph, isRTL && styles.rtlText]}>
+            {content}
+          </Text>
         </View>
-        <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-          {title}
-        </Text>
       </View>
-      <View style={styles.sectionContent}>{children}</View>
-    </View>
-  );
-
-  const TextParagraph = ({ children }: { children: string }) => (
-    <Text style={[styles.paragraph, isRTL && styles.rtlText]}>{children}</Text>
-  );
-
-  const BulletPoint = ({ children }: { children: string }) => (
-    <View style={styles.bulletContainer}>
-      <Text style={styles.bullet}>•</Text>
-      <Text style={[styles.bulletText, isRTL && styles.rtlText]}>
-        {children}
-      </Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -79,211 +148,87 @@ export default function TermsConditionsScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Introduction */}
-        <View style={styles.introSection}>
-          <View style={styles.introIcon}>
-            <FileText size={40} color="#2563EB" />
-          </View>
-          <Text style={[styles.introTitle, isRTL && styles.rtlText]}>
-            {isRTL
-              ? 'شروط وأحكام استخدام تطبيق معاك'
-              : 'Maak App Terms & Conditions'}
-          </Text>
-          <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
-            {isRTL
-              ? 'يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق معاك. باستخدامك للتطبيق، فإنك توافق على الالتزام بهذه الشروط.'
-              : 'Please read these terms and conditions carefully before using the Maak app. By using the app, you agree to be bound by these terms.'}
-          </Text>
-          <View style={styles.lastUpdated}>
-            <Calendar size={16} color="#64748B" />
-            <Text style={[styles.lastUpdatedText, isRTL && styles.rtlText]}>
-              {isRTL ? 'آخر تحديث: ديسمبر 2024' : 'Last Updated: December 2024'}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2563EB" />
+            <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+              {isRTL ? 'جاري التحميل...' : 'Loading...'}
             </Text>
           </View>
-        </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, isRTL && styles.rtlText]}>
+              {error}
+            </Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={loadTermsAndConditions}
+            >
+              <Text style={[styles.retryButtonText, isRTL && styles.rtlText]}>
+                {isRTL ? 'إعادة المحاولة' : 'Retry'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : document ? (
+          <>
+            {/* Introduction */}
+            <View style={styles.introSection}>
+              <View style={styles.introIcon}>
+                <FileText size={40} color="#2563EB" />
+              </View>
+              <Text style={[styles.introTitle, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? 'شروط وأحكام استخدام تطبيق معاك'
+                  : document.title}
+              </Text>
+              <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? 'يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق معاك. باستخدامك للتطبيق، فإنك توافق على الالتزام بهذه الشروط.'
+                  : 'Please read these terms and conditions carefully before using the Maak app. By using the app, you agree to be bound by these terms.'}
+              </Text>
+              {document.lastUpdated && (
+                <View style={styles.lastUpdated}>
+                  <Calendar size={16} color="#64748B" />
+                  <Text style={[styles.lastUpdatedText, isRTL && styles.rtlText]}>
+                    {isRTL ? `آخر تحديث: ${document.lastUpdated}` : `Last Updated: ${document.lastUpdated}`}
+                  </Text>
+                </View>
+              )}
+            </View>
 
-        {/* 1. Acceptance of Terms */}
-        <SectionCard
-          icon={Shield}
-          title={isRTL ? '1. قبول الشروط' : '1. Acceptance of Terms'}
-          color="#10B981"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'باستخدام تطبيق معاك ("التطبيق")، فإنك تؤكد أنك قد قرأت وفهمت ووافقت على الالتزام بهذه الشروط والأحكام. إذا كنت لا توافق على أي من هذه الشروط، يرجى عدم استخدام التطبيق.'
-              : 'By using the Maak app ("the App"), you acknowledge that you have read, understood, and agree to be bound by these terms and conditions. If you do not agree to any of these terms, please do not use the App.'}
-          </TextParagraph>
-        </SectionCard>
+            {/* Document Sections */}
+            {document.sections.map((section) => (
+              <SectionCard
+                key={section.id}
+                title={section.title}
+                content={section.content}
+                level={section.level}
+              />
+            ))}
 
-        {/* 2. Acceptable Use */}
-        <SectionCard
-          icon={Info}
-          title={isRTL ? '2. الاستخدام المقبول' : '2. Acceptable Use'}
-          color="#3B82F6"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'يجب استخدام التطبيق للأغراض المشروعة فقط ووفقاً لهذه الشروط. أنت توافق على عدم:'
-              : 'The App must be used for lawful purposes only and in accordance with these terms. You agree not to:'}
-          </TextParagraph>
-          <BulletPoint>
-            {isRTL
-              ? 'استخدام التطبيق لأي غرض غير قانوني أو محظور'
-              : 'Use the App for any unlawful or prohibited purpose'}
-          </BulletPoint>
-          <BulletPoint>
-            {isRTL
-              ? 'انتهاك أي قوانين أو لوائح محلية أو دولية'
-              : 'Violate any local, national, or international laws or regulations'}
-          </BulletPoint>
-          <BulletPoint>
-            {isRTL
-              ? 'التدخل في أمان التطبيق أو محاولة الوصول غير المصرح به'
-              : 'Interfere with the security of the App or attempt unauthorized access'}
-          </BulletPoint>
-          <BulletPoint>
-            {isRTL
-              ? 'نقل أو توزيع محتوى ضار أو مسيء'
-              : 'Transmit or distribute harmful, offensive, or malicious content'}
-          </BulletPoint>
-        </SectionCard>
-
-        {/* 3. Medical Information Disclaimer */}
-        <SectionCard
-          icon={AlertTriangle}
-          title={
-            isRTL
-              ? '3. إخلاء المسؤولية الطبية'
-              : '3. Medical Information Disclaimer'
-          }
-          color="#F59E0B"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'التطبيق يوفر معلومات عامة ولا يحل محل الاستشارة الطبية المهنية أو التشخيص أو العلاج. يجب استشارة مقدم الرعاية الصحية المؤهل دائماً قبل اتخاذ أي قرارات طبية.'
-              : 'The App provides general information and does not replace professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider before making any medical decisions.'}
-          </TextParagraph>
-          <TextParagraph>
-            {isRTL
-              ? 'في حالات الطوارئ الطبية، اتصل بخدمات الطوارئ المحلية فوراً.'
-              : 'In case of medical emergencies, contact your local emergency services immediately.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* 4. Privacy and Data Protection */}
-        <SectionCard
-          icon={Shield}
-          title={
-            isRTL
-              ? '4. الخصوصية وحماية البيانات'
-              : '4. Privacy and Data Protection'
-          }
-          color="#8B5CF6"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'نحن نحترم خصوصيتك ونلتزم بحماية معلوماتك الشخصية والصحية. لمزيد من التفاصيل حول كيفية جمع واستخدام وحماية بياناتك، يرجى مراجعة سياسة الخصوصية الخاصة بنا.'
-              : 'We respect your privacy and are committed to protecting your personal and health information. For details on how we collect, use, and protect your data, please review our Privacy Policy.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* 5. User Account and Security */}
-        <SectionCard
-          icon={Shield}
-          title={
-            isRTL ? '5. حساب المستخدم والأمان' : '5. User Account and Security'
-          }
-          color="#EF4444"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'أنت مسؤول عن الحفاظ على سرية حسابك ومعلومات تسجيل الدخول. يجب إخطارنا فوراً بأي استخدام غير مصرح به لحسابك.'
-              : 'You are responsible for maintaining the confidentiality of your account and login information. You must notify us immediately of any unauthorized use of your account.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* 6. Intellectual Property */}
-        <SectionCard
-          icon={FileText}
-          title={isRTL ? '6. الملكية الفكرية' : '6. Intellectual Property'}
-          color="#06B6D4"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'جميع المحتويات والمواد في التطبيق محمية بحقوق الطبع والنشر والعلامات التجارية وحقوق الملكية الفكرية الأخرى. لا يجوز استخدام أو إعادة إنتاج أي محتوى دون إذن صريح.'
-              : 'All content and materials in the App are protected by copyright, trademarks, and other intellectual property rights. No content may be used or reproduced without explicit permission.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* 7. Limitation of Liability */}
-        <SectionCard
-          icon={AlertTriangle}
-          title={isRTL ? '7. تحديد المسؤولية' : '7. Limitation of Liability'}
-          color="#F59E0B"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'لن نكون مسؤولين عن أي أضرار مباشرة أو غير مباشرة أو عرضية أو خاصة أو تبعية تنتج عن استخدام أو عدم القدرة على استخدام التطبيق.'
-              : 'We shall not be liable for any direct, indirect, incidental, special, or consequential damages resulting from the use or inability to use the App.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* 8. Modifications to Terms */}
-        <SectionCard
-          icon={Calendar}
-          title={isRTL ? '8. تعديل الشروط' : '8. Modifications to Terms'}
-          color="#10B981"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'نحتفظ بالحق في تعديل هذه الشروط والأحكام في أي وقت. سيتم إخطار المستخدمين بالتغييرات الجوهرية من خلال التطبيق أو البريد الإلكتروني.'
-              : 'We reserve the right to modify these terms and conditions at any time. Users will be notified of material changes through the App or email.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* 9. Termination */}
-        <SectionCard
-          icon={AlertTriangle}
-          title={isRTL ? '9. إنهاء الخدمة' : '9. Termination'}
-          color="#EF4444"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'يمكننا إنهاء أو تعليق الوصول إلى التطبيق فوراً، دون إشعار مسبق، لأي سبب، بما في ذلك انتهاك هذه الشروط.'
-              : 'We may terminate or suspend access to the App immediately, without prior notice, for any reason, including breach of these terms.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* 10. Governing Law */}
-        <SectionCard
-          icon={Shield}
-          title={isRTL ? '10. القانون المطبق' : '10. Governing Law'}
-          color="#8B5CF6"
-        >
-          <TextParagraph>
-            {isRTL
-              ? 'تخضع هذه الشروط والأحكام لقوانين المملكة العربية السعودية وتفسر وفقاً لها.'
-              : 'These terms and conditions are governed by and construed in accordance with the laws of Saudi Arabia.'}
-          </TextParagraph>
-        </SectionCard>
-
-        {/* Contact Information */}
-        <View style={styles.contactSection}>
-          <Text style={[styles.contactTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'تواصل معنا' : 'Contact Us'}
+            {/* Contact Information */}
+            <View style={styles.contactSection}>
+              <Text style={[styles.contactTitle, isRTL && styles.rtlText]}>
+                {isRTL ? 'تواصل معنا' : 'Contact Us'}
+              </Text>
+              <Text style={[styles.contactText, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? 'إذا كان لديك أي أسئلة حول هذه الشروط والأحكام، يرجى التواصل معنا:'
+                  : 'If you have any questions about these terms and conditions, please contact us:'}
+              </Text>
+              <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
+                {isRTL ? 'البريد الإلكتروني: ' : 'Email: '}legal@maak.app
+              </Text>
+              <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
+                {isRTL ? 'الهاتف: ' : 'Phone: '}+966 12 345 6789
+              </Text>
+            </View>
+          </>
+        ) : (
+          <Text style={[styles.noContentText, isRTL && styles.rtlText]}>
+            {isRTL ? 'لا يوجد محتوى متاح' : 'No content available'}
           </Text>
-          <Text style={[styles.contactText, isRTL && styles.rtlText]}>
-            {isRTL
-              ? 'إذا كان لديك أي أسئلة حول هذه الشروط والأحكام، يرجى التواصل معنا:'
-              : 'If you have any questions about these terms and conditions, please contact us:'}
-          </Text>
-          <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
-            {isRTL ? 'البريد الإلكتروني: ' : 'Email: '}legal@maak.app
-          </Text>
-          <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
-            {isRTL ? 'الهاتف: ' : 'Phone: '}+966 12 345 6789
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -467,6 +412,61 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#2563EB',
     marginBottom: 4,
+  },
+  subsectionCard: {
+    marginLeft: 16,
+    backgroundColor: '#F8FAFC',
+  },
+  subsectionTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1E293B',
+    marginBottom: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#FFFFFF',
+  },
+  noContentText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 50,
+    paddingHorizontal: 32,
   },
   rtlText: {
     fontFamily: 'Cairo-Regular',
