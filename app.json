@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maak.health",
-      "buildNumber": "8",
+      "buildNumber": "10",
       "jsEngine": "hermes",
       "splash": {
         "image": "./assets/images/generated_image.png",
