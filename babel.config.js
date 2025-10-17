@@ -17,13 +17,13 @@ module.exports = function (api) {
         ? ['react-native-reanimated/plugin']
         : []),
     ],
-    // env: {
-    //   production: {
-    //     plugins: [
-    //       // Additional production optimizations for Hermes
-    //       ['transform-remove-console', { exclude: ['error', 'warn'] }],
-    //     ],
-    //   },
-    // },
+    env: {
+      production: {
+        plugins: [
+          // Keep all console statements for debugging
+          // ['transform-remove-console', { exclude: ['error', 'warn'] }],
+        ],
+      },
+    },
   };
 };

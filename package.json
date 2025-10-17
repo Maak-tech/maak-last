@@ -46,7 +46,7 @@
     "expo-symbols": "~0.4.5",
     "expo-system-ui": "~5.0.9",
     "expo-web-browser": "~14.2.0",
-    "firebase": "^10.12.2",
+    "firebase": "^9.23.0",
     "i18next": "^23.11.5",
     "i18next-resources-to-backend": "^1.2.1",
     "lucide-react-native": "^0.400.0",
@@ -71,8 +71,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@types/react": "~19.0.10",
-    "babel-plugin-transform-remove-console": "^6.9.4",
+    "@types/react": "18.2.79",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~9.2.0",
     "firebase-admin": "^12.0.0",

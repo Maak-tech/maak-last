@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maak.health",
-      "buildNumber": "10",
+      "buildNumber": "15",
       "jsEngine": "hermes",
       "splash": {
         "image": "./assets/images/generated_image.png",
@@ -46,7 +46,6 @@
         "resizeMode": "contain",
         "backgroundColor": "#F8FAFC"
       },
-      "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
