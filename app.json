@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maak.health",
-      "buildNumber": "1",
+      "buildNumber": "5",
       "jsEngine": "hermes",
       "splash": {
         "image": "./assets/images/generated_image.png",
@@ -84,6 +84,12 @@
         "expo-sensors",
         {
           "motionPermission": "Allow $(PRODUCT_NAME) to access motion and fitness data for fall detection."
+        }
+      ],
+      [
+        "react-native-health",
+        {
+          "enableHealthKit": true
         }
       ],
       "expo-localization",
