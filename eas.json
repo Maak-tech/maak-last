@@ -43,9 +43,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "ahmad.alstaty@gmail.com",
-        "ascAppId": "TO_BE_FILLED_AFTER_APP_STORE_CONNECT_SETUP",
-        "appleTeamId": "TO_BE_FILLED_AFTER_DEVELOPER_ACCOUNT_SETUP"
+        "appleId": "crazysaif95@gmail.com",
+        "ascAppId": "F69XS6M5TD",
+        "appleTeamId": "6743762957P"
       },
       "android": {
         "serviceAccountKeyPath": "./google-service-account.json",
