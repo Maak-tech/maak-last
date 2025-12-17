@@ -15,9 +15,12 @@ import {
   Share,
   RefreshControl,
   Keyboard,
+  Switch,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFallDetectionContext } from '@/contexts/FallDetectionContext';
 import { useFocusEffect } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { createThemedStyles, getTextStyle } from '@/utils/styles';
@@ -76,13 +79,30 @@ export default function FamilyScreen() {
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [emergencyContacts, setEmergencyContacts] = useState<{id: string, name: string, phone: string}[]>([]);
   const [newContact, setNewContact] = useState({ name: '', phone: '' });
+  const [medicationAlertsEnabled, setMedicationAlertsEnabled] = useState(false);
 
+  const { isEnabled: fallDetectionEnabled, toggleFallDetection } = useFallDetectionContext();
   const isRTL = i18n.language === 'ar';
 
-  // Load family members on component mount
   useEffect(() => {
     loadFamilyMembers();
   }, [user]);
+
+  useEffect(() => {
+    const loadMedicationAlertsSetting = async () => {
+      try {
+        const enabled = await AsyncStorage.getItem('medication_alerts_enabled');
+        if (enabled !== null) {
+          setMedicationAlertsEnabled(JSON.parse(enabled));
+        } else {
+          setMedicationAlertsEnabled(true);
+        }
+      } catch (error) {
+        // Silently fail - default to enabled
+      }
+    };
+    loadMedicationAlertsSetting();
+  }, []);
 
   const loadFamilyMembers = async (isRefresh = false) => {
     if (!user?.familyId) {
@@ -390,6 +410,18 @@ export default function FamilyScreen() {
 
   const handleEmergencySettings = () => {
     setShowEmergencyModal(true);
+  };
+
+  const handleToggleMedicationAlerts = async (enabled: boolean) => {
+    try {
+      setMedicationAlertsEnabled(enabled);
+      await AsyncStorage.setItem('medication_alerts_enabled', JSON.stringify(enabled));
+    } catch (error) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل في تحديث الإعدادات' : 'Failed to update settings'
+      );
+    }
   };
 
   const handleAddEmergencyContact = () => {
@@ -1057,32 +1089,38 @@ export default function FamilyScreen() {
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? 'كشف السقوط' : 'Fall Detection'}
               </Text>
-              <TouchableOpacity style={styles.settingToggle}>
+              <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
                     ? 'تفعيل كشف السقوط التلقائي'
                     : 'Enable automatic fall detection'}
                 </Text>
-                <View style={styles.toggle}>
-                  <View style={styles.toggleInner} />
-                </View>
-              </TouchableOpacity>
+                <Switch
+                  value={fallDetectionEnabled}
+                  onValueChange={toggleFallDetection}
+                  trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+                  thumbColor={fallDetectionEnabled ? '#FFFFFF' : '#9CA3AF'}
+                />
+              </View>
             </View>
 
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? 'تنبيهات الأدوية' : 'Medication Alerts'}
               </Text>
-              <TouchableOpacity style={styles.settingToggle}>
+              <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
                     ? 'إرسال تنبيهات فوتت الأدوية'
                     : 'Send missed medication alerts'}
                 </Text>
-                <View style={styles.toggle}>
-                  <View style={styles.toggleInner} />
-                </View>
-              </TouchableOpacity>
+                <Switch
+                  value={medicationAlertsEnabled}
+                  onValueChange={handleToggleMedicationAlerts}
+                  trackColor={{ false: '#E5E7EB', true: '#10B981' }}
+                  thumbColor={medicationAlertsEnabled ? '#FFFFFF' : '#9CA3AF'}
+                />
+              </View>
             </View>
           </ScrollView>
         </SafeAreaView>
