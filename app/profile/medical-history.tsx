@@ -203,7 +203,17 @@ export default function MedicalHistoryScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
-          onPress={() => router.back()}
+          onPress={() => {
+            try {
+              if (router.canGoBack && router.canGoBack()) {
+                router.back();
+              } else {
+                router.push('/(tabs)/profile');
+              }
+            } catch (error) {
+              router.push('/(tabs)/profile');
+            }
+          }}
         >
           <ArrowLeft
             size={24}
