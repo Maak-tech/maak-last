@@ -1269,7 +1269,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
   },
   addButton: {
@@ -1297,7 +1297,7 @@ const styles = StyleSheet.create({
   },
   overviewTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 16,
   },
@@ -1310,14 +1310,14 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginTop: 8,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   section: {
@@ -1325,7 +1325,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 12,
   },
@@ -1367,7 +1367,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   memberInfo: {
@@ -1375,19 +1375,19 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 2,
   },
   memberRelation: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginBottom: 2,
   },
   memberLastActive: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#94A3B8',
   },
   memberRight: {
@@ -1395,7 +1395,7 @@ const styles = StyleSheet.create({
   },
   healthScore: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginBottom: 4,
   },
@@ -1406,7 +1406,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   pendingIndicator: {
@@ -1417,7 +1417,7 @@ const styles = StyleSheet.create({
   },
   pendingText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   quickActions: {
@@ -1438,7 +1438,7 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#1E293B',
     marginTop: 8,
     textAlign: 'center',
@@ -1459,7 +1459,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
   },
   closeButton: {
@@ -1477,7 +1477,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#374151',
     marginBottom: 8,
   },
@@ -1488,7 +1488,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     backgroundColor: '#FFFFFF',
   },
   rtlInput: {
@@ -1513,7 +1513,7 @@ const styles = StyleSheet.create({
   },
   relationOptionText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   relationOptionTextSelected: {
@@ -1532,7 +1532,7 @@ const styles = StyleSheet.create({
   },
   inviteButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   codeContainer: {
@@ -1548,13 +1548,13 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#374151',
     marginBottom: 8,
   },
   codeValue: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
   },
   loadingContainer: {
@@ -1564,7 +1564,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     marginTop: 16,
   },
@@ -1592,7 +1592,7 @@ const styles = StyleSheet.create({
   },
   emergencyDescription: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginBottom: 16,
   },
@@ -1606,7 +1606,7 @@ const styles = StyleSheet.create({
   },
   addContactText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#2563EB',
     marginLeft: 8,
   },
@@ -1622,7 +1622,7 @@ const styles = StyleSheet.create({
   },
   settingText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#1E293B',
   },
   toggle: {
@@ -1650,7 +1650,7 @@ const styles = StyleSheet.create({
   },
   joinFamilyButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
     marginLeft: 8,
   },
@@ -1673,7 +1673,7 @@ const styles = StyleSheet.create({
   },
   roleOptionText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   roleOptionTextSelected: {
@@ -1689,7 +1689,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   contactItem: {
@@ -1708,13 +1708,13 @@ const styles = StyleSheet.create({
   },
   contactName: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 2,
   },
   contactPhone: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
   },
   deleteContactButton: {

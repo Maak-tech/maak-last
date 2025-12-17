@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
   },
   rtlText: {
@@ -872,7 +872,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 12,
   },
@@ -894,13 +894,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#2563EB',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     textAlign: 'center',
   },
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
   },
   symptomType: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 4,
   },
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   },
   symptomDate: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   memberBadge: {
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#6366F1',
   },
   symptomActions: {
@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
   },
   severityText: {
     fontSize: 12,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#FFFFFF',
   },
   actionsButton: {
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
   },
   symptomDescription: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#475569',
     lineHeight: 20,
   },
@@ -996,7 +996,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   deleteText: {
@@ -1013,18 +1013,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     textAlign: 'center',
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   errorText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#EF4444',
     textAlign: 'center',
   },
@@ -1045,7 +1045,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
   },
   closeButton: {
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 8,
   },
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
   },
   symptomOptionText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   symptomOptionTextSelected: {
@@ -1097,7 +1097,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#1E293B',
   },
   rtlTextInput: {
@@ -1131,7 +1131,7 @@ const styles = StyleSheet.create({
   },
   severityButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#64748B',
   },
   severityButtonTextActive: {
@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
   },
   severityLabel: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   saveButton: {
@@ -1158,7 +1158,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   // Member selection styles
@@ -1184,7 +1184,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#1E293B',
   },
   memberNameSelected: {
@@ -1192,7 +1192,7 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 8,

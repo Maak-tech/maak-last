@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     flex: 1,
     textAlign: 'center',
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   introTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginBottom: 12,
     textAlign: 'center',
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   introDescription: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 24,
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   lastUpdatedText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   sectionCard: {
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     flex: 1,
   },
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   paragraph: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#374151',
     lineHeight: 22,
     marginBottom: 12,
@@ -371,14 +371,14 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#374151',
     marginRight: 8,
     marginTop: 2,
   },
   bulletText: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#374151',
     lineHeight: 20,
     flex: 1,
@@ -396,20 +396,20 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 12,
   },
   contactText: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     lineHeight: 20,
     marginBottom: 16,
   },
   contactDetails: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#2563EB',
     marginBottom: 4,
   },
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   },
   subsectionTitle: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 8,
   },
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     marginTop: 16,
   },
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#EF4444',
     textAlign: 'center',
     marginBottom: 16,
@@ -457,12 +457,12 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   noContentText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     textAlign: 'center',
     marginTop: 50,

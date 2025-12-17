@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
   },
   headerTitleRTL: {
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   filterTextSelected: {
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   memberAvatarText: {
     fontSize: 10,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#64748B',
   },
   memberAvatarTextSelected: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#6366F1',
   },
   memberBadgeTextSelected: {
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   },
   selectedIndicatorText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   selectedIndicatorTextRTL: {

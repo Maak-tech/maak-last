@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     flex: 1,
     textAlign: 'center',
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     marginTop: 16,
   },
@@ -570,14 +570,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     textAlign: 'center',
     marginBottom: 24,
@@ -595,12 +595,12 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   comingSoon: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     textAlign: 'center',
     marginTop: 100,
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   activeTabText: {
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
   },
   recordCondition: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 4,
   },
@@ -690,22 +690,22 @@ const styles = StyleSheet.create({
   },
   severityText: {
     fontSize: 10,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
   },
   recordDate: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
   },
   recordNotes: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginBottom: 2,
   },
   recordRelation: {
     fontSize: 10,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#6366F1',
   },
   recordActions: {
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
   },
   floatingAddText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   modalContainer: {
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
   },
   closeButton: {
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#374151',
     marginBottom: 8,
   },
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     backgroundColor: '#FFFFFF',
   },
   textArea: {
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     backgroundColor: '#FFFFFF',
     textAlignVertical: 'top',
     minHeight: 80,
@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
   },
   severityOptionText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   severityOptionTextSelected: {
@@ -842,7 +842,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
 });

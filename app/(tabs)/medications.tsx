@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
   },
   headerAddButton: {
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 12,
   },
@@ -953,7 +953,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#10B981',
     minWidth: 80,
   },
@@ -974,7 +974,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 12,
   },
@@ -1015,13 +1015,13 @@ const styles = StyleSheet.create({
   },
   medicationName: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 2,
   },
   medicationDosage: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginBottom: 4,
   },
@@ -1032,7 +1032,7 @@ const styles = StyleSheet.create({
   },
   medicationTimeText: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
   },
   reminderButton: {
@@ -1054,7 +1054,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
   },
   closeButton: {
@@ -1072,7 +1072,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#374151',
     marginBottom: 8,
   },
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     backgroundColor: '#FFFFFF',
   },
   textArea: {
@@ -1093,7 +1093,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     backgroundColor: '#FFFFFF',
     textAlignVertical: 'top',
     minHeight: 80,
@@ -1119,7 +1119,7 @@ const styles = StyleSheet.create({
   },
   frequencyChipText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   frequencyChipTextSelected: {
@@ -1137,12 +1137,12 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     textAlign: 'center',
   },
@@ -1156,7 +1156,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     textAlign: 'center',
   },
@@ -1197,7 +1197,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     backgroundColor: '#FFFFFF',
   },
   removeButton: {
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
   },
   reminderTimeText: {
     fontSize: 10,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginTop: 2,
   },
@@ -1242,7 +1242,7 @@ const styles = StyleSheet.create({
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#6366F1',
   },
   // Member selection styles
@@ -1268,7 +1268,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#1E293B',
   },
   memberNameSelected: {
@@ -1276,7 +1276,7 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     backgroundColor: '#F1F5F9',
     paddingHorizontal: 8,

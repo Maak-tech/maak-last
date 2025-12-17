@@ -1,11 +1,16 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FallDetectionProvider } from '@/contexts/FallDetectionContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import * as Notifications from 'expo-notifications';
 import '@/lib/i18n';
+
+// Keep splash screen visible while fonts load
+SplashScreen.preventAutoHideAsync();
 
 // Configure how notifications should be displayed when app is in foreground
 Notifications.setNotificationHandler({
@@ -18,6 +23,19 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    'Geist-Regular': require('@/assets/fonts/Geist-Regular.ttf'),
+    'Geist-Medium': require('@/assets/fonts/Geist-Medium.ttf'),
+    'Geist-SemiBold': require('@/assets/fonts/Geist-SemiBold.ttf'),
+    'Geist-Bold': require('@/assets/fonts/Geist-Bold.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
   useEffect(() => {
     // Request notification permissions on app start
     const requestPermissions = async () => {
@@ -31,6 +49,11 @@ export default function RootLayout() {
     
     requestPermissions();
   }, []);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <ThemeProvider>
       <AuthProvider>

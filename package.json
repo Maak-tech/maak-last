@@ -46,6 +46,7 @@
     "expo-system-ui": "~5.0.9",
     "expo-web-browser": "~14.2.0",
     "firebase": "^9.23.0",
+    "geist": "^1.5.1",
     "i18next": "^23.11.5",
     "i18next-resources-to-backend": "^1.2.1",
     "lucide-react-native": "^0.400.0",

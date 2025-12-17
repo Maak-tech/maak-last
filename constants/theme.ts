@@ -91,10 +91,10 @@ export const Colors = {
 export const Typography = {
   // Font Families
   fontFamily: {
-    regular: 'Inter-Regular',
-    medium: 'Inter-Medium',
-    semiBold: 'Inter-SemiBold',
-    bold: 'Inter-Bold',
+    regular: 'Geist-Regular',
+    medium: 'Geist-Medium',
+    semiBold: 'Geist-SemiBold',
+    bold: 'Geist-Bold',
     arabic: 'Cairo-Regular',
     arabicBold: 'Cairo-Bold',
   },

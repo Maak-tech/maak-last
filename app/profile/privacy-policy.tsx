@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     flex: 1,
     textAlign: 'center',
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   introTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginBottom: 12,
     textAlign: 'center',
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   introDescription: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 24,
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   },
   lastUpdatedText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   sectionCard: {
@@ -262,21 +262,21 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 12,
   },
   mainSectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
   },
   subsectionTitle: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
   },
   sectionContent: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#374151',
     lineHeight: 20,
   },
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     marginTop: 16,
   },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#EF4444',
     textAlign: 'center',
     marginBottom: 16,
@@ -314,12 +314,12 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   noContentText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     textAlign: 'center',
     marginTop: 50,

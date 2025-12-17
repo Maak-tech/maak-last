@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     flex: 1,
     textAlign: 'center',
@@ -412,14 +412,14 @@ const styles = StyleSheet.create({
   },
   welcomeTitle: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginBottom: 8,
     textAlign: 'center',
   },
   welcomeDescription: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 24,
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 16,
   },
@@ -460,19 +460,19 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 2,
   },
   contactSubtitle: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginBottom: 4,
   },
   contactValue: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#2563EB',
   },
   businessHours: {
@@ -494,19 +494,19 @@ const styles = StyleSheet.create({
   },
   hoursTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 4,
   },
   hoursText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#059669',
     marginBottom: 2,
   },
   hoursSubtext: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
   },
   helpGrid: {
@@ -535,14 +535,14 @@ const styles = StyleSheet.create({
   },
   helpTitle: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 4,
     textAlign: 'center',
   },
   helpDescription: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 16,
@@ -560,13 +560,13 @@ const styles = StyleSheet.create({
   },
   faqQuestion: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 8,
   },
   faqAnswer: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     lineHeight: 20,
   },
@@ -594,12 +594,12 @@ const styles = StyleSheet.create({
   },
   emergencyTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#DC2626',
   },
   emergencyDescription: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#7F1D1D',
     marginBottom: 16,
     lineHeight: 20,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
   },
   emergencyNumber: {
     fontSize: 18,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#FFFFFF',
   },
   locationSection: {
@@ -634,13 +634,13 @@ const styles = StyleSheet.create({
   },
   locationTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 4,
   },
   locationText: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
   },
   rtlText: {

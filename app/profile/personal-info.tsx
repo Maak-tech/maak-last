@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     flex: 1,
     textAlign: 'center',
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 32,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#FFFFFF',
   },
   statusBadge: {
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginBottom: 8,
   },
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#059669',
   },
   infoSection: {
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 16,
   },
@@ -564,19 +564,19 @@ const styles = StyleSheet.create({
   },
   infoCardLabel: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     marginBottom: 4,
   },
   infoCardValue: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 4,
   },
   infoCardDescription: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#94A3B8',
     lineHeight: 16,
   },
@@ -601,13 +601,13 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#2563EB',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     textAlign: 'center',
   },
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
   },
   editProfileText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
   rtlText: {
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
   },
   closeButton: {
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#374151',
     marginBottom: 8,
   },
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     backgroundColor: '#FFFFFF',
   },
   rtlInput: {
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
   },
   fieldDescription: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginTop: 4,
     lineHeight: 16,
@@ -707,7 +707,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#FFFFFF',
   },
 });

@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
   },
   content: {
@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#FFFFFF',
   },
   userInfo: {
@@ -662,13 +662,13 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 24,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 16,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     marginBottom: 8,
   },
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
   },
   memberSinceText: {
     fontSize: 12,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
   healthSummary: {
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
   },
   healthTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 16,
   },
@@ -728,13 +728,13 @@ const styles = StyleSheet.create({
   },
   healthCardValue: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
+    fontFamily: 'Geist-Bold',
     color: '#1E293B',
     marginBottom: 4,
   },
   healthCardLabel: {
     fontSize: 11,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 14,
@@ -744,7 +744,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     marginBottom: 8,
     marginLeft: 4,
@@ -788,7 +788,7 @@ const styles = StyleSheet.create({
   },
   sectionItemLabel: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#1E293B',
     flex: 1,
   },
@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
   },
   sectionItemValue: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#64748B',
     maxWidth: 80,
   },
@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#EF4444',
   },
   appVersion: {
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
   },
   appVersionText: {
     fontSize: 12,
-    fontFamily: 'Inter-Regular',
+    fontFamily: 'Geist-Regular',
     color: '#94A3B8',
   },
   rtlText: {
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
     color: '#1E293B',
     textAlign: 'center',
     marginBottom: 20,
@@ -874,12 +874,12 @@ const styles = StyleSheet.create({
   },
   languageText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#1E293B',
   },
   selectedLanguageText: {
     color: '#2563EB',
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Geist-SemiBold',
   },
   cancelButton: {
     marginTop: 8,
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Geist-Medium',
     color: '#64748B',
   },
 });
