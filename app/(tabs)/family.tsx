@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   SafeAreaView,
   TextInput,
@@ -13,6 +14,7 @@ import {
   Clipboard,
   Share,
   RefreshControl,
+  Keyboard,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
@@ -391,37 +393,65 @@ export default function FamilyScreen() {
   };
 
   const handleAddEmergencyContact = () => {
-    if (!newContact.name.trim() || !newContact.phone.trim()) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'يرجى ملء جميع الحقول' : 'Please fill in all fields'
-      );
-      return;
+    try {
+      Keyboard.dismiss();
+      
+      const nameValue = newContact.name?.trim() || '';
+      const phoneValue = newContact.phone?.trim() || '';
+      
+      if (!nameValue || !phoneValue) {
+        setTimeout(() => {
+          Alert.alert(
+            isRTL ? 'خطأ' : 'Error',
+            isRTL ? 'يرجى ملء جميع الحقول' : 'Please fill in all fields',
+            [{ text: isRTL ? 'حسناً' : 'OK' }],
+            { cancelable: true }
+          );
+        }, 100);
+        return;
+      }
+
+      const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/;
+      if (!phoneRegex.test(phoneValue)) {
+        setTimeout(() => {
+          Alert.alert(
+            isRTL ? 'خطأ' : 'Error',
+            isRTL ? 'يرجى إدخال رقم هاتف صحيح' : 'Please enter a valid phone number',
+            [{ text: isRTL ? 'حسناً' : 'OK' }],
+            { cancelable: true }
+          );
+        }, 100);
+        return;
+      }
+
+      const contact = {
+        id: Date.now().toString(),
+        name: nameValue,
+        phone: phoneValue,
+      };
+
+      setEmergencyContacts((prev) => [...prev, contact]);
+      setNewContact({ name: '', phone: '' });
+
+      setTimeout(() => {
+        Alert.alert(
+          isRTL ? 'تم الحفظ' : 'Saved',
+          isRTL ? 'تم إضافة جهة الاتصال بنجاح' : 'Emergency contact added successfully',
+          [{ text: isRTL ? 'حسناً' : 'OK' }],
+          { cancelable: true }
+        );
+      }, 200);
+    } catch (error) {
+      Keyboard.dismiss();
+      setTimeout(() => {
+        Alert.alert(
+          isRTL ? 'خطأ' : 'Error',
+          isRTL ? 'حدث خطأ أثناء إضافة جهة الاتصال' : 'An error occurred while adding the contact',
+          [{ text: isRTL ? 'حسناً' : 'OK' }],
+          { cancelable: true }
+        );
+      }, 100);
     }
-
-    // Simple phone number validation
-    const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,}$/;
-    if (!phoneRegex.test(newContact.phone.trim())) {
-      Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'يرجى إدخال رقم هاتف صحيح' : 'Please enter a valid phone number'
-      );
-      return;
-    }
-
-    const contact = {
-      id: Date.now().toString(),
-      name: newContact.name.trim(),
-      phone: newContact.phone.trim(),
-    };
-
-    setEmergencyContacts([...emergencyContacts, contact]);
-    setNewContact({ name: '', phone: '' });
-
-    Alert.alert(
-      isRTL ? 'تم الحفظ' : 'Saved',
-      isRTL ? 'تم إضافة جهة الاتصال بنجاح' : 'Emergency contact added successfully'
-    );
   };
 
   const handleDeleteEmergencyContact = (contactId: string) => {
@@ -989,7 +1019,7 @@ export default function FamilyScreen() {
                 <TextInput
                   style={[styles.textInput, isRTL && styles.rtlInput]}
                   value={newContact.name}
-                  onChangeText={(text) => setNewContact({ ...newContact, name: text })}
+                  onChangeText={(text) => setNewContact((prev) => ({ ...prev, name: text }))}
                   placeholder={isRTL ? 'اسم جهة الاتصال' : 'Contact Name'}
                   textAlign={isRTL ? 'right' : 'left'}
                 />
@@ -997,21 +1027,29 @@ export default function FamilyScreen() {
                 <TextInput
                   style={[styles.textInput, isRTL && styles.rtlInput, { marginTop: 8 }]}
                   value={newContact.phone}
-                  onChangeText={(text) => setNewContact({ ...newContact, phone: text })}
+                  onChangeText={(text) => setNewContact((prev) => ({ ...prev, phone: text }))}
                   placeholder={isRTL ? 'رقم الهاتف' : 'Phone Number'}
                   textAlign={isRTL ? 'right' : 'left'}
                   keyboardType="phone-pad"
                 />
                 
-                <TouchableOpacity 
-                  style={styles.addContactButton}
+                <Pressable 
+                  style={({ pressed }) => [
+                    styles.addContactButton,
+                    pressed && { opacity: 0.7, backgroundColor: '#F3F4F6' }
+                  ]}
                   onPress={handleAddEmergencyContact}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Plus size={20} color="#2563EB" />
-                  <Text style={[styles.addContactText, isRTL && styles.rtlText]}>
-                    {isRTL ? 'إضافة جهة اتصال' : 'Add Contact'}
-                  </Text>
-                </TouchableOpacity>
+                  {({ pressed }) => (
+                    <>
+                      <Plus size={20} color="#2563EB" />
+                      <Text style={[styles.addContactText, isRTL && styles.rtlText]}>
+                        {isRTL ? 'إضافة جهة اتصال' : 'Add Contact'}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
               </View>
             </View>
 
@@ -1602,7 +1640,10 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
     borderRadius: 12,
     padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   addContactText: {
     fontSize: 14,

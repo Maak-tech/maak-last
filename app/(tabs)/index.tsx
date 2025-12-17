@@ -536,9 +536,6 @@ export default function DashboardScreen() {
   };
 
   const handleSOS = () => {
-    console.log('🚨 SOS button pressed!');
-    
-    // Try to provide haptic feedback, but don't let errors prevent the alert
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {
         // Silently fail if haptics is not available
@@ -547,7 +544,6 @@ export default function DashboardScreen() {
       // Silently fail if haptics is not available
     }
     
-    // Show alert immediately
     Alert.alert(
       isRTL ? 'طوارئ' : 'Emergency',
       isRTL 
@@ -562,8 +558,7 @@ export default function DashboardScreen() {
           text: isRTL ? 'اتصال بـ 911' : 'Call 911',
           style: 'destructive',
           onPress: () => {
-            Linking.openURL('tel:911').catch((error) => {
-              console.error('Error opening phone:', error);
+            Linking.openURL('tel:911').catch(() => {
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL 
@@ -576,7 +571,6 @@ export default function DashboardScreen() {
         {
           text: isRTL ? 'إشعار العائلة' : 'Notify Family',
           onPress: () => {
-            // TODO: Implement family notification
             Alert.alert(
               isRTL ? 'تم إرسال الإشعار' : 'Notification Sent',
               isRTL 
