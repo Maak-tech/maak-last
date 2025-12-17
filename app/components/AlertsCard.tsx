@@ -42,18 +42,14 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     try {
       setLoading(true);
 
-      // Load family members first
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members);
 
-      // Get user IDs for family alerts
       const userIds = members.map((member) => member.id);
-
-      // Load family alerts
       const familyAlerts = await alertService.getFamilyAlerts(userIds, 10);
       setAlerts(familyAlerts);
     } catch (error) {
-      console.error('Error loading alerts:', error);
+      // Silently fail
     } finally {
       setLoading(false);
     }
@@ -65,10 +61,8 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     try {
       setRespondingTo(alertId);
 
-      // Add current user as responder
       await alertService.addResponder(alertId, user.id);
 
-      // Show success message
       Alert.alert(
         isRTL ? 'تم التجاوب' : 'Response Recorded',
         isRTL
@@ -77,13 +71,13 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         [{ text: isRTL ? 'موافق' : 'OK' }]
       );
 
-      // Reload alerts
       await loadAlerts();
     } catch (error) {
-      console.error('Error responding to alert:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'فشل في تسجيل الاستجابة' : 'Failed to record response'
+        isRTL ? 'فشل في تسجيل الاستجابة' : 'Failed to record response',
+        [{ text: isRTL ? 'موافق' : 'OK' }],
+        { cancelable: true }
       );
     } finally {
       setRespondingTo(null);
@@ -93,30 +87,22 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const handleResolve = async (alertId: string) => {
     if (!user?.id) return;
 
-    Alert.alert(
-      isRTL ? 'حل التنبيه' : 'Resolve Alert',
-      isRTL
-        ? 'هل أنت متأكد أن الموقف تم حله؟'
-        : 'Are you sure the situation has been resolved?',
-      [
-        { text: isRTL ? 'إلغاء' : 'Cancel', style: 'cancel' },
-        {
-          text: isRTL ? 'نعم' : 'Yes',
-          onPress: async () => {
-            try {
-              await alertService.resolveAlert(alertId, user.id);
-              await loadAlerts();
-            } catch (error) {
-              console.error('Error resolving alert:', error);
-              Alert.alert(
-                isRTL ? 'خطأ' : 'Error',
-                isRTL ? 'فشل في حل التنبيه' : 'Failed to resolve alert'
-              );
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await alertService.resolveAlert(alertId, user.id);
+      await loadAlerts();
+      
+      Alert.alert(
+        isRTL ? 'تم الحل' : 'Resolved',
+        isRTL ? 'تم حل التنبيه بنجاح' : 'Alert resolved successfully',
+        [{ text: isRTL ? 'موافق' : 'OK' }]
+      );
+    } catch (error) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL ? 'فشل في حل التنبيه' : 'Failed to resolve alert',
+        [{ text: isRTL ? 'موافق' : 'OK' }]
+      );
+    }
   };
 
   const getMemberName = (userId: string): string => {
@@ -233,6 +219,8 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
           <TouchableOpacity
             style={[styles.actionButton, styles.resolveButton]}
             onPress={() => handleResolve(item.id)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <CheckCircle size={16} color="#10B981" />
             <Text

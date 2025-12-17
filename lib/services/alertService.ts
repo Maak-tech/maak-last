@@ -16,7 +16,6 @@ import { pushNotificationService } from './pushNotificationService';
 import { userService } from './userService';
 
 export const alertService = {
-  // Create emergency alert
   async createAlert(alertData: Omit<EmergencyAlert, 'id'>): Promise<string> {
     try {
       const docRef = await addDoc(collection(db, 'alerts'), {
@@ -25,12 +24,10 @@ export const alertService = {
       });
       return docRef.id;
     } catch (error) {
-      console.error('Error creating alert:', error);
       throw error;
     }
   },
 
-  // Get user alerts
   async getUserAlerts(
     userId: string,
     limitCount = 20
@@ -57,12 +54,10 @@ export const alertService = {
 
       return alerts;
     } catch (error) {
-      console.error('Error getting alerts:', error);
       throw error;
     }
   },
 
-  // Get family alerts
   async getFamilyAlerts(
     userIds: string[],
     limitCount = 50
@@ -90,12 +85,10 @@ export const alertService = {
 
       return alerts;
     } catch (error) {
-      console.error('Error getting family alerts:', error);
       throw error;
     }
   },
 
-  // Resolve alert
   async resolveAlert(alertId: string, resolverId: string): Promise<void> {
     try {
       await updateDoc(doc(db, 'alerts', alertId), {
@@ -104,26 +97,20 @@ export const alertService = {
         resolvedBy: resolverId,
       });
     } catch (error) {
-      console.error('Error resolving alert:', error);
       throw error;
     }
   },
 
-  // Add responder to alert
   async addResponder(alertId: string, responderId: string): Promise<void> {
     try {
-      const alertDoc = doc(db, 'alerts', alertId);
-      // Note: This is a simplified version. In production, you'd want to use arrayUnion
-      await updateDoc(alertDoc, {
-        responders: [responderId], // This would typically use arrayUnion for proper array handling
+      await updateDoc(doc(db, 'alerts', alertId), {
+        responders: [responderId],
       });
     } catch (error) {
-      console.error('Error adding responder:', error);
       throw error;
     }
   },
 
-  // Create fall detection alert
   async createFallAlert(userId: string, location?: string): Promise<string> {
     try {
       const alertData: Omit<EmergencyAlert, 'id'> = {
@@ -140,7 +127,6 @@ export const alertService = {
 
       const alertId = await this.createAlert(alertData);
 
-      // Send push notification to family members
       try {
         const user = await userService.getUser(userId);
         if (user && user.familyId) {
@@ -151,7 +137,6 @@ export const alertService = {
             user.familyId
           );
         } else {
-          // If no family, send test notification to user
           await pushNotificationService.sendFallAlert(
             userId,
             alertId,
@@ -159,21 +144,15 @@ export const alertService = {
           );
         }
       } catch (notificationError) {
-        console.error(
-          'Error sending fall alert notification:',
-          notificationError
-        );
-        // Don't throw error here - alert was created successfully
+        // Silently fail
       }
 
       return alertId;
     } catch (error) {
-      console.error('Error creating fall alert:', error);
       throw error;
     }
   },
 
-  // Create medication reminder alert
   async createMedicationAlert(
     userId: string,
     medicationName: string
@@ -191,12 +170,10 @@ export const alertService = {
 
       return await this.createAlert(alertData);
     } catch (error) {
-      console.error('Error creating medication alert:', error);
       throw error;
     }
   },
 
-  // Create vitals alert
   async createVitalsAlert(
     userId: string,
     vitalType: string,
@@ -216,12 +193,10 @@ export const alertService = {
 
       return await this.createAlert(alertData);
     } catch (error) {
-      console.error('Error creating vitals alert:', error);
       throw error;
     }
   },
 
-  // Get active alerts count
   async getActiveAlertsCount(userId: string): Promise<number> {
     try {
       const q = query(
@@ -233,7 +208,6 @@ export const alertService = {
       const querySnapshot = await getDocs(q);
       return querySnapshot.size;
     } catch (error) {
-      console.error('Error getting active alerts count:', error);
       return 0;
     }
   },

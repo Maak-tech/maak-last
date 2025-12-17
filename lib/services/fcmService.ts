@@ -52,21 +52,43 @@ export const fcmService = {
       const isExpoGo = Constants.default.appOwnership === 'expo';
 
       if (isExpoGo) {
-        console.log(
-          '📱 FCM not available in Expo Go - using local notifications fallback'
-        );
         return { success: false, error: 'FCM not available in Expo Go' };
       }
 
-      // For development builds and production
-      const { getExpoPushTokenAsync } = await import('expo-notifications');
-      const tokenData = await getExpoPushTokenAsync();
+      // Import expo-notifications
+      const Notifications = await import('expo-notifications');
+      
+      // Check and request permissions first
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
 
-      console.log('📱 FCM Token obtained:', tokenData.data);
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        return { 
+          success: false, 
+          error: 'Notification permissions not granted' 
+        };
+      }
+
+      // Get the push token
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.default.expoConfig?.extra?.eas?.projectId,
+      });
+
+      if (!tokenData?.data) {
+        return { success: false, error: 'Failed to get push token' };
+      }
+
       return { success: true, token: tokenData.data };
     } catch (error) {
-      console.error('❌ Error getting FCM token:', error);
-      return { success: false, error: String(error) };
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error) 
+      };
     }
   },
 
@@ -252,35 +274,27 @@ export const fcmService = {
   // Initialize FCM for the current user
   async initializeFCM(userId: string): Promise<boolean> {
     try {
-      // Wait a bit to ensure auth is fully ready
       const { auth } = await import('@/lib/firebase');
-      const currentUser = auth.currentUser;
+      let currentUser = auth.currentUser;
       
       if (!currentUser) {
-        console.log('⏳ Waiting for auth to be ready...');
         await new Promise(resolve => setTimeout(resolve, 2000));
+        currentUser = auth.currentUser;
+      }
+      
+      if (!currentUser) {
+        return false;
       }
       
       const tokenResult = await this.getFCMToken();
 
       if (!tokenResult.success || !tokenResult.token) {
-        console.log(
-          '📱 FCM token not available, falling back to local notifications'
-        );
         return false;
       }
 
       const saved = await this.saveFCMToken(tokenResult.token, userId);
-
-      if (saved) {
-        console.log('✅ FCM initialized successfully for user:', userId);
-        return true;
-      } else {
-        console.log('❌ Failed to save FCM token');
-        return false;
-      }
+      return saved;
     } catch (error) {
-      console.error('❌ Error initializing FCM:', error);
       return false;
     }
   },
