@@ -78,7 +78,6 @@ export default function MedicalHistoryScreen() {
       setMedicalHistory(history);
       setSummary(summaryData);
     } catch (error) {
-      console.error('Error loading medical history:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL
@@ -135,7 +134,6 @@ export default function MedicalHistoryScreen() {
         isRTL ? 'تم إضافة السجل الطبي بنجاح' : 'Medical record added successfully'
       );
     } catch (error) {
-      console.error('Error adding medical history:', error);
       Alert.alert(
         isRTL ? 'خطأ' : 'Error',
         isRTL ? 'حدث خطأ في إضافة السجل الطبي' : 'Failed to add medical record'
@@ -166,7 +164,6 @@ export default function MedicalHistoryScreen() {
                 isRTL ? 'تم حذف السجل الطبي بنجاح' : 'Medical record deleted successfully'
               );
             } catch (error) {
-              console.error('Error deleting medical history:', error);
               Alert.alert(
                 isRTL ? 'خطأ' : 'Error',
                 isRTL ? 'حدث خطأ في حذف السجل الطبي' : 'Failed to delete medical record'

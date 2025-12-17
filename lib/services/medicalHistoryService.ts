@@ -15,7 +15,6 @@ import { db } from '@/lib/firebase';
 import { MedicalHistory } from '@/types';
 
 export const medicalHistoryService = {
-  // Get all medical history for a user
   async getUserMedicalHistory(userId: string): Promise<MedicalHistory[]> {
     try {
       const q = query(
@@ -43,7 +42,6 @@ export const medicalHistoryService = {
     }
   },
 
-  // Get family medical history for a user
   async getFamilyMedicalHistory(userId: string): Promise<MedicalHistory[]> {
     try {
       const q = query(
@@ -72,22 +70,29 @@ export const medicalHistoryService = {
     }
   },
 
-  // Add new medical history entry
   async addMedicalHistory(
     userId: string,
     medicalHistoryData: Omit<MedicalHistory, 'id' | 'userId'>
   ): Promise<string> {
     try {
-      const docData = {
+      const cleanedData: any = {
         userId,
-        ...medicalHistoryData,
+        condition: medicalHistoryData.condition,
+        severity: medicalHistoryData.severity,
+        isFamily: medicalHistoryData.isFamily,
         diagnosedDate: medicalHistoryData.diagnosedDate
           ? Timestamp.fromDate(medicalHistoryData.diagnosedDate)
           : null,
       };
 
-      const docRef = await addDoc(collection(db, 'medicalHistory'), docData);
-      console.log('✅ Medical history entry added successfully');
+      if (medicalHistoryData.notes && typeof medicalHistoryData.notes === 'string' && medicalHistoryData.notes.trim() !== '') {
+        cleanedData.notes = medicalHistoryData.notes.trim();
+      }
+      if (medicalHistoryData.relation && typeof medicalHistoryData.relation === 'string' && medicalHistoryData.relation.trim() !== '') {
+        cleanedData.relation = medicalHistoryData.relation.trim();
+      }
+
+      const docRef = await addDoc(collection(db, 'medicalHistory'), cleanedData);
       return docRef.id;
     } catch (error) {
       console.error('Error adding medical history:', error);
@@ -95,38 +100,54 @@ export const medicalHistoryService = {
     }
   },
 
-  // Update medical history entry
   async updateMedicalHistory(
     historyId: string,
     updates: Partial<Omit<MedicalHistory, 'id' | 'userId'>>
   ): Promise<void> {
     try {
-      const updateData: any = { ...updates };
+      const updateData: any = {};
 
-      if (updates.diagnosedDate) {
-        updateData.diagnosedDate = Timestamp.fromDate(updates.diagnosedDate);
+      if (updates.condition !== undefined) {
+        updateData.condition = updates.condition;
+      }
+      if (updates.severity !== undefined) {
+        updateData.severity = updates.severity;
+      }
+      if (updates.isFamily !== undefined) {
+        updateData.isFamily = updates.isFamily;
+      }
+      if (updates.diagnosedDate !== undefined) {
+        updateData.diagnosedDate = updates.diagnosedDate
+          ? Timestamp.fromDate(updates.diagnosedDate)
+          : null;
+      }
+      if (updates.notes !== undefined) {
+        updateData.notes = updates.notes && typeof updates.notes === 'string' && updates.notes.trim() !== '' 
+          ? updates.notes.trim() 
+          : null;
+      }
+      if (updates.relation !== undefined) {
+        updateData.relation = updates.relation && typeof updates.relation === 'string' && updates.relation.trim() !== '' 
+          ? updates.relation.trim() 
+          : null;
       }
 
       await updateDoc(doc(db, 'medicalHistory', historyId), updateData);
-      console.log('✅ Medical history entry updated successfully');
     } catch (error) {
       console.error('Error updating medical history:', error);
       throw error;
     }
   },
 
-  // Delete medical history entry
   async deleteMedicalHistory(historyId: string): Promise<void> {
     try {
       await deleteDoc(doc(db, 'medicalHistory', historyId));
-      console.log('✅ Medical history entry deleted successfully');
     } catch (error) {
       console.error('Error deleting medical history:', error);
       throw error;
     }
   },
 
-  // Get single medical history entry
   async getMedicalHistoryById(
     historyId: string
   ): Promise<MedicalHistory | null> {
@@ -149,7 +170,6 @@ export const medicalHistoryService = {
     }
   },
 
-  // Get medical conditions by severity
   async getMedicalHistoryBySeverity(
     userId: string,
     severity: 'mild' | 'moderate' | 'severe'
@@ -181,15 +201,11 @@ export const medicalHistoryService = {
     }
   },
 
-  // Search medical history by condition name
   async searchMedicalHistory(
     userId: string,
     searchTerm: string
   ): Promise<MedicalHistory[]> {
     try {
-      // Note: This is a simple client-side search since Firestore doesn't support
-      // text search without additional setup. For production, consider using
-      // Algolia or implementing compound queries.
       const allHistory = await this.getUserMedicalHistory(userId);
 
       return allHistory.filter(
@@ -204,7 +220,6 @@ export const medicalHistoryService = {
     }
   },
 
-  // Get summary statistics
   async getMedicalHistorySummary(userId: string) {
     try {
       const allHistory = await this.getUserMedicalHistory(userId);

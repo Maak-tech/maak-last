@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -12,15 +12,18 @@ const messagingSenderId = process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
 const appId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID;
 const measurementId = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
-const app = initializeApp({
-  apiKey,
-  authDomain,
-  projectId,
-  storageBucket,
-  messagingSenderId,
-  appId,
-  measurementId,
-});
+// Check if Firebase app already exists (prevents duplicate initialization during HMR)
+const app = getApps().length === 0
+  ? initializeApp({
+      apiKey,
+      authDomain,
+      projectId,
+      storageBucket,
+      messagingSenderId,
+      appId,
+      measurementId,
+    })
+  : getApp();
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
