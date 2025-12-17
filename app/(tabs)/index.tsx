@@ -536,8 +536,18 @@ export default function DashboardScreen() {
   };
 
   const handleSOS = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    console.log('🚨 SOS button pressed!');
     
+    // Try to provide haptic feedback, but don't let errors prevent the alert
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {
+        // Silently fail if haptics is not available
+      });
+    } catch (error) {
+      // Silently fail if haptics is not available
+    }
+    
+    // Show alert immediately
     Alert.alert(
       isRTL ? 'طوارئ' : 'Emergency',
       isRTL 
@@ -552,7 +562,15 @@ export default function DashboardScreen() {
           text: isRTL ? 'اتصال بـ 911' : 'Call 911',
           style: 'destructive',
           onPress: () => {
-            Linking.openURL('tel:911');
+            Linking.openURL('tel:911').catch((error) => {
+              console.error('Error opening phone:', error);
+              Alert.alert(
+                isRTL ? 'خطأ' : 'Error',
+                isRTL 
+                  ? 'تعذر فتح تطبيق الهاتف'
+                  : 'Unable to open phone app'
+              );
+            });
           },
         },
         {
@@ -567,7 +585,8 @@ export default function DashboardScreen() {
             );
           },
         },
-      ]
+      ],
+      { cancelable: true }
     );
   };
 
@@ -607,7 +626,12 @@ export default function DashboardScreen() {
               })}
             </Text>
           </View>
-          <TouchableOpacity style={styles.sosHeaderButton} onPress={handleSOS}>
+          <TouchableOpacity 
+            style={styles.sosHeaderButton} 
+            onPress={handleSOS}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Phone size={20} color={theme.colors.neutral.white} />
             <Text style={styles.sosHeaderText}>
               {isRTL ? 'SOS' : 'SOS'}
