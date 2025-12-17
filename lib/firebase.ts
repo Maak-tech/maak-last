@@ -4,17 +4,23 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyBzfNXpiKb5LhpX347PTXIODpZ6M9XFblQ',
-  authDomain: 'maak-5caad.firebaseapp.com',
-  projectId: 'maak-5caad',
-  storageBucket: 'maak-5caad.firebasestorage.app',
-  messagingSenderId: '827176918437',
-  appId: '1:827176918437:web:356fe7e2b4ecb3b99b1c4c',
-  measurementId: 'G-KZ279W9ELM',
-};
+const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
+const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
+const storageBucket = process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET;
+const messagingSenderId = process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
+const appId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID;
+const measurementId = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
-const app = initializeApp(firebaseConfig);
+const app = initializeApp({
+  apiKey,
+  authDomain,
+  projectId,
+  storageBucket,
+  messagingSenderId,
+  appId,
+  measurementId,
+});
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);

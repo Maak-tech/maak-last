@@ -8,9 +8,9 @@
     "build:web": "expo export --platform web",
     "lint": "expo lint",
     "clear-cache": "expo start --clear",
-    "firebase:init": "npx tsx scripts/firebase-init-collections.ts",
-    "firebase:check": "npx tsx scripts/firebase-setup-check.ts",
-    "firebase:create-collections": "npx tsx scripts/create-user-collections.ts",
+    "firebase:init": "bunx tsx scripts/firebase-init-collections.ts",
+    "firebase:check": "bunx tsx scripts/firebase-setup-check.ts",
+    "firebase:create-collections": "bunx tsx scripts/create-user-collections.ts",
     "firebase:fix-medications": "node scripts/fix-medications.js",
     "android": "expo run:android",
     "ios": "expo run:ios"
