@@ -1,22 +1,21 @@
 import {
+  addDoc,
   collection,
   doc,
-  setDoc,
   getDoc,
   getDocs,
-  updateDoc,
   query,
-  where,
   Timestamp,
-  addDoc,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { FamilyInvitationCode, Family } from '@/types';
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Family, FamilyInvitationCode } from "@/types";
 
 export const familyInviteService = {
   // Generate a random 6-digit invitation code
   generateInviteCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return Math.floor(100_000 + Math.random() * 900_000).toString();
   },
 
   // Create a new family invitation code
@@ -41,27 +40,27 @@ export const familyInviteService = {
         );
       }
 
-      const inviteData: Omit<FamilyInvitationCode, 'id'> = {
+      const inviteData: Omit<FamilyInvitationCode, "id"> = {
         code,
         familyId,
         invitedBy,
         invitedUserName,
         invitedUserRelation,
-        status: 'pending',
+        status: "pending",
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
       };
 
-      const docRef = await addDoc(collection(db, 'familyInvitations'), {
+      const docRef = await addDoc(collection(db, "familyInvitations"), {
         ...inviteData,
         createdAt: Timestamp.fromDate(inviteData.createdAt),
         expiresAt: Timestamp.fromDate(inviteData.expiresAt),
       });
 
-      console.log('✅ Family invitation code created:', code);
+      console.log("✅ Family invitation code created:", code);
       return code;
     } catch (error) {
-      console.error('Error creating invitation code:', error);
+      console.error("Error creating invitation code:", error);
       throw error;
     }
   },
@@ -72,8 +71,8 @@ export const familyInviteService = {
   ): Promise<FamilyInvitationCode | null> {
     try {
       const q = query(
-        collection(db, 'familyInvitations'),
-        where('code', '==', code)
+        collection(db, "familyInvitations"),
+        where("code", "==", code)
       );
       const querySnapshot = await getDocs(q);
 
@@ -92,7 +91,7 @@ export const familyInviteService = {
         usedAt: data.usedAt?.toDate(),
       } as FamilyInvitationCode;
     } catch (error) {
-      console.error('Error getting invitation by code:', error);
+      console.error("Error getting invitation by code:", error);
       throw error;
     }
   },
@@ -110,38 +109,38 @@ export const familyInviteService = {
       const invitation = await this.getInvitationByCode(code);
 
       if (!invitation) {
-        return { success: false, message: 'Invalid invitation code' };
+        return { success: false, message: "Invalid invitation code" };
       }
 
-      if (invitation.status === 'used') {
+      if (invitation.status === "used") {
         return {
           success: false,
-          message: 'This invitation code has already been used',
+          message: "This invitation code has already been used",
         };
       }
 
       if (
-        invitation.status === 'expired' ||
+        invitation.status === "expired" ||
         invitation.expiresAt < new Date()
       ) {
-        return { success: false, message: 'This invitation code has expired' };
+        return { success: false, message: "This invitation code has expired" };
       }
 
       // Mark invitation as used
-      await updateDoc(doc(db, 'familyInvitations', invitation.id), {
-        status: 'used',
+      await updateDoc(doc(db, "familyInvitations", invitation.id), {
+        status: "used",
         usedAt: Timestamp.now(),
         usedBy: userId,
       });
 
-      console.log('✅ Invitation code used successfully');
+      console.log("✅ Invitation code used successfully");
       return {
         success: true,
         familyId: invitation.familyId,
-        message: 'Successfully joined family!',
+        message: "Successfully joined family!",
       };
     } catch (error) {
-      console.error('Error using invitation code:', error);
+      console.error("Error using invitation code:", error);
       throw error;
     }
   },
@@ -152,9 +151,9 @@ export const familyInviteService = {
   ): Promise<FamilyInvitationCode[]> {
     try {
       const q = query(
-        collection(db, 'familyInvitations'),
-        where('familyId', '==', familyId),
-        where('status', '==', 'pending')
+        collection(db, "familyInvitations"),
+        where("familyId", "==", familyId),
+        where("status", "==", "pending")
       );
       const querySnapshot = await getDocs(q);
       const invitations: FamilyInvitationCode[] = [];
@@ -172,7 +171,7 @@ export const familyInviteService = {
 
       return invitations;
     } catch (error) {
-      console.error('Error getting family invitations:', error);
+      console.error("Error getting family invitations:", error);
       throw error;
     }
   },
@@ -181,19 +180,19 @@ export const familyInviteService = {
   async cleanupExpiredInvitations(): Promise<void> {
     try {
       const q = query(
-        collection(db, 'familyInvitations'),
-        where('expiresAt', '<', Timestamp.now())
+        collection(db, "familyInvitations"),
+        where("expiresAt", "<", Timestamp.now())
       );
       const querySnapshot = await getDocs(q);
 
       const updatePromises = querySnapshot.docs.map((doc) =>
-        updateDoc(doc.ref, { status: 'expired' })
+        updateDoc(doc.ref, { status: "expired" })
       );
 
       await Promise.all(updatePromises);
-      console.log('✅ Cleaned up expired invitations');
+      console.log("✅ Cleaned up expired invitations");
     } catch (error) {
-      console.error('Error cleaning up expired invitations:', error);
+      console.error("Error cleaning up expired invitations:", error);
       throw error;
     }
   },
@@ -201,7 +200,7 @@ export const familyInviteService = {
   // Get family by ID
   async getFamily(familyId: string): Promise<Family | null> {
     try {
-      const familyDoc = await getDoc(doc(db, 'families', familyId));
+      const familyDoc = await getDoc(doc(db, "families", familyId));
 
       if (!familyDoc.exists()) {
         return null;
@@ -213,11 +212,11 @@ export const familyInviteService = {
         name: data.name,
         createdBy: data.createdBy,
         members: data.members || [],
-        status: data.status || 'active', // Default to active for backward compatibility
+        status: data.status || "active", // Default to active for backward compatibility
         createdAt: data.createdAt?.toDate() || new Date(),
       };
     } catch (error) {
-      console.error('Error getting family:', error);
+      console.error("Error getting family:", error);
       return null;
     }
   },

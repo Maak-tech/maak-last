@@ -1,22 +1,22 @@
 import {
-  collection,
   addDoc,
-  doc,
-  updateDoc,
+  collection,
   deleteDoc,
-  query,
-  where,
-  orderBy,
-  limit,
+  doc,
   getDocs,
+  limit,
+  orderBy,
+  query,
   Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Symptom } from '@/types';
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Symptom } from "@/types";
 
 export const symptomService = {
   // Add new symptom
-  async addSymptom(symptomData: Omit<Symptom, 'id'>): Promise<string> {
+  async addSymptom(symptomData: Omit<Symptom, "id">): Promise<string> {
     try {
       // Filter out undefined values to prevent Firebase errors
       const cleanedData = Object.fromEntries(
@@ -26,17 +26,17 @@ export const symptomService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, 'symptoms'), cleanedData);
+      const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error('Error adding symptom:', error);
+      console.error("Error adding symptom:", error);
       throw error;
     }
   },
 
   // Add new symptom for a specific user (for admins)
   async addSymptomForUser(
-    symptomData: Omit<Symptom, 'id'>,
+    symptomData: Omit<Symptom, "id">,
     targetUserId: string
   ): Promise<string> {
     try {
@@ -54,24 +54,21 @@ export const symptomService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, 'symptoms'), cleanedData);
+      const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error('Error adding symptom for user:', error);
+      console.error("Error adding symptom for user:", error);
       throw error;
     }
   },
 
   // Get user symptoms
-  async getUserSymptoms(
-    userId: string,
-    limitCount: number = 50
-  ): Promise<Symptom[]> {
+  async getUserSymptoms(userId: string, limitCount = 50): Promise<Symptom[]> {
     try {
       const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', userId),
-        orderBy('timestamp', 'desc'),
+        collection(db, "symptoms"),
+        where("userId", "==", userId),
+        orderBy("timestamp", "desc"),
         limit(limitCount)
       );
 
@@ -89,7 +86,7 @@ export const symptomService = {
 
       return symptoms;
     } catch (error) {
-      console.error('Error getting symptoms:', error);
+      console.error("Error getting symptoms:", error);
       throw error;
     }
   },
@@ -97,13 +94,13 @@ export const symptomService = {
   // Get symptoms for all family members (for admins)
   async getFamilySymptoms(
     familyId: string,
-    limitCount: number = 50
+    limitCount = 50
   ): Promise<Symptom[]> {
     try {
       // First get all family members
       const familyMembersQuery = query(
-        collection(db, 'users'),
-        where('familyId', '==', familyId)
+        collection(db, "users"),
+        where("familyId", "==", familyId)
       );
       const familyMembersSnapshot = await getDocs(familyMembersQuery);
       const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
@@ -114,9 +111,9 @@ export const symptomService = {
 
       // Get symptoms for all family members
       const symptomsQuery = query(
-        collection(db, 'symptoms'),
-        where('userId', 'in', memberIds),
-        orderBy('timestamp', 'desc'),
+        collection(db, "symptoms"),
+        where("userId", "in", memberIds),
+        orderBy("timestamp", "desc"),
         limit(limitCount)
       );
 
@@ -134,7 +131,7 @@ export const symptomService = {
 
       return symptoms;
     } catch (error) {
-      console.error('Error getting family symptoms:', error);
+      console.error("Error getting family symptoms:", error);
       throw error;
     }
   },
@@ -142,7 +139,7 @@ export const symptomService = {
   // Get symptom stats for all family members (for admins)
   async getFamilySymptomStats(
     familyId: string,
-    days: number = 7
+    days = 7
   ): Promise<{
     totalSymptoms: number;
     avgSeverity: number;
@@ -159,8 +156,8 @@ export const symptomService = {
 
       // First get all family members
       const familyMembersQuery = query(
-        collection(db, 'users'),
-        where('familyId', '==', familyId)
+        collection(db, "users"),
+        where("familyId", "==", familyId)
       );
       const familyMembersSnapshot = await getDocs(familyMembersQuery);
       const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
@@ -175,9 +172,9 @@ export const symptomService = {
 
       // Get symptoms for all family members
       const symptomsQuery = query(
-        collection(db, 'symptoms'),
-        where('userId', 'in', memberIds),
-        where('timestamp', '>=', Timestamp.fromDate(startDate))
+        collection(db, "symptoms"),
+        where("userId", "in", memberIds),
+        where("timestamp", ">=", Timestamp.fromDate(startDate))
       );
 
       const querySnapshot = await getDocs(symptomsQuery);
@@ -222,7 +219,7 @@ export const symptomService = {
           affectedMembers: data.users.size,
           users: Array.from(data.users).map((userId) => ({
             userId,
-            userName: membersMap.get(userId) || 'Unknown',
+            userName: membersMap.get(userId) || "Unknown",
           })),
         }))
         .sort((a, b) => b.count - a.count)
@@ -234,7 +231,7 @@ export const symptomService = {
         commonSymptoms,
       };
     } catch (error) {
-      console.error('Error getting family symptom stats:', error);
+      console.error("Error getting family symptom stats:", error);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
@@ -249,9 +246,9 @@ export const symptomService = {
       if (updates.timestamp) {
         updateData.timestamp = Timestamp.fromDate(updates.timestamp);
       }
-      await updateDoc(doc(db, 'symptoms', symptomId), updateData);
+      await updateDoc(doc(db, "symptoms", symptomId), updateData);
     } catch (error) {
-      console.error('Error updating symptom:', error);
+      console.error("Error updating symptom:", error);
       throw error;
     }
   },
@@ -259,9 +256,9 @@ export const symptomService = {
   // Delete symptom
   async deleteSymptom(symptomId: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'symptoms', symptomId));
+      await deleteDoc(doc(db, "symptoms", symptomId));
     } catch (error) {
-      console.error('Error deleting symptom:', error);
+      console.error("Error deleting symptom:", error);
       throw error;
     }
   },
@@ -280,9 +277,9 @@ export const symptomService = {
       startDate.setDate(startDate.getDate() - days);
 
       const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', userId),
-        where('timestamp', '>=', Timestamp.fromDate(startDate))
+        collection(db, "symptoms"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", Timestamp.fromDate(startDate))
       );
 
       const querySnapshot = await getDocs(q);
@@ -320,7 +317,7 @@ export const symptomService = {
         commonSymptoms,
       };
     } catch (error) {
-      console.error('Error getting symptom stats:', error);
+      console.error("Error getting symptom stats:", error);
       throw error;
     }
   },
@@ -328,13 +325,13 @@ export const symptomService = {
   // Get symptoms for a specific family member (for admins)
   async getMemberSymptoms(
     memberId: string,
-    limitCount: number = 50
+    limitCount = 50
   ): Promise<Symptom[]> {
     try {
       const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', memberId),
-        orderBy('timestamp', 'desc'),
+        collection(db, "symptoms"),
+        where("userId", "==", memberId),
+        orderBy("timestamp", "desc"),
         limit(limitCount)
       );
 
@@ -352,7 +349,7 @@ export const symptomService = {
 
       return symptoms;
     } catch (error) {
-      console.error('Error getting member symptoms:', error);
+      console.error("Error getting member symptoms:", error);
       throw error;
     }
   },
@@ -360,7 +357,7 @@ export const symptomService = {
   // Get symptom stats for a specific family member (for admins)
   async getMemberSymptomStats(
     memberId: string,
-    days: number = 7
+    days = 7
   ): Promise<{
     totalSymptoms: number;
     avgSeverity: number;
@@ -371,9 +368,9 @@ export const symptomService = {
       startDate.setDate(startDate.getDate() - days);
 
       const q = query(
-        collection(db, 'symptoms'),
-        where('userId', '==', memberId),
-        where('timestamp', '>=', Timestamp.fromDate(startDate))
+        collection(db, "symptoms"),
+        where("userId", "==", memberId),
+        where("timestamp", ">=", Timestamp.fromDate(startDate))
       );
 
       const querySnapshot = await getDocs(q);
@@ -414,7 +411,7 @@ export const symptomService = {
         commonSymptoms,
       };
     } catch (error) {
-      console.error('Error getting member symptom stats:', error);
+      console.error("Error getting member symptom stats:", error);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },

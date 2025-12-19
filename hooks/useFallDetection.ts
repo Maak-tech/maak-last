@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Platform } from 'react-native';
-import { alertService } from '@/lib/services/alertService';
+import { useCallback, useEffect, useState } from "react";
+import { Platform } from "react-native";
+import { alertService } from "@/lib/services/alertService";
 
 interface AccelerometerData {
   x: number;
@@ -24,16 +24,16 @@ export const useFallDetection = (
         const alertId = await alertService.createFallAlert(userId);
         onFallDetected(alertId);
       } else {
-        onFallDetected('demo-alert');
+        onFallDetected("demo-alert");
       }
     } catch (error) {
-      console.error('Error creating fall alert:', error);
-      onFallDetected('error-alert');
+      console.error("Error creating fall alert:", error);
+      onFallDetected("error-alert");
     }
   }, [userId, onFallDetected]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === "web") {
       // Fall detection not available on web
       return;
     }
@@ -46,7 +46,7 @@ export const useFallDetection = (
       try {
         // Add timeout to prevent hanging initialization
         initializationTimeout = setTimeout(() => {
-          console.warn('Fall detection initialization timeout');
+          console.warn("Fall detection initialization timeout");
           setIsInitialized(false);
         }, 5000);
 
@@ -56,7 +56,7 @@ export const useFallDetection = (
             // Add delay to ensure React Native bridge is ready
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            const { DeviceMotion } = await import('expo-sensors');
+            const { DeviceMotion } = await import("expo-sensors");
 
             // Clear timeout if initialization succeeds
             if (initializationTimeout) {
@@ -66,7 +66,7 @@ export const useFallDetection = (
             // Check if DeviceMotion is available with timeout
             const availabilityPromise = DeviceMotion.isAvailableAsync();
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Timeout')), 3000)
+              setTimeout(() => reject(new Error("Timeout")), 3000)
             );
 
             const isAvailable = (await Promise.race([
@@ -75,7 +75,7 @@ export const useFallDetection = (
             ])) as boolean;
 
             if (!isAvailable) {
-              console.warn('DeviceMotion is not available on this device');
+              console.warn("DeviceMotion is not available on this device");
               setIsInitialized(false);
               return;
             }
@@ -84,7 +84,7 @@ export const useFallDetection = (
             DeviceMotion.setUpdateInterval(1000); // Increased to 1 second
 
             subscription = DeviceMotion.addListener((data: any) => {
-              if (!isSubscriptionActive || !data) return;
+              if (!(isSubscriptionActive && data)) return;
 
               try {
                 if (data.acceleration) {
@@ -97,27 +97,25 @@ export const useFallDetection = (
 
                   // More conservative fall detection algorithm
                   const totalAcceleration = Math.sqrt(
-                    Math.pow(currentData.x, 2) +
-                      Math.pow(currentData.y, 2) +
-                      Math.pow(currentData.z, 2)
+                    currentData.x ** 2 + currentData.y ** 2 + currentData.z ** 2
                   );
 
                   // Very conservative thresholds to prevent false positives and crashes
-                  if (totalAcceleration > 4.0 || totalAcceleration < 0.2) {
-                    if (lastData) {
-                      const timeDiff =
-                        currentData.timestamp - lastData.timestamp;
-                      if (timeDiff < 3000 && timeDiff > 500) {
-                        // Between 500ms and 3 seconds
-                        handleFallDetected();
-                      }
+                  if (
+                    (totalAcceleration > 4.0 || totalAcceleration < 0.2) &&
+                    lastData
+                  ) {
+                    const timeDiff = currentData.timestamp - lastData.timestamp;
+                    if (timeDiff < 3000 && timeDiff > 500) {
+                      // Between 500ms and 3 seconds
+                      handleFallDetected();
                     }
                   }
 
                   setLastData(currentData);
                 }
               } catch (dataError) {
-                console.warn('Error processing sensor data:', dataError);
+                console.warn("Error processing sensor data:", dataError);
                 // Stop subscription on repeated errors to prevent crashes
                 isSubscriptionActive = false;
               }
@@ -126,7 +124,7 @@ export const useFallDetection = (
             isSubscriptionActive = true;
             setIsInitialized(true);
           } catch (importError) {
-            console.warn('Failed to initialize DeviceMotion:', importError);
+            console.warn("Failed to initialize DeviceMotion:", importError);
             setIsInitialized(false);
             if (initializationTimeout) {
               clearTimeout(initializationTimeout);
@@ -136,7 +134,7 @@ export const useFallDetection = (
 
         initializeSensors();
       } catch (error) {
-        console.warn('DeviceMotion initialization error:', error);
+        console.warn("DeviceMotion initialization error:", error);
         setIsInitialized(false);
         if (initializationTimeout) {
           clearTimeout(initializationTimeout);
@@ -153,17 +151,17 @@ export const useFallDetection = (
         try {
           subscription.remove();
         } catch (removeError) {
-          console.warn('Error removing sensor subscription:', removeError);
+          console.warn("Error removing sensor subscription:", removeError);
         }
       }
     };
   }, [isActive, isInitialized, handleFallDetected]);
 
   const startFallDetection = useCallback(() => {
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== "web") {
       setIsActive(true);
     } else {
-      console.warn('Fall detection is not available on web platform');
+      console.warn("Fall detection is not available on web platform");
     }
   }, []);
 

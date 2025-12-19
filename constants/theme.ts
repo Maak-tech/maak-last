@@ -1,104 +1,104 @@
 export const Colors = {
   // Primary Colors (Navy Blue & Orange)
   primary: {
-    main: '#1E3A8A',        // Navy Blue - Main primary
-    light: '#3B82F6',       // Lighter navy blue
-    dark: '#1E40AF',        // Darker navy blue
-    50: '#EFF6FF',          // Very light navy tint
-    100: '#DBEAFE',         // Light navy tint
-    200: '#BFDBFE',         // Medium light navy tint
+    main: "#1E3A8A", // Navy Blue - Main primary
+    light: "#3B82F6", // Lighter navy blue
+    dark: "#1E40AF", // Darker navy blue
+    50: "#EFF6FF", // Very light navy tint
+    100: "#DBEAFE", // Light navy tint
+    200: "#BFDBFE", // Medium light navy tint
   },
-  
+
   secondary: {
-    main: '#EA580C',        // Orange - Main secondary
-    light: '#FB923C',       // Lighter orange
-    dark: '#C2410C',        // Darker orange
-    50: '#FFF7ED',          // Very light orange tint
-    100: '#FFEDD5',         // Light orange tint
-    200: '#FED7AA',         // Medium light orange tint
+    main: "#EA580C", // Orange - Main secondary
+    light: "#FB923C", // Lighter orange
+    dark: "#C2410C", // Darker orange
+    50: "#FFF7ED", // Very light orange tint
+    100: "#FFEDD5", // Light orange tint
+    200: "#FED7AA", // Medium light orange tint
   },
-  
+
   // Accent Colors
   accent: {
-    success: '#10B981',     // Green for success states
-    warning: '#F59E0B',     // Yellow for warnings
-    error: '#EF4444',       // Red for errors
-    info: '#3B82F6',        // Blue for info
+    success: "#10B981", // Green for success states
+    warning: "#F59E0B", // Yellow for warnings
+    error: "#EF4444", // Red for errors
+    info: "#3B82F6", // Blue for info
   },
-  
+
   // Neutral Colors
   neutral: {
-    50: '#F8FAFC',          // Very light background
-    100: '#F1F5F9',         // Light background
-    200: '#E2E8F0',         // Light border
-    300: '#CBD5E1',         // Medium border
-    400: '#94A3B8',         // Light text
-    500: '#64748B',         // Medium text
-    600: '#475569',         // Dark text
-    700: '#334155',         // Darker text
-    800: '#1E293B',         // Very dark text
-    900: '#0F172A',         // Black text
-    white: '#FFFFFF',       // Pure white
+    50: "#F8FAFC", // Very light background
+    100: "#F1F5F9", // Light background
+    200: "#E2E8F0", // Light border
+    300: "#CBD5E1", // Medium border
+    400: "#94A3B8", // Light text
+    500: "#64748B", // Medium text
+    600: "#475569", // Dark text
+    700: "#334155", // Darker text
+    800: "#1E293B", // Very dark text
+    900: "#0F172A", // Black text
+    white: "#FFFFFF", // Pure white
   },
-  
+
   // Semantic Colors
   background: {
-    primary: '#F8FAFC',     // Main app background
-    secondary: '#FFFFFF',   // Card background
-    tertiary: '#F1F5F9',    // Section background
+    primary: "#F8FAFC", // Main app background
+    secondary: "#FFFFFF", // Card background
+    tertiary: "#F1F5F9", // Section background
   },
-  
+
   text: {
-    primary: '#1E293B',     // Main text
-    secondary: '#64748B',   // Secondary text
-    tertiary: '#94A3B8',    // Tertiary text
-    inverse: '#FFFFFF',     // White text on dark backgrounds
+    primary: "#1E293B", // Main text
+    secondary: "#64748B", // Secondary text
+    tertiary: "#94A3B8", // Tertiary text
+    inverse: "#FFFFFF", // White text on dark backgrounds
   },
-  
+
   border: {
-    light: '#F1F5F9',       // Light borders
-    medium: '#E2E8F0',      // Medium borders
-    dark: '#CBD5E1',        // Dark borders
+    light: "#F1F5F9", // Light borders
+    medium: "#E2E8F0", // Medium borders
+    dark: "#CBD5E1", // Dark borders
   },
-  
+
   // Status Colors with Navy/Orange Theme
   status: {
-    active: '#10B981',      // Green for active/completed
-    pending: '#EA580C',     // Orange for pending
-    inactive: '#94A3B8',    // Gray for inactive
-    critical: '#EF4444',    // Red for critical
+    active: "#10B981", // Green for active/completed
+    pending: "#EA580C", // Orange for pending
+    inactive: "#94A3B8", // Gray for inactive
+    critical: "#EF4444", // Red for critical
   },
-  
+
   // Health-specific Colors
   health: {
-    excellent: '#10B981',   // Green for excellent health
-    good: '#3B82F6',        // Blue for good health
-    fair: '#F59E0B',        // Yellow for fair health
-    poor: '#EA580C',        // Orange for poor health
-    critical: '#EF4444',    // Red for critical health
+    excellent: "#10B981", // Green for excellent health
+    good: "#3B82F6", // Blue for good health
+    fair: "#F59E0B", // Yellow for fair health
+    poor: "#EA580C", // Orange for poor health
+    critical: "#EF4444", // Red for critical health
   },
-  
+
   // Severity Colors (for symptoms)
   severity: {
-    1: '#10B981',           // Mild - Green
-    2: '#F59E0B',           // Mild-Moderate - Yellow
-    3: '#EA580C',           // Moderate - Orange
-    4: '#EF4444',           // Severe - Red
-    5: '#DC2626',           // Critical - Dark Red
+    1: "#10B981", // Mild - Green
+    2: "#F59E0B", // Mild-Moderate - Yellow
+    3: "#EA580C", // Moderate - Orange
+    4: "#EF4444", // Severe - Red
+    5: "#DC2626", // Critical - Dark Red
   },
 };
 
 export const Typography = {
   // Font Families
   fontFamily: {
-    regular: 'Geist-Regular',
-    medium: 'Geist-Medium',
-    semiBold: 'Geist-SemiBold',
-    bold: 'Geist-Bold',
-    arabic: 'Cairo-Regular',
-    arabicBold: 'Cairo-Bold',
+    regular: "Geist-Regular",
+    medium: "Geist-Medium",
+    semiBold: "Geist-SemiBold",
+    bold: "Geist-Bold",
+    arabic: "Cairo-Regular",
+    arabicBold: "Cairo-Bold",
   },
-  
+
   // Font Sizes (using scalable sizes)
   fontSize: {
     xs: 12,
@@ -106,12 +106,12 @@ export const Typography = {
     base: 16,
     lg: 18,
     xl: 20,
-    '2xl': 24,
-    '3xl': 30,
-    '4xl': 36,
-    '5xl': 48,
+    "2xl": 24,
+    "3xl": 30,
+    "4xl": 36,
+    "5xl": 48,
   },
-  
+
   // Line Heights
   lineHeight: {
     tight: 1.2,
@@ -119,14 +119,14 @@ export const Typography = {
     relaxed: 1.6,
     loose: 2,
   },
-  
+
   // Font Weights
   fontWeight: {
-    normal: '400',
-    medium: '500',
-    semibold: '600',
-    bold: '700',
-    extrabold: '800',
+    normal: "400",
+    medium: "500",
+    semibold: "600",
+    bold: "700",
+    extrabold: "800",
   },
 };
 
@@ -137,9 +137,9 @@ export const Spacing = {
   base: 16,
   lg: 20,
   xl: 24,
-  '2xl': 32,
-  '3xl': 48,
-  '4xl': 64,
+  "2xl": 32,
+  "3xl": 48,
+  "4xl": 64,
 };
 
 export const BorderRadius = {
@@ -153,28 +153,28 @@ export const BorderRadius = {
 
 export const Shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
   },
   xl: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -185,40 +185,40 @@ export const Shadows = {
 // Dark Theme Colors
 export const DarkColors = {
   primary: {
-    main: '#3B82F6',        // Lighter navy for dark mode
-    light: '#60A5FA',       // Even lighter
-    dark: '#1D4ED8',        // Darker navy
-    50: '#1E293B',          // Dark navy tint
-    100: '#334155',         // Medium dark navy tint
-    200: '#475569',         // Light dark navy tint
+    main: "#3B82F6", // Lighter navy for dark mode
+    light: "#60A5FA", // Even lighter
+    dark: "#1D4ED8", // Darker navy
+    50: "#1E293B", // Dark navy tint
+    100: "#334155", // Medium dark navy tint
+    200: "#475569", // Light dark navy tint
   },
-  
+
   secondary: {
-    main: '#FB923C',        // Lighter orange for dark mode
-    light: '#FDBA74',       // Even lighter orange
-    dark: '#EA580C',        // Darker orange
-    50: '#431407',          // Dark orange tint
-    100: '#7C2D12',         // Medium dark orange tint
-    200: '#9A3412',         // Light dark orange tint
+    main: "#FB923C", // Lighter orange for dark mode
+    light: "#FDBA74", // Even lighter orange
+    dark: "#EA580C", // Darker orange
+    50: "#431407", // Dark orange tint
+    100: "#7C2D12", // Medium dark orange tint
+    200: "#9A3412", // Light dark orange tint
   },
-  
+
   background: {
-    primary: '#0F172A',     // Dark background
-    secondary: '#1E293B',   // Dark card background
-    tertiary: '#334155',    // Dark section background
+    primary: "#0F172A", // Dark background
+    secondary: "#1E293B", // Dark card background
+    tertiary: "#334155", // Dark section background
   },
-  
+
   text: {
-    primary: '#F1F5F9',     // Light text on dark
-    secondary: '#CBD5E1',   // Secondary light text
-    tertiary: '#94A3B8',    // Tertiary light text
-    inverse: '#1E293B',     // Dark text on light backgrounds
+    primary: "#F1F5F9", // Light text on dark
+    secondary: "#CBD5E1", // Secondary light text
+    tertiary: "#94A3B8", // Tertiary light text
+    inverse: "#1E293B", // Dark text on light backgrounds
   },
-  
+
   border: {
-    light: '#334155',       // Dark light borders
-    medium: '#475569',      // Dark medium borders
-    dark: '#64748B',        // Dark dark borders
+    light: "#334155", // Dark light borders
+    medium: "#475569", // Dark medium borders
+    dark: "#64748B", // Dark dark borders
   },
 };
 

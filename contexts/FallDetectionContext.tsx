@@ -1,15 +1,16 @@
-import React, {
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type React from "react";
+import {
   createContext,
-  useContext,
-  useState,
-  useEffect,
   useCallback,
-} from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
-import { useAuth } from './AuthContext';
-import { useFallDetection } from '@/hooks/useFallDetection';
-import { alertService } from '@/lib/services/alertService';
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { Alert } from "react-native";
+import { useFallDetection } from "@/hooks/useFallDetection";
+import { alertService } from "@/lib/services/alertService";
+import { useAuth } from "./AuthContext";
 
 interface FallDetectionContextType {
   isEnabled: boolean;
@@ -33,7 +34,7 @@ export const useFallDetectionContext = () => {
   const context = useContext(FallDetectionContext);
   if (!context) {
     throw new Error(
-      'useFallDetectionContext must be used within a FallDetectionProvider'
+      "useFallDetectionContext must be used within a FallDetectionProvider"
     );
   }
   return context;
@@ -53,8 +54,8 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   // Handle fall detection events
   const handleFallDetected = useCallback(
     async (alertId: string) => {
-      console.log('🚨 Fall detected! Alert ID:', alertId);
-      console.log('👤 User:', user?.name, 'Family ID:', user?.familyId);
+      console.log("🚨 Fall detected! Alert ID:", alertId);
+      console.log("👤 User:", user?.name, "Family ID:", user?.familyId);
 
       // Update last alert
       setLastAlert({
@@ -64,8 +65,8 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Show alert to user
       Alert.alert(
-        '🚨 Fall Detected',
-        'A fall has been detected. Emergency notifications have been sent to your family members.',
+        "🚨 Fall Detected",
+        "A fall has been detected. Emergency notifications have been sent to your family members.",
         [
           {
             text: "I'm OK",
@@ -75,16 +76,16 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
                   await alertService.resolveAlert(alertId, user.id);
                 }
               } catch (error) {
-                console.error('Error resolving alert:', error);
+                console.error("Error resolving alert:", error);
               }
             },
           },
           {
-            text: 'Need Help',
-            style: 'destructive',
+            text: "Need Help",
+            style: "destructive",
             onPress: () => {
               // Keep alert active - family members will be notified
-              console.log('User needs help - alert remains active');
+              console.log("User needs help - alert remains active");
             },
           },
         ]
@@ -100,7 +101,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const loadFallDetectionSetting = async () => {
       try {
-        const enabled = await AsyncStorage.getItem('fall_detection_enabled');
+        const enabled = await AsyncStorage.getItem("fall_detection_enabled");
         if (enabled !== null) {
           const isEnabledValue = JSON.parse(enabled);
           setIsEnabled(isEnabledValue);
@@ -112,7 +113,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         setIsInitialized(true);
       } catch (error) {
-        console.error('Error loading fall detection setting:', error);
+        console.error("Error loading fall detection setting:", error);
         setIsInitialized(true);
       }
     };
@@ -126,7 +127,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         setIsEnabled(enabled);
         await AsyncStorage.setItem(
-          'fall_detection_enabled',
+          "fall_detection_enabled",
           JSON.stringify(enabled)
         );
 
@@ -136,7 +137,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
           fallDetection.stopFallDetection();
         }
       } catch (error) {
-        console.error('Error toggling fall detection:', error);
+        console.error("Error toggling fall detection:", error);
       }
     },
     [user?.id, fallDetection]
@@ -146,7 +147,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   const testFallDetection = useCallback(async () => {
     try {
       if (!user?.id) {
-        Alert.alert('Error', 'User not logged in');
+        Alert.alert("Error", "User not logged in");
         return;
       }
 
@@ -156,10 +157,10 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       // Simulate fall detection
       await handleFallDetected(alertId);
 
-      console.log('🧪 Test fall detection completed');
+      console.log("🧪 Test fall detection completed");
     } catch (error) {
-      console.error('Error testing fall detection:', error);
-      Alert.alert('Error', 'Failed to test fall detection');
+      console.error("Error testing fall detection:", error);
+      Alert.alert("Error", "Failed to test fall detection");
     }
   }, [user?.id, handleFallDetected]);
 

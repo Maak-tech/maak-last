@@ -1,45 +1,34 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from "expo-router";
+import { Clock, Edit, Minus, Pill, Plus, Trash2, X } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  TextInput,
-  Modal,
   Alert,
+  Modal,
   RefreshControl,
-  ActivityIndicator,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/AuthContext';
-import { useFocusEffect } from 'expo-router';
-import {
-  Plus,
-  Clock,
-  Bell,
-  Check,
-  X,
-  Pill,
-  Edit,
-  Trash2,
-  Minus,
-} from 'lucide-react-native';
-import { medicationService } from '@/lib/services/medicationService';
-import { userService } from '@/lib/services/userService';
-import { Medication, MedicationReminder, User as UserType } from '@/types';
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import FamilyDataFilter, {
-  FilterOption,
-} from '@/app/components/FamilyDataFilter';
-import AnimatedCheckButton from '@/components/AnimatedCheckButton';
+  type FilterOption,
+} from "@/app/components/FamilyDataFilter";
+import AnimatedCheckButton from "@/components/AnimatedCheckButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { medicationService } from "@/lib/services/medicationService";
+import { userService } from "@/lib/services/userService";
+import type { Medication, MedicationReminder, User as UserType } from "@/types";
 
 const FREQUENCY_OPTIONS = [
-  { key: 'once', labelEn: 'Once daily', labelAr: 'مرة واحدة يومياً' },
-  { key: 'twice', labelEn: 'Twice daily', labelAr: 'مرتان يومياً' },
-  { key: 'thrice', labelEn: 'Three times daily', labelAr: 'ثلاث مرات يومياً' },
-  { key: 'meals', labelEn: 'With meals', labelAr: 'مع الوجبات' },
-  { key: 'needed', labelEn: 'As needed', labelAr: 'عند الحاجة' },
+  { key: "once", labelEn: "Once daily", labelAr: "مرة واحدة يومياً" },
+  { key: "twice", labelEn: "Twice daily", labelAr: "مرتان يومياً" },
+  { key: "thrice", labelEn: "Three times daily", labelAr: "ثلاث مرات يومياً" },
+  { key: "meals", labelEn: "With meals", labelAr: "مع الوجبات" },
+  { key: "needed", labelEn: "As needed", labelAr: "عند الحاجة" },
 ];
 
 export default function MedicationsScreen() {
@@ -50,25 +39,25 @@ export default function MedicationsScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [newMedication, setNewMedication] = useState({
-    name: '',
-    dosage: '',
-    frequency: '',
+    name: "",
+    dosage: "",
+    frequency: "",
     reminders: [] as { time: string }[],
-    notes: '',
+    notes: "",
   });
   const [editingMedication, setEditingMedication] = useState<Medication | null>(
     null
   );
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
-    id: 'personal',
-    type: 'personal',
-    label: '',
+    id: "personal",
+    type: "personal",
+    label: "",
   });
-  const [selectedTargetUser, setSelectedTargetUser] = useState<string>('');
+  const [selectedTargetUser, setSelectedTargetUser] = useState<string>("");
 
-  const isRTL = i18n.language === 'ar';
-  const isAdmin = user?.role === 'admin';
+  const isRTL = i18n.language === "ar";
+  const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
   const loadMedications = async (isRefresh = false) => {
@@ -89,12 +78,12 @@ export default function MedicationsScreen() {
       }
 
       // Load data based on selected filter
-      if (selectedFilter.type === 'family' && user.familyId) {
+      if (selectedFilter.type === "family" && user.familyId) {
         // Load family medications (both admins and members can view)
         const familyMedications =
           await medicationService.getFamilyTodaysMedications(user.familyId);
         setMedications(familyMedications);
-      } else if (selectedFilter.type === 'member' && selectedFilter.memberId) {
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
         // Load specific member medications (both admins and members can view)
         const memberMedications = await medicationService.getMemberMedications(
           selectedFilter.memberId
@@ -108,10 +97,10 @@ export default function MedicationsScreen() {
         setMedications(userMedications);
       }
     } catch (error) {
-      console.error('Error loading medications:', error);
+      console.error("Error loading medications:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في تحميل البيانات' : 'Error loading data'
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data"
       );
     } finally {
       setLoading(false);
@@ -136,54 +125,52 @@ export default function MedicationsScreen() {
 
   const getMemberName = (userId: string): string => {
     if (userId === user?.id) {
-      return isRTL ? 'أنت' : 'You';
+      return isRTL ? "أنت" : "You";
     }
     const member = familyMembers.find((m) => m.id === userId);
-    return member?.name || (isRTL ? 'عضو غير معروف' : 'Unknown Member');
+    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
   };
 
   const handleAddMedication = async () => {
     if (!user) return;
 
     if (
-      !newMedication.name ||
-      !newMedication.dosage ||
-      !newMedication.frequency
+      !(newMedication.name && newMedication.dosage && newMedication.frequency)
     ) {
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? 'يرجى ملء جميع الحقول المطلوبة'
-          : 'Please fill in all required fields'
+          ? "يرجى ملء جميع الحقول المطلوبة"
+          : "Please fill in all required fields"
       );
       return;
     }
 
     // Validate that reminders are provided for regular medications
     if (
-      newMedication.frequency !== 'needed' &&
+      newMedication.frequency !== "needed" &&
       newMedication.reminders.length === 0
     ) {
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? 'يرجى إضافة وقت تذكير واحد على الأقل'
-          : 'Please add at least one reminder time'
+          ? "يرجى إضافة وقت تذكير واحد على الأقل"
+          : "Please add at least one reminder time"
       );
       return;
     }
 
     // Validate reminder times format
     const invalidReminders = newMedication.reminders.filter(
-      (r) => !r.time || !r.time.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+      (r) => !(r.time && r.time.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/))
     );
 
     if (invalidReminders.length > 0) {
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? 'يرجى إدخال أوقات التذكير بالتنسيق الصحيح (HH:MM)'
-          : 'Please enter reminder times in correct format (HH:MM)'
+          ? "يرجى إدخال أوقات التذكير بالتنسيق الصحيح (HH:MM)"
+          : "Please enter reminder times in correct format (HH:MM)"
       );
       return;
     }
@@ -215,7 +202,7 @@ export default function MedicationsScreen() {
       } else {
         // Add new medication
         const targetUserId = selectedTargetUser || user.id;
-        const medicationData: Omit<Medication, 'id'> = {
+        const medicationData: Omit<Medication, "id"> = {
           userId: targetUserId,
           name: newMedication.name,
           dosage: newMedication.dosage,
@@ -246,33 +233,33 @@ export default function MedicationsScreen() {
 
       // Reset form
       setNewMedication({
-        name: '',
-        dosage: '',
-        frequency: '',
-        reminders: [{ time: '' }],
-        notes: '',
+        name: "",
+        dosage: "",
+        frequency: "",
+        reminders: [{ time: "" }],
+        notes: "",
       });
-      setSelectedTargetUser('');
+      setSelectedTargetUser("");
       setShowAddModal(false);
 
       // Reload medications
       await loadMedications();
 
       Alert.alert(
-        isRTL ? 'تمت العملية' : 'Success',
+        isRTL ? "تمت العملية" : "Success",
         isRTL
           ? editingMedication
-            ? 'تم تحديث الدواء بنجاح'
-            : 'تم إضافة الدواء بنجاح'
+            ? "تم تحديث الدواء بنجاح"
+            : "تم إضافة الدواء بنجاح"
           : editingMedication
-          ? 'Medication updated successfully'
-          : 'Medication added successfully'
+            ? "Medication updated successfully"
+            : "Medication added successfully"
       );
     } catch (error) {
-      console.error('Error saving medication:', error);
+      console.error("Error saving medication:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في حفظ الدواء' : 'Error saving medication'
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في حفظ الدواء" : "Error saving medication"
       );
     } finally {
       setLoading(false);
@@ -284,13 +271,13 @@ export default function MedicationsScreen() {
     const canEdit =
       medication.userId === user?.id ||
       (isAdmin &&
-        (selectedFilter.type === 'family' || selectedFilter.type === 'member'));
+        (selectedFilter.type === "family" || selectedFilter.type === "member"));
     if (!canEdit) {
       Alert.alert(
-        isRTL ? 'غير مسموح' : 'Not Permitted',
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? 'ليس لديك صلاحية لتعديل هذا الدواء'
-          : 'You do not have permission to edit this medication'
+          ? "ليس لديك صلاحية لتعديل هذا الدواء"
+          : "You do not have permission to edit this medication"
       );
       return;
     }
@@ -303,7 +290,7 @@ export default function MedicationsScreen() {
       reminders: medication.reminders.map((reminder) => ({
         time: reminder.time,
       })),
-      notes: medication.notes || '',
+      notes: medication.notes || "",
     });
     setSelectedTargetUser(medication.userId);
     setShowAddModal(true);
@@ -314,46 +301,46 @@ export default function MedicationsScreen() {
     const canDelete =
       medication.userId === user?.id ||
       (isAdmin &&
-        (selectedFilter.type === 'family' || selectedFilter.type === 'member'));
+        (selectedFilter.type === "family" || selectedFilter.type === "member"));
     if (!canDelete) {
       Alert.alert(
-        isRTL ? 'غير مسموح' : 'Not Permitted',
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? 'ليس لديك صلاحية لحذف هذا الدواء'
-          : 'You do not have permission to delete this medication'
+          ? "ليس لديك صلاحية لحذف هذا الدواء"
+          : "You do not have permission to delete this medication"
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? 'حذف الدواء' : 'Delete Medication',
+      isRTL ? "حذف الدواء" : "Delete Medication",
       isRTL
         ? `هل أنت متأكد من رغبتك في حذف: ${medication.name}؟`
         : `Are you sure you want to delete: ${medication.name}?`,
       [
         {
-          text: isRTL ? 'إلغاء' : 'Cancel',
-          style: 'cancel',
+          text: isRTL ? "إلغاء" : "Cancel",
+          style: "cancel",
         },
         {
-          text: isRTL ? 'حذف' : 'Delete',
-          style: 'destructive',
+          text: isRTL ? "حذف" : "Delete",
+          style: "destructive",
           onPress: async () => {
             try {
               setLoading(true);
               await medicationService.deleteMedication(medication.id);
               await loadMedications();
               Alert.alert(
-                isRTL ? 'تم الحذف' : 'Deleted',
+                isRTL ? "تم الحذف" : "Deleted",
                 isRTL
-                  ? 'تم حذف الدواء بنجاح'
-                  : 'Medication deleted successfully'
+                  ? "تم حذف الدواء بنجاح"
+                  : "Medication deleted successfully"
               );
             } catch (error) {
-              console.error('Error deleting medication:', error);
+              console.error("Error deleting medication:", error);
               Alert.alert(
-                isRTL ? 'خطأ' : 'Error',
-                isRTL ? 'حدث خطأ في حذف الدواء' : 'Error deleting medication'
+                isRTL ? "خطأ" : "Error",
+                isRTL ? "حدث خطأ في حذف الدواء" : "Error deleting medication"
               );
             } finally {
               setLoading(false);
@@ -387,10 +374,10 @@ export default function MedicationsScreen() {
         )
       );
     } catch (error) {
-      console.error('Error toggling medication:', error);
+      console.error("Error toggling medication:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في تحديث الدواء' : 'Error updating medication'
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في تحديث الدواء" : "Error updating medication"
       );
     }
   };
@@ -409,7 +396,7 @@ export default function MedicationsScreen() {
     const reminders = Array.isArray(medication.reminders)
       ? medication.reminders
       : [];
-    if (reminders.length === 0) return 'No reminders set';
+    if (reminders.length === 0) return "No reminders set";
 
     const now = new Date();
     const todayReminders = reminders.filter(
@@ -417,13 +404,18 @@ export default function MedicationsScreen() {
     );
 
     if (todayReminders.length === 0) {
-      return 'All doses taken today';
+      return "All doses taken today";
     }
 
     const nextReminder = todayReminders[0];
-    const [hours, minutes] = nextReminder.time.split(':');
+    const [hours, minutes] = nextReminder.time.split(":");
     const nextDoseTime = new Date();
-    nextDoseTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    nextDoseTime.setHours(
+      Number.parseInt(hours, 10),
+      Number.parseInt(minutes, 10),
+      0,
+      0
+    );
 
     if (nextDoseTime < now) {
       nextDoseTime.setDate(nextDoseTime.getDate() + 1);
@@ -450,64 +442,65 @@ export default function MedicationsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {t('medications')}
+          {t("medications")}
         </Text>
         <TouchableOpacity
-          style={styles.headerAddButton}
           onPress={() => {
             setNewMedication({
-              name: '',
-              dosage: '',
-              frequency: '',
-              reminders: [{ time: '' }], // Start with one empty reminder
-              notes: '',
+              name: "",
+              dosage: "",
+              frequency: "",
+              reminders: [{ time: "" }], // Start with one empty reminder
+              notes: "",
             });
             setSelectedTargetUser(user.id);
             setShowAddModal(true);
           }}
+          style={styles.headerAddButton}
         >
-          <Plus size={24} color="#FFFFFF" />
+          <Plus color="#FFFFFF" size={24} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
+      <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => loadMedications(true)}
+            refreshing={refreshing}
             tintColor="#2563EB"
           />
-        }>
+        }
+        showsVerticalScrollIndicator={false}
+        style={styles.content}
+      >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
-          familyMembers={familyMembers}
           currentUserId={user.id}
-          selectedFilter={selectedFilter}
-          onFilterChange={handleFilterChange}
-          isAdmin={isAdmin}
+          familyMembers={familyMembers}
           hasFamily={hasFamily}
+          isAdmin={isAdmin}
+          onFilterChange={handleFilterChange}
+          selectedFilter={selectedFilter}
         />
 
         {/* Today's Progress */}
         <View style={styles.progressCard}>
           <Text style={[styles.progressTitle, isRTL && styles.rtlText]}>
-            {selectedFilter.type === 'family'
+            {selectedFilter.type === "family"
               ? isRTL
-                ? 'تقدم العائلة اليوم'
+                ? "تقدم العائلة اليوم"
                 : "Family's Progress Today"
-              : selectedFilter.type === 'member'
-              ? isRTL
-                ? `تقدم ${selectedFilter.memberName} اليوم`
-                : `${selectedFilter.memberName}'s Progress Today`
-              : isRTL
-              ? 'تقدم اليوم'
-              : "Today's Progress"}
+              : selectedFilter.type === "member"
+                ? isRTL
+                  ? `تقدم ${selectedFilter.memberName} اليوم`
+                  : `${selectedFilter.memberName}'s Progress Today`
+                : isRTL
+                  ? "تقدم اليوم"
+                  : "Today's Progress"}
           </Text>
           <View style={styles.progressInfo}>
             <Text style={[styles.progressText, isRTL && styles.rtlText]}>
-              {takenMeds}/{totalMeds} {isRTL ? 'مأخوذة' : 'taken'}
+              {takenMeds}/{totalMeds} {isRTL ? "مأخوذة" : "taken"}
             </Text>
             <View style={styles.progressBar}>
               <View
@@ -527,17 +520,17 @@ export default function MedicationsScreen() {
         {/* Today's Medications */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {selectedFilter.type === 'family'
+            {selectedFilter.type === "family"
               ? isRTL
-                ? 'أدوية العائلة'
-                : 'Family Medications'
-              : selectedFilter.type === 'member'
-              ? isRTL
-                ? `أدوية ${selectedFilter.memberName}`
-                : `${selectedFilter.memberName}'s Medications`
-              : isRTL
-              ? 'أدوية اليوم'
-              : "Today's Medications"}
+                ? "أدوية العائلة"
+                : "Family Medications"
+              : selectedFilter.type === "member"
+                ? isRTL
+                  ? `أدوية ${selectedFilter.memberName}`
+                  : `${selectedFilter.memberName}'s Medications`
+                : isRTL
+                  ? "أدوية اليوم"
+                  : "Today's Medications"}
           </Text>
 
           {medications.length > 0 ? (
@@ -546,7 +539,7 @@ export default function MedicationsScreen() {
                 <View key={medication.id} style={styles.medicationItem}>
                   <View style={styles.medicationLeft}>
                     <View style={styles.medicationIcon}>
-                      <Pill size={20} color="#2563EB" />
+                      <Pill color="#2563EB" size={20} />
                     </View>
 
                     <View style={styles.medicationInfo}>
@@ -560,8 +553,8 @@ export default function MedicationsScreen() {
                           {medication.name}
                         </Text>
                         {/* Show member name for family/admin views */}
-                        {(selectedFilter.type === 'family' ||
-                          selectedFilter.type === 'member') && (
+                        {(selectedFilter.type === "family" ||
+                          selectedFilter.type === "member") && (
                           <View style={styles.memberBadge}>
                             <Text
                               style={[
@@ -583,7 +576,7 @@ export default function MedicationsScreen() {
                         {medication.dosage} • {medication.frequency}
                       </Text>
                       <View style={styles.medicationTime}>
-                        <Clock size={12} color="#64748B" />
+                        <Clock color="#64748B" size={12} />
                         <Text
                           style={[
                             styles.medicationTimeText,
@@ -601,20 +594,20 @@ export default function MedicationsScreen() {
                     <View style={styles.remindersDisplay}>
                       {medication.reminders.map((reminder) => {
                         // Check if user can mark this medication as taken
-                        const canMarkTaken = 
+                        const canMarkTaken =
                           medication.userId === user.id || // Owner can mark their own
                           (isAdmin && user.familyId); // Admin can mark for family members
-                        
+
                         return (
                           <AnimatedCheckButton
-                            key={reminder.id}
+                            disabled={!canMarkTaken}
                             isChecked={reminder.taken}
+                            key={reminder.id}
+                            label={reminder.time}
                             onPress={() =>
                               toggleMedicationTaken(medication.id, reminder.id)
                             }
-                            label={reminder.time}
                             size="sm"
-                            disabled={!canMarkTaken}
                             style={styles.reminderButton}
                           />
                         );
@@ -624,20 +617,20 @@ export default function MedicationsScreen() {
                     {/* Show action buttons only for medications user can manage */}
                     {(medication.userId === user.id ||
                       (isAdmin &&
-                        (selectedFilter.type === 'family' ||
-                          selectedFilter.type === 'member'))) && (
+                        (selectedFilter.type === "family" ||
+                          selectedFilter.type === "member"))) && (
                       <View style={styles.actionButtons}>
                         <TouchableOpacity
-                          style={styles.actionButton}
                           onPress={() => handleEditMedication(medication)}
+                          style={styles.actionButton}
                         >
-                          <Edit size={16} color="#64748B" />
+                          <Edit color="#64748B" size={16} />
                         </TouchableOpacity>
                         <TouchableOpacity
-                          style={[styles.actionButton, styles.deleteButton]}
                           onPress={() => handleDeleteMedication(medication)}
+                          style={[styles.actionButton, styles.deleteButton]}
                         >
-                          <Trash2 size={16} color="#EF4444" />
+                          <Trash2 color="#EF4444" size={16} />
                         </TouchableOpacity>
                       </View>
                     )}
@@ -647,7 +640,7 @@ export default function MedicationsScreen() {
             </View>
           ) : (
             <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-              {isRTL ? 'لا توجد أدوية مضافة' : 'No medications added yet'}
+              {isRTL ? "لا توجد أدوية مضافة" : "No medications added yet"}
             </Text>
           )}
         </View>
@@ -655,36 +648,36 @@ export default function MedicationsScreen() {
 
       {/* Add Medication Modal */}
       <Modal
-        visible={showAddModal}
         animationType="slide"
         presentationStyle="pageSheet"
+        visible={showAddModal}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
               {editingMedication
                 ? isRTL
-                  ? 'تحديث الدواء'
-                  : 'Edit Medication'
+                  ? "تحديث الدواء"
+                  : "Edit Medication"
                 : isRTL
-                ? 'إضافة دواء'
-                : 'Add Medication'}
+                  ? "إضافة دواء"
+                  : "Add Medication"}
             </Text>
             <TouchableOpacity
               onPress={() => {
                 setShowAddModal(false);
                 setEditingMedication(null);
                 setNewMedication({
-                  name: '',
-                  dosage: '',
-                  frequency: '',
-                  reminders: [{ time: '' }],
-                  notes: '',
+                  name: "",
+                  dosage: "",
+                  frequency: "",
+                  reminders: [{ time: "" }],
+                  notes: "",
                 });
               }}
               style={styles.closeButton}
             >
-              <X size={24} color="#64748B" />
+              <X color="#64748B" size={24} />
             </TouchableOpacity>
           </View>
 
@@ -693,18 +686,18 @@ export default function MedicationsScreen() {
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldContainer}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? 'إضافة الدواء لـ' : 'Add medication for'}
+                  {isRTL ? "إضافة الدواء لـ" : "Add medication for"}
                 </Text>
                 <View style={styles.memberSelectionContainer}>
                   {familyMembers.map((member) => (
                     <TouchableOpacity
                       key={member.id}
+                      onPress={() => setSelectedTargetUser(member.id)}
                       style={[
                         styles.memberOption,
                         selectedTargetUser === member.id &&
                           styles.memberOptionSelected,
                       ]}
-                      onPress={() => setSelectedTargetUser(member.id)}
                     >
                       <View style={styles.memberInfo}>
                         <Text
@@ -717,11 +710,11 @@ export default function MedicationsScreen() {
                         >
                           {member.id === user.id
                             ? isRTL
-                              ? 'أنت'
-                              : 'You'
+                              ? "أنت"
+                              : "You"
                             : member.name}
                         </Text>
-                        {member.role === 'admin' && (
+                        {member.role === "admin" && (
                           <Text
                             style={[
                               styles.memberRole,
@@ -730,7 +723,7 @@ export default function MedicationsScreen() {
                               isRTL && styles.rtlText,
                             ]}
                           >
-                            {isRTL ? 'مدير' : 'Admin'}
+                            {isRTL ? "مدير" : "Admin"}
                           </Text>
                         )}
                       </View>
@@ -743,57 +736,57 @@ export default function MedicationsScreen() {
             {/* Medication Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('medicationName')} *
+                {t("medicationName")} *
               </Text>
               <TextInput
-                style={[styles.input, isRTL && styles.rtlInput]}
-                value={newMedication.name}
                 onChangeText={(text) =>
                   setNewMedication({ ...newMedication, name: text })
                 }
-                placeholder={isRTL ? 'اسم الدواء' : 'Medication name'}
-                textAlign={isRTL ? 'right' : 'left'}
+                placeholder={isRTL ? "اسم الدواء" : "Medication name"}
+                style={[styles.input, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={newMedication.name}
               />
             </View>
 
             {/* Dosage */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('dosage')} *
+                {t("dosage")} *
               </Text>
               <TextInput
-                style={[styles.input, isRTL && styles.rtlInput]}
-                value={newMedication.dosage}
                 onChangeText={(text) =>
                   setNewMedication({ ...newMedication, dosage: text })
                 }
                 placeholder={
-                  isRTL ? 'مثال: 500mg, 1 كبسولة' : 'e.g., 500mg, 1 tablet'
+                  isRTL ? "مثال: 500mg, 1 كبسولة" : "e.g., 500mg, 1 tablet"
                 }
-                textAlign={isRTL ? 'right' : 'left'}
+                style={[styles.input, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={newMedication.dosage}
               />
             </View>
 
             {/* Frequency */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('frequency')} *
+                {t("frequency")} *
               </Text>
               <View style={styles.frequencyGrid}>
                 {FREQUENCY_OPTIONS.map((option) => (
                   <TouchableOpacity
                     key={option.key}
-                    style={[
-                      styles.frequencyChip,
-                      newMedication.frequency === option.key &&
-                        styles.frequencyChipSelected,
-                    ]}
                     onPress={() =>
                       setNewMedication({
                         ...newMedication,
                         frequency: option.key,
                       })
                     }
+                    style={[
+                      styles.frequencyChip,
+                      newMedication.frequency === option.key &&
+                        styles.frequencyChipSelected,
+                    ]}
                   >
                     <Text
                       style={[
@@ -813,14 +806,12 @@ export default function MedicationsScreen() {
             {/* Reminders */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('reminders')} *
+                {t("reminders")} *
               </Text>
               <View style={styles.remindersList}>
                 {newMedication.reminders.map((reminder, index) => (
                   <View key={index} style={styles.reminderItem}>
                     <TextInput
-                      style={[styles.reminderInput, isRTL && styles.rtlInput]}
-                      value={reminder.time}
                       onChangeText={(text) =>
                         setNewMedication({
                           ...newMedication,
@@ -829,11 +820,12 @@ export default function MedicationsScreen() {
                           ),
                         })
                       }
-                      placeholder={isRTL ? 'مثال: 08:00' : 'e.g., 08:00'}
-                      textAlign={isRTL ? 'right' : 'left'}
+                      placeholder={isRTL ? "مثال: 08:00" : "e.g., 08:00"}
+                      style={[styles.reminderInput, isRTL && styles.rtlInput]}
+                      textAlign={isRTL ? "right" : "left"}
+                      value={reminder.time}
                     />
                     <TouchableOpacity
-                      style={styles.removeButton}
                       onPress={() =>
                         setNewMedication({
                           ...newMedication,
@@ -842,54 +834,55 @@ export default function MedicationsScreen() {
                           ),
                         })
                       }
+                      style={styles.removeButton}
                     >
-                      <Minus size={16} color="#64748B" />
+                      <Minus color="#64748B" size={16} />
                     </TouchableOpacity>
                   </View>
                 ))}
               </View>
               <TouchableOpacity
-                style={styles.addButton}
                 onPress={() =>
                   setNewMedication({
                     ...newMedication,
-                    reminders: [...newMedication.reminders, { time: '' }],
+                    reminders: [...newMedication.reminders, { time: "" }],
                   })
                 }
+                style={styles.addButton}
               >
-                <Plus size={24} color="#64748B" />
+                <Plus color="#64748B" size={24} />
               </TouchableOpacity>
             </View>
 
             {/* Notes */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? 'ملاحظات' : 'Notes'} ({isRTL ? 'اختياري' : 'Optional'})
+                {isRTL ? "ملاحظات" : "Notes"} ({isRTL ? "اختياري" : "Optional"})
               </Text>
               <TextInput
-                style={[styles.textArea, isRTL && styles.rtlInput]}
-                value={newMedication.notes}
+                multiline
+                numberOfLines={3}
                 onChangeText={(text) =>
                   setNewMedication({ ...newMedication, notes: text })
                 }
-                placeholder={isRTL ? 'أضف ملاحظات...' : 'Add notes...'}
-                multiline
-                numberOfLines={3}
-                textAlign={isRTL ? 'right' : 'left'}
+                placeholder={isRTL ? "أضف ملاحظات..." : "Add notes..."}
+                style={[styles.textArea, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={newMedication.notes}
               />
             </View>
 
             {/* Submit Button */}
             <TouchableOpacity
+              disabled={loading}
+              onPress={handleAddMedication}
               style={[
                 styles.submitButton,
                 loading && styles.submitButtonDisabled,
               ]}
-              onPress={handleAddMedication}
-              disabled={loading}
             >
               <Text style={styles.submitButtonText}>
-                {loading ? (isRTL ? 'جاري الإضافة...' : 'Adding...') : t('add')}
+                {loading ? (isRTL ? "جاري الإضافة..." : "Adding...") : t("add")}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -902,39 +895,39 @@ export default function MedicationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Geist-Bold',
-    color: '#1E293B',
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
   },
   headerAddButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#2563EB",
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
   },
   progressCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -942,31 +935,31 @@ const styles = StyleSheet.create({
   },
   progressTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 12,
   },
   progressInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   progressText: {
     fontSize: 24,
-    fontFamily: 'Geist-Bold',
-    color: '#10B981',
+    fontFamily: "Geist-Bold",
+    color: "#10B981",
     minWidth: 80,
   },
   progressBar: {
     flex: 1,
     height: 8,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: "#E2E8F0",
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
-    height: '100%',
-    backgroundColor: '#10B981',
+    height: "100%",
+    backgroundColor: "#10B981",
     borderRadius: 4,
   },
   section: {
@@ -974,40 +967,40 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 12,
   },
   medicationsList: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
   medicationItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: "#F1F5F9",
   },
   medicationLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   medicationIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   medicationInfo: {
@@ -1015,53 +1008,53 @@ const styles = StyleSheet.create({
   },
   medicationName: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 2,
   },
   medicationDosage: {
     fontSize: 14,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
     marginBottom: 4,
   },
   medicationTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   medicationTimeText: {
     fontSize: 12,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
   },
   reminderButton: {
     marginBottom: 4,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
   },
   closeButton: {
     width: 32,
     height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     flex: 1,
@@ -1072,219 +1065,219 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#374151',
+    fontFamily: "Geist-Medium",
+    color: "#374151",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    backgroundColor: '#FFFFFF',
+    fontFamily: "Geist-Regular",
+    backgroundColor: "#FFFFFF",
   },
   textArea: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    backgroundColor: '#FFFFFF',
-    textAlignVertical: 'top',
+    fontFamily: "Geist-Regular",
+    backgroundColor: "#FFFFFF",
+    textAlignVertical: "top",
     minHeight: 80,
   },
   rtlInput: {
-    fontFamily: 'Cairo-Regular',
+    fontFamily: "Cairo-Regular",
   },
   frequencyGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   frequencyChip: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   frequencyChipSelected: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
   },
   frequencyChipText: {
     fontSize: 14,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   frequencyChipTextSelected: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   submitButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
   },
   submitButtonDisabled: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: "#E2E8F0",
   },
   submitButtonText: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#FFFFFF',
+    fontFamily: "Geist-SemiBold",
+    color: "#FFFFFF",
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
-    textAlign: 'center',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    textAlign: "center",
   },
   rtlText: {
-    fontFamily: 'Cairo-Regular',
+    fontFamily: "Cairo-Regular",
   },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   errorText: {
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
-    textAlign: 'center',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    textAlign: "center",
   },
   medicationActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   actionButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   actionButton: {
     padding: 8,
     borderRadius: 6,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
   },
   deleteButton: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
   },
   remindersList: {
     marginBottom: 8,
   },
   reminderItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     marginBottom: 8,
   },
   reminderInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    backgroundColor: '#FFFFFF',
+    fontFamily: "Geist-Regular",
+    backgroundColor: "#FFFFFF",
   },
   removeButton: {
     padding: 8,
     borderRadius: 6,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: "#FECACA",
   },
   addButton: {
     padding: 8,
     borderRadius: 6,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
   },
   remindersDisplay: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: 4,
     marginRight: 8,
   },
   reminderTimeText: {
     fontSize: 10,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
     marginTop: 2,
   },
   reminderTimeTaken: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   medicationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 4,
   },
   memberBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: "#EEF2FF",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: 'Geist-Medium',
-    color: '#6366F1',
+    fontFamily: "Geist-Medium",
+    color: "#6366F1",
   },
   // Member selection styles
   memberSelectionContainer: {
     gap: 8,
   },
   memberOption: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   memberOptionSelected: {
-    backgroundColor: '#EBF4FF',
-    borderColor: '#2563EB',
+    backgroundColor: "#EBF4FF",
+    borderColor: "#2563EB",
   },
   memberInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   memberName: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#1E293B',
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
   },
   memberNameSelected: {
-    color: '#2563EB',
+    color: "#2563EB",
   },
   memberRole: {
     fontSize: 12,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
-    backgroundColor: '#F1F5F9',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
   },
   memberRoleSelected: {
-    color: '#2563EB',
-    backgroundColor: '#EBF4FF',
+    color: "#2563EB",
+    backgroundColor: "#EBF4FF",
   },
 });

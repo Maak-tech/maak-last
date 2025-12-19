@@ -1,26 +1,26 @@
 import {
-  collection,
-  doc,
   addDoc,
-  updateDoc,
+  collection,
   deleteDoc,
+  doc,
   getDoc,
   getDocs,
-  query,
-  where,
   orderBy,
+  query,
   Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { MedicalHistory } from '@/types';
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { MedicalHistory } from "@/types";
 
 export const medicalHistoryService = {
   async getUserMedicalHistory(userId: string): Promise<MedicalHistory[]> {
     try {
       const q = query(
-        collection(db, 'medicalHistory'),
-        where('userId', '==', userId),
-        orderBy('diagnosedDate', 'desc')
+        collection(db, "medicalHistory"),
+        where("userId", "==", userId),
+        orderBy("diagnosedDate", "desc")
       );
 
       const querySnapshot = await getDocs(q);
@@ -37,7 +37,7 @@ export const medicalHistoryService = {
 
       return medicalHistory;
     } catch (error) {
-      console.error('Error getting medical history:', error);
+      console.error("Error getting medical history:", error);
       throw error;
     }
   },
@@ -45,10 +45,10 @@ export const medicalHistoryService = {
   async getFamilyMedicalHistory(userId: string): Promise<MedicalHistory[]> {
     try {
       const q = query(
-        collection(db, 'medicalHistory'),
-        where('userId', '==', userId),
-        where('isFamily', '==', true),
-        orderBy('diagnosedDate', 'desc')
+        collection(db, "medicalHistory"),
+        where("userId", "==", userId),
+        where("isFamily", "==", true),
+        orderBy("diagnosedDate", "desc")
       );
 
       const querySnapshot = await getDocs(q);
@@ -65,14 +65,14 @@ export const medicalHistoryService = {
 
       return familyHistory;
     } catch (error) {
-      console.error('Error getting family medical history:', error);
+      console.error("Error getting family medical history:", error);
       throw error;
     }
   },
 
   async addMedicalHistory(
     userId: string,
-    medicalHistoryData: Omit<MedicalHistory, 'id' | 'userId'>
+    medicalHistoryData: Omit<MedicalHistory, "id" | "userId">
   ): Promise<string> {
     try {
       const cleanedData: any = {
@@ -85,24 +85,35 @@ export const medicalHistoryService = {
           : null,
       };
 
-      if (medicalHistoryData.notes && typeof medicalHistoryData.notes === 'string' && medicalHistoryData.notes.trim() !== '') {
+      if (
+        medicalHistoryData.notes &&
+        typeof medicalHistoryData.notes === "string" &&
+        medicalHistoryData.notes.trim() !== ""
+      ) {
         cleanedData.notes = medicalHistoryData.notes.trim();
       }
-      if (medicalHistoryData.relation && typeof medicalHistoryData.relation === 'string' && medicalHistoryData.relation.trim() !== '') {
+      if (
+        medicalHistoryData.relation &&
+        typeof medicalHistoryData.relation === "string" &&
+        medicalHistoryData.relation.trim() !== ""
+      ) {
         cleanedData.relation = medicalHistoryData.relation.trim();
       }
 
-      const docRef = await addDoc(collection(db, 'medicalHistory'), cleanedData);
+      const docRef = await addDoc(
+        collection(db, "medicalHistory"),
+        cleanedData
+      );
       return docRef.id;
     } catch (error) {
-      console.error('Error adding medical history:', error);
+      console.error("Error adding medical history:", error);
       throw error;
     }
   },
 
   async updateMedicalHistory(
     historyId: string,
-    updates: Partial<Omit<MedicalHistory, 'id' | 'userId'>>
+    updates: Partial<Omit<MedicalHistory, "id" | "userId">>
   ): Promise<void> {
     try {
       const updateData: any = {};
@@ -122,28 +133,34 @@ export const medicalHistoryService = {
           : null;
       }
       if (updates.notes !== undefined) {
-        updateData.notes = updates.notes && typeof updates.notes === 'string' && updates.notes.trim() !== '' 
-          ? updates.notes.trim() 
-          : null;
+        updateData.notes =
+          updates.notes &&
+          typeof updates.notes === "string" &&
+          updates.notes.trim() !== ""
+            ? updates.notes.trim()
+            : null;
       }
       if (updates.relation !== undefined) {
-        updateData.relation = updates.relation && typeof updates.relation === 'string' && updates.relation.trim() !== '' 
-          ? updates.relation.trim() 
-          : null;
+        updateData.relation =
+          updates.relation &&
+          typeof updates.relation === "string" &&
+          updates.relation.trim() !== ""
+            ? updates.relation.trim()
+            : null;
       }
 
-      await updateDoc(doc(db, 'medicalHistory', historyId), updateData);
+      await updateDoc(doc(db, "medicalHistory", historyId), updateData);
     } catch (error) {
-      console.error('Error updating medical history:', error);
+      console.error("Error updating medical history:", error);
       throw error;
     }
   },
 
   async deleteMedicalHistory(historyId: string): Promise<void> {
     try {
-      await deleteDoc(doc(db, 'medicalHistory', historyId));
+      await deleteDoc(doc(db, "medicalHistory", historyId));
     } catch (error) {
-      console.error('Error deleting medical history:', error);
+      console.error("Error deleting medical history:", error);
       throw error;
     }
   },
@@ -152,7 +169,7 @@ export const medicalHistoryService = {
     historyId: string
   ): Promise<MedicalHistory | null> {
     try {
-      const docSnap = await getDoc(doc(db, 'medicalHistory', historyId));
+      const docSnap = await getDoc(doc(db, "medicalHistory", historyId));
 
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -165,21 +182,21 @@ export const medicalHistoryService = {
 
       return null;
     } catch (error) {
-      console.error('Error getting medical history by ID:', error);
+      console.error("Error getting medical history by ID:", error);
       throw error;
     }
   },
 
   async getMedicalHistoryBySeverity(
     userId: string,
-    severity: 'mild' | 'moderate' | 'severe'
+    severity: "mild" | "moderate" | "severe"
   ): Promise<MedicalHistory[]> {
     try {
       const q = query(
-        collection(db, 'medicalHistory'),
-        where('userId', '==', userId),
-        where('severity', '==', severity),
-        orderBy('diagnosedDate', 'desc')
+        collection(db, "medicalHistory"),
+        where("userId", "==", userId),
+        where("severity", "==", severity),
+        orderBy("diagnosedDate", "desc")
       );
 
       const querySnapshot = await getDocs(q);
@@ -196,7 +213,7 @@ export const medicalHistoryService = {
 
       return medicalHistory;
     } catch (error) {
-      console.error('Error getting medical history by severity:', error);
+      console.error("Error getting medical history by severity:", error);
       throw error;
     }
   },
@@ -215,7 +232,7 @@ export const medicalHistoryService = {
             history.notes.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     } catch (error) {
-      console.error('Error searching medical history:', error);
+      console.error("Error searching medical history:", error);
       throw error;
     }
   },
@@ -227,9 +244,9 @@ export const medicalHistoryService = {
       const personalHistory = allHistory.filter((h) => !h.isFamily);
 
       const severityCounts = {
-        mild: allHistory.filter((h) => h.severity === 'mild').length,
-        moderate: allHistory.filter((h) => h.severity === 'moderate').length,
-        severe: allHistory.filter((h) => h.severity === 'severe').length,
+        mild: allHistory.filter((h) => h.severity === "mild").length,
+        moderate: allHistory.filter((h) => h.severity === "moderate").length,
+        severe: allHistory.filter((h) => h.severity === "severe").length,
       };
 
       return {
@@ -240,7 +257,7 @@ export const medicalHistoryService = {
         conditions: allHistory.map((h) => h.condition),
       };
     } catch (error) {
-      console.error('Error getting medical history summary:', error);
+      console.error("Error getting medical history summary:", error);
       throw error;
     }
   },

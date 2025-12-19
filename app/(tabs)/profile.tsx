@@ -1,48 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Switch,
-  Alert,
-  Modal,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { useFallDetectionContext } from '@/contexts/FallDetectionContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { firebaseValidation } from '@/lib/services/firebaseValidation';
-import { symptomService } from '@/lib/services/symptomService';
-import { medicationService } from '@/lib/services/medicationService';
-
-import {
-  User,
-  Settings,
+  Activity,
   Bell,
-  Shield,
+  BookOpen,
+  Calendar,
+  Check,
+  ChevronRight,
+  FileText,
   Globe,
   Heart,
-  FileText,
   HelpCircle,
   LogOut,
-  ChevronRight,
-  Activity,
-  Calendar,
-  Phone,
-  Check,
   Moon,
+  Settings,
+  Shield,
   Sun,
-  BookOpen,
-} from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Symptom, Medication, MedicalHistory } from '@/types';
-import Avatar from '@/components/Avatar';
+  User,
+} from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Avatar from "@/components/Avatar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { medicationService } from "@/lib/services/medicationService";
+import { symptomService } from "@/lib/services/symptomService";
+import type { Medication, Symptom } from "@/types";
 
 interface ProfileSectionItem {
   icon: any;
@@ -76,7 +73,7 @@ export default function ProfileScreen() {
     healthScore: 85,
   });
 
-  const isRTL = i18n.language === 'ar';
+  const isRTL = i18n.language === "ar";
 
   // Refresh data when tab is focused
   useFocusEffect(
@@ -93,13 +90,13 @@ export default function ProfileScreen() {
 
   const loadUserSettings = async () => {
     try {
-      const notifications = await AsyncStorage.getItem('notifications_enabled');
+      const notifications = await AsyncStorage.getItem("notifications_enabled");
 
       if (notifications !== null) {
         setNotificationsEnabled(JSON.parse(notifications));
       }
     } catch (error) {
-      console.log('Error loading settings:', error);
+      console.log("Error loading settings:", error);
     }
   };
 
@@ -135,7 +132,7 @@ export default function ProfileScreen() {
         healthScore: score,
       });
     } catch (error) {
-      console.error('Error loading health data:', error);
+      console.error("Error loading health data:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -144,25 +141,25 @@ export default function ProfileScreen() {
 
   const handleNotificationToggle = async (value: boolean) => {
     setNotificationsEnabled(value);
-    await AsyncStorage.setItem('notifications_enabled', JSON.stringify(value));
+    await AsyncStorage.setItem("notifications_enabled", JSON.stringify(value));
   };
 
   const handleFallDetectionToggle = async (value: boolean) => {
     await toggleFallDetection(value);
   };
 
-  const handleLanguageChange = async (languageCode: 'en' | 'ar') => {
+  const handleLanguageChange = async (languageCode: "en" | "ar") => {
     await i18n.changeLanguage(languageCode);
-    await AsyncStorage.setItem('app_language', languageCode);
+    await AsyncStorage.setItem("app_language", languageCode);
     setLanguagePickerVisible(false);
   };
 
   const handlePersonalInfo = () => {
-    router.push('/profile/personal-info');
+    router.push("/profile/personal-info");
   };
 
   const handleMedicalHistory = () => {
-    router.push('/profile/medical-history');
+    router.push("/profile/medical-history");
   };
 
   const handleHealthReports = () => {
@@ -171,33 +168,33 @@ export default function ProfileScreen() {
       healthData.medications.length === 0
     ) {
       Alert.alert(
-        isRTL ? 'التقارير الصحية' : 'Health Reports',
+        isRTL ? "التقارير الصحية" : "Health Reports",
         isRTL
-          ? 'لا توجد بيانات صحية كافية لإنشاء تقرير. ابدأ بتسجيل الأعراض والأدوية.'
-          : 'Not enough health data to generate reports. Start by logging symptoms and medications.',
-        [{ text: isRTL ? 'موافق' : 'OK' }]
+          ? "لا توجد بيانات صحية كافية لإنشاء تقرير. ابدأ بتسجيل الأعراض والأدوية."
+          : "Not enough health data to generate reports. Start by logging symptoms and medications.",
+        [{ text: isRTL ? "موافق" : "OK" }]
       );
       return;
     }
 
-    const report = `${isRTL ? 'نقاط الصحة' : 'Health Score'}: ${
+    const report = `${isRTL ? "نقاط الصحة" : "Health Score"}: ${
       healthData.healthScore
-    }/100\n${isRTL ? 'الأعراض الأخيرة' : 'Recent Symptoms'}: ${
+    }/100\n${isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}: ${
       healthData.symptoms.length
-    }\n${isRTL ? 'الأدوية النشطة' : 'Active Medications'}: ${
+    }\n${isRTL ? "الأدوية النشطة" : "Active Medications"}: ${
       healthData.medications.length
     }`;
 
-    Alert.alert(isRTL ? 'التقرير الصحي' : 'Health Report', report, [
-      { text: isRTL ? 'موافق' : 'OK' },
+    Alert.alert(isRTL ? "التقرير الصحي" : "Health Report", report, [
+      { text: isRTL ? "موافق" : "OK" },
       {
-        text: isRTL ? 'تصدير' : 'Export',
+        text: isRTL ? "تصدير" : "Export",
         onPress: () => {
           Alert.alert(
-            isRTL ? 'قريباً' : 'Coming Soon',
+            isRTL ? "قريباً" : "Coming Soon",
             isRTL
-              ? 'ستتوفر إمكانية تصدير التقارير قريباً'
-              : 'Report export will be available soon'
+              ? "ستتوفر إمكانية تصدير التقارير قريباً"
+              : "Report export will be available soon"
           );
         },
       },
@@ -205,42 +202,42 @@ export default function ProfileScreen() {
   };
 
   const handleHelpSupport = () => {
-    router.push('/profile/help-support');
+    router.push("/profile/help-support");
   };
 
   const handleTermsConditions = () => {
-    router.push('/profile/terms-conditions');
+    router.push("/profile/terms-conditions");
   };
 
   const handlePrivacyPolicy = () => {
-    router.push('/profile/privacy-policy');
+    router.push("/profile/privacy-policy");
   };
 
   const handleLogout = () => {
     Alert.alert(
-      isRTL ? 'تسجيل الخروج' : 'Sign Out',
+      isRTL ? "تسجيل الخروج" : "Sign Out",
       isRTL
-        ? 'هل أنت متأكد من تسجيل الخروج؟'
-        : 'Are you sure you want to sign out?',
+        ? "هل أنت متأكد من تسجيل الخروج؟"
+        : "Are you sure you want to sign out?",
       [
         {
-          text: isRTL ? 'إلغاء' : 'Cancel',
-          style: 'cancel',
+          text: isRTL ? "إلغاء" : "Cancel",
+          style: "cancel",
         },
         {
-          text: isRTL ? 'تسجيل الخروج' : 'Sign Out',
-          style: 'destructive',
+          text: isRTL ? "تسجيل الخروج" : "Sign Out",
+          style: "destructive",
           onPress: async () => {
             try {
               await logout();
-              router.replace('/(auth)/login');
+              router.replace("/(auth)/login");
             } catch (error) {
-              console.error('Logout failed:', error);
+              console.error("Logout failed:", error);
               Alert.alert(
-                isRTL ? 'خطأ' : 'Error',
+                isRTL ? "خطأ" : "Error",
                 isRTL
-                  ? 'فشل في تسجيل الخروج'
-                  : 'Failed to sign out. Please try again.'
+                  ? "فشل في تسجيل الخروج"
+                  : "Failed to sign out. Please try again."
               );
             }
           },
@@ -251,92 +248,92 @@ export default function ProfileScreen() {
 
   const profileSections: ProfileSection[] = [
     {
-      title: isRTL ? 'الحساب' : 'Account',
+      title: isRTL ? "الحساب" : "Account",
       items: [
         {
           icon: User,
-          label: isRTL ? 'المعلومات الشخصية' : 'Personal Information',
+          label: isRTL ? "المعلومات الشخصية" : "Personal Information",
           onPress: handlePersonalInfo,
         },
         {
           icon: Heart,
-          label: isRTL ? 'التاريخ الطبي' : 'Medical History',
+          label: isRTL ? "التاريخ الطبي" : "Medical History",
           onPress: handleMedicalHistory,
         },
         {
           icon: FileText,
-          label: isRTL ? 'التقارير الصحية' : 'Health Reports',
+          label: isRTL ? "التقارير الصحية" : "Health Reports",
           onPress: handleHealthReports,
         },
         {
           icon: BookOpen,
-          label: isRTL ? 'المصادر التعليمية' : 'Health Resources',
-          onPress: () => router.push('/(tabs)/resources'),
+          label: isRTL ? "المصادر التعليمية" : "Health Resources",
+          onPress: () => router.push("/(tabs)/resources"),
         },
       ],
     },
     {
-      title: isRTL ? 'الإعدادات' : 'Settings',
+      title: isRTL ? "الإعدادات" : "Settings",
       items: [
         {
           icon: Bell,
-          label: isRTL ? 'الإشعارات' : 'Notifications',
+          label: isRTL ? "الإشعارات" : "Notifications",
           hasSwitch: true,
           switchValue: notificationsEnabled,
           onSwitchChange: handleNotificationToggle,
-          onPress: () => router.push('/profile/notification-settings'),
+          onPress: () => router.push("/profile/notification-settings"),
         },
         {
           icon: Shield,
-          label: isRTL ? 'كشف السقوط' : 'Fall Detection',
+          label: isRTL ? "كشف السقوط" : "Fall Detection",
           hasSwitch: true,
           switchValue: fallDetectionEnabled,
           onSwitchChange: handleFallDetectionToggle,
-          onPress: () => router.push('/profile/fall-detection'),
+          onPress: () => router.push("/profile/fall-detection"),
         },
         {
           icon: Settings,
-          label: isRTL ? 'تجربة الإشعارات' : 'Debug Notifications',
-          onPress: () => router.push('/debug-notifications' as any),
+          label: isRTL ? "تجربة الإشعارات" : "Debug Notifications",
+          onPress: () => router.push("/debug-notifications" as any),
         },
         {
           icon: Heart,
-          label: isRTL ? 'مساعد الصحة الذكي' : 'AI Health Assistant',
-          onPress: () => router.push('/ai-assistant' as any),
+          label: isRTL ? "مساعد الصحة الذكي" : "AI Health Assistant",
+          onPress: () => router.push("/ai-assistant" as any),
         },
         {
           icon: isDark ? Sun : Moon,
-          label: isRTL ? 'المظهر الداكن' : 'Dark Mode',
+          label: isRTL ? "المظهر الداكن" : "Dark Mode",
           hasSwitch: true,
           switchValue: isDark,
           onSwitchChange: (value: boolean) => {
-            setThemeMode(value ? 'dark' : 'light');
+            setThemeMode(value ? "dark" : "light");
           },
         },
         {
           icon: Globe,
-          label: isRTL ? 'اللغة' : 'Language',
-          value: isRTL ? 'العربية' : 'English',
+          label: isRTL ? "اللغة" : "Language",
+          value: isRTL ? "العربية" : "English",
           onPress: () => setLanguagePickerVisible(true),
         },
       ],
     },
     {
-      title: isRTL ? 'الدعم' : 'Support',
+      title: isRTL ? "الدعم" : "Support",
       items: [
         {
           icon: HelpCircle,
-          label: isRTL ? 'المساعدة والدعم' : 'Help & Support',
+          label: isRTL ? "المساعدة والدعم" : "Help & Support",
           onPress: handleHelpSupport,
         },
         {
           icon: FileText,
-          label: isRTL ? 'الشروط والأحكام' : 'Terms & Conditions',
+          label: isRTL ? "الشروط والأحكام" : "Terms & Conditions",
           onPress: handleTermsConditions,
         },
         {
           icon: Shield,
-          label: isRTL ? 'سياسة الخصوصية' : 'Privacy Policy',
+          label: isRTL ? "سياسة الخصوصية" : "Privacy Policy",
           onPress: handlePrivacyPolicy,
         },
       ],
@@ -347,47 +344,50 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {t('profile')}
+          {t("profile")}
         </Text>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
+      <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => loadHealthData(true)}
+            refreshing={refreshing}
             tintColor="#2563EB"
           />
-        }>
+        }
+        showsVerticalScrollIndicator={false}
+        style={styles.content}
+      >
         {/* User Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Avatar
-              source={user?.avatar ? { uri: user.avatar } : undefined}
               name={user?.name}
-              size="xl"
               onPress={() => {
                 // TODO: Implement avatar change functionality
                 Alert.alert(
-                  isRTL ? 'تغيير الصورة' : 'Change Avatar',
-                  isRTL ? 'ستتوفر هذه الميزة قريباً' : 'This feature will be available soon'
+                  isRTL ? "تغيير الصورة" : "Change Avatar",
+                  isRTL
+                    ? "ستتوفر هذه الميزة قريباً"
+                    : "This feature will be available soon"
                 );
               }}
+              size="xl"
+              source={user?.avatar ? { uri: user.avatar } : undefined}
             />
           </View>
 
           <View style={styles.userInfo}>
             <Text style={[styles.userName, isRTL && styles.rtlText]}>
-              {user?.name || 'User'}
+              {user?.name || "User"}
             </Text>
             <Text style={[styles.userEmail, isRTL && styles.rtlText]}>
               {user?.email}
             </Text>
             <View style={styles.memberSince}>
               <Text style={[styles.memberSinceText, isRTL && styles.rtlText]}>
-                {isRTL ? 'عضو منذ' : 'Member since'}{' '}
+                {isRTL ? "عضو منذ" : "Member since"}{" "}
                 {new Date(user?.createdAt || new Date()).getFullYear()}
               </Text>
             </View>
@@ -397,57 +397,57 @@ export default function ProfileScreen() {
         {/* Improved Health Summary */}
         <View style={styles.healthSummary}>
           <Text style={[styles.healthTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'ملخص الصحة' : 'Health Summary'}
+            {isRTL ? "ملخص الصحة" : "Health Summary"}
           </Text>
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#2563EB" />
+              <ActivityIndicator color="#2563EB" size="large" />
             </View>
           ) : (
             <View style={styles.healthGrid}>
               <View style={styles.healthCard}>
                 <View style={styles.healthIconContainer}>
-                  <Activity size={24} color="#10B981" />
+                  <Activity color="#10B981" size={24} />
                 </View>
                 <Text style={[styles.healthCardValue, isRTL && styles.rtlText]}>
                   {healthData.healthScore}
                 </Text>
                 <Text
-                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                   numberOfLines={2}
+                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? 'نقاط الصحة' : 'Health Score'}
+                  {isRTL ? "نقاط الصحة" : "Health Score"}
                 </Text>
               </View>
 
               <View style={styles.healthCard}>
                 <View style={styles.healthIconContainer}>
-                  <Heart size={24} color="#EF4444" />
+                  <Heart color="#EF4444" size={24} />
                 </View>
                 <Text style={[styles.healthCardValue, isRTL && styles.rtlText]}>
                   {healthData.symptoms.length}
                 </Text>
                 <Text
-                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                   numberOfLines={2}
+                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? 'أعراض هذا الشهر' : 'Symptoms This Month'}
+                  {isRTL ? "أعراض هذا الشهر" : "Symptoms This Month"}
                 </Text>
               </View>
 
               <View style={styles.healthCard}>
                 <View style={styles.healthIconContainer}>
-                  <Calendar size={24} color="#3B82F6" />
+                  <Calendar color="#3B82F6" size={24} />
                 </View>
                 <Text style={[styles.healthCardValue, isRTL && styles.rtlText]}>
                   {healthData.medications.length}
                 </Text>
                 <Text
-                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                   numberOfLines={2}
+                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? 'أدوية نشطة' : 'Active Medications'}
+                  {isRTL ? "أدوية نشطة" : "Active Medications"}
                 </Text>
               </View>
             </View>
@@ -467,25 +467,25 @@ export default function ProfileScreen() {
 
                 return (
                   <TouchableOpacity
+                    disabled={!item.onPress}
                     key={itemIndex}
+                    onPress={item.onPress}
                     style={[
                       styles.sectionItem,
                       itemIndex === section.items.length - 1 &&
                         styles.lastSectionItem,
                     ]}
-                    onPress={item.onPress}
-                    disabled={!item.onPress}
                   >
                     <View style={styles.sectionItemLeft}>
                       <View style={styles.sectionItemIcon}>
-                        <IconComponent size={20} color="#64748B" />
+                        <IconComponent color="#64748B" size={20} />
                       </View>
                       <Text
+                        numberOfLines={1}
                         style={[
                           styles.sectionItemLabel,
                           isRTL && styles.rtlText,
                         ]}
-                        numberOfLines={1}
                       >
                         {item.label}
                       </Text>
@@ -494,29 +494,29 @@ export default function ProfileScreen() {
                     <View style={styles.sectionItemRight}>
                       {item.hasSwitch ? (
                         <Switch
-                          value={item.switchValue}
                           onValueChange={item.onSwitchChange}
-                          trackColor={{ false: '#E2E8F0', true: '#2563EB' }}
                           thumbColor="#FFFFFF"
+                          trackColor={{ false: "#E2E8F0", true: "#2563EB" }}
+                          value={item.switchValue}
                         />
                       ) : (
                         <>
                           {item.value && (
                             <Text
+                              numberOfLines={1}
                               style={[
                                 styles.sectionItemValue,
                                 isRTL && styles.rtlText,
                               ]}
-                              numberOfLines={1}
                             >
                               {item.value}
                             </Text>
                           )}
                           <ChevronRight
-                            size={16}
                             color="#94A3B8"
+                            size={16}
                             style={[
-                              isRTL && { transform: [{ rotate: '180deg' }] },
+                              isRTL && { transform: [{ rotate: "180deg" }] },
                             ]}
                           />
                         </>
@@ -530,10 +530,10 @@ export default function ProfileScreen() {
         ))}
 
         {/* Sign Out Button */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleLogout}>
-          <LogOut size={20} color="#EF4444" />
+        <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>
+          <LogOut color="#EF4444" size={20} />
           <Text style={[styles.signOutText, isRTL && styles.rtlText]}>
-            {t('signOut')}
+            {t("signOut")}
           </Text>
         </TouchableOpacity>
 
@@ -547,60 +547,60 @@ export default function ProfileScreen() {
 
       {/* Language Picker Modal */}
       <Modal
-        visible={languagePickerVisible}
-        transparent={true}
         animationType="slide"
         onRequestClose={() => setLanguagePickerVisible(false)}
+        transparent={true}
+        visible={languagePickerVisible}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'اختر اللغة' : 'Select Language'}
+              {isRTL ? "اختر اللغة" : "Select Language"}
             </Text>
 
             <TouchableOpacity
+              onPress={() => handleLanguageChange("en")}
               style={[
                 styles.languageOption,
-                i18n.language === 'en' && styles.selectedLanguage,
+                i18n.language === "en" && styles.selectedLanguage,
               ]}
-              onPress={() => handleLanguageChange('en')}
             >
               <Text
                 style={[
                   styles.languageText,
-                  i18n.language === 'en' && styles.selectedLanguageText,
+                  i18n.language === "en" && styles.selectedLanguageText,
                 ]}
               >
                 English
               </Text>
-              {i18n.language === 'en' && <Check size={20} color="#2563EB" />}
+              {i18n.language === "en" && <Check color="#2563EB" size={20} />}
             </TouchableOpacity>
 
             <TouchableOpacity
+              onPress={() => handleLanguageChange("ar")}
               style={[
                 styles.languageOption,
-                i18n.language === 'ar' && styles.selectedLanguage,
+                i18n.language === "ar" && styles.selectedLanguage,
               ]}
-              onPress={() => handleLanguageChange('ar')}
             >
               <Text
                 style={[
                   styles.languageText,
                   styles.rtlText,
-                  i18n.language === 'ar' && styles.selectedLanguageText,
+                  i18n.language === "ar" && styles.selectedLanguageText,
                 ]}
               >
                 العربية
               </Text>
-              {i18n.language === 'ar' && <Check size={20} color="#2563EB" />}
+              {i18n.language === "ar" && <Check color="#2563EB" size={20} />}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.cancelButton}
               onPress={() => setLanguagePickerVisible(false)}
+              style={styles.cancelButton}
             >
               <Text style={[styles.cancelButtonText, isRTL && styles.rtlText]}>
-                {isRTL ? 'إلغاء' : 'Cancel'}
+                {isRTL ? "إلغاء" : "Cancel"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -613,7 +613,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   header: {
     paddingHorizontal: 20,
@@ -622,24 +622,24 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: 'Geist-Bold',
-    color: '#1E293B',
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
   },
   profileCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    alignItems: 'center',
+    alignItems: "center",
   },
   avatarContainer: {
     marginBottom: 16,
@@ -648,47 +648,47 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#2563EB",
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: {
     fontSize: 24,
-    fontFamily: 'Geist-Bold',
-    color: '#FFFFFF',
+    fontFamily: "Geist-Bold",
+    color: "#FFFFFF",
   },
   userInfo: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   userName: {
     fontSize: 24,
-    fontFamily: 'Geist-Bold',
-    color: '#1E293B',
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
     marginBottom: 8,
   },
   memberSince: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
   memberSinceText: {
     fontSize: 12,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   healthSummary: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -696,47 +696,47 @@ const styles = StyleSheet.create({
   },
   healthTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 16,
   },
   loadingContainer: {
     padding: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   healthGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: 12,
   },
   healthCard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
     minHeight: 100,
   },
   healthIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 8,
   },
   healthCardValue: {
     fontSize: 20,
-    fontFamily: 'Geist-Bold',
-    color: '#1E293B',
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
     marginBottom: 4,
   },
   healthCardLabel: {
     fontSize: 11,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
-    textAlign: 'center',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    textAlign: "center",
     lineHeight: 14,
   },
   section: {
@@ -744,36 +744,36 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 8,
     marginLeft: 4,
   },
   sectionItems: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
   sectionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: "#F1F5F9",
   },
   lastSectionItem: {
     borderBottomWidth: 0,
   },
   sectionItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     marginRight: 12,
   },
@@ -781,39 +781,39 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F8FAFC',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F8FAFC",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   sectionItemLabel: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#1E293B',
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
     flex: 1,
   },
   sectionItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     flexShrink: 0,
   },
   sectionItemValue: {
     fontSize: 14,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
     maxWidth: 80,
   },
   signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingVertical: 16,
     marginBottom: 20,
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -821,74 +821,74 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#EF4444',
+    fontFamily: "Geist-SemiBold",
+    color: "#EF4444",
   },
   appVersion: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingBottom: 20,
   },
   appVersionText: {
     fontSize: 12,
-    fontFamily: 'Geist-Regular',
-    color: '#94A3B8',
+    fontFamily: "Geist-Regular",
+    color: "#94A3B8",
   },
   rtlText: {
-    fontFamily: 'Cairo-Regular',
+    fontFamily: "Cairo-Regular",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 20,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 24,
-    width: '100%',
+    width: "100%",
     maxWidth: 300,
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
-    textAlign: 'center',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    textAlign: "center",
     marginBottom: 20,
   },
   languageOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 16,
     paddingHorizontal: 12,
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   selectedLanguage: {
-    backgroundColor: '#EBF4FF',
+    backgroundColor: "#EBF4FF",
     borderWidth: 1,
-    borderColor: '#2563EB',
+    borderColor: "#2563EB",
   },
   languageText: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#1E293B',
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
   },
   selectedLanguageText: {
-    color: '#2563EB',
-    fontFamily: 'Geist-SemiBold',
+    color: "#2563EB",
+    fontFamily: "Geist-SemiBold",
   },
   cancelButton: {
     marginTop: 8,
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButtonText: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
 });

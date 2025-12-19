@@ -1,7 +1,7 @@
-import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import {FieldValue} from "firebase-admin/firestore";
-import {onSchedule} from "firebase-functions/v2/scheduler";
+import { FieldValue } from "firebase-admin/firestore";
+import * as functions from "firebase-functions";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -19,8 +19,9 @@ async function getUserTokens(userId: string): Promise<string[]> {
   if (!userData?.fcmToken) return [];
 
   // Support both single token and array of tokens
-  return Array.isArray(userData.fcmToken) ?
-    userData.fcmToken : [userData.fcmToken];
+  return Array.isArray(userData.fcmToken)
+    ? userData.fcmToken
+    : [userData.fcmToken];
 }
 
 /**
@@ -40,7 +41,8 @@ async function getFamilyMemberIds(
   if (!userData?.familyId) return [];
 
   // Get all family members
-  const familySnapshot = await db.collection("users")
+  const familySnapshot = await db
+    .collection("users")
     .where("familyId", "==", userData.familyId)
     .get();
 
@@ -78,16 +80,16 @@ async function shouldSendNotification(
 
   // Check specific notification type
   switch (notificationType) {
-  case "fall":
-    return notificationSettings.fallAlerts !== false;
-  case "medication":
-    return notificationSettings.medicationReminders !== false;
-  case "symptom":
-    return notificationSettings.symptomAlerts !== false;
-  case "family":
-    return notificationSettings.familyUpdates !== false;
-  default:
-    return true;
+    case "fall":
+      return notificationSettings.fallAlerts !== false;
+    case "medication":
+      return notificationSettings.medicationReminders !== false;
+    case "symptom":
+      return notificationSettings.symptomAlerts !== false;
+    case "family":
+      return notificationSettings.familyUpdates !== false;
+    default:
+      return true;
   }
 }
 
@@ -114,8 +116,12 @@ export const sendPushNotificationHttp = functions.https.onRequest(
       return;
     }
 
-    const {userIds, notification, notificationType = "general", senderId} =
-      req.body.data || req.body;
+    const {
+      userIds,
+      notification,
+      notificationType = "general",
+      senderId,
+    } = req.body.data || req.body;
 
     console.log("HTTP Push notification requested by:", senderId || "unknown");
 
@@ -152,7 +158,7 @@ export const sendPushNotificationHttp = functions.https.onRequest(
           notificationType,
           timestamp: new Date().toISOString(),
         },
-        tokens: tokens,
+        tokens,
       };
 
       const response = await admin.messaging().sendEachForMulticast(message);
@@ -181,25 +187,32 @@ export const sendPushNotificationHttp = functions.https.onRequest(
 // Using v1 for now to avoid Cloud Run auth issues
 export const sendPushNotification = functions.https.onCall(
   async (data: any, context: any) => {
-    const {userIds, notification,
-      notificationType = "general", senderId} = data;
+    const {
+      userIds,
+      notification,
+      notificationType = "general",
+      senderId,
+    } = data;
 
     // Temporarily bypass authentication for testing
     // TODO: Fix authentication issue and re-enable this check
-    console.log("Auth context:",
-      context.auth ? "Authenticated" : "Not authenticated");
+    console.log(
+      "Auth context:",
+      context.auth ? "Authenticated" : "Not authenticated"
+    );
     console.log("SenderId provided:", senderId || "None");
 
     // For now, just log and continue
-    if (!context.auth && !senderId) {
+    if (!(context.auth || senderId)) {
       console.warn(
-        "Warning: No authentication or senderId - allowing for testing");
+        "Warning: No authentication or senderId - allowing for testing"
+      );
     }
 
     const authenticatedUserId = context.auth?.uid || senderId || "testing-user";
     console.log("Push notification requested by:", authenticatedUserId);
 
-    if (!userIds || !notification) {
+    if (!(userIds && notification)) {
       throw new functions.https.HttpsError(
         "invalid-argument",
         "Missing userIds or notification"
@@ -252,15 +265,15 @@ export const sendPushNotification = functions.https.onCall(
         },
         android: {
           priority:
-            notification.priority === "high" ?
-              ("high" as const) :
-              ("normal" as const),
+            notification.priority === "high"
+              ? ("high" as const)
+              : ("normal" as const),
           notification: {
             sound: notification.sound || "default",
             priority:
-              notification.priority === "high" ?
-                ("high" as const) :
-                ("default" as const),
+              notification.priority === "high"
+                ? ("high" as const)
+                : ("default" as const),
             channelId: notificationType,
             tag: notification.tag,
             color: notification.color || "#2563EB",
@@ -270,18 +283,17 @@ export const sendPushNotification = functions.https.onCall(
         apns: {
           payload: {
             aps: {
-              "sound": notification.sound || "default",
-              "badge": notification.badge !== undefined ?
-                notification.badge : 1,
+              sound: notification.sound || "default",
+              badge: notification.badge !== undefined ? notification.badge : 1,
               "mutable-content": 1,
-              "category": notificationType.toUpperCase(),
+              category: notificationType.toUpperCase(),
             },
           },
           headers: {
             "apns-priority": notification.priority === "high" ? "10" : "5",
           },
         },
-        tokens: tokens,
+        tokens,
       };
 
       const response = await admin.messaging().sendEachForMulticast(message);
@@ -329,14 +341,13 @@ export const sendPushNotification = functions.https.onCall(
  * @param {string[]} invalidTokens - Array of invalid tokens
  * @return {Promise<void>}
  */
-async function cleanupInvalidTokens(
-  invalidTokens: string[]
-): Promise<void> {
+async function cleanupInvalidTokens(invalidTokens: string[]): Promise<void> {
   const db = admin.firestore();
   const batch = db.batch();
 
   // Find users with these tokens and remove them
-  const usersSnapshot = await db.collection("users")
+  const usersSnapshot = await db
+    .collection("users")
     .where("fcmToken", "in", invalidTokens)
     .get();
 
@@ -353,7 +364,7 @@ async function cleanupInvalidTokens(
 // Enhanced FCM token management with device tracking
 export const saveFCMToken = functions.https.onCall(
   async (data: any, context: any) => {
-    const {token, deviceInfo, userId} = data;
+    const { token, deviceInfo, userId } = data;
 
     // Allow both authenticated and userId-based calls
     const targetUserId = context.auth?.uid || userId;
@@ -408,7 +419,7 @@ export const saveFCMToken = functions.https.onCall(
         deviceId,
       });
 
-      return {success: true, message: "FCM token saved successfully"};
+      return { success: true, message: "FCM token saved successfully" };
     } catch (error) {
       console.error("Error saving FCM token", error);
       throw new functions.https.HttpsError(
@@ -422,7 +433,7 @@ export const saveFCMToken = functions.https.onCall(
 // Function to send fall detection alert to family members
 export const sendFallAlert = functions.https.onCall(
   async (data: any, context: any) => {
-    const {alertId, userId, userName, location} = data;
+    const { alertId, userId, userName, location } = data;
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -437,7 +448,7 @@ export const sendFallAlert = functions.https.onCall(
 
       if (familyMemberIds.length === 0) {
         console.log("No family members to notify");
-        return {success: true, message: "No family members to notify"};
+        return { success: true, message: "No family members to notify" };
       }
 
       // Prepare notification
@@ -467,7 +478,7 @@ export const sendFallAlert = functions.https.onCall(
           notification,
           notificationType: "fall",
         },
-        {auth: context.auth}
+        { auth: context.auth }
       );
 
       // Log the alert
@@ -495,7 +506,7 @@ export const sendFallAlert = functions.https.onCall(
 // Function to send medication reminder
 export const sendMedicationReminder = functions.https.onCall(
   async (data: any, context: any) => {
-    const {medicationId, medicationName, dosage, userId} = data;
+    const { medicationId, medicationName, dosage, userId } = data;
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -527,7 +538,7 @@ export const sendMedicationReminder = functions.https.onCall(
           notification,
           notificationType: "medication",
         },
-        {auth: context.auth}
+        { auth: context.auth }
       );
 
       return result;
@@ -544,7 +555,7 @@ export const sendMedicationReminder = functions.https.onCall(
 // Function to send symptom alert to family
 export const sendSymptomAlert = functions.https.onCall(
   async (data: any, context: any) => {
-    const {symptomType, severity, userId, userName} = data;
+    const { symptomType, severity, userId, userName } = data;
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -555,7 +566,7 @@ export const sendSymptomAlert = functions.https.onCall(
 
     // Only send for high severity symptoms (4 or 5)
     if (severity < 4) {
-      return {success: true, message: "Symptom not severe enough for alert"};
+      return { success: true, message: "Symptom not severe enough for alert" };
     }
 
     try {
@@ -563,7 +574,7 @@ export const sendSymptomAlert = functions.https.onCall(
       const familyMemberIds = await getFamilyMemberIds(userId);
 
       if (familyMemberIds.length === 0) {
-        return {success: true, message: "No family members to notify"};
+        return { success: true, message: "No family members to notify" };
       }
 
       const severityText = severity === 5 ? "very severe" : "severe";
@@ -589,7 +600,7 @@ export const sendSymptomAlert = functions.https.onCall(
           notification,
           notificationType: "symptom",
         },
-        {auth: context.auth}
+        { auth: context.auth }
       );
 
       return result;
@@ -612,12 +623,13 @@ export const scheduledMedicationReminders = onSchedule(
     const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
     const currentTime =
-    `${currentHour.toString().padStart(2, "0")}:` +
-    `${currentMinutes.toString().padStart(2, "0")}`;
+      `${currentHour.toString().padStart(2, "0")}:` +
+      `${currentMinutes.toString().padStart(2, "0")}`;
 
     try {
-    // Get all active medications
-      const medicationsSnapshot = await db.collection("medications")
+      // Get all active medications
+      const medicationsSnapshot = await db
+        .collection("medications")
         .where("isActive", "==", true)
         .get();
 
@@ -630,8 +642,10 @@ export const scheduledMedicationReminders = onSchedule(
         // Check if any reminder matches current time (within 5 minutes)
         reminders.forEach((reminder: any) => {
           const reminderTime = reminder.time;
-          if (isTimeWithinRange(currentTime, reminderTime, 5) &&
-            !reminder.taken) {
+          if (
+            isTimeWithinRange(currentTime, reminderTime, 5) &&
+            !reminder.taken
+          ) {
             remindersToSend.push({
               medicationId: doc.id,
               medicationName: medication.name,
@@ -646,18 +660,18 @@ export const scheduledMedicationReminders = onSchedule(
       // Send reminders
       for (const reminder of remindersToSend) {
         try {
-          await exports.sendMedicationReminder(
-            reminder,
-            {auth: {uid: "system"}}
-          );
+          await exports.sendMedicationReminder(reminder, {
+            auth: { uid: "system" },
+          });
 
           // Mark reminder as notified
-          await db.collection("medications")
+          await db
+            .collection("medications")
             .doc(reminder.medicationId)
             .update({
               [`reminders.${reminder.reminderId}.notified`]: true,
               [`reminders.${reminder.reminderId}.notifiedAt`]:
-              FieldValue.serverTimestamp(),
+                FieldValue.serverTimestamp(),
             });
         } catch (error) {
           console.error("Error sending reminder:", error);
@@ -668,7 +682,8 @@ export const scheduledMedicationReminders = onSchedule(
     } catch (error) {
       console.error("Error in scheduled medication reminders:", error);
     }
-  });
+  }
+);
 
 /**
  * Helper function to check if time is within range
@@ -695,7 +710,7 @@ function isTimeWithinRange(
 // Function to update notification preferences
 export const updateNotificationPreferences = functions.https.onCall(
   async (data: any, context: any) => {
-    const {preferences} = data;
+    const { preferences } = data;
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -716,7 +731,7 @@ export const updateNotificationPreferences = functions.https.onCall(
         preferences,
       });
 
-      return {success: true, message: "Preferences updated successfully"};
+      return { success: true, message: "Preferences updated successfully" };
     } catch (error) {
       console.error("Error updating preferences:", error);
       throw new functions.https.HttpsError(
