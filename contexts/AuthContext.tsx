@@ -4,6 +4,10 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
@@ -22,6 +26,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -353,6 +359,110 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error("No user is currently signed in.");
+    }
+
+    if (!currentUser.email) {
+      throw new Error("Cannot change password: User account does not have an email address.");
+    }
+
+    // Check if user is signed in with email/password provider
+    // Firebase uses "password" as providerId for email/password accounts
+    const providerData = currentUser.providerData;
+    const hasEmailProvider = providerData.some(
+      (provider) => provider.providerId === "password" || provider.providerId === "firebase"
+    );
+
+    if (!hasEmailProvider && providerData.length > 0) {
+      throw new Error("Password change is only available for email/password accounts.");
+    }
+
+    try {
+      // Validate new password before attempting reauthentication
+      if (newPassword.length < 6) {
+        throw new Error("New password must be at least 6 characters long.");
+      }
+
+      // Reauthenticate user with current password
+      // This is required by Firebase for security
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        currentPassword
+      );
+      
+      // Reauthenticate - this may throw if password is wrong or user needs recent login
+      await reauthenticateWithCredential(currentUser, credential);
+
+      // Update password after successful reauthentication
+      await updatePassword(currentUser, newPassword);
+    } catch (error: any) {
+      let errorMessage = "Failed to change password. Please try again.";
+
+      // Handle specific Firebase Auth error codes
+      if (
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential" ||
+        error.code === "auth/invalid-login-credentials"
+      ) {
+        errorMessage = "Current password is incorrect. Please check and try again.";
+      } else if (error.code === "auth/user-mismatch") {
+        errorMessage = "Authentication error. Please sign out and sign in again.";
+      } else if (error.code === "auth/weak-password") {
+        errorMessage = "New password should be at least 6 characters.";
+      } else if (error.code === "auth/requires-recent-login") {
+        errorMessage = "For security reasons, please sign out and sign in again before changing your password.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many failed attempts. Please try again later.";
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "User account not found. Please sign out and sign in again.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email address. Please contact support.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      // Log the error for debugging (in development)
+      if (__DEV__) {
+        console.error("Password change error:", error.code, error.message);
+      }
+
+      throw new Error(errorMessage);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      let errorMessage = "Failed to send password reset email. Please try again.";
+
+      // Handle specific Firebase Auth error codes
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "No account found with this email address.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Invalid email address.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your internet connection and try again.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many requests. Please try again later.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      // Log the error for debugging (in development)
+      if (__DEV__) {
+        console.error("Password reset error:", error.code, error.message);
+      }
+
+      throw new Error(errorMessage);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -360,6 +470,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     signUp,
     logout,
     updateUser,
+    changePassword,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

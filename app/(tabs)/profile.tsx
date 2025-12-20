@@ -11,6 +11,7 @@ import {
   Globe,
   Heart,
   HelpCircle,
+  Lock,
   LogOut,
   Moon,
   Settings,
@@ -162,6 +163,10 @@ export default function ProfileScreen() {
     router.push("/profile/personal-info");
   };
 
+  const handleChangePassword = () => {
+    router.push("/profile/change-password");
+  };
+
   const handleHealthReports = () => {
     Alert.alert(
       isRTL ? "قريباً" : "Coming Soon",
@@ -224,6 +229,11 @@ export default function ProfileScreen() {
           icon: User,
           label: isRTL ? "المعلومات الشخصية" : "Personal Information",
           onPress: handlePersonalInfo,
+        },
+        {
+          icon: Lock,
+          label: isRTL ? "تغيير كلمة المرور" : "Change Password",
+          onPress: handleChangePassword,
         },
         {
           icon: FileText,
