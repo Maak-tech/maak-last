@@ -80,57 +80,92 @@ export default function ChangePasswordScreen() {
 
   const handleForgotPassword = () => {
     if (!user?.email) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "لم يتم العثور على عنوان البريد الإلكتروني"
-          : "Email address not found",
-        [{ text: isRTL ? "موافق" : "OK" }]
-      );
+      if (Platform.OS === "web") {
+        const confirmed = window.confirm(
+          isRTL
+            ? "لم يتم العثور على عنوان البريد الإلكتروني"
+            : "Email address not found"
+        );
+      } else {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL
+            ? "لم يتم العثور على عنوان البريد الإلكتروني"
+            : "Email address not found",
+          [{ text: isRTL ? "موافق" : "OK" }]
+        );
+      }
       return;
     }
 
-    Alert.alert(
-      isRTL ? "إعادة تعيين كلمة المرور" : "Reset Password",
-      isRTL
-        ? `سيتم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}. هل تريد المتابعة؟`
-        : `A password reset link will be sent to ${user.email}. Do you want to continue?`,
-      [
-        {
-          text: isRTL ? "إلغاء" : "Cancel",
-          style: "cancel",
-        },
-        {
-          text: isRTL ? "إرسال" : "Send",
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await resetPassword(user.email);
-              Alert.alert(
-                isRTL ? "تم الإرسال" : "Email Sent",
-                isRTL
-                  ? `تم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}. يرجى التحقق من بريدك الإلكتروني.`
-                  : `Password reset link has been sent to ${user.email}. Please check your email.`,
-                [
-                  {
-                    text: isRTL ? "موافق" : "OK",
-                    onPress: () => router.back(),
-                  },
-                ]
-              );
-            } catch (error: any) {
-              Alert.alert(
-                isRTL ? "خطأ" : "Error",
-                error.message || (isRTL ? "فشل إرسال البريد الإلكتروني" : "Failed to send email"),
-                [{ text: isRTL ? "موافق" : "OK" }]
-              );
-            } finally {
-              setLoading(false);
-            }
+    const message = isRTL
+      ? `سيتم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}. هل تريد المتابعة؟`
+      : `A password reset link will be sent to ${user.email}. Do you want to continue?`;
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(message);
+      if (confirmed) {
+        sendResetEmail();
+      }
+    } else {
+      Alert.alert(
+        isRTL ? "إعادة تعيين كلمة المرور" : "Reset Password",
+        message,
+        [
+          {
+            text: isRTL ? "إلغاء" : "Cancel",
+            style: "cancel",
           },
-        },
-      ]
-    );
+          {
+            text: isRTL ? "إرسال" : "Send",
+            onPress: sendResetEmail,
+          },
+        ]
+      );
+    }
+  };
+
+  const sendResetEmail = async () => {
+    if (!user?.email) return;
+
+    setLoading(true);
+    try {
+      await resetPassword(user.email);
+      
+      const successMessage = isRTL
+        ? `تم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}. يرجى التحقق من بريدك الإلكتروني.`
+        : `Password reset link has been sent to ${user.email}. Please check your email.`;
+
+      if (Platform.OS === "web") {
+        window.alert(successMessage);
+        router.back();
+      } else {
+        Alert.alert(
+          isRTL ? "تم الإرسال" : "Email Sent",
+          successMessage,
+          [
+            {
+              text: isRTL ? "موافق" : "OK",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || (isRTL ? "فشل إرسال البريد الإلكتروني" : "Failed to send email");
+      
+      if (Platform.OS === "web") {
+        window.alert(errorMessage);
+      } else {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          errorMessage,
+          [{ text: isRTL ? "موافق" : "OK" }]
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChangePassword = async () => {
