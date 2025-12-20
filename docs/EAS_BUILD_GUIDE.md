@@ -11,18 +11,13 @@ npm install -g @expo/eas-cli@latest
 ```bash
 eas login
 ```
-Use your Expo account: **ahmad_alstaty**
+Use your Expo account: **Nour_Maak**
 
 ### 3. Verify EAS Project
 ```bash
 eas whoami
 eas project:info
 ```
-Should show:
-- **Project**: maak-health
-- **Owner**: ahmad_alstaty  
-- **Project ID**: 26cb86fa-b368-4a41-8d1c-49d212a7f604
-
 ## iOS Setup
 
 ### 1. Configure iOS Credentials

@@ -4,17 +4,13 @@
 This document contains the complete plan and step-by-step instructions for publishing the Maak Health app to both Apple App Store and Google Play Store. Follow these instructions sequentially for the fastest path to publication.
 
 ## Current Status
-- **App Name**: Maak Health
-- **Bundle ID (iOS)**: com.maak.health
-- **Package Name (Android)**: com.maak.health
-- **Version**: 1.0.0
-- **EAS Project ID**: 26cb86fa-b368-4a41-8d1c-49d212a7f604
+
 
 ## Prerequisites Checklist
 Before starting, ensure you have:
 - [ ] Apple Developer Account ($99/year) - https://developer.apple.com
 - [ ] Google Play Developer Account ($25 one-time) - https://play.google.com/console
-- [ ] Access to the Expo account (owner: ahmad_alstaty)
+- [ ] Access to the Expo account (owner: Nour_Maak)
 - [ ] Testing devices (iOS and Android)
 
 ## Phase 1: Project Preparation (Priority: HIGH)
@@ -71,7 +67,7 @@ Create the following in `/assets/production/`:
   "expo": {
     "name": "Maak Health",
     "slug": "maak-health",
-    "owner": "ahmad_alstaty",
+    "owner": "Nour_Maak",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/production/icon-1024.png",

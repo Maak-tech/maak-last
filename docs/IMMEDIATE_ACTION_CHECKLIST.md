@@ -69,7 +69,7 @@ npm install -g @expo/eas-cli@latest
 
 # Login to EAS
 eas login
-# Use: ahmad_alstaty
+# Use: nour_maak
 
 # Setup iOS credentials
 eas credentials -p ios
