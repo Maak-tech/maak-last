@@ -165,9 +165,54 @@ export const useNotifications = () => {
     [scheduleNotification]
   );
 
+  const scheduleRecurringMedicationReminder = useCallback(
+    async (medicationName: string, dosage: string, reminderTime: string) => {
+      if (Platform.OS === "web") {
+        return;
+      }
+
+      if (!isInitialized.current) {
+        console.warn(
+          "Notifications not initialized, cannot schedule medication reminder"
+        );
+        return;
+      }
+
+      try {
+        const Notifications = await import("expo-notifications");
+        const [hourStr, minuteStr] = reminderTime.split(":");
+        const hour = Number.parseInt(hourStr);
+        const minute = Number.parseInt(minuteStr);
+
+        // Schedule recurring daily notification
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "💊 Medication Reminder",
+            body: `Time to take ${medicationName}${dosage ? ` (${dosage})` : ""}`,
+            sound: "default",
+            data: {
+              type: "medication_reminder",
+              medicationName,
+              dosage,
+            },
+          },
+          trigger: {
+            hour,
+            minute,
+            repeats: true,
+          },
+        });
+      } catch (error) {
+        console.warn("Failed to schedule recurring medication reminder:", error);
+      }
+    },
+    []
+  );
+
   return {
     scheduleNotification,
     scheduleMedicationReminder,
+    scheduleRecurringMedicationReminder,
   };
 };
 

@@ -19,6 +19,7 @@ import FamilyDataFilter, {
 } from "@/app/components/FamilyDataFilter";
 import AnimatedCheckButton from "@/components/AnimatedCheckButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
 import { medicationService } from "@/lib/services/medicationService";
 import { userService } from "@/lib/services/userService";
 import type { Medication, MedicationReminder, User as UserType } from "@/types";
@@ -59,6 +60,7 @@ export default function MedicationsScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
+  const { scheduleRecurringMedicationReminder } = useNotifications();
 
   const loadMedications = async (isRefresh = false) => {
     if (!user) return;
@@ -185,7 +187,7 @@ export default function MedicationsScreen() {
           dosage: newMedication.dosage,
           frequency: newMedication.frequency,
           reminders: newMedication.reminders.map((reminder, index) => ({
-            id: `${Date.now()}_${index}`,
+            id: reminder.id || `${Date.now()}_${index}`,
             time: reminder.time,
             taken: false,
           })),
@@ -198,6 +200,19 @@ export default function MedicationsScreen() {
           editingMedication.id,
           updateData
         );
+
+        // Reschedule notifications for updated reminders (only for current user's medications)
+        if (editingMedication.userId === user.id && newMedication.reminders.length > 0) {
+          for (const reminder of newMedication.reminders) {
+            if (reminder.time && reminder.time.trim()) {
+              await scheduleRecurringMedicationReminder(
+                newMedication.name,
+                newMedication.dosage,
+                reminder.time
+              );
+            }
+          }
+        }
         setEditingMedication(null);
       } else {
         // Add new medication
@@ -228,6 +243,19 @@ export default function MedicationsScreen() {
         } else {
           // User adding medication for themselves
           await medicationService.addMedication(medicationData);
+        }
+
+        // Schedule notifications for reminders (only for current user's medications)
+        if (targetUserId === user.id && newMedication.reminders.length > 0) {
+          for (const reminder of newMedication.reminders) {
+            if (reminder.time && reminder.time.trim()) {
+              await scheduleRecurringMedicationReminder(
+                newMedication.name,
+                newMedication.dosage,
+                reminder.time
+              );
+            }
+          }
         }
       }
 
@@ -808,6 +836,11 @@ export default function MedicationsScreen() {
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {t("reminders")} *
               </Text>
+              <Text style={[styles.helperText, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? "التنسيق: HH:MM (24 ساعة) - مثال: 09:00، 14:30، 21:15"
+                  : "Format: HH:MM (24-hour) - Examples: 09:00, 14:30, 21:15"}
+              </Text>
               <View style={styles.remindersList}>
                 {newMedication.reminders.map((reminder, index) => (
                   <View key={index} style={styles.reminderItem}>
@@ -1068,6 +1101,13 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Medium",
     color: "#374151",
     marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginBottom: 8,
+    marginTop: -4,
   },
   input: {
     borderWidth: 1,
