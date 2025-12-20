@@ -4,6 +4,7 @@
  */
 
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import type {
   NormalizedMetricPayload,
   MetricSample,
@@ -24,6 +25,15 @@ if (Platform.OS === "ios") {
   }
 }
 
+// Check if running in Expo Go
+const isExpoGo = () => {
+  return (
+    Constants.executionEnvironment === "storeClient" ||
+    !Constants.appOwnership ||
+    Constants.appOwnership === "expo"
+  );
+};
+
 /**
  * Check if Apple Health is available
  */
@@ -35,10 +45,18 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
     };
   }
 
+  // Check if running in Expo Go
+  if (isExpoGo()) {
+    return {
+      available: false,
+      reason: "HealthKit requires a development build or standalone app. HealthKit is not available in Expo Go. Please build a development build using 'expo run:ios' or create a standalone build.",
+    };
+  }
+
   if (!AppleHealthKit) {
     return {
       available: false,
-      reason: "HealthKit library not available",
+      reason: "HealthKit library not available. Please ensure you're running a development build or standalone app, not Expo Go.",
     };
   }
 
@@ -62,8 +80,14 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
 const requestAuthorization = async (
   selectedMetrics: string[]
 ): Promise<{ granted: string[]; denied: string[] }> => {
+  // Check availability first
+  const availability = await isAvailable();
+  if (!availability.available) {
+    throw new Error(availability.reason || "HealthKit is not available");
+  }
+
   if (!AppleHealthKit) {
-    throw new Error("HealthKit library not available");
+    throw new Error("HealthKit library not available. Please ensure you're running a development build or standalone app, not Expo Go.");
   }
 
   // Map metric keys to HealthKit types

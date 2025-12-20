@@ -45,10 +45,19 @@ export default function AppleHealthPermissionsScreen() {
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [healthKitAvailable, setHealthKitAvailable] = useState<boolean | null>(null);
+  const [availabilityReason, setAvailabilityReason] = useState<string | undefined>();
 
   useEffect(() => {
     loadAvailableMetrics();
+    checkHealthKitAvailability();
   }, []);
+
+  const checkHealthKitAvailability = async () => {
+    const availability = await appleHealthService.isAvailable();
+    setHealthKitAvailable(availability.available);
+    setAvailabilityReason(availability.reason);
+  };
 
   const loadAvailableMetrics = () => {
     const metrics = getAvailableMetricsForProvider("apple_health");
@@ -97,6 +106,16 @@ export default function AppleHealthPermissionsScreen() {
       return;
     }
 
+    // Check availability before proceeding
+    const availability = await appleHealthService.isAvailable();
+    if (!availability.available) {
+      Alert.alert(
+        "HealthKit Not Available",
+        availability.reason || "HealthKit is not available. Please ensure you're running a development build or standalone app."
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       // Request HealthKit permissions
@@ -136,6 +155,31 @@ export default function AppleHealthPermissionsScreen() {
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: theme.text }]}>
             Apple Health is only available on iOS devices.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error if HealthKit is not available
+  if (healthKitAvailable === false) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Heart size={48} color={theme.primary} />
+          <Text style={[styles.title, { color: theme.text }]}>
+            HealthKit Not Available
+          </Text>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: theme.text }]}>
+            {availabilityReason || "HealthKit is not available"}
           </Text>
         </View>
       </SafeAreaView>

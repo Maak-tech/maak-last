@@ -9,6 +9,9 @@ import {
   Scale,
   TrendingDown,
   TrendingUp,
+  Check,
+  ChevronRight,
+  Info,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,6 +25,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Switch,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -31,6 +35,17 @@ import {
   type VitalSigns,
 } from "@/lib/services/healthDataService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
+import {
+  getAvailableMetricsForProvider,
+  getAllGroups,
+  getGroupDisplayName,
+  type HealthMetric,
+} from "@/lib/health/healthMetricsCatalog";
+import { appleHealthService } from "@/lib/services/appleHealthService";
+import {
+  saveProviderConnection,
+  type ProviderConnection,
+} from "@/lib/health/healthSync";
 
 interface VitalCard {
   key: string;
@@ -54,6 +69,15 @@ export default function VitalsScreen() {
   const [vitals, setVitals] = useState<VitalSigns | null>(null);
   const [summary, setSummary] = useState<HealthDataSummary | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  
+  // Health metrics selection state
+  const [showMetricSelection, setShowMetricSelection] = useState(false);
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
+  const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [healthKitAvailable, setHealthKitAvailable] = useState<boolean | null>(null);
+  const [availabilityReason, setAvailabilityReason] = useState<string | undefined>();
+  const [authorizing, setAuthorizing] = useState(false);
 
   const isRTL = i18n.language === "ar";
 
@@ -109,19 +133,19 @@ export default function VitalsScreen() {
       paddingHorizontal: theme.spacing.base,
     },
     permissionCard: {
-      backgroundColor: theme.colors.secondary[50],
+      backgroundColor: "#FFF4E6", // Light orange background
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.xl,
       margin: theme.spacing.lg,
       alignItems: "center" as const,
       borderWidth: 2,
-      borderColor: theme.colors.secondary.main,
+      borderColor: "#FF8C42", // Orange border
     },
     permissionIcon: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: theme.colors.secondary.main,
+      backgroundColor: "#FF8C42", // Orange background
       justifyContent: "center" as const,
       alignItems: "center" as const,
       marginBottom: theme.spacing.lg,
@@ -138,7 +162,7 @@ export default function VitalsScreen() {
       marginBottom: theme.spacing.xl,
     },
     enableButton: {
-      backgroundColor: theme.colors.secondary.main,
+      backgroundColor: "#FF8C42", // Orange button
       paddingHorizontal: theme.spacing.xl,
       paddingVertical: theme.spacing.base,
       borderRadius: theme.borderRadius.lg,
@@ -247,6 +271,127 @@ export default function VitalsScreen() {
     rtlText: {
       textAlign: "right" as const,
     },
+    backButton: {
+      position: "absolute",
+      left: theme.spacing.lg,
+      top: theme.spacing.lg,
+      padding: theme.spacing.sm,
+      zIndex: 10,
+    },
+    selectAllSection: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.base,
+    },
+    selectAllButton: {
+      padding: theme.spacing.base,
+      borderRadius: theme.borderRadius.md,
+      alignItems: "center" as const,
+      borderWidth: 1,
+    },
+    selectAllText: {
+      fontSize: 15,
+    },
+    metricsSection: {
+      padding: theme.spacing.lg,
+      paddingTop: 0,
+    },
+    groupCard: {
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      marginBottom: theme.spacing.base,
+      overflow: "hidden" as const,
+    },
+    groupHeader: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      justifyContent: "space-between" as const,
+      padding: theme.spacing.base,
+    },
+    groupHeaderLeft: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      flex: 1,
+    },
+    groupTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      marginLeft: theme.spacing.base,
+    },
+    groupCount: {
+      fontSize: 14,
+      marginLeft: theme.spacing.xs,
+    },
+    metricsList: {
+      paddingHorizontal: theme.spacing.base,
+      paddingBottom: theme.spacing.base,
+    },
+    metricItem: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      paddingVertical: theme.spacing.base,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+      marginTop: theme.spacing.xs,
+    },
+    metricLeft: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      flex: 1,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
+      marginRight: theme.spacing.base,
+    },
+    metricInfo: {
+      flex: 1,
+    },
+    metricName: {
+      fontSize: 15,
+      fontWeight: "500",
+      marginBottom: 2,
+    },
+    metricUnit: {
+      fontSize: 13,
+    },
+    infoSection: {
+      padding: theme.spacing.lg,
+      paddingTop: 0,
+    },
+    infoRow: {
+      flexDirection: "row" as const,
+      alignItems: "flex-start" as const,
+    },
+    infoText: {
+      fontSize: 13,
+      lineHeight: 18,
+      marginLeft: theme.spacing.sm,
+      flex: 1,
+    },
+    ctaSection: {
+      padding: theme.spacing.lg,
+      paddingTop: theme.spacing.sm,
+    },
+    primaryButton: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      padding: theme.spacing.base,
+      borderRadius: theme.borderRadius.lg,
+    },
+    disabledButton: {
+      opacity: 0.5,
+    },
+    primaryButtonText: {
+      color: "#FFFFFF",
+      fontSize: 17,
+      fontWeight: "600",
+      marginRight: theme.spacing.sm,
+    },
   }))(theme);
 
   const loadVitalsData = async (isRefresh = false) => {
@@ -293,7 +438,37 @@ export default function VitalsScreen() {
     }, [])
   );
 
-  const handleEnableHealthData = async () => {
+  const loadAvailableMetrics = () => {
+    if (Platform.OS === "ios") {
+      const metrics = getAvailableMetricsForProvider("apple_health");
+      setAvailableMetrics(metrics);
+      // Expand first group by default
+      if (metrics.length > 0) {
+        setExpandedGroups(new Set([metrics[0].group]));
+      }
+    }
+  };
+
+  const checkHealthKitAvailability = async () => {
+    if (Platform.OS === "ios") {
+      const availability = await appleHealthService.isAvailable();
+      setHealthKitAvailable(availability.available);
+      setAvailabilityReason(availability.reason);
+    }
+  };
+
+  const handleEnableHealthData = () => {
+    if (Platform.OS === "ios") {
+      loadAvailableMetrics();
+      checkHealthKitAvailability();
+      setShowMetricSelection(true);
+    } else {
+      // For Android, use the old flow
+      handleEnableHealthDataLegacy();
+    }
+  };
+
+  const handleEnableHealthDataLegacy = async () => {
     try {
       setLoading(true);
       const granted = await healthDataService.requestHealthPermissions();
@@ -324,6 +499,111 @@ export default function VitalsScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleMetric = (metricKey: string) => {
+    const newSelected = new Set(selectedMetrics);
+    if (newSelected.has(metricKey)) {
+      newSelected.delete(metricKey);
+    } else {
+      newSelected.add(metricKey);
+    }
+    setSelectedMetrics(newSelected);
+  };
+
+  const toggleGroup = (group: string) => {
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(group)) {
+      newExpanded.delete(group);
+    } else {
+      newExpanded.add(group);
+    }
+    setExpandedGroups(newExpanded);
+  };
+
+  const selectAllMetrics = () => {
+    const allKeys = new Set(availableMetrics.map((m) => m.key));
+    setSelectedMetrics(allKeys);
+  };
+
+  const clearAllMetrics = () => {
+    setSelectedMetrics(new Set());
+  };
+
+  const handleAuthorizeMetrics = async () => {
+    if (selectedMetrics.size === 0) {
+      Alert.alert(
+        isRTL ? "لا توجد مقاييس محددة" : "No Metrics Selected",
+        isRTL
+          ? "يرجى تحديد مقياس واحد على الأقل للمتابعة"
+          : "Please select at least one metric to continue."
+      );
+      return;
+    }
+
+    // Check availability before proceeding
+    const availability = await appleHealthService.isAvailable();
+    if (!availability.available) {
+      Alert.alert(
+        isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
+        availability.reason || 
+        (isRTL 
+          ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
+          : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
+      );
+      return;
+    }
+
+    setAuthorizing(true);
+    try {
+      // Request HealthKit permissions
+      const { granted, denied } = await appleHealthService.requestAuthorization(
+        Array.from(selectedMetrics)
+      );
+
+      // Save connection
+      const connection: ProviderConnection = {
+        provider: "apple_health",
+        connected: granted.length > 0,
+        connectedAt: new Date().toISOString(),
+        selectedMetrics: Array.from(selectedMetrics),
+        grantedMetrics: granted,
+        deniedMetrics: denied,
+      };
+
+      await saveProviderConnection(connection);
+
+      // Update permissions status
+      setHasPermissions(granted.length > 0);
+      setShowMetricSelection(false);
+      
+      if (granted.length > 0) {
+        await loadVitalsData();
+        Alert.alert(
+          isRTL ? "تم التفعيل" : "Enabled",
+          isRTL
+            ? "تم تفعيل دمج البيانات الصحية بنجاح"
+            : "Health data integration enabled successfully"
+        );
+      } else {
+        Alert.alert(
+          isRTL ? "فشل التفعيل" : "Permission Denied",
+          isRTL
+            ? "يرجى السماح بالوصول للبيانات الصحية في الإعدادات"
+            : "Please allow access to health data in Settings"
+        );
+      }
+    } catch (error: any) {
+      Alert.alert(
+        isRTL ? "خطأ في الأذونات" : "Permission Error",
+        error.message ||
+        (isRTL
+          ? "فشل طلب أذونات HealthKit. يرجى المحاولة مرة أخرى."
+          : "Failed to request HealthKit permissions. Please try again.")
+      );
+    } finally {
+      setAuthorizing(false);
     }
   };
 
@@ -445,6 +725,285 @@ export default function VitalsScreen() {
     );
   }
 
+  // Show metric selection screen for iOS when permissions not granted
+  if (!hasPermissions && Platform.OS === "ios" && showMetricSelection) {
+    const groups = getAllGroups();
+    const allSelected = selectedMetrics.size === availableMetrics.length;
+
+    // Show error if HealthKit is not available
+    if (healthKitAvailable === false) {
+      return (
+        <SafeAreaView style={styles.container}>
+          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setShowMetricSelection(false)}
+            >
+              <ChevronRight
+                size={24}
+                color={theme.colors.text.primary}
+                style={{ transform: [{ rotate: isRTL ? "0deg" : "180deg" }] }}
+              />
+            </TouchableOpacity>
+            <Heart size={48} color={theme.colors.primary.main} />
+            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }]}>
+              {isRTL ? "HealthKit غير متاح" : "HealthKit Not Available"}
+            </Text>
+          </View>
+          <View style={styles.permissionCard}>
+            <Text style={[styles.permissionDescription, isRTL && styles.rtlText]}>
+              {availabilityReason || 
+              (isRTL
+                ? "HealthKit غير متاح"
+                : "HealthKit is not available")}
+            </Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setShowMetricSelection(false)}
+            >
+              <ChevronRight
+                size={24}
+                color={theme.colors.text.primary}
+                style={{ transform: [{ rotate: isRTL ? "0deg" : "180deg" }] }}
+              />
+            </TouchableOpacity>
+            <Heart size={48} color={theme.colors.primary.main} />
+            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }]}>
+              {isRTL ? "اختر المقاييس" : "Select Metrics"}
+            </Text>
+            <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+              {isRTL
+                ? "اختر المقاييس الصحية التي تريد مزامنتها من تطبيق الصحة"
+                : "Choose which health metrics to sync from Apple Health"}
+            </Text>
+          </View>
+
+          {/* Select All Toggle */}
+          <View style={styles.selectAllSection}>
+            <TouchableOpacity
+              style={[
+                styles.selectAllButton,
+                {
+                  backgroundColor: allSelected
+                    ? "#FF8C4220" // Light orange when selected
+                    : "#FFF4E6", // Light orange background
+                  borderWidth: 1,
+                  borderColor: "#FF8C42", // Orange border
+                },
+              ]}
+              onPress={allSelected ? clearAllMetrics : selectAllMetrics}
+            >
+              <Text
+                style={[
+                  styles.selectAllText,
+                  {
+                    color: allSelected ? theme.colors.primary.main : theme.colors.text.primary,
+                    fontWeight: allSelected ? "600" : "500",
+                  },
+                ]}
+              >
+                {allSelected
+                  ? (isRTL ? "✓ تم تحديد الكل" : "✓ All Selected")
+                  : (isRTL ? "تحديد الكل" : "Select All")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Metric Groups */}
+          <View style={styles.metricsSection}>
+            {groups.map((group) => {
+              const groupMetrics = availableMetrics.filter(
+                (m) => m.group === group
+              );
+              if (groupMetrics.length === 0) return null;
+
+              const isExpanded = expandedGroups.has(group);
+              const groupSelected = groupMetrics.every((m) =>
+                selectedMetrics.has(m.key)
+              );
+              const someSelected = groupMetrics.some((m) =>
+                selectedMetrics.has(m.key)
+              );
+
+              return (
+                <View
+                  key={group}
+                  style={[
+                    styles.groupCard,
+                    {
+                      backgroundColor: "#FFF4E6", // Light orange background
+                      borderColor: "#FF8C42", // Orange border
+                    },
+                  ]}
+                >
+                  {/* Group Header */}
+                  <TouchableOpacity
+                    style={styles.groupHeader}
+                    onPress={() => toggleGroup(group)}
+                  >
+                    <View style={styles.groupHeaderLeft}>
+                      <Switch
+                        value={groupSelected}
+                        onValueChange={(value) => {
+                          const newSelected = new Set(selectedMetrics);
+                          groupMetrics.forEach((m) => {
+                            if (value) {
+                              newSelected.add(m.key);
+                            } else {
+                              newSelected.delete(m.key);
+                            }
+                          });
+                          setSelectedMetrics(newSelected);
+                        }}
+                        trackColor={{
+                          false: "#E0E0E0",
+                          true: "#FF8C42", // Orange when on
+                        }}
+                        thumbColor="#FFFFFF"
+                      />
+                      <Text style={[styles.groupTitle, { color: theme.colors.text.primary }]}>
+                        {getGroupDisplayName(group)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.groupCount,
+                          { color: theme.colors.text.secondary },
+                        ]}
+                      >
+                        ({groupMetrics.length})
+                      </Text>
+                    </View>
+                    <ChevronRight
+                      size={20}
+                      color={theme.colors.text.secondary}
+                      style={{
+                        transform: [{ rotate: isExpanded ? "90deg" : "0deg" }],
+                      }}
+                    />
+                  </TouchableOpacity>
+
+                  {/* Group Metrics */}
+                  {isExpanded && (
+                    <View style={styles.metricsList}>
+                      {groupMetrics.map((metric) => {
+                        const isSelected = selectedMetrics.has(metric.key);
+                        return (
+                          <TouchableOpacity
+                            key={metric.key}
+                            style={[
+                              styles.metricItem,
+                              isSelected && {
+                                backgroundColor: "#FF8C4220", // Light orange when selected
+                              },
+                            ]}
+                            onPress={() => toggleMetric(metric.key)}
+                          >
+                            <View style={styles.metricLeft}>
+                              {isSelected ? (
+                                <View
+                                  style={[
+                                    styles.checkbox,
+                                    { backgroundColor: "#FF8C42" }, // Orange checkbox
+                                  ]}
+                                >
+                                  <Check size={14} color="#FFFFFF" />
+                                </View>
+                              ) : (
+                                <View
+                                  style={[
+                                    styles.checkbox,
+                                    {
+                                      borderColor: "#FF8C42", // Orange border
+                                    },
+                                  ]}
+                                />
+                              )}
+                              <View style={styles.metricInfo}>
+                                <Text
+                                  style={[styles.metricName, { color: theme.colors.text.primary }]}
+                                >
+                                  {metric.displayName}
+                                </Text>
+                                {metric.unit && (
+                                  <Text
+                                    style={[
+                                      styles.metricUnit,
+                                      { color: theme.colors.text.secondary },
+                                    ]}
+                                  >
+                                    {metric.unit}
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Info */}
+          <View style={styles.infoSection}>
+            <View style={styles.infoRow}>
+              <Info size={16} color={theme.colors.text.secondary} />
+              <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+                {isRTL
+                  ? "يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة"
+                  : "You can change these permissions later in iOS Settings → Privacy & Security → Health"}
+              </Text>
+            </View>
+          </View>
+
+          {/* CTA */}
+          <View style={styles.ctaSection}>
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                {
+                  backgroundColor:
+                    selectedMetrics.size > 0
+                      ? "#FF8C42" // Orange button
+                      : "#CCCCCC", // Gray when disabled
+                },
+                selectedMetrics.size === 0 && styles.disabledButton,
+              ]}
+              onPress={handleAuthorizeMetrics}
+              disabled={authorizing || selectedMetrics.size === 0}
+            >
+              {authorizing ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.primaryButtonText}>
+                    {isRTL
+                      ? `تفويض ${selectedMetrics.size} مقياس`
+                      : `Authorize ${selectedMetrics.size} Metric${selectedMetrics.size !== 1 ? "s" : ""}`}
+                  </Text>
+                  <ChevronRight size={20} color="#FFFFFF" />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Show simple permission card for Android or when not showing metric selection
   if (!hasPermissions) {
     return (
       <SafeAreaView style={styles.container}>
@@ -491,8 +1050,12 @@ export default function VitalsScreen() {
             ]}
           >
             {isRTL
-              ? "سيطلب منك الموافقة على قراءة: معدل ضربات القلب، الخطوات، النوم، الوزن"
-              : "You will be asked to approve reading: Heart rate, Steps, Sleep, Weight"}
+              ? Platform.OS === "ios"
+                ? "انقر للاختيار من المقاييس الصحية المتاحة"
+                : "سيطلب منك الموافقة على قراءة: معدل ضربات القلب، الخطوات، النوم، الوزن"
+              : Platform.OS === "ios"
+                ? "Click to select from available health metrics"
+                : "You will be asked to approve reading: Heart rate, Steps, Sleep, Weight"}
           </Text>
         </View>
       </SafeAreaView>
