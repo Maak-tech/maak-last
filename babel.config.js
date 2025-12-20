@@ -1,20 +1,20 @@
-module.exports = function (api) {
+module.exports = (api) => {
   api.cache(true);
   return {
     presets: [
       [
-        'babel-preset-expo',
+        "babel-preset-expo",
         {
           // Modern JSX transform for React 18 - automatic runtime
-          jsxRuntime: 'automatic',
+          jsxRuntime: "automatic",
         },
       ],
     ],
     plugins: [
       // Conditionally enable reanimated plugin for Hermes
       // Only if ENABLE_REANIMATED=true is set
-      ...(process.env.ENABLE_REANIMATED === 'true'
-        ? ['react-native-reanimated/plugin']
+      ...(process.env.ENABLE_REANIMATED === "true"
+        ? ["react-native-reanimated/plugin"]
         : []),
     ],
     env: {

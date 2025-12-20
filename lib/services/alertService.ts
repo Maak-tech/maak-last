@@ -1,24 +1,24 @@
 import {
-  collection,
   addDoc,
+  collection,
   doc,
-  updateDoc,
-  query,
-  where,
-  orderBy,
-  limit,
   getDocs,
+  limit,
+  orderBy,
+  query,
   Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { EmergencyAlert } from '@/types';
-import { pushNotificationService } from './pushNotificationService';
-import { userService } from './userService';
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { EmergencyAlert } from "@/types";
+import { pushNotificationService } from "./pushNotificationService";
+import { userService } from "./userService";
 
 export const alertService = {
-  async createAlert(alertData: Omit<EmergencyAlert, 'id'>): Promise<string> {
+  async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'alerts'), {
+      const docRef = await addDoc(collection(db, "alerts"), {
         ...alertData,
         timestamp: Timestamp.fromDate(alertData.timestamp),
       });
@@ -34,9 +34,9 @@ export const alertService = {
   ): Promise<EmergencyAlert[]> {
     try {
       const q = query(
-        collection(db, 'alerts'),
-        where('userId', '==', userId),
-        orderBy('timestamp', 'desc'),
+        collection(db, "alerts"),
+        where("userId", "==", userId),
+        orderBy("timestamp", "desc"),
         limit(limitCount)
       );
 
@@ -64,10 +64,10 @@ export const alertService = {
   ): Promise<EmergencyAlert[]> {
     try {
       const q = query(
-        collection(db, 'alerts'),
-        where('userId', 'in', userIds),
-        where('resolved', '==', false),
-        orderBy('timestamp', 'desc'),
+        collection(db, "alerts"),
+        where("userId", "in", userIds),
+        where("resolved", "==", false),
+        orderBy("timestamp", "desc"),
         limit(limitCount)
       );
 
@@ -91,7 +91,7 @@ export const alertService = {
 
   async resolveAlert(alertId: string, resolverId: string): Promise<void> {
     try {
-      await updateDoc(doc(db, 'alerts', alertId), {
+      await updateDoc(doc(db, "alerts", alertId), {
         resolved: true,
         resolvedAt: Timestamp.now(),
         resolvedBy: resolverId,
@@ -103,7 +103,7 @@ export const alertService = {
 
   async addResponder(alertId: string, responderId: string): Promise<void> {
     try {
-      await updateDoc(doc(db, 'alerts', alertId), {
+      await updateDoc(doc(db, "alerts", alertId), {
         responders: [responderId],
       });
     } catch (error) {
@@ -113,12 +113,12 @@ export const alertService = {
 
   async createFallAlert(userId: string, location?: string): Promise<string> {
     try {
-      const alertData: Omit<EmergencyAlert, 'id'> = {
+      const alertData: Omit<EmergencyAlert, "id"> = {
         userId,
-        type: 'fall',
-        severity: 'high',
+        type: "fall",
+        severity: "high",
         message: `Fall detected for user. Immediate attention may be required.${
-          location ? ` Location: ${location}` : ''
+          location ? ` Location: ${location}` : ""
         }`,
         timestamp: new Date(),
         resolved: false,
@@ -140,7 +140,7 @@ export const alertService = {
           await pushNotificationService.sendFallAlert(
             userId,
             alertId,
-            user?.name || 'User'
+            user?.name || "User"
           );
         }
       } catch (notificationError) {
@@ -158,10 +158,10 @@ export const alertService = {
     medicationName: string
   ): Promise<string> {
     try {
-      const alertData: Omit<EmergencyAlert, 'id'> = {
+      const alertData: Omit<EmergencyAlert, "id"> = {
         userId,
-        type: 'medication',
-        severity: 'medium',
+        type: "medication",
+        severity: "medium",
         message: `Medication reminder: ${medicationName} was not taken as scheduled.`,
         timestamp: new Date(),
         resolved: false,
@@ -181,10 +181,10 @@ export const alertService = {
     normalRange: string
   ): Promise<string> {
     try {
-      const alertData: Omit<EmergencyAlert, 'id'> = {
+      const alertData: Omit<EmergencyAlert, "id"> = {
         userId,
-        type: 'vitals',
-        severity: 'high',
+        type: "vitals",
+        severity: "high",
         message: `Abnormal ${vitalType} reading: ${value}. Normal range: ${normalRange}`,
         timestamp: new Date(),
         resolved: false,
@@ -200,9 +200,9 @@ export const alertService = {
   async getActiveAlertsCount(userId: string): Promise<number> {
     try {
       const q = query(
-        collection(db, 'alerts'),
-        where('userId', '==', userId),
-        where('resolved', '==', false)
+        collection(db, "alerts"),
+        where("userId", "==", userId),
+        where("resolved", "==", false)
       );
 
       const querySnapshot = await getDocs(q);

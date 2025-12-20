@@ -1,22 +1,21 @@
 import {
-  collection,
   addDoc,
+  collection,
   doc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  getDocs,
   getDoc,
+  getDocs,
+  orderBy,
+  query,
   Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Medication } from '@/types';
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Medication } from "@/types";
 
 export const medicationService = {
   // Add new medication
-  async addMedication(medicationData: Omit<Medication, 'id'>): Promise<string> {
+  async addMedication(medicationData: Omit<Medication, "id">): Promise<string> {
     try {
       // Filter out undefined values to prevent Firebase errors
       const cleanedData = Object.fromEntries(
@@ -29,17 +28,17 @@ export const medicationService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, 'medications'), cleanedData);
+      const docRef = await addDoc(collection(db, "medications"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error('Error adding medication:', error);
+      console.error("Error adding medication:", error);
       throw error;
     }
   },
 
   // Add new medication for a specific user (for admins)
   async addMedicationForUser(
-    medicationData: Omit<Medication, 'id'>,
+    medicationData: Omit<Medication, "id">,
     targetUserId: string
   ): Promise<string> {
     try {
@@ -60,10 +59,10 @@ export const medicationService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, 'medications'), cleanedData);
+      const docRef = await addDoc(collection(db, "medications"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error('Error adding medication for user:', error);
+      console.error("Error adding medication for user:", error);
       throw error;
     }
   },
@@ -72,10 +71,10 @@ export const medicationService = {
   async getUserMedications(userId: string): Promise<Medication[]> {
     try {
       const q = query(
-        collection(db, 'medications'),
-        where('userId', '==', userId),
-        where('isActive', '==', true),
-        orderBy('startDate', 'desc')
+        collection(db, "medications"),
+        where("userId", "==", userId),
+        where("isActive", "==", true),
+        orderBy("startDate", "desc")
       );
 
       const querySnapshot = await getDocs(q);
@@ -95,7 +94,7 @@ export const medicationService = {
 
       return medications;
     } catch (error) {
-      console.error('Error getting medications:', error);
+      console.error("Error getting medications:", error);
       throw error;
     }
   },
@@ -113,9 +112,9 @@ export const medicationService = {
       if (updates.endDate) {
         updateData.endDate = Timestamp.fromDate(updates.endDate);
       }
-      await updateDoc(doc(db, 'medications', medicationId), updateData);
+      await updateDoc(doc(db, "medications", medicationId), updateData);
     } catch (error) {
-      console.error('Error updating medication:', error);
+      console.error("Error updating medication:", error);
       throw error;
     }
   },
@@ -129,7 +128,7 @@ export const medicationService = {
       // Get the current medication to update the specific reminder
       const medication = await this.getMedication(medicationId);
       if (!medication) {
-        throw new Error('Medication not found');
+        throw new Error("Medication not found");
       }
 
       // Update the specific reminder in the reminders array
@@ -139,11 +138,11 @@ export const medicationService = {
           : reminder
       );
 
-      await updateDoc(doc(db, 'medications', medicationId), {
+      await updateDoc(doc(db, "medications", medicationId), {
         reminders: updatedReminders,
       });
     } catch (error) {
-      console.error('Error marking medication as taken:', error);
+      console.error("Error marking medication as taken:", error);
       throw error;
     }
   },
@@ -151,7 +150,7 @@ export const medicationService = {
   // Get single medication
   async getMedication(medicationId: string): Promise<Medication | null> {
     try {
-      const docRef = doc(db, 'medications', medicationId);
+      const docRef = doc(db, "medications", medicationId);
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
@@ -168,7 +167,7 @@ export const medicationService = {
         endDate: data.endDate?.toDate() || undefined,
       } as Medication;
     } catch (error) {
-      console.error('Error getting medication:', error);
+      console.error("Error getting medication:", error);
       throw error;
     }
   },
@@ -176,11 +175,11 @@ export const medicationService = {
   // Delete medication
   async deleteMedication(medicationId: string): Promise<void> {
     try {
-      await updateDoc(doc(db, 'medications', medicationId), {
+      await updateDoc(doc(db, "medications", medicationId), {
         isActive: false,
       });
     } catch (error) {
-      console.error('Error deleting medication:', error);
+      console.error("Error deleting medication:", error);
       throw error;
     }
   },
@@ -232,9 +231,14 @@ export const medicationService = {
         const medicationReminders = med.reminders || [];
         medicationReminders.forEach((reminder) => {
           const now = new Date();
-          const [hourStr, minuteStr] = reminder.time.split(':');
+          const [hourStr, minuteStr] = reminder.time.split(":");
           const reminderTime = new Date();
-          reminderTime.setHours(parseInt(hourStr), parseInt(minuteStr), 0, 0);
+          reminderTime.setHours(
+            Number.parseInt(hourStr),
+            Number.parseInt(minuteStr),
+            0,
+            0
+          );
 
           // If reminder time has passed today, set it for tomorrow
           if (reminderTime < now) {
@@ -259,7 +263,7 @@ export const medicationService = {
 
       return reminders.sort((a, b) => a.time.localeCompare(b.time));
     } catch (error) {
-      console.error('Error getting upcoming reminders:', error);
+      console.error("Error getting upcoming reminders:", error);
       throw error;
     }
   },
@@ -291,13 +295,13 @@ export const medicationService = {
             return resetReminder;
           });
 
-          await updateDoc(doc(db, 'medications', medication.id), {
+          await updateDoc(doc(db, "medications", medication.id), {
             reminders: resetReminders,
           });
         }
       }
     } catch (error) {
-      console.error('Error resetting daily reminders:', error);
+      console.error("Error resetting daily reminders:", error);
       throw error;
     }
   },
@@ -307,8 +311,8 @@ export const medicationService = {
     try {
       // First get all family members
       const familyMembersQuery = query(
-        collection(db, 'users'),
-        where('familyId', '==', familyId)
+        collection(db, "users"),
+        where("familyId", "==", familyId)
       );
       const familyMembersSnapshot = await getDocs(familyMembersQuery);
       const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
@@ -319,10 +323,10 @@ export const medicationService = {
 
       // Get medications for all family members
       const medicationsQuery = query(
-        collection(db, 'medications'),
-        where('userId', 'in', memberIds),
-        where('isActive', '==', true),
-        orderBy('startDate', 'desc')
+        collection(db, "medications"),
+        where("userId", "in", memberIds),
+        where("isActive", "==", true),
+        orderBy("startDate", "desc")
       );
 
       const querySnapshot = await getDocs(medicationsQuery);
@@ -341,7 +345,7 @@ export const medicationService = {
 
       return medications;
     } catch (error) {
-      console.error('Error getting family medications:', error);
+      console.error("Error getting family medications:", error);
       throw error;
     }
   },
@@ -360,7 +364,7 @@ export const medicationService = {
         return Array.isArray(med.reminders) && med.reminders.length > 0;
       });
     } catch (error) {
-      console.error('Error getting family today medications:', error);
+      console.error("Error getting family today medications:", error);
       throw error;
     }
   },
@@ -369,10 +373,10 @@ export const medicationService = {
   async getMemberMedications(memberId: string): Promise<Medication[]> {
     try {
       const q = query(
-        collection(db, 'medications'),
-        where('userId', '==', memberId),
-        where('isActive', '==', true),
-        orderBy('startDate', 'desc')
+        collection(db, "medications"),
+        where("userId", "==", memberId),
+        where("isActive", "==", true),
+        orderBy("startDate", "desc")
       );
 
       const querySnapshot = await getDocs(q);
@@ -391,7 +395,7 @@ export const medicationService = {
 
       return medications;
     } catch (error) {
-      console.error('Error getting member medications:', error);
+      console.error("Error getting member medications:", error);
       throw error;
     }
   },
@@ -410,7 +414,7 @@ export const medicationService = {
         return Array.isArray(med.reminders) && med.reminders.length > 0;
       });
     } catch (error) {
-      console.error('Error getting member today medications:', error);
+      console.error("Error getting member today medications:", error);
       throw error;
     }
   },
@@ -445,7 +449,7 @@ export const medicationService = {
         return (
           sum +
           reminders.filter((r) => {
-            if (!r.taken || !r.takenAt) return false;
+            if (!(r.taken && r.takenAt)) return false;
             const takenDate = (r.takenAt as any).toDate
               ? (r.takenAt as any).toDate()
               : new Date(r.takenAt);
@@ -468,7 +472,7 @@ export const medicationService = {
         upcomingReminders,
       };
     } catch (error) {
-      console.error('Error getting member medication stats:', error);
+      console.error("Error getting member medication stats:", error);
       return {
         totalMedications: 0,
         activeMedications: 0,

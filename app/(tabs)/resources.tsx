@@ -1,32 +1,30 @@
-import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Image,
-  Alert,
-  Linking,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useTheme } from '@/contexts/ThemeContext';
-import { createThemedStyles, getTextStyle } from '@/utils/styles';
-import {
-  Book,
-  Heart,
-  Pill,
   Activity,
-  Users,
-  Video,
-  ExternalLink,
+  Book,
   Bookmark,
   BookOpen,
-  FileText,
-  Play,
   Clock,
+  ExternalLink,
+  FileText,
+  Heart,
+  Pill,
+  Play,
   Star,
-} from 'lucide-react-native';
+  Users,
+} from "lucide-react-native";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Alert,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useTheme } from "@/contexts/ThemeContext";
+import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface Resource {
   id: string;
@@ -34,8 +32,8 @@ interface Resource {
   titleAr: string;
   description: string;
   descriptionAr: string;
-  category: 'general' | 'medication' | 'family' | 'symptoms' | 'lifestyle';
-  type: 'article' | 'video' | 'guide' | 'checklist';
+  category: "general" | "medication" | "family" | "symptoms" | "lifestyle";
+  type: "article" | "video" | "guide" | "checklist";
   duration?: string;
   rating?: number;
   url?: string;
@@ -44,91 +42,94 @@ interface Resource {
 
 const resources: Resource[] = [
   {
-    id: '1',
-    title: 'Understanding Medication Adherence',
-    titleAr: 'فهم الالتزام بالدواء',
-    description: 'Learn why taking medications as prescribed is crucial for your health',
-    descriptionAr: 'تعلم لماذا تناول الأدوية كما هو موصوف أمر بالغ الأهمية لصحتك',
-    category: 'medication',
-    type: 'article',
-    duration: '5 min',
+    id: "1",
+    title: "Understanding Medication Adherence",
+    titleAr: "فهم الالتزام بالدواء",
+    description:
+      "Learn why taking medications as prescribed is crucial for your health",
+    descriptionAr:
+      "تعلم لماذا تناول الأدوية كما هو موصوف أمر بالغ الأهمية لصحتك",
+    category: "medication",
+    type: "article",
+    duration: "5 min",
     rating: 4.8,
     featured: true,
   },
   {
-    id: '2',
-    title: 'Family Health Management Best Practices',
-    titleAr: 'أفضل ممارسات إدارة صحة العائلة',
-    description: 'Tips for managing your family\'s health effectively using Maak',
-    descriptionAr: 'نصائح لإدارة صحة عائلتك بفعالية باستخدام معاك',
-    category: 'family',
-    type: 'guide',
-    duration: '10 min',
+    id: "2",
+    title: "Family Health Management Best Practices",
+    titleAr: "أفضل ممارسات إدارة صحة العائلة",
+    description:
+      "Tips for managing your family's health effectively using Maak",
+    descriptionAr: "نصائح لإدارة صحة عائلتك بفعالية باستخدام معاك",
+    category: "family",
+    type: "guide",
+    duration: "10 min",
     rating: 4.9,
     featured: true,
   },
   {
-    id: '3',
-    title: 'How to Track Symptoms Effectively',
-    titleAr: 'كيفية تتبع الأعراض بفعالية',
-    description: 'Learn to accurately record and monitor health symptoms',
-    descriptionAr: 'تعلم كيفية تسجيل ومراقبة الأعراض الصحية بدقة',
-    category: 'symptoms',
-    type: 'video',
-    duration: '8 min',
+    id: "3",
+    title: "How to Track Symptoms Effectively",
+    titleAr: "كيفية تتبع الأعراض بفعالية",
+    description: "Learn to accurately record and monitor health symptoms",
+    descriptionAr: "تعلم كيفية تسجيل ومراقبة الأعراض الصحية بدقة",
+    category: "symptoms",
+    type: "video",
+    duration: "8 min",
     rating: 4.7,
   },
   {
-    id: '4',
-    title: 'Emergency Preparedness Checklist',
-    titleAr: 'قائمة فحص الاستعداد للطوارئ',
-    description: 'Essential steps to prepare for medical emergencies',
-    descriptionAr: 'خطوات أساسية للاستعداد للطوارئ الطبية',
-    category: 'general',
-    type: 'checklist',
-    duration: '3 min',
+    id: "4",
+    title: "Emergency Preparedness Checklist",
+    titleAr: "قائمة فحص الاستعداد للطوارئ",
+    description: "Essential steps to prepare for medical emergencies",
+    descriptionAr: "خطوات أساسية للاستعداد للطوارئ الطبية",
+    category: "general",
+    type: "checklist",
+    duration: "3 min",
     rating: 4.6,
   },
   {
-    id: '5',
-    title: 'Healthy Lifestyle for Families',
-    titleAr: 'نمط حياة صحي للعائلات',
-    description: 'Building healthy habits that last for the whole family',
-    descriptionAr: 'بناء عادات صحية دائمة للعائلة بأكملها',
-    category: 'lifestyle',
-    type: 'article',
-    duration: '12 min',
+    id: "5",
+    title: "Healthy Lifestyle for Families",
+    titleAr: "نمط حياة صحي للعائلات",
+    description: "Building healthy habits that last for the whole family",
+    descriptionAr: "بناء عادات صحية دائمة للعائلة بأكملها",
+    category: "lifestyle",
+    type: "article",
+    duration: "12 min",
     rating: 4.5,
   },
   {
-    id: '6',
-    title: 'Understanding Health Scores',
-    titleAr: 'فهم نقاط الصحة',
-    description: 'How Maak calculates your health score and what it means',
-    descriptionAr: 'كيف يحسب معاك نقاط صحتك وما معنى ذلك',
-    category: 'general',
-    type: 'guide',
-    duration: '6 min',
+    id: "6",
+    title: "Understanding Health Scores",
+    titleAr: "فهم نقاط الصحة",
+    description: "How Maak calculates your health score and what it means",
+    descriptionAr: "كيف يحسب معاك نقاط صحتك وما معنى ذلك",
+    category: "general",
+    type: "guide",
+    duration: "6 min",
     rating: 4.4,
   },
 ];
 
 const categories = [
-  { key: 'all', labelEn: 'All', labelAr: 'الكل', icon: Book },
-  { key: 'general', labelEn: 'General', labelAr: 'عام', icon: Heart },
-  { key: 'medication', labelEn: 'Medications', labelAr: 'الأدوية', icon: Pill },
-  { key: 'family', labelEn: 'Family', labelAr: 'العائلة', icon: Users },
-  { key: 'symptoms', labelEn: 'Symptoms', labelAr: 'الأعراض', icon: Activity },
-  { key: 'lifestyle', labelEn: 'Lifestyle', labelAr: 'نمط الحياة', icon: Star },
+  { key: "all", labelEn: "All", labelAr: "الكل", icon: Book },
+  { key: "general", labelEn: "General", labelAr: "عام", icon: Heart },
+  { key: "medication", labelEn: "Medications", labelAr: "الأدوية", icon: Pill },
+  { key: "family", labelEn: "Family", labelAr: "العائلة", icon: Users },
+  { key: "symptoms", labelEn: "Symptoms", labelAr: "الأعراض", icon: Activity },
+  { key: "lifestyle", labelEn: "Lifestyle", labelAr: "نمط الحياة", icon: Star },
 ];
 
 export default function ResourcesScreen() {
   const { t, i18n } = useTranslation();
   const { theme } = useTheme();
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [bookmarkedItems, setBookmarkedItems] = useState<string[]>([]);
 
-  const isRTL = i18n.language === 'ar';
+  const isRTL = i18n.language === "ar";
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -144,11 +145,11 @@ export default function ResourcesScreen() {
       borderBottomColor: theme.colors.border.light,
     },
     headerTitle: {
-      ...getTextStyle(theme, 'heading', 'bold', theme.colors.primary.main),
+      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
       fontSize: 28,
     },
     headerSubtitle: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.secondary),
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
       marginTop: 4,
     },
     content: {
@@ -156,12 +157,12 @@ export default function ResourcesScreen() {
       paddingHorizontal: theme.spacing.base,
     },
     categoryTabs: {
-      flexDirection: 'row' as const,
+      flexDirection: "row" as const,
       paddingVertical: theme.spacing.base,
     },
     categoryTab: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.sm,
       borderRadius: theme.borderRadius.full,
@@ -173,7 +174,7 @@ export default function ResourcesScreen() {
       backgroundColor: theme.colors.primary.main,
     },
     categoryTabText: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.text.secondary),
+      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
     },
     categoryTabTextActive: {
       color: theme.colors.neutral.white,
@@ -182,7 +183,7 @@ export default function ResourcesScreen() {
       marginBottom: theme.spacing.xl,
     },
     sectionTitle: {
-      ...getTextStyle(theme, 'subheading', 'bold', theme.colors.text.primary),
+      ...getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
       marginBottom: theme.spacing.base,
     },
     featuredCard: {
@@ -197,11 +198,11 @@ export default function ResourcesScreen() {
       paddingHorizontal: theme.spacing.sm,
       paddingVertical: 2,
       borderRadius: theme.borderRadius.sm,
-      alignSelf: 'flex-start' as const,
+      alignSelf: "flex-start" as const,
       marginBottom: theme.spacing.sm,
     },
     featuredBadgeText: {
-      ...getTextStyle(theme, 'caption', 'bold', theme.colors.neutral.white),
+      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
       fontSize: 10,
     },
     resourceCard: {
@@ -209,8 +210,8 @@ export default function ResourcesScreen() {
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.base,
       marginBottom: theme.spacing.md,
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       ...theme.shadows.sm,
     },
     resourceIcon: {
@@ -218,37 +219,37 @@ export default function ResourcesScreen() {
       height: 48,
       borderRadius: 24,
       backgroundColor: theme.colors.primary[50],
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
       marginRight: theme.spacing.md,
     },
     resourceContent: {
       flex: 1,
     },
     resourceTitle: {
-      ...getTextStyle(theme, 'body', 'semibold', theme.colors.text.primary),
+      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
       marginBottom: 2,
     },
     resourceDescription: {
-      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
       marginBottom: theme.spacing.xs,
     },
     resourceMeta: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: theme.spacing.sm,
     },
     metaItem: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: 2,
     },
     metaText: {
-      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.tertiary),
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary),
       fontSize: 10,
     },
     resourceActions: {
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       gap: theme.spacing.sm,
     },
     bookmarkButton: {
@@ -264,39 +265,45 @@ export default function ResourcesScreen() {
       marginVertical: theme.spacing.lg,
       borderLeftWidth: 4,
       borderLeftColor: theme.colors.secondary.main,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       ...theme.shadows.sm,
     },
     onelineText: {
-      ...getTextStyle(theme, 'subheading', 'semibold', theme.colors.primary.main),
-      fontStyle: 'italic' as const,
-      textAlign: 'center' as const,
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.primary.main
+      ),
+      fontStyle: "italic" as const,
+      textAlign: "center" as const,
       marginBottom: theme.spacing.sm,
     },
     onelineSource: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.secondary.main),
+      ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
     },
     rtlText: {
-      textAlign: 'right' as const,
+      textAlign: "right" as const,
     },
   }))(theme);
 
-  const filteredResources = selectedCategory === 'all' 
-    ? resources 
-    : resources.filter(resource => resource.category === selectedCategory);
+  const filteredResources =
+    selectedCategory === "all"
+      ? resources
+      : resources.filter((resource) => resource.category === selectedCategory);
 
-  const featuredResources = filteredResources.filter(r => r.featured);
-  const regularResources = filteredResources.filter(r => !r.featured);
+  const featuredResources = filteredResources.filter((r) => r.featured);
+  const regularResources = filteredResources.filter((r) => !r.featured);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'article':
+      case "article":
         return FileText;
-      case 'video':
+      case "video":
         return Play;
-      case 'guide':
+      case "guide":
         return BookOpen;
-      case 'checklist':
+      case "checklist":
         return Book;
       default:
         return FileText;
@@ -305,13 +312,13 @@ export default function ResourcesScreen() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'article':
+      case "article":
         return theme.colors.primary.main;
-      case 'video':
+      case "video":
         return theme.colors.accent.error;
-      case 'guide':
+      case "guide":
         return theme.colors.accent.success;
-      case 'checklist':
+      case "checklist":
         return theme.colors.secondary.main;
       default:
         return theme.colors.primary.main;
@@ -323,16 +330,18 @@ export default function ResourcesScreen() {
       Linking.openURL(resource.url);
     } else {
       Alert.alert(
-        isRTL ? 'قريباً' : 'Coming Soon',
-        isRTL ? 'هذا المحتوى سيتوفر قريباً' : 'This content will be available soon'
+        isRTL ? "قريباً" : "Coming Soon",
+        isRTL
+          ? "هذا المحتوى سيتوفر قريباً"
+          : "This content will be available soon"
       );
     }
   };
 
   const toggleBookmark = (resourceId: string) => {
-    setBookmarkedItems(prev => 
-      prev.includes(resourceId) 
-        ? prev.filter(id => id !== resourceId)
+    setBookmarkedItems((prev) =>
+      prev.includes(resourceId)
+        ? prev.filter((id) => id !== resourceId)
         : [...prev, resourceId]
     );
   };
@@ -342,36 +351,42 @@ export default function ResourcesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? 'المصادر التعليمية' : 'Health Resources'}
+          {isRTL ? "المصادر التعليمية" : "Health Resources"}
         </Text>
         <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
-          {isRTL ? 'تعلم المزيد عن الصحة والرعاية' : 'Learn more about health and care'}
+          {isRTL
+            ? "تعلم المزيد عن الصحة والرعاية"
+            : "Learn more about health and care"}
         </Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* Category Tabs */}
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoryTabs}
         >
           {categories.map((category) => {
             const IconComponent = category.icon;
             const isActive = selectedCategory === category.key;
-            
+
             return (
               <TouchableOpacity
                 key={category.key}
+                onPress={() => setSelectedCategory(category.key)}
                 style={[
                   styles.categoryTab,
                   isActive && styles.categoryTabActive,
                 ]}
-                onPress={() => setSelectedCategory(category.key)}
               >
-                <IconComponent 
-                  size={16} 
-                  color={isActive ? theme.colors.neutral.white : theme.colors.text.secondary} 
+                <IconComponent
+                  color={
+                    isActive
+                      ? theme.colors.neutral.white
+                      : theme.colors.text.secondary
+                  }
+                  size={16}
                 />
                 <Text
                   style={[
@@ -401,50 +416,59 @@ export default function ResourcesScreen() {
         {featuredResources.length > 0 && (
           <View style={styles.featuredSection}>
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'مصادر مميزة' : 'Featured Resources'}
+              {isRTL ? "مصادر مميزة" : "Featured Resources"}
             </Text>
             {featuredResources.map((resource) => {
               const TypeIcon = getTypeIcon(resource.type);
-              
+
               return (
                 <TouchableOpacity
                   key={resource.id}
-                  style={styles.featuredCard}
                   onPress={() => handleResourcePress(resource)}
+                  style={styles.featuredCard}
                 >
                   <View style={styles.featuredBadge}>
                     <Text style={styles.featuredBadgeText}>
-                      {isRTL ? 'مميز' : 'FEATURED'}
+                      {isRTL ? "مميز" : "FEATURED"}
                     </Text>
                   </View>
-                  
+
                   <Text style={[styles.resourceTitle, isRTL && styles.rtlText]}>
                     {isRTL ? resource.titleAr : resource.title}
                   </Text>
-                  
-                  <Text style={[styles.resourceDescription, isRTL && styles.rtlText]}>
+
+                  <Text
+                    style={[
+                      styles.resourceDescription,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
                     {isRTL ? resource.descriptionAr : resource.description}
                   </Text>
-                  
+
                   <View style={styles.resourceMeta}>
                     <View style={styles.metaItem}>
-                      <TypeIcon size={12} color={theme.colors.text.tertiary} />
+                      <TypeIcon color={theme.colors.text.tertiary} size={12} />
                       <Text style={[styles.metaText, isRTL && styles.rtlText]}>
                         {resource.type}
                       </Text>
                     </View>
                     {resource.duration && (
                       <View style={styles.metaItem}>
-                        <Clock size={12} color={theme.colors.text.tertiary} />
-                        <Text style={[styles.metaText, isRTL && styles.rtlText]}>
+                        <Clock color={theme.colors.text.tertiary} size={12} />
+                        <Text
+                          style={[styles.metaText, isRTL && styles.rtlText]}
+                        >
                           {resource.duration}
                         </Text>
                       </View>
                     )}
                     {resource.rating && (
                       <View style={styles.metaItem}>
-                        <Star size={12} color={theme.colors.secondary.main} />
-                        <Text style={[styles.metaText, isRTL && styles.rtlText]}>
+                        <Star color={theme.colors.secondary.main} size={12} />
+                        <Text
+                          style={[styles.metaText, isRTL && styles.rtlText]}
+                        >
                           {resource.rating}
                         </Text>
                       </View>
@@ -459,71 +483,90 @@ export default function ResourcesScreen() {
         {/* All Resources */}
         <View style={styles.featuredSection}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {selectedCategory === 'all' 
-              ? (isRTL ? 'جميع المصادر' : 'All Resources')
-              : (isRTL ? 'مصادر أخرى' : 'More Resources')}
+            {selectedCategory === "all"
+              ? isRTL
+                ? "جميع المصادر"
+                : "All Resources"
+              : isRTL
+                ? "مصادر أخرى"
+                : "More Resources"}
           </Text>
-          
+
           {regularResources.map((resource) => {
             const TypeIcon = getTypeIcon(resource.type);
             const isBookmarked = bookmarkedItems.includes(resource.id);
-            
+
             return (
               <TouchableOpacity
                 key={resource.id}
-                style={styles.resourceCard}
                 onPress={() => handleResourcePress(resource)}
+                style={styles.resourceCard}
               >
-                <View style={[
-                  styles.resourceIcon,
-                  { backgroundColor: getTypeColor(resource.type) + '20' }
-                ]}>
-                  <TypeIcon size={20} color={getTypeColor(resource.type)} />
+                <View
+                  style={[
+                    styles.resourceIcon,
+                    { backgroundColor: getTypeColor(resource.type) + "20" },
+                  ]}
+                >
+                  <TypeIcon color={getTypeColor(resource.type)} size={20} />
                 </View>
-                
+
                 <View style={styles.resourceContent}>
                   <Text style={[styles.resourceTitle, isRTL && styles.rtlText]}>
                     {isRTL ? resource.titleAr : resource.title}
                   </Text>
-                  
-                  <Text style={[styles.resourceDescription, isRTL && styles.rtlText]}>
+
+                  <Text
+                    style={[
+                      styles.resourceDescription,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
                     {isRTL ? resource.descriptionAr : resource.description}
                   </Text>
-                  
+
                   <View style={styles.resourceMeta}>
                     {resource.duration && (
                       <View style={styles.metaItem}>
-                        <Clock size={12} color={theme.colors.text.tertiary} />
-                        <Text style={[styles.metaText, isRTL && styles.rtlText]}>
+                        <Clock color={theme.colors.text.tertiary} size={12} />
+                        <Text
+                          style={[styles.metaText, isRTL && styles.rtlText]}
+                        >
                           {resource.duration}
                         </Text>
                       </View>
                     )}
                     {resource.rating && (
                       <View style={styles.metaItem}>
-                        <Star size={12} color={theme.colors.secondary.main} />
-                        <Text style={[styles.metaText, isRTL && styles.rtlText]}>
+                        <Star color={theme.colors.secondary.main} size={12} />
+                        <Text
+                          style={[styles.metaText, isRTL && styles.rtlText]}
+                        >
                           {resource.rating}
                         </Text>
                       </View>
                     )}
                   </View>
                 </View>
-                
+
                 <View style={styles.resourceActions}>
                   <TouchableOpacity
-                    style={styles.bookmarkButton}
                     onPress={() => toggleBookmark(resource.id)}
+                    style={styles.bookmarkButton}
                   >
-                    <Bookmark 
-                      size={20} 
-                      color={isBookmarked ? theme.colors.secondary.main : theme.colors.text.tertiary}
-                      fill={isBookmarked ? theme.colors.secondary.main : 'none'}
+                    <Bookmark
+                      color={
+                        isBookmarked
+                          ? theme.colors.secondary.main
+                          : theme.colors.text.tertiary
+                      }
+                      fill={isBookmarked ? theme.colors.secondary.main : "none"}
+                      size={20}
                     />
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity style={styles.externalLink}>
-                    <ExternalLink size={16} color={theme.colors.primary.main} />
+                    <ExternalLink color={theme.colors.primary.main} size={16} />
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>

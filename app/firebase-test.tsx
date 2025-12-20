@@ -1,27 +1,26 @@
-import React, { useState } from 'react';
+import { useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
-import { db, auth } from '@/lib/firebase';
-import {
-  collection,
   addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
   getDocs,
   query,
   where,
-  doc,
-  getDoc,
-  deleteDoc,
-} from 'firebase/firestore';
+} from "firebase/firestore";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import { auth, db } from "@/lib/firebase";
 
 export default function FirebaseTestScreen() {
   const router = useRouter();
@@ -46,13 +45,13 @@ export default function FirebaseTestScreen() {
     clearLogs();
 
     try {
-      log('🔥 Starting Firebase Permissions Test...');
+      log("🔥 Starting Firebase Permissions Test...");
 
       // Test 1: Check Authentication
-      log('📋 Testing Authentication...');
+      log("📋 Testing Authentication...");
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        log('❌ No user authenticated');
+        log("❌ No user authenticated");
         return;
       }
       log(
@@ -60,21 +59,21 @@ export default function FirebaseTestScreen() {
       );
 
       // Test 2: Check Firebase Project Config
-      log('📋 Testing Firebase Configuration...');
+      log("📋 Testing Firebase Configuration...");
       log(`✅ Project ID: ${auth.app.options.projectId}`);
       log(`✅ Auth Domain: ${auth.app.options.authDomain}`);
 
       // Test 3: Test Users Collection Access
-      log('📋 Testing Users Collection...');
+      log("📋 Testing Users Collection...");
       try {
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           log(
             `✅ User document exists: ${userData.name} (Family: ${userData.familyId})`
           );
         } else {
-          log('⚠️ User document does not exist');
+          log("⚠️ User document does not exist");
         }
       } catch (error: any) {
         log(
@@ -83,10 +82,10 @@ export default function FirebaseTestScreen() {
       }
 
       // Test 4: Test Families Collection Access
-      log('📋 Testing Families Collection...');
+      log("📋 Testing Families Collection...");
       try {
         if (user?.familyId) {
-          const familyDoc = await getDoc(doc(db, 'families', user.familyId));
+          const familyDoc = await getDoc(doc(db, "families", user.familyId));
           if (familyDoc.exists()) {
             const familyData = familyDoc.data();
             log(
@@ -95,10 +94,10 @@ export default function FirebaseTestScreen() {
               })`
             );
           } else {
-            log('❌ Family document does not exist');
+            log("❌ Family document does not exist");
           }
         } else {
-          log('⚠️ No family ID found in user data');
+          log("⚠️ No family ID found in user data");
         }
       } catch (error: any) {
         log(
@@ -107,19 +106,19 @@ export default function FirebaseTestScreen() {
       }
 
       // Test 5: Test Query on Users Collection (Family Members)
-      log('📋 Testing Family Members Query...');
+      log("📋 Testing Family Members Query...");
       try {
         if (user?.familyId) {
           const q = query(
-            collection(db, 'users'),
-            where('familyId', '==', user.familyId)
+            collection(db, "users"),
+            where("familyId", "==", user.familyId)
           );
           const querySnapshot = await getDocs(q);
           log(
             `✅ Family members query successful: ${querySnapshot.size} members found`
           );
         } else {
-          log('⚠️ Skipping family members query - no family ID');
+          log("⚠️ Skipping family members query - no family ID");
         }
       } catch (error: any) {
         log(
@@ -128,11 +127,11 @@ export default function FirebaseTestScreen() {
       }
 
       // Test 6: Test Symptoms Collection Query
-      log('📋 Testing Symptoms Collection...');
+      log("📋 Testing Symptoms Collection...");
       try {
         const q = query(
-          collection(db, 'symptoms'),
-          where('userId', '==', currentUser.uid)
+          collection(db, "symptoms"),
+          where("userId", "==", currentUser.uid)
         );
         const querySnapshot = await getDocs(q);
         log(
@@ -143,11 +142,11 @@ export default function FirebaseTestScreen() {
       }
 
       // Test 7: Test Medications Collection Query
-      log('📋 Testing Medications Collection...');
+      log("📋 Testing Medications Collection...");
       try {
         const q = query(
-          collection(db, 'medications'),
-          where('userId', '==', currentUser.uid)
+          collection(db, "medications"),
+          where("userId", "==", currentUser.uid)
         );
         const querySnapshot = await getDocs(q);
         log(
@@ -160,26 +159,26 @@ export default function FirebaseTestScreen() {
       }
 
       // Test 8: Test Write Operations
-      log('📋 Testing Write Operations...');
+      log("📋 Testing Write Operations...");
       try {
         // Try to create a test document
-        const testDoc = await addDoc(collection(db, 'symptoms'), {
+        const testDoc = await addDoc(collection(db, "symptoms"), {
           userId: currentUser.uid,
-          type: 'test',
+          type: "test",
           severity: 1,
           timestamp: new Date(),
-          description: 'Firebase rules test',
+          description: "Firebase rules test",
         });
         log(`✅ Write test successful - Created doc: ${testDoc.id}`);
 
         // Clean up test document
         await deleteDoc(testDoc);
-        log(`✅ Delete test successful - Removed test doc`);
+        log("✅ Delete test successful - Removed test doc");
       } catch (error: any) {
         log(`❌ Write test error: ${error.message} (Code: ${error.code})`);
       }
 
-      log('🎉 Firebase test completed!');
+      log("🎉 Firebase test completed!");
     } catch (error: any) {
       log(`💥 Test failed: ${error.message}`);
     } finally {
@@ -195,7 +194,7 @@ export default function FirebaseTestScreen() {
         <View style={styles.userInfo}>
           <Text style={styles.label}>User Status:</Text>
           <Text style={styles.value}>
-            {user ? `${user.name} (${user.id})` : 'Not authenticated'}
+            {user ? `${user.name} (${user.id})` : "Not authenticated"}
           </Text>
           {user?.familyId && (
             <>
@@ -206,24 +205,24 @@ export default function FirebaseTestScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={testFirebaseSetup}
           disabled={isLoading}
+          onPress={testFirebaseSetup}
+          style={[styles.button, isLoading && styles.buttonDisabled]}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
             <Text style={styles.buttonText}>Run Permission Tests</Text>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.clearButton} onPress={clearLogs}>
+        <TouchableOpacity onPress={clearLogs} style={styles.clearButton}>
           <Text style={styles.clearButtonText}>Clear Logs</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.backButton}
           onPress={() => router.back()}
+          style={styles.backButton}
         >
           <Text style={styles.backButtonText}>← Back to App</Text>
         </TouchableOpacity>
@@ -236,9 +235,9 @@ export default function FirebaseTestScreen() {
                 key={index}
                 style={[
                   styles.resultText,
-                  result.includes('❌') && styles.errorText,
-                  result.includes('✅') && styles.successText,
-                  result.includes('⚠️') && styles.warningText,
+                  result.includes("❌") && styles.errorText,
+                  result.includes("✅") && styles.successText,
+                  result.includes("⚠️") && styles.warningText,
                 ]}
               >
                 {result}
@@ -259,7 +258,7 @@ export default function FirebaseTestScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   content: {
     flex: 1,
@@ -267,70 +266,70 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   userInfo: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: "600",
+    color: "#666",
     marginTop: 10,
   },
   value: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     marginTop: 2,
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     padding: 15,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
   },
   buttonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: "#94A3B8",
   },
   buttonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   clearButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: "#EF4444",
     padding: 10,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 10,
   },
   clearButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   backButton: {
-    backgroundColor: '#6B7280',
+    backgroundColor: "#6B7280",
     padding: 10,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 20,
   },
   backButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   resultsContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 8,
     padding: 15,
     flex: 1,
@@ -338,7 +337,7 @@ const styles = StyleSheet.create({
   },
   resultsTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 10,
   },
   results: {
@@ -346,24 +345,24 @@ const styles = StyleSheet.create({
   },
   resultText: {
     fontSize: 12,
-    fontFamily: 'monospace',
+    fontFamily: "monospace",
     marginBottom: 4,
     lineHeight: 16,
   },
   errorText: {
-    color: '#EF4444',
+    color: "#EF4444",
   },
   successText: {
-    color: '#10B981',
+    color: "#10B981",
   },
   warningText: {
-    color: '#F59E0B',
+    color: "#F59E0B",
   },
   placeholderText: {
     fontSize: 14,
-    color: '#6B7280',
-    fontStyle: 'italic',
-    textAlign: 'center',
+    color: "#6B7280",
+    fontStyle: "italic",
+    textAlign: "center",
     marginTop: 20,
   },
 });

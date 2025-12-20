@@ -1,36 +1,36 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from "expo-router";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  RefreshControl,
+  Activity,
+  CheckCircle,
+  Heart,
+  Minus,
+  Moon,
+  RefreshCw,
+  Scale,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
   ActivityIndicator,
   Alert,
   Platform,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useFocusEffect } from 'expo-router';
-import { createThemedStyles, getTextStyle } from '@/utils/styles';
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
-  Heart,
-  Activity,
-  Moon,
-  Scale,
-  Thermometer,
-  Zap,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Settings,
-  RefreshCw,
-  AlertCircle,
-  CheckCircle,
-} from 'lucide-react-native';
-import { healthDataService, VitalSigns, HealthDataSummary } from '@/lib/services/healthDataService';
+  type HealthDataSummary,
+  healthDataService,
+  type VitalSigns,
+} from "@/lib/services/healthDataService";
+import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface VitalCard {
   key: string;
@@ -40,8 +40,8 @@ interface VitalCard {
   color: string;
   value: string;
   unit: string;
-  trend?: 'up' | 'down' | 'stable';
-  status?: 'normal' | 'warning' | 'critical';
+  trend?: "up" | "down" | "stable";
+  status?: "normal" | "warning" | "critical";
 }
 
 export default function VitalsScreen() {
@@ -55,7 +55,7 @@ export default function VitalsScreen() {
   const [summary, setSummary] = useState<HealthDataSummary | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
-  const isRTL = i18n.language === 'ar';
+  const isRTL = i18n.language === "ar";
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -71,30 +71,30 @@ export default function VitalsScreen() {
       borderBottomColor: theme.colors.border.light,
     },
     headerTitle: {
-      ...getTextStyle(theme, 'heading', 'bold', theme.colors.primary.main),
+      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
       fontSize: 28,
     },
     headerSubtitle: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.secondary),
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
       marginTop: 4,
     },
     headerActions: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
       marginTop: theme.spacing.base,
     },
     syncInfo: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: theme.spacing.xs,
     },
     syncText: {
-      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.tertiary),
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary),
     },
     syncButton: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       backgroundColor: theme.colors.primary.main,
       paddingHorizontal: theme.spacing.base,
       paddingVertical: theme.spacing.sm,
@@ -102,7 +102,7 @@ export default function VitalsScreen() {
       gap: theme.spacing.xs,
     },
     syncButtonText: {
-      ...getTextStyle(theme, 'caption', 'bold', theme.colors.neutral.white),
+      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
     },
     content: {
       flex: 1,
@@ -113,7 +113,7 @@ export default function VitalsScreen() {
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.xl,
       margin: theme.spacing.lg,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       borderWidth: 2,
       borderColor: theme.colors.secondary.main,
     },
@@ -122,18 +122,18 @@ export default function VitalsScreen() {
       height: 80,
       borderRadius: 40,
       backgroundColor: theme.colors.secondary.main,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
       marginBottom: theme.spacing.lg,
     },
     permissionTitle: {
-      ...getTextStyle(theme, 'subheading', 'bold', theme.colors.primary.main),
-      textAlign: 'center' as const,
+      ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
+      textAlign: "center" as const,
       marginBottom: theme.spacing.base,
     },
     permissionDescription: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.secondary),
-      textAlign: 'center' as const,
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+      textAlign: "center" as const,
       lineHeight: 22,
       marginBottom: theme.spacing.xl,
     },
@@ -142,18 +142,18 @@ export default function VitalsScreen() {
       paddingHorizontal: theme.spacing.xl,
       paddingVertical: theme.spacing.base,
       borderRadius: theme.borderRadius.lg,
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: theme.spacing.sm,
     },
     enableButtonText: {
-      ...getTextStyle(theme, 'button', 'bold', theme.colors.neutral.white),
+      ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
     },
     vitalsGrid: {
       paddingTop: theme.spacing.lg,
     },
     vitalsRow: {
-      flexDirection: 'row' as const,
+      flexDirection: "row" as const,
       gap: theme.spacing.md,
       marginBottom: theme.spacing.md,
     },
@@ -168,56 +168,56 @@ export default function VitalsScreen() {
       flex: 2,
     },
     vitalHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
       marginBottom: theme.spacing.md,
     },
     vitalIcon: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
     },
     vitalTrend: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: 2,
     },
     vitalTitle: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.text.secondary),
+      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
       marginBottom: 4,
     },
     vitalValue: {
-      ...getTextStyle(theme, 'heading', 'bold', theme.colors.text.primary),
+      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
       fontSize: 24,
     },
     vitalValueLarge: {
       fontSize: 32,
     },
     vitalUnit: {
-      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.tertiary),
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary),
       marginTop: 2,
     },
     statusIndicator: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: theme.spacing.xs,
       marginTop: theme.spacing.sm,
     },
     statusText: {
-      ...getTextStyle(theme, 'caption', 'medium'),
+      ...getTextStyle(theme, "caption", "medium"),
       fontSize: 12,
     },
     loadingContainer: {
       flex: 1,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
       paddingTop: 100,
     },
     loadingText: {
-      ...getTextStyle(theme, 'body', 'medium', theme.colors.text.secondary),
+      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
       marginTop: theme.spacing.base,
     },
     onelineCard: {
@@ -227,20 +227,25 @@ export default function VitalsScreen() {
       marginVertical: theme.spacing.lg,
       borderLeftWidth: 4,
       borderLeftColor: theme.colors.secondary.main,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       ...theme.shadows.sm,
     },
     onelineText: {
-      ...getTextStyle(theme, 'subheading', 'semibold', theme.colors.primary.main),
-      fontStyle: 'italic' as const,
-      textAlign: 'center' as const,
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.primary.main
+      ),
+      fontStyle: "italic" as const,
+      textAlign: "center" as const,
       marginBottom: theme.spacing.sm,
     },
     onelineSource: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.secondary.main),
+      ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
     },
     rtlText: {
-      textAlign: 'right' as const,
+      textAlign: "right" as const,
     },
   }))(theme);
 
@@ -268,10 +273,10 @@ export default function VitalsScreen() {
         setLastSync(new Date());
       }
     } catch (error) {
-      console.error('Error loading vitals:', error);
+      console.error("Error loading vitals:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في تحميل البيانات الصحية' : 'Error loading health data'
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في تحميل البيانات الصحية" : "Error loading health data"
       );
     } finally {
       setLoading(false);
@@ -293,29 +298,31 @@ export default function VitalsScreen() {
     try {
       setLoading(true);
       const granted = await healthDataService.requestHealthPermissions();
-      
+
       if (granted) {
         setHasPermissions(true);
         await loadVitalsData();
         Alert.alert(
-          isRTL ? 'تم التفعيل' : 'Enabled',
-          isRTL 
-            ? 'تم تفعيل دمج البيانات الصحية بنجاح'
-            : 'Health data integration enabled successfully'
+          isRTL ? "تم التفعيل" : "Enabled",
+          isRTL
+            ? "تم تفعيل دمج البيانات الصحية بنجاح"
+            : "Health data integration enabled successfully"
         );
       } else {
         Alert.alert(
-          isRTL ? 'فشل التفعيل' : 'Permission Denied',
-          isRTL 
-            ? 'يرجى السماح بالوصول للبيانات الصحية في الإعدادات'
-            : 'Please allow access to health data in Settings'
+          isRTL ? "فشل التفعيل" : "Permission Denied",
+          isRTL
+            ? "يرجى السماح بالوصول للبيانات الصحية في الإعدادات"
+            : "Please allow access to health data in Settings"
         );
       }
     } catch (error) {
-      console.error('Error enabling health data:', error);
+      console.error("Error enabling health data:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في تفعيل دمج البيانات الصحية' : 'Error enabling health data integration'
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "حدث خطأ في تفعيل دمج البيانات الصحية"
+          : "Error enabling health data integration"
       );
     } finally {
       setLoading(false);
@@ -328,72 +335,77 @@ export default function VitalsScreen() {
       await healthDataService.syncHealthData();
       await loadVitalsData(true);
     } catch (error) {
-      console.error('Error syncing data:', error);
+      console.error("Error syncing data:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في مزامنة البيانات' : 'Error syncing data'
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في مزامنة البيانات" : "Error syncing data"
       );
     }
   };
 
   const getVitalCards = (): VitalCard[] => {
-    if (!vitals || !summary) return [];
+    if (!(vitals && summary)) return [];
 
     const formatted = healthDataService.formatVitalSigns(vitals);
 
     return [
       {
-        key: 'heartRate',
-        title: 'Heart Rate',
-        titleAr: 'معدل ضربات القلب',
+        key: "heartRate",
+        title: "Heart Rate",
+        titleAr: "معدل ضربات القلب",
         icon: Heart,
         color: theme.colors.accent.error,
-        value: vitals.heartRate?.toString() || '0',
-        unit: 'BPM',
+        value: vitals.heartRate?.toString() || "0",
+        unit: "BPM",
         trend: summary.heartRate.trend,
-        status: vitals.heartRate && vitals.heartRate > 100 ? 'warning' : 'normal',
+        status:
+          vitals.heartRate && vitals.heartRate > 100 ? "warning" : "normal",
       },
       {
-        key: 'steps',
-        title: 'Steps Today',
-        titleAr: 'خطوات اليوم',
+        key: "steps",
+        title: "Steps Today",
+        titleAr: "خطوات اليوم",
         icon: Activity,
         color: theme.colors.primary.main,
-        value: vitals.steps?.toLocaleString() || '0',
-        unit: 'steps',
-        trend: 'stable',
-        status: vitals.steps && vitals.steps >= summary.steps.goal ? 'normal' : 'warning',
+        value: vitals.steps?.toLocaleString() || "0",
+        unit: "steps",
+        trend: "stable",
+        status:
+          vitals.steps && vitals.steps >= summary.steps.goal
+            ? "normal"
+            : "warning",
       },
       {
-        key: 'sleep',
-        title: 'Sleep Last Night',
-        titleAr: 'النوم الليلة الماضية',
+        key: "sleep",
+        title: "Sleep Last Night",
+        titleAr: "النوم الليلة الماضية",
         icon: Moon,
         color: theme.colors.accent.info,
-        value: vitals.sleepHours?.toFixed(1) || '0',
-        unit: 'hours',
-        trend: 'stable',
-        status: vitals.sleepHours && vitals.sleepHours >= 7 ? 'normal' : 'warning',
+        value: vitals.sleepHours?.toFixed(1) || "0",
+        unit: "hours",
+        trend: "stable",
+        status:
+          vitals.sleepHours && vitals.sleepHours >= 7 ? "normal" : "warning",
       },
       {
-        key: 'weight',
-        title: 'Weight',
-        titleAr: 'الوزن',
+        key: "weight",
+        title: "Weight",
+        titleAr: "الوزن",
         icon: Scale,
         color: theme.colors.accent.success,
-        value: vitals.weight?.toFixed(1) || '0',
-        unit: 'kg',
+        value: vitals.weight?.toFixed(1) || "0",
+        unit: "kg",
         trend: summary.weight.trend,
-        status: 'normal',
+        status: "normal",
       },
     ];
   };
 
   const getTrendIcon = (trend?: string) => {
     switch (trend) {
-      case 'up':
+      case "up":
         return TrendingUp;
-      case 'down':
+      case "down":
         return TrendingDown;
       default:
         return Minus;
@@ -402,11 +414,11 @@ export default function VitalsScreen() {
 
   const getStatusColor = (status?: string) => {
     switch (status) {
-      case 'normal':
+      case "normal":
         return theme.colors.accent.success;
-      case 'warning':
+      case "warning":
         return theme.colors.secondary.main;
-      case 'critical':
+      case "critical":
         return theme.colors.accent.error;
       default:
         return theme.colors.text.tertiary;
@@ -417,9 +429,7 @@ export default function VitalsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>
-            Please log in to view vitals
-          </Text>
+          <Text style={styles.loadingText}>Please log in to view vitals</Text>
         </View>
       </SafeAreaView>
     );
@@ -429,9 +439,9 @@ export default function VitalsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
           <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-            {isRTL ? 'جاري تحميل البيانات الصحية...' : 'Loading health data...'}
+            {isRTL ? "جاري تحميل البيانات الصحية..." : "Loading health data..."}
           </Text>
         </View>
       </SafeAreaView>
@@ -443,37 +453,49 @@ export default function VitalsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.permissionCard}>
           <View style={styles.permissionIcon}>
-            <Heart size={40} color={theme.colors.neutral.white} />
+            <Heart color={theme.colors.neutral.white} size={40} />
           </View>
           <Text style={[styles.permissionTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'دمج البيانات الصحية' : 'Health Data Integration'}
+            {isRTL ? "دمج البيانات الصحية" : "Health Data Integration"}
           </Text>
           <Text style={[styles.permissionDescription, isRTL && styles.rtlText]}>
-            {isRTL 
-              ? `ادمج بياناتك الصحية من ${Platform.OS === 'ios' ? 'تطبيق الصحة' : 'Google Fit'} لمراقبة أفضل لصحتك ومعرفة المؤشرات الحيوية`
-              : `Connect your health data from ${Platform.OS === 'ios' ? 'Health App' : 'Google Fit'} to get comprehensive health monitoring and vital signs tracking`}
+            {isRTL
+              ? `ادمج بياناتك الصحية من ${Platform.OS === "ios" ? "تطبيق الصحة" : "Google Fit"} لمراقبة أفضل لصحتك ومعرفة المؤشرات الحيوية`
+              : `Connect your health data from ${Platform.OS === "ios" ? "Health App" : "Google Fit"} to get comprehensive health monitoring and vital signs tracking`}
           </Text>
-          <TouchableOpacity 
-            style={styles.enableButton}
-            onPress={handleEnableHealthData}
+          <TouchableOpacity
             disabled={loading}
+            onPress={handleEnableHealthData}
+            style={styles.enableButton}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={theme.colors.neutral.white} />
+              <ActivityIndicator
+                color={theme.colors.neutral.white}
+                size="small"
+              />
             ) : (
-              <Heart size={20} color={theme.colors.neutral.white} />
+              <Heart color={theme.colors.neutral.white} size={20} />
             )}
             <Text style={styles.enableButtonText}>
-              {loading 
-                ? (isRTL ? 'جاري التفعيل...' : 'Enabling...')
-                : (isRTL ? 'تفعيل الدمج' : 'Enable Integration')}
+              {loading
+                ? isRTL
+                  ? "جاري التفعيل..."
+                  : "Enabling..."
+                : isRTL
+                  ? "تفعيل الدمج"
+                  : "Enable Integration"}
             </Text>
           </TouchableOpacity>
-          
-          <Text style={[styles.permissionDescription, { marginTop: theme.spacing.lg, fontSize: 12 }]}>
-            {isRTL 
-              ? 'سيطلب منك الموافقة على قراءة: معدل ضربات القلب، الخطوات، النوم، الوزن'
-              : 'You will be asked to approve reading: Heart rate, Steps, Sleep, Weight'}
+
+          <Text
+            style={[
+              styles.permissionDescription,
+              { marginTop: theme.spacing.lg, fontSize: 12 },
+            ]}
+          >
+            {isRTL
+              ? "سيطلب منك الموافقة على قراءة: معدل ضربات القلب، الخطوات، النوم، الوزن"
+              : "You will be asked to approve reading: Heart rate, Steps, Sleep, Weight"}
           </Text>
         </View>
       </SafeAreaView>
@@ -487,55 +509,64 @@ export default function VitalsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? 'المؤشرات الحيوية' : 'Vital Signs'}
+          {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
         </Text>
         <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
-          {isRTL ? 'مراقبة صحتك من مصادر متعددة' : 'Monitor your health from multiple sources'}
+          {isRTL
+            ? "مراقبة صحتك من مصادر متعددة"
+            : "Monitor your health from multiple sources"}
         </Text>
-        
+
         <View style={styles.headerActions}>
           <View style={styles.syncInfo}>
             {lastSync && (
               <>
-                <CheckCircle size={12} color={theme.colors.accent.success} />
+                <CheckCircle color={theme.colors.accent.success} size={12} />
                 <Text style={[styles.syncText, isRTL && styles.rtlText]}>
-                  {isRTL 
-                    ? `آخر مزامنة: ${lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    : `Last sync: ${lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                  {isRTL
+                    ? `آخر مزامنة: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                    : `Last sync: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
                 </Text>
               </>
             )}
           </View>
-          
-          <TouchableOpacity 
-            style={styles.syncButton}
-            onPress={handleSyncData}
+
+          <TouchableOpacity
             disabled={refreshing}
+            onPress={handleSyncData}
+            style={styles.syncButton}
           >
             {refreshing ? (
-              <ActivityIndicator size="small" color={theme.colors.neutral.white} />
+              <ActivityIndicator
+                color={theme.colors.neutral.white}
+                size="small"
+              />
             ) : (
-              <RefreshCw size={16} color={theme.colors.neutral.white} />
+              <RefreshCw color={theme.colors.neutral.white} size={16} />
             )}
             <Text style={styles.syncButtonText}>
-              {refreshing 
-                ? (isRTL ? 'مزامنة...' : 'Syncing...')
-                : (isRTL ? 'مزامنة' : 'Sync')}
+              {refreshing
+                ? isRTL
+                  ? "مزامنة..."
+                  : "Syncing..."
+                : isRTL
+                  ? "مزامنة"
+                  : "Sync"}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
+      <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => loadVitalsData(true)}
+            refreshing={refreshing}
             tintColor={theme.colors.primary.main}
           />
         }
+        showsVerticalScrollIndicator={false}
+        style={styles.content}
       >
         {/* Vitals Grid */}
         <View style={styles.vitalsGrid}>
@@ -545,60 +576,74 @@ export default function VitalsScreen() {
               const IconComponent = vital.icon;
               const TrendIcon = getTrendIcon(vital.trend);
               const isLarge = index === 0;
-              
+
               return (
-                <View 
-                  key={vital.key} 
-                  style={[
-                    styles.vitalCard,
-                    isLarge && styles.vitalCardLarge,
-                  ]}
+                <View
+                  key={vital.key}
+                  style={[styles.vitalCard, isLarge && styles.vitalCardLarge]}
                 >
                   <View style={styles.vitalHeader}>
-                    <View style={[
-                      styles.vitalIcon,
-                      { backgroundColor: vital.color + '20' }
-                    ]}>
-                      <IconComponent size={20} color={vital.color} />
+                    <View
+                      style={[
+                        styles.vitalIcon,
+                        { backgroundColor: vital.color + "20" },
+                      ]}
+                    >
+                      <IconComponent color={vital.color} size={20} />
                     </View>
                     <View style={styles.vitalTrend}>
-                      <TrendIcon size={12} color={getStatusColor(vital.status)} />
+                      <TrendIcon
+                        color={getStatusColor(vital.status)}
+                        size={12}
+                      />
                     </View>
                   </View>
-                  
+
                   <Text style={[styles.vitalTitle, isRTL && styles.rtlText]}>
                     {isRTL ? vital.titleAr : vital.title}
                   </Text>
-                  
-                  <Text style={[
-                    styles.vitalValue, 
-                    isLarge && styles.vitalValueLarge,
-                    isRTL && styles.rtlText
-                  ]}>
+
+                  <Text
+                    style={[
+                      styles.vitalValue,
+                      isLarge && styles.vitalValueLarge,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
                     {vital.value}
                   </Text>
-                  
+
                   <Text style={[styles.vitalUnit, isRTL && styles.rtlText]}>
                     {vital.unit}
                   </Text>
-                  
+
                   <View style={styles.statusIndicator}>
-                    <View style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: getStatusColor(vital.status),
-                    }} />
-                    <Text style={[
-                      styles.statusText,
-                      { color: getStatusColor(vital.status) },
-                      isRTL && styles.rtlText
-                    ]}>
-                      {vital.status === 'normal' 
-                        ? (isRTL ? 'طبيعي' : 'Normal')
-                        : vital.status === 'warning'
-                        ? (isRTL ? 'انتباه' : 'Attention')
-                        : (isRTL ? 'خطر' : 'Critical')}
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: getStatusColor(vital.status),
+                      }}
+                    />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(vital.status) },
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {vital.status === "normal"
+                        ? isRTL
+                          ? "طبيعي"
+                          : "Normal"
+                        : vital.status === "warning"
+                          ? isRTL
+                            ? "انتباه"
+                            : "Attention"
+                          : isRTL
+                            ? "خطر"
+                            : "Critical"}
                     </Text>
                   </View>
                 </View>
@@ -611,50 +656,65 @@ export default function VitalsScreen() {
             {vitalCards.slice(2, 4).map((vital) => {
               const IconComponent = vital.icon;
               const TrendIcon = getTrendIcon(vital.trend);
-              
+
               return (
                 <View key={vital.key} style={styles.vitalCard}>
                   <View style={styles.vitalHeader}>
-                    <View style={[
-                      styles.vitalIcon,
-                      { backgroundColor: vital.color + '20' }
-                    ]}>
-                      <IconComponent size={20} color={vital.color} />
+                    <View
+                      style={[
+                        styles.vitalIcon,
+                        { backgroundColor: vital.color + "20" },
+                      ]}
+                    >
+                      <IconComponent color={vital.color} size={20} />
                     </View>
                     <View style={styles.vitalTrend}>
-                      <TrendIcon size={12} color={getStatusColor(vital.status)} />
+                      <TrendIcon
+                        color={getStatusColor(vital.status)}
+                        size={12}
+                      />
                     </View>
                   </View>
-                  
+
                   <Text style={[styles.vitalTitle, isRTL && styles.rtlText]}>
                     {isRTL ? vital.titleAr : vital.title}
                   </Text>
-                  
+
                   <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
                     {vital.value}
                   </Text>
-                  
+
                   <Text style={[styles.vitalUnit, isRTL && styles.rtlText]}>
                     {vital.unit}
                   </Text>
-                  
+
                   <View style={styles.statusIndicator}>
-                    <View style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: getStatusColor(vital.status),
-                    }} />
-                    <Text style={[
-                      styles.statusText,
-                      { color: getStatusColor(vital.status) },
-                      isRTL && styles.rtlText
-                    ]}>
-                      {vital.status === 'normal' 
-                        ? (isRTL ? 'طبيعي' : 'Normal')
-                        : vital.status === 'warning'
-                        ? (isRTL ? 'انتباه' : 'Attention')
-                        : (isRTL ? 'خطر' : 'Critical')}
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: getStatusColor(vital.status),
+                      }}
+                    />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(vital.status) },
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {vital.status === "normal"
+                        ? isRTL
+                          ? "طبيعي"
+                          : "Normal"
+                        : vital.status === "warning"
+                          ? isRTL
+                            ? "انتباه"
+                            : "Attention"
+                          : isRTL
+                            ? "خطر"
+                            : "Critical"}
                     </Text>
                   </View>
                 </View>

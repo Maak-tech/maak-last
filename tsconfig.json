@@ -6,7 +6,8 @@
     "target": "es2020",
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "strictNullChecks": true
   },
   "include": [
     "**/*.ts",

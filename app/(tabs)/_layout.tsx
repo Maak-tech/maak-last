@@ -1,7 +1,7 @@
-import { Tabs } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { useTheme } from '@/contexts/ThemeContext';
-import { Home, Activity, Pill, Users, User, BookOpen } from 'lucide-react-native';
+import { Tabs } from "expo-router";
+import { Activity, Home, User, Users } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -23,25 +23,25 @@ export default function TabLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontFamily: 'Geist-Medium',
+          fontFamily: "Geist-Medium",
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: t('home') || 'Home',
+          title: t("home") || "Home",
           tabBarIcon: ({ size, color }) => (
-            <Home size={size || 24} color={color} />
+            <Home color={color} size={size || 24} />
           ),
         }}
       />
       <Tabs.Screen
         name="track"
         options={{
-          title: t('track') || 'Track',
+          title: t("track") || "Track",
           tabBarIcon: ({ size, color }) => (
-            <Activity size={size || 24} color={color} />
+            <Activity color={color} size={size || 24} />
           ),
         }}
       />
@@ -54,18 +54,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="family"
         options={{
-          title: t('family'),
+          title: t("family"),
           tabBarIcon: ({ size, color }) => (
-            <Users size={size || 24} color={color} />
+            <Users color={color} size={size || 24} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: t('profile'),
+          title: t("profile"),
           tabBarIcon: ({ size, color }) => (
-            <User size={size || 24} color={color} />
+            <User color={color} size={size || 24} />
           ),
         }}
       />

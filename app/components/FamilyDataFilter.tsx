@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import { ChevronDown, ChevronUp, User, Users } from "lucide-react-native";
+import type React from "react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
   Animated,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { Users, User, ChevronDown, ChevronUp } from 'lucide-react-native';
-import { User as UserType } from '@/types';
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import type { User as UserType } from "@/types";
 
 export interface FilterOption {
   id: string;
-  type: 'personal' | 'family' | 'member';
+  type: "personal" | "family" | "member";
   label: string;
   memberId?: string;
   memberName?: string;
@@ -40,15 +41,15 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [animatedHeight] = useState(new Animated.Value(60)); // Initial collapsed height
 
-  const isRTL = i18n.language === 'ar';
+  const isRTL = i18n.language === "ar";
 
   // Generate filter options dynamically
   const generateFilterOptions = (): FilterOption[] => {
     const options: FilterOption[] = [
       {
-        id: 'personal',
-        type: 'personal',
-        label: isRTL ? 'بياناتي' : 'My Data',
+        id: "personal",
+        type: "personal",
+        label: isRTL ? "بياناتي" : "My Data",
       },
     ];
 
@@ -56,9 +57,9 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
     if (hasFamily && familyMembers.length > 1) {
       // Add family overview option
       options.push({
-        id: 'family',
-        type: 'family',
-        label: isRTL ? 'بيانات العائلة' : 'Family Overview',
+        id: "family",
+        type: "family",
+        label: isRTL ? "بيانات العائلة" : "Family Overview",
       });
 
       // Add individual member filters
@@ -67,7 +68,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
         .forEach((member) => {
           options.push({
             id: member.id,
-            type: 'member',
+            type: "member",
             label: member.name,
             memberId: member.id,
             memberName: member.name,
@@ -101,29 +102,29 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
     return (
       <TouchableOpacity
         key={option.id}
+        onPress={() => onFilterChange(option)}
         style={[
           styles.filterOption,
           isSelected && styles.filterOptionSelected,
           isRTL && styles.filterOptionRTL,
         ]}
-        onPress={() => onFilterChange(option)}
       >
         <View style={styles.filterContent}>
-          {option.type === 'personal' && (
+          {option.type === "personal" && (
             <User
+              color={isSelected ? "#FFFFFF" : "#64748B"}
               size={16}
-              color={isSelected ? '#FFFFFF' : '#64748B'}
               style={styles.filterIcon}
             />
           )}
-          {option.type === 'family' && (
+          {option.type === "family" && (
             <Users
+              color={isSelected ? "#FFFFFF" : "#64748B"}
               size={16}
-              color={isSelected ? '#FFFFFF' : '#64748B'}
               style={styles.filterIcon}
             />
           )}
-          {option.type === 'member' && (
+          {option.type === "member" && (
             <View
               style={[
                 styles.memberAvatar,
@@ -141,18 +142,18 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
             </View>
           )}
           <Text
+            numberOfLines={1}
             style={[
               styles.filterText,
               isSelected && styles.filterTextSelected,
               isRTL && styles.filterTextRTL,
             ]}
-            numberOfLines={1}
           >
             {option.label}
           </Text>
         </View>
 
-        {option.type === 'member' && (
+        {option.type === "member" && (
           <View
             style={[
               styles.memberBadge,
@@ -165,7 +166,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
                 isSelected && styles.memberBadgeTextSelected,
               ]}
             >
-              {isRTL ? 'عضو' : 'Member'}
+              {isRTL ? "عضو" : "Member"}
             </Text>
           </View>
         )}
@@ -182,17 +183,17 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
-          {isRTL ? 'عرض البيانات' : 'View Data'}
+          {isRTL ? "عرض البيانات" : "View Data"}
         </Text>
         {shouldShowExpansion && (
           <TouchableOpacity
-            style={styles.expandButton}
             onPress={toggleExpansion}
+            style={styles.expandButton}
           >
             {isExpanded ? (
-              <ChevronUp size={20} color="#64748B" />
+              <ChevronUp color="#64748B" size={20} />
             ) : (
-              <ChevronDown size={20} color="#64748B" />
+              <ChevronDown color="#64748B" size={20} />
             )}
           </TouchableOpacity>
         )}
@@ -202,12 +203,12 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
         style={[styles.filtersContainer, { height: animatedHeight }]}
       >
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
           contentContainerStyle={[
             styles.filtersScrollContainer,
             isRTL && styles.filtersScrollContainerRTL,
           ]}
+          horizontal
+          showsHorizontalScrollIndicator={false}
           style={styles.filtersScroll}
         >
           {isExpanded || !shouldShowExpansion ? (
@@ -217,7 +218,9 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
             </View>
           ) : (
             // Show limited filters when collapsed
-            filterOptions.slice(0, 15).map(renderFilterOption)
+            filterOptions
+              .slice(0, 15)
+              .map(renderFilterOption)
           )}
         </ScrollView>
       </Animated.View>
@@ -231,17 +234,17 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
             isRTL && styles.selectedIndicatorTextRTL,
           ]}
         >
-          {selectedFilter.type === 'family'
+          {selectedFilter.type === "family"
             ? isRTL
               ? `عرض بيانات العائلة (${familyMembers.length} أعضاء)`
               : `Viewing Family Data (${familyMembers.length} members)`
-            : selectedFilter.type === 'member'
-            ? isRTL
-              ? `عرض بيانات ${selectedFilter.memberName}`
-              : `Viewing ${selectedFilter.memberName}'s Data`
-            : isRTL
-            ? 'عرض بياناتي الشخصية'
-            : 'Viewing My Personal Data'}
+            : selectedFilter.type === "member"
+              ? isRTL
+                ? `عرض بيانات ${selectedFilter.memberName}`
+                : `Viewing ${selectedFilter.memberName}'s Data`
+              : isRTL
+                ? "عرض بياناتي الشخصية"
+                : "Viewing My Personal Data"}
         </Text>
       </View>
     </View>
@@ -250,38 +253,38 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: "#F1F5F9",
   },
   headerTitle: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
   },
   headerTitleRTL: {
-    fontFamily: 'Cairo-SemiBold',
+    fontFamily: "Cairo-SemiBold",
   },
   expandButton: {
     padding: 4,
   },
   filtersContainer: {
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   filtersScroll: {
     flex: 1,
@@ -291,37 +294,37 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   filtersScrollContainerRTL: {
-    flexDirection: 'row-reverse',
+    flexDirection: "row-reverse",
   },
   filtersGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   filterOption: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
     marginRight: 8,
     marginBottom: 8,
     minHeight: 36,
   },
   filterOptionSelected: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
   },
   filterOptionRTL: {
     marginRight: 0,
     marginLeft: 8,
   },
   filterContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   filterIcon: {
@@ -329,73 +332,73 @@ const styles = StyleSheet.create({
   },
   filterText: {
     fontSize: 14,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   filterTextSelected: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   filterTextRTL: {
-    fontFamily: 'Cairo-Medium',
+    fontFamily: "Cairo-Medium",
   },
   memberAvatar: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#E2E8F0",
+    justifyContent: "center",
+    alignItems: "center",
   },
   memberAvatarSelected: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   memberAvatarText: {
     fontSize: 10,
-    fontFamily: 'Geist-Bold',
-    color: '#64748B',
+    fontFamily: "Geist-Bold",
+    color: "#64748B",
   },
   memberAvatarTextSelected: {
-    color: '#2563EB',
+    color: "#2563EB",
   },
   memberBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: "#EEF2FF",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
     marginLeft: 6,
   },
   memberBadgeSelected: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: 'Geist-Medium',
-    color: '#6366F1',
+    fontFamily: "Geist-Medium",
+    color: "#6366F1",
   },
   memberBadgeTextSelected: {
-    color: '#2563EB',
+    color: "#2563EB",
   },
   selectedIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   selectedIndicatorDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     marginRight: 8,
   },
   selectedIndicatorText: {
     fontSize: 12,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   selectedIndicatorTextRTL: {
-    fontFamily: 'Cairo-Medium',
+    fontFamily: "Cairo-Medium",
   },
 });
 

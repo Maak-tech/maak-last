@@ -1,50 +1,52 @@
-import React, { useState } from 'react';
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  SafeAreaView,
   Dimensions,
   Image,
-  Animated,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { createThemedStyles, getTextStyle } from '@/utils/styles';
-import { Heart, Users, Bell, Shield } from 'lucide-react-native';
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 
 const onboardingSteps = [
   {
-    key: 'welcome',
-    image: require('@/assets/images/welcome.png'),
-    titleEn: 'Welcome to Maak',
-    titleAr: 'مرحباً بك في معك',
-    descEn: 'Your family health companion. Keep track of your loved ones health and stay connected.',
-    descAr: 'رفيقك الصحي للعائلة. تابع صحة أحبائك وابقَ على تواصل معهم.',
+    key: "welcome",
+    image: require("@/assets/images/welcome.png"),
+    titleEn: "Welcome to Maak",
+    titleAr: "مرحباً بك في معك",
+    descEn:
+      "Your family health companion. Keep track of your loved ones health and stay connected.",
+    descAr: "رفيقك الصحي للعائلة. تابع صحة أحبائك وابقَ على تواصل معهم.",
     onelinerEn: '"Health starts at home"',
     onelinerAr: '"خليهم دايمًا معك"',
   },
   {
-    key: 'track',
-    image: require('@/assets/images/track-health..png'),
-    titleEn: 'Track Health Together',
-    titleAr: 'تتبع الصحة معاً',
-    descEn: 'Monitor symptoms, medications, and vital signs for your entire family in one place.',
-    descAr: 'راقب الأعراض والأدوية والعلامات الحيوية لعائلتك بأكملها في مكان واحد.',
+    key: "track",
+    image: require("@/assets/images/track-health..png"),
+    titleEn: "Track Health Together",
+    titleAr: "تتبع الصحة معاً",
+    descEn:
+      "Monitor symptoms, medications, and vital signs for your entire family in one place.",
+    descAr:
+      "راقب الأعراض والأدوية والعلامات الحيوية لعائلتك بأكملها في مكان واحد.",
     onelinerEn: '"Health starts at home"',
     onelinerAr: '"خليهم دايمًا معك"',
   },
   {
-    key: 'family',
-    image: require('@/assets/images/manage-family.png'),
-    titleEn: 'Manage Your Family',
-    titleAr: 'إدارة عائلتك',
-    descEn: 'Invite family members, share health data, and provide care for each other.',
-    descAr: 'ادع أفراد العائلة، وشارك البيانات الصحية، واعتنوا ببعضكم البعض.',
+    key: "family",
+    image: require("@/assets/images/manage-family.png"),
+    titleEn: "Manage Your Family",
+    titleAr: "إدارة عائلتك",
+    descEn:
+      "Invite family members, share health data, and provide care for each other.",
+    descAr: "ادع أفراد العائلة، وشارك البيانات الصحية، واعتنوا ببعضكم البعض.",
     onelinerEn: '"Health starts at home"',
     onelinerAr: '"خليهم دايمًا معك"',
   },
@@ -58,7 +60,7 @@ export default function OnboardingScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
 
-  const isRTL = i18n.language === 'ar';
+  const isRTL = i18n.language === "ar";
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -66,8 +68,8 @@ export default function OnboardingScreen() {
       backgroundColor: theme.colors.background.primary,
     },
     header: {
-      flexDirection: 'row' as const,
-      justifyContent: 'flex-end' as const,
+      flexDirection: "row" as const,
+      justifyContent: "flex-end" as const,
       paddingHorizontal: theme.spacing.lg,
       paddingTop: theme.spacing.sm,
     },
@@ -76,12 +78,12 @@ export default function OnboardingScreen() {
       paddingHorizontal: theme.spacing.md,
     },
     skipText: {
-      ...getTextStyle(theme, 'body', 'medium', theme.colors.text.secondary),
+      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
     },
     progressContainer: {
-      flexDirection: 'row' as const,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
       paddingVertical: theme.spacing.lg,
       gap: theme.spacing.sm,
     },
@@ -99,24 +101,24 @@ export default function OnboardingScreen() {
     },
     content: {
       flex: 1,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
       paddingHorizontal: theme.spacing.xl,
       paddingTop: theme.spacing.lg,
       paddingBottom: theme.spacing.base,
     },
     imageSection: {
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       flex: 1,
-      justifyContent: 'center' as const,
-      maxHeight: '50%',
+      justifyContent: "center" as const,
+      maxHeight: "50%",
     },
     imageContainer: {
       width: 260,
       height: 260,
       borderRadius: 20,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
       backgroundColor: theme.colors.background.secondary,
       ...theme.shadows.lg,
     },
@@ -126,30 +128,35 @@ export default function OnboardingScreen() {
       borderRadius: 15,
     },
     textContainer: {
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       paddingHorizontal: theme.spacing.base,
       flex: 1,
-      justifyContent: 'center' as const,
+      justifyContent: "center" as const,
       minHeight: 200,
     },
     title: {
-      ...getTextStyle(theme, 'heading', 'bold', theme.colors.primary.main),
+      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
       fontSize: 28,
-      textAlign: 'center' as const,
+      textAlign: "center" as const,
       marginBottom: theme.spacing.lg,
       lineHeight: 34,
     },
     description: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.secondary),
-      textAlign: 'center' as const,
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+      textAlign: "center" as const,
       lineHeight: 22,
       marginBottom: theme.spacing.xl,
       fontSize: 16,
     },
     oneliner: {
-      ...getTextStyle(theme, 'subheading', 'semibold', theme.colors.secondary.main),
-      fontStyle: 'italic' as const,
-      textAlign: 'center' as const,
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.secondary.main
+      ),
+      fontStyle: "italic" as const,
+      textAlign: "center" as const,
       fontSize: 18,
     },
     footer: {
@@ -157,7 +164,7 @@ export default function OnboardingScreen() {
       paddingBottom: theme.spacing.lg,
     },
     buttonContainer: {
-      flexDirection: 'row' as const,
+      flexDirection: "row" as const,
       gap: theme.spacing.md,
     },
     primaryButton: {
@@ -165,22 +172,22 @@ export default function OnboardingScreen() {
       backgroundColor: theme.colors.primary.main,
       borderRadius: theme.borderRadius.lg,
       paddingVertical: theme.spacing.base,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       ...theme.shadows.md,
     },
     primaryButtonText: {
-      ...getTextStyle(theme, 'button', 'bold', theme.colors.neutral.white),
+      ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
     },
     secondaryButton: {
       paddingVertical: theme.spacing.base,
       paddingHorizontal: theme.spacing.lg,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
     },
     secondaryButtonText: {
-      ...getTextStyle(theme, 'button', 'medium', theme.colors.text.secondary),
+      ...getTextStyle(theme, "button", "medium", theme.colors.text.secondary),
     },
     rtlText: {
-      textAlign: 'right' as const,
+      textAlign: "right" as const,
     },
   }))(theme);
 
@@ -192,10 +199,10 @@ export default function OnboardingScreen() {
       await updateUser({ onboardingCompleted: true });
       // Small delay to ensure state is updated
       setTimeout(() => {
-        router.replace('/(tabs)');
+        router.replace("/(tabs)");
       }, 300);
     } catch (error) {
-      console.error('Error completing onboarding:', error);
+      console.error("Error completing onboarding:", error);
       setIsCompleting(false);
     }
   };
@@ -226,7 +233,7 @@ export default function OnboardingScreen() {
       <View style={styles.header}>
         <TouchableOpacity onPress={skip} style={styles.skipButton}>
           <Text style={[styles.skipText, isRTL && styles.rtlText]}>
-            {isRTL ? 'تخطي' : 'Skip'}
+            {isRTL ? "تخطي" : "Skip"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -250,9 +257,9 @@ export default function OnboardingScreen() {
         <View style={styles.imageSection}>
           <View style={styles.imageContainer}>
             <Image
+              resizeMode="contain"
               source={currentStepData.image}
               style={styles.image}
-              resizeMode="contain"
             />
           </View>
         </View>
@@ -281,22 +288,28 @@ export default function OnboardingScreen() {
               <Text
                 style={[styles.secondaryButtonText, isRTL && styles.rtlText]}
               >
-                {isRTL ? 'السابق' : 'Back'}
+                {isRTL ? "السابق" : "Back"}
               </Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
+            disabled={isCompleting}
             onPress={nextStep}
             style={styles.primaryButton}
-            disabled={isCompleting}
           >
             <Text style={[styles.primaryButtonText, isRTL && styles.rtlText]}>
               {currentStep === onboardingSteps.length - 1
                 ? isCompleting
-                  ? (isRTL ? 'جاري التحميل...' : 'Loading...')
-                  : (isRTL ? 'ابدأ الآن' : 'Get Started')
-                : (isRTL ? 'التالي' : 'Next')}
+                  ? isRTL
+                    ? "جاري التحميل..."
+                    : "Loading..."
+                  : isRTL
+                    ? "ابدأ الآن"
+                    : "Get Started"
+                : isRTL
+                  ? "التالي"
+                  : "Next"}
             </Text>
           </TouchableOpacity>
         </View>

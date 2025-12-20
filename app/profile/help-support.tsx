@@ -1,53 +1,52 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  Linking,
-  Alert,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
 import {
   ArrowLeft,
-  HelpCircle,
-  Phone,
-  Mail,
-  Globe,
-  MessageCircle,
   Book,
-  Video,
-  Clock,
-  MapPin,
   ChevronRight,
-} from 'lucide-react-native';
+  Clock,
+  Globe,
+  HelpCircle,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Video,
+} from "lucide-react-native";
+import { useTranslation } from "react-i18next";
+import {
+  Alert,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function HelpSupportScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
 
-  const isRTL = i18n.language === 'ar';
+  const isRTL = i18n.language === "ar";
 
   const handleContactMethod = (method: string, value: string) => {
     switch (method) {
-      case 'phone':
+      case "phone":
         Linking.openURL(`tel:${value}`);
         break;
-      case 'email':
+      case "email":
         Linking.openURL(`mailto:${value}`);
         break;
-      case 'website':
+      case "website":
         Linking.openURL(value);
         break;
       default:
         Alert.alert(
-          isRTL ? 'قريباً' : 'Coming Soon',
+          isRTL ? "قريباً" : "Coming Soon",
           isRTL
-            ? 'ستتوفر هذه الميزة قريباً'
-            : 'This feature will be available soon'
+            ? "ستتوفر هذه الميزة قريباً"
+            : "This feature will be available soon"
         );
     }
   };
@@ -61,11 +60,11 @@ export default function HelpSupportScreen() {
     color,
   }: any) => (
     <TouchableOpacity
-      style={styles.contactCard}
       onPress={() => handleContactMethod(method, value)}
+      style={styles.contactCard}
     >
-      <View style={[styles.contactIcon, { backgroundColor: color + '20' }]}>
-        <Icon size={24} color={color} />
+      <View style={[styles.contactIcon, { backgroundColor: color + "20" }]}>
+        <Icon color={color} size={24} />
       </View>
       <View style={styles.contactContent}>
         <Text style={[styles.contactTitle, isRTL && styles.rtlText]}>
@@ -79,9 +78,9 @@ export default function HelpSupportScreen() {
         </Text>
       </View>
       <ChevronRight
-        size={20}
         color="#94A3B8"
-        style={[isRTL && { transform: [{ rotate: '180deg' }] }]}
+        size={20}
+        style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
       />
     </TouchableOpacity>
   );
@@ -103,8 +102,8 @@ export default function HelpSupportScreen() {
 
   const HelpCard = ({ icon: Icon, title, description, color }: any) => (
     <TouchableOpacity style={styles.helpCard}>
-      <View style={[styles.helpIcon, { backgroundColor: color + '20' }]}>
-        <Icon size={20} color={color} />
+      <View style={[styles.helpIcon, { backgroundColor: color + "20" }]}>
+        <Icon color={color} size={20} />
       </View>
       <Text style={[styles.helpTitle, isRTL && styles.rtlText]}>{title}</Text>
       <Text style={[styles.helpDescription, isRTL && styles.rtlText]}>
@@ -118,112 +117,112 @@ export default function HelpSupportScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={[styles.backButton, isRTL && styles.backButtonRTL]}
           onPress={() => router.back()}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
-            size={24}
             color="#1E293B"
-            style={[isRTL && { transform: [{ rotate: '180deg' }] }]}
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
           />
         </TouchableOpacity>
 
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? 'المساعدة والدعم' : 'Help & Support'}
+          {isRTL ? "المساعدة والدعم" : "Help & Support"}
         </Text>
 
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
           <View style={styles.welcomeIcon}>
-            <HelpCircle size={40} color="#2563EB" />
+            <HelpCircle color="#2563EB" size={40} />
           </View>
           <Text style={[styles.welcomeTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'نحن هنا لمساعدتك' : "We're Here to Help"}
+            {isRTL ? "نحن هنا لمساعدتك" : "We're Here to Help"}
           </Text>
           <Text style={[styles.welcomeDescription, isRTL && styles.rtlText]}>
             {isRTL
-              ? 'فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا.'
-              : 'Maak support team is available to help you anytime. Choose the best way to contact us.'}
+              ? "فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا."
+              : "Maak support team is available to help you anytime. Choose the best way to contact us."}
           </Text>
         </View>
 
         {/* Contact Methods */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'طرق التواصل' : 'Contact Methods'}
+            {isRTL ? "طرق التواصل" : "Contact Methods"}
           </Text>
 
           <ContactCard
-            icon={Phone}
-            title={isRTL ? 'اتصل بنا' : 'Call Us'}
-            subtitle={
-              isRTL
-                ? 'للحالات العاجلة والدعم المباشر'
-                : 'For urgent issues and direct support'
-            }
-            value="+970 594521902"
-            method="phone"
             color="#10B981"
+            icon={Phone}
+            method="phone"
+            subtitle={
+              isRTL
+                ? "للحالات العاجلة والدعم المباشر"
+                : "For urgent issues and direct support"
+            }
+            title={isRTL ? "اتصل بنا" : "Call Us"}
+            value="+970 594521902"
           />
 
           <ContactCard
-            icon={Mail}
-            title={isRTL ? 'راسلنا' : 'Email Us'}
-            subtitle={
-              isRTL
-                ? 'للاستفسارات العامة والدعم التقني'
-                : 'For general inquiries and technical support'
-            }
-            value="info@maaktech.net"
-            method="email"
             color="#3B82F6"
+            icon={Mail}
+            method="email"
+            subtitle={
+              isRTL
+                ? "للاستفسارات العامة والدعم التقني"
+                : "For general inquiries and technical support"
+            }
+            title={isRTL ? "راسلنا" : "Email Us"}
+            value="info@maaktech.net"
           />
 
           <ContactCard
-            icon={MessageCircle}
-            title={isRTL ? 'الدردشة المباشرة' : 'Live Chat'}
-            subtitle={
-              isRTL
-                ? 'متاح خلال ساعات العمل'
-                : 'Available during business hours'
-            }
-            value={isRTL ? 'ابدأ المحادثة' : 'Start Conversation'}
-            method="chat"
             color="#8B5CF6"
+            icon={MessageCircle}
+            method="chat"
+            subtitle={
+              isRTL
+                ? "متاح خلال ساعات العمل"
+                : "Available during business hours"
+            }
+            title={isRTL ? "الدردشة المباشرة" : "Live Chat"}
+            value={isRTL ? "ابدأ المحادثة" : "Start Conversation"}
           />
 
           <ContactCard
+            color="#F59E0B"
             icon={Globe}
-            title={isRTL ? 'موقعنا الإلكتروني' : 'Visit Website'}
+            method="website"
             subtitle={
               isRTL
-                ? 'معلومات شاملة ومركز المساعدة'
-                : 'Comprehensive information and help center'
+                ? "معلومات شاملة ومركز المساعدة"
+                : "Comprehensive information and help center"
             }
+            title={isRTL ? "موقعنا الإلكتروني" : "Visit Website"}
             value="https://maaktech.net/"
-            method="website"
-            color="#F59E0B"
           />
         </View>
 
         {/* Business Hours */}
         <View style={styles.businessHours}>
-          <Clock size={20} color="#64748B" />
+          <Clock color="#64748B" size={20} />
           <View style={styles.hoursContent}>
             <Text style={[styles.hoursTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'ساعات العمل' : 'Business Hours'}
+              {isRTL ? "ساعات العمل" : "Business Hours"}
             </Text>
             <Text style={[styles.hoursText, isRTL && styles.rtlText]}>
               {isRTL
-                ? 'الأحد - الخميس: 9:00 صباحاً - 5:00 مساءً'
-                : 'Sunday - Thursday: 9:00 AM - 5:00 PM'}
+                ? "الأحد - الخميس: 9:00 صباحاً - 5:00 مساءً"
+                : "Sunday - Thursday: 9:00 AM - 5:00 PM"}
             </Text>
             <Text style={[styles.hoursSubtext, isRTL && styles.rtlText]}>
-              {isRTL ? 'توقيت الرياض (GMT+3)' : 'Riyadh Time (GMT+3)'}
+              {isRTL ? "توقيت الرياض (GMT+3)" : "Riyadh Time (GMT+3)"}
             </Text>
           </View>
         </View>
@@ -231,28 +230,28 @@ export default function HelpSupportScreen() {
         {/* Quick Help */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'مساعدة سريعة' : 'Quick Help'}
+            {isRTL ? "مساعدة سريعة" : "Quick Help"}
           </Text>
 
           <View style={styles.helpGrid}>
             <HelpCard
-              icon={Book}
-              title={isRTL ? 'دليل الاستخدام' : 'User Guide'}
+              color="#2563EB"
               description={
                 isRTL
-                  ? 'تعلم كيفية استخدام التطبيق'
-                  : 'Learn how to use the app'
+                  ? "تعلم كيفية استخدام التطبيق"
+                  : "Learn how to use the app"
               }
-              color="#2563EB"
+              icon={Book}
+              title={isRTL ? "دليل الاستخدام" : "User Guide"}
             />
 
             <HelpCard
-              icon={Video}
-              title={isRTL ? 'فيديوهات تعليمية' : 'Video Tutorials'}
-              description={
-                isRTL ? 'شاهد الدروس التفاعلية' : 'Watch interactive lessons'
-              }
               color="#10B981"
+              description={
+                isRTL ? "شاهد الدروس التفاعلية" : "Watch interactive lessons"
+              }
+              icon={Video}
+              title={isRTL ? "فيديوهات تعليمية" : "Video Tutorials"}
             />
           </View>
         </View>
@@ -260,51 +259,51 @@ export default function HelpSupportScreen() {
         {/* FAQ Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {isRTL ? 'الأسئلة الشائعة' : 'Frequently Asked Questions'}
+            {isRTL ? "الأسئلة الشائعة" : "Frequently Asked Questions"}
           </Text>
 
           <FAQItem
-            question={
-              isRTL
-                ? 'كيف أضيف فرد جديد للعائلة؟'
-                : 'How do I add a new family member?'
-            }
             answer={
               isRTL
                 ? 'اذهب إلى قسم العائلة واضغط على "دعوة فرد" ثم أدخل معلومات الفرد الجديد وأرسل الدعوة.'
                 : 'Go to the Family section, tap "Invite Member", enter the new member\'s information and send the invitation.'
             }
+            question={
+              isRTL
+                ? "كيف أضيف فرد جديد للعائلة؟"
+                : "How do I add a new family member?"
+            }
           />
 
           <FAQItem
-            question={isRTL ? 'كيف أسجل الأعراض؟' : 'How do I log symptoms?'}
             answer={
               isRTL
                 ? 'من الشاشة الرئيسية، اضغط على "تسجيل عرض" واختر نوع العرض وشدته وأضف أي ملاحظات.'
                 : 'From the main screen, tap "Log Symptom", select the symptom type, severity level, and add any notes.'
             }
+            question={isRTL ? "كيف أسجل الأعراض؟" : "How do I log symptoms?"}
           />
 
           <FAQItem
+            answer={
+              isRTL
+                ? "اذهب إلى قسم الأدوية، أضف دواء جديد أو عدل دواء موجود، واضبط أوقات التذكير."
+                : "Go to Medications section, add a new medication or edit existing one, and set reminder times."
+            }
             question={
               isRTL
-                ? 'كيف أضبط تذكيرات الأدوية؟'
-                : 'How do I set medication reminders?'
-            }
-            answer={
-              isRTL
-                ? 'اذهب إلى قسم الأدوية، أضف دواء جديد أو عدل دواء موجود، واضبط أوقات التذكير.'
-                : 'Go to Medications section, add a new medication or edit existing one, and set reminder times.'
+                ? "كيف أضبط تذكيرات الأدوية؟"
+                : "How do I set medication reminders?"
             }
           />
 
           <FAQItem
-            question={isRTL ? 'هل بياناتي آمنة؟' : 'Is my data secure?'}
             answer={
               isRTL
-                ? 'نعم، نستخدم تشفير متقدم لحماية بياناتك ولا نشاركها مع أطراف ثالثة دون موافقتك.'
-                : 'Yes, we use advanced encryption to protect your data and never share it with third parties without your consent.'
+                ? "نعم، نستخدم تشفير متقدم لحماية بياناتك ولا نشاركها مع أطراف ثالثة دون موافقتك."
+                : "Yes, we use advanced encryption to protect your data and never share it with third parties without your consent."
             }
+            question={isRTL ? "هل بياناتي آمنة؟" : "Is my data secure?"}
           />
         </View>
 
@@ -312,20 +311,20 @@ export default function HelpSupportScreen() {
         <View style={styles.emergencySection}>
           <View style={styles.emergencyHeader}>
             <View style={styles.emergencyIcon}>
-              <Phone size={20} color="#EF4444" />
+              <Phone color="#EF4444" size={20} />
             </View>
             <Text style={[styles.emergencyTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'رقم الطوارئ' : 'Emergency Contact'}
+              {isRTL ? "رقم الطوارئ" : "Emergency Contact"}
             </Text>
           </View>
           <Text style={[styles.emergencyDescription, isRTL && styles.rtlText]}>
             {isRTL
-              ? 'في حالة الطوارئ الطبية، اتصل بالرقم التالي:'
-              : 'For medical emergencies, call:'}
+              ? "في حالة الطوارئ الطبية، اتصل بالرقم التالي:"
+              : "For medical emergencies, call:"}
           </Text>
           <TouchableOpacity
+            onPress={() => handleContactMethod("phone", "+966911")}
             style={styles.emergencyButton}
-            onPress={() => handleContactMethod('phone', '+966911')}
           >
             <Text style={[styles.emergencyNumber, isRTL && styles.rtlText]}>
               911
@@ -335,15 +334,13 @@ export default function HelpSupportScreen() {
 
         {/* Location */}
         <View style={styles.locationSection}>
-          <MapPin size={20} color="#64748B" />
+          <MapPin color="#64748B" size={20} />
           <View style={styles.locationContent}>
             <Text style={[styles.locationTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'موقعنا' : 'Our Location'}
+              {isRTL ? "موقعنا" : "Our Location"}
             </Text>
             <Text style={[styles.locationText, isRTL && styles.rtlText]}>
-              {isRTL
-                ? 'رام الله، فلسطين'
-                : 'Palestine, Ramallah'}
+              {isRTL ? "رام الله، فلسطين" : "Palestine, Ramallah"}
             </Text>
           </View>
         </View>
@@ -355,36 +352,36 @@ export default function HelpSupportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: "#E2E8F0",
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
   },
   backButtonRTL: {
     transform: [{ scaleX: -1 }],
   },
   headerTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
   },
   headerSpacer: {
     width: 40,
@@ -394,9 +391,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   welcomeSection: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 32,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginTop: 20,
     borderRadius: 16,
     marginBottom: 24,
@@ -405,23 +402,23 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#EBF4FF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#EBF4FF",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
   welcomeTitle: {
     fontSize: 24,
-    fontFamily: 'Geist-Bold',
-    color: '#1E293B',
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   welcomeDescription: {
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
-    textAlign: 'center',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    textAlign: "center",
     lineHeight: 24,
     paddingHorizontal: 16,
   },
@@ -430,18 +427,18 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 16,
   },
   contactCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -451,8 +448,8 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
   contactContent: {
@@ -460,29 +457,29 @@ const styles = StyleSheet.create({
   },
   contactTitle: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 2,
   },
   contactSubtitle: {
     fontSize: 14,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
     marginBottom: 4,
   },
   contactValue: {
     fontSize: 14,
-    fontFamily: 'Geist-Medium',
-    color: '#2563EB',
+    fontFamily: "Geist-Medium",
+    color: "#2563EB",
   },
   businessHours: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -494,32 +491,32 @@ const styles = StyleSheet.create({
   },
   hoursTitle: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 4,
   },
   hoursText: {
     fontSize: 14,
-    fontFamily: 'Geist-Medium',
-    color: '#059669',
+    fontFamily: "Geist-Medium",
+    color: "#059669",
     marginBottom: 2,
   },
   hoursSubtext: {
     fontSize: 12,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
   },
   helpGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   helpCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -529,30 +526,30 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 12,
   },
   helpTitle: {
     fontSize: 14,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 4,
-    textAlign: 'center',
+    textAlign: "center",
   },
   helpDescription: {
     fontSize: 12,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
-    textAlign: 'center',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    textAlign: "center",
     lineHeight: 16,
   },
   faqItem: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -560,69 +557,69 @@ const styles = StyleSheet.create({
   },
   faqQuestion: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 8,
   },
   faqAnswer: {
     fontSize: 14,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
     lineHeight: 20,
   },
   emergencySection: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: "#FEF2F2",
     borderRadius: 12,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: "#FECACA",
   },
   emergencyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   emergencyIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#FEE2E2",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 8,
   },
   emergencyTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#DC2626',
+    fontFamily: "Geist-SemiBold",
+    color: "#DC2626",
   },
   emergencyDescription: {
     fontSize: 14,
-    fontFamily: 'Geist-Regular',
-    color: '#7F1D1D',
+    fontFamily: "Geist-Regular",
+    color: "#7F1D1D",
     marginBottom: 16,
     lineHeight: 20,
   },
   emergencyButton: {
-    backgroundColor: '#DC2626',
+    backgroundColor: "#DC2626",
     borderRadius: 8,
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emergencyNumber: {
     fontSize: 18,
-    fontFamily: 'Geist-Bold',
-    color: '#FFFFFF',
+    fontFamily: "Geist-Bold",
+    color: "#FFFFFF",
   },
   locationSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginBottom: 32,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -634,16 +631,16 @@ const styles = StyleSheet.create({
   },
   locationTitle: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 4,
   },
   locationText: {
     fontSize: 14,
-    fontFamily: 'Geist-Regular',
-    color: '#64748B',
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
   },
   rtlText: {
-    fontFamily: 'Cairo-Regular',
+    fontFamily: "Cairo-Regular",
   },
 });

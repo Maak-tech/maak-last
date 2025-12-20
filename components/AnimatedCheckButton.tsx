@@ -1,21 +1,22 @@
-import React, { useRef, useEffect } from 'react';
+import * as Haptics from "expo-haptics";
+import { Check } from "lucide-react-native";
+import type React from "react";
+import { useEffect, useRef } from "react";
 import {
-  TouchableOpacity,
-  Text,
-  View,
   Animated,
   StyleSheet,
-} from 'react-native';
-import { Check } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import { useTheme } from '@/contexts/ThemeContext';
-import { getTextStyle } from '@/utils/styles';
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getTextStyle } from "@/utils/styles";
 
 interface AnimatedCheckButtonProps {
   isChecked: boolean;
   onPress: () => void;
   label?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   disabled?: boolean;
   style?: any;
 }
@@ -24,7 +25,7 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
   isChecked,
   onPress,
   label,
-  size = 'md',
+  size = "md",
   disabled = false,
   style,
 }) => {
@@ -75,11 +76,15 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
     width: currentSize.width,
     height: currentSize.height,
     borderRadius: currentSize.width / 2,
-    backgroundColor: isChecked ? theme.colors.accent.success : theme.colors.background.secondary,
-    borderColor: isChecked ? theme.colors.accent.success : theme.colors.border.medium,
+    backgroundColor: isChecked
+      ? theme.colors.accent.success
+      : theme.colors.background.secondary,
+    borderColor: isChecked
+      ? theme.colors.accent.success
+      : theme.colors.border.medium,
     borderWidth: 2,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
     opacity: disabled ? 0.5 : 1,
   };
 
@@ -87,25 +92,32 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
     <View style={[styles.container, style]}>
       <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
         <TouchableOpacity
-          style={buttonStyle}
-          onPress={handlePress}
-          disabled={disabled}
           activeOpacity={0.8}
+          disabled={disabled}
+          onPress={handlePress}
+          style={buttonStyle}
         >
           <Animated.View style={{ opacity: checkOpacity }}>
-            <Check 
-              size={currentSize.iconSize} 
-              color={theme.colors.neutral.white} 
+            <Check
+              color={theme.colors.neutral.white}
+              size={currentSize.iconSize}
             />
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
       {label && (
-        <Text style={[
-          getTextStyle(theme, 'caption', 'medium', theme.colors.text.secondary),
-          styles.label,
-          isChecked && { color: theme.colors.accent.success }
-        ]}>
+        <Text
+          style={[
+            getTextStyle(
+              theme,
+              "caption",
+              "medium",
+              theme.colors.text.secondary
+            ),
+            styles.label,
+            isChecked && { color: theme.colors.accent.success },
+          ]}
+        >
           {label}
         </Text>
       )}
@@ -115,11 +127,11 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 4,
   },
   label: {
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
 

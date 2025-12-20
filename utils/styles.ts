@@ -1,5 +1,5 @@
-import { StyleSheet, PixelRatio } from 'react-native';
-import { Theme } from '@/constants/theme';
+import { PixelRatio, StyleSheet } from "react-native";
+import type { Theme } from "@/constants/theme";
 
 // Get scalable font size that respects system font settings
 const getScalableFont = (size: number): number => {
@@ -9,39 +9,42 @@ const getScalableFont = (size: number): number => {
 
 type ThemedStylesFunction<T> = (theme: typeof Theme.light) => T;
 
-export const createThemedStyles = <T extends StyleSheet.NamedStyles<T>>(
-  stylesFunction: ThemedStylesFunction<T>
-) => {
-  return (theme: typeof Theme.light) => StyleSheet.create(stylesFunction(theme));
-};
+export const createThemedStyles =
+  <T extends StyleSheet.NamedStyles<T>>(
+    stylesFunction: ThemedStylesFunction<T>
+  ) =>
+  (theme: typeof Theme.light) =>
+    StyleSheet.create(stylesFunction(theme));
 
 export const getTextStyle = (
   theme: typeof Theme.light,
-  variant: 'heading' | 'subheading' | 'body' | 'caption' | 'button',
-  weight: 'regular' | 'medium' | 'semibold' | 'bold' = 'regular',
+  variant: "heading" | "subheading" | "body" | "caption" | "button",
+  weight: "regular" | "medium" | "semibold" | "bold" = "regular",
   color?: string
 ) => {
   const baseStyles = {
-    fontFamily: weight === 'bold' 
-      ? theme.typography.fontFamily.bold
-      : weight === 'semibold'
-      ? theme.typography.fontFamily.semiBold
-      : weight === 'medium'
-      ? theme.typography.fontFamily.medium
-      : theme.typography.fontFamily.regular,
+    fontFamily:
+      weight === "bold"
+        ? theme.typography.fontFamily.bold
+        : weight === "semibold"
+          ? theme.typography.fontFamily.semiBold
+          : weight === "medium"
+            ? theme.typography.fontFamily.medium
+            : theme.typography.fontFamily.regular,
     color: color || theme.colors.text.primary,
   };
 
   switch (variant) {
-    case 'heading':
-      const headingSize = getScalableFont(theme.typography.fontSize['2xl']);
+    case "heading": {
+      const headingSize = getScalableFont(theme.typography.fontSize["2xl"]);
       return {
         ...baseStyles,
         fontSize: headingSize,
         lineHeight: headingSize * theme.typography.lineHeight.tight,
         fontWeight: theme.typography.fontWeight.bold,
       };
-    case 'subheading':
+    }
+    case "subheading": {
       const subheadingSize = getScalableFont(theme.typography.fontSize.lg);
       return {
         ...baseStyles,
@@ -49,21 +52,24 @@ export const getTextStyle = (
         lineHeight: subheadingSize * theme.typography.lineHeight.normal,
         fontWeight: theme.typography.fontWeight.semibold,
       };
-    case 'body':
+    }
+    case "body": {
       const bodySize = getScalableFont(theme.typography.fontSize.base);
       return {
         ...baseStyles,
         fontSize: bodySize,
         lineHeight: bodySize * theme.typography.lineHeight.normal,
       };
-    case 'caption':
+    }
+    case "caption": {
       const captionSize = getScalableFont(theme.typography.fontSize.sm);
       return {
         ...baseStyles,
         fontSize: captionSize,
         lineHeight: captionSize * theme.typography.lineHeight.normal,
       };
-    case 'button':
+    }
+    case "button": {
       const buttonSize = getScalableFont(theme.typography.fontSize.base);
       return {
         ...baseStyles,
@@ -71,6 +77,7 @@ export const getTextStyle = (
         lineHeight: buttonSize * theme.typography.lineHeight.tight,
         fontWeight: theme.typography.fontWeight.semibold,
       };
+    }
     default:
       return baseStyles;
   }
@@ -78,14 +85,14 @@ export const getTextStyle = (
 
 export const getButtonStyle = (
   theme: typeof Theme.light,
-  variant: 'primary' | 'secondary' | 'tertiary' | 'ghost' = 'primary',
-  size: 'sm' | 'md' | 'lg' = 'md'
+  variant: "primary" | "secondary" | "tertiary" | "ghost" = "primary",
+  size: "sm" | "md" | "lg" = "md"
 ) => {
   const baseStyles = {
     borderRadius: theme.borderRadius.lg,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    flexDirection: 'row' as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    flexDirection: "row" as const,
   };
 
   const sizeStyles = {
@@ -121,7 +128,7 @@ export const getButtonStyle = (
       borderColor: theme.colors.border.medium,
     },
     ghost: {
-      backgroundColor: 'transparent',
+      backgroundColor: "transparent",
       borderWidth: 0,
     },
   };
@@ -133,16 +140,17 @@ export const getButtonStyle = (
   };
 };
 
-export const getCardStyle = (theme: typeof Theme.light, elevated: boolean = true) => {
-  return {
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.base,
-    ...(elevated ? theme.shadows.md : {}),
-  };
-};
+export const getCardStyle = (theme: typeof Theme.light, elevated = true) => ({
+  backgroundColor: theme.colors.background.secondary,
+  borderRadius: theme.borderRadius.lg,
+  padding: theme.spacing.base,
+  ...(elevated ? theme.shadows.md : {}),
+});
 
-export const getInputStyle = (theme: typeof Theme.light, state: 'default' | 'focused' | 'error' = 'default') => {
+export const getInputStyle = (
+  theme: typeof Theme.light,
+  state: "default" | "focused" | "error" = "default"
+) => {
   const baseStyle = {
     backgroundColor: theme.colors.background.secondary,
     borderRadius: theme.borderRadius.md,

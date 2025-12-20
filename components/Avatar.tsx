@@ -1,13 +1,13 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { User } from 'lucide-react-native';
-import { useTheme } from '@/contexts/ThemeContext';
-import { getTextStyle } from '@/utils/styles';
+import { User } from "lucide-react-native";
+import type React from "react";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "@/contexts/ThemeContext";
+import { getTextStyle } from "@/utils/styles";
 
 interface AvatarProps {
   source?: string | { uri: string };
   name?: string;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   onPress?: () => void;
   showBadge?: boolean;
   badgeColor?: string;
@@ -17,7 +17,7 @@ interface AvatarProps {
 export const Avatar: React.FC<AvatarProps> = ({
   source,
   name,
-  size = 'md',
+  size = "md",
   onPress,
   showBadge = false,
   badgeColor,
@@ -36,11 +36,11 @@ export const Avatar: React.FC<AvatarProps> = ({
   const currentSize = sizes[size];
 
   const getInitials = (name?: string): string => {
-    if (!name) return '?';
+    if (!name) return "?";
     return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
@@ -50,22 +50,22 @@ export const Avatar: React.FC<AvatarProps> = ({
     height: currentSize.height,
     borderRadius: currentSize.width / 2,
     backgroundColor: theme.colors.primary.main,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
-    overflow: 'hidden' as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    overflow: "hidden" as const,
   };
 
   const renderContent = () => {
     if (source) {
       return (
         <Image
-          source={typeof source === 'string' ? { uri: source } : source}
+          resizeMode="cover"
+          source={typeof source === "string" ? { uri: source } : source}
           style={{
             width: currentSize.width,
             height: currentSize.height,
             borderRadius: currentSize.width / 2,
           }}
-          resizeMode="cover"
         />
       );
     }
@@ -74,8 +74,8 @@ export const Avatar: React.FC<AvatarProps> = ({
       return (
         <Text
           style={[
-            getTextStyle(theme, 'body', 'bold', theme.colors.neutral.white),
-            { fontSize: currentSize.fontSize }
+            getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
+            { fontSize: currentSize.fontSize },
           ]}
         >
           {getInitials(name)}
@@ -84,10 +84,7 @@ export const Avatar: React.FC<AvatarProps> = ({
     }
 
     return (
-      <User 
-        size={currentSize.iconSize} 
-        color={theme.colors.neutral.white} 
-      />
+      <User color={theme.colors.neutral.white} size={currentSize.iconSize} />
     );
   };
 
@@ -114,7 +111,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
         {avatar}
       </TouchableOpacity>
     );
@@ -125,7 +122,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 
 const styles = StyleSheet.create({
   badge: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
   },

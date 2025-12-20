@@ -1,48 +1,37 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from "expo-router";
+import { Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  TextInput,
-  Modal,
   Alert,
+  Modal,
   RefreshControl,
-  ActivityIndicator,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useFocusEffect } from 'expo-router';
-import {
-  Plus,
-  Calendar,
-  TrendingUp,
-  X,
-  Edit,
-  Trash2,
-  MoreVertical,
-  Users,
-  User,
-} from 'lucide-react-native';
-import { symptomService } from '@/lib/services/symptomService';
-import { userService } from '@/lib/services/userService';
-import { Symptom, User as UserType } from '@/types';
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import FamilyDataFilter, {
-  FilterOption,
-} from '@/app/components/FamilyDataFilter';
+  type FilterOption,
+} from "@/app/components/FamilyDataFilter";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { symptomService } from "@/lib/services/symptomService";
+import { userService } from "@/lib/services/userService";
+import type { Symptom, User as UserType } from "@/types";
 
 const COMMON_SYMPTOMS = [
-  'headache',
-  'fever',
-  'cough',
-  'fatigue',
-  'nausea',
-  'dizziness',
-  'chestPain',
-  'backPain',
+  "headache",
+  "fever",
+  "cough",
+  "fatigue",
+  "nausea",
+  "dizziness",
+  "chestPain",
+  "backPain",
 ];
 
 export default function TrackScreen() {
@@ -50,10 +39,10 @@ export default function TrackScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedSymptom, setSelectedSymptom] = useState('');
-  const [customSymptom, setCustomSymptom] = useState('');
+  const [selectedSymptom, setSelectedSymptom] = useState("");
+  const [customSymptom, setCustomSymptom] = useState("");
   const [severity, setSeverity] = useState(1);
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
@@ -66,14 +55,14 @@ export default function TrackScreen() {
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
-    id: 'personal',
-    type: 'personal',
-    label: '',
+    id: "personal",
+    type: "personal",
+    label: "",
   });
-  const [selectedTargetUser, setSelectedTargetUser] = useState<string>('');
+  const [selectedTargetUser, setSelectedTargetUser] = useState<string>("");
 
-  const isRTL = i18n.language === 'ar';
-  const isAdmin = user?.role === 'admin';
+  const isRTL = i18n.language === "ar";
+  const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
   const loadSymptoms = async (isRefresh = false) => {
@@ -94,7 +83,7 @@ export default function TrackScreen() {
       }
 
       // Load data based on selected filter
-      if (selectedFilter.type === 'family' && user.familyId) {
+      if (selectedFilter.type === "family" && user.familyId) {
         // Load family symptoms and stats (both admins and members can view)
         const [familySymptoms, familyStats] = await Promise.all([
           symptomService.getFamilySymptoms(user.familyId, 50),
@@ -103,7 +92,7 @@ export default function TrackScreen() {
 
         setSymptoms(familySymptoms);
         setStats(familyStats);
-      } else if (selectedFilter.type === 'member' && selectedFilter.memberId) {
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
         // Load specific member symptoms and stats (both admins and members can view)
         const [memberSymptoms, memberStats] = await Promise.all([
           symptomService.getMemberSymptoms(selectedFilter.memberId, 50),
@@ -123,10 +112,10 @@ export default function TrackScreen() {
         setStats(symptomStats);
       }
     } catch (error) {
-      console.error('Error loading symptoms:', error);
+      console.error("Error loading symptoms:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في تحميل البيانات' : 'Error loading data'
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data"
       );
     } finally {
       setLoading(false);
@@ -151,10 +140,10 @@ export default function TrackScreen() {
 
   const getMemberName = (userId: string): string => {
     if (userId === user?.id) {
-      return isRTL ? 'أنت' : 'You';
+      return isRTL ? "أنت" : "You";
     }
     const member = familyMembers.find((m) => m.id === userId);
-    return member?.name || (isRTL ? 'عضو غير معروف' : 'Unknown Member');
+    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
   };
 
   const handleAddSymptom = async () => {
@@ -163,10 +152,10 @@ export default function TrackScreen() {
     const symptomType = selectedSymptom || customSymptom;
     if (!symptomType) {
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
+        isRTL ? "خطأ" : "Error",
         isRTL
-          ? 'يرجى اختيار أو إدخال نوع العرض'
-          : 'Please select or enter a symptom type'
+          ? "يرجى اختيار أو إدخال نوع العرض"
+          : "Please select or enter a symptom type"
       );
       return;
     }
@@ -179,14 +168,14 @@ export default function TrackScreen() {
         const canEdit =
           editingSymptom.userId === user.id ||
           (isAdmin &&
-            (selectedFilter.type === 'family' ||
-              selectedFilter.type === 'member'));
+            (selectedFilter.type === "family" ||
+              selectedFilter.type === "member"));
         if (!canEdit) {
           Alert.alert(
-            isRTL ? 'غير مسموح' : 'Not Permitted',
+            isRTL ? "غير مسموح" : "Not Permitted",
             isRTL
-              ? 'ليس لديك صلاحية لتعديل هذا العرض'
-              : 'You do not have permission to edit this symptom'
+              ? "ليس لديك صلاحية لتعديل هذا العرض"
+              : "You do not have permission to edit this symptom"
           );
           return;
         }
@@ -203,7 +192,7 @@ export default function TrackScreen() {
       } else {
         // Add new symptom
         const targetUserId = selectedTargetUser || user.id;
-        const symptomData: Omit<Symptom, 'id'> = {
+        const symptomData: Omit<Symptom, "id"> = {
           userId: targetUserId,
           type: symptomType,
           severity: severity as 1 | 2 | 3 | 4 | 5,
@@ -222,31 +211,31 @@ export default function TrackScreen() {
       }
 
       // Reset form
-      setSelectedSymptom('');
-      setCustomSymptom('');
+      setSelectedSymptom("");
+      setCustomSymptom("");
       setSeverity(1);
-      setDescription('');
-      setSelectedTargetUser('');
+      setDescription("");
+      setSelectedTargetUser("");
       setShowAddModal(false);
 
       // Reload symptoms
       await loadSymptoms();
 
       Alert.alert(
-        isRTL ? 'تم الحفظ' : 'Saved',
+        isRTL ? "تم الحفظ" : "Saved",
         isRTL
           ? editingSymptom
-            ? 'تم تحديث العرض بنجاح'
-            : 'تم تسجيل العرض بنجاح'
+            ? "تم تحديث العرض بنجاح"
+            : "تم تسجيل العرض بنجاح"
           : editingSymptom
-          ? 'Symptom updated successfully'
-          : 'Symptom logged successfully'
+            ? "Symptom updated successfully"
+            : "Symptom logged successfully"
       );
     } catch (error) {
-      console.error('Error saving symptom:', error);
+      console.error("Error saving symptom:", error);
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'حدث خطأ في حفظ العرض' : 'Error saving symptom'
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في حفظ العرض" : "Error saving symptom"
       );
     } finally {
       setLoading(false);
@@ -258,13 +247,13 @@ export default function TrackScreen() {
     const canEdit =
       symptom.userId === user?.id ||
       (isAdmin &&
-        (selectedFilter.type === 'family' || selectedFilter.type === 'member'));
+        (selectedFilter.type === "family" || selectedFilter.type === "member"));
     if (!canEdit) {
       Alert.alert(
-        isRTL ? 'غير مسموح' : 'Not Permitted',
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? 'ليس لديك صلاحية لتعديل هذا العرض'
-          : 'You do not have permission to edit this symptom'
+          ? "ليس لديك صلاحية لتعديل هذا العرض"
+          : "You do not have permission to edit this symptom"
       );
       return;
     }
@@ -274,15 +263,15 @@ export default function TrackScreen() {
     // Check if the symptom type is in the common symptoms list
     if (COMMON_SYMPTOMS.includes(symptom.type)) {
       setSelectedSymptom(symptom.type);
-      setCustomSymptom('');
+      setCustomSymptom("");
     } else {
       // It's a custom symptom
-      setSelectedSymptom('');
+      setSelectedSymptom("");
       setCustomSymptom(symptom.type);
     }
 
     setSeverity(symptom.severity);
-    setDescription(symptom.description || '');
+    setDescription(symptom.description || "");
     setSelectedTargetUser(symptom.userId);
     setShowAddModal(true);
     setShowActionsMenu(null);
@@ -293,30 +282,30 @@ export default function TrackScreen() {
     const canDelete =
       symptom.userId === user?.id ||
       (isAdmin &&
-        (selectedFilter.type === 'family' || selectedFilter.type === 'member'));
+        (selectedFilter.type === "family" || selectedFilter.type === "member"));
     if (!canDelete) {
       Alert.alert(
-        isRTL ? 'غير مسموح' : 'Not Permitted',
+        isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? 'ليس لديك صلاحية لحذف هذا العرض'
-          : 'You do not have permission to delete this symptom'
+          ? "ليس لديك صلاحية لحذف هذا العرض"
+          : "You do not have permission to delete this symptom"
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? 'حذف العرض' : 'Delete Symptom',
+      isRTL ? "حذف العرض" : "Delete Symptom",
       isRTL
         ? `هل أنت متأكد من رغبتك في حذف هذا العرض: ${t(symptom.type)}؟`
         : `Are you sure you want to delete this symptom: ${t(symptom.type)}?`,
       [
         {
-          text: isRTL ? 'إلغاء' : 'Cancel',
-          style: 'cancel',
+          text: isRTL ? "إلغاء" : "Cancel",
+          style: "cancel",
         },
         {
-          text: isRTL ? 'حذف' : 'Delete',
-          style: 'destructive',
+          text: isRTL ? "حذف" : "Delete",
+          style: "destructive",
           onPress: async () => {
             try {
               setLoading(true);
@@ -324,14 +313,14 @@ export default function TrackScreen() {
               await loadSymptoms();
               setShowActionsMenu(null);
               Alert.alert(
-                isRTL ? 'تم الحذف' : 'Deleted',
-                isRTL ? 'تم حذف العرض بنجاح' : 'Symptom deleted successfully'
+                isRTL ? "تم الحذف" : "Deleted",
+                isRTL ? "تم حذف العرض بنجاح" : "Symptom deleted successfully"
               );
             } catch (error) {
-              console.error('Error deleting symptom:', error);
+              console.error("Error deleting symptom:", error);
               Alert.alert(
-                isRTL ? 'خطأ' : 'Error',
-                isRTL ? 'حدث خطأ في حذف العرض' : 'Error deleting symptom'
+                isRTL ? "خطأ" : "Error",
+                isRTL ? "حدث خطأ في حذف العرض" : "Error deleting symptom"
               );
             } finally {
               setLoading(false);
@@ -345,17 +334,17 @@ export default function TrackScreen() {
   const getSeverityColor = (severityLevel: number) => {
     switch (severityLevel) {
       case 1:
-        return '#10B981';
+        return "#10B981";
       case 2:
-        return '#F59E0B';
+        return "#F59E0B";
       case 3:
-        return '#EF4444';
+        return "#EF4444";
       case 4:
-        return '#DC2626';
+        return "#DC2626";
       case 5:
-        return '#991B1B';
+        return "#991B1B";
       default:
-        return '#6B7280';
+        return "#6B7280";
     }
   };
 
@@ -364,34 +353,34 @@ export default function TrackScreen() {
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 1) {
-      return isRTL ? 'منذ أقل من ساعة' : 'Less than an hour ago';
-    } else if (diffInHours < 24) {
+      return isRTL ? "منذ أقل من ساعة" : "Less than an hour ago";
+    }
+    if (diffInHours < 24) {
       const hours = Math.floor(diffInHours);
       return isRTL
-        ? `منذ ${hours} ساعة${hours > 1 ? 'ات' : ''}`
-        : `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    } else {
-      const days = Math.floor(diffInHours / 24);
-      return isRTL
-        ? `منذ ${days} يوم${days > 1 ? '' : ''}`
-        : `${days} day${days > 1 ? 's' : ''} ago`;
+        ? `منذ ${hours} ساعة${hours > 1 ? "ات" : ""}`
+        : `${hours} hour${hours > 1 ? "s" : ""} ago`;
     }
+    const days = Math.floor(diffInHours / 24);
+    return isRTL
+      ? `منذ ${days} يوم${days > 1 ? "" : ""}`
+      : `${days} day${days > 1 ? "s" : ""} ago`;
   };
 
   const renderSeveritySelector = () => (
     <View style={styles.severityContainer}>
       <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-        {t('severity')} ({severity}/5)
+        {t("severity")} ({severity}/5)
       </Text>
       <View style={styles.severityButtons}>
         {[1, 2, 3, 4, 5].map((level) => (
           <TouchableOpacity
             key={level}
+            onPress={() => setSeverity(level)}
             style={[
               styles.severityButton,
               severity >= level && styles.severityButtonActive,
             ]}
-            onPress={() => setSeverity(level)}
           >
             <Text
               style={[
@@ -406,10 +395,10 @@ export default function TrackScreen() {
       </View>
       <View style={styles.severityLabels}>
         <Text style={[styles.severityLabel, isRTL && styles.rtlText]}>
-          {t('mild')}
+          {t("mild")}
         </Text>
         <Text style={[styles.severityLabel, isRTL && styles.rtlText]}>
-          {t('verySevere')}
+          {t("verySevere")}
         </Text>
       </View>
     </View>
@@ -429,43 +418,44 @@ export default function TrackScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {t('symptoms')}
+          {t("symptoms")}
         </Text>
         <TouchableOpacity
-          style={styles.addButton}
           onPress={() => {
             setSelectedTargetUser(user.id);
             setShowAddModal(true);
           }}
+          style={styles.addButton}
         >
-          <Plus size={24} color="#FFFFFF" />
+          <Plus color="#FFFFFF" size={24} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
+      <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => loadSymptoms(true)}
+            refreshing={refreshing}
             tintColor="#2563EB"
           />
-        }>
+        }
+        showsVerticalScrollIndicator={false}
+        style={styles.content}
+      >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
-          familyMembers={familyMembers}
           currentUserId={user.id}
-          selectedFilter={selectedFilter}
-          onFilterChange={handleFilterChange}
-          isAdmin={isAdmin}
+          familyMembers={familyMembers}
           hasFamily={hasFamily}
+          isAdmin={isAdmin}
+          onFilterChange={handleFilterChange}
+          selectedFilter={selectedFilter}
         />
 
         {/* Stats Section */}
         <View style={styles.statsSection}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {t('thisWeek')}
+            {t("thisWeek")}
           </Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
@@ -473,17 +463,17 @@ export default function TrackScreen() {
                 {stats.totalSymptoms}
               </Text>
               <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {selectedFilter.type === 'family'
+                {selectedFilter.type === "family"
                   ? isRTL
-                    ? 'أعراض العائلة'
-                    : 'Family Symptoms'
-                  : selectedFilter.type === 'member'
-                  ? isRTL
-                    ? `أعراض ${selectedFilter.memberName}`
-                    : `${selectedFilter.memberName}'s Symptoms`
-                  : isRTL
-                  ? 'إجمالي الأعراض'
-                  : 'Total Symptoms'}
+                    ? "أعراض العائلة"
+                    : "Family Symptoms"
+                  : selectedFilter.type === "member"
+                    ? isRTL
+                      ? `أعراض ${selectedFilter.memberName}`
+                      : `${selectedFilter.memberName}'s Symptoms`
+                    : isRTL
+                      ? "إجمالي الأعراض"
+                      : "Total Symptoms"}
               </Text>
             </View>
             <View style={styles.statCard}>
@@ -491,7 +481,7 @@ export default function TrackScreen() {
                 {stats.avgSeverity.toFixed(1)}
               </Text>
               <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-                {isRTL ? 'متوسط الشدة' : 'Avg Severity'}
+                {isRTL ? "متوسط الشدة" : "Avg Severity"}
               </Text>
             </View>
           </View>
@@ -500,29 +490,29 @@ export default function TrackScreen() {
         {/* Symptoms List */}
         <View style={styles.symptomsSection}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {selectedFilter.type === 'family'
+            {selectedFilter.type === "family"
               ? isRTL
-                ? 'أعراض العائلة الأخيرة'
-                : 'Recent Family Symptoms'
-              : selectedFilter.type === 'member'
-              ? isRTL
-                ? `أعراض ${selectedFilter.memberName} الأخيرة`
-                : `${selectedFilter.memberName}'s Recent Symptoms`
-              : isRTL
-              ? 'أعراضي الأخيرة'
-              : 'My Recent Symptoms'}
+                ? "أعراض العائلة الأخيرة"
+                : "Recent Family Symptoms"
+              : selectedFilter.type === "member"
+                ? isRTL
+                  ? `أعراض ${selectedFilter.memberName} الأخيرة`
+                  : `${selectedFilter.memberName}'s Recent Symptoms`
+                : isRTL
+                  ? "أعراضي الأخيرة"
+                  : "My Recent Symptoms"}
           </Text>
 
           {loading ? (
             <View style={styles.centerContainer}>
               <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                {isRTL ? 'جاري التحميل...' : 'Loading...'}
+                {isRTL ? "جاري التحميل..." : "Loading..."}
               </Text>
             </View>
           ) : symptoms.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL ? 'لا توجد أعراض مسجلة' : 'No symptoms recorded'}
+                {isRTL ? "لا توجد أعراض مسجلة" : "No symptoms recorded"}
               </Text>
             </View>
           ) : (
@@ -540,8 +530,8 @@ export default function TrackScreen() {
                         {formatDate(symptom.timestamp)}
                       </Text>
                       {/* Show member name for family/admin views */}
-                      {(selectedFilter.type === 'family' ||
-                        selectedFilter.type === 'member') && (
+                      {(selectedFilter.type === "family" ||
+                        selectedFilter.type === "member") && (
                         <View style={styles.memberBadge}>
                           <Text
                             style={[
@@ -569,17 +559,17 @@ export default function TrackScreen() {
                     {/* Show action menu only for symptoms user can manage */}
                     {(symptom.userId === user.id ||
                       (isAdmin &&
-                        (selectedFilter.type === 'family' ||
-                          selectedFilter.type === 'member'))) && (
+                        (selectedFilter.type === "family" ||
+                          selectedFilter.type === "member"))) && (
                       <TouchableOpacity
-                        style={styles.actionsButton}
                         onPress={() =>
                           setShowActionsMenu(
                             showActionsMenu === symptom.id ? null : symptom.id
                           )
                         }
+                        style={styles.actionsButton}
                       >
-                        <MoreVertical size={16} color="#64748B" />
+                        <MoreVertical color="#64748B" size={16} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -597,21 +587,21 @@ export default function TrackScreen() {
                 {showActionsMenu === symptom.id && (
                   <View style={styles.actionsMenu}>
                     <TouchableOpacity
-                      style={styles.actionItem}
                       onPress={() => handleEditSymptom(symptom)}
+                      style={styles.actionItem}
                     >
-                      <Edit size={16} color="#64748B" />
+                      <Edit color="#64748B" size={16} />
                       <Text
                         style={[styles.actionText, isRTL && styles.rtlText]}
                       >
-                        {isRTL ? 'تعديل' : 'Edit'}
+                        {isRTL ? "تعديل" : "Edit"}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.actionItem}
                       onPress={() => handleDeleteSymptom(symptom)}
+                      style={styles.actionItem}
                     >
-                      <Trash2 size={16} color="#EF4444" />
+                      <Trash2 color="#EF4444" size={16} />
                       <Text
                         style={[
                           styles.actionText,
@@ -619,7 +609,7 @@ export default function TrackScreen() {
                           isRTL && styles.rtlText,
                         ]}
                       >
-                        {isRTL ? 'حذف' : 'Delete'}
+                        {isRTL ? "حذف" : "Delete"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -632,41 +622,41 @@ export default function TrackScreen() {
 
       {/* Add Symptom Modal */}
       <Modal
-        visible={showAddModal}
         animationType="slide"
-        presentationStyle="pageSheet"
         onRequestClose={() => {
           setShowAddModal(false);
           setEditingSymptom(null);
-          setSelectedSymptom('');
-          setCustomSymptom('');
+          setSelectedSymptom("");
+          setCustomSymptom("");
           setSeverity(1);
-          setDescription('');
+          setDescription("");
         }}
+        presentationStyle="pageSheet"
+        visible={showAddModal}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
               {editingSymptom
                 ? isRTL
-                  ? 'تعديل العرض'
-                  : 'Edit Symptom'
+                  ? "تعديل العرض"
+                  : "Edit Symptom"
                 : isRTL
-                ? 'إضافة عرض جديد'
-                : 'Add New Symptom'}
+                  ? "إضافة عرض جديد"
+                  : "Add New Symptom"}
             </Text>
             <TouchableOpacity
-              style={styles.closeButton}
               onPress={() => {
                 setShowAddModal(false);
                 setEditingSymptom(null);
-                setSelectedSymptom('');
-                setCustomSymptom('');
+                setSelectedSymptom("");
+                setCustomSymptom("");
                 setSeverity(1);
-                setDescription('');
+                setDescription("");
               }}
+              style={styles.closeButton}
             >
-              <X size={24} color="#64748B" />
+              <X color="#64748B" size={24} />
             </TouchableOpacity>
           </View>
 
@@ -675,18 +665,18 @@ export default function TrackScreen() {
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? 'إضافة العرض لـ' : 'Add symptom for'}
+                  {isRTL ? "إضافة العرض لـ" : "Add symptom for"}
                 </Text>
                 <View style={styles.memberSelectionContainer}>
                   {familyMembers.map((member) => (
                     <TouchableOpacity
                       key={member.id}
+                      onPress={() => setSelectedTargetUser(member.id)}
                       style={[
                         styles.memberOption,
                         selectedTargetUser === member.id &&
                           styles.memberOptionSelected,
                       ]}
-                      onPress={() => setSelectedTargetUser(member.id)}
                     >
                       <View style={styles.memberInfo}>
                         <Text
@@ -699,11 +689,11 @@ export default function TrackScreen() {
                         >
                           {member.id === user.id
                             ? isRTL
-                              ? 'أنت'
-                              : 'You'
+                              ? "أنت"
+                              : "You"
                             : member.name}
                         </Text>
-                        {member.role === 'admin' && (
+                        {member.role === "admin" && (
                           <Text
                             style={[
                               styles.memberRole,
@@ -712,7 +702,7 @@ export default function TrackScreen() {
                               isRTL && styles.rtlText,
                             ]}
                           >
-                            {isRTL ? 'مدير' : 'Admin'}
+                            {isRTL ? "مدير" : "Admin"}
                           </Text>
                         )}
                       </View>
@@ -725,23 +715,23 @@ export default function TrackScreen() {
             {/* Common Symptoms */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('commonSymptoms')}
+                {t("commonSymptoms")}
               </Text>
               <View style={styles.symptomsGrid}>
                 {COMMON_SYMPTOMS.map((symptomType) => (
                   <TouchableOpacity
                     key={symptomType}
+                    onPress={() => {
+                      setSelectedSymptom(
+                        selectedSymptom === symptomType ? "" : symptomType
+                      );
+                      setCustomSymptom("");
+                    }}
                     style={[
                       styles.symptomOption,
                       selectedSymptom === symptomType &&
                         styles.symptomOptionSelected,
                     ]}
-                    onPress={() => {
-                      setSelectedSymptom(
-                        selectedSymptom === symptomType ? '' : symptomType
-                      );
-                      setCustomSymptom('');
-                    }}
                   >
                     <Text
                       style={[
@@ -761,19 +751,19 @@ export default function TrackScreen() {
             {/* Custom Symptom */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('customSymptom')}
+                {t("customSymptom")}
               </Text>
               <TextInput
-                style={[styles.textInput, isRTL && styles.rtlTextInput]}
-                placeholder={
-                  isRTL ? 'أدخل نوع العرض...' : 'Enter symptom type...'
-                }
-                value={customSymptom}
                 onChangeText={(text) => {
                   setCustomSymptom(text);
-                  if (text) setSelectedSymptom('');
+                  if (text) setSelectedSymptom("");
                 }}
-                textAlign={isRTL ? 'right' : 'left'}
+                placeholder={
+                  isRTL ? "أدخل نوع العرض..." : "Enter symptom type..."
+                }
+                style={[styles.textInput, isRTL && styles.rtlTextInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={customSymptom}
               />
             </View>
 
@@ -783,45 +773,45 @@ export default function TrackScreen() {
             {/* Description */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t('description')} ({isRTL ? 'اختياري' : 'Optional'})
+                {t("description")} ({isRTL ? "اختياري" : "Optional"})
               </Text>
               <TextInput
+                multiline
+                numberOfLines={3}
+                onChangeText={setDescription}
+                placeholder={
+                  isRTL
+                    ? "أضف وصفاً للعرض..."
+                    : "Add a description of the symptom..."
+                }
                 style={[
                   styles.textInput,
                   styles.textArea,
                   isRTL && styles.rtlTextInput,
                 ]}
-                placeholder={
-                  isRTL
-                    ? 'أضف وصفاً للعرض...'
-                    : 'Add a description of the symptom...'
-                }
+                textAlign={isRTL ? "right" : "left"}
                 value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={3}
-                textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
 
             {/* Save Button */}
             <TouchableOpacity
-              style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-              onPress={handleAddSymptom}
               disabled={loading}
+              onPress={handleAddSymptom}
+              style={[styles.saveButton, loading && styles.saveButtonDisabled]}
             >
               <Text style={[styles.saveButtonText, isRTL && styles.rtlText]}>
                 {loading
                   ? isRTL
-                    ? 'جاري الحفظ...'
-                    : 'Saving...'
+                    ? "جاري الحفظ..."
+                    : "Saving..."
                   : editingSymptom
-                  ? isRTL
-                    ? 'تحديث العرض'
-                    : 'Update Symptom'
-                  : isRTL
-                  ? 'حفظ العرض'
-                  : 'Save Symptom'}
+                    ? isRTL
+                      ? "تحديث العرض"
+                      : "Update Symptom"
+                    : isRTL
+                      ? "حفظ العرض"
+                      : "Save Symptom"}
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -834,34 +824,34 @@ export default function TrackScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: "#E2E8F0",
   },
   title: {
     fontSize: 24,
-    fontFamily: 'Geist-Bold',
-    color: '#1E293B',
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
   },
   rtlText: {
-    fontFamily: 'Cairo-Bold',
-    textAlign: 'right',
+    fontFamily: "Cairo-Bold",
+    textAlign: "right",
   },
   addButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#2563EB",
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     flex: 1,
@@ -872,21 +862,21 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 12,
   },
   statsGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -894,34 +884,34 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 24,
-    fontFamily: 'Geist-Bold',
-    color: '#2563EB',
+    fontFamily: "Geist-Bold",
+    color: "#2563EB",
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
-    textAlign: 'center',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    textAlign: "center",
   },
   symptomsSection: {
     marginBottom: 24,
   },
   symptomCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   symptomHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   symptomInfo: {
@@ -929,124 +919,124 @@ const styles = StyleSheet.create({
   },
   symptomType: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 4,
   },
   symptomMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   symptomDate: {
     fontSize: 12,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   memberBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: "#EEF2FF",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   memberBadgeText: {
     fontSize: 10,
-    fontFamily: 'Geist-Medium',
-    color: '#6366F1',
+    fontFamily: "Geist-Medium",
+    color: "#6366F1",
   },
   symptomActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   severityBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   severityText: {
     fontSize: 12,
-    fontFamily: 'Geist-Bold',
-    color: '#FFFFFF',
+    fontFamily: "Geist-Bold",
+    color: "#FFFFFF",
   },
   actionsButton: {
     padding: 4,
   },
   symptomDescription: {
     fontSize: 14,
-    fontFamily: 'Geist-Regular',
-    color: '#475569',
+    fontFamily: "Geist-Regular",
+    color: "#475569",
     lineHeight: 20,
   },
   actionsMenu: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    flexDirection: 'row',
+    borderTopColor: "#E2E8F0",
+    flexDirection: "row",
     gap: 16,
   },
   actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingVertical: 4,
   },
   actionText: {
     fontSize: 14,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   deleteText: {
-    color: '#EF4444',
+    color: "#EF4444",
   },
   centerContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 32,
   },
   emptyText: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
-    textAlign: 'center',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    textAlign: "center",
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   errorText: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#EF4444',
-    textAlign: 'center',
+    fontFamily: "Geist-Medium",
+    color: "#EF4444",
+    textAlign: "center",
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: "#E2E8F0",
   },
   modalTitle: {
     fontSize: 20,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
   },
   closeButton: {
     padding: 4,
@@ -1060,147 +1050,147 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#1E293B',
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
     marginBottom: 8,
   },
   symptomsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   symptomOption: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
   },
   symptomOptionSelected: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
   },
   symptomOptionText: {
     fontSize: 14,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   symptomOptionTextSelected: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   textInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    fontFamily: 'Geist-Regular',
-    color: '#1E293B',
+    fontFamily: "Geist-Regular",
+    color: "#1E293B",
   },
   rtlTextInput: {
-    fontFamily: 'Cairo-Regular',
+    fontFamily: "Cairo-Regular",
   },
   textArea: {
     minHeight: 80,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   severityContainer: {
     marginBottom: 24,
   },
   severityButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginBottom: 8,
   },
   severityButton: {
     flex: 1,
     height: 44,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
   },
   severityButtonActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
   },
   severityButtonText: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#64748B',
+    fontFamily: "Geist-SemiBold",
+    color: "#64748B",
   },
   severityButtonTextActive: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   severityLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   severityLabel: {
     fontSize: 12,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
   },
   saveButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     borderRadius: 8,
     paddingVertical: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 24,
   },
   saveButtonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: "#94A3B8",
   },
   saveButtonText: {
     fontSize: 16,
-    fontFamily: 'Geist-SemiBold',
-    color: '#FFFFFF',
+    fontFamily: "Geist-SemiBold",
+    color: "#FFFFFF",
   },
   // Member selection styles
   memberSelectionContainer: {
     gap: 8,
   },
   memberOption: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: "#E2E8F0",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   memberOptionSelected: {
-    backgroundColor: '#EBF4FF',
-    borderColor: '#2563EB',
+    backgroundColor: "#EBF4FF",
+    borderColor: "#2563EB",
   },
   memberInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   memberName: {
     fontSize: 16,
-    fontFamily: 'Geist-Medium',
-    color: '#1E293B',
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
   },
   memberNameSelected: {
-    color: '#2563EB',
+    color: "#2563EB",
   },
   memberRole: {
     fontSize: 12,
-    fontFamily: 'Geist-Medium',
-    color: '#64748B',
-    backgroundColor: '#F1F5F9',
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
   },
   memberRoleSelected: {
-    color: '#2563EB',
-    backgroundColor: '#EBF4FF',
+    color: "#2563EB",
+    backgroundColor: "#EBF4FF",
   },
 });

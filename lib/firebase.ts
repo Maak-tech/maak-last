@@ -1,8 +1,8 @@
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import { getFunctions } from 'firebase/functions';
+import { getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
+import { getStorage } from "firebase/storage";
 
 const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
 const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
@@ -13,21 +13,22 @@ const appId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID;
 const measurementId = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
 // Check if Firebase app already exists (prevents duplicate initialization during HMR)
-const app = getApps().length === 0
-  ? initializeApp({
-      apiKey,
-      authDomain,
-      projectId,
-      storageBucket,
-      messagingSenderId,
-      appId,
-      measurementId,
-    })
-  : getApp();
+const app =
+  getApps().length === 0
+    ? initializeApp({
+        apiKey,
+        authDomain,
+        projectId,
+        storageBucket,
+        messagingSenderId,
+        appId,
+        measurementId,
+      })
+    : getApp();
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-export const functions = getFunctions(app, 'us-central1');
+export const functions = getFunctions(app, "us-central1");
 
 export default app;

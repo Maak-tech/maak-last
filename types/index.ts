@@ -4,11 +4,11 @@ export interface User {
   name: string;
   avatar?: string;
   familyId?: string;
-  role: 'admin' | 'member';
+  role: "admin" | "member";
   createdAt: Date;
   onboardingCompleted: boolean;
   preferences: {
-    language: 'en' | 'ar';
+    language: "en" | "ar";
     notifications: boolean;
     emergencyContacts: string[];
   };
@@ -50,7 +50,7 @@ export interface MedicalHistory {
   userId: string;
   condition: string;
   diagnosedDate?: Date;
-  severity?: 'mild' | 'moderate' | 'severe';
+  severity?: "mild" | "moderate" | "severe";
   notes?: string;
   isFamily: boolean;
   relation?: string;
@@ -62,7 +62,7 @@ export interface FamilyMember {
   relation: string;
   avatar?: string;
   userId?: string;
-  inviteStatus: 'pending' | 'accepted' | 'none';
+  inviteStatus: "pending" | "accepted" | "none";
   lastActive?: Date;
   healthScore?: number;
 }
@@ -70,18 +70,18 @@ export interface FamilyMember {
 export interface VitalSign {
   id: string;
   userId: string;
-  type: 'heartRate' | 'bloodPressure' | 'temperature' | 'weight' | 'bloodSugar';
+  type: "heartRate" | "bloodPressure" | "temperature" | "weight" | "bloodSugar";
   value: number;
   unit: string;
   timestamp: Date;
-  source: 'manual' | 'device' | 'clinic';
+  source: "manual" | "device" | "clinic";
 }
 
 export interface EmergencyAlert {
   id: string;
   userId: string;
-  type: 'fall' | 'emergency' | 'medication' | 'vitals';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "fall" | "emergency" | "medication" | "vitals";
+  severity: "low" | "medium" | "high" | "critical";
   message: string;
   timestamp: Date;
   resolved: boolean;
@@ -95,7 +95,7 @@ export interface FamilyInvitationCode {
   invitedBy: string; // userId who created the invitation
   invitedUserName: string;
   invitedUserRelation: string;
-  status: 'pending' | 'used' | 'expired';
+  status: "pending" | "used" | "expired";
   createdAt: Date;
   expiresAt: Date;
   usedAt?: Date;
@@ -107,6 +107,6 @@ export interface Family {
   name: string;
   createdBy: string;
   members: string[]; // array of user IDs
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   createdAt: Date;
 }

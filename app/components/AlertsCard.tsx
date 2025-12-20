@@ -1,22 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { AlertTriangle, CheckCircle, Clock } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
-} from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/AuthContext';
-import { alertService } from '@/lib/services/alertService';
-import { userService } from '@/lib/services/userService';
-import { EmergencyAlert, User } from '@/types';
-import {
-  AlertTriangle,
-  Clock,
-  CheckCircle,
-} from 'lucide-react-native';
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import { alertService } from "@/lib/services/alertService";
+import { userService } from "@/lib/services/userService";
+import type { EmergencyAlert, User } from "@/types";
 
 interface AlertsCardProps {
   refreshTrigger?: number;
@@ -30,7 +26,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
 
-  const isRTL = i18n.language === 'ar';
+  const isRTL = i18n.language === "ar";
 
   useEffect(() => {
     loadAlerts();
@@ -64,19 +60,19 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       await alertService.addResponder(alertId, user.id);
 
       Alert.alert(
-        isRTL ? 'تم التجاوب' : 'Response Recorded',
+        isRTL ? "تم التجاوب" : "Response Recorded",
         isRTL
-          ? 'تم تسجيل استجابتك للتنبيه. تواصل مع المريض للتأكد من سلامته.'
-          : 'Your response has been recorded. Please contact the patient to ensure they are safe.',
-        [{ text: isRTL ? 'موافق' : 'OK' }]
+          ? "تم تسجيل استجابتك للتنبيه. تواصل مع المريض للتأكد من سلامته."
+          : "Your response has been recorded. Please contact the patient to ensure they are safe.",
+        [{ text: isRTL ? "موافق" : "OK" }]
       );
 
       await loadAlerts();
     } catch (error) {
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'فشل في تسجيل الاستجابة' : 'Failed to record response',
-        [{ text: isRTL ? 'موافق' : 'OK' }],
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في تسجيل الاستجابة" : "Failed to record response",
+        [{ text: isRTL ? "موافق" : "OK" }],
         { cancelable: true }
       );
     } finally {
@@ -90,61 +86,61 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     try {
       await alertService.resolveAlert(alertId, user.id);
       await loadAlerts();
-      
+
       Alert.alert(
-        isRTL ? 'تم الحل' : 'Resolved',
-        isRTL ? 'تم حل التنبيه بنجاح' : 'Alert resolved successfully',
-        [{ text: isRTL ? 'موافق' : 'OK' }]
+        isRTL ? "تم الحل" : "Resolved",
+        isRTL ? "تم حل التنبيه بنجاح" : "Alert resolved successfully",
+        [{ text: isRTL ? "موافق" : "OK" }]
       );
     } catch (error) {
       Alert.alert(
-        isRTL ? 'خطأ' : 'Error',
-        isRTL ? 'فشل في حل التنبيه' : 'Failed to resolve alert',
-        [{ text: isRTL ? 'موافق' : 'OK' }]
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في حل التنبيه" : "Failed to resolve alert",
+        [{ text: isRTL ? "موافق" : "OK" }]
       );
     }
   };
 
   const getMemberName = (userId: string): string => {
     const member = familyMembers.find((m) => m.id === userId);
-    return member?.name || (isRTL ? 'عضو غير معروف' : 'Unknown Member');
+    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
   };
 
   const getAlertIcon = (type: string) => {
     switch (type) {
-      case 'fall':
-        return <AlertTriangle size={24} color="#EF4444" />;
-      case 'medication':
-        return <Clock size={24} color="#F59E0B" />;
-      case 'emergency':
-        return <AlertTriangle size={24} color="#DC2626" />;
+      case "fall":
+        return <AlertTriangle color="#EF4444" size={24} />;
+      case "medication":
+        return <Clock color="#F59E0B" size={24} />;
+      case "emergency":
+        return <AlertTriangle color="#DC2626" size={24} />;
       default:
-        return <AlertTriangle size={24} color="#6B7280" />;
+        return <AlertTriangle color="#6B7280" size={24} />;
     }
   };
 
   const getAlertColor = (severity: string) => {
     switch (severity) {
-      case 'critical':
-        return '#DC2626';
-      case 'high':
-        return '#EF4444';
-      case 'medium':
-        return '#F59E0B';
-      case 'low':
-        return '#10B981';
+      case "critical":
+        return "#DC2626";
+      case "high":
+        return "#EF4444";
+      case "medium":
+        return "#F59E0B";
+      case "low":
+        return "#10B981";
       default:
-        return '#6B7280';
+        return "#6B7280";
     }
   };
 
   const formatTimestamp = (timestamp: Date) => {
     const now = new Date();
     const diff = now.getTime() - timestamp.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor(diff / 60_000);
+    const hours = Math.floor(diff / 3_600_000);
 
-    if (minutes < 1) return isRTL ? 'الآن' : 'now';
+    if (minutes < 1) return isRTL ? "الآن" : "now";
     if (minutes < 60) return isRTL ? `منذ ${minutes}د` : `${minutes}m ago`;
     if (hours < 24) return isRTL ? `منذ ${hours}س` : `${hours}h ago`;
     return timestamp.toLocaleDateString();
@@ -153,7 +149,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const renderAlert = ({ item }: { item: EmergencyAlert }) => {
     const memberName = getMemberName(item.userId);
     const isResponding = respondingTo === item.id;
-    const hasResponded = item.responders?.includes(user?.id || '');
+    const hasResponded = item.responders?.includes(user?.id || "");
 
     return (
       <View
@@ -163,16 +159,14 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         ]}
       >
         <View style={styles.alertHeader}>
-          <View style={styles.alertIcon}>
-            {getAlertIcon(item.type)}
-          </View>
+          <View style={styles.alertIcon}>{getAlertIcon(item.type)}</View>
           <View style={styles.alertInfo}>
             <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
-              {item.type === 'fall' && (isRTL ? 'تنبيه سقوط' : 'Fall Alert')}
-              {item.type === 'medication' &&
-                (isRTL ? 'تنبيه دواء' : 'Medication Alert')}
-              {item.type === 'emergency' &&
-                (isRTL ? 'تنبيه طوارئ' : 'Emergency Alert')}
+              {item.type === "fall" && (isRTL ? "تنبيه سقوط" : "Fall Alert")}
+              {item.type === "medication" &&
+                (isRTL ? "تنبيه دواء" : "Medication Alert")}
+              {item.type === "emergency" &&
+                (isRTL ? "تنبيه طوارئ" : "Emergency Alert")}
             </Text>
             <Text style={[styles.alertMember, isRTL && styles.rtlText]}>
               {memberName}
@@ -190,10 +184,10 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         {item.responders && item.responders.length > 0 && (
           <View style={styles.respondersSection}>
             <Text style={[styles.respondersLabel, isRTL && styles.rtlText]}>
-              {isRTL ? 'المتجاوبون:' : 'Responders:'}
+              {isRTL ? "المتجاوبون:" : "Responders:"}
             </Text>
             <Text style={[styles.respondersText, isRTL && styles.rtlText]}>
-              {item.responders.map((id) => getMemberName(id)).join(', ')}
+              {item.responders.map((id) => getMemberName(id)).join(", ")}
             </Text>
           </View>
         )}
@@ -201,35 +195,35 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         <View style={styles.alertActions}>
           {!hasResponded && (
             <TouchableOpacity
-              style={[styles.actionButton, styles.respondButton]}
-              onPress={() => handleRespond(item.id)}
               disabled={isResponding}
+              onPress={() => handleRespond(item.id)}
+              style={[styles.actionButton, styles.respondButton]}
             >
               {isResponding ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <CheckCircle size={16} color="#FFFFFF" />
+                <CheckCircle color="#FFFFFF" size={16} />
               )}
               <Text style={[styles.actionButtonText, isRTL && styles.rtlText]}>
-                {isRTL ? 'تجاوب' : 'Respond'}
+                {isRTL ? "تجاوب" : "Respond"}
               </Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
-            style={[styles.actionButton, styles.resolveButton]}
-            onPress={() => handleResolve(item.id)}
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={() => handleResolve(item.id)}
+            style={[styles.actionButton, styles.resolveButton]}
           >
-            <CheckCircle size={16} color="#10B981" />
+            <CheckCircle color="#10B981" size={16} />
             <Text
               style={[
                 styles.actionButtonTextSecondary,
                 isRTL && styles.rtlText,
               ]}
             >
-              {isRTL ? 'حل' : 'Resolve'}
+              {isRTL ? "حل" : "Resolve"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -246,11 +240,11 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'}
+            {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
           </Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
+          <ActivityIndicator color="#2563EB" size="large" />
         </View>
       </View>
     );
@@ -261,13 +255,13 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'}
+            {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
           </Text>
         </View>
         <View style={styles.emptyContainer}>
-          <CheckCircle size={48} color="#10B981" />
+          <CheckCircle color="#10B981" size={48} />
           <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-            {isRTL ? 'لا توجد تنبيهات نشطة' : 'No active alerts'}
+            {isRTL ? "لا توجد تنبيهات نشطة" : "No active alerts"}
           </Text>
         </View>
       </View>
@@ -278,7 +272,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'}
+          {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
         </Text>
         <View style={styles.alertBadge}>
           <Text style={styles.alertBadgeText}>{alerts.length}</Text>
@@ -287,9 +281,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
       <View style={styles.alertsList}>
         {alerts.map((item) => (
-          <View key={item.id}>
-            {renderAlert({ item })}
-          </View>
+          <View key={item.id}>{renderAlert({ item })}</View>
         ))}
       </View>
     </View>
@@ -298,67 +290,67 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
   },
   alertBadge: {
-    backgroundColor: '#EF4444',
+    backgroundColor: "#EF4444",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
     minWidth: 24,
-    alignItems: 'center',
+    alignItems: "center",
   },
   alertBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   loadingContainer: {
     padding: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyContainer: {
     padding: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: "#6B7280",
     marginTop: 8,
   },
   alertsList: {
     padding: 16,
   },
   alertCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
   },
   alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   alertIcon: {
@@ -369,21 +361,21 @@ const styles = StyleSheet.create({
   },
   alertTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
     marginBottom: 2,
   },
   alertMember: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   alertTime: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   alertMessage: {
     fontSize: 14,
-    color: '#4B5563',
+    color: "#4B5563",
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -392,45 +384,45 @@ const styles = StyleSheet.create({
   },
   respondersLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontWeight: "600",
+    color: "#6B7280",
     marginBottom: 4,
   },
   respondersText: {
     fontSize: 12,
-    color: '#4B5563',
+    color: "#4B5563",
   },
   alertActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
     gap: 4,
   },
   respondButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
   },
   resolveButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
   actionButtonTextSecondary: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#10B981',
+    fontWeight: "600",
+    color: "#10B981",
   },
   rtlText: {
-    textAlign: 'right',
+    textAlign: "right",
   },
 });

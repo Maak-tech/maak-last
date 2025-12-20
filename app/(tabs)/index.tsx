@@ -1,40 +1,37 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import * as Haptics from "expo-haptics";
+import { router, useFocusEffect } from "expo-router";
 import {
-  View,
-  Text,
-  ScrollView,
-  SafeAreaView,
-  TouchableOpacity,
-  RefreshControl,
+  Activity,
+  AlertTriangle,
+  ChevronRight,
+  Heart,
+  Phone,
+  Pill,
+  Users,
+} from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
   Alert,
   Linking,
-} from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { router, useFocusEffect } from 'expo-router';
-import { createThemedStyles, getTextStyle } from '@/utils/styles';
-import {
-  Heart,
-  AlertTriangle,
-  Pill,
-  Activity,
-  Users,
-  TrendingUp,
-  ChevronRight,
-  User,
-  Phone,
-  AlertCircle,
-} from 'lucide-react-native';
-import { symptomService } from '@/lib/services/symptomService';
-import { medicationService } from '@/lib/services/medicationService';
-import { alertService } from '@/lib/services/alertService';
-import { userService } from '@/lib/services/userService';
-import { Symptom, Medication, User as UserType } from '@/types';
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import FamilyDataFilter, {
-  FilterOption,
-} from '@/app/components/FamilyDataFilter';
+  type FilterOption,
+} from "@/app/components/FamilyDataFilter";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { alertService } from "@/lib/services/alertService";
+import { medicationService } from "@/lib/services/medicationService";
+import { symptomService } from "@/lib/services/symptomService";
+import { userService } from "@/lib/services/userService";
+import type { Medication, Symptom, User as UserType } from "@/types";
+import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
@@ -53,15 +50,15 @@ export default function DashboardScreen() {
   });
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
-    id: 'personal',
-    type: 'personal',
-    label: '',
+    id: "personal",
+    type: "personal",
+    label: "",
   });
 
-  const isRTL = i18n.language === 'ar';
-  const isAdmin = user?.role === 'admin';
+  const isRTL = i18n.language === "ar";
+  const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
-  
+
   // Create themed styles
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -70,8 +67,8 @@ export default function DashboardScreen() {
     },
     centerContainer: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+      justifyContent: "center",
+      alignItems: "center",
     },
     content: {
       flex: 1,
@@ -81,14 +78,14 @@ export default function DashboardScreen() {
       marginBottom: theme.spacing.xl,
     },
     welcomeText: {
-      ...getTextStyle(theme, 'heading', 'bold', theme.colors.primary.main),
+      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
       marginBottom: 4,
     },
     dateText: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.secondary),
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
     },
     statsContainer: {
-      flexDirection: 'row' as const,
+      flexDirection: "row" as const,
       marginBottom: theme.spacing.xl,
       gap: theme.spacing.md,
     },
@@ -97,25 +94,25 @@ export default function DashboardScreen() {
       backgroundColor: theme.colors.background.secondary,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.base,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       ...theme.shadows.md,
     },
     statValue: {
-      ...getTextStyle(theme, 'heading', 'bold', theme.colors.secondary.main),
+      ...getTextStyle(theme, "heading", "bold", theme.colors.secondary.main),
       marginTop: theme.spacing.sm,
       marginBottom: 4,
     },
     statLabel: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.text.secondary),
-      textAlign: 'center' as const,
+      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
+      textAlign: "center" as const,
     },
     alertCard: {
-      backgroundColor: theme.colors.accent.error + '10',
+      backgroundColor: theme.colors.accent.error + "10",
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.base,
       marginBottom: theme.spacing.xl,
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       borderLeftWidth: 4,
       borderLeftColor: theme.colors.accent.error,
     },
@@ -124,11 +121,11 @@ export default function DashboardScreen() {
       flex: 1,
     },
     alertTitle: {
-      ...getTextStyle(theme, 'subheading', 'bold', theme.colors.accent.error),
+      ...getTextStyle(theme, "subheading", "bold", theme.colors.accent.error),
       marginBottom: 4,
     },
     alertText: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.accent.error),
+      ...getTextStyle(theme, "body", "regular", theme.colors.accent.error),
     },
     section: {
       backgroundColor: theme.colors.background.secondary,
@@ -138,26 +135,26 @@ export default function DashboardScreen() {
       ...theme.shadows.md,
     },
     sectionTitle: {
-      ...getTextStyle(theme, 'subheading', 'bold', theme.colors.primary.main),
+      ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
       marginBottom: theme.spacing.base,
     },
     sectionHeader: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
       marginBottom: theme.spacing.base,
     },
     viewAllButton: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: 4,
     },
     viewAllText: {
-      ...getTextStyle(theme, 'body', 'medium', theme.colors.primary.main),
+      ...getTextStyle(theme, "body", "medium", theme.colors.primary.main),
     },
     medicationItem: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       paddingVertical: theme.spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border.light,
@@ -167,22 +164,22 @@ export default function DashboardScreen() {
       height: 40,
       backgroundColor: theme.colors.primary[50],
       borderRadius: 20,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
       marginRight: theme.spacing.md,
     },
     medicationInfo: {
       flex: 1,
     },
     medicationName: {
-      ...getTextStyle(theme, 'body', 'semibold', theme.colors.text.primary),
+      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
       marginBottom: 4,
     },
     medicationDosage: {
-      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
     },
     medicationStatus: {
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
     },
     statusDot: {
       width: 8,
@@ -190,9 +187,9 @@ export default function DashboardScreen() {
       borderRadius: 4,
     },
     symptomItem: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
       paddingVertical: theme.spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border.light,
@@ -201,14 +198,14 @@ export default function DashboardScreen() {
       flex: 1,
     },
     symptomType: {
-      ...getTextStyle(theme, 'body', 'semibold', theme.colors.text.primary),
+      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
       marginBottom: 4,
     },
     symptomTime: {
-      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
     },
     severityDisplay: {
-      flexDirection: 'row' as const,
+      flexDirection: "row" as const,
       gap: 3,
     },
     severityDot: {
@@ -220,8 +217,8 @@ export default function DashboardScreen() {
       backgroundColor: theme.colors.background.secondary,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       marginBottom: theme.spacing.xl,
       ...theme.shadows.md,
     },
@@ -230,35 +227,35 @@ export default function DashboardScreen() {
       flex: 1,
     },
     healthScoreTitle: {
-      ...getTextStyle(theme, 'body', 'medium', theme.colors.text.secondary),
+      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
       marginBottom: 4,
     },
     healthScoreValue: {
-      ...getTextStyle(theme, 'heading', 'bold', theme.colors.accent.success),
+      ...getTextStyle(theme, "heading", "bold", theme.colors.accent.success),
       fontSize: 32,
     },
     healthScoreDesc: {
-      ...getTextStyle(theme, 'caption', 'regular', theme.colors.text.secondary),
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
     },
     emptyText: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.text.tertiary),
-      textAlign: 'center' as const,
-      fontStyle: 'italic' as const,
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.tertiary),
+      textAlign: "center" as const,
+      fontStyle: "italic" as const,
       paddingVertical: theme.spacing.lg,
     },
     emptyContainer: {
       paddingVertical: theme.spacing.lg,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
     },
     errorText: {
-      ...getTextStyle(theme, 'body', 'regular', theme.colors.accent.error),
-      textAlign: 'center' as const,
+      ...getTextStyle(theme, "body", "regular", theme.colors.accent.error),
+      textAlign: "center" as const,
     },
     rtlText: {
-      textAlign: 'right' as const,
+      textAlign: "right" as const,
     },
     memberIndicator: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.secondary.main),
+      ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
       marginTop: 2,
     },
     sosButton: {
@@ -266,23 +263,23 @@ export default function DashboardScreen() {
       borderRadius: theme.borderRadius.full,
       width: 60,
       height: 60,
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      position: 'absolute' as const,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
+      position: "absolute" as const,
       bottom: theme.spacing.xl,
       right: theme.spacing.base,
       ...theme.shadows.lg,
       zIndex: 1000,
     },
     sosButtonText: {
-      ...getTextStyle(theme, 'caption', 'bold', theme.colors.neutral.white),
+      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
       fontSize: 10,
       marginTop: 2,
     },
     headerWithSOS: {
-      flexDirection: 'row' as const,
-      justifyContent: 'space-between' as const,
-      alignItems: 'flex-start' as const,
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "flex-start" as const,
       marginBottom: theme.spacing.xl,
     },
     headerContent: {
@@ -293,13 +290,13 @@ export default function DashboardScreen() {
       borderRadius: theme.borderRadius.lg,
       paddingVertical: theme.spacing.sm,
       paddingHorizontal: theme.spacing.md,
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
       gap: theme.spacing.sm,
       ...theme.shadows.md,
     },
     sosHeaderText: {
-      ...getTextStyle(theme, 'body', 'bold', theme.colors.neutral.white),
+      ...getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
     },
     onelineCard: {
       backgroundColor: theme.colors.secondary[50],
@@ -311,44 +308,49 @@ export default function DashboardScreen() {
       ...theme.shadows.sm,
     },
     onelineText: {
-      ...getTextStyle(theme, 'subheading', 'semibold', theme.colors.primary.main),
-      fontStyle: 'italic' as const,
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.primary.main
+      ),
+      fontStyle: "italic" as const,
       marginBottom: theme.spacing.sm,
-      textAlign: 'center' as const,
+      textAlign: "center" as const,
     },
     onelineSource: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.secondary.main),
-      textAlign: 'center' as const,
+      ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
+      textAlign: "center" as const,
     },
     quickActionsGrid: {
-      flexDirection: 'row' as const,
-      flexWrap: 'wrap' as const,
+      flexDirection: "row" as const,
+      flexWrap: "wrap" as const,
       gap: theme.spacing.md,
     },
     quickActionCard: {
       flex: 1,
-      minWidth: '45%',
+      minWidth: "45%",
       backgroundColor: theme.colors.background.secondary,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
-      alignItems: 'center' as const,
+      alignItems: "center" as const,
       ...theme.shadows.sm,
       borderWidth: 1,
       borderColor: theme.colors.border.light,
     },
     quickActionText: {
-      ...getTextStyle(theme, 'caption', 'medium', theme.colors.text.primary),
+      ...getTextStyle(theme, "caption", "medium", theme.colors.text.primary),
       marginTop: theme.spacing.sm,
-      textAlign: 'center' as const,
+      textAlign: "center" as const,
     },
   }))(theme);
 
   const getMemberName = (userId: string): string => {
     if (userId === user?.id) {
-      return isRTL ? 'أنت' : 'You';
+      return isRTL ? "أنت" : "You";
     }
     const member = familyMembers.find((m) => m.id === userId);
-    return member?.name || (isRTL ? 'عضو غير معروف' : 'Unknown Member');
+    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
   };
 
   const loadDashboardData = async () => {
@@ -369,7 +371,7 @@ export default function DashboardScreen() {
       await medicationService.resetDailyReminders(user.id);
 
       // Load data based on selected filter
-      if (selectedFilter.type === 'family' && user.familyId) {
+      if (selectedFilter.type === "family" && user.familyId) {
         // Load family data (both admins and members can view)
         const [
           familySymptoms,
@@ -399,7 +401,7 @@ export default function DashboardScreen() {
           return (
             sum +
             reminders.filter((r) => {
-              if (!r.taken || !r.takenAt) return false;
+              if (!(r.taken && r.takenAt)) return false;
               const takenDate = (r.takenAt as any).toDate
                 ? (r.takenAt as any).toDate()
                 : new Date(r.takenAt);
@@ -417,7 +419,7 @@ export default function DashboardScreen() {
           avgSeverity: familySymptomStats.avgSeverity,
           medicationCompliance: Math.round(compliance),
         });
-      } else if (selectedFilter.type === 'member' && selectedFilter.memberId) {
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
         // Load specific member data (both admins and members can view)
         const [
           memberSymptoms,
@@ -468,7 +470,7 @@ export default function DashboardScreen() {
           return (
             sum +
             reminders.filter((r) => {
-              if (!r.taken || !r.takenAt) return false;
+              if (!(r.taken && r.takenAt)) return false;
               const takenDate = (r.takenAt as any).toDate
                 ? (r.takenAt as any).toDate()
                 : new Date(r.takenAt);
@@ -488,7 +490,7 @@ export default function DashboardScreen() {
         });
       }
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error("Error loading dashboard data:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -515,24 +517,23 @@ export default function DashboardScreen() {
     setSelectedFilter(filter);
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  const getSeverityColor = (severity: number) => {
-    return theme.colors.severity[severity as keyof typeof theme.colors.severity] || theme.colors.neutral[500];
-  };
+  const getSeverityColor = (severity: number) =>
+    theme.colors.severity[severity as keyof typeof theme.colors.severity] ||
+    theme.colors.neutral[500];
 
   const getDataSourceLabel = () => {
-    if (selectedFilter.type === 'family') {
-      return isRTL ? 'بيانات العائلة' : 'Family Data';
-    } else if (selectedFilter.type === 'member') {
+    if (selectedFilter.type === "family") {
+      return isRTL ? "بيانات العائلة" : "Family Data";
+    }
+    if (selectedFilter.type === "member") {
       return isRTL
         ? `بيانات ${selectedFilter.memberName}`
         : `${selectedFilter.memberName}'s Data`;
-    } else {
-      return isRTL ? 'بياناتي الشخصية' : 'My Personal Data';
     }
+    return isRTL ? "بياناتي الشخصية" : "My Personal Data";
   };
 
   const handleSOS = () => {
@@ -543,39 +544,37 @@ export default function DashboardScreen() {
     } catch (error) {
       // Silently fail if haptics is not available
     }
-    
+
     Alert.alert(
-      isRTL ? 'طوارئ' : 'Emergency',
-      isRTL 
-        ? 'هل تريد الاتصال بخدمات الطوارئ؟'
-        : 'Do you want to call emergency services?',
+      isRTL ? "طوارئ" : "Emergency",
+      isRTL
+        ? "هل تريد الاتصال بخدمات الطوارئ؟"
+        : "Do you want to call emergency services?",
       [
         {
-          text: isRTL ? 'إلغاء' : 'Cancel',
-          style: 'cancel',
+          text: isRTL ? "إلغاء" : "Cancel",
+          style: "cancel",
         },
         {
-          text: isRTL ? 'اتصال بـ 911' : 'Call 911',
-          style: 'destructive',
+          text: isRTL ? "اتصال بـ 911" : "Call 911",
+          style: "destructive",
           onPress: () => {
-            Linking.openURL('tel:911').catch(() => {
+            Linking.openURL("tel:911").catch(() => {
               Alert.alert(
-                isRTL ? 'خطأ' : 'Error',
-                isRTL 
-                  ? 'تعذر فتح تطبيق الهاتف'
-                  : 'Unable to open phone app'
+                isRTL ? "خطأ" : "Error",
+                isRTL ? "تعذر فتح تطبيق الهاتف" : "Unable to open phone app"
               );
             });
           },
         },
         {
-          text: isRTL ? 'إشعار العائلة' : 'Notify Family',
+          text: isRTL ? "إشعار العائلة" : "Notify Family",
           onPress: () => {
             Alert.alert(
-              isRTL ? 'تم إرسال الإشعار' : 'Notification Sent',
-              isRTL 
-                ? 'تم إرسال إشعار طوارئ لجميع أفراد العائلة'
-                : 'Emergency notification sent to all family members'
+              isRTL ? "تم إرسال الإشعار" : "Notification Sent",
+              isRTL
+                ? "تم إرسال إشعار طوارئ لجميع أفراد العائلة"
+                : "Emergency notification sent to all family members"
             );
           },
         },
@@ -599,11 +598,11 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
-        style={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
         }
         showsVerticalScrollIndicator={false}
+        style={styles.content}
       >
         {/* Header with SOS Button */}
         <View style={styles.headerWithSOS}>
@@ -612,69 +611,67 @@ export default function DashboardScreen() {
               {isRTL ? `مرحباً، ${user.name}` : `Welcome, ${user.name}`}
             </Text>
             <Text style={[styles.dateText, isRTL && styles.rtlText]}>
-              {new Date().toLocaleDateString(isRTL ? 'ar-SA' : 'en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
+              {new Date().toLocaleDateString(isRTL ? "ar-SA" : "en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </Text>
           </View>
-          <TouchableOpacity 
-            style={styles.sosHeaderButton} 
-            onPress={handleSOS}
+          <TouchableOpacity
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={handleSOS}
+            style={styles.sosHeaderButton}
           >
-            <Phone size={20} color={theme.colors.neutral.white} />
-            <Text style={styles.sosHeaderText}>
-              {isRTL ? 'SOS' : 'SOS'}
-            </Text>
+            <Phone color={theme.colors.neutral.white} size={20} />
+            <Text style={styles.sosHeaderText}>{isRTL ? "SOS" : "SOS"}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
-          familyMembers={familyMembers}
           currentUserId={user.id}
-          selectedFilter={selectedFilter}
-          onFilterChange={handleFilterChange}
-          isAdmin={isAdmin}
+          familyMembers={familyMembers}
           hasFamily={hasFamily}
+          isAdmin={isAdmin}
+          onFilterChange={handleFilterChange}
+          selectedFilter={selectedFilter}
         />
 
         {/* Quick Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Activity size={24} color={theme.colors.primary.main} />
+            <Activity color={theme.colors.primary.main} size={24} />
             <Text style={[styles.statValue, isRTL && styles.rtlText]}>
               {stats.symptomsThisWeek}
             </Text>
             <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-              {isRTL ? 'الأعراض هذا الأسبوع' : 'Symptoms This Week'}
+              {isRTL ? "الأعراض هذا الأسبوع" : "Symptoms This Week"}
             </Text>
           </View>
 
           <View style={styles.statCard}>
-            <Pill size={24} color={theme.colors.accent.success} />
+            <Pill color={theme.colors.accent.success} size={24} />
             <Text style={[styles.statValue, isRTL && styles.rtlText]}>
               {stats.medicationCompliance}%
             </Text>
             <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-              {isRTL ? 'الالتزام بالدواء' : 'Med Compliance'}
+              {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
             </Text>
           </View>
 
           <TouchableOpacity
+            onPress={() => router.push("/(tabs)/family")}
             style={styles.statCard}
-            onPress={() => router.push('/(tabs)/family')}
           >
-            <Users size={24} color={theme.colors.secondary.main} />
+            <Users color={theme.colors.secondary.main} size={24} />
             <Text style={[styles.statValue, isRTL && styles.rtlText]}>
               {familyMembersCount}
             </Text>
             <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
-              {isRTL ? 'أفراد العائلة' : 'Family Members'}
+              {isRTL ? "أفراد العائلة" : "Family Members"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -682,18 +679,18 @@ export default function DashboardScreen() {
         {/* Alerts */}
         {alertsCount > 0 && (
           <TouchableOpacity style={styles.alertCard}>
-            <AlertTriangle size={24} color={theme.colors.accent.error} />
+            <AlertTriangle color={theme.colors.accent.error} size={24} />
             <View style={styles.alertContent}>
               <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
-                {isRTL ? 'تنبيهات نشطة' : 'Active Alerts'}
+                {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
               </Text>
               <Text style={[styles.alertText, isRTL && styles.rtlText]}>
                 {isRTL
                   ? `لديك ${alertsCount} تنبيه${
-                      alertsCount > 1 ? 'ات' : ''
+                      alertsCount > 1 ? "ات" : ""
                     } يتطلب الانتباه`
                   : `You have ${alertsCount} alert${
-                      alertsCount > 1 ? 's' : ''
+                      alertsCount > 1 ? "s" : ""
                     } requiring attention`}
               </Text>
             </View>
@@ -704,16 +701,16 @@ export default function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'أدوية اليوم' : "Today's Medications"}
+              {isRTL ? "أدوية اليوم" : "Today's Medications"}
             </Text>
             <TouchableOpacity
+              onPress={() => router.push("/(tabs)/medications")}
               style={styles.viewAllButton}
-              onPress={() => router.push('/(tabs)/medications')}
             >
               <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                {isRTL ? 'عرض الكل' : 'View All'}
+                {isRTL ? "عرض الكل" : "View All"}
               </Text>
-              <ChevronRight size={16} color={theme.colors.primary.main} />
+              <ChevronRight color={theme.colors.primary.main} size={16} />
             </TouchableOpacity>
           </View>
 
@@ -721,11 +718,11 @@ export default function DashboardScreen() {
             todaysMedications.slice(0, 3).map((medication) => (
               <TouchableOpacity
                 key={medication.id}
+                onPress={() => router.push("/(tabs)/medications")}
                 style={styles.medicationItem}
-                onPress={() => router.push('/(tabs)/medications')}
               >
                 <View style={styles.medicationIcon}>
-                  <Pill size={20} color={theme.colors.primary.main} />
+                  <Pill color={theme.colors.primary.main} size={20} />
                 </View>
                 <View style={styles.medicationInfo}>
                   <Text
@@ -739,8 +736,8 @@ export default function DashboardScreen() {
                     {medication.dosage} • {medication.frequency}
                   </Text>
                   {/* Show member name for family/member views */}
-                  {(selectedFilter.type === 'family' ||
-                    selectedFilter.type === 'member') && (
+                  {(selectedFilter.type === "family" ||
+                    selectedFilter.type === "member") && (
                     <Text
                       style={[styles.memberIndicator, isRTL && styles.rtlText]}
                     >
@@ -768,13 +765,13 @@ export default function DashboardScreen() {
             ))
           ) : (
             <TouchableOpacity
+              onPress={() => router.push("/(tabs)/medications")}
               style={styles.emptyContainer}
-              onPress={() => router.push('/(tabs)/medications')}
             >
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                 {isRTL
-                  ? 'لا توجد أدوية لليوم - اضغط لإضافة دواء'
-                  : 'No medications for today - tap to add'}
+                  ? "لا توجد أدوية لليوم - اضغط لإضافة دواء"
+                  : "No medications for today - tap to add"}
               </Text>
             </TouchableOpacity>
           )}
@@ -784,16 +781,16 @@ export default function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'الأعراض الأخيرة' : 'Recent Symptoms'}
+              {isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}
             </Text>
             <TouchableOpacity
+              onPress={() => router.push("/(tabs)/symptoms")}
               style={styles.viewAllButton}
-              onPress={() => router.push('/(tabs)/symptoms')}
             >
               <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
-                {isRTL ? 'عرض الكل' : 'View All'}
+                {isRTL ? "عرض الكل" : "View All"}
               </Text>
-              <ChevronRight size={16} color={theme.colors.primary.main} />
+              <ChevronRight color={theme.colors.primary.main} size={16} />
             </TouchableOpacity>
           </View>
 
@@ -801,8 +798,8 @@ export default function DashboardScreen() {
             recentSymptoms.map((symptom) => (
               <TouchableOpacity
                 key={symptom.id}
+                onPress={() => router.push("/(tabs)/symptoms")}
                 style={styles.symptomItem}
-                onPress={() => router.push('/(tabs)/symptoms')}
               >
                 <View style={styles.symptomInfo}>
                   <Text style={[styles.symptomType, isRTL && styles.rtlText]}>
@@ -812,8 +809,8 @@ export default function DashboardScreen() {
                     {formatTime(symptom.timestamp)}
                   </Text>
                   {/* Show member name for family/member views */}
-                  {(selectedFilter.type === 'family' ||
-                    selectedFilter.type === 'member') && (
+                  {(selectedFilter.type === "family" ||
+                    selectedFilter.type === "member") && (
                     <Text
                       style={[styles.memberIndicator, isRTL && styles.rtlText]}
                     >
@@ -843,13 +840,13 @@ export default function DashboardScreen() {
             ))
           ) : (
             <TouchableOpacity
+              onPress={() => router.push("/(tabs)/symptoms")}
               style={styles.emptyContainer}
-              onPress={() => router.push('/(tabs)/symptoms')}
             >
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                 {isRTL
-                  ? 'لا توجد أعراض مسجلة - اضغط لإضافة عرض'
-                  : 'No symptoms recorded - tap to add'}
+                  ? "لا توجد أعراض مسجلة - اضغط لإضافة عرض"
+                  : "No symptoms recorded - tap to add"}
               </Text>
             </TouchableOpacity>
           )}
@@ -857,10 +854,10 @@ export default function DashboardScreen() {
 
         {/* Health Score with Maak One-liner */}
         <View style={styles.healthScoreCard}>
-          <Heart size={32} color={theme.colors.accent.error} />
+          <Heart color={theme.colors.accent.error} size={32} />
           <View style={styles.healthScoreInfo}>
             <Text style={[styles.healthScoreTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'نقاط الصحة' : 'Health Score'}
+              {isRTL ? "نقاط الصحة" : "Health Score"}
             </Text>
             <Text style={[styles.healthScoreValue, isRTL && styles.rtlText]}>
               {Math.max(
@@ -871,7 +868,7 @@ export default function DashboardScreen() {
               )}
             </Text>
             <Text style={[styles.healthScoreDesc, isRTL && styles.rtlText]}>
-              {isRTL ? 'نقاط من 100' : 'out of 100'}
+              {isRTL ? "نقاط من 100" : "out of 100"}
             </Text>
           </View>
         </View>
@@ -880,48 +877,48 @@ export default function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {isRTL ? 'إجراءات سريعة' : 'Quick Actions'}
+              {isRTL ? "إجراءات سريعة" : "Quick Actions"}
             </Text>
           </View>
 
           <View style={styles.quickActionsGrid}>
-            <TouchableOpacity 
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/track")}
               style={styles.quickActionCard}
-              onPress={() => router.push('/(tabs)/track')}
             >
-              <Activity size={24} color={theme.colors.primary.main} />
+              <Activity color={theme.colors.primary.main} size={24} />
               <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? 'تتبع الصحة' : 'Track Health'}
+                {isRTL ? "تتبع الصحة" : "Track Health"}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/medications")}
               style={styles.quickActionCard}
-              onPress={() => router.push('/(tabs)/medications')}
             >
-              <Pill size={24} color={theme.colors.accent.success} />
+              <Pill color={theme.colors.accent.success} size={24} />
               <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? 'إدارة الأدوية' : 'Medications'}
+                {isRTL ? "إدارة الأدوية" : "Medications"}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/vitals")}
               style={styles.quickActionCard}
-              onPress={() => router.push('/(tabs)/vitals')}
             >
-              <Heart size={24} color={theme.colors.secondary.main} />
+              <Heart color={theme.colors.secondary.main} size={24} />
               <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? 'المؤشرات الحيوية' : 'Vital Signs'}
+                {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/family")}
               style={styles.quickActionCard}
-              onPress={() => router.push('/(tabs)/family')}
             >
-              <Users size={24} color={theme.colors.primary.light} />
+              <Users color={theme.colors.primary.light} size={24} />
               <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? 'إدارة العائلة' : 'Manage Family'}
+                {isRTL ? "إدارة العائلة" : "Manage Family"}
               </Text>
             </TouchableOpacity>
           </View>
