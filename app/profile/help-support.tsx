@@ -8,7 +8,6 @@ import {
   HelpCircle,
   Mail,
   MapPin,
-  MessageCircle,
   Phone,
   Video,
 } from "lucide-react-native";
@@ -176,19 +175,6 @@ export default function HelpSupportScreen() {
           </Text>
 
           <ContactCard
-            color="#10B981"
-            icon={Phone}
-            method="phone"
-            subtitle={
-              isRTL
-                ? "للحالات العاجلة والدعم المباشر"
-                : "For urgent issues and direct support"
-            }
-            title={isRTL ? "اتصل بنا" : "Call Us"}
-            value="+970 594521902"
-          />
-
-          <ContactCard
             color="#3B82F6"
             icon={Mail}
             method="email"
@@ -199,19 +185,6 @@ export default function HelpSupportScreen() {
             }
             title={isRTL ? "راسلنا" : "Email Us"}
             value="info@maaktech.net"
-          />
-
-          <ContactCard
-            color="#8B5CF6"
-            icon={MessageCircle}
-            method="chat"
-            subtitle={
-              isRTL
-                ? "متاح خلال ساعات العمل"
-                : "Available during business hours"
-            }
-            title={isRTL ? "الدردشة المباشرة" : "Live Chat"}
-            value={isRTL ? "ابدأ المحادثة" : "Start Conversation"}
           />
 
           <ContactCard
