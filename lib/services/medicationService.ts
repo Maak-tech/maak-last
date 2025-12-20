@@ -31,7 +31,7 @@ export const medicationService = {
       const docRef = await addDoc(collection(db, "medications"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error("Error adding medication:", error);
+      // Silently handle error
       throw error;
     }
   },
@@ -62,7 +62,7 @@ export const medicationService = {
       const docRef = await addDoc(collection(db, "medications"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error("Error adding medication for user:", error);
+      // Silently handle error adding medication for user:", error);
       throw error;
     }
   },
@@ -97,7 +97,7 @@ export const medicationService = {
 
       return medications;
     } catch (error) {
-      console.error("Error getting medications:", error);
+      // Silently handle error getting medications:", error);
       throw error;
     }
   },
@@ -117,7 +117,7 @@ export const medicationService = {
       }
       await updateDoc(doc(db, "medications", medicationId), updateData);
     } catch (error) {
-      console.error("Error updating medication:", error);
+      // Silently handle error updating medication:", error);
       throw error;
     }
   },
@@ -145,7 +145,7 @@ export const medicationService = {
         reminders: updatedReminders,
       });
     } catch (error) {
-      console.error("Error marking medication as taken:", error);
+      // Silently handle error marking medication as taken:", error);
       throw error;
     }
   },
@@ -170,7 +170,7 @@ export const medicationService = {
         endDate: data.endDate?.toDate() || undefined,
       } as Medication;
     } catch (error) {
-      console.error("Error getting medication:", error);
+      // Silently handle error getting medication:", error);
       throw error;
     }
   },
@@ -182,7 +182,7 @@ export const medicationService = {
         isActive: false,
       });
     } catch (error) {
-      console.error("Error deleting medication:", error);
+      // Silently handle error deleting medication:", error);
       throw error;
     }
   },
@@ -208,7 +208,7 @@ export const medicationService = {
         return isInPeriod;
       });
     } catch (error) {
-      console.error("Error getting today's medications:", error);
+      // Silently handle error getting today's medications:", error);
       throw error;
     }
   },
@@ -266,7 +266,7 @@ export const medicationService = {
 
       return reminders.sort((a, b) => a.time.localeCompare(b.time));
     } catch (error) {
-      console.error("Error getting upcoming reminders:", error);
+      // Silently handle error getting upcoming reminders:", error);
       throw error;
     }
   },
@@ -304,7 +304,7 @@ export const medicationService = {
         }
       }
     } catch (error) {
-      console.error("Error resetting daily reminders:", error);
+      // Silently handle error resetting daily reminders:", error);
       throw error;
     }
   },
@@ -348,7 +348,7 @@ export const medicationService = {
 
       return medications;
     } catch (error) {
-      console.error("Error getting family medications:", error);
+      // Silently handle error getting family medications:", error);
       throw error;
     }
   },
@@ -367,7 +367,7 @@ export const medicationService = {
         return Array.isArray(med.reminders) && med.reminders.length > 0;
       });
     } catch (error) {
-      console.error("Error getting family today medications:", error);
+      // Silently handle error getting family today medications:", error);
       throw error;
     }
   },
@@ -398,7 +398,7 @@ export const medicationService = {
 
       return medications;
     } catch (error) {
-      console.error("Error getting member medications:", error);
+      // Silently handle error getting member medications:", error);
       throw error;
     }
   },
@@ -417,7 +417,7 @@ export const medicationService = {
         return Array.isArray(med.reminders) && med.reminders.length > 0;
       });
     } catch (error) {
-      console.error("Error getting member today medications:", error);
+      // Silently handle error getting member today medications:", error);
       throw error;
     }
   },
@@ -475,7 +475,7 @@ export const medicationService = {
         upcomingReminders,
       };
     } catch (error) {
-      console.error("Error getting member medication stats:", error);
+      // Silently handle error getting member medication stats:", error);
       return {
         totalMedications: 0,
         activeMedications: 0,

@@ -43,7 +43,7 @@ export default function TermsConditionsScreen() {
       const termsDoc = await documentService.getTermsAndConditions();
       setDocument(termsDoc);
     } catch (err) {
-      console.error("Error loading terms and conditions:", err);
+      // Silently handle error
       setError(
         isRTL
           ? "حدث خطأ في تحميل الشروط والأحكام"

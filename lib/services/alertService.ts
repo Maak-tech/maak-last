@@ -115,7 +115,7 @@ export const alertService = {
         throw new Error(`Alert ${alertId} was not marked as resolved`);
       }
     } catch (error: any) {
-      console.error(`Error resolving alert ${alertId}:`, error);
+      // Silently handle error
       throw new Error(`Failed to resolve alert: ${error.message || "Unknown error"}`);
     }
   },
@@ -265,7 +265,7 @@ export const alertService = {
 
       return filteredAlerts;
     } catch (error: any) {
-      console.error("Error fetching active alerts:", error);
+      // Silently handle error
       
       // If it's an index error, try without the resolved filter
       if (error.message?.includes("index") || error.code === "failed-precondition") {
@@ -292,7 +292,7 @@ export const alertService = {
           alerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
           return alerts;
         } catch (retryError: any) {
-          console.error("Error fetching alerts (retry):", retryError);
+          // Silently handle error
           return [];
         }
       }

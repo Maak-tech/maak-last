@@ -298,7 +298,7 @@ export default function TrackScreen() {
         upcomingMedications,
       });
     } catch (error) {
-      console.error("Error loading tracking data:", error);
+      // Silently handle error
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -640,15 +640,12 @@ export default function TrackScreen() {
               </View>
             )}
 
-            {/* Maak One-liner */}
-            <View style={styles.onelineCard}>
-              <Text style={[styles.onelineText, isRTL && styles.rtlText]}>
-                {isRTL ? '"خليهم دايمًا معك"' : '"Health starts at home"'}
-              </Text>
-              <Text style={[styles.onelineSource, isRTL && styles.rtlText]}>
-                - Maak
-              </Text>
-            </View>
+          {/* Maak One-liner */}
+          <View style={styles.onelineCard}>
+            <Text style={[styles.onelineText, isRTL && styles.rtlText]}>
+              {isRTL ? '"الصحة، تتجاوز الحدود"' : '"Health, beyond borders"'}
+            </Text>
+          </View>
           </>
         )}
       </ScrollView>

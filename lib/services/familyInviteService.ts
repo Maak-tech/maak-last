@@ -59,7 +59,7 @@ export const familyInviteService = {
 
       return code;
     } catch (error) {
-      console.error("Error creating invitation code:", error);
+      // Silently handle error
       throw error;
     }
   },
@@ -90,7 +90,7 @@ export const familyInviteService = {
         usedAt: data.usedAt?.toDate(),
       } as FamilyInvitationCode;
     } catch (error) {
-      console.error("Error getting invitation by code:", error);
+      // Silently handle error getting invitation by code:", error);
       throw error;
     }
   },
@@ -138,7 +138,7 @@ export const familyInviteService = {
         message: "Successfully joined family!",
       };
     } catch (error) {
-      console.error("Error using invitation code:", error);
+      // Silently handle error using invitation code:", error);
       throw error;
     }
   },
@@ -169,7 +169,7 @@ export const familyInviteService = {
 
       return invitations;
     } catch (error) {
-      console.error("Error getting family invitations:", error);
+      // Silently handle error getting family invitations:", error);
       throw error;
     }
   },
@@ -189,7 +189,7 @@ export const familyInviteService = {
 
       await Promise.all(updatePromises);
     } catch (error) {
-      console.error("Error cleaning up expired invitations:", error);
+      // Silently handle error cleaning up expired invitations:", error);
       throw error;
     }
   },
@@ -213,7 +213,7 @@ export const familyInviteService = {
         createdAt: data.createdAt?.toDate() || new Date(),
       };
     } catch (error) {
-      console.error("Error getting family:", error);
+      // Silently handle error getting family:", error);
       return null;
     }
   },

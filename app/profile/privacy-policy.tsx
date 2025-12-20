@@ -36,7 +36,7 @@ export default function PrivacyPolicyScreen() {
       const privacyDoc = await documentService.getPrivacyPolicy();
       setDocument(privacyDoc);
     } catch (err) {
-      console.error("Error loading privacy policy:", err);
+      // Silently handle error
       setError(
         isRTL
           ? "حدث خطأ في تحميل سياسة الخصوصية"

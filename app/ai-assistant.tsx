@@ -129,7 +129,7 @@ export default function AIAssistant() {
 
       setIsLoading(false);
     } catch (error) {
-      console.error("Error initializing chat:", error);
+      // Silently handle error
       setIsLoading(false);
     }
   };
@@ -172,7 +172,7 @@ export default function AIAssistant() {
       setCurrentSessionId(docRef.id);
       return docRef.id;
     } catch (error) {
-      console.error("Error creating session:", error);
+      // Silently handle error
       return null;
     }
   };
@@ -210,7 +210,7 @@ export default function AIAssistant() {
 
       await updateDoc(sessionRef, updates);
     } catch (error) {
-      console.error("Error saving message:", error);
+      // Silently handle error
     }
   };
 
@@ -281,7 +281,7 @@ export default function AIAssistant() {
       },
       (error) => {
         setIsStreaming(false);
-        console.error("Chat error:", error);
+        // Silently handle error
 
         // More user-friendly error messages
         if (error.message.includes("quota exceeded")) {
@@ -362,7 +362,7 @@ export default function AIAssistant() {
 
       setChatHistory(sessions);
     } catch (error) {
-      console.error("Error loading chat history:", error);
+      // Silently handle error
     }
   };
 
@@ -396,7 +396,7 @@ export default function AIAssistant() {
         scrollToBottom();
       }
     } catch (error) {
-      console.error("Error loading session:", error);
+      // Silently handle error
       Alert.alert("Error", "Failed to load chat session");
     } finally {
       setIsLoading(false);
@@ -432,7 +432,7 @@ export default function AIAssistant() {
                 await handleNewChat();
               }
             } catch (error) {
-              console.error("Error deleting session:", error);
+              // Silently handle error
               Alert.alert("Error", "Failed to delete chat session");
             }
           },

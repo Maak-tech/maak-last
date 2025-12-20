@@ -27,7 +27,6 @@ export const userService = {
       }
       return null;
     } catch (error) {
-      console.error("Error getting user:", error);
       throw error;
     }
   },
@@ -41,7 +40,6 @@ export const userService = {
       };
       await setDoc(doc(db, "users", userId), userDocData);
     } catch (error) {
-      console.error("Error creating user:", error);
       throw error;
     }
   },
@@ -95,7 +93,6 @@ export const userService = {
 
       return createdUser;
     } catch (error) {
-      console.error("Error ensuring user document:", error);
       throw error;
     }
   },
@@ -109,7 +106,6 @@ export const userService = {
       }
       await updateDoc(doc(db, "users", userId), updateData);
     } catch (error) {
-      console.error("Error updating user:", error);
       throw error;
     }
   },
@@ -146,7 +142,6 @@ export const userService = {
 
       return members;
     } catch (error) {
-      console.error("Error getting family members:", error);
       throw error;
     }
   },
@@ -193,7 +188,6 @@ export const userService = {
         throw new Error(`Family ${familyId} not found`);
       }
     } catch (error) {
-      console.error("Error joining family:", error);
       throw error;
     }
   },
@@ -224,7 +218,6 @@ export const userService = {
         }
       }
     } catch (error) {
-      console.error("Error leaving previous family:", error);
       // Don't throw error here - joining new family is more important
     }
   },
@@ -252,7 +245,6 @@ export const userService = {
 
       return familyRef.id;
     } catch (error) {
-      console.error("Error creating family:", error);
       throw error;
     }
   },
@@ -263,7 +255,6 @@ export const userService = {
       const user = await this.getUser(userId);
       return user?.role === "admin";
     } catch (error) {
-      console.error("Error checking if user is admin:", error);
       return false;
     }
   },
@@ -283,7 +274,6 @@ export const userService = {
 
       await updateDoc(doc(db, "users", userId), { role: newRole });
     } catch (error) {
-      console.error("Error updating user role:", error);
       throw error;
     }
   },

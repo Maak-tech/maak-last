@@ -20,7 +20,7 @@ if (Platform.OS === "ios") {
   try {
     AppleHealthKit = require("react-native-health").default;
   } catch (error) {
-    console.warn("react-native-health not available:", error);
+    // Silently handle error
   }
 }
 
@@ -109,7 +109,7 @@ const requestAuthorization = async (
 
     return { granted, denied };
   } catch (error: any) {
-    console.error("Failed to request HealthKit permissions:", error);
+    // Silently handle error
     throw error;
   }
 };
@@ -167,7 +167,7 @@ const fetchMetrics = async (
         });
       }
     } catch (error) {
-      console.error(`Error fetching ${metricKey} from Apple Health:`, error);
+      // Silently handle error
     }
   }
 
@@ -251,7 +251,7 @@ const fetchMetricSamples = async (
       source: sample.sourceName || sample.sourceId || "Apple Health",
     }));
   } catch (error) {
-    console.error(`Error fetching ${metric.key} samples:`, error);
+    // Silently handle error
     return [];
   }
 };

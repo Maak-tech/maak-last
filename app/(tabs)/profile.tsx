@@ -136,7 +136,7 @@ export default function ProfileScreen() {
         healthScore: score,
       });
     } catch (error) {
-      console.error("Error loading health data:", error);
+      // Silently handle error
     } finally {
       setLoading(false);
       setRefreshing(false);

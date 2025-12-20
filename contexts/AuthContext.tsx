@@ -82,7 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return null;
     } catch (error) {
-      console.error("Error getting user document:", error);
       return null;
     }
   };
@@ -116,7 +115,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         ...userData,
       };
     } catch (error) {
-      console.error("Error creating user document:", error);
       throw new Error("Failed to create user profile");
     }
   };
@@ -156,7 +154,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser(null);
         }
       } catch (error) {
-        console.error("Auth state change error:", error);
         setUser(null);
       } finally {
         setLoading(false);
@@ -208,10 +205,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               result.message +
                 " A default family has been created for you instead."
             );
-          }, 2000);
-        } catch (error) {
-          console.error("Error processing family code:", error);
-          setTimeout(() => {
+            }, 2000);
+          } catch (error) {
+            setTimeout(() => {
             Alert.alert(
               "Family Code Error",
               "There was an issue processing your family invitation. A default family has been created for you. Please try using the code manually in the Family tab."
@@ -222,7 +218,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return false;
     } catch (error) {
-      console.error("Error in processPendingFamilyCode:", error);
       return false;
     }
   };
@@ -246,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     } catch (error) {
-      console.error("Error ensuring user has family:", error);
+      // Silently handle error
     }
   };
 
@@ -272,7 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         lastName
       );
     } catch (error: any) {
-      console.error("Sign in error:", error);
+      // Silently handle error
       let errorMessage = "Failed to sign in. Please try again.";
 
       if (error.code === "auth/user-not-found") {
@@ -306,7 +301,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         name
       );
     } catch (error: any) {
-      console.error("Sign up error:", error);
       let errorMessage = "Failed to create account. Please try again.";
 
       if (error.code === "auth/email-already-in-use") {
@@ -340,7 +334,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(null);
       setLoading(false);
     } catch (error) {
-      console.error("Logout error:", error);
       setUser(null);
       setLoading(false);
     }
@@ -356,7 +349,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
     } catch (error) {
-      console.error("Update user error:", error);
       throw new Error("Failed to update user. Please try again.");
     }
   };

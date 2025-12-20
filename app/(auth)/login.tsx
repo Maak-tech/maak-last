@@ -72,7 +72,7 @@ export default function LoginScreen() {
       // Navigate back to index so it can handle the authenticated user
       router.replace("/");
     } catch (error: any) {
-      console.error("Login error:", error);
+      // Silently handle error
       setErrors({
         general: error.message || "Login failed. Please try again.",
       });

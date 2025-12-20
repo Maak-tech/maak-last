@@ -99,7 +99,6 @@ export default function MedicationsScreen() {
         setMedications(userMedications);
       }
     } catch (error) {
-      console.error("Error loading medications:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data"
@@ -284,7 +283,6 @@ export default function MedicationsScreen() {
             : "Medication added successfully"
       );
     } catch (error) {
-      console.error("Error saving medication:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في حفظ الدواء" : "Error saving medication"
@@ -365,7 +363,6 @@ export default function MedicationsScreen() {
                   : "Medication deleted successfully"
               );
             } catch (error) {
-              console.error("Error deleting medication:", error);
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL ? "حدث خطأ في حذف الدواء" : "Error deleting medication"
@@ -402,7 +399,6 @@ export default function MedicationsScreen() {
         )
       );
     } catch (error) {
-      console.error("Error toggling medication:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في تحديث الدواء" : "Error updating medication"

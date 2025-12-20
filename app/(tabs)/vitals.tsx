@@ -273,7 +273,6 @@ export default function VitalsScreen() {
         setLastSync(new Date());
       }
     } catch (error) {
-      console.error("Error loading vitals:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في تحميل البيانات الصحية" : "Error loading health data"
@@ -317,7 +316,6 @@ export default function VitalsScreen() {
         );
       }
     } catch (error) {
-      console.error("Error enabling health data:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
@@ -335,7 +333,6 @@ export default function VitalsScreen() {
       await healthDataService.syncHealthData();
       await loadVitalsData(true);
     } catch (error) {
-      console.error("Error syncing data:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في مزامنة البيانات" : "Error syncing data"

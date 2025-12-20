@@ -109,7 +109,6 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         setIsInitialized(true);
       } catch (error) {
-        console.error("Error loading fall detection setting:", error);
         setIsInitialized(true);
       }
     };
@@ -133,7 +132,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
           fallDetection.stopFallDetection();
         }
       } catch (error) {
-        console.error("Error toggling fall detection:", error);
+        // Silently handle error
       }
     },
     [user?.id, fallDetection]

@@ -80,7 +80,6 @@ export default function PersonalInfoScreen() {
         isRTL ? "تم تحديث الملف الشخصي بنجاح" : "Profile updated successfully"
       );
     } catch (error) {
-      console.error("Error updating profile:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في تحديث الملف الشخصي" : "Failed to update profile"

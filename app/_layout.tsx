@@ -62,7 +62,7 @@ export default function RootLayout() {
           });
         }
       } catch (error) {
-        console.error("Error requesting notification permissions:", error);
+        // Silently handle error
       }
     };
 

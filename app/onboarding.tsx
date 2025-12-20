@@ -202,7 +202,7 @@ export default function OnboardingScreen() {
         router.replace("/(tabs)");
       }, 300);
     } catch (error) {
-      console.error("Error completing onboarding:", error);
+      // Silently handle error
       setIsCompleting(false);
     }
   };

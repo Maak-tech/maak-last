@@ -60,7 +60,7 @@ export default function AppleHealthConnectedScreen() {
         setLastSync(syncTime);
       }
     } catch (error) {
-      console.error("Error loading connection:", error);
+      // Silently handle error
     } finally {
       setLoading(false);
     }

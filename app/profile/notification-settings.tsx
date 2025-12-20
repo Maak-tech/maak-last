@@ -80,7 +80,7 @@ export default function NotificationSettingsScreen() {
         });
       }
     } catch (error) {
-      console.error("Error loading notification settings:", error);
+      // Silently handle error
     } finally {
       setLoading(false);
     }
@@ -117,7 +117,7 @@ export default function NotificationSettingsScreen() {
         [{ text: isRTL ? "موافق" : "OK" }]
       );
     } catch (error) {
-      console.error("Error saving settings:", error);
+      // Silently handle error
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في حفظ الإعدادات" : "Failed to save settings"

@@ -37,7 +37,7 @@ export const medicalHistoryService = {
 
       return medicalHistory;
     } catch (error) {
-      console.error("Error getting medical history:", error);
+      // Silently handle error
       throw error;
     }
   },
@@ -65,7 +65,7 @@ export const medicalHistoryService = {
 
       return familyHistory;
     } catch (error) {
-      console.error("Error getting family medical history:", error);
+      // Silently handle error getting family medical history:", error);
       throw error;
     }
   },
@@ -120,7 +120,7 @@ export const medicalHistoryService = {
       );
       return docRef.id;
     } catch (error) {
-      console.error("Error adding medical history:", error);
+      // Silently handle error adding medical history:", error);
       throw error;
     }
   },
@@ -181,7 +181,7 @@ export const medicalHistoryService = {
 
       await updateDoc(doc(db, "medicalHistory", historyId), updateData);
     } catch (error) {
-      console.error("Error updating medical history:", error);
+      // Silently handle error updating medical history:", error);
       throw error;
     }
   },
@@ -190,7 +190,7 @@ export const medicalHistoryService = {
     try {
       await deleteDoc(doc(db, "medicalHistory", historyId));
     } catch (error) {
-      console.error("Error deleting medical history:", error);
+      // Silently handle error deleting medical history:", error);
       throw error;
     }
   },
@@ -212,7 +212,7 @@ export const medicalHistoryService = {
 
       return null;
     } catch (error) {
-      console.error("Error getting medical history by ID:", error);
+      // Silently handle error getting medical history by ID:", error);
       throw error;
     }
   },
@@ -243,7 +243,7 @@ export const medicalHistoryService = {
 
       return medicalHistory;
     } catch (error) {
-      console.error("Error getting medical history by severity:", error);
+      // Silently handle error getting medical history by severity:", error);
       throw error;
     }
   },
@@ -262,7 +262,7 @@ export const medicalHistoryService = {
             history.notes.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     } catch (error) {
-      console.error("Error searching medical history:", error);
+      // Silently handle error searching medical history:", error);
       throw error;
     }
   },
@@ -287,7 +287,7 @@ export const medicalHistoryService = {
         conditions: allHistory.map((h) => h.condition),
       };
     } catch (error) {
-      console.error("Error getting medical history summary:", error);
+      // Silently handle error getting medical history summary:", error);
       throw error;
     }
   },

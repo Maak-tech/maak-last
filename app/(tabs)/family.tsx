@@ -3,7 +3,9 @@ import { useFocusEffect } from "expo-router";
 import {
   AlertTriangle,
   Edit,
+  Grid3x3,
   Heart,
+  List,
   Plus,
   Settings,
   Share2,
@@ -36,8 +38,13 @@ import AlertsCard from "@/app/components/AlertsCard";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { alertService } from "@/lib/services/alertService";
 import { familyInviteService } from "@/lib/services/familyInviteService";
+import { medicationService } from "@/lib/services/medicationService";
+import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import type { User } from "@/types";
 
 const RELATIONS = [
@@ -50,16 +57,29 @@ const RELATIONS = [
   { key: "other", labelEn: "Other", labelAr: "آخر" },
 ];
 
+interface FamilyMemberMetrics {
+  id: string;
+  user: User;
+  healthScore: number;
+  symptomsThisWeek: number;
+  activeMedications: number;
+  alertsCount: number;
+}
+
 export default function FamilyScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showJoinFamilyModal, setShowJoinFamilyModal] = useState(false);
   const [showEditMemberModal, setShowEditMemberModal] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
+  const [memberMetrics, setMemberMetrics] = useState<FamilyMemberMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "dashboard">("list");
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -122,8 +142,12 @@ export default function FamilyScreen() {
 
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members);
+
+      // Load metrics if in dashboard view
+      if (viewMode === "dashboard") {
+        await loadMemberMetrics(members);
+      }
     } catch (error) {
-      console.error("Error loading family members:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في تحميل أعضاء العائلة" : "Failed to load family members"
@@ -133,6 +157,78 @@ export default function FamilyScreen() {
       setRefreshing(false);
     }
   };
+
+  const loadMemberMetrics = async (members: User[]) => {
+    if (!members.length) {
+      setMemberMetrics([]);
+      return;
+    }
+
+    try {
+      setLoadingMetrics(true);
+      const metricsPromises = members.map(async (member) => {
+        try {
+          // Fetch symptoms, medications, and alerts for each member
+          const [symptoms, medications, alertsCount] = await Promise.all([
+            symptomService.getUserSymptoms(member.id),
+            medicationService.getUserMedications(member.id),
+            alertService.getActiveAlertsCount(member.id),
+          ]);
+
+          // Calculate health score
+          const recentSymptoms = symptoms.filter(
+            (s) =>
+              new Date(s.timestamp).getTime() >
+              Date.now() - 30 * 24 * 60 * 60 * 1000
+          );
+          const activeMedications = medications.filter((m) => m.isActive);
+          let healthScore = 100;
+          healthScore -= recentSymptoms.length * 5;
+          healthScore = Math.max(healthScore, 0);
+
+          // Count symptoms this week
+          const symptomsThisWeek = symptoms.filter(
+            (s) =>
+              new Date(s.timestamp).getTime() >
+              Date.now() - 7 * 24 * 60 * 60 * 1000
+          ).length;
+
+          return {
+            id: member.id,
+            user: member,
+            healthScore,
+            symptomsThisWeek,
+            activeMedications: activeMedications.length,
+            alertsCount,
+          };
+        } catch (error) {
+          // Return default metrics if error
+          return {
+            id: member.id,
+            user: member,
+            healthScore: 100,
+            symptomsThisWeek: 0,
+            activeMedications: 0,
+            alertsCount: 0,
+          };
+        }
+      });
+
+      const metrics = await Promise.all(metricsPromises);
+      setMemberMetrics(metrics);
+    } catch (error) {
+      // Silently handle error
+    } finally {
+      setLoadingMetrics(false);
+    }
+  };
+
+  // Load metrics when switching to dashboard view
+  useEffect(() => {
+    if (viewMode === "dashboard" && familyMembers.length > 0) {
+      loadMemberMetrics(familyMembers);
+    }
+  }, [viewMode]);
 
   // Refresh data when tab is focused
   useFocusEffect(
@@ -220,7 +316,6 @@ export default function FamilyScreen() {
                     : "Invitation to join Maak",
                 });
               } catch (error) {
-                console.error("Error sharing:", error);
                 // Fallback to copying to clipboard
                 await Clipboard.setString(shareMessage);
                 Alert.alert(
@@ -251,7 +346,6 @@ export default function FamilyScreen() {
         ]
       );
     } catch (error) {
-      console.error("Error generating invite:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في إنشاء رمز الدعوة" : "Failed to generate invite code"
@@ -332,7 +426,6 @@ export default function FamilyScreen() {
         isRTL ? "تم تحديث بيانات العضو بنجاح" : "Member updated successfully"
       );
     } catch (error) {
-      console.error("Error updating member:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في تحديث بيانات العضو" : "Failed to update member"
@@ -397,9 +490,8 @@ export default function FamilyScreen() {
                   ? "تم إزالة العضو من العائلة بنجاح"
                   : "Member removed from family successfully"
               );
-            } catch (error) {
-              console.error("Error removing member:", error);
-              Alert.alert(
+              } catch (error) {
+                Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL ? "فشل في إزالة العضو" : "Failed to remove member"
               );
@@ -569,7 +661,6 @@ export default function FamilyScreen() {
                     : "Invitation to join Maak",
                 });
               } catch (error) {
-                console.error("Error sharing:", error);
                 // Fallback to copying to clipboard
                 await Clipboard.setString(shareMessage);
                 Alert.alert(
@@ -612,7 +703,6 @@ export default function FamilyScreen() {
         ]
       );
     } catch (error) {
-      console.error("Error generating invitation code:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في إنشاء رمز الدعوة" : "Failed to generate invitation code"
@@ -669,7 +759,6 @@ export default function FamilyScreen() {
         Alert.alert(isRTL ? "رمز غير صحيح" : "Invalid Code", result.message);
       }
     } catch (error) {
-      console.error("Error joining family:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في الانضمام للعائلة" : "Failed to join family"
@@ -715,12 +804,24 @@ export default function FamilyScreen() {
         <Text style={[styles.title, isRTL && styles.rtlText]}>
           {t("family")}
         </Text>
-        <TouchableOpacity
-          onPress={() => setShowInviteModal(true)}
-          style={styles.addButton}
-        >
-          <UserPlus color="#FFFFFF" size={24} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => setViewMode(viewMode === "list" ? "dashboard" : "list")}
+            style={styles.viewToggleButton}
+          >
+            {viewMode === "list" ? (
+              <Grid3x3 color="#FFFFFF" size={20} />
+            ) : (
+              <List color="#FFFFFF" size={20} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowInviteModal(true)}
+            style={styles.addButton}
+          >
+            <UserPlus color="#FFFFFF" size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -782,8 +883,156 @@ export default function FamilyScreen() {
             {t("familyMembers")}
           </Text>
 
-          <View style={styles.membersList}>
-            {familyMembers.map((member) => (
+          {viewMode === "dashboard" ? (
+            // Dashboard View
+            loadingMetrics ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color="#2563EB" size="large" />
+              </View>
+            ) : (
+              <View style={styles.dashboardGrid}>
+                {memberMetrics.map((metric) => {
+                  const fullName =
+                    metric.user.firstName && metric.user.lastName
+                      ? `${metric.user.firstName} ${metric.user.lastName}`
+                      : metric.user.firstName || "User";
+                  const isCurrentUser = metric.user.id === user?.id;
+
+                  return (
+                    <TouchableOpacity
+                      key={metric.id}
+                      style={styles.dashboardCard}
+                      onPress={() => handleEditMember(metric.user)}
+                    >
+                      <View style={styles.dashboardCardHeader}>
+                        <Avatar
+                          avatarType={metric.user.avatarType}
+                          name={fullName}
+                          size="lg"
+                          source={
+                            metric.user.avatar
+                              ? { uri: metric.user.avatar }
+                              : undefined
+                          }
+                        />
+                        {isCurrentUser && (
+                          <View style={styles.currentUserBadge}>
+                            <Text style={styles.currentUserBadgeText}>
+                              {isRTL ? "أنت" : "You"}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <Text
+                        style={[styles.dashboardCardName, isRTL && styles.rtlText]}
+                        numberOfLines={1}
+                      >
+                        {fullName}
+                      </Text>
+
+                      <View style={styles.dashboardMetrics}>
+                        <View style={styles.dashboardMetric}>
+                          <Heart
+                            color={
+                              metric.healthScore >= 80
+                                ? "#10B981"
+                                : metric.healthScore >= 60
+                                  ? "#F59E0B"
+                                  : "#EF4444"
+                            }
+                            size={16}
+                          />
+                          <Text
+                            style={[
+                              styles.dashboardMetricValue,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {metric.healthScore}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.dashboardMetricLabel,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {isRTL ? "صحة" : "Health"}
+                          </Text>
+                        </View>
+
+                        <View style={styles.dashboardMetric}>
+                          <AlertTriangle color="#F59E0B" size={16} />
+                          <Text
+                            style={[
+                              styles.dashboardMetricValue,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {metric.symptomsThisWeek}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.dashboardMetricLabel,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {isRTL ? "أعراض" : "Symptoms"}
+                          </Text>
+                        </View>
+
+                        <View style={styles.dashboardMetric}>
+                          <Heart color="#2563EB" size={16} />
+                          <Text
+                            style={[
+                              styles.dashboardMetricValue,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {metric.activeMedications}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.dashboardMetricLabel,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {isRTL ? "أدوية" : "Meds"}
+                          </Text>
+                        </View>
+
+                        {metric.alertsCount > 0 && (
+                          <View style={styles.dashboardMetric}>
+                            <AlertTriangle color="#EF4444" size={16} />
+                            <Text
+                              style={[
+                                styles.dashboardMetricValue,
+                                styles.alertValue,
+                                isRTL && styles.rtlText,
+                              ]}
+                            >
+                              {metric.alertsCount}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.dashboardMetricLabel,
+                                isRTL && styles.rtlText,
+                              ]}
+                            >
+                              {isRTL ? "تنبيهات" : "Alerts"}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )
+          ) : (
+            // List View
+            <View style={styles.membersList}>
+              {familyMembers.map((member) => (
               <View key={member.id} style={styles.memberItem}>
                 <View style={styles.memberLeft}>
                   <View style={styles.avatarContainer}>
@@ -813,11 +1062,6 @@ export default function FamilyScreen() {
                         : isRTL
                           ? "عضو"
                           : "Member"}
-                    </Text>
-                    <Text
-                      style={[styles.memberLastActive, isRTL && styles.rtlText]}
-                    >
-                      {member.email}
                     </Text>
                   </View>
                 </View>
@@ -858,6 +1102,7 @@ export default function FamilyScreen() {
               </View>
             ))}
           </View>
+          )}
         </View>
 
         {/* Quick Actions */}
@@ -1394,11 +1639,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
+    backgroundColor: "#2563EB",
   },
   title: {
     fontSize: 28,
     fontFamily: "Geist-Bold",
-    color: "#1E293B",
+    color: "#FFFFFF",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  viewToggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   addButton: {
     width: 44,
@@ -1456,6 +1715,76 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
+  },
+  dashboardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  dashboardCard: {
+    width: "48%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 12,
+  },
+  dashboardCardHeader: {
+    alignItems: "center",
+    marginBottom: 12,
+    position: "relative",
+  },
+  currentUserBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  currentUserBadgeText: {
+    fontSize: 10,
+    fontFamily: "Geist-SemiBold",
+    color: "#FFFFFF",
+  },
+  dashboardCardName: {
+    fontSize: 14,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  dashboardMetrics: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between",
+  },
+  dashboardMetric: {
+    alignItems: "center",
+    flex: 1,
+    minWidth: "45%",
+  },
+  dashboardMetricValue: {
+    fontSize: 18,
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
+    marginTop: 4,
+  },
+  alertValue: {
+    color: "#EF4444",
+  },
+  dashboardMetricLabel: {
+    fontSize: 10,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginTop: 2,
   },
   membersList: {
     backgroundColor: "#FFFFFF",

@@ -90,7 +90,7 @@ export default function HealthIntegrationsScreen() {
 
       setConnections(connectionsMap);
     } catch (error) {
-      console.error("Error loading health connections:", error);
+      // Silently handle error
     } finally {
       setLoading(false);
     }

@@ -1201,10 +1201,7 @@ export default function DashboardScreen() {
         {/* Maak One-liner */}
         <View style={styles.onelineCard}>
           <Text style={[styles.onelineText, isRTL && styles.rtlText]}>
-            {isRTL ? '"خليهم دايمًا معك"' : '"Health starts at home"'}
-          </Text>
-          <Text style={[styles.onelineSource, isRTL && styles.rtlText]}>
-            - Maak
+            {isRTL ? '"لأن الصحة تبدأ من المنزل"' : '"Because health starts at home."'}
           </Text>
         </View>
       </ScrollView>

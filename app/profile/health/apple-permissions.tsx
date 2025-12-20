@@ -119,7 +119,7 @@ export default function AppleHealthPermissionsScreen() {
       // Navigate to connected screen
       router.replace("/profile/health/apple-connected" as any);
     } catch (error: any) {
-      console.error("Error requesting HealthKit permissions:", error);
+      // Silently handle error
       Alert.alert(
         "Permission Error",
         error.message ||

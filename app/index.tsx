@@ -19,7 +19,7 @@ export default function Index() {
         router.replace("/onboarding");
       }
     } catch (error) {
-      console.error("Navigation error:", error);
+      // Silently handle error
     }
   }, [loading, user?.id, user?.onboardingCompleted, router]);
 

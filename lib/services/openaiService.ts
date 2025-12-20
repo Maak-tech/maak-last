@@ -42,7 +42,7 @@ class OpenAIService {
         this.model = savedModel;
       }
     } catch (error) {
-      console.error("Error loading OpenAI settings:", error);
+      // Silently handle error
     }
   }
 
@@ -106,7 +106,6 @@ class OpenAIService {
     }
 
     try {
-      console.log(`Making OpenAI API call with model: ${this.model}`);
 
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: "POST",
@@ -126,7 +125,6 @@ class OpenAIService {
         }),
       });
 
-      console.log(`OpenAI API response status: ${response.status}`);
 
       if (!response.ok) {
         let errorMessage = "";
@@ -138,7 +136,7 @@ class OpenAIService {
           errorMessage = `HTTP ${response.status}`;
         }
 
-        console.error("OpenAI API Error:", errorMessage);
+        // Silently handle error
 
         if (response.status === 429) {
           throw new Error(
@@ -172,7 +170,7 @@ class OpenAIService {
 
       return data.choices[0].message.content;
     } catch (error) {
-      console.error("Error in createChatCompletion:", error);
+      // Silently handle error
       throw error;
     }
   }

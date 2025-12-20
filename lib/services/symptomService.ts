@@ -29,7 +29,7 @@ export const symptomService = {
       const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error("Error adding symptom:", error);
+      // Silently handle error
       throw error;
     }
   },
@@ -57,7 +57,7 @@ export const symptomService = {
       const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error("Error adding symptom for user:", error);
+      // Silently handle error adding symptom for user:", error);
       throw error;
     }
   },
@@ -86,7 +86,7 @@ export const symptomService = {
 
       return symptoms;
     } catch (error) {
-      console.error("Error getting symptoms:", error);
+      // Silently handle error getting symptoms:", error);
       throw error;
     }
   },
@@ -131,7 +131,7 @@ export const symptomService = {
 
       return symptoms;
     } catch (error) {
-      console.error("Error getting family symptoms:", error);
+      // Silently handle error getting family symptoms:", error);
       throw error;
     }
   },
@@ -231,7 +231,7 @@ export const symptomService = {
         commonSymptoms,
       };
     } catch (error) {
-      console.error("Error getting family symptom stats:", error);
+      // Silently handle error getting family symptom stats:", error);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
@@ -248,7 +248,7 @@ export const symptomService = {
       }
       await updateDoc(doc(db, "symptoms", symptomId), updateData);
     } catch (error) {
-      console.error("Error updating symptom:", error);
+      // Silently handle error updating symptom:", error);
       throw error;
     }
   },
@@ -258,7 +258,7 @@ export const symptomService = {
     try {
       await deleteDoc(doc(db, "symptoms", symptomId));
     } catch (error) {
-      console.error("Error deleting symptom:", error);
+      // Silently handle error deleting symptom:", error);
       throw error;
     }
   },
@@ -317,7 +317,7 @@ export const symptomService = {
         commonSymptoms,
       };
     } catch (error) {
-      console.error("Error getting symptom stats:", error);
+      // Silently handle error getting symptom stats:", error);
       throw error;
     }
   },
@@ -349,7 +349,7 @@ export const symptomService = {
 
       return symptoms;
     } catch (error) {
-      console.error("Error getting member symptoms:", error);
+      // Silently handle error getting member symptoms:", error);
       throw error;
     }
   },
@@ -411,7 +411,7 @@ export const symptomService = {
         commonSymptoms,
       };
     } catch (error) {
-      console.error("Error getting member symptom stats:", error);
+      // Silently handle error getting member symptom stats:", error);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },

@@ -104,7 +104,7 @@ export default function MedicalHistoryScreen() {
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members.filter(m => m.id !== user.id)); // Exclude current user
     } catch (error) {
-      console.error("Error loading family members:", error);
+      // Silently handle error
     } finally {
       setLoadingFamilyMembers(false);
     }

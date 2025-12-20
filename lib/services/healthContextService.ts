@@ -311,7 +311,6 @@ class HealthContextService {
 
       return healthContext;
     } catch (error) {
-      console.error("Error fetching health context:", error);
       throw error;
     }
   }
