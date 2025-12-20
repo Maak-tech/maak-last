@@ -3,10 +3,12 @@ import type React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getTextStyle } from "@/utils/styles";
+import type { AvatarType } from "@/types";
 
 interface AvatarProps {
   source?: string | { uri: string };
   name?: string;
+  avatarType?: AvatarType;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   onPress?: () => void;
   showBadge?: boolean;
@@ -17,6 +19,7 @@ interface AvatarProps {
 export const Avatar: React.FC<AvatarProps> = ({
   source,
   name,
+  avatarType,
   size = "md",
   onPress,
   showBadge = false,
@@ -35,6 +38,25 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   const currentSize = sizes[size];
 
+  const getAvatarEmoji = (type?: AvatarType): string => {
+    switch (type) {
+      case "man":
+        return "👨🏻"; // Man with light skin tone
+      case "woman":
+        return "👩🏻"; // Woman with light skin tone
+      case "boy":
+        return "👦🏻"; // Boy with light skin tone
+      case "girl":
+        return "👧🏻"; // Girl with light skin tone
+      case "grandma":
+        return "👵🏻"; // Grandma with light skin tone
+      case "grandpa":
+        return "👴🏻"; // Grandpa with light skin tone
+      default:
+        return "";
+    }
+  };
+
   const getInitials = (name?: string): string => {
     if (!name) return "?";
     // Get the first letter of the name (handles both single and multiple words)
@@ -46,10 +68,10 @@ export const Avatar: React.FC<AvatarProps> = ({
     width: currentSize.width,
     height: currentSize.height,
     borderRadius: currentSize.width / 2,
-    backgroundColor: theme.colors.primary.main,
+    backgroundColor: avatarType ? "transparent" : theme.colors.primary.main,
     justifyContent: "center" as const,
     alignItems: "center" as const,
-    overflow: "hidden" as const,
+    overflow: "visible" as const,
   };
 
   const renderContent = () => {
@@ -65,6 +87,23 @@ export const Avatar: React.FC<AvatarProps> = ({
           }}
         />
       );
+    }
+
+    if (avatarType) {
+      const emoji = getAvatarEmoji(avatarType);
+      if (emoji) {
+        return (
+          <Text
+            style={{
+              fontSize: currentSize.width * 0.8,
+              textAlign: "center",
+              includeFontPadding: false,
+            }}
+          >
+            {emoji}
+          </Text>
+        );
+      }
     }
 
     if (name) {

@@ -785,6 +785,7 @@ export default function FamilyScreen() {
                 <View style={styles.memberLeft}>
                   <View style={styles.avatarContainer}>
                     <Avatar
+                      avatarType={member.avatarType}
                       badgeColor="#10B981"
                       name={member.name}
                       showBadge={member.id === user?.id}

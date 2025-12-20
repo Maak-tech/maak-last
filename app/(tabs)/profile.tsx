@@ -17,6 +17,7 @@ import {
   Shield,
   Sun,
   User,
+  X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,7 +40,8 @@ import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
-import type { Medication, Symptom } from "@/types";
+import { userService } from "@/lib/services/userService";
+import type { AvatarType, Medication, Symptom } from "@/types";
 
 interface ProfileSectionItem {
   icon: any;
@@ -59,13 +61,14 @@ interface ProfileSection {
 
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
   const { themeMode, setThemeMode, isDark } = useTheme();
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [healthData, setHealthData] = useState({
@@ -361,15 +364,8 @@ export default function ProfileScreen() {
           <View style={styles.avatarContainer}>
             <Avatar
               name={user?.name}
-              onPress={() => {
-                // TODO: Implement avatar change functionality
-                Alert.alert(
-                  isRTL ? "تغيير الصورة" : "Change Avatar",
-                  isRTL
-                    ? "ستتوفر هذه الميزة قريباً"
-                    : "This feature will be available soon"
-                );
-              }}
+              avatarType={user?.avatarType}
+              onPress={() => setAvatarPickerVisible(true)}
               size="xl"
               source={user?.avatar ? { uri: user.avatar } : undefined}
             />
@@ -610,11 +606,97 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
-}
+          </View>
+        </Modal>
+
+        {/* Avatar Picker Modal */}
+        <Modal
+          animationType="slide"
+          onRequestClose={() => setAvatarPickerVisible(false)}
+          transparent={true}
+          visible={avatarPickerVisible}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxWidth: 400 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+                  {isRTL ? "اختر صورة العائلة" : "Choose Family Avatar"}
+                </Text>
+                <TouchableOpacity onPress={() => setAvatarPickerVisible(false)}>
+                  <X color="#64748B" size={24} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.avatarGrid}>
+                {[
+                  { type: "man" as AvatarType, emoji: "👨🏻", labelEn: "Man", labelAr: "رجل" },
+                  { type: "woman" as AvatarType, emoji: "👩🏻", labelEn: "Woman", labelAr: "امرأة" },
+                  { type: "boy" as AvatarType, emoji: "👦🏻", labelEn: "Boy", labelAr: "صبي" },
+                  { type: "girl" as AvatarType, emoji: "👧🏻", labelEn: "Girl", labelAr: "فتاة" },
+                  { type: "grandma" as AvatarType, emoji: "👵🏻", labelEn: "Grandma", labelAr: "جدة" },
+                  { type: "grandpa" as AvatarType, emoji: "👴🏻", labelEn: "Grandpa", labelAr: "جد" },
+                ].map((avatar) => (
+                  <TouchableOpacity
+                    key={avatar.type}
+                    onPress={async () => {
+                      try {
+                        setLoading(true);
+                        if (user?.id) {
+                          await userService.updateUser(user.id, {
+                            avatarType: avatar.type,
+                          });
+                          // Update user context immediately for instant UI update
+                          if (updateUser) {
+                            await updateUser({ avatarType: avatar.type });
+                          }
+                        }
+                        setAvatarPickerVisible(false);
+                        Alert.alert(
+                          isRTL ? "تم التحديث" : "Updated",
+                          isRTL
+                            ? "تم تحديث الصورة الرمزية بنجاح"
+                            : "Avatar updated successfully"
+                        );
+                      } catch (error) {
+                        Alert.alert(
+                          isRTL ? "خطأ" : "Error",
+                          isRTL
+                            ? "فشل تحديث الصورة الرمزية"
+                            : "Failed to update avatar"
+                        );
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    style={[
+                      styles.avatarOption,
+                      user?.avatarType === avatar.type && styles.avatarOptionSelected,
+                    ]}
+                  >
+                    <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.avatarLabel,
+                        user?.avatarType === avatar.type && styles.avatarLabelSelected,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL ? avatar.labelAr : avatar.labelEn}
+                    </Text>
+                    {user?.avatarType === avatar.type && (
+                      <View style={styles.avatarCheck}>
+                        <Check color="#FFFFFF" size={16} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
 
 const styles = StyleSheet.create({
   container: {
@@ -907,5 +989,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-Medium",
     color: "#64748B",
+  },
+  avatarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 16,
+  },
+  avatarOption: {
+    width: "30%",
+    aspectRatio: 1,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    position: "relative",
+  },
+  avatarOptionSelected: {
+    backgroundColor: "#EBF4FF",
+    borderColor: "#2563EB",
+  },
+  avatarEmoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  avatarLabel: {
+    fontSize: 12,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+  },
+  avatarLabelSelected: {
+    color: "#2563EB",
+    fontFamily: "Geist-SemiBold",
+  },
+  avatarCheck: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -55,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           email: firebaseUser.email || "",
           name: userData.name || firebaseUser.displayName || "User",
           avatar: userData.avatar,
+          avatarType: userData.avatarType,
           familyId: userData.familyId,
           role: userData.role || "admin",
           createdAt: userData.createdAt?.toDate() || new Date(),
