@@ -1,12 +1,14 @@
 import { useState } from "react";
 import {
   Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Linking,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { alertService } from "@/lib/services/alertService";
@@ -123,22 +125,61 @@ export default function DebugNotificationsScreen() {
 
   const checkPermissions = async () => {
     try {
+      const { Platform } = await import("react-native");
       const Notifications = await import("expo-notifications");
+      
+      if (Platform.OS === "web") {
+        setLastTest(
+          "⚠️ Web Platform: Notification permissions work differently on web. Use a physical device or simulator for full testing."
+        );
+        return;
+      }
+
       const permission = await Notifications.getPermissionsAsync();
 
       console.log("🔒 Notification permissions:", permission);
-      setLastTest(`Permissions: ${JSON.stringify(permission, null, 2)}`);
-
-      if (!permission.granted) {
-        const request = await Notifications.requestPermissionsAsync();
+      
+      let resultMessage = `Current Status: ${permission.status}\n`;
+      resultMessage += `Granted: ${permission.granted}\n`;
+      resultMessage += `Can Ask Again: ${permission.canAskAgain}\n`;
+      
+      if (permission.status === "undetermined") {
+        resultMessage += "\n⚠️ Permissions are undetermined. Requesting now...\n";
+        const request = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+            allowAnnouncements: false,
+          },
+        });
+        
+        resultMessage += `\nAfter Request:\n`;
+        resultMessage += `Status: ${request.status}\n`;
+        resultMessage += `Granted: ${request.granted}\n`;
+        
+        if (request.granted) {
+          resultMessage += "\n✅ Permissions granted! You can now test notifications.";
+        } else if (request.status === "denied") {
+          resultMessage += "\n❌ Permissions denied. Please enable in device Settings.";
+        } else {
+          resultMessage += "\n⚠️ Permissions still not granted.";
+        }
+        
         console.log("🔒 Permission request result:", request);
-        setLastTest(
-          `Permission requested: ${JSON.stringify(request, null, 2)}`
-        );
+      } else if (permission.status === "denied") {
+        resultMessage += "\n❌ Permissions were denied. Please enable in device Settings:\n";
+        resultMessage += Platform.OS === "ios" 
+          ? "Settings → Maak Health → Notifications"
+          : "Settings → Apps → Maak Health → Notifications";
+      } else if (permission.granted) {
+        resultMessage += "\n✅ Permissions are granted! You can test notifications.";
       }
+
+      setLastTest(resultMessage);
     } catch (error) {
       console.error("❌ Permission check failed:", error);
-      setLastTest(`Error: ${error}`);
+      setLastTest(`Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -156,10 +197,31 @@ export default function DebugNotificationsScreen() {
         </Text>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Step 1: Check Permissions</Text>
+          <Text style={styles.sectionTitle}>Step 1: Check & Request Permissions</Text>
+          <Text style={styles.sectionDesc}>
+            {Platform.OS === "web" 
+              ? "⚠️ Full notification testing requires a physical device or simulator"
+              : "Tap to check current permissions and request if needed"}
+          </Text>
           <TouchableOpacity onPress={checkPermissions} style={styles.button}>
-            <Text style={styles.buttonText}>Check Permissions</Text>
+            <Text style={styles.buttonText}>
+              {Platform.OS === "web" ? "Check Permissions (Web)" : "Check & Request Permissions"}
+            </Text>
           </TouchableOpacity>
+          {Platform.OS !== "web" && (
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS === "ios") {
+                  Linking.openURL("app-settings:");
+                } else {
+                  Linking.openSettings();
+                }
+              }}
+              style={styles.settingsButton}
+            >
+              <Text style={styles.settingsButtonText}>Open Device Settings</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -286,6 +348,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     marginBottom: 10,
+  },
+  sectionDesc: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 10,
+    fontStyle: "italic",
+  },
+  settingsButton: {
+    backgroundColor: "#6B7280",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  settingsButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
   },
   buttonText: {
     color: "#FFFFFF",

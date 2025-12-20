@@ -39,11 +39,41 @@ export default function RootLayout() {
   useEffect(() => {
     // Request notification permissions on app start
     const requestPermissions = async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted") {
-        console.log("Notification permissions not granted");
-      } else {
-        console.log("Notification permissions granted");
+      try {
+        const { Platform } = await import("react-native");
+        
+        // Skip on web - notifications work differently
+        if (Platform.OS === "web") {
+          console.log("Skipping notification permission request on web");
+          return;
+        }
+
+        // Check current status first
+        const currentPermission = await Notifications.getPermissionsAsync();
+        
+        // Only request if not already determined
+        if (currentPermission.status === "undetermined") {
+          const { status } = await Notifications.requestPermissionsAsync({
+            ios: {
+              allowAlert: true,
+              allowBadge: true,
+              allowSound: true,
+              allowAnnouncements: false,
+            },
+          });
+          
+          if (status === "granted") {
+            console.log("✅ Notification permissions granted");
+          } else {
+            console.log(`⚠️ Notification permissions ${status}`);
+          }
+        } else if (currentPermission.granted) {
+          console.log("✅ Notification permissions already granted");
+        } else {
+          console.log(`⚠️ Notification permissions ${currentPermission.status}`);
+        }
+      } catch (error) {
+        console.error("Error requesting notification permissions:", error);
       }
     };
 

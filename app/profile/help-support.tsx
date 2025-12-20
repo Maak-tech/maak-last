@@ -100,8 +100,20 @@ export default function HelpSupportScreen() {
     </View>
   );
 
-  const HelpCard = ({ icon: Icon, title, description, color }: any) => (
-    <TouchableOpacity style={styles.helpCard}>
+  const HelpCard = ({ icon: Icon, title, description, color, comingSoon = false }: any) => (
+    <TouchableOpacity 
+      style={styles.helpCard}
+      onPress={() => {
+        if (comingSoon) {
+          Alert.alert(
+            isRTL ? "قريباً" : "Coming Soon",
+            isRTL
+              ? "هذه الميزة ستتوفر قريباً"
+              : "This feature will be available soon"
+          );
+        }
+      }}
+    >
       <View style={[styles.helpIcon, { backgroundColor: color + "20" }]}>
         <Icon color={color} size={20} />
       </View>
@@ -109,6 +121,13 @@ export default function HelpSupportScreen() {
       <Text style={[styles.helpDescription, isRTL && styles.rtlText]}>
         {description}
       </Text>
+      {comingSoon && (
+        <View style={styles.comingSoonBadge}>
+          <Text style={styles.comingSoonText}>
+            {isRTL ? "قريباً" : "Coming Soon"}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -236,6 +255,7 @@ export default function HelpSupportScreen() {
           <View style={styles.helpGrid}>
             <HelpCard
               color="#2563EB"
+              comingSoon={true}
               description={
                 isRTL
                   ? "تعلم كيفية استخدام التطبيق"
@@ -247,6 +267,7 @@ export default function HelpSupportScreen() {
 
             <HelpCard
               color="#10B981"
+              comingSoon={true}
               description={
                 isRTL ? "شاهد الدروس التفاعلية" : "Watch interactive lessons"
               }
@@ -543,6 +564,19 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
     lineHeight: 16,
+  },
+  comingSoonBadge: {
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 4,
+  },
+  comingSoonText: {
+    fontSize: 10,
+    fontFamily: "Geist-SemiBold",
+    color: "#D97706",
+    textTransform: "uppercase",
   },
   faqItem: {
     backgroundColor: "#FFFFFF",
