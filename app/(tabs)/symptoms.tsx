@@ -32,6 +32,26 @@ const COMMON_SYMPTOMS = [
   "dizziness",
   "chestPain",
   "backPain",
+  "soreThroat",
+  "runnyNose",
+  "shortnessOfBreath",
+  "muscleAche",
+  "jointPain",
+  "stomachPain",
+  "diarrhea",
+  "constipation",
+  "insomnia",
+  "anxiety",
+  "depression",
+  "rash",
+  "itchiness",
+  "swelling",
+  "chills",
+  "sweating",
+  "lossOfAppetite",
+  "blurredVision",
+  "ringingInEars",
+  "numbness",
 ];
 
 export default function TrackScreen() {
@@ -715,7 +735,7 @@ export default function TrackScreen() {
             {/* Common Symptoms */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t("commonSymptoms")}
+                {isRTL ? "الأعراض الشائعة" : "Common Symptoms"}
               </Text>
               <View style={styles.symptomsGrid}>
                 {COMMON_SYMPTOMS.map((symptomType) => (
@@ -751,7 +771,7 @@ export default function TrackScreen() {
             {/* Custom Symptom */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t("customSymptom")}
+                {isRTL ? "عرض مخصص" : "Custom Symptom"}
               </Text>
               <TextInput
                 onChangeText={(text) => {
