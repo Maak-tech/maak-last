@@ -25,6 +25,7 @@
     "@react-navigation/native-stack": "^7.3.10",
     "date-fns": "^3.6.0",
     "expo": "~54.0.30",
+    "expo-health-connect": "file:./modules/expo-health-connect",
     "expo-blur": "~15.0.8",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.12",
