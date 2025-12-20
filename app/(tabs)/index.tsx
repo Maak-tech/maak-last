@@ -12,8 +12,10 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Alert,
   Linking,
+  Modal,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -43,6 +45,9 @@ export default function DashboardScreen() {
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
   const [alertsCount, setAlertsCount] = useState(0);
   const [familyMembersCount, setFamilyMembersCount] = useState(0);
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [userAlerts, setUserAlerts] = useState<any[]>([]);
+  const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [stats, setStats] = useState({
     symptomsThisWeek: 0,
     avgSeverity: 0,
@@ -678,7 +683,21 @@ export default function DashboardScreen() {
 
         {/* Alerts */}
         {alertsCount > 0 && (
-          <TouchableOpacity style={styles.alertCard}>
+          <TouchableOpacity
+            style={styles.alertCard}
+            onPress={async () => {
+              setShowAlertsModal(true);
+              setLoadingAlerts(true);
+              try {
+                const alerts = await alertService.getActiveAlerts(user.id);
+                setUserAlerts(alerts);
+              } catch (error) {
+                console.error("Error loading alerts:", error);
+              } finally {
+                setLoadingAlerts(false);
+              }
+            }}
+          >
             <AlertTriangle color={theme.colors.accent.error} size={24} />
             <View style={styles.alertContent}>
               <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
@@ -694,8 +713,287 @@ export default function DashboardScreen() {
                     } requiring attention`}
               </Text>
             </View>
+            <ChevronRight color={theme.colors.accent.error} size={20} />
           </TouchableOpacity>
         )}
+
+        {/* Alerts Modal */}
+        <Modal
+          animationType="slide"
+          onRequestClose={() => setShowAlertsModal(false)}
+          transparent={true}
+          visible={showAlertsModal}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: "flex-end",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: theme.colors.background.primary,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                maxHeight: "80%",
+                padding: theme.spacing.base,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: theme.spacing.base,
+                }}
+              >
+                <Text
+                  style={[
+                    getTextStyle(
+                      theme,
+                      "heading",
+                      "bold",
+                      theme.colors.text.primary
+                    ),
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
+                </Text>
+                <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
+                  <Text
+                    style={getTextStyle(
+                      theme,
+                      "body",
+                      "medium",
+                      theme.colors.primary.main
+                    )}
+                  >
+                    {isRTL ? "إغلاق" : "Close"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {loadingAlerts ? (
+                <View
+                  style={{
+                    paddingVertical: theme.spacing.xl,
+                    alignItems: "center",
+                  }}
+                >
+                  <ActivityIndicator
+                    color={theme.colors.primary.main}
+                    size="large"
+                  />
+                </View>
+              ) : userAlerts.length === 0 ? (
+                <View
+                  style={{
+                    paddingVertical: theme.spacing.xl,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={[
+                      getTextStyle(
+                        theme,
+                        "body",
+                        "regular",
+                        theme.colors.text.secondary
+                      ),
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {isRTL ? "لا توجد تنبيهات نشطة" : "No active alerts"}
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {userAlerts.map((alert) => (
+                    <View
+                      key={alert.id}
+                      style={{
+                        backgroundColor: theme.colors.background.secondary,
+                        borderRadius: theme.borderRadius.lg,
+                        padding: theme.spacing.base,
+                        marginBottom: theme.spacing.md,
+                        borderLeftWidth: 4,
+                        borderLeftColor: theme.colors.accent.error,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          marginBottom: theme.spacing.sm,
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              getTextStyle(
+                                theme,
+                                "subheading",
+                                "bold",
+                                theme.colors.text.primary
+                              ),
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {alert.type === "fall"
+                              ? isRTL
+                                ? "تنبيه سقوط"
+                                : "Fall Detection"
+                              : alert.type === "emergency"
+                                ? isRTL
+                                  ? "طوارئ"
+                                  : "Emergency"
+                                : alert.type === "medication"
+                                  ? isRTL
+                                    ? "دواء"
+                                    : "Medication"
+                                  : isRTL
+                                    ? "مؤشرات حيوية"
+                                    : "Vitals"}
+                          </Text>
+                          <Text
+                            style={[
+                              getTextStyle(
+                                theme,
+                                "caption",
+                                "regular",
+                                theme.colors.text.secondary
+                              ),
+                              isRTL && styles.rtlText,
+                              { marginTop: 4 },
+                            ]}
+                          >
+                            {alert.timestamp.toLocaleString()}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          disabled={loadingAlerts}
+                          onPress={async () => {
+                            try {
+                              setLoadingAlerts(true);
+                              console.log(`[UI] ============ RESOLVE CLICKED ============`);
+                              console.log(`[UI] Starting to resolve alert ${alert.id} for user ${user.id}`);
+                              console.log(`[UI] Alert data:`, {
+                                id: alert.id,
+                                type: alert.type,
+                                resolved: alert.resolved,
+                                userId: alert.userId,
+                              });
+                              
+                              await alertService.resolveAlert(
+                                alert.id,
+                                user.id
+                              );
+                              
+                              console.log(`[UI] Alert ${alert.id} resolved successfully, refreshing list...`);
+                              
+                              // Wait a moment for Firestore to update
+                              await new Promise(resolve => setTimeout(resolve, 1500));
+                              
+                              // Refresh alerts list
+                              console.log(`[UI] Fetching updated alerts for user ${user.id}...`);
+                              const updatedAlerts =
+                                await alertService.getActiveAlerts(
+                                  user.id
+                                );
+                              
+                              console.log(`[UI] Found ${updatedAlerts.length} active alerts after resolve`);
+                              console.log(`[UI] Updated alerts:`, updatedAlerts.map(a => ({ id: a.id, resolved: a.resolved })));
+                              
+                              setUserAlerts(updatedAlerts);
+                              setAlertsCount(updatedAlerts.length);
+                              
+                              // Refresh dashboard data to update alert count
+                              console.log(`[UI] Refreshing dashboard data...`);
+                              await loadDashboardData();
+                              
+                              if (updatedAlerts.length === 0) {
+                                console.log(`[UI] No more alerts, closing modal`);
+                                setShowAlertsModal(false);
+                                Alert.alert(
+                                  isRTL ? "نجح" : "Success",
+                                  isRTL
+                                    ? "تم حل جميع التنبيهات"
+                                    : "All alerts resolved"
+                                );
+                              } else {
+                                console.log(`[UI] Still have ${updatedAlerts.length} alerts remaining`);
+                                Alert.alert(
+                                  isRTL ? "نجح" : "Success",
+                                  isRTL
+                                    ? "تم حل التنبيه"
+                                    : "Alert resolved"
+                                );
+                              }
+                            } catch (error: any) {
+                              console.error("[UI] ============ RESOLVE ERROR ============");
+                              console.error("[UI] Error resolving alert:", error);
+                              console.error("[UI] Error details:", {
+                                name: error.name,
+                                message: error.message,
+                                code: error.code,
+                                stack: error.stack,
+                              });
+                              Alert.alert(
+                                isRTL ? "خطأ" : "Error",
+                                isRTL
+                                  ? `فشل في حل التنبيه: ${error.message || "خطأ غير معروف"}`
+                                  : `Failed to resolve alert: ${error.message || "Unknown error"}`
+                              );
+                            } finally {
+                              setLoadingAlerts(false);
+                            }
+                          }}
+                          style={{
+                            backgroundColor: loadingAlerts 
+                              ? theme.colors.neutral[400] 
+                              : theme.colors.accent.error,
+                            paddingHorizontal: theme.spacing.md,
+                            paddingVertical: theme.spacing.sm,
+                            borderRadius: theme.borderRadius.md,
+                            opacity: loadingAlerts ? 0.6 : 1,
+                          }}
+                        >
+                          <Text
+                            style={getTextStyle(
+                              theme,
+                              "caption",
+                              "bold",
+                              theme.colors.neutral.white
+                            )}
+                          >
+                            {isRTL ? "حل" : "Resolve"}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text
+                        style={[
+                          getTextStyle(
+                            theme,
+                            "body",
+                            "regular",
+                            theme.colors.text.primary
+                          ),
+                          isRTL && styles.rtlText,
+                          { marginTop: theme.spacing.sm },
+                        ]}
+                      >
+                        {alert.message}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          </View>
+        </Modal>
 
         {/* Today's Medications */}
         <View style={styles.section}>
