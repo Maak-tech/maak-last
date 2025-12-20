@@ -78,10 +78,12 @@
     "ultracite": "6.4.2"
   },
   "resolutions": {
-    "@expo/fingerprint": "0.15.4"
+    "@expo/fingerprint": "0.15.4",
+    "expo-modules-core": "~3.0.29"
   },
   "overrides": {
-    "@expo/fingerprint": "0.15.4"
+    "@expo/fingerprint": "0.15.4",
+    "expo-modules-core": "~3.0.29"
   },
   "expo": {
     "doctor": {
