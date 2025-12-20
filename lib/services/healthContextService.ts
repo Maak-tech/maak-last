@@ -89,17 +89,11 @@ class HealthContextService {
       throw new Error("No user ID provided");
     }
 
-    console.log("Fetching comprehensive health context for user:", uid);
 
     try {
       // Fetch user profile
       const userDoc = await getDoc(doc(db, "users", uid));
       const userData = userDoc.data() || {};
-      console.log("User data found:", {
-        hasName: !!userData.name,
-        hasFamilyId: !!userData.familyId,
-        familyId: userData.familyId,
-      });
 
       // Fetch ALL medications (both active and inactive for context)
       let medications = [];
@@ -130,9 +124,8 @@ class HealthContextService {
         medications.sort((a, b) => b._startDate.getTime() - a._startDate.getTime());
         // Remove temporary sorting field
         medications = medications.map(({ _startDate, ...med }) => med);
-        console.log(`Found ${medications.length} medications`);
       } catch (error) {
-        console.log("Error fetching medications:", error);
+        // Silently handle error
       }
 
       // Fetch ALL symptoms (extended time range)
@@ -164,9 +157,8 @@ class HealthContextService {
             notes: data.notes || data.description || "",
           };
         });
-        console.log(`Found ${symptoms.length} symptoms`);
       } catch (error) {
-        console.log("Error fetching symptoms:", error);
+        // Silently handle error
       }
 
       // Fetch medical history
@@ -197,11 +189,8 @@ class HealthContextService {
             medicalHistoryData.push(entry);
           }
         });
-        console.log(
-          `Found ${medicalHistoryData.length} medical history entries and ${familyMedicalHistory.length} family history entries`
-        );
       } catch (error) {
-        console.log("Error fetching medical history:", error);
+        // Silently handle error
       }
 
       // Fetch family members
@@ -256,9 +245,8 @@ class HealthContextService {
             }
           }
         }
-        console.log(`Found ${familyMembers.length} family members`);
       } catch (error) {
-        console.log("Error fetching family members:", error);
+        // Silently handle error
       }
 
       // Fetch recent alerts
@@ -281,9 +269,8 @@ class HealthContextService {
             severity: data.severity || "info",
           };
         });
-        console.log(`Found ${recentAlerts.length} alerts`);
       } catch (error) {
-        console.log("Error fetching alerts:", error);
+        // Silently handle error
       }
 
       // Construct comprehensive health context
@@ -321,16 +308,6 @@ class HealthContextService {
         },
       };
 
-      console.log("Health context built successfully:", {
-        profileComplete: !!healthContext.profile.name,
-        medicationsCount: medications.length,
-        activeMedications: medications.filter((m) => m.isActive).length,
-        symptomsCount: symptoms.length,
-        conditionsCount: medicalHistoryData.length,
-        familyHistoryCount: familyMedicalHistory.length,
-        familyMembersCount: familyMembers.length,
-        alertsCount: recentAlerts.length,
-      });
 
       return healthContext;
     } catch (error) {

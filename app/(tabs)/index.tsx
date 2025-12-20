@@ -691,8 +691,6 @@ export default function DashboardScreen() {
               try {
                 const alerts = await alertService.getActiveAlerts(user.id);
                 setUserAlerts(alerts);
-              } catch (error) {
-                console.error("Error loading alerts:", error);
               } finally {
                 setLoadingAlerts(false);
               }
@@ -878,44 +876,28 @@ export default function DashboardScreen() {
                           onPress={async () => {
                             try {
                               setLoadingAlerts(true);
-                              console.log(`[UI] ============ RESOLVE CLICKED ============`);
-                              console.log(`[UI] Starting to resolve alert ${alert.id} for user ${user.id}`);
-                              console.log(`[UI] Alert data:`, {
-                                id: alert.id,
-                                type: alert.type,
-                                resolved: alert.resolved,
-                                userId: alert.userId,
-                              });
                               
                               await alertService.resolveAlert(
                                 alert.id,
                                 user.id
                               );
                               
-                              console.log(`[UI] Alert ${alert.id} resolved successfully, refreshing list...`);
-                              
-                              // Wait a moment for Firestore to update
+                              // Wait for Firestore to update
                               await new Promise(resolve => setTimeout(resolve, 1500));
                               
                               // Refresh alerts list
-                              console.log(`[UI] Fetching updated alerts for user ${user.id}...`);
                               const updatedAlerts =
                                 await alertService.getActiveAlerts(
                                   user.id
                                 );
                               
-                              console.log(`[UI] Found ${updatedAlerts.length} active alerts after resolve`);
-                              console.log(`[UI] Updated alerts:`, updatedAlerts.map(a => ({ id: a.id, resolved: a.resolved })));
-                              
                               setUserAlerts(updatedAlerts);
                               setAlertsCount(updatedAlerts.length);
                               
-                              // Refresh dashboard data to update alert count
-                              console.log(`[UI] Refreshing dashboard data...`);
+                              // Refresh dashboard data
                               await loadDashboardData();
                               
                               if (updatedAlerts.length === 0) {
-                                console.log(`[UI] No more alerts, closing modal`);
                                 setShowAlertsModal(false);
                                 Alert.alert(
                                   isRTL ? "نجح" : "Success",
@@ -924,7 +906,6 @@ export default function DashboardScreen() {
                                     : "All alerts resolved"
                                 );
                               } else {
-                                console.log(`[UI] Still have ${updatedAlerts.length} alerts remaining`);
                                 Alert.alert(
                                   isRTL ? "نجح" : "Success",
                                   isRTL
@@ -933,14 +914,7 @@ export default function DashboardScreen() {
                                 );
                               }
                             } catch (error: any) {
-                              console.error("[UI] ============ RESOLVE ERROR ============");
-                              console.error("[UI] Error resolving alert:", error);
-                              console.error("[UI] Error details:", {
-                                name: error.name,
-                                message: error.message,
-                                code: error.code,
-                                stack: error.stack,
-                              });
+                              console.error("Error resolving alert:", error);
                               Alert.alert(
                                 isRTL ? "خطأ" : "Error",
                                 isRTL
