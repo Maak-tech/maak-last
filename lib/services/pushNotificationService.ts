@@ -41,9 +41,8 @@ async function getAuthenticatedFunctions() {
     // Force token refresh to ensure we have a valid token
     try {
       await currentUser.getIdToken(true);
-      console.log("🔑 Auth token refreshed for push notification");
     } catch (e) {
-      console.warn("⚠️ Could not refresh token:", e);
+      // Silently handle token refresh error
     }
   }
 
@@ -62,7 +61,6 @@ export const pushNotificationService = {
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable) {
-        console.log("📱 Attempting FCM notification for user:", userId);
         // Use HTTP endpoint to bypass auth issues
         const success = await fcmService.sendPushNotificationHTTP([userId], {
           title: notification.title,
@@ -73,14 +71,11 @@ export const pushNotificationService = {
         });
 
         if (success) {
-          console.log("✅ FCM notification sent to user:", userId);
           return;
         }
-        console.log("⚠️ FCM failed, falling back to local notification");
       }
 
       // Fallback to local notifications (for Expo Go or when FCM fails)
-      console.log("📱 Using local notification fallback for user:", userId);
       const Notifications = await import("expo-notifications");
 
       await Notifications.scheduleNotificationAsync({
@@ -95,15 +90,8 @@ export const pushNotificationService = {
         },
         trigger: null, // Send immediately
       });
-
-      console.log(
-        "📱 Local notification sent to user:",
-        userId,
-        "Title:",
-        notification.title
-      );
     } catch (error) {
-      console.error("Error sending notification to user:", error);
+      // Silently handle notification error
     }
   },
 
@@ -122,7 +110,6 @@ export const pushNotificationService = {
       );
 
       if (membersToNotify.length === 0) {
-        console.log("📱 No family members to notify");
         return;
       }
 
@@ -130,10 +117,6 @@ export const pushNotificationService = {
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable) {
-        console.log(
-          "📱 Attempting FCM notification to family members:",
-          membersToNotify.length
-        );
         const userIds = membersToNotify.map((member) => member.id);
 
         // Use HTTP endpoint to bypass auth issues
@@ -146,35 +129,18 @@ export const pushNotificationService = {
         });
 
         if (success) {
-          console.log(
-            "✅ FCM notifications sent to family:",
-            familyId,
-            "Members:",
-            membersToNotify.length
-          );
           return;
         }
-        console.log(
-          "⚠️ FCM failed for family, falling back to local notifications"
-        );
       }
 
       // Fallback to local notifications (one per family member)
-      console.log("📱 Using local notification fallback for family members");
       const notificationPromises = membersToNotify.map((member) =>
         this.sendToUser(member.id, notification)
       );
 
       await Promise.all(notificationPromises);
-
-      console.log(
-        "📱 Local notifications sent to family:",
-        familyId,
-        "Members:",
-        membersToNotify.length
-      );
     } catch (error) {
-      console.error("Error sending notifications to family:", error);
+      // Silently handle notification error
     }
   },
 
@@ -191,7 +157,6 @@ export const pushNotificationService = {
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable && familyId) {
-        console.log("🚨 Sending fall alert via Cloud Function");
 
         // Check if user is authenticated
         const { auth } = await import("@/lib/firebase");
@@ -232,11 +197,10 @@ export const pushNotificationService = {
           senderId: currentUser?.uid || userId, // Include senderId as fallback
         });
 
-        console.log("🚨 Fall alert sent via Cloud Function:", result.data);
         return;
       }
     } catch (error) {
-      console.error("Cloud Function failed, using fallback:", error);
+      // Silently fallback to direct notification
     }
 
     // Fallback to direct notification
@@ -277,7 +241,6 @@ export const pushNotificationService = {
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable) {
-        console.log("💊 Sending medication reminder via Cloud Function");
         // Use the configured functions instance with authenticated context
         const functions = await getAuthenticatedFunctions();
         const sendPushFunc = httpsCallable(functions, "sendPushNotification");
@@ -307,7 +270,7 @@ export const pushNotificationService = {
         return;
       }
     } catch (error) {
-      console.error("Cloud Function failed, using fallback:", error);
+      // Silently fallback to direct notification
     }
 
     // Fallback to local notification
@@ -398,7 +361,6 @@ export const pushNotificationService = {
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable) {
-        console.log("⚠️ Sending symptom alert via Cloud Function");
         // Use the configured functions instance with authenticated context
         const functions = await getAuthenticatedFunctions();
         const sendPushFunc = httpsCallable(functions, "sendPushNotification");
@@ -436,7 +398,7 @@ export const pushNotificationService = {
         return;
       }
     } catch (error) {
-      console.error("Cloud Function failed, using fallback:", error);
+      // Silently fallback to direct notification
     }
 
     // Fallback to direct notification
@@ -505,9 +467,8 @@ export const pushNotificationService = {
         },
       });
 
-      console.log("✅ FCM token saved via Cloud Function");
     } catch (error) {
-      console.error("Error saving FCM token:", error);
+      // Silently handle token save error
       // Fallback to direct save
       await fcmService.saveFCMToken(token);
     }

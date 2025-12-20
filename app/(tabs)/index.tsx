@@ -495,7 +495,7 @@ export default function DashboardScreen() {
         });
       }
     } catch (error) {
-      console.error("Error loading dashboard data:", error);
+      // Silently handle dashboard data load error
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -914,7 +914,7 @@ export default function DashboardScreen() {
                                 );
                               }
                             } catch (error: any) {
-                              console.error("Error resolving alert:", error);
+                              // Silently handle alert resolution error
                               Alert.alert(
                                 isRTL ? "خطأ" : "Error",
                                 isRTL

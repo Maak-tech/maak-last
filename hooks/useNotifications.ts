@@ -38,7 +38,6 @@ export const useNotifications = () => {
             }),
           });
         } catch (handlerError) {
-          console.warn("Failed to set notification handler:", handlerError);
           // Continue with initialization even if handler fails
         }
 
@@ -54,46 +53,27 @@ export const useNotifications = () => {
         try {
           await Promise.race([registrationPromise, timeoutPromise]);
         } catch (registrationError) {
-          console.warn(
-            "Push notification registration failed:",
-            registrationError
-          );
           // Continue with initialization even if registration fails
         }
 
         // Add listeners with error handling
         try {
           notificationListener.current =
-            Notifications.addNotificationReceivedListener(
-              (notification: any) => {
-                try {
-                  console.log("Notification received:", notification);
-                } catch (listenerError) {
-                  console.warn(
-                    "Error in notification listener:",
-                    listenerError
-                  );
-                }
-              }
-            );
+            Notifications.addNotificationReceivedListener(() => {
+              // Notification received handler
+            });
 
           responseListener.current =
-            Notifications.addNotificationResponseReceivedListener(
-              (response: any) => {
-                try {
-                  console.log("Notification response:", response);
-                } catch (responseError) {
-                  console.warn("Error in response listener:", responseError);
-                }
-              }
-            );
+            Notifications.addNotificationResponseReceivedListener(() => {
+              // Notification response handler
+            });
         } catch (listenerError) {
-          console.warn("Failed to add notification listeners:", listenerError);
+          // Silently handle listener error
         }
 
         isInitialized.current = true;
       } catch (error) {
-        console.warn("Failed to initialize notifications:", error);
+        // Silently handle initialization error
       } finally {
         initializationInProgress.current = false;
       }
@@ -110,14 +90,14 @@ export const useNotifications = () => {
         try {
           notificationListener.current.remove();
         } catch (error) {
-          console.warn("Error removing notification listener:", error);
+          // Silently handle listener removal error
         }
       }
       if (responseListener.current) {
         try {
           responseListener.current.remove();
         } catch (error) {
-          console.warn("Error removing response listener:", error);
+          // Silently handle listener removal error
         }
       }
     };
@@ -126,14 +106,10 @@ export const useNotifications = () => {
   const scheduleNotification = useCallback(
     async (title: string, body: string, trigger: Date) => {
       if (Platform.OS === "web") {
-        console.log("Notification scheduled (web):", { title, body, trigger });
         return;
       }
 
       if (!isInitialized.current) {
-        console.warn(
-          "Notifications not initialized, cannot schedule notification"
-        );
         return;
       }
 
@@ -148,7 +124,7 @@ export const useNotifications = () => {
           trigger,
         });
       } catch (error) {
-        console.warn("Failed to schedule notification:", error);
+        // Silently handle scheduling error
       }
     },
     []
@@ -172,9 +148,6 @@ export const useNotifications = () => {
       }
 
       if (!isInitialized.current) {
-        console.warn(
-          "Notifications not initialized, cannot schedule medication reminder"
-        );
         return;
       }
 
@@ -203,7 +176,7 @@ export const useNotifications = () => {
           },
         });
       } catch (error) {
-        console.warn("Failed to schedule recurring medication reminder:", error);
+        // Silently handle scheduling error
       }
     },
     []
@@ -245,12 +218,8 @@ async function registerForPushNotificationsAsync(
         return;
       }
 
-      console.log("Push notifications registered successfully");
-    } else {
-      console.warn("Must use physical device for push notifications");
     }
   } catch (error) {
-    console.warn("Failed to register for push notifications:", error);
     throw error; // Re-throw to be caught by the calling function
   }
 }

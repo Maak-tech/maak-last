@@ -127,7 +127,7 @@ export default function ZeinaScreen() {
 
       setIsLoading(false);
     } catch (error) {
-      console.error("Error initializing chat:", error);
+      // Silently handle chat initialization error
       setIsLoading(false);
     }
   };
@@ -170,7 +170,7 @@ export default function ZeinaScreen() {
       setCurrentSessionId(docRef.id);
       return docRef.id;
     } catch (error) {
-      console.error("Error creating session:", error);
+      // Silently handle session creation error
       return null;
     }
   };
@@ -208,7 +208,7 @@ export default function ZeinaScreen() {
 
       await updateDoc(sessionRef, updates);
     } catch (error) {
-      console.error("Error saving message:", error);
+      // Silently handle message save error
     }
   };
 
@@ -279,7 +279,7 @@ export default function ZeinaScreen() {
       },
       (error) => {
         setIsStreaming(false);
-        console.error("Chat error:", error);
+        // Silently handle chat error
 
         // More user-friendly error messages
         if (error.message.includes("quota exceeded")) {
@@ -360,7 +360,7 @@ export default function ZeinaScreen() {
 
       setChatHistory(sessions);
     } catch (error) {
-      console.error("Error loading chat history:", error);
+      // Silently handle chat history load error
     }
   };
 
@@ -394,7 +394,7 @@ export default function ZeinaScreen() {
         scrollToBottom();
       }
     } catch (error) {
-      console.error("Error loading session:", error);
+      // Silently handle session load error
       Alert.alert("Error", "Failed to load chat session");
     } finally {
       setIsLoading(false);
@@ -430,7 +430,7 @@ export default function ZeinaScreen() {
                 await handleNewChat();
               }
             } catch (error) {
-              console.error("Error deleting session:", error);
+              // Silently handle session delete error
               Alert.alert("Error", "Failed to delete chat session");
             }
           },

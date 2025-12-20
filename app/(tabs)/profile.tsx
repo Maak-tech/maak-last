@@ -97,7 +97,7 @@ export default function ProfileScreen() {
         setNotificationsEnabled(JSON.parse(notifications));
       }
     } catch (error) {
-      console.log("Error loading settings:", error);
+      // Silently handle settings load error
     }
   };
 
@@ -233,7 +233,7 @@ export default function ProfileScreen() {
               await logout();
               router.replace("/(auth)/login");
             } catch (error) {
-              console.error("Logout failed:", error);
+              // Silently handle logout error
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL

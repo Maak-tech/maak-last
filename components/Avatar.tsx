@@ -37,12 +37,9 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   const getInitials = (name?: string): string => {
     if (!name) return "?";
-    return name
-      .split(" ")
-      .map((word) => word[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+    // Get the first letter of the name (handles both single and multiple words)
+    const firstLetter = name.trim()[0]?.toUpperCase() || "?";
+    return firstLetter;
   };
 
   const avatarStyle = {

@@ -62,8 +62,6 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
 const requestAuthorization = async (
   selectedMetrics: string[]
 ): Promise<{ granted: string[]; denied: string[] }> => {
-  console.log("Requesting Apple Health authorization for:", selectedMetrics);
-
   if (!AppleHealthKit) {
     throw new Error("HealthKit library not available");
   }
@@ -76,8 +74,6 @@ const requestAuthorization = async (
     })
     .filter(Boolean) as string[];
 
-  console.log("HealthKit read permissions:", readPermissions);
-
   try {
     // Request permissions (read-only, we never write)
     await AppleHealthKit.initHealthKit(
@@ -87,11 +83,10 @@ const requestAuthorization = async (
           write: [], // We only read, never write
         },
       },
-      (error: any) => {
-        if (error) {
-          console.error("HealthKit authorization error:", error);
-          throw error;
-        }
+        (error: any) => {
+          if (error) {
+            throw error;
+          }
       }
     );
 
@@ -147,12 +142,6 @@ const fetchMetrics = async (
   startDate: Date,
   endDate: Date
 ): Promise<NormalizedMetricPayload[]> => {
-  console.log("Fetching Apple Health data:", {
-    metrics: selectedMetrics,
-    startDate,
-    endDate,
-  });
-
   const results: NormalizedMetricPayload[] = [];
 
   for (const metricKey of selectedMetrics) {

@@ -27,7 +27,6 @@ export const useFallDetection = (
         onFallDetected("demo-alert");
       }
     } catch (error) {
-      console.error("Error creating fall alert:", error);
       onFallDetected("error-alert");
     }
   }, [userId, onFallDetected]);

@@ -141,15 +141,8 @@ export const userService = {
   // Join family
   async joinFamily(userId: string, familyId: string): Promise<void> {
     try {
-      console.log(`🔄 User ${userId} joining family ${familyId}`);
-
       // Get current user to check existing family
       const currentUser = await this.getUser(userId);
-      console.log("📋 Current user data:", {
-        userId,
-        currentFamilyId: currentUser?.familyId,
-        userName: currentUser?.name,
-      });
       const oldFamilyId = currentUser?.familyId;
 
       if (oldFamilyId && oldFamilyId !== familyId) {

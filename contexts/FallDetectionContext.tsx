@@ -54,9 +54,6 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   // Handle fall detection events
   const handleFallDetected = useCallback(
     async (alertId: string) => {
-      console.log("🚨 Fall detected! Alert ID:", alertId);
-      console.log("👤 User:", user?.name, "Family ID:", user?.familyId);
-
       // Update last alert
       setLastAlert({
         alertId,
@@ -76,7 +73,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
                   await alertService.resolveAlert(alertId, user.id);
                 }
               } catch (error) {
-                console.error("Error resolving alert:", error);
+                // Silently handle alert resolution error
               }
             },
           },
@@ -85,7 +82,6 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
             style: "destructive",
             onPress: () => {
               // Keep alert active - family members will be notified
-              console.log("User needs help - alert remains active");
             },
           },
         ]
@@ -157,9 +153,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       // Simulate fall detection
       await handleFallDetected(alertId);
 
-      console.log("🧪 Test fall detection completed");
     } catch (error) {
-      console.error("Error testing fall detection:", error);
       Alert.alert("Error", "Failed to test fall detection");
     }
   }, [user?.id, handleFallDetected]);

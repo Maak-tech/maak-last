@@ -44,7 +44,6 @@ export default function RootLayout() {
         
         // Skip on web - notifications work differently
         if (Platform.OS === "web") {
-          console.log("Skipping notification permission request on web");
           return;
         }
 
@@ -53,7 +52,7 @@ export default function RootLayout() {
         
         // Only request if not already determined
         if (currentPermission.status === "undetermined") {
-          const { status } = await Notifications.requestPermissionsAsync({
+          await Notifications.requestPermissionsAsync({
             ios: {
               allowAlert: true,
               allowBadge: true,
@@ -61,16 +60,6 @@ export default function RootLayout() {
               allowAnnouncements: false,
             },
           });
-          
-          if (status === "granted") {
-            console.log("✅ Notification permissions granted");
-          } else {
-            console.log(`⚠️ Notification permissions ${status}`);
-          }
-        } else if (currentPermission.granted) {
-          console.log("✅ Notification permissions already granted");
-        } else {
-          console.log(`⚠️ Notification permissions ${currentPermission.status}`);
         }
       } catch (error) {
         console.error("Error requesting notification permissions:", error);
