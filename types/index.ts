@@ -54,6 +54,8 @@ export interface MedicalHistory {
   notes?: string;
   isFamily: boolean;
   relation?: string;
+  familyMemberId?: string; // ID of the family member this record belongs to
+  familyMemberName?: string; // Name of the family member for display
 }
 
 export interface FamilyMember {

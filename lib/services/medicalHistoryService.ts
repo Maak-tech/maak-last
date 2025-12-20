@@ -99,6 +99,20 @@ export const medicalHistoryService = {
       ) {
         cleanedData.relation = medicalHistoryData.relation.trim();
       }
+      if (
+        medicalHistoryData.familyMemberId &&
+        typeof medicalHistoryData.familyMemberId === "string" &&
+        medicalHistoryData.familyMemberId.trim() !== ""
+      ) {
+        cleanedData.familyMemberId = medicalHistoryData.familyMemberId.trim();
+      }
+      if (
+        medicalHistoryData.familyMemberName &&
+        typeof medicalHistoryData.familyMemberName === "string" &&
+        medicalHistoryData.familyMemberName.trim() !== ""
+      ) {
+        cleanedData.familyMemberName = medicalHistoryData.familyMemberName.trim();
+      }
 
       const docRef = await addDoc(
         collection(db, "medicalHistory"),
@@ -146,6 +160,22 @@ export const medicalHistoryService = {
           typeof updates.relation === "string" &&
           updates.relation.trim() !== ""
             ? updates.relation.trim()
+            : null;
+      }
+      if (updates.familyMemberId !== undefined) {
+        updateData.familyMemberId =
+          updates.familyMemberId &&
+          typeof updates.familyMemberId === "string" &&
+          updates.familyMemberId.trim() !== ""
+            ? updates.familyMemberId.trim()
+            : null;
+      }
+      if (updates.familyMemberName !== undefined) {
+        updateData.familyMemberName =
+          updates.familyMemberName &&
+          typeof updates.familyMemberName === "string" &&
+          updates.familyMemberName.trim() !== ""
+            ? updates.familyMemberName.trim()
             : null;
       }
 

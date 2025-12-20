@@ -4,6 +4,7 @@ import type React from "react";
 import { useEffect, useRef } from "react";
 import {
   Animated,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -45,27 +46,29 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
     Animated.timing(checkOpacity, {
       toValue: isChecked ? 1 : 0,
       duration: 200,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
     }).start();
   }, [isChecked]);
 
   const handlePress = () => {
     if (disabled) return;
 
-    // Haptic feedback
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Haptic feedback (only on native platforms)
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
 
     // Scale animation
     Animated.sequence([
       Animated.timing(scaleValue, {
         toValue: 0.95,
         duration: 100,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
       Animated.timing(scaleValue, {
         toValue: 1,
         duration: 100,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== "web",
       }),
     ]).start();
 

@@ -57,7 +57,6 @@ export const familyInviteService = {
         expiresAt: Timestamp.fromDate(inviteData.expiresAt),
       });
 
-      console.log("✅ Family invitation code created:", code);
       return code;
     } catch (error) {
       console.error("Error creating invitation code:", error);
@@ -133,7 +132,6 @@ export const familyInviteService = {
         usedBy: userId,
       });
 
-      console.log("✅ Invitation code used successfully");
       return {
         success: true,
         familyId: invitation.familyId,
@@ -190,7 +188,6 @@ export const familyInviteService = {
       );
 
       await Promise.all(updatePromises);
-      console.log("✅ Cleaned up expired invitations");
     } catch (error) {
       console.error("Error cleaning up expired invitations:", error);
       throw error;

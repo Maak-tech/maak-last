@@ -17,6 +17,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -24,7 +25,8 @@ import {
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
-import type { MedicalHistory } from "@/types";
+import { userService } from "@/lib/services/userService";
+import type { MedicalHistory, User } from "@/types";
 
 const SEVERITY_OPTIONS = [
   { key: "mild", labelEn: "Mild", labelAr: "خفيف" },
@@ -49,7 +51,10 @@ export default function MedicalHistoryScreen() {
     notes: "",
     isFamily: false,
     relation: "",
+    familyMemberId: "",
   });
+  const [familyMembers, setFamilyMembers] = useState<User[]>([]);
+  const [loadingFamilyMembers, setLoadingFamilyMembers] = useState(false);
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -57,6 +62,12 @@ export default function MedicalHistoryScreen() {
   useEffect(() => {
     loadMedicalHistory();
   }, [user]);
+
+  useEffect(() => {
+    if (showAddModal && user?.familyId) {
+      loadFamilyMembers();
+    }
+  }, [showAddModal, user?.familyId]);
 
   const loadMedicalHistory = async () => {
     if (!user?.id) return;
@@ -85,6 +96,20 @@ export default function MedicalHistoryScreen() {
   const personalHistory = medicalHistory.filter((h) => !h.isFamily);
   const familyHistory = medicalHistory.filter((h) => h.isFamily);
 
+  const loadFamilyMembers = async () => {
+    if (!user?.familyId) return;
+    
+    try {
+      setLoadingFamilyMembers(true);
+      const members = await userService.getFamilyMembers(user.familyId);
+      setFamilyMembers(members.filter(m => m.id !== user.id)); // Exclude current user
+    } catch (error) {
+      console.error("Error loading family members:", error);
+    } finally {
+      setLoadingFamilyMembers(false);
+    }
+  };
+
   const handleAddCondition = async () => {
     if (!newCondition.condition.trim()) {
       Alert.alert(
@@ -98,8 +123,20 @@ export default function MedicalHistoryScreen() {
 
     if (!user?.id) return;
 
+    if (newCondition.isFamily && !newCondition.familyMemberId) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يرجى اختيار عضو العائلة"
+          : "Please select a family member"
+      );
+      return;
+    }
+
     setAddLoading(true);
     try {
+      const selectedMember = familyMembers.find(m => m.id === newCondition.familyMemberId);
+      
       const medicalData: Omit<MedicalHistory, "id" | "userId"> = {
         condition: newCondition.condition.trim(),
         severity: newCondition.severity,
@@ -107,6 +144,8 @@ export default function MedicalHistoryScreen() {
         notes: newCondition.notes.trim() || undefined,
         isFamily: newCondition.isFamily,
         relation: newCondition.isFamily ? newCondition.relation : undefined,
+        familyMemberId: newCondition.isFamily && newCondition.familyMemberId ? newCondition.familyMemberId : undefined,
+        familyMemberName: newCondition.isFamily && selectedMember ? selectedMember.name : undefined,
       };
 
       await medicalHistoryService.addMedicalHistory(user.id, medicalData);
@@ -119,6 +158,7 @@ export default function MedicalHistoryScreen() {
         notes: "",
         isFamily: false,
         relation: "",
+        familyMemberId: "",
       });
 
       setShowAddModal(false);
@@ -371,16 +411,24 @@ export default function MedicalHistoryScreen() {
                             {record.notes}
                           </Text>
                         )}
-                        {record.isFamily && record.relation && (
+                        {record.isFamily && (
                           <Text
                             style={[
                               styles.recordRelation,
                               isRTL && styles.rtlText,
                             ]}
                           >
-                            {isRTL
-                              ? `للـ ${record.relation}`
-                              : `for ${record.relation}`}
+                            {record.familyMemberName
+                              ? isRTL
+                                ? `لـ ${record.familyMemberName}`
+                                : `for ${record.familyMemberName}`
+                              : record.relation
+                              ? isRTL
+                                ? `للـ ${record.relation}`
+                                : `for ${record.relation}`
+                              : isRTL
+                              ? "عائلي"
+                              : "Family"}
                           </Text>
                         )}
                       </View>
@@ -424,7 +472,18 @@ export default function MedicalHistoryScreen() {
               {isRTL ? "إضافة سجل طبي" : "Add Medical Record"}
             </Text>
             <TouchableOpacity
-              onPress={() => setShowAddModal(false)}
+              onPress={() => {
+                setShowAddModal(false);
+                setNewCondition({
+                  condition: "",
+                  severity: "mild",
+                  diagnosedDate: new Date(),
+                  notes: "",
+                  isFamily: false,
+                  relation: "",
+                  familyMemberId: "",
+                });
+              }}
               style={styles.closeButton}
             >
               <X color="#64748B" size={24} />
@@ -487,6 +546,100 @@ export default function MedicalHistoryScreen() {
                 ))}
               </View>
             </View>
+
+            {/* Is Family Member Toggle */}
+            {user?.familyId && (
+              <View style={styles.fieldContainer}>
+                <View style={styles.toggleContainer}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "هذا السجل لعضو في العائلة" : "This record is for a family member"}
+                  </Text>
+                  <Switch
+                    onValueChange={(value) => {
+                      setNewCondition({
+                        ...newCondition,
+                        isFamily: value,
+                        familyMemberId: value ? newCondition.familyMemberId : "",
+                        relation: value ? newCondition.relation : "",
+                      });
+                    }}
+                    thumbColor={newCondition.isFamily ? "#FFFFFF" : "#9CA3AF"}
+                    trackColor={{ false: "#E5E7EB", true: "#2563EB" }}
+                    value={newCondition.isFamily}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* Family Member Selection */}
+            {newCondition.isFamily && user?.familyId && (
+              <View style={styles.fieldContainer}>
+                <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "عضو العائلة" : "Family Member"} *
+                </Text>
+                {loadingFamilyMembers ? (
+                  <ActivityIndicator color="#2563EB" size="small" style={{ marginVertical: 12 }} />
+                ) : familyMembers.length === 0 ? (
+                  <Text style={[styles.helperText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? "لا يوجد أعضاء عائلة متاحين"
+                      : "No family members available"}
+                  </Text>
+                ) : (
+                  <View style={styles.memberOptions}>
+                    {familyMembers.map((member) => (
+                      <TouchableOpacity
+                        key={member.id}
+                        onPress={() =>
+                          setNewCondition({
+                            ...newCondition,
+                            familyMemberId: member.id,
+                          })
+                        }
+                        style={[
+                          styles.memberOption,
+                          newCondition.familyMemberId === member.id &&
+                            styles.memberOptionSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.memberOptionText,
+                            newCondition.familyMemberId === member.id &&
+                              styles.memberOptionTextSelected,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {member.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Relation Field (for family members) */}
+            {newCondition.isFamily && (
+              <View style={styles.fieldContainer}>
+                <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "صلة القرابة" : "Relationship"} ({isRTL ? "اختياري" : "Optional"})
+                </Text>
+                <TextInput
+                  onChangeText={(text) =>
+                    setNewCondition({ ...newCondition, relation: text })
+                  }
+                  placeholder={
+                    isRTL
+                      ? "مثال: الأب، الأم، الزوج"
+                      : "e.g., Father, Mother, Spouse"
+                  }
+                  style={[styles.textInput, isRTL && styles.rtlInput]}
+                  textAlign={isRTL ? "right" : "left"}
+                  value={newCondition.relation}
+                />
+              </View>
+            )}
 
             {/* Notes Field */}
             <View style={styles.fieldContainer}>
@@ -884,5 +1037,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-SemiBold",
     color: "#FFFFFF",
+  },
+  toggleContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+  },
+  memberOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  memberOption: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  memberOptionSelected: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  memberOptionText: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+  },
+  memberOptionTextSelected: {
+    color: "#FFFFFF",
+  },
+  helperText: {
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    fontStyle: "italic",
   },
 });

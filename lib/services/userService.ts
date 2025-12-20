@@ -40,7 +40,6 @@ export const userService = {
         createdAt: Timestamp.fromDate(userData.createdAt),
       };
       await setDoc(doc(db, "users", userId), userDocData);
-      console.log("✅ User document created successfully in Firestore");
     } catch (error) {
       console.error("Error creating user:", error);
       throw error;
@@ -54,16 +53,10 @@ export const userService = {
     name: string
   ): Promise<User> {
     try {
-      console.log("🔍 Checking if user document exists for:", userId);
-
-      // First try to get existing user
       const existingUser = await this.getUser(userId);
       if (existingUser) {
-        console.log("✅ User document already exists");
         return existingUser;
       }
-
-      console.log("📝 Creating new user document...");
 
       // Create new user document with default values
       const newUserData: Omit<User, "id"> = {
@@ -87,7 +80,6 @@ export const userService = {
         throw new Error("Failed to create user document");
       }
 
-      console.log("✅ User document created and verified");
       return createdUser;
     } catch (error) {
       console.error("Error ensuring user document:", error);
@@ -103,7 +95,6 @@ export const userService = {
         updateData.createdAt = Timestamp.fromDate(updates.createdAt);
       }
       await updateDoc(doc(db, "users", userId), updateData);
-      console.log("✅ User document updated successfully");
     } catch (error) {
       console.error("Error updating user:", error);
       throw error;
@@ -116,13 +107,11 @@ export const userService = {
       // First check if family is active
       const familyDoc = await getDoc(doc(db, "families", familyId));
       if (!familyDoc.exists()) {
-        console.log("Family not found:", familyId);
         return [];
       }
 
       const familyData = familyDoc.data();
       if (familyData.status === "inactive") {
-        console.log("Family is inactive:", familyId);
         return [];
       }
 
@@ -163,15 +152,9 @@ export const userService = {
       });
       const oldFamilyId = currentUser?.familyId;
 
-      // Handle leaving previous family if exists
       if (oldFamilyId && oldFamilyId !== familyId) {
-        console.log(`🚪 Leaving previous family: ${oldFamilyId}`);
         await this.leavePreviousFamily(userId, oldFamilyId);
-        console.log(`✅ Left previous family: ${oldFamilyId}`);
       }
-
-      // Update user with new family ID and member role (unless they're creating their own family)
-      console.log(`📝 Updating user ${userId} with new familyId: ${familyId}`);
 
       // Check if this user is the creator of the family
       const familyDoc = await getDoc(doc(db, "families", familyId));
@@ -186,49 +169,25 @@ export const userService = {
 
       await updateDoc(doc(db, "users", userId), {
         familyId,
-        role, // Set appropriate role
+        role,
       });
-      console.log(
-        `✅ User document updated with familyId: ${familyId} and role: ${role}`
-      );
 
-      // Add user to the new family's members list
-      console.log(`👥 Getting family document: ${familyId}`);
       if (familyDoc.exists()) {
         const familyData = familyDoc.data();
-        console.log("📋 Current family data:", {
-          familyId,
-          familyName: familyData.name,
-          currentMembers: familyData.members,
-          status: familyData.status,
-        });
         const members = familyData.members || [];
 
-        // Add user to members if not already there
-        if (members.includes(userId)) {
-          console.log(`ℹ️ User ${userId} already in family members list`);
-        } else {
-          console.log(`➕ Adding user ${userId} to family members list`);
+        if (!members.includes(userId)) {
           const updatedMembers = [...members, userId];
           await updateDoc(doc(db, "families", familyId), {
             members: updatedMembers,
-            status: "active", // Ensure family is active when someone joins
+            status: "active",
           });
-          console.log("✅ User added to family. New members:", updatedMembers);
         }
       } else {
-        console.error(`❌ Family document ${familyId} does not exist!`);
         throw new Error(`Family ${familyId} not found`);
       }
-
-      console.log("✅ User joined family successfully");
     } catch (error) {
-      console.error("❌ Error joining family:", error);
-      console.error("Error details:", {
-        message: error instanceof Error ? error.message : "Unknown error",
-        code: (error as any)?.code,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      console.error("Error joining family:", error);
       throw error;
     }
   },
@@ -236,7 +195,6 @@ export const userService = {
   // Leave previous family and handle family status
   async leavePreviousFamily(userId: string, familyId: string): Promise<void> {
     try {
-      console.log(`🚪 User ${userId} leaving family ${familyId}`);
 
       const familyDoc = await getDoc(doc(db, "families", familyId));
       if (familyDoc.exists()) {
@@ -252,17 +210,11 @@ export const userService = {
             members: updatedMembers,
             status: "inactive",
           });
-          console.log(
-            `👨‍👩‍👧‍👦 Family ${familyId} marked as inactive (no members left)`
-          );
         } else {
           // Other members exist - just remove this user
           await updateDoc(doc(db, "families", familyId), {
             members: updatedMembers,
           });
-          console.log(
-            `👥 User removed from family ${familyId} (${updatedMembers.length} members remain)`
-          );
         }
       }
     } catch (error) {
@@ -292,7 +244,6 @@ export const userService = {
       // Update user with family ID
       await this.updateUser(userId, { familyId: familyRef.id });
 
-      console.log("✅ Family created successfully with ID:", familyRef.id);
       return familyRef.id;
     } catch (error) {
       console.error("Error creating family:", error);
@@ -325,7 +276,6 @@ export const userService = {
       }
 
       await updateDoc(doc(db, "users", userId), { role: newRole });
-      console.log(`✅ User ${userId} role updated to ${newRole}`);
     } catch (error) {
       console.error("Error updating user role:", error);
       throw error;
