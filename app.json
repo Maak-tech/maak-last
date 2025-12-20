@@ -98,11 +98,6 @@
     "experiments": {
       "typedRoutes": true
     },
-    "newArchEnabled": false,
-    "extra": {
-      "eas": {
-        "projectId": "26cb86fa-b368-4a41-8d1c-49d212a7f604"
-      }
-    }
+    "newArchEnabled": false
   }
 }
