@@ -8,8 +8,9 @@ import {
   TestTube,
   Users,
   XCircle,
+  Settings,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -25,6 +26,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
+import { motionPermissionService } from "@/lib/services/motionPermissionService";
 
 export default function FallDetectionScreen() {
   const { t, i18n } = useTranslation();
@@ -40,8 +42,31 @@ export default function FallDetectionScreen() {
   } = useFallDetectionContext();
   const [testingNotifications, setTestingNotifications] = useState(false);
   const [testingFallDetection, setTestingFallDetection] = useState(false);
+  const [motionPermissionGranted, setMotionPermissionGranted] = useState<boolean | null>(null);
+  const [checkingPermission, setCheckingPermission] = useState(true);
 
   const isRTL = i18n.language === "ar";
+
+  useEffect(() => {
+    checkMotionPermission();
+  }, []);
+
+  const checkMotionPermission = async () => {
+    setCheckingPermission(true);
+    try {
+      const hasPermission = await motionPermissionService.hasMotionPermission();
+      const status = await motionPermissionService.checkMotionAvailability();
+      setMotionPermissionGranted(hasPermission && status.available);
+    } catch (error) {
+      setMotionPermissionGranted(false);
+    } finally {
+      setCheckingPermission(false);
+    }
+  };
+
+  const handleOpenMotionPermissions = () => {
+    router.push("/profile/motion-permissions" as any);
+  };
 
   const handleTestNotifications = async () => {
     if (!user) return;
@@ -435,5 +460,48 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     textAlign: "right",
+  },
+  permissionWarning: {
+    backgroundColor: "#FFFBEB",
+    borderRadius: 12,
+    padding: 16,
+    margin: 16,
+    marginBottom: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: "#FEF3C7",
+  },
+  permissionWarningContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  permissionWarningTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#92400E",
+    marginBottom: 4,
+  },
+  permissionWarningText: {
+    fontSize: 14,
+    color: "#92400E",
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  permissionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F59E0B",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+    alignSelf: "flex-start",
+  },
+  permissionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
