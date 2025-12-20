@@ -42,6 +42,7 @@ import {
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
 import { appleHealthService } from "@/lib/services/appleHealthService";
+import { googleHealthService } from "@/lib/services/googleHealthService";
 import {
   saveProviderConnection,
   type ProviderConnection,
@@ -76,6 +77,7 @@ export default function VitalsScreen() {
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [healthKitAvailable, setHealthKitAvailable] = useState<boolean | null>(null);
+  const [healthConnectAvailable, setHealthConnectAvailable] = useState<boolean | null>(null);
   const [availabilityReason, setAvailabilityReason] = useState<string | undefined>();
   const [authorizing, setAuthorizing] = useState(false);
 
@@ -446,6 +448,13 @@ export default function VitalsScreen() {
       if (metrics.length > 0) {
         setExpandedGroups(new Set([metrics[0].group]));
       }
+    } else if (Platform.OS === "android") {
+      const metrics = getAvailableMetricsForProvider("health_connect");
+      setAvailableMetrics(metrics);
+      // Expand first group by default
+      if (metrics.length > 0) {
+        setExpandedGroups(new Set([metrics[0].group]));
+      }
     }
   };
 
@@ -457,13 +466,25 @@ export default function VitalsScreen() {
     }
   };
 
+  const checkHealthConnectAvailability = async () => {
+    if (Platform.OS === "android") {
+      const availability = await googleHealthService.isAvailable();
+      setHealthConnectAvailable(availability.available);
+      setAvailabilityReason(availability.reason);
+    }
+  };
+
   const handleEnableHealthData = () => {
     if (Platform.OS === "ios") {
       loadAvailableMetrics();
       checkHealthKitAvailability();
       setShowMetricSelection(true);
+    } else if (Platform.OS === "android") {
+      loadAvailableMetrics();
+      checkHealthConnectAvailability();
+      setShowMetricSelection(true);
     } else {
-      // For Android, use the old flow
+      // For other platforms, use the old flow
       handleEnableHealthDataLegacy();
     }
   };
@@ -542,29 +563,75 @@ export default function VitalsScreen() {
       return;
     }
 
-    // Check availability before proceeding
-    const availability = await appleHealthService.isAvailable();
-    if (!availability.available) {
-      Alert.alert(
-        isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
-        availability.reason || 
-        (isRTL 
-          ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
-          : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
-      );
-      return;
-    }
-
     setAuthorizing(true);
     try {
-      // Request HealthKit permissions
-      const { granted, denied } = await appleHealthService.requestAuthorization(
-        Array.from(selectedMetrics)
-      );
+      let granted: string[] = [];
+      let denied: string[] = [];
+      let provider: "apple_health" | "health_connect" = "apple_health";
+
+      if (Platform.OS === "ios") {
+        // Check availability before proceeding
+        const availability = await appleHealthService.isAvailable();
+        if (!availability.available) {
+          Alert.alert(
+            isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
+            availability.reason || 
+            (isRTL 
+              ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
+              : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
+          );
+          return;
+        }
+
+        // Request HealthKit permissions
+        const result = await appleHealthService.requestAuthorization(
+          Array.from(selectedMetrics)
+        );
+        granted = result.granted;
+        denied = result.denied;
+        provider = "apple_health";
+      } else if (Platform.OS === "android") {
+        // Check availability before proceeding
+        const availability = await googleHealthService.isAvailable();
+        if (!availability.available) {
+          Alert.alert(
+            isRTL ? "Health Connect غير متاح" : "Health Connect Not Available",
+            availability.reason || 
+            (isRTL 
+              ? "Health Connect غير متاح. يرجى التأكد من تثبيت تطبيق Health Connect من متجر Play."
+              : "Health Connect is not available. Please ensure Health Connect app is installed from Play Store.")
+          );
+          // Offer to open Play Store
+          if (availability.requiresInstall) {
+            Alert.alert(
+              isRTL ? "تثبيت Health Connect" : "Install Health Connect",
+              isRTL
+                ? "هل تريد فتح متجر Play لتثبيت Health Connect؟"
+                : "Would you like to open Play Store to install Health Connect?",
+              [
+                { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+                {
+                  text: isRTL ? "فتح" : "Open",
+                  onPress: () => googleHealthService.openHealthConnect(),
+                },
+              ]
+            );
+          }
+          return;
+        }
+
+        // Request Health Connect permissions
+        const result = await googleHealthService.requestAuthorization(
+          Array.from(selectedMetrics)
+        );
+        granted = result.granted;
+        denied = result.denied;
+        provider = "health_connect";
+      }
 
       // Save connection
       const connection: ProviderConnection = {
-        provider: "apple_health",
+        provider,
         connected: granted.length > 0,
         connectedAt: new Date().toISOString(),
         selectedMetrics: Array.from(selectedMetrics),
@@ -599,8 +666,12 @@ export default function VitalsScreen() {
         isRTL ? "خطأ في الأذونات" : "Permission Error",
         error.message ||
         (isRTL
-          ? "فشل طلب أذونات HealthKit. يرجى المحاولة مرة أخرى."
-          : "Failed to request HealthKit permissions. Please try again.")
+          ? Platform.OS === "ios"
+            ? "فشل طلب أذونات HealthKit. يرجى المحاولة مرة أخرى."
+            : "فشل طلب أذونات Health Connect. يرجى المحاولة مرة أخرى."
+          : Platform.OS === "ios"
+            ? "Failed to request HealthKit permissions. Please try again."
+            : "Failed to request Health Connect permissions. Please try again.")
       );
     } finally {
       setAuthorizing(false);
@@ -725,13 +796,16 @@ export default function VitalsScreen() {
     );
   }
 
-  // Show metric selection screen for iOS when permissions not granted
-  if (!hasPermissions && Platform.OS === "ios" && showMetricSelection) {
+  // Show metric selection screen for iOS/Android when permissions not granted
+  if (!hasPermissions && (Platform.OS === "ios" || Platform.OS === "android") && showMetricSelection) {
     const groups = getAllGroups();
     const allSelected = selectedMetrics.size === availableMetrics.length;
 
-    // Show error if HealthKit is not available
-    if (healthKitAvailable === false) {
+    // Show error if HealthKit/Health Connect is not available
+    if (
+      (Platform.OS === "ios" && healthKitAvailable === false) ||
+      (Platform.OS === "android" && healthConnectAvailable === false)
+    ) {
       return (
         <SafeAreaView style={styles.container}>
           <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }]}>
@@ -747,7 +821,9 @@ export default function VitalsScreen() {
             </TouchableOpacity>
             <Heart size={48} color={theme.colors.primary.main} />
             <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }]}>
-              {isRTL ? "HealthKit غير متاح" : "HealthKit Not Available"}
+              {isRTL 
+                ? Platform.OS === "ios" ? "HealthKit غير متاح" : "Health Connect غير متاح"
+                : Platform.OS === "ios" ? "HealthKit Not Available" : "Health Connect Not Available"}
             </Text>
           </View>
           <View style={styles.permissionCard}>
@@ -783,8 +859,12 @@ export default function VitalsScreen() {
             </Text>
             <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
               {isRTL
-                ? "اختر المقاييس الصحية التي تريد مزامنتها من تطبيق الصحة"
-                : "Choose which health metrics to sync from Apple Health"}
+                ? Platform.OS === "ios"
+                  ? "اختر المقاييس الصحية التي تريد مزامنتها من تطبيق الصحة"
+                  : "اختر المقاييس الصحية التي تريد مزامنتها من Health Connect"
+                : Platform.OS === "ios"
+                  ? "Choose which health metrics to sync from Apple Health"
+                  : "Choose which health metrics to sync from Health Connect"}
             </Text>
           </View>
 
@@ -962,8 +1042,12 @@ export default function VitalsScreen() {
               <Info size={16} color={theme.colors.text.secondary} />
               <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
                 {isRTL
-                  ? "يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة"
-                  : "You can change these permissions later in iOS Settings → Privacy & Security → Health"}
+                  ? Platform.OS === "ios"
+                    ? "يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة"
+                    : "يمكنك تغيير هذه الأذونات لاحقًا في تطبيق Health Connect → الأذونات"
+                  : Platform.OS === "ios"
+                    ? "You can change these permissions later in iOS Settings → Privacy & Security → Health"
+                    : "You can change these permissions later in the Health Connect app → Permissions"}
               </Text>
             </View>
           </View>
@@ -1016,8 +1100,8 @@ export default function VitalsScreen() {
           </Text>
           <Text style={[styles.permissionDescription, isRTL && styles.rtlText]}>
             {isRTL
-              ? `ادمج بياناتك الصحية من ${Platform.OS === "ios" ? "تطبيق الصحة" : "Google Fit"} لمراقبة أفضل لصحتك ومعرفة المؤشرات الحيوية`
-              : `Connect your health data from ${Platform.OS === "ios" ? "Health App" : "Google Fit"} to get comprehensive health monitoring and vital signs tracking`}
+              ? `ادمج بياناتك الصحية من ${Platform.OS === "ios" ? "تطبيق الصحة" : "Health Connect"} لمراقبة أفضل لصحتك ومعرفة المؤشرات الحيوية`
+              : `Connect your health data from ${Platform.OS === "ios" ? "Health App" : "Health Connect"} to get comprehensive health monitoring and vital signs tracking`}
           </Text>
           <TouchableOpacity
             disabled={loading}
@@ -1052,10 +1136,10 @@ export default function VitalsScreen() {
             {isRTL
               ? Platform.OS === "ios"
                 ? "انقر للاختيار من المقاييس الصحية المتاحة"
-                : "سيطلب منك الموافقة على قراءة: معدل ضربات القلب، الخطوات، النوم، الوزن"
+                : "انقر للاختيار من المقاييس الصحية المتاحة في Health Connect"
               : Platform.OS === "ios"
                 ? "Click to select from available health metrics"
-                : "You will be asked to approve reading: Heart rate, Steps, Sleep, Weight"}
+                : "Click to select from available health metrics in Health Connect"}
           </Text>
         </View>
       </SafeAreaView>

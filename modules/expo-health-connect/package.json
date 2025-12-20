@@ -1,0 +1,23 @@
+{
+  "name": "expo-health-connect",
+  "version": "1.0.0",
+  "description": "Expo module for Google Health Connect",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {},
+  "keywords": [
+    "expo",
+    "health-connect",
+    "android",
+    "health"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "expo-modules-core": "~1.11.0"
+  },
+  "devDependencies": {
+    "expo-module-scripts": "^3.0.0"
+  }
+}
+
