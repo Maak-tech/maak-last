@@ -302,6 +302,11 @@ export default function ProfileScreen() {
           onPress: () => router.push("/ai-assistant" as any),
         },
         {
+          icon: Activity,
+          label: isRTL ? "تكاملات الصحة" : "Health Integrations",
+          onPress: () => router.push("/profile/health-integrations" as any),
+        },
+        {
           icon: isDark ? Sun : Moon,
           label: isRTL ? "المظهر الداكن" : "Dark Mode",
           hasSwitch: true,
