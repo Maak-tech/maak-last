@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router";
-import { Activity, ChevronRight, Heart, Pill, Zap } from "lucide-react-native";
+import { Activity, ChevronRight, FileText, Heart, Pill, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,8 +18,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
+import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { userService } from "@/lib/services/userService";
-import type { Medication, Symptom, User as UserType } from "@/types";
+import type { Medication, Symptom, User as UserType, MedicalHistory } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function TrackScreen() {
@@ -30,6 +31,7 @@ export default function TrackScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
+  const [recentMedicalHistory, setRecentMedicalHistory] = useState<MedicalHistory[]>([]);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
@@ -42,6 +44,7 @@ export default function TrackScreen() {
     symptomsThisWeek: 0,
     medicationCompliance: 0,
     upcomingMedications: 0,
+    totalConditions: 0,
   });
 
   const isRTL = i18n.language === "ar";
@@ -260,13 +263,15 @@ export default function TrackScreen() {
       }
 
       // Load recent data for overview
-      const [symptoms, medications] = await Promise.all([
+      const [symptoms, medications, medicalHistory] = await Promise.all([
         symptomService.getUserSymptoms(user.id, 3),
         medicationService.getTodaysMedications(user.id),
+        medicalHistoryService.getUserMedicalHistory(user.id),
       ]);
 
       setRecentSymptoms(symptoms);
       setTodaysMedications(medications);
+      setRecentMedicalHistory(medicalHistory.slice(0, 3)); // Get 3 most recent
 
       // Calculate stats
       const totalSymptoms = symptoms.length;
@@ -290,12 +295,15 @@ export default function TrackScreen() {
         totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
       const upcomingMedications = totalReminders - takenReminders;
 
+      const totalConditions = medicalHistory.filter((h) => !h.isFamily).length;
+
       setStats({
         totalSymptoms,
         totalMedications,
         symptomsThisWeek,
         medicationCompliance: Math.round(compliance),
         upcomingMedications,
+        totalConditions,
       });
     } catch (error) {
       // Silently handle error
@@ -501,6 +509,45 @@ export default function TrackScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Medical History Tracking - Single Wide Card */}
+              <TouchableOpacity
+                onPress={() => router.push("/profile/medical-history")}
+                style={[styles.trackingCard, { marginTop: theme.spacing.md }]}
+              >
+                <View
+                  style={[
+                    styles.trackingCardIcon,
+                    { backgroundColor: theme.colors.accent.info + "20" },
+                  ]}
+                >
+                  <FileText color={theme.colors.accent.info} size={28} />
+                </View>
+                <Text
+                  style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
+                >
+                  {isRTL ? "التاريخ الطبي" : "Medical History"}
+                </Text>
+                <Text
+                  style={[styles.trackingCardSubtitle, isRTL && styles.rtlText]}
+                >
+                  {isRTL
+                    ? "تسجيل وإدارة الحالات الطبية"
+                    : "Record and manage medical conditions"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/profile/medical-history")}
+                  style={[
+                    styles.trackingCardButton,
+                    { backgroundColor: theme.colors.accent.info },
+                  ]}
+                >
+                  <FileText color={theme.colors.neutral.white} size={16} />
+                  <Text style={styles.trackingCardButtonText}>
+                    {isRTL ? "إدارة" : "Manage"}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+
               {/* Vitals Tracking - Single Wide Card */}
               <TouchableOpacity
                 onPress={() => router.push("/(tabs)/vitals")}
@@ -633,6 +680,63 @@ export default function TrackScreen() {
                         style={[styles.recentSubtitle, isRTL && styles.rtlText]}
                       >
                         {medication.dosage} • {medication.frequency}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Recent Activity - Medical History */}
+            {recentMedicalHistory.length > 0 && (
+              <View style={styles.recentSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                    {isRTL ? "التاريخ الطبي الأخير" : "Recent Medical History"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/profile/medical-history")}
+                    style={styles.viewAllButton}
+                  >
+                    <Text style={[styles.viewAllText, isRTL && styles.rtlText]}>
+                      {isRTL ? "عرض الكل" : "View All"}
+                    </Text>
+                    <ChevronRight color={theme.colors.primary.main} size={16} />
+                  </TouchableOpacity>
+                </View>
+
+                {recentMedicalHistory.slice(0, 3).map((history) => (
+                  <TouchableOpacity
+                    key={history.id}
+                    onPress={() => router.push("/profile/medical-history")}
+                    style={styles.recentItem}
+                  >
+                    <View
+                      style={[
+                        styles.recentIcon,
+                        { backgroundColor: theme.colors.accent.info + "20" },
+                      ]}
+                    >
+                      <FileText color={theme.colors.accent.info} size={20} />
+                    </View>
+                    <View style={styles.recentInfo}>
+                      <Text
+                        style={[styles.recentTitle, isRTL && styles.rtlText]}
+                      >
+                        {history.condition}
+                      </Text>
+                      <Text
+                        style={[styles.recentSubtitle, isRTL && styles.rtlText]}
+                      >
+                        {history.diagnosedDate
+                          ? new Date(history.diagnosedDate).toLocaleDateString()
+                          : isRTL
+                            ? "بدون تاريخ"
+                            : "No date"}{" "}
+                        • {history.severity
+                          ? history.severity.charAt(0).toUpperCase() +
+                            history.severity.slice(1)
+                          : ""}
                       </Text>
                     </View>
                   </TouchableOpacity>

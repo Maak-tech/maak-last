@@ -162,10 +162,6 @@ export default function ProfileScreen() {
     router.push("/profile/personal-info");
   };
 
-  const handleMedicalHistory = () => {
-    router.push("/profile/medical-history");
-  };
-
   const handleHealthReports = () => {
     Alert.alert(
       isRTL ? "قريباً" : "Coming Soon",
@@ -228,11 +224,6 @@ export default function ProfileScreen() {
           icon: User,
           label: isRTL ? "المعلومات الشخصية" : "Personal Information",
           onPress: handlePersonalInfo,
-        },
-        {
-          icon: Heart,
-          label: isRTL ? "التاريخ الطبي" : "Medical History",
-          onPress: handleMedicalHistory,
         },
         {
           icon: FileText,
