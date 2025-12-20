@@ -509,83 +509,84 @@ export default function TrackScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Medical History Tracking - Single Wide Card */}
-              <TouchableOpacity
-                onPress={() => router.push("/profile/medical-history")}
-                style={[styles.trackingCard, { marginTop: theme.spacing.md }]}
-              >
-                <View
-                  style={[
-                    styles.trackingCardIcon,
-                    { backgroundColor: theme.colors.accent.info + "20" },
-                  ]}
-                >
-                  <FileText color={theme.colors.accent.info} size={28} />
-                </View>
-                <Text
-                  style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
-                >
-                  {isRTL ? "التاريخ الطبي" : "Medical History"}
-                </Text>
-                <Text
-                  style={[styles.trackingCardSubtitle, isRTL && styles.rtlText]}
-                >
-                  {isRTL
-                    ? "تسجيل وإدارة الحالات الطبية"
-                    : "Record and manage medical conditions"}
-                </Text>
+              {/* Medical History and Vitals - Side by Side */}
+              <View style={[styles.trackingOptions, { marginTop: theme.spacing.md }]}>
                 <TouchableOpacity
                   onPress={() => router.push("/profile/medical-history")}
-                  style={[
-                    styles.trackingCardButton,
-                    { backgroundColor: theme.colors.accent.info },
-                  ]}
+                  style={styles.trackingCard}
                 >
-                  <FileText color={theme.colors.neutral.white} size={16} />
-                  <Text style={styles.trackingCardButtonText}>
-                    {isRTL ? "إدارة" : "Manage"}
+                  <View
+                    style={[
+                      styles.trackingCardIcon,
+                      { backgroundColor: theme.colors.accent.info + "20" },
+                    ]}
+                  >
+                    <FileText color={theme.colors.accent.info} size={28} />
+                  </View>
+                  <Text
+                    style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? "التاريخ الطبي" : "Medical History"}
                   </Text>
+                  <Text
+                    style={[styles.trackingCardSubtitle, isRTL && styles.rtlText]}
+                  >
+                    {isRTL
+                      ? "تسجيل وإدارة الحالات الطبية"
+                      : "Record and manage medical conditions"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/profile/medical-history")}
+                    style={[
+                      styles.trackingCardButton,
+                      { backgroundColor: theme.colors.accent.info },
+                    ]}
+                  >
+                    <FileText color={theme.colors.neutral.white} size={16} />
+                    <Text style={styles.trackingCardButtonText}>
+                      {isRTL ? "إدارة" : "Manage"}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
 
-              {/* Vitals Tracking - Single Wide Card */}
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/vitals")}
-                style={[styles.trackingCard, { marginTop: theme.spacing.md }]}
-              >
-                <View
-                  style={[
-                    styles.trackingCardIcon,
-                    { backgroundColor: theme.colors.secondary.main + "20" },
-                  ]}
-                >
-                  <Zap color={theme.colors.secondary.main} size={28} />
-                </View>
-                <Text
-                  style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
-                >
-                  {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
-                </Text>
-                <Text
-                  style={[styles.trackingCardSubtitle, isRTL && styles.rtlText]}
-                >
-                  {isRTL
-                    ? "مراقبة النبض، الخطوات، النوم"
-                    : "Monitor heart rate, steps, sleep"}
-                </Text>
                 <TouchableOpacity
                   onPress={() => router.push("/(tabs)/vitals")}
-                  style={[
-                    styles.trackingCardButton,
-                    { backgroundColor: theme.colors.secondary.main },
-                  ]}
+                  style={styles.trackingCard}
                 >
-                  <Heart color={theme.colors.neutral.white} size={16} />
-                  <Text style={styles.trackingCardButtonText}>
-                    {isRTL ? "عرض" : "View"}
+                  <View
+                    style={[
+                      styles.trackingCardIcon,
+                      { backgroundColor: theme.colors.secondary.main + "20" },
+                    ]}
+                  >
+                    <Zap color={theme.colors.secondary.main} size={28} />
+                  </View>
+                  <Text
+                    style={[styles.trackingCardTitle, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
                   </Text>
+                  <Text
+                    style={[styles.trackingCardSubtitle, isRTL && styles.rtlText]}
+                  >
+                    {isRTL
+                      ? "مراقبة النبض، الخطوات، النوم"
+                      : "Monitor heart rate, steps, sleep"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/vitals")}
+                    style={[
+                      styles.trackingCardButton,
+                      { backgroundColor: theme.colors.secondary.main },
+                    ]}
+                  >
+                    <Heart color={theme.colors.neutral.white} size={16} />
+                    <Text style={styles.trackingCardButtonText}>
+                      {isRTL ? "عرض" : "View"}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             </View>
 
             {/* Recent Activity - Symptoms */}

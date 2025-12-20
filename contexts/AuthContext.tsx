@@ -426,11 +426,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         errorMessage = error.message;
       }
 
-      // Log the error for debugging (in development)
-      if (__DEV__) {
-        console.error("Password change error:", error.code, error.message);
-      }
-
       throw new Error(errorMessage);
     }
   };
@@ -452,11 +447,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         errorMessage = "Too many requests. Please try again later.";
       } else if (error.message) {
         errorMessage = error.message;
-      }
-
-      // Log the error for debugging (in development)
-      if (__DEV__) {
-        console.error("Password reset error:", error.code, error.message);
       }
 
       throw new Error(errorMessage);
