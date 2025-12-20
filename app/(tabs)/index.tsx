@@ -613,7 +613,9 @@ export default function DashboardScreen() {
         <View style={styles.headerWithSOS}>
           <View style={styles.headerContent}>
             <Text style={[styles.welcomeText, isRTL && styles.rtlText]}>
-              {isRTL ? `مرحباً، ${user.name}` : `Welcome, ${user.name}`}
+              {isRTL
+                ? `مرحباً، ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`
+                : `Welcome, ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`}
             </Text>
             <Text style={[styles.dateText, isRTL && styles.rtlText]}>
               {new Date().toLocaleDateString(isRTL ? "ar-SA" : "en-US", {

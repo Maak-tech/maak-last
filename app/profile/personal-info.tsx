@@ -26,6 +26,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
 
@@ -36,7 +37,8 @@ export default function PersonalInfoScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: user?.name || "",
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
     phoneNumber: "",
   });
 
@@ -44,17 +46,18 @@ export default function PersonalInfoScreen() {
 
   const handleEdit = () => {
     setEditForm({
-      name: user?.name || "",
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
       phoneNumber: "",
     });
     setShowEditModal(true);
   };
 
   const handleSaveProfile = async () => {
-    if (!editForm.name.trim()) {
+    if (!editForm.firstName.trim()) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى إدخال الاسم" : "Please enter a name"
+        isRTL ? "يرجى إدخال الاسم الأول" : "Please enter a first name"
       );
       return;
     }
@@ -64,7 +67,8 @@ export default function PersonalInfoScreen() {
     setLoading(true);
     try {
       const updates = {
-        name: editForm.name.trim(),
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
       };
 
       await userService.updateUser(user.id, updates);
@@ -147,21 +151,24 @@ export default function PersonalInfoScreen() {
         {/* Profile Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user?.name
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase() || "U"}
-              </Text>
-            </View>
+            <Avatar
+              name={
+                user?.firstName && user?.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : user?.firstName || "User"
+              }
+              avatarType={user?.avatarType}
+              size="xl"
+              source={user?.avatar ? { uri: user.avatar } : undefined}
+            />
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
             </View>
           </View>
           <Text style={[styles.userName, isRTL && styles.rtlText]}>
-            {user?.name || "User"}
+            {user?.firstName && user?.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user?.firstName || "User"}
           </Text>
           <View style={styles.roleContainer}>
             <Shield color="#10B981" size={14} />
@@ -191,7 +198,11 @@ export default function PersonalInfoScreen() {
             }
             icon={User}
             label={isRTL ? "الاسم الكامل" : "Full Name"}
-            value={user?.name || (isRTL ? "غير محدد" : "Not specified")}
+            value={
+              user?.firstName && user?.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : user?.firstName || (isRTL ? "غير محدد" : "Not specified")
+            }
           />
 
           <InfoCard
@@ -344,21 +355,39 @@ export default function PersonalInfoScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {/* Name Field */}
+            {/* First Name Field */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الاسم الكامل" : "Full Name"} *
+                {isRTL ? "الاسم الأول" : "First Name"} *
               </Text>
               <TextInput
                 onChangeText={(text) =>
-                  setEditForm({ ...editForm, name: text })
+                  setEditForm({ ...editForm, firstName: text })
                 }
                 placeholder={
-                  isRTL ? "ادخل اسمك الكامل" : "Enter your full name"
+                  isRTL ? "ادخل اسمك الأول" : "Enter your first name"
                 }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={editForm.name}
+                value={editForm.firstName}
+              />
+            </View>
+
+            {/* Last Name Field */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                {isRTL ? "اسم العائلة" : "Last Name"}
+              </Text>
+              <TextInput
+                onChangeText={(text) =>
+                  setEditForm({ ...editForm, lastName: text })
+                }
+                placeholder={
+                  isRTL ? "ادخل اسم عائلتك" : "Enter your last name"
+                }
+                style={[styles.textInput, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={editForm.lastName}
               />
             </View>
 
@@ -469,26 +498,6 @@ const styles = StyleSheet.create({
   avatarContainer: {
     position: "relative",
     marginBottom: 16,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#2563EB",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 4,
-    borderColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  avatarText: {
-    fontSize: 32,
-    fontFamily: "Geist-Bold",
-    color: "#FFFFFF",
   },
   statusBadge: {
     position: "absolute",

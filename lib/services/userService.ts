@@ -50,18 +50,31 @@ export const userService = {
   async ensureUserDocument(
     userId: string,
     email: string,
-    name: string
+    firstName: string,
+    lastName: string
   ): Promise<User> {
     try {
       const existingUser = await this.getUser(userId);
       if (existingUser) {
+        // Migrate old name field if needed
+        if (!existingUser.firstName && !existingUser.lastName && (existingUser as any).name) {
+          const nameParts = ((existingUser as any).name as string).split(" ");
+          const migratedFirstName = nameParts[0] || "User";
+          const migratedLastName = nameParts.slice(1).join(" ") || "";
+          await this.updateUser(userId, {
+            firstName: migratedFirstName,
+            lastName: migratedLastName,
+          });
+          return { ...existingUser, firstName: migratedFirstName, lastName: migratedLastName };
+        }
         return existingUser;
       }
 
       // Create new user document with default values
       const newUserData: Omit<User, "id"> = {
         email,
-        name,
+        firstName,
+        lastName,
         role: "admin", // First user in family is admin
         createdAt: new Date(),
         onboardingCompleted: false, // New users should see onboarding flow

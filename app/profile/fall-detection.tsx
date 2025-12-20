@@ -48,7 +48,8 @@ export default function FallDetectionScreen() {
 
     try {
       setTestingNotifications(true);
-      await pushNotificationService.sendTestNotification(user.id, user.name);
+      const fullName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User";
+      await pushNotificationService.sendTestNotification(user.id, fullName);
 
       Alert.alert(
         isRTL ? "تم إرسال الإشعار" : "Notification Sent",

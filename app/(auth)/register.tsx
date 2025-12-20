@@ -21,7 +21,8 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const { signUp, loading } = useAuth();
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,9 +35,9 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setErrors({});
 
-    if (!(name && email && password && confirmPassword)) {
+    if (!(firstName && lastName && email && password && confirmPassword)) {
       setErrors({
-        general: "Please fill in all fields",
+        general: isRTL ? "يرجى ملء جميع الحقول" : "Please fill in all fields",
       });
       return;
     }
@@ -75,7 +76,7 @@ export default function RegisterScreen() {
         }
       }
 
-      await signUp(email, password, name);
+      await signUp(email, password, firstName, lastName);
 
       // Show success message for family code
       if (familyCode.trim()) {
@@ -150,16 +151,31 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.rtlText]}>
-                {isRTL ? "الاسم الكامل" : "Full Name"}
+                {isRTL ? "الاسم الأول" : "First Name"}
               </Text>
               <TextInput
-                onChangeText={setName}
+                onChangeText={setFirstName}
                 placeholder={
-                  isRTL ? "ادخل اسمك الكامل" : "Enter your full name"
+                  isRTL ? "ادخل اسمك الأول" : "Enter your first name"
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={name}
+                value={firstName}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, isRTL && styles.rtlText]}>
+                {isRTL ? "اسم العائلة" : "Last Name"}
+              </Text>
+              <TextInput
+                onChangeText={setLastName}
+                placeholder={
+                  isRTL ? "ادخل اسم عائلتك" : "Enter your last name"
+                }
+                style={[styles.input, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={lastName}
               />
             </View>
 

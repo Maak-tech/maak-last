@@ -740,7 +740,7 @@ export default function MedicationsScreen() {
                             ? isRTL
                               ? "أنت"
                               : "You"
-                            : member.name}
+                            : member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
                         </Text>
                         {member.role === "admin" && (
                           <Text

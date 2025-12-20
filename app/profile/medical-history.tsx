@@ -610,7 +610,7 @@ export default function MedicalHistoryScreen() {
                             isRTL && styles.rtlText,
                           ]}
                         >
-                          {member.name}
+                          {member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
                         </Text>
                       </TouchableOpacity>
                     ))}

@@ -70,7 +70,7 @@ export default function FirebaseTestScreen() {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           log(
-            `✅ User document exists: ${userData.name} (Family: ${userData.familyId})`
+            `✅ User document exists: ${userData.firstName && userData.lastName ? `${userData.firstName} ${userData.lastName}` : userData.firstName || "User"} (Family: ${userData.familyId})`
           );
         } else {
           log("⚠️ User document does not exist");
@@ -194,7 +194,7 @@ export default function FirebaseTestScreen() {
         <View style={styles.userInfo}>
           <Text style={styles.label}>User Status:</Text>
           <Text style={styles.value}>
-            {user ? `${user.name} (${user.id})` : "Not authenticated"}
+            {user ? `${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"} (${user.id})` : "Not authenticated"}
           </Text>
           {user?.familyId && (
             <>

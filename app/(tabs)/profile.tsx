@@ -334,7 +334,11 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Avatar
-              name={user?.name}
+              name={
+                user?.firstName && user?.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : user?.firstName || "User"
+              }
               avatarType={user?.avatarType}
               onPress={() => setAvatarPickerVisible(true)}
               size="xl"
@@ -344,7 +348,9 @@ export default function ProfileScreen() {
 
           <View style={styles.userInfo}>
             <Text style={[styles.userName, isRTL && styles.rtlText]}>
-              {user?.name || "User"}
+              {user?.firstName && user?.lastName
+                ? `${user.firstName} ${user.lastName}`
+                : user?.firstName || "User"}
             </Text>
             <Text style={[styles.userEmail, isRTL && styles.rtlText]}>
               {user?.email}

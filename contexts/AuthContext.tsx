@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<void>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
 }
@@ -50,10 +50,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        // Handle migration from old name field to firstName/lastName
+        let firstName = userData.firstName;
+        let lastName = userData.lastName;
+        if (!firstName && !lastName && userData.name) {
+          // Migrate old name field
+          const nameParts = (userData.name as string).split(" ");
+          firstName = nameParts[0] || "User";
+          lastName = nameParts.slice(1).join(" ") || "";
+        }
+        if (!firstName) firstName = "User";
+        if (!lastName) lastName = "";
+
         return {
           id: firebaseUser.uid,
           email: firebaseUser.email || "",
-          name: userData.name || firebaseUser.displayName || "User",
+          firstName: firstName || "User",
+          lastName: lastName || "",
           avatar: userData.avatar,
           avatarType: userData.avatarType,
           familyId: userData.familyId,
@@ -77,11 +90,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Helper function to create user document in Firestore
   const createUserDocument = async (
     firebaseUser: FirebaseUser,
-    name: string
+    firstName: string,
+    lastName: string
   ): Promise<User> => {
     const userData: Omit<User, "id"> = {
       email: firebaseUser.email || "",
-      name,
+      firstName,
+      lastName,
       role: "admin",
       createdAt: new Date(),
       onboardingCompleted: false,
@@ -110,10 +125,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
+          // Parse displayName into firstName and lastName
+          const displayName = firebaseUser.displayName || "User";
+          const nameParts = displayName.split(" ");
+          const firstName = nameParts[0] || "User";
+          const lastName = nameParts.slice(1).join(" ") || "";
+
           const userData = await userService.ensureUserDocument(
             firebaseUser.uid,
             firebaseUser.email || "",
-            firebaseUser.displayName || "User"
+            firstName,
+            lastName
           );
           setUser(userData);
 
@@ -210,9 +232,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const currentUser = await userService.getUser(userId);
 
       if (!currentUser?.familyId) {
+        const fullName = currentUser?.firstName && currentUser?.lastName
+          ? `${currentUser.firstName} ${currentUser.lastName}`
+          : currentUser?.firstName || "User";
         await userService.createFamily(
           userId,
-          `${currentUser?.name}'s Family` || "My Family"
+          `${fullName}'s Family` || "My Family"
         );
 
         const updatedUser = await userService.getUser(userId);
@@ -234,10 +259,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password
       );
 
+      // Parse displayName into firstName and lastName
+      const displayName = userCredential.user.displayName || "User";
+      const nameParts = displayName.split(" ");
+      const firstName = nameParts[0] || "User";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
       await userService.ensureUserDocument(
         userCredential.user.uid,
         userCredential.user.email || "",
-        userCredential.user.displayName || "User"
+        firstName,
+        lastName
       );
     } catch (error: any) {
       console.error("Sign in error:", error);

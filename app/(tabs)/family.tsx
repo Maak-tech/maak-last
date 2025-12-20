@@ -69,7 +69,8 @@ export default function FamilyScreen() {
   });
   const [editMemberForm, setEditMemberForm] = useState({
     id: "",
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     role: "member" as "admin" | "member",
   });
@@ -276,7 +277,8 @@ export default function FamilyScreen() {
 
     setEditMemberForm({
       id: member.id,
-      name: member.name,
+      firstName: member.firstName,
+      lastName: member.lastName,
       email: member.email,
       role: member.role,
     });
@@ -284,10 +286,10 @@ export default function FamilyScreen() {
   };
 
   const handleSaveEditMember = async () => {
-    if (!editMemberForm.name.trim()) {
+    if (!editMemberForm.firstName.trim()) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى إدخال الاسم" : "Please enter a name"
+        isRTL ? "يرجى إدخال الاسم الأول" : "Please enter a first name"
       );
       return;
     }
@@ -298,7 +300,8 @@ export default function FamilyScreen() {
 
     try {
       const updates: Partial<User> = {
-        name: editMemberForm.name.trim(),
+        firstName: editMemberForm.firstName.trim(),
+        lastName: editMemberForm.lastName.trim(),
       };
 
       // Only admins can change roles and only for other users (not themselves)
@@ -322,7 +325,7 @@ export default function FamilyScreen() {
       await loadFamilyMembers();
 
       setShowEditMemberModal(false);
-      setEditMemberForm({ id: "", name: "", email: "", role: "member" });
+      setEditMemberForm({ id: "", firstName: "", lastName: "", email: "", role: "member" });
 
       Alert.alert(
         isRTL ? "تم الحفظ" : "Saved",
@@ -365,8 +368,8 @@ export default function FamilyScreen() {
     Alert.alert(
       isRTL ? "حذف العضو" : "Remove Member",
       isRTL
-        ? `هل أنت متأكد من رغبتك في إزالة ${member.name} من العائلة؟`
-        : `Are you sure you want to remove ${member.name} from the family?`,
+        ? `هل أنت متأكد من رغبتك في إزالة ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} من العائلة؟`
+        : `Are you sure you want to remove ${member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"} from the family?`,
       [
         {
           text: isRTL ? "إلغاء" : "Cancel",
@@ -787,7 +790,7 @@ export default function FamilyScreen() {
                     <Avatar
                       avatarType={member.avatarType}
                       badgeColor="#10B981"
-                      name={member.name}
+                      name={member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
                       showBadge={member.id === user?.id}
                       size="md"
                       source={
@@ -798,7 +801,7 @@ export default function FamilyScreen() {
 
                   <View style={styles.memberInfo}>
                     <Text style={[styles.memberName, isRTL && styles.rtlText]}>
-                      {member.name}
+                      {member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
                     </Text>
                     <Text
                       style={[styles.memberRelation, isRTL && styles.rtlText]}
@@ -1251,7 +1254,8 @@ export default function FamilyScreen() {
                 setShowEditMemberModal(false);
                 setEditMemberForm({
                   id: "",
-                  name: "",
+                  firstName: "",
+                  lastName: "",
                   email: "",
                   role: "member",
                 });
@@ -1263,19 +1267,35 @@ export default function FamilyScreen() {
           </View>
 
           <ScrollView style={styles.modalContent}>
-            {/* Name */}
+            {/* First Name */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الاسم" : "Name"} *
+                {isRTL ? "الاسم الأول" : "First Name"} *
               </Text>
               <TextInput
                 onChangeText={(text) =>
-                  setEditMemberForm({ ...editMemberForm, name: text })
+                  setEditMemberForm({ ...editMemberForm, firstName: text })
                 }
-                placeholder={isRTL ? "ادخل الاسم" : "Enter name"}
+                placeholder={isRTL ? "ادخل الاسم الأول" : "Enter first name"}
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={editMemberForm.name}
+                value={editMemberForm.firstName}
+              />
+            </View>
+
+            {/* Last Name */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                {isRTL ? "اسم العائلة" : "Last Name"}
+              </Text>
+              <TextInput
+                onChangeText={(text) =>
+                  setEditMemberForm({ ...editMemberForm, lastName: text })
+                }
+                placeholder={isRTL ? "ادخل اسم العائلة" : "Enter last name"}
+                style={[styles.textInput, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={editMemberForm.lastName}
               />
             </View>
 

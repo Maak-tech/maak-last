@@ -3,7 +3,8 @@ export type AvatarType = "man" | "woman" | "boy" | "girl" | "grandma" | "grandpa
 export interface User {
   id: string;
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   avatar?: string;
   avatarType?: AvatarType;
   familyId?: string;
