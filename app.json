@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maak.health",
-      "buildNumber": "17",
+      "buildNumber": "22",
       "jsEngine": "hermes",
       "splash": {
         "image": "./assets/images/generated_image.png",
@@ -30,7 +30,8 @@
         "NSLocationWhenInUseUsageDescription": "Maak Health uses your location to share with emergency contacts during fall detection alerts, ensuring help can reach you quickly.",
         "NSHealthShareUsageDescription": "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
         "NSHealthUpdateUsageDescription": "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
-        "NSUserTrackingUsageDescription": "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure."
+        "NSUserTrackingUsageDescription": "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -108,12 +109,6 @@
         }
       ],
       "./plugins/withHealthConnect.js",
-      [
-        "expo-module",
-        {
-          "modulePath": "./modules/expo-health-connect"
-        }
-      ],
       "expo-localization",
       "expo-secure-store",
       "expo-web-browser"
@@ -121,6 +116,12 @@
     "experiments": {
       "typedRoutes": true
     },
-    "newArchEnabled": false
+    "newArchEnabled": true,
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "62019bb9-d9c3-4e37-9b2d-7693917c0a71"
+      }
+    }
   }
 }
