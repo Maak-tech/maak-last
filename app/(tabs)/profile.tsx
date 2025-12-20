@@ -49,6 +49,7 @@ interface ProfileSectionItem {
   switchValue?: boolean;
   onSwitchChange?: (value: boolean) => void | Promise<void>;
   value?: string;
+  comingSoon?: boolean;
 }
 
 interface ProfileSection {
@@ -269,6 +270,7 @@ export default function ProfileScreen() {
           icon: BookOpen,
           label: isRTL ? "المصادر التعليمية" : "Health Resources",
           onPress: () => router.push("/(tabs)/resources"),
+          comingSoon: true,
         },
       ],
     },
@@ -290,11 +292,6 @@ export default function ProfileScreen() {
           switchValue: fallDetectionEnabled,
           onSwitchChange: handleFallDetectionToggle,
           onPress: () => router.push("/profile/fall-detection"),
-        },
-        {
-          icon: Settings,
-          label: isRTL ? "تجربة الإشعارات" : "Debug Notifications",
-          onPress: () => router.push("/debug-notifications" as any),
         },
         {
           icon: Activity,
@@ -480,15 +477,24 @@ export default function ProfileScreen() {
                       <View style={styles.sectionItemIcon}>
                         <IconComponent color="#64748B" size={20} />
                       </View>
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.sectionItemLabel,
-                          isRTL && styles.rtlText,
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
+                      <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.sectionItemLabel,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        {item.comingSoon && (
+                          <View style={styles.comingSoonBadge}>
+                            <Text style={styles.comingSoonText}>
+                              {isRTL ? "قريباً" : "Coming Soon"}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
 
                     <View style={styles.sectionItemRight}>
@@ -803,6 +809,17 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Regular",
     color: "#64748B",
     maxWidth: 80,
+  },
+  comingSoonBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 4,
+  },
+  comingSoonText: {
+    fontSize: 10,
+    fontFamily: "Geist-Bold",
+    color: "#92400E",
   },
   signOutButton: {
     flexDirection: "row",

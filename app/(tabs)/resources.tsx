@@ -326,16 +326,12 @@ export default function ResourcesScreen() {
   };
 
   const handleResourcePress = (resource: Resource) => {
-    if (resource.url) {
-      Linking.openURL(resource.url);
-    } else {
-      Alert.alert(
-        isRTL ? "قريباً" : "Coming Soon",
-        isRTL
-          ? "هذا المحتوى سيتوفر قريباً"
-          : "This content will be available soon"
-      );
-    }
+    Alert.alert(
+      isRTL ? "قريباً" : "Coming Soon",
+      isRTL
+        ? "هذا المحتوى سيتوفر قريباً"
+        : "This content will be available soon"
+    );
   };
 
   const toggleBookmark = (resourceId: string) => {
@@ -361,46 +357,71 @@ export default function ResourcesScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {/* Category Tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryTabs}
+        {/* Coming Soon Badge */}
+        <View
+          style={{
+            backgroundColor: theme.colors.secondary[50],
+            borderRadius: theme.borderRadius.lg,
+            padding: theme.spacing.lg,
+            marginBottom: theme.spacing.lg,
+            borderLeftWidth: 4,
+            borderLeftColor: theme.colors.secondary.main,
+            alignItems: "center",
+            ...theme.shadows.sm,
+          }}
         >
-          {categories.map((category) => {
-            const IconComponent = category.icon;
-            const isActive = selectedCategory === category.key;
-
-            return (
-              <TouchableOpacity
-                key={category.key}
-                onPress={() => setSelectedCategory(category.key)}
-                style={[
-                  styles.categoryTab,
-                  isActive && styles.categoryTabActive,
-                ]}
-              >
-                <IconComponent
-                  color={
-                    isActive
-                      ? theme.colors.neutral.white
-                      : theme.colors.text.secondary
-                  }
-                  size={16}
-                />
-                <Text
-                  style={[
-                    styles.categoryTabText,
-                    isActive && styles.categoryTabTextActive,
-                    isRTL && styles.rtlText,
-                  ]}
-                >
-                  {isRTL ? category.labelAr : category.labelEn}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+          <View
+            style={{
+              backgroundColor: "#FCD34D",
+              paddingHorizontal: theme.spacing.md,
+              paddingVertical: theme.spacing.xs,
+              borderRadius: theme.borderRadius.full,
+              marginBottom: theme.spacing.sm,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: "Geist-Bold",
+                color: "#92400E",
+              }}
+            >
+              {isRTL ? "قريباً" : "COMING SOON"}
+            </Text>
+          </View>
+          <Text
+            style={[
+              getTextStyle(
+                theme,
+                "subheading",
+                "semibold",
+                theme.colors.primary.main
+              ),
+              isRTL && styles.rtlText,
+              { textAlign: "center", marginBottom: theme.spacing.xs },
+            ]}
+          >
+            {isRTL
+              ? "المصادر التعليمية قريباً"
+              : "Health Resources Coming Soon"}
+          </Text>
+          <Text
+            style={[
+              getTextStyle(
+                theme,
+                "body",
+                "regular",
+                theme.colors.text.secondary
+              ),
+              isRTL && styles.rtlText,
+              { textAlign: "center" },
+            ]}
+          >
+            {isRTL
+              ? "سنضيف قريباً مصادر تعليمية شاملة حول الصحة والرعاية"
+              : "We'll be adding comprehensive health and care resources soon"}
+          </Text>
+        </View>
 
         {/* Maak One-liner */}
         <View style={styles.onelineCard}>
@@ -410,168 +431,6 @@ export default function ResourcesScreen() {
           <Text style={[styles.onelineSource, isRTL && styles.rtlText]}>
             - Maak
           </Text>
-        </View>
-
-        {/* Featured Resources */}
-        {featuredResources.length > 0 && (
-          <View style={styles.featuredSection}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "مصادر مميزة" : "Featured Resources"}
-            </Text>
-            {featuredResources.map((resource) => {
-              const TypeIcon = getTypeIcon(resource.type);
-
-              return (
-                <TouchableOpacity
-                  key={resource.id}
-                  onPress={() => handleResourcePress(resource)}
-                  style={styles.featuredCard}
-                >
-                  <View style={styles.featuredBadge}>
-                    <Text style={styles.featuredBadgeText}>
-                      {isRTL ? "مميز" : "FEATURED"}
-                    </Text>
-                  </View>
-
-                  <Text style={[styles.resourceTitle, isRTL && styles.rtlText]}>
-                    {isRTL ? resource.titleAr : resource.title}
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.resourceDescription,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? resource.descriptionAr : resource.description}
-                  </Text>
-
-                  <View style={styles.resourceMeta}>
-                    <View style={styles.metaItem}>
-                      <TypeIcon color={theme.colors.text.tertiary} size={12} />
-                      <Text style={[styles.metaText, isRTL && styles.rtlText]}>
-                        {resource.type}
-                      </Text>
-                    </View>
-                    {resource.duration && (
-                      <View style={styles.metaItem}>
-                        <Clock color={theme.colors.text.tertiary} size={12} />
-                        <Text
-                          style={[styles.metaText, isRTL && styles.rtlText]}
-                        >
-                          {resource.duration}
-                        </Text>
-                      </View>
-                    )}
-                    {resource.rating && (
-                      <View style={styles.metaItem}>
-                        <Star color={theme.colors.secondary.main} size={12} />
-                        <Text
-                          style={[styles.metaText, isRTL && styles.rtlText]}
-                        >
-                          {resource.rating}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {/* All Resources */}
-        <View style={styles.featuredSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-            {selectedCategory === "all"
-              ? isRTL
-                ? "جميع المصادر"
-                : "All Resources"
-              : isRTL
-                ? "مصادر أخرى"
-                : "More Resources"}
-          </Text>
-
-          {regularResources.map((resource) => {
-            const TypeIcon = getTypeIcon(resource.type);
-            const isBookmarked = bookmarkedItems.includes(resource.id);
-
-            return (
-              <TouchableOpacity
-                key={resource.id}
-                onPress={() => handleResourcePress(resource)}
-                style={styles.resourceCard}
-              >
-                <View
-                  style={[
-                    styles.resourceIcon,
-                    { backgroundColor: getTypeColor(resource.type) + "20" },
-                  ]}
-                >
-                  <TypeIcon color={getTypeColor(resource.type)} size={20} />
-                </View>
-
-                <View style={styles.resourceContent}>
-                  <Text style={[styles.resourceTitle, isRTL && styles.rtlText]}>
-                    {isRTL ? resource.titleAr : resource.title}
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.resourceDescription,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? resource.descriptionAr : resource.description}
-                  </Text>
-
-                  <View style={styles.resourceMeta}>
-                    {resource.duration && (
-                      <View style={styles.metaItem}>
-                        <Clock color={theme.colors.text.tertiary} size={12} />
-                        <Text
-                          style={[styles.metaText, isRTL && styles.rtlText]}
-                        >
-                          {resource.duration}
-                        </Text>
-                      </View>
-                    )}
-                    {resource.rating && (
-                      <View style={styles.metaItem}>
-                        <Star color={theme.colors.secondary.main} size={12} />
-                        <Text
-                          style={[styles.metaText, isRTL && styles.rtlText]}
-                        >
-                          {resource.rating}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-
-                <View style={styles.resourceActions}>
-                  <TouchableOpacity
-                    onPress={() => toggleBookmark(resource.id)}
-                    style={styles.bookmarkButton}
-                  >
-                    <Bookmark
-                      color={
-                        isBookmarked
-                          ? theme.colors.secondary.main
-                          : theme.colors.text.tertiary
-                      }
-                      fill={isBookmarked ? theme.colors.secondary.main : "none"}
-                      size={20}
-                    />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.externalLink}>
-                    <ExternalLink color={theme.colors.primary.main} size={16} />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
         </View>
       </ScrollView>
     </SafeAreaView>
