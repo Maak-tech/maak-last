@@ -104,10 +104,10 @@ class HealthContextService {
       // Fetch ALL medications (both active and inactive for context)
       let medications = [];
       try {
+        // Query without orderBy to avoid index requirement, then sort in memory
         const medicationsQuery = query(
           collection(db, "medications"),
-          where("userId", "==", uid),
-          orderBy("startDate", "desc")
+          where("userId", "==", uid)
         );
         const medicationsSnapshot = await getDocs(medicationsQuery);
         medications = medicationsSnapshot.docs.map((doc) => {
@@ -122,8 +122,14 @@ class HealthContextService {
             notes: data.notes || "",
             isActive: data.isActive !== false, // Default to true if not specified
             reminders: data.reminders || [],
+            // Keep raw date for sorting
+            _startDate: data.startDate?.toDate?.() || new Date(0),
           };
         });
+        // Sort by startDate descending in memory
+        medications.sort((a, b) => b._startDate.getTime() - a._startDate.getTime());
+        // Remove temporary sorting field
+        medications = medications.map(({ _startDate, ...med }) => med);
         console.log(`Found ${medications.length} medications`);
       } catch (error) {
         console.log("Error fetching medications:", error);

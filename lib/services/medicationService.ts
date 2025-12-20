@@ -70,11 +70,11 @@ export const medicationService = {
   // Get user medications
   async getUserMedications(userId: string): Promise<Medication[]> {
     try {
+      // Query without orderBy to avoid index requirement, then sort in memory
       const q = query(
         collection(db, "medications"),
         where("userId", "==", userId),
-        where("isActive", "==", true),
-        orderBy("startDate", "desc")
+        where("isActive", "==", true)
       );
 
       const querySnapshot = await getDocs(q);
@@ -91,6 +91,9 @@ export const medicationService = {
           endDate: data.endDate?.toDate() || undefined,
         } as Medication);
       });
+
+      // Sort by startDate descending in memory
+      medications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
 
       return medications;
     } catch (error) {
