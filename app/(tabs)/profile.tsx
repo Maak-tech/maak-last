@@ -167,42 +167,12 @@ export default function ProfileScreen() {
   };
 
   const handleHealthReports = () => {
-    if (
-      healthData.symptoms.length === 0 &&
-      healthData.medications.length === 0
-    ) {
-      Alert.alert(
-        isRTL ? "التقارير الصحية" : "Health Reports",
-        isRTL
-          ? "لا توجد بيانات صحية كافية لإنشاء تقرير. ابدأ بتسجيل الأعراض والأدوية."
-          : "Not enough health data to generate reports. Start by logging symptoms and medications.",
-        [{ text: isRTL ? "موافق" : "OK" }]
-      );
-      return;
-    }
-
-    const report = `${isRTL ? "نقاط الصحة" : "Health Score"}: ${
-      healthData.healthScore
-    }/100\n${isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}: ${
-      healthData.symptoms.length
-    }\n${isRTL ? "الأدوية النشطة" : "Active Medications"}: ${
-      healthData.medications.length
-    }`;
-
-    Alert.alert(isRTL ? "التقرير الصحي" : "Health Report", report, [
-      { text: isRTL ? "موافق" : "OK" },
-      {
-        text: isRTL ? "تصدير" : "Export",
-        onPress: () => {
-          Alert.alert(
-            isRTL ? "قريباً" : "Coming Soon",
-            isRTL
-              ? "ستتوفر إمكانية تصدير التقارير قريباً"
-              : "Report export will be available soon"
-          );
-        },
-      },
-    ]);
+    Alert.alert(
+      isRTL ? "قريباً" : "Coming Soon",
+      isRTL
+        ? "ستتوفر التقارير الصحية قريباً"
+        : "Health reports will be available soon"
+    );
   };
 
   const handleHelpSupport = () => {
@@ -268,6 +238,7 @@ export default function ProfileScreen() {
           icon: FileText,
           label: isRTL ? "التقارير الصحية" : "Health Reports",
           onPress: handleHealthReports,
+          comingSoon: true,
         },
         {
           icon: BookOpen,
