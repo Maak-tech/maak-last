@@ -38,19 +38,28 @@ const withFollyFix = (config) => {
 `;
 
       if (hasPostInstall) {
-        // Add to existing post_install hook
-        podfileContent = podfileContent.replace(
-          /(post_install do \|installer\|)([\s\S]*?)(end)/,
-          `$1$2${follyFix}$3`
-        );
+        // Add to existing post_install hook - use non-greedy match to get the first matching end
+        const postInstallMatch = podfileContent.match(/(post_install do \|installer\|)([\s\S]*?)(\nend)/);
+        if (postInstallMatch) {
+          podfileContent = podfileContent.replace(
+            postInstallMatch[0],
+            `${postInstallMatch[1]}${postInstallMatch[2]}${follyFix}${postInstallMatch[3]}`
+          );
+        }
       } else {
-        // Create new post_install hook before the last 'end' in the file
-        const lastEndIndex = podfileContent.lastIndexOf("end");
+        // Create new post_install hook - add before the final 'end' of the target block
+        // Find the last occurrence of 'end' that's likely the end of the target block
+        const lines = podfileContent.split('\n');
+        let lastEndIndex = -1;
+        for (let i = lines.length - 1; i >= 0; i--) {
+          if (lines[i].trim() === 'end') {
+            lastEndIndex = i;
+            break;
+          }
+        }
         if (lastEndIndex !== -1) {
-          podfileContent =
-            podfileContent.slice(0, lastEndIndex) +
-            `post_install do |installer|${follyFix}end\n` +
-            podfileContent.slice(lastEndIndex);
+          lines.splice(lastEndIndex, 0, `post_install do |installer|${follyFix}end`);
+          podfileContent = lines.join('\n');
         }
       }
 
