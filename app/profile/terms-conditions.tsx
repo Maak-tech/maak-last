@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -26,11 +26,19 @@ import {
 export default function TermsConditionsScreen() {
   const { i18n } = useTranslation();
   const router = useRouter();
+  const navigation = useNavigation();
   const [document, setDocument] = useState<ParsedDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate back buttons
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   useEffect(() => {
     loadTermsAndConditions();
@@ -168,7 +176,7 @@ export default function TermsConditionsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)/profile")}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
