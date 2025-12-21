@@ -932,7 +932,7 @@ export default function MedicationsScreen() {
             {/* Reminders */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t("reminders")} *
+                {isRTL ? "التذكيرات" : "Reminders"} *
               </Text>
               <Text style={[styles.helperText, isRTL && styles.rtlText]}>
                 {isRTL
@@ -951,20 +951,40 @@ export default function MedicationsScreen() {
                     <View key={index} style={styles.reminderItem}>
                       <TextInput
                         onChangeText={(text) => {
-                          // Only allow HH:MM format
-                          const cleaned = text.replace(/[^\d:]/g, "");
-                          setNewMedication({
-                            ...newMedication,
-                            reminders: newMedication.reminders.map((r, i) =>
-                              i === index ? { ...r, time: cleaned, period: r.period || "AM" } : r
-                            ),
-                          });
+                          // Remove all non-digits first
+                          const digitsOnly = text.replace(/\D/g, "");
+                          
+                          // Auto-format as HH:MM
+                          let formatted = "";
+                          if (digitsOnly.length > 0) {
+                            // Add first digit
+                            formatted = digitsOnly.substring(0, 1);
+                            if (digitsOnly.length > 1) {
+                              // Add second digit and colon
+                              formatted = digitsOnly.substring(0, 2) + ":";
+                              if (digitsOnly.length > 2) {
+                                // Add minutes
+                                formatted = digitsOnly.substring(0, 2) + ":" + digitsOnly.substring(2, 4);
+                              }
+                            }
+                          }
+                          
+                          // Limit to HH:MM format (max 5 characters: "12:34")
+                          if (formatted.length <= 5) {
+                            setNewMedication({
+                              ...newMedication,
+                              reminders: newMedication.reminders.map((r, i) =>
+                                i === index ? { ...r, time: formatted, period: r.period || "AM" } : r
+                              ),
+                            });
+                          }
                         }}
                         placeholder={isRTL ? "8:00" : "8:00"}
                         style={[styles.reminderTimeInput, isRTL && styles.rtlInput]}
                         textAlign={isRTL ? "right" : "left"}
                         value={timeValue}
-                        keyboardType="numeric"
+                        keyboardType="number-pad"
+                        maxLength={5}
                       />
                       <View style={styles.periodSelector}>
                         <TouchableOpacity
@@ -1035,7 +1055,7 @@ export default function MedicationsScreen() {
                 onPress={() =>
                   setNewMedication({
                     ...newMedication,
-                    reminders: [...newMedication.reminders, { time: "" }],
+                    reminders: [...newMedication.reminders, { time: "", period: "AM" }],
                   })
                 }
                 style={styles.addButton}
