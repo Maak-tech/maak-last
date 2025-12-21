@@ -60,7 +60,6 @@ export default function RootLayout() {
               allowAlert: true,
               allowBadge: true,
               allowSound: true,
-              allowAnnouncements: false,
             },
           });
         }
