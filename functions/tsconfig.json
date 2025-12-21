@@ -8,11 +8,15 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
+<<<<<<< HEAD
+    "target": "es2017"
+=======
     "target": "es2017",
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "strictNullChecks": true
+>>>>>>> 6952e8696efc79354a1183ddb7146dbbf0c7d23b
   },
   "compileOnSave": true,
   "include": ["src"]
 }
-

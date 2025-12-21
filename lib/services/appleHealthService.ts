@@ -317,7 +317,7 @@ const requestAuthorization = async (
           limit: 1,
         };
 
-        await new Promise<void>((resolve, reject) => {
+        await new Promise((resolve, reject) => {
           AppleHealthKit.getSamples(
             testOptions,
             (error: any, results: any[]) => {

@@ -1,4 +1,4 @@
-import { PixelRatio, StyleSheet, type TextStyle } from "react-native";
+import { PixelRatio, StyleSheet } from "react-native";
 import type { Theme } from "@/constants/theme";
 
 // Get scalable font size that respects system font settings
@@ -21,7 +21,7 @@ export const getTextStyle = (
   variant: "heading" | "subheading" | "body" | "caption" | "button",
   weight: "regular" | "medium" | "semibold" | "bold" = "regular",
   color?: string
-): TextStyle => {
+) => {
   const baseStyles = {
     fontFamily:
       weight === "bold"
@@ -41,7 +41,7 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: headingSize,
         lineHeight: headingSize * theme.typography.lineHeight.tight,
-        fontWeight: theme.typography.fontWeight.bold as TextStyle["fontWeight"],
+        fontWeight: theme.typography.fontWeight.bold,
       };
     }
     case "subheading": {
@@ -50,7 +50,7 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: subheadingSize,
         lineHeight: subheadingSize * theme.typography.lineHeight.normal,
-        fontWeight: theme.typography.fontWeight.semibold as TextStyle["fontWeight"],
+        fontWeight: theme.typography.fontWeight.semibold,
       };
     }
     case "body": {
@@ -75,7 +75,7 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: buttonSize,
         lineHeight: buttonSize * theme.typography.lineHeight.tight,
-        fontWeight: theme.typography.fontWeight.semibold as TextStyle["fontWeight"],
+        fontWeight: theme.typography.fontWeight.semibold,
       };
     }
     default:
