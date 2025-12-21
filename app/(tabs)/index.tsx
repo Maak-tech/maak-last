@@ -590,13 +590,56 @@ export default function DashboardScreen() {
         },
         {
           text: isRTL ? "إشعار العائلة" : "Notify Family",
-          onPress: () => {
-            Alert.alert(
-              isRTL ? "تم إرسال الإشعار" : "Notification Sent",
-              isRTL
-                ? "تم إرسال إشعار طوارئ لجميع أفراد العائلة"
-                : "Emergency notification sent to all family members"
-            );
+          onPress: async () => {
+            try {
+              if (!user?.id) {
+                Alert.alert(
+                  isRTL ? "خطأ" : "Error",
+                  isRTL ? "يجب تسجيل الدخول أولاً" : "You must be logged in"
+                );
+                return;
+              }
+
+              // Create emergency alert
+              const alertData = {
+                userId: user.id,
+                type: "emergency" as const,
+                severity: "critical" as const,
+                message: isRTL
+                  ? `${user.name || "مستخدم"} بحاجة إلى مساعدة طارئة!`
+                  : `${user.name || "User"} needs emergency help!`,
+                timestamp: new Date(),
+                resolved: false,
+                responders: [],
+              };
+
+              const alertId = await alertService.createAlert(alertData);
+
+              // Send notification to family if user has family
+              if (user.familyId) {
+                const { pushNotificationService } = await import("@/lib/services/pushNotificationService");
+                await pushNotificationService.sendEmergencyAlert(
+                  user.id,
+                  alertData.message,
+                  alertId,
+                  user.familyId
+                );
+              }
+
+              Alert.alert(
+                isRTL ? "تم إرسال الإشعار" : "Notification Sent",
+                isRTL
+                  ? "تم إرسال إشعار طوارئ لجميع أفراد العائلة"
+                  : "Emergency notification sent to all family members"
+              );
+            } catch (error) {
+              Alert.alert(
+                isRTL ? "خطأ" : "Error",
+                isRTL
+                  ? "فشل إرسال الإشعار. حاول مرة أخرى."
+                  : "Failed to send notification. Please try again."
+              );
+            }
           },
         },
       ],
