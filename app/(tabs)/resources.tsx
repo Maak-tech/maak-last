@@ -1,4 +1,4 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+﻿import { SafeAreaView, ScrollView, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
@@ -34,10 +34,10 @@ export default function ResourcesScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {isRTL ? "الموارد" : "Resources"}
+            {isRTL ? "Ø§Ù„Ù…ÙˆØ§Ø±Ø¯" : "Resources"}
           </Text>
           <Text style={[styles.text, isRTL && styles.rtlText]}>
-            {isRTL ? "قريباً..." : "Coming soon..."}
+            {isRTL ? "Ù‚Ø±ÙŠØ¨Ø§Ù‹..." : "Coming soon..."}
           </Text>
         </View>
       </ScrollView>
