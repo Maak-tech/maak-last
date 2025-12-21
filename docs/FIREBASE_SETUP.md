@@ -523,7 +523,7 @@ service cloud.firestore {
 ### **Step 4: Test the Fix**
 
 1. Go back to your app
-2. Try the "Invite a Family Member" feature again
+2. Try the "Share Invite Code" feature again
 3. It should now work without permission errors!
 
 ---
