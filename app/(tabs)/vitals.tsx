@@ -433,12 +433,9 @@ export default function VitalsScreen() {
 
   useEffect(() => {
     loadVitalsData();
-    // Check HealthKit/Health Connect availability on mount
-    if (Platform.OS === "ios") {
-      checkHealthKitAvailability();
-    } else if (Platform.OS === "android") {
-      checkHealthConnectAvailability();
-    }
+    // Delay HealthKit/Health Connect availability check to avoid crashes during app initialization
+    // Check availability only when user tries to enable health data
+    // This prevents native module crashes during app startup
   }, []);
 
   useFocusEffect(
@@ -481,14 +478,25 @@ export default function VitalsScreen() {
     }
   };
 
-  const handleEnableHealthData = () => {
+  const handleEnableHealthData = async () => {
     if (Platform.OS === "ios") {
-      // Navigate to Apple Health intro screen
-      router.push("/health/apple");
+      // Check availability before navigating (lazy load to prevent crashes)
+      try {
+        await checkHealthKitAvailability();
+        // Navigate to Apple Health intro screen
+        router.push("/health/apple");
+      } catch (error) {
+        // If check fails, still navigate but availability will be checked there
+        router.push("/health/apple");
+      }
     } else if (Platform.OS === "android") {
       // For Android, show metric selection directly (Health Connect flow)
       loadAvailableMetrics();
-      checkHealthConnectAvailability();
+      try {
+        await checkHealthConnectAvailability();
+      } catch (error) {
+        // Silently handle error
+      }
       setShowMetricSelection(true);
     } else {
       // For other platforms, use the old flow
