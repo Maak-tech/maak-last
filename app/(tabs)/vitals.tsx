@@ -1,4 +1,4 @@
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   Activity,
   CheckCircle,
@@ -64,6 +64,7 @@ export default function VitalsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasPermissions, setHasPermissions] = useState(false);
@@ -476,10 +477,10 @@ export default function VitalsScreen() {
 
   const handleEnableHealthData = () => {
     if (Platform.OS === "ios") {
-      loadAvailableMetrics();
-      checkHealthKitAvailability();
-      setShowMetricSelection(true);
+      // Navigate to Apple Health intro screen
+      router.push("/health/apple");
     } else if (Platform.OS === "android") {
+      // For Android, show metric selection directly (Health Connect flow)
       loadAvailableMetrics();
       checkHealthConnectAvailability();
       setShowMetricSelection(true);
@@ -544,8 +545,8 @@ export default function VitalsScreen() {
   };
 
   const selectAllMetrics = () => {
-    const allKeys = new Set(availableMetrics.map((m) => m.key));
-    setSelectedMetrics(allKeys);
+    // Use "all" to request all HealthKit types, not just catalog metrics
+    setSelectedMetrics(new Set(["all"]));
   };
 
   const clearAllMetrics = () => {
@@ -583,10 +584,13 @@ export default function VitalsScreen() {
           return;
         }
 
-        // Request HealthKit permissions
-        const result = await appleHealthService.requestAuthorization(
-          Array.from(selectedMetrics)
-        );
+        // Request HealthKit permissions for selected metrics
+        // If "all" is selected, request all HealthKit types
+        const metricsToRequest = selectedMetrics.has("all") 
+          ? ["all"] 
+          : Array.from(selectedMetrics);
+        
+        const result = await appleHealthService.requestAuthorization(metricsToRequest);
         granted = result.granted;
         denied = result.denied;
         provider = "apple_health";
@@ -796,10 +800,11 @@ export default function VitalsScreen() {
     );
   }
 
-  // Show metric selection screen for iOS/Android when permissions not granted
+  // Show pre-permission metric selection screen for iOS/Android when permissions not granted
+  // This is shown BEFORE the iOS HealthKit permission screen
   if (!hasPermissions && (Platform.OS === "ios" || Platform.OS === "android") && showMetricSelection) {
     const groups = getAllGroups();
-    const allSelected = selectedMetrics.size === availableMetrics.length;
+    const allSelected = selectedMetrics.has("all") || selectedMetrics.size === availableMetrics.length;
 
     // Show error if HealthKit/Health Connect is not available
     if (
@@ -860,10 +865,10 @@ export default function VitalsScreen() {
             <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
               {isRTL
                 ? Platform.OS === "ios"
-                  ? "اختر المقاييس الصحية التي تريد مزامنتها من تطبيق الصحة"
+                  ? "اختر المقاييس الصحية التي تريد الوصول إليها. سيتم عرض شاشة أذونات iOS بعد ذلك."
                   : "اختر المقاييس الصحية التي تريد مزامنتها من Health Connect"
                 : Platform.OS === "ios"
-                  ? "Choose which health metrics to sync from Apple Health"
+                  ? "Select which health metrics you want to access. The iOS permission screen will appear next."
                   : "Choose which health metrics to sync from Health Connect"}
             </Text>
           </View>
@@ -936,6 +941,8 @@ export default function VitalsScreen() {
                         value={groupSelected}
                         onValueChange={(value) => {
                           const newSelected = new Set(selectedMetrics);
+                          // Remove "all" if selecting individual groups
+                          newSelected.delete("all");
                           groupMetrics.forEach((m) => {
                             if (value) {
                               newSelected.add(m.key);
@@ -986,7 +993,17 @@ export default function VitalsScreen() {
                                 backgroundColor: "#FF8C4220", // Light orange when selected
                               },
                             ]}
-                            onPress={() => toggleMetric(metric.key)}
+                            onPress={() => {
+                              const newSelected = new Set(selectedMetrics);
+                              // Remove "all" if selecting individual metrics
+                              newSelected.delete("all");
+                              if (newSelected.has(metric.key)) {
+                                newSelected.delete(metric.key);
+                              } else {
+                                newSelected.add(metric.key);
+                              }
+                              setSelectedMetrics(newSelected);
+                            }}
                           >
                             <View style={styles.metricLeft}>
                               {isSelected ? (
@@ -1026,6 +1043,22 @@ export default function VitalsScreen() {
                                 )}
                               </View>
                             </View>
+                            {/* Remove "all" if selecting individual metrics */}
+                            {selectedMetrics.has("all") && (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  const newSelected = new Set(selectedMetrics);
+                                  newSelected.delete("all");
+                                  newSelected.add(metric.key);
+                                  setSelectedMetrics(newSelected);
+                                }}
+                                style={{ padding: 4 }}
+                              >
+                                <Text style={{ fontSize: 12, color: theme.colors.primary.main }}>
+                                  {isRTL ? "اختر" : "Select"}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
                           </TouchableOpacity>
                         );
                       })}
@@ -1043,10 +1076,10 @@ export default function VitalsScreen() {
               <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
                 {isRTL
                   ? Platform.OS === "ios"
-                    ? "يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة"
+                    ? "بعد النقر على \"تفويض\"، ستظهر شاشة أذونات iOS حيث يمكنك اختيار المقاييس المحددة. يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة"
                     : "يمكنك تغيير هذه الأذونات لاحقًا في تطبيق Health Connect → الأذونات"
                   : Platform.OS === "ios"
-                    ? "You can change these permissions later in iOS Settings → Privacy & Security → Health"
+                    ? "After clicking \"Authorize\", the iOS permission screen will appear where you can grant access to the selected metrics. You can change these permissions later in iOS Settings → Privacy & Security → Health"
                     : "You can change these permissions later in the Health Connect app → Permissions"}
               </Text>
             </View>
@@ -1074,8 +1107,12 @@ export default function VitalsScreen() {
                 <>
                   <Text style={styles.primaryButtonText}>
                     {isRTL
-                      ? `تفويض ${selectedMetrics.size} مقياس`
-                      : `Authorize ${selectedMetrics.size} Metric${selectedMetrics.size !== 1 ? "s" : ""}`}
+                      ? selectedMetrics.has("all")
+                        ? "تفويض جميع المقاييس"
+                        : `تفويض ${selectedMetrics.size} مقياس`
+                      : selectedMetrics.has("all")
+                        ? "Authorize All Metrics"
+                        : `Authorize ${selectedMetrics.size} Metric${selectedMetrics.size !== 1 ? "s" : ""}`}
                   </Text>
                   <ChevronRight size={20} color="#FFFFFF" />
                 </>
@@ -1104,11 +1141,11 @@ export default function VitalsScreen() {
               : `Connect your health data from ${Platform.OS === "ios" ? "Health App" : "Health Connect"} to get comprehensive health monitoring and vital signs tracking`}
           </Text>
           <TouchableOpacity
-            disabled={loading}
+            disabled={authorizing || loading}
             onPress={handleEnableHealthData}
             style={styles.enableButton}
           >
-            {loading ? (
+            {authorizing || loading ? (
               <ActivityIndicator
                 color={theme.colors.neutral.white}
                 size="small"
@@ -1117,7 +1154,7 @@ export default function VitalsScreen() {
               <Heart color={theme.colors.neutral.white} size={20} />
             )}
             <Text style={styles.enableButtonText}>
-              {loading
+              {authorizing || loading
                 ? isRTL
                   ? "جاري التفعيل..."
                   : "Enabling..."
@@ -1135,10 +1172,10 @@ export default function VitalsScreen() {
           >
             {isRTL
               ? Platform.OS === "ios"
-                ? "انقر للاختيار من المقاييس الصحية المتاحة"
+                ? "انقر لعرض شاشة أذونات HealthKit واختيار البيانات الصحية"
                 : "انقر للاختيار من المقاييس الصحية المتاحة في Health Connect"
               : Platform.OS === "ios"
-                ? "Click to select from available health metrics"
+                ? "Click to open HealthKit permissions and select health data"
                 : "Click to select from available health metrics in Health Connect"}
           </Text>
         </View>

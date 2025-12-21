@@ -51,7 +51,7 @@ export default function HealthIntegrationsScreen() {
       icon: Heart,
       available: Platform.OS === "ios",
       recommended: Platform.OS === "ios",
-      route: "/profile/health/apple-intro",
+      route: "/health/apple",
     },
     {
       id: "fitbit",

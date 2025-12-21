@@ -1,3 +1,6 @@
+// Polyfill to prevent PushNotificationIOS errors
+import "@/lib/polyfills/pushNotificationIOS";
+
 import { useFonts } from "expo-font";
 import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";

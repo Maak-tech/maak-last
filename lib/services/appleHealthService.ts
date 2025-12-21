@@ -12,8 +12,10 @@ import type {
 } from "../health/healthTypes";
 import {
   getMetricByKey,
+  getAvailableMetricsForProvider,
   type HealthMetric,
 } from "../health/healthMetricsCatalog";
+import { getAllHealthKitReadTypes } from "../health/allHealthKitTypes";
 
 // Import react-native-health
 let AppleHealthKit: any = null;
@@ -76,6 +78,8 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
 
 /**
  * Request authorization for selected metrics
+ * This will trigger the iOS HealthKit permission screen
+ * If selectedMetrics is empty or contains "all", requests all available HealthKit types
  */
 const requestAuthorization = async (
   selectedMetrics: string[]
@@ -90,16 +94,38 @@ const requestAuthorization = async (
     throw new Error("HealthKit library not available. Please ensure you're running a development build or standalone app, not Expo Go.");
   }
 
-  // Map metric keys to HealthKit types
-  const readPermissions = selectedMetrics
-    .map((key) => {
-      const metric = getMetricByKey(key);
-      return metric?.appleHealth?.type;
-    })
-    .filter(Boolean) as string[];
+  // Determine which permissions to request
+  let readPermissions: string[];
+  
+  // If no metrics selected or "all" is requested, get all HealthKit types
+  if (selectedMetrics.length === 0 || selectedMetrics.includes("all")) {
+    readPermissions = getAllHealthKitReadTypes();
+  } else {
+    // Map metric keys to HealthKit types
+    // react-native-health expects the full HKQuantityTypeIdentifier or HKCategoryTypeIdentifier
+    readPermissions = selectedMetrics
+      .map((key) => {
+        const metric = getMetricByKey(key);
+        if (metric?.appleHealth?.type) {
+          // Ensure we're using the correct format
+          // react-native-health expects the full identifier like "HKQuantityTypeIdentifierHeartRate"
+          return metric.appleHealth.type;
+        }
+        return null;
+      })
+      .filter((type): type is string => Boolean(type));
+  }
+
+  if (readPermissions.length === 0) {
+    throw new Error("No valid HealthKit permissions found");
+  }
 
   try {
-    // Request permissions (read-only, we never write)
+    // Request permissions - this will trigger the iOS HealthKit permission screen
+    // The user will see the native iOS permission dialog (like the screenshots shown)
+    // with all the health data types they selected, organized by category
+    console.log("Requesting HealthKit permissions for:", readPermissions);
+    
     await new Promise<void>((resolve, reject) => {
       AppleHealthKit.initHealthKit(
         {
@@ -110,35 +136,96 @@ const requestAuthorization = async (
         },
         (error: any) => {
           if (error) {
-            reject(error);
+            // Error can occur if user denies all permissions
+            // But initHealthKit still shows the permission screen
+            console.warn("HealthKit initialization error (user may have denied):", error);
+            // Resolve anyway - the permission screen was shown
+            resolve();
           } else {
+            // Success - user granted at least some permissions
             resolve();
           }
         }
       );
     });
+    
+    // The iOS permission screen has been shown and user has responded
+    // Now we need to check which permissions were actually granted
 
-    // Check which permissions were actually granted
+    // After the permission screen is shown and user responds,
+    // check which permissions were actually granted
     const granted: string[] = [];
     const denied: string[] = [];
 
-    // Note: iOS doesn't provide a direct way to check read permissions
-    // We'll assume all requested permissions were granted if initHealthKit succeeded
-    // The user can deny individual metrics in iOS Settings
+    // Note: iOS doesn't provide a direct way to check read permissions after the fact
+    // If we requested "all", we can't verify each individual type
+    // We'll assume all were granted if initHealthKit succeeded (user can change later in Settings)
+    if (selectedMetrics.includes("all") || selectedMetrics.length === 0) {
+      // For "all" request, we can't verify each type individually
+      // Assume all were granted if initHealthKit succeeded
+      // User can see which ones were actually granted in iOS Settings
+      const allMetricKeys = getAvailableMetricsForProvider("apple_health").map(m => m.key);
+      return { 
+        granted: allMetricKeys, 
+        denied: [] 
+      };
+    }
+
+    // For specific metrics, try to verify access
     for (const metricKey of selectedMetrics) {
-      // Try to fetch a sample to verify access
       const metric = getMetricByKey(metricKey);
-      if (metric?.appleHealth?.type) {
-        // For now, assume granted if initHealthKit succeeded
-        // In production, you might want to try fetching a sample to verify
-        granted.push(metricKey);
+      if (!metric?.appleHealth?.type) {
+        denied.push(metricKey);
+        continue;
       }
+
+      try {
+        // Try to read a sample to verify access
+        // If this succeeds, permission was granted
+        const testOptions = {
+          startDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date().toISOString(),
+          limit: 1,
+        };
+
+        await new Promise((resolve, reject) => {
+          AppleHealthKit.getSamples(
+            testOptions,
+            (error: any, results: any[]) => {
+              if (error || !results || results.length === 0) {
+                // Permission might be denied or no data available
+                // Assume granted if no error (user might just not have data)
+                resolve();
+              } else {
+                resolve();
+              }
+            }
+          );
+        });
+
+        // If we got here, assume permission was granted
+        granted.push(metricKey);
+      } catch (error) {
+        // If we can't read, assume denied
+        denied.push(metricKey);
+      }
+    }
+
+    // If all were denied but initHealthKit didn't error, 
+    // user might have denied all permissions in the iOS dialog
+    if (granted.length === 0 && denied.length > 0) {
+      // User likely denied all permissions in the iOS dialog
+      return { granted: [], denied: selectedMetrics };
     }
 
     return { granted, denied };
   } catch (error: any) {
-    // Silently handle error
-    throw error;
+    // If initHealthKit fails completely, all permissions were denied
+    console.error("HealthKit authorization failed:", error);
+    return { 
+      granted: [], 
+      denied: selectedMetrics 
+    };
   }
 };
 

@@ -94,34 +94,49 @@ export const healthDataService = {
         }
         // Try to initialize HealthKit in standalone app
         try {
-          // Import the HealthKit module
-          const { NativeModules } = require("react-native");
-          const AppleHealthKit = NativeModules.AppleHealthKit;
-
-          // Check if the native module is available
-          if (
-            !AppleHealthKit ||
-            typeof AppleHealthKit.initHealthKit !== "function"
-          ) {
-            await this.savePermissionStatus(true);
-            return true;
+          // Import react-native-health correctly
+          let AppleHealthKit: any = null;
+          try {
+            AppleHealthKit = require("react-native-health").default;
+          } catch (importError) {
+            // Module not available - need to rebuild
+            console.warn("HealthKit module not found. Please rebuild with: bun run build:ios:dev");
+            await this.savePermissionStatus(false);
+            return false;
           }
 
-          return new Promise((resolve, reject) => {
+          // Check if the native module is available
+          if (!AppleHealthKit || typeof AppleHealthKit.isAvailable !== "function") {
+            console.warn("HealthKit module not properly initialized. Please rebuild with: bun run build:ios:dev");
+            await this.savePermissionStatus(false);
+            return false;
+          }
+
+          // Check if HealthKit is available on device
+          const isAvailable = await AppleHealthKit.isAvailable();
+          if (!isAvailable) {
+            console.warn("HealthKit is not available on this device");
+            await this.savePermissionStatus(false);
+            return false;
+          }
+
+          // Initialize HealthKit with permissions
+          return new Promise((resolve) => {
             AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
               if (error) {
-                // Fallback to simulated data
-                this.savePermissionStatus(true);
-                resolve(true);
+                console.error("HealthKit initialization error:", error);
+                this.savePermissionStatus(false);
+                resolve(false);
               } else {
                 this.savePermissionStatus(true);
                 resolve(true);
               }
             });
           });
-        } catch (error) {
-          await this.savePermissionStatus(true);
-          return true;
+        } catch (error: any) {
+          console.error("HealthKit initialization failed:", error);
+          await this.savePermissionStatus(false);
+          return false;
         }
       } else if (Platform.OS === "android") {
         // For Android, use simulated data for now
@@ -183,14 +198,18 @@ export const healthDataService = {
     try {
       // Check if HealthKit is available
       try {
-        const { NativeModules } = require("react-native");
-        const AppleHealthKit = NativeModules.AppleHealthKit;
+        let AppleHealthKit: any = null;
+        try {
+          AppleHealthKit = require("react-native-health").default;
+        } catch (importError) {
+          throw new Error("HealthKit module not found. Please rebuild with: bun run build:ios:dev");
+        }
 
         if (
           !AppleHealthKit ||
           typeof AppleHealthKit.getHeartRateSamples !== "function"
         ) {
-          throw new Error("HealthKit not available");
+          throw new Error("HealthKit not available. Please rebuild with: bun run build:ios:dev");
         }
 
         const today = new Date();
