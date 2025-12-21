@@ -103,12 +103,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
   const getMemberName = (userId: string): string => {
     const member = familyMembers.find((m) => m.id === userId);
-    if (!member) {
-      return isRTL ? "عضو غير معروف" : "Unknown Member";
-    }
-    return member.firstName && member.lastName
-      ? `${member.firstName} ${member.lastName}`
-      : member.firstName || (isRTL ? "عضو غير معروف" : "Unknown Member");
+    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
   };
 
   const getAlertIcon = (type: string) => {

@@ -1,6 +1,5 @@
 import Constants from "expo-constants";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { type FirebaseApp } from "firebase/app";
 import { Platform } from "react-native";
 import { fcmService } from "./fcmService";
 import { userService } from "./userService";
@@ -34,9 +33,7 @@ export interface PushNotificationData {
 
 // Helper to get authenticated functions instance
 async function getAuthenticatedFunctions() {
-  const firebaseModule = await import("@/lib/firebase");
-  const { auth } = firebaseModule;
-  const app: FirebaseApp = firebaseModule.default;
+  const { auth, app } = await import("@/lib/firebase");
 
   // Wait for auth to be ready
   const currentUser = auth.currentUser;
