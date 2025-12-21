@@ -14,16 +14,18 @@ The previous configuration had **critical flaws** that would have prevented Heal
 
 ## Current Configuration (Verified Correct)
 
-### `app.json` - Line 91-98
+### `app.json` - Lines 91-98
 ```json
 [
   "react-native-health",
   {
-    "healthSharePermission": "Maak Health reads health data to provide personalized health insights...",
-    "healthUpdatePermission": "Maak Health writes health data to keep your health information synchronized..."
+    "healthSharePermission": "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
+    "healthUpdatePermission": "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records."
   }
 ]
 ```
+
+**CRITICAL:** This plugin entry is now present in `app.json` between `expo-sensors` and `expo-localization`.
 
 ### `package.json` - Line 66
 ```json
