@@ -1,4 +1,9 @@
 {
+  // Note: The validation warnings for editor.defaultFormatter are false positives.
+  // Extension IDs like "biomejs.biome" and "esbenp.prettier-vscode" are valid formatter values.
+  // These warnings can be safely ignored - the formatters will work correctly.
+  "json.schemaDownload.enable": true,
+  "json.validate.enable": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[javascript]": {
     "editor.defaultFormatter": "biomejs.biome"

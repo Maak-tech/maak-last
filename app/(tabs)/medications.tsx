@@ -46,7 +46,7 @@ export default function MedicationsScreen() {
     name: "",
     dosage: "",
     frequency: "",
-    reminders: [] as { time: string; period: "AM" | "PM" }[],
+    reminders: [] as { time: string; period: "AM" | "PM"; id?: string }[],
     notes: "",
   });
   const [editingMedication, setEditingMedication] = useState<Medication | null>(
@@ -132,7 +132,12 @@ export default function MedicationsScreen() {
       return isRTL ? "أنت" : "You";
     }
     const member = familyMembers.find((m) => m.id === userId);
-    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
+    if (!member) {
+      return isRTL ? "عضو غير معروف" : "Unknown Member";
+    }
+    return member.firstName && member.lastName
+      ? `${member.firstName} ${member.lastName}`
+      : member.firstName || (isRTL ? "عضو غير معروف" : "Unknown Member");
   };
 
   const handleAddMedication = async () => {
@@ -414,6 +419,7 @@ export default function MedicationsScreen() {
         }
         
         return {
+          id: reminder.id,
           time: timeValue,
           period: periodValue,
         };

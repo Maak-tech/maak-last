@@ -148,18 +148,24 @@ export const alertService = {
 
       try {
         const user = await userService.getUser(userId);
+        const userName = user
+          ? (user.firstName && user.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user.firstName || "User")
+          : "User";
+        
         if (user && user.familyId) {
           await pushNotificationService.sendFallAlert(
             userId,
             alertId,
-            user.name,
+            userName,
             user.familyId
           );
         } else {
           await pushNotificationService.sendFallAlert(
             userId,
             alertId,
-            user?.name || "User"
+            userName
           );
         }
       } catch (notificationError) {

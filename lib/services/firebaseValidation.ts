@@ -25,10 +25,17 @@ export const firebaseValidation = {
       try {
         const userDoc = await userService.getUser(currentUser.uid);
         if (!userDoc) {
+          // Split displayName into firstName and lastName
+          const displayName = currentUser.displayName || "User";
+          const nameParts = displayName.split(" ");
+          const firstName = nameParts[0] || "User";
+          const lastName = nameParts.slice(1).join(" ") || "";
+          
           await userService.ensureUserDocument(
             currentUser.uid,
             currentUser.email || "",
-            currentUser.displayName || "User"
+            firstName,
+            lastName
           );
         }
       } catch (error) {
@@ -124,10 +131,17 @@ export const firebaseValidation = {
       }
 
       // Ensure user document exists
+      // Split displayName into firstName and lastName
+      const displayName = currentUser.displayName || "User";
+      const nameParts = displayName.split(" ");
+      const firstName = nameParts[0] || "User";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      
       await userService.ensureUserDocument(
         currentUser.uid,
         currentUser.email || "",
-        currentUser.displayName || "User"
+        firstName,
+        lastName
       );
 
       return {
