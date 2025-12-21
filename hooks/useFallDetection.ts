@@ -94,9 +94,9 @@ export const useFallDetection = (
     if (isActive && !isInitialized) {
       try {
         // Add timeout to prevent hanging initialization
-        initializationTimeout = setTimeout(() => {
+        initializationTimeout = (setTimeout(() => {
           setIsInitialized(false);
-        }, 5000);
+        }, 5000) as any) as number;
 
         // Dynamically import expo-sensors only on native platforms with better error handling
         const initializeSensors = async () => {
