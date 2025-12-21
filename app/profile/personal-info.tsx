@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import {
   ArrowLeft,
   Calendar,
@@ -12,7 +12,7 @@ import {
   User,
   X,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -34,6 +34,14 @@ export default function PersonalInfoScreen() {
   const { i18n } = useTranslation();
   const { user, updateUser } = useAuth();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Hide the default header to prevent duplicate back buttons
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editForm, setEditForm] = useState({

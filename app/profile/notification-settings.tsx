@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   AlertTriangle,
@@ -46,6 +46,7 @@ export default function NotificationSettingsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
+  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
@@ -62,6 +63,13 @@ export default function NotificationSettingsScreen() {
   });
 
   const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate back buttons
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   useEffect(() => {
     loadSettings();

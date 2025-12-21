@@ -3,9 +3,9 @@
  * Allows users to change their password
  */
 
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { ArrowLeft, Eye, EyeOff, Lock, Save } from "lucide-react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -28,6 +28,14 @@ export default function ChangePasswordScreen() {
   const { user, changePassword, resetPassword } = useAuth();
   const { theme, isDark } = useTheme();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Hide the default header to prevent duplicate back buttons
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
   const [loading, setLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

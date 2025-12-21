@@ -292,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -304,7 +304,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await userService.ensureUserDocument(
         userCredential.user.uid,
         userCredential.user.email || "",
-        name
+        firstName,
+        lastName
       );
     } catch (error: any) {
       let errorMessage = "Failed to create account. Please try again.";

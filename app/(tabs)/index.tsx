@@ -224,6 +224,7 @@ export default function DashboardScreen() {
       padding: theme.spacing.lg,
       flexDirection: "row" as const,
       alignItems: "center" as const,
+      marginTop: theme.spacing.base,
       marginBottom: theme.spacing.xl,
       ...theme.shadows.md,
     },
@@ -238,6 +239,7 @@ export default function DashboardScreen() {
     healthScoreValue: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.accent.success),
       fontSize: 32,
+      lineHeight: 40,
     },
     healthScoreDesc: {
       ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
@@ -285,7 +287,8 @@ export default function DashboardScreen() {
       flexDirection: "row" as const,
       justifyContent: "space-between" as const,
       alignItems: "flex-start" as const,
-      marginBottom: theme.spacing.xl,
+      marginBottom: theme.spacing.lg,
+      paddingTop: theme.spacing.sm,
     },
     headerContent: {
       flex: 1,
@@ -355,7 +358,17 @@ export default function DashboardScreen() {
       return isRTL ? "أنت" : "You";
     }
     const member = familyMembers.find((m) => m.id === userId);
-    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
+    if (!member) {
+      return isRTL ? "عضو غير معروف" : "Unknown Member";
+    }
+    // User type has firstName and lastName, not name
+    if (member.firstName && member.lastName) {
+      return `${member.firstName} ${member.lastName}`;
+    }
+    if (member.firstName) {
+      return member.firstName;
+    }
+    return isRTL ? "عضو غير معروف" : "Unknown Member";
   };
 
   const loadDashboardData = async () => {

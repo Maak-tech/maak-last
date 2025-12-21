@@ -255,17 +255,11 @@ export default function ProfileScreen() {
         {
           icon: Bell,
           label: isRTL ? "الإشعارات" : "Notifications",
-          hasSwitch: true,
-          switchValue: notificationsEnabled,
-          onSwitchChange: handleNotificationToggle,
           onPress: () => router.push("/profile/notification-settings"),
         },
         {
           icon: Shield,
           label: isRTL ? "كشف السقوط" : "Fall Detection",
-          hasSwitch: true,
-          switchValue: fallDetectionEnabled,
-          onSwitchChange: handleFallDetectionToggle,
           onPress: () => router.push("/profile/fall-detection"),
         },
         {

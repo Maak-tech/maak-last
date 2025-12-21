@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -32,6 +32,14 @@ export default function FallDetectionScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Hide the default header to prevent duplicate back buttons
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
   const {
     isEnabled,
     isActive,
@@ -162,6 +170,45 @@ export default function FallDetectionScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+        {/* Master Toggle - At the top */}
+        {isInitialized && (
+          <View style={styles.section}>
+            <View style={styles.masterToggleCard}>
+              <View style={styles.masterToggleContent}>
+                {isEnabled ? (
+                  <Shield color="#10B981" size={32} />
+                ) : (
+                  <Shield color="#9CA3AF" size={32} />
+                )}
+                <View style={styles.masterToggleInfo}>
+                  <Text
+                    style={[styles.masterToggleTitle, isRTL && styles.rtlText]}
+                  >
+                    {isRTL ? "كشف السقوط" : "Fall Detection"}
+                  </Text>
+                  <Text
+                    style={[styles.masterToggleSubtitle, isRTL && styles.rtlText]}
+                  >
+                    {isEnabled
+                      ? isRTL
+                        ? "كشف السقوط مفعل"
+                        : "Fall detection is enabled"
+                      : isRTL
+                        ? "كشف السقوط معطل"
+                        : "Fall detection is disabled"}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                onValueChange={toggleFallDetection}
+                thumbColor={isEnabled ? "#FFFFFF" : "#9CA3AF"}
+                trackColor={{ false: "#E5E7EB", true: "#10B981" }}
+                value={isEnabled}
+              />
+            </View>
+          </View>
+        )}
+
         {/* Status Card */}
         <View style={styles.statusCard}>
           <View style={styles.statusHeader}>
@@ -181,20 +228,6 @@ export default function FallDetectionScreen() {
               </Text>
             </View>
           </View>
-
-          {isInitialized && (
-            <View style={styles.statusToggle}>
-              <Text style={[styles.toggleLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "تفعيل كشف السقوط" : "Enable Fall Detection"}
-              </Text>
-              <Switch
-                onValueChange={toggleFallDetection}
-                thumbColor={isEnabled ? "#FFFFFF" : "#9CA3AF"}
-                trackColor={{ false: "#E5E7EB", true: "#10B981" }}
-                value={isEnabled}
-              />
-            </View>
-          )}
         </View>
 
         {/* Information Cards */}
@@ -328,6 +361,41 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  masterToggleCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  masterToggleContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  masterToggleInfo: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  masterToggleTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  masterToggleSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
   },
   statusCard: {
     backgroundColor: "#FFFFFF",

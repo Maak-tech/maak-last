@@ -1,5 +1,6 @@
 import {
   Activity,
+  ArrowLeft,
   Book,
   Bookmark,
   BookOpen,
@@ -12,7 +13,8 @@ import {
   Star,
   Users,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useNavigation } from "expo-router";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -126,10 +128,19 @@ const categories = [
 export default function ResourcesScreen() {
   const { t, i18n } = useTranslation();
   const { theme } = useTheme();
+  const router = useRouter();
+  const navigation = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [bookmarkedItems, setBookmarkedItems] = useState<string[]>([]);
 
   const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate back buttons
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -143,6 +154,18 @@ export default function ResourcesScreen() {
       backgroundColor: theme.colors.background.secondary,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border.light,
+      position: "relative" as const,
+    },
+    backButton: {
+      position: "absolute" as const,
+      left: theme.spacing.lg,
+      top: theme.spacing.lg,
+      padding: theme.spacing.sm,
+      zIndex: 10,
+    },
+    backButtonRTL: {
+      left: "auto",
+      right: theme.spacing.lg,
     },
     headerTitle: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
@@ -346,6 +369,16 @@ export default function ResourcesScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color={theme.colors.text.primary}
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
           {isRTL ? "المصادر التعليمية" : "Health Resources"}
         </Text>
