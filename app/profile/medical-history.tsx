@@ -145,7 +145,11 @@ export default function MedicalHistoryScreen() {
         isFamily: newCondition.isFamily,
         relation: newCondition.isFamily ? newCondition.relation : undefined,
         familyMemberId: newCondition.isFamily && newCondition.familyMemberId ? newCondition.familyMemberId : undefined,
-        familyMemberName: newCondition.isFamily && selectedMember ? selectedMember.name : undefined,
+        familyMemberName: newCondition.isFamily && selectedMember 
+          ? (selectedMember.firstName && selectedMember.lastName 
+              ? `${selectedMember.firstName} ${selectedMember.lastName}` 
+              : selectedMember.firstName || "User")
+          : undefined,
       };
 
       await medicalHistoryService.addMedicalHistory(user.id, medicalData);

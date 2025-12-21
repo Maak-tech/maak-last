@@ -16,9 +16,9 @@ export default function AppleHealthIntroScreen() {
 
   if (Platform.OS !== "ios") {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: theme.text }]}>
+          <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
             Apple Health is only available on iOS devices.
           </Text>
         </View>
@@ -27,7 +27,7 @@ export default function AppleHealthIntroScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -35,54 +35,54 @@ export default function AppleHealthIntroScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <ArrowLeft size={24} color={theme.text} />
+            <ArrowLeft size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
-          <Heart size={64} color={theme.primary} />
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Heart size={64} color={theme.colors.primary.main} />
+          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
             Connect Apple Health
           </Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
             Sync your health data to provide better care insights
           </Text>
         </View>
 
         {/* Benefits Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
             What You'll Get
           </Text>
 
           <View style={styles.benefitCard}>
-            <Shield size={24} color={theme.primary} />
+            <Shield size={24} color={theme.colors.primary.main} />
             <View style={styles.benefitContent}>
-              <Text style={[styles.benefitTitle, { color: theme.text }]}>
+              <Text style={[styles.benefitTitle, { color: theme.colors.text.primary }]}>
                 Complete Health Picture
               </Text>
-              <Text style={[styles.benefitDesc, { color: theme.textSecondary }]}>
+              <Text style={[styles.benefitDesc, { color: theme.colors.text.secondary }]}>
                 View all your health metrics in one place for better care coordination
               </Text>
             </View>
           </View>
 
           <View style={styles.benefitCard}>
-            <Heart size={24} color={theme.primary} />
+            <Heart size={24} color={theme.colors.primary.main} />
             <View style={styles.benefitContent}>
-              <Text style={[styles.benefitTitle, { color: theme.text }]}>
+              <Text style={[styles.benefitTitle, { color: theme.colors.text.primary }]}>
                 Early Risk Detection
               </Text>
-              <Text style={[styles.benefitDesc, { color: theme.textSecondary }]}>
+              <Text style={[styles.benefitDesc, { color: theme.colors.text.secondary }]}>
                 Track trends and identify potential health issues early
               </Text>
             </View>
           </View>
 
           <View style={styles.benefitCard}>
-            <Lock size={24} color={theme.primary} />
+            <Lock size={24} color={theme.colors.primary.main} />
             <View style={styles.benefitContent}>
-              <Text style={[styles.benefitTitle, { color: theme.text }]}>
+              <Text style={[styles.benefitTitle, { color: theme.colors.text.primary }]}>
                 Your Data, Your Control
               </Text>
-              <Text style={[styles.benefitDesc, { color: theme.textSecondary }]}>
+              <Text style={[styles.benefitDesc, { color: theme.colors.text.secondary }]}>
                 You choose exactly which metrics to share. Read-only access.
               </Text>
             </View>
@@ -91,7 +91,7 @@ export default function AppleHealthIntroScreen() {
 
         {/* Privacy Promise Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
             Your Privacy Promise
           </Text>
           
@@ -100,48 +100,48 @@ export default function AppleHealthIntroScreen() {
               styles.privacyCard,
               {
                 backgroundColor: isDark ? "#1E293B" : "#F8FAFC",
-                borderColor: theme.primary + "40",
+                borderColor: theme.colors.primary.main + "40",
                 borderWidth: 2,
               },
             ]}
           >
             <View style={styles.privacyItem}>
-              <View style={[styles.privacyIcon, { backgroundColor: theme.primary + "20" }]}>
-                <Lock size={20} color={theme.primary} />
+              <View style={[styles.privacyIcon, { backgroundColor: theme.colors.primary.main + "20" }]}>
+                <Lock size={20} color={theme.colors.primary.main} />
               </View>
               <View style={styles.privacyContent}>
-                <Text style={[styles.privacyTitle, { color: theme.text }]}>
+                <Text style={[styles.privacyTitle, { color: theme.colors.text.primary }]}>
                   We only read what you choose
                 </Text>
-                <Text style={[styles.privacyDesc, { color: theme.textSecondary }]}>
+                <Text style={[styles.privacyDesc, { color: theme.colors.text.secondary }]}>
                   You have complete control. Select exactly which metrics to share, and we&apos;ll only access those.
                 </Text>
               </View>
             </View>
 
             <View style={styles.privacyItem}>
-              <View style={[styles.privacyIcon, { backgroundColor: theme.primary + "20" }]}>
-                <Shield size={20} color={theme.primary} />
+              <View style={[styles.privacyIcon, { backgroundColor: theme.colors.primary.main + "20" }]}>
+                <Shield size={20} color={theme.colors.primary.main} />
               </View>
               <View style={styles.privacyContent}>
-                <Text style={[styles.privacyTitle, { color: theme.text }]}>
+                <Text style={[styles.privacyTitle, { color: theme.colors.text.primary }]}>
                   We never sell or share health data
                 </Text>
-                <Text style={[styles.privacyDesc, { color: theme.textSecondary }]}>
+                <Text style={[styles.privacyDesc, { color: theme.colors.text.secondary }]}>
                   Your health data is yours alone. We never sell it, share it with third parties, or use it for advertising.
                 </Text>
               </View>
             </View>
 
             <View style={styles.privacyItem}>
-              <View style={[styles.privacyIcon, { backgroundColor: theme.primary + "20" }]}>
-                <Settings size={20} color={theme.primary} />
+              <View style={[styles.privacyIcon, { backgroundColor: theme.colors.primary.main + "20" }]}>
+                <Settings size={20} color={theme.colors.primary.main} />
               </View>
               <View style={styles.privacyContent}>
-                <Text style={[styles.privacyTitle, { color: theme.text }]}>
+                <Text style={[styles.privacyTitle, { color: theme.colors.text.primary }]}>
                   You can change permissions anytime
                 </Text>
-                <Text style={[styles.privacyDesc, { color: theme.textSecondary }]}>
+                <Text style={[styles.privacyDesc, { color: theme.colors.text.secondary }]}>
                   Update your selections or disconnect completely at any time through the app or iOS Settings.
                 </Text>
               </View>
@@ -158,7 +158,7 @@ export default function AppleHealthIntroScreen() {
               },
             ]}
           >
-            <Text style={[styles.additionalPrivacyText, { color: theme.textSecondary }]}>
+            <Text style={[styles.additionalPrivacyText, { color: theme.colors.text.secondary }]}>
               • Read-only access - we never write to your health data{"\n"}
               • Data is encrypted and securely synced{"\n"}
               • Used only for caregiving insights and health tracking
@@ -169,7 +169,7 @@ export default function AppleHealthIntroScreen() {
         {/* CTA */}
         <View style={styles.ctaSection}>
           <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+            style={[styles.primaryButton, { backgroundColor: theme.colors.primary.main }]}
             onPress={() => router.push("/profile/health/apple-permissions" as any)}
           >
             <Text style={styles.primaryButtonText}>Continue</Text>
@@ -180,7 +180,7 @@ export default function AppleHealthIntroScreen() {
             style={styles.secondaryButton}
             onPress={() => router.back()}
           >
-            <Text style={[styles.secondaryButtonText, { color: theme.textSecondary }]}>
+            <Text style={[styles.secondaryButtonText, { color: theme.colors.text.secondary }]}>
               Not Now
             </Text>
           </TouchableOpacity>
