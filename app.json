@@ -88,7 +88,7 @@
           "motionPermission": "Allow $(PRODUCT_NAME) to access motion and fitness data for fall detection."
         }
       ],
-      "react-native-health",
+      "./plugins/withReactNativeHealth.js",
       "expo-localization",
       "expo-secure-store",
       "expo-web-browser",

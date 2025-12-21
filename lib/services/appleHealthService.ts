@@ -21,65 +21,100 @@ import { getAllHealthKitReadTypes } from "../health/allHealthKitTypes";
 // Import react-native-health dynamically
 // This will be null if the native module isn't available (needs rebuild)
 let AppleHealthKit: any = null;
+let healthKitLoadAttempted = false;
 
 const loadHealthKit = () => {
-  if (Platform.OS === "ios" && !AppleHealthKit) {
+  // Only attempt to load once to avoid repeated crashes
+  if (healthKitLoadAttempted) {
+    return AppleHealthKit !== null;
+  }
+  
+  healthKitLoadAttempted = true;
+  
+  if (Platform.OS !== "ios") {
+    return false;
+  }
+  
+  try {
+    // Wrap in try-catch to prevent crashes during module loading
+    const { NativeModules } = require("react-native");
+    
+    // Log all available native modules for debugging (only in dev)
+    if (__DEV__) {
+      const moduleNames = Object.keys(NativeModules || {});
+      const healthModules = moduleNames.filter(name => 
+        name.toLowerCase().includes("health") || name.toLowerCase().includes("apple")
+      );
+      console.log("Available native modules:", healthModules.length > 0 ? healthModules : []);
+    }
+    
+    // CRITICAL: Check if the native module exists before trying to require
+    const hasHealthModule = NativeModules && (
+      NativeModules.RNHealth || 
+      NativeModules.RCTAppleHealthKit || 
+      NativeModules.AppleHealthKit
+    );
+    
+    if (!hasHealthModule) {
+      console.warn("react-native-health native module not found in NativeModules");
+      AppleHealthKit = null;
+      return false;
+    }
+    
+    // Try to require the module - wrap in try-catch to prevent crashes
+    let healthModule;
     try {
-      // Wrap in try-catch to prevent crashes during module loading
-      const { NativeModules } = require("react-native");
-      
-      // Log all available native modules for debugging (only in dev)
-      if (__DEV__) {
-        const moduleNames = Object.keys(NativeModules || {});
-        const healthModules = moduleNames.filter(name => 
-          name.toLowerCase().includes("health") || name.toLowerCase().includes("apple")
-        );
-        if (healthModules.length > 0) {
-          console.log("Available native modules:", healthModules);
-        }
-      }
-      
-      // Try to require the module - wrap in try-catch to prevent crashes
-      let healthModule;
-      try {
+      // Use a more defensive approach
+      if (typeof require !== "undefined") {
         healthModule = require("react-native-health");
-      } catch (requireError: any) {
-        console.warn("Failed to require react-native-health:", requireError?.message);
+      } else {
+        console.warn("require is not available");
         AppleHealthKit = null;
         return false;
       }
-      
-      AppleHealthKit = healthModule?.default || healthModule;
-      
-      // Check if module was loaded
-      if (!AppleHealthKit) {
-        console.warn("react-native-health module is null or undefined");
-        return false;
-      }
-      
-      // Verify it has the required methods without calling them (to avoid crashes)
-      if (typeof AppleHealthKit.isAvailable === "function") {
-        if (__DEV__) {
-          console.log("HealthKit module loaded successfully");
-        }
-        return true;
-      }
-      
-      // Log what methods are available
-      const availableMethods = Object.keys(AppleHealthKit).filter(
-        key => typeof AppleHealthKit[key] === "function"
-      );
-      console.warn("HealthKit module loaded but isAvailable method not found. Available methods:", availableMethods);
+    } catch (requireError: any) {
+      console.warn("Failed to require react-native-health:", requireError?.message);
       AppleHealthKit = null;
-    } catch (error: any) {
-      // Catch any errors during module loading to prevent app crash
-      console.error("Failed to load react-native-health:", error?.message || error);
-      if (__DEV__ && error?.stack) {
-        console.error("Error stack:", error.stack);
-      }
-      AppleHealthKit = null;
+      return false;
     }
+    
+    if (!healthModule) {
+      console.warn("react-native-health module returned undefined");
+      AppleHealthKit = null;
+      return false;
+    }
+    
+    AppleHealthKit = healthModule?.default || healthModule;
+    
+    // Check if module was loaded
+    if (!AppleHealthKit) {
+      console.warn("react-native-health module is null or undefined");
+      return false;
+    }
+    
+    // Verify it has the required methods without calling them (to avoid crashes)
+    if (typeof AppleHealthKit.isAvailable === "function") {
+      if (__DEV__) {
+        console.log("HealthKit module loaded successfully");
+      }
+      return true;
+    }
+    
+    // Log what methods are available
+    const availableMethods = Object.keys(AppleHealthKit).filter(
+      key => typeof AppleHealthKit[key] === "function"
+    );
+    console.warn("HealthKit module loaded but isAvailable method not found. Available methods:", availableMethods);
+    AppleHealthKit = null;
+  } catch (error: any) {
+    // Catch any errors during module loading to prevent app crash
+    console.error("Failed to load react-native-health:", error?.message || error);
+    if (__DEV__ && error?.stack) {
+      console.error("Error stack:", error.stack);
+    }
+    AppleHealthKit = null;
   }
+  
   return AppleHealthKit !== null;
 };
 
@@ -132,6 +167,14 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
   }
 
   try {
+    // Double-check that AppleHealthKit and its methods exist
+    if (!AppleHealthKit || typeof AppleHealthKit.isAvailable !== "function") {
+      return {
+        available: false,
+        reason: "HealthKit native module not properly loaded. Please rebuild the app with native modules included.",
+      };
+    }
+
     // react-native-health's isAvailable() returns a Promise
     // Wrap in try-catch to prevent crashes from native module issues
     const available = await Promise.resolve(AppleHealthKit.isAvailable());

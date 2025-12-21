@@ -114,8 +114,16 @@ export const healthDataService = {
             return false;
           }
 
-          // Check if HealthKit is available on device
-          const isAvailable = await AppleHealthKit.isAvailable();
+          // Check if HealthKit is available on device - wrap in try-catch to prevent crashes
+          let isAvailable = false;
+          try {
+            isAvailable = await Promise.resolve(AppleHealthKit.isAvailable());
+          } catch (availError) {
+            console.warn("Error checking HealthKit availability:", availError);
+            await this.savePermissionStatus(false);
+            return false;
+          }
+
           if (!isAvailable) {
             console.warn("HealthKit is not available on this device");
             await this.savePermissionStatus(false);
@@ -124,16 +132,22 @@ export const healthDataService = {
 
           // Initialize HealthKit with permissions
           return new Promise((resolve) => {
-            AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
-              if (error) {
-                console.error("HealthKit initialization error:", error);
-                this.savePermissionStatus(false);
-                resolve(false);
-              } else {
-                this.savePermissionStatus(true);
-                resolve(true);
-              }
-            });
+            try {
+              AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
+                if (error) {
+                  console.error("HealthKit initialization error:", error);
+                  this.savePermissionStatus(false);
+                  resolve(false);
+                } else {
+                  this.savePermissionStatus(true);
+                  resolve(true);
+                }
+              });
+            } catch (initError) {
+              console.error("HealthKit initialization crashed:", initError);
+              this.savePermissionStatus(false);
+              resolve(false);
+            }
           });
         } catch (error: any) {
           console.error("HealthKit initialization failed:", error);

@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { Users, Check } from "lucide-react-native";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -31,12 +31,6 @@ export default function RegisterScreen() {
   const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarType | undefined>(undefined);
-  
-  // Refs for TextInputs to handle focus programmatically
-  const lastNameInputRef = useRef<TextInput>(null);
-  const emailInputRef = useRef<TextInput>(null);
-  const passwordInputRef = useRef<TextInput>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
 
   const isRTL = i18n.language === "ar";
 
@@ -120,7 +114,6 @@ export default function RegisterScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <ScrollView 
-          ref={scrollViewRef}
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -221,13 +214,6 @@ export default function RegisterScreen() {
                     console.error("Error setting first name:", error);
                   }
                 }}
-                onSubmitEditing={() => {
-                  try {
-                    lastNameInputRef.current?.focus();
-                  } catch (error) {
-                    console.error("Error focusing last name:", error);
-                  }
-                }}
                 returnKeyType="next"
                 placeholder={
                   isRTL ? "ادخل اسمك الأول" : "Enter your first name"
@@ -244,19 +230,11 @@ export default function RegisterScreen() {
                 {isRTL ? "اسم العائلة" : "Last Name"}
               </Text>
               <TextInput
-                ref={lastNameInputRef}
                 onChangeText={(text) => {
                   try {
                     setLastName(text);
                   } catch (error) {
                     console.error("Error setting last name:", error);
-                  }
-                }}
-                onSubmitEditing={() => {
-                  try {
-                    emailInputRef.current?.focus();
-                  } catch (error) {
-                    console.error("Error focusing email:", error);
                   }
                 }}
                 returnKeyType="next"
@@ -275,7 +253,6 @@ export default function RegisterScreen() {
                 {t("email")}
               </Text>
               <TextInput
-                ref={emailInputRef}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 onChangeText={(text) => {
@@ -283,13 +260,6 @@ export default function RegisterScreen() {
                     setEmail(text);
                   } catch (error) {
                     console.error("Error setting email:", error);
-                  }
-                }}
-                onSubmitEditing={() => {
-                  try {
-                    passwordInputRef.current?.focus();
-                  } catch (error) {
-                    console.error("Error focusing password:", error);
                   }
                 }}
                 returnKeyType="next"
@@ -308,7 +278,6 @@ export default function RegisterScreen() {
                 {t("password")}
               </Text>
               <TextInput
-                ref={passwordInputRef}
                 onChangeText={(text) => {
                   try {
                     setPassword(text);

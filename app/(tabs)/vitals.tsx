@@ -464,17 +464,29 @@ export default function VitalsScreen() {
 
   const checkHealthKitAvailability = async () => {
     if (Platform.OS === "ios") {
-      const availability = await appleHealthService.isAvailable();
-      setHealthKitAvailable(availability.available);
-      setAvailabilityReason(availability.reason);
+      try {
+        const availability = await appleHealthService.isAvailable();
+        setHealthKitAvailable(availability.available);
+        setAvailabilityReason(availability.reason);
+      } catch (error: any) {
+        console.error("Error checking HealthKit availability:", error);
+        setHealthKitAvailable(false);
+        setAvailabilityReason(error?.message || "Failed to check HealthKit availability");
+      }
     }
   };
 
   const checkHealthConnectAvailability = async () => {
     if (Platform.OS === "android") {
-      const availability = await googleHealthService.isAvailable();
-      setHealthConnectAvailable(availability.available);
-      setAvailabilityReason(availability.reason);
+      try {
+        const availability = await googleHealthService.isAvailable();
+        setHealthConnectAvailable(availability.available);
+        setAvailabilityReason(availability.reason);
+      } catch (error: any) {
+        console.error("Error checking Health Connect availability:", error);
+        setHealthConnectAvailable(false);
+        setAvailabilityReason(error?.message || "Failed to check Health Connect availability");
+      }
     }
   };
 
@@ -585,66 +597,90 @@ export default function VitalsScreen() {
       let provider: "apple_health" | "health_connect" = "apple_health";
 
       if (Platform.OS === "ios") {
-        // Check availability before proceeding
-        const availability = await appleHealthService.isAvailable();
-        if (!availability.available) {
-          Alert.alert(
-            isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
-            availability.reason || 
-            (isRTL 
-              ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
-              : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
-          );
-          return;
-        }
-
-        // Request HealthKit permissions for selected metrics
-        // If "all" is selected, request all HealthKit types
-        const metricsToRequest = selectedMetrics.has("all") 
-          ? ["all"] 
-          : Array.from(selectedMetrics);
-        
-        const result = await appleHealthService.requestAuthorization(metricsToRequest);
-        granted = result.granted;
-        denied = result.denied;
-        provider = "apple_health";
-      } else if (Platform.OS === "android") {
-        // Check availability before proceeding
-        const availability = await googleHealthService.isAvailable();
-        if (!availability.available) {
-          Alert.alert(
-            isRTL ? "Health Connect غير متاح" : "Health Connect Not Available",
-            availability.reason || 
-            (isRTL 
-              ? "Health Connect غير متاح. يرجى التأكد من تثبيت تطبيق Health Connect من متجر Play."
-              : "Health Connect is not available. Please ensure Health Connect app is installed from Play Store.")
-          );
-          // Offer to open Play Store
-          if (availability.requiresInstall) {
+        // Check availability before proceeding - wrap in try-catch to prevent native crashes
+        try {
+          const availability = await appleHealthService.isAvailable();
+          if (!availability.available) {
             Alert.alert(
-              isRTL ? "تثبيت Health Connect" : "Install Health Connect",
-              isRTL
-                ? "هل تريد فتح متجر Play لتثبيت Health Connect؟"
-                : "Would you like to open Play Store to install Health Connect?",
-              [
-                { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
-                {
-                  text: isRTL ? "فتح" : "Open",
-                  onPress: () => googleHealthService.openHealthConnect(),
-                },
-              ]
+              isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
+              availability.reason || 
+              (isRTL 
+                ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
+                : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
             );
+            return;
           }
+
+          // Request HealthKit permissions for selected metrics
+          // If "all" is selected, request all HealthKit types
+          const metricsToRequest = selectedMetrics.has("all") 
+            ? ["all"] 
+            : Array.from(selectedMetrics);
+          
+          const result = await appleHealthService.requestAuthorization(metricsToRequest);
+          granted = result.granted;
+          denied = result.denied;
+          provider = "apple_health";
+        } catch (healthKitError: any) {
+          console.error("HealthKit error:", healthKitError);
+          Alert.alert(
+            isRTL ? "خطأ في HealthKit" : "HealthKit Error",
+            healthKitError?.message || 
+            (isRTL 
+              ? "فشل الاتصال بـ HealthKit. يرجى إعادة بناء التطبيق بوحدات native."
+              : "Failed to connect to HealthKit. Please rebuild the app with native modules.")
+          );
           return;
         }
+      } else if (Platform.OS === "android") {
+        // Check availability before proceeding - wrap in try-catch
+        try {
+          const availability = await googleHealthService.isAvailable();
+          if (!availability.available) {
+            Alert.alert(
+              isRTL ? "Health Connect غير متاح" : "Health Connect Not Available",
+              availability.reason || 
+              (isRTL 
+                ? "Health Connect غير متاح. يرجى التأكد من تثبيت تطبيق Health Connect من متجر Play."
+                : "Health Connect is not available. Please ensure Health Connect app is installed from Play Store.")
+            );
+            // Offer to open Play Store
+            if (availability.requiresInstall) {
+              Alert.alert(
+                isRTL ? "تثبيت Health Connect" : "Install Health Connect",
+                isRTL
+                  ? "هل تريد فتح متجر Play لتثبيت Health Connect؟"
+                  : "Would you like to open Play Store to install Health Connect?",
+                [
+                  { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+                  {
+                    text: isRTL ? "فتح" : "Open",
+                    onPress: () => googleHealthService.openHealthConnect(),
+                  },
+                ]
+              );
+            }
+            return;
+          }
 
-        // Request Health Connect permissions
-        const result = await googleHealthService.requestAuthorization(
-          Array.from(selectedMetrics)
-        );
-        granted = result.granted;
-        denied = result.denied;
-        provider = "health_connect";
+          // Request Health Connect permissions
+          const result = await googleHealthService.requestAuthorization(
+            Array.from(selectedMetrics)
+          );
+          granted = result.granted;
+          denied = result.denied;
+          provider = "health_connect";
+        } catch (healthConnectError: any) {
+          console.error("Health Connect error:", healthConnectError);
+          Alert.alert(
+            isRTL ? "خطأ في Health Connect" : "Health Connect Error",
+            healthConnectError?.message || 
+            (isRTL 
+              ? "فشل الاتصال بـ Health Connect."
+              : "Failed to connect to Health Connect.")
+          );
+          return;
+        }
       }
 
       // Save connection
