@@ -152,18 +152,7 @@ Upon termination:
 - Your data may be deleted according to our Privacy Policy
 - These Terms will continue to apply to any remaining obligations
 
-## 12. Governing Law and Dispute Resolution
-
-### Governing Law
-These Terms are governed by and construed in accordance with the laws of Saudi Arabia, without regard to conflict of law principles.
-
-### Dispute Resolution
-Any disputes arising from these Terms or your use of the App shall be resolved through:
-1. **Informal Resolution**: First, contact us to attempt to resolve the issue informally
-2. **Binding Arbitration**: If informal resolution fails, disputes will be resolved through binding arbitration in Riyadh, Saudi Arabia
-3. **Class Action Waiver**: You agree not to participate in class action lawsuits against us
-
-## 13. Miscellaneous
+## 12. Miscellaneous
 
 ### Entire Agreement
 These Terms, together with our Privacy Policy, constitute the entire agreement between you and Maak.
@@ -177,28 +166,7 @@ We are not liable for any failure to perform due to circumstances beyond our rea
 ### Assignment
 We may assign these Terms or our rights hereunder without your consent. You may not assign your rights under these Terms without our written consent.
 
-### Waiver
-Our failure to enforce any provision of these Terms does not constitute a waiver of that provision.
-
-## 14. Contact Information
-
-If you have questions about these Terms and Conditions, please contact us:
-
-**General Inquiries**:
-- Email: support@maak.app
-- Phone: +966 12 345 6789
-
-**Legal Inquiries**:
-- Email: legal@maak.app
-
-**Privacy Inquiries**:
-- Email: privacy@maak.app
-
-**Business Address**:
-Maak Health Technologies
-Riyadh, Saudi Arabia
-
-## 15. Acknowledgment
+## 13. Acknowledgment
 
 By using the Maak App, you acknowledge that:
 - You have read and understood these Terms
