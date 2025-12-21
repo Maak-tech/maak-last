@@ -199,7 +199,7 @@ export default function MotionPermissionsScreen() {
               </Text>
             </View>
             <Text style={[styles.infoText, { color: theme.textSecondary }]}>
-              Maak Health uses your device's motion sensors (accelerometer and gyroscope) to detect
+              Maak Health uses your device&apos;s motion sensors (accelerometer and gyroscope) to detect
               sudden movements that may indicate a fall. This allows us to automatically alert your
               emergency contacts if a fall is detected.
             </Text>

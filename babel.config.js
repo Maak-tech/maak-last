@@ -5,7 +5,7 @@ module.exports = (api) => {
       [
         "babel-preset-expo",
         {
-          // Modern JSX transform for React 18 - automatic runtime
+          // Modern JSX transform for React 19 - automatic runtime
           jsxRuntime: "automatic",
         },
       ],

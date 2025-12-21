@@ -4,27 +4,70 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
-const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
-const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN;
-const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
-const storageBucket = process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET;
-const messagingSenderId = process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-const appId = process.env.EXPO_PUBLIC_FIREBASE_APP_ID;
-const measurementId = process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID;
+// Helper function to clean environment variables (remove quotes if present)
+const cleanEnvVar = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  // Remove surrounding quotes if present
+  return value.replace(/^["']|["']$/g, "").trim();
+};
+
+const apiKey = cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_API_KEY);
+const authDomain = cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN);
+const projectId = cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID);
+const storageBucket = cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET);
+const messagingSenderId = cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID);
+const appId = cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_APP_ID);
+const measurementId = cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID);
+
+// Validate required Firebase configuration
+const requiredEnvVars = {
+  apiKey,
+  authDomain,
+  projectId,
+  storageBucket,
+  messagingSenderId,
+  appId,
+};
+
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([_, value]) => !value)
+  .map(([key]) => key);
+
+if (missingVars.length > 0) {
+  const errorMessage = `Missing required Firebase environment variables: ${missingVars.join(", ")}. Please ensure your .env file contains all required EXPO_PUBLIC_FIREBASE_* variables.`;
+  
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.error(`❌ ${errorMessage}`);
+  }
+  
+  // In production, still initialize but log the error
+  // This prevents the app from crashing but Firebase operations will fail
+  if (typeof __DEV__ === "undefined" || !__DEV__) {
+    console.error(`Firebase Configuration Error: ${errorMessage}`);
+  }
+}
 
 // Check if Firebase app already exists (prevents duplicate initialization during HMR)
-const app =
-  getApps().length === 0
-    ? initializeApp({
-        apiKey,
-        authDomain,
-        projectId,
-        storageBucket,
-        messagingSenderId,
-        appId,
-        measurementId,
-      })
-    : getApp();
+let app;
+try {
+  app =
+    getApps().length === 0
+      ? initializeApp({
+          apiKey: apiKey || "",
+          authDomain: authDomain || "",
+          projectId: projectId || "",
+          storageBucket: storageBucket || "",
+          messagingSenderId: messagingSenderId || "",
+          appId: appId || "",
+          measurementId: measurementId,
+        })
+      : getApp();
+} catch (error) {
+  console.error("Failed to initialize Firebase:", error);
+  throw new Error(
+    "Firebase initialization failed. Please check your environment variables."
+  );
+}
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);

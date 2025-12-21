@@ -39,7 +39,19 @@ export const userService = {
         createdAt: Timestamp.fromDate(userData.createdAt),
       };
       await setDoc(doc(db, "users", userId), userDocData);
-    } catch (error) {
+    } catch (error: any) {
+      // Provide more specific error messages
+      if (error?.code === "permission-denied") {
+        throw new Error(
+          "Permission denied. Please check your Firestore security rules."
+        );
+      } else if (error?.code === "unavailable") {
+        throw new Error(
+          "Firestore is unavailable. Please check your internet connection."
+        );
+      } else if (error?.message) {
+        throw new Error(`Failed to create user: ${error.message}`);
+      }
       throw error;
     }
   },

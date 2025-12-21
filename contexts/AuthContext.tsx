@@ -345,13 +345,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       } catch (docError: any) {
         console.error("Failed to create user document:", docError);
+        
+        // Provide more specific error messages
+        let docErrorMessage = "Failed to create user profile. Please try again.";
+        if (docError?.code === "permission-denied") {
+          docErrorMessage = "Permission denied. Please check your Firestore security rules.";
+        } else if (docError?.code === "unavailable") {
+          docErrorMessage = "Database unavailable. Please check your internet connection.";
+        } else if (docError?.message) {
+          docErrorMessage = docError.message;
+        }
+        
         // If document creation fails, try to delete the auth user to prevent orphaned accounts
         try {
           await signOut(auth);
         } catch (signOutError) {
           console.error("Failed to sign out after document creation error:", signOutError);
         }
-        throw new Error("Failed to create user profile. Please try again.");
+        
+        setLoading(false);
+        throw new Error(docErrorMessage);
       }
     } catch (error: any) {
       let errorMessage = "Failed to create account. Please try again.";
@@ -362,6 +375,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         errorMessage = "Password should be at least 6 characters.";
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email address.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your internet connection.";
       } else if (error.message) {
         errorMessage = error.message;
       }
