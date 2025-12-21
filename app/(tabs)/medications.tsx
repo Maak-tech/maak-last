@@ -936,8 +936,8 @@ export default function MedicationsScreen() {
               </Text>
               <Text style={[styles.helperText, isRTL && styles.rtlText]}>
                 {isRTL
-                  ? "أدخل الوقت واختر AM أو PM - مثال: 8:00 AM، 2:30 PM"
-                  : "Enter time and select AM or PM - Examples: 8:00 AM, 2:30 PM"}
+                  ? "أدخل الوقت واختر AM أو PM - مثال: 08:34 AM، 02:30 PM"
+                  : "Enter time and select AM or PM - Examples: 08:34 AM, 02:30 PM"}
               </Text>
               <View style={styles.remindersList}>
                 {newMedication.reminders.map((reminder, index) => {
@@ -979,7 +979,7 @@ export default function MedicationsScreen() {
                             });
                           }
                         }}
-                        placeholder={isRTL ? "8:00" : "8:00"}
+                        placeholder={isRTL ? "08:34" : "08:34"}
                         style={[styles.reminderTimeInput, isRTL && styles.rtlInput]}
                         textAlign={isRTL ? "right" : "left"}
                         value={timeValue}
