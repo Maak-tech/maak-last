@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { Users, Check } from "lucide-react-native";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -31,6 +31,12 @@ export default function RegisterScreen() {
   const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarType | undefined>(undefined);
+  
+  // Refs for TextInputs to handle focus programmatically
+  const lastNameInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const isRTL = i18n.language === "ar";
 
@@ -108,10 +114,16 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardContainer}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardContainer}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <ScrollView 
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
             <TouchableOpacity
@@ -202,13 +214,28 @@ export default function RegisterScreen() {
                 {isRTL ? "الاسم الأول" : "First Name"}
               </Text>
               <TextInput
-                onChangeText={setFirstName}
+                onChangeText={(text) => {
+                  try {
+                    setFirstName(text);
+                  } catch (error) {
+                    console.error("Error setting first name:", error);
+                  }
+                }}
+                onSubmitEditing={() => {
+                  try {
+                    lastNameInputRef.current?.focus();
+                  } catch (error) {
+                    console.error("Error focusing last name:", error);
+                  }
+                }}
+                returnKeyType="next"
                 placeholder={
                   isRTL ? "ادخل اسمك الأول" : "Enter your first name"
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={firstName}
+                blurOnSubmit={false}
               />
             </View>
 
@@ -217,13 +244,29 @@ export default function RegisterScreen() {
                 {isRTL ? "اسم العائلة" : "Last Name"}
               </Text>
               <TextInput
-                onChangeText={setLastName}
+                ref={lastNameInputRef}
+                onChangeText={(text) => {
+                  try {
+                    setLastName(text);
+                  } catch (error) {
+                    console.error("Error setting last name:", error);
+                  }
+                }}
+                onSubmitEditing={() => {
+                  try {
+                    emailInputRef.current?.focus();
+                  } catch (error) {
+                    console.error("Error focusing email:", error);
+                  }
+                }}
+                returnKeyType="next"
                 placeholder={
                   isRTL ? "ادخل اسم عائلتك" : "Enter your last name"
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={lastName}
+                blurOnSubmit={false}
               />
             </View>
 
@@ -232,15 +275,31 @@ export default function RegisterScreen() {
                 {t("email")}
               </Text>
               <TextInput
+                ref={emailInputRef}
                 autoCapitalize="none"
                 keyboardType="email-address"
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  try {
+                    setEmail(text);
+                  } catch (error) {
+                    console.error("Error setting email:", error);
+                  }
+                }}
+                onSubmitEditing={() => {
+                  try {
+                    passwordInputRef.current?.focus();
+                  } catch (error) {
+                    console.error("Error focusing password:", error);
+                  }
+                }}
+                returnKeyType="next"
                 placeholder={
                   isRTL ? "ادخل بريدك الإلكتروني" : "Enter your email"
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={email}
+                blurOnSubmit={false}
               />
             </View>
 
@@ -249,7 +308,15 @@ export default function RegisterScreen() {
                 {t("password")}
               </Text>
               <TextInput
-                onChangeText={setPassword}
+                ref={passwordInputRef}
+                onChangeText={(text) => {
+                  try {
+                    setPassword(text);
+                  } catch (error) {
+                    console.error("Error setting password:", error);
+                  }
+                }}
+                returnKeyType="next"
                 placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
                 secureTextEntry
                 style={[
@@ -259,6 +326,7 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 value={password}
+                blurOnSubmit={false}
               />
               {errors.password && (
                 <Text style={styles.fieldErrorText}>{errors.password}</Text>
@@ -360,8 +428,8 @@ export default function RegisterScreen() {
               </Link>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
