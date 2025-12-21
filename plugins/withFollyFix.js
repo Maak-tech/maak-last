@@ -24,8 +24,10 @@ const withFollyFix = (config) => {
       }
 
       // Find the post_install hook or create one
-      const postInstallPattern = /post_install do \|installer\|([\s\S]*?)end/;
-      const hasPostInstall = postInstallPattern.test(podfileContent);
+      // Use consistent regex pattern that matches both with and without newline before 'end'
+      const postInstallRegex = /(post_install do \|installer\|)([\s\S]*?)(\n?end\b)/;
+      const postInstallMatch = podfileContent.match(postInstallRegex);
+      const hasPostInstall = postInstallMatch !== null;
 
       const follyFix = `
   # Fix for react-native-reanimated folly coroutines issue
@@ -37,15 +39,14 @@ const withFollyFix = (config) => {
   end
 `;
 
-      if (hasPostInstall) {
-        // Add to existing post_install hook - use non-greedy match to get the first matching end
-        const postInstallMatch = podfileContent.match(/(post_install do \|installer\|)([\s\S]*?)(\nend)/);
-        if (postInstallMatch) {
-          podfileContent = podfileContent.replace(
-            postInstallMatch[0],
-            `${postInstallMatch[1]}${postInstallMatch[2]}${follyFix}${postInstallMatch[3]}`
-          );
-        }
+      if (hasPostInstall && postInstallMatch) {
+        // Add to existing post_install hook
+        // Ensure we preserve the original 'end' format (with or without newline)
+        const endMarker = postInstallMatch[3]; // This preserves \nend or end
+        podfileContent = podfileContent.replace(
+          postInstallMatch[0],
+          `${postInstallMatch[1]}${postInstallMatch[2]}${follyFix}${endMarker}`
+        );
       } else {
         // Create new post_install hook - add before the final 'end' of the target block
         // Find the last occurrence of 'end' that's likely the end of the target block
