@@ -24,27 +24,40 @@ let AppleHealthKit: any = null;
 const loadHealthKit = () => {
   if (Platform.OS === "ios" && !AppleHealthKit) {
     try {
-      // Check if NativeModules has the native module linked
       const { NativeModules } = require("react-native");
-      if (!NativeModules || !NativeModules.AppleHealthKit) {
-        console.warn("Native module AppleHealthKit not found in NativeModules. The native module is not linked.");
-        AppleHealthKit = null;
-        return false;
-      }
-
-      // react-native-health exports directly, not as .default
+      
+      // Log all available native modules for debugging
+      const moduleNames = Object.keys(NativeModules || {});
+      console.log("Available native modules:", moduleNames.filter(name => 
+        name.toLowerCase().includes("health") || name.toLowerCase().includes("apple")
+      ));
+      
+      // react-native-health might not expose itself in NativeModules directly
+      // Try to require the module first
       const healthModule = require("react-native-health");
       AppleHealthKit = healthModule.default || healthModule;
       
-      // Verify it's actually available and has the required methods
-      if (AppleHealthKit && typeof AppleHealthKit.isAvailable === "function") {
+      // Check if module was loaded
+      if (!AppleHealthKit) {
+        console.warn("react-native-health module is null or undefined");
+        return false;
+      }
+      
+      // Verify it has the required methods
+      if (typeof AppleHealthKit.isAvailable === "function") {
+        console.log("HealthKit module loaded successfully");
         return true;
       }
       
-      console.warn("HealthKit module loaded but native methods are not available. Native module may not be properly linked.");
+      // Log what methods are available
+      const availableMethods = Object.keys(AppleHealthKit).filter(
+        key => typeof AppleHealthKit[key] === "function"
+      );
+      console.warn("HealthKit module loaded but isAvailable method not found. Available methods:", availableMethods);
       AppleHealthKit = null;
     } catch (error: any) {
-      console.warn("Failed to load react-native-health:", error?.message || error);
+      console.error("Failed to load react-native-health:", error?.message || error);
+      console.error("Error stack:", error?.stack);
       AppleHealthKit = null;
     }
   }
@@ -83,11 +96,14 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
   if (!moduleLoaded || !AppleHealthKit) {
     // Additional diagnostic info
     const { NativeModules } = require("react-native");
-    const hasNativeModule = NativeModules && NativeModules.AppleHealthKit;
+    const moduleNames = Object.keys(NativeModules || {});
+    const healthRelatedModules = moduleNames.filter(name => 
+      name.toLowerCase().includes("health") || name.toLowerCase().includes("apple")
+    );
     
     return {
       available: false,
-      reason: `HealthKit native module not found. The react-native-health module needs to be compiled into your app.\n\nDiagnostics:\n• Native module linked: ${hasNativeModule ? "Yes" : "No"}\n• Module loaded: ${moduleLoaded ? "Yes" : "No"}\n\nPlease rebuild your development build:\n• For EAS Build: bun run build:ios:dev\n• For local build: bun run ios\n\nAfter rebuilding, reinstall the app on your device.`,
+      reason: `HealthKit native module not found. The react-native-health module needs to be compiled into your app.\n\nDiagnostics:\n• Module loaded: ${moduleLoaded ? "Yes" : "No"}\n• AppleHealthKit object: ${AppleHealthKit ? "Exists" : "Null"}\n• Health-related native modules: ${healthRelatedModules.length > 0 ? healthRelatedModules.join(", ") : "None found"}\n\nPlease check:\n1. Ensure you rebuilt the app after adding HealthKit entitlements\n2. Verify react-native-health plugin is in app.json plugins array\n3. Check that the build includes native modules (not Expo Go)\n4. Try rebuilding: eas build -p ios --profile development --clear-cache`,
     };
   }
 
