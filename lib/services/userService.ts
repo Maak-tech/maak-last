@@ -10,7 +10,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { User } from "@/types";
+import type { User, AvatarType } from "@/types";
 
 export const userService = {
   // Get user by ID
@@ -49,7 +49,8 @@ export const userService = {
     userId: string,
     email: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    avatarType?: AvatarType
   ): Promise<User> {
     try {
       const existingUser = await this.getUser(userId);
@@ -73,6 +74,7 @@ export const userService = {
         email,
         firstName,
         lastName,
+        ...(avatarType && { avatarType }), // Include avatar type if provided
         role: "admin", // First user in family is admin
         createdAt: new Date(),
         onboardingCompleted: false, // New users should see onboarding flow

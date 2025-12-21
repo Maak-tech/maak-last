@@ -17,13 +17,13 @@ import { auth, db } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
 import { userService } from "@/lib/services/userService";
-import type { User } from "@/types";
+import type { User, AvatarType } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signUp: (email: string, password: string, firstName: string, lastName: string, avatarType?: AvatarType) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -292,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string, avatarType?: AvatarType) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -305,7 +305,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         userCredential.user.uid,
         userCredential.user.email || "",
         firstName,
-        lastName
+        lastName,
+        avatarType
       );
     } catch (error: any) {
       let errorMessage = "Failed to create account. Please try again.";

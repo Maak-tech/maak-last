@@ -1,5 +1,5 @@
 import { Link, useRouter } from "expo-router";
-import { Users } from "lucide-react-native";
+import { Users, Check } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
+import type { AvatarType } from "@/types";
 
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
@@ -29,6 +30,7 @@ export default function RegisterScreen() {
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarType | undefined>(undefined);
 
   const isRTL = i18n.language === "ar";
 
@@ -76,7 +78,7 @@ export default function RegisterScreen() {
         }
       }
 
-      await signUp(email, password, firstName, lastName);
+      await signUp(email, password, firstName, lastName, selectedAvatar);
 
       // Show success message for family code
       if (familyCode.trim()) {
@@ -148,6 +150,52 @@ export default function RegisterScreen() {
                 <Text style={styles.errorText}>{errors.general}</Text>
               </View>
             )}
+
+            {/* Avatar Selection */}
+            <View style={styles.avatarSection}>
+              <Text style={[styles.label, isRTL && styles.rtlText]}>
+                {isRTL ? "اختر صورتك الرمزية (اختياري)" : "Choose your avatar (optional)"}
+              </Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.avatarScrollContent}
+              >
+                {[
+                  { type: "man" as AvatarType, emoji: "👨🏻", labelEn: "Man", labelAr: "رجل" },
+                  { type: "woman" as AvatarType, emoji: "👩🏻", labelEn: "Woman", labelAr: "امرأة" },
+                  { type: "boy" as AvatarType, emoji: "👦🏻", labelEn: "Boy", labelAr: "صبي" },
+                  { type: "girl" as AvatarType, emoji: "👧🏻", labelEn: "Girl", labelAr: "فتاة" },
+                  { type: "grandma" as AvatarType, emoji: "👵🏻", labelEn: "Grandma", labelAr: "جدة" },
+                  { type: "grandpa" as AvatarType, emoji: "👴🏻", labelEn: "Grandpa", labelAr: "جد" },
+                ].map((avatar) => (
+                  <TouchableOpacity
+                    key={avatar.type}
+                    onPress={() => setSelectedAvatar(avatar.type)}
+                    style={[
+                      styles.avatarOption,
+                      selectedAvatar === avatar.type && styles.avatarOptionSelected,
+                    ]}
+                  >
+                    <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
+                    <Text
+                      style={[
+                        styles.avatarLabel,
+                        selectedAvatar === avatar.type && styles.avatarLabelSelected,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
+                      {isRTL ? avatar.labelAr : avatar.labelEn}
+                    </Text>
+                    {selectedAvatar === avatar.type && (
+                      <View style={styles.avatarCheck}>
+                        <Check color="#FFFFFF" size={14} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.rtlText]}>
@@ -498,5 +546,53 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 4,
     lineHeight: 16,
+  },
+  avatarSection: {
+    marginBottom: 20,
+  },
+  avatarScrollContent: {
+    paddingVertical: 8,
+    gap: 12,
+  },
+  avatarOption: {
+    width: 85,
+    height: 100,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    position: "relative",
+    marginRight: 12,
+  },
+  avatarOptionSelected: {
+    backgroundColor: "#EBF4FF",
+    borderColor: "#2563EB",
+  },
+  avatarEmoji: {
+    fontSize: 36,
+    marginBottom: 6,
+  },
+  avatarLabel: {
+    fontSize: 11,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    textAlign: "center",
+  },
+  avatarLabelSelected: {
+    color: "#2563EB",
+    fontFamily: "Geist-SemiBold",
+  },
+  avatarCheck: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
