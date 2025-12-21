@@ -90,10 +90,13 @@ export const fcmService = {
 
   // Save FCM token to user document via Cloud Function
   async saveFCMToken(token: string, userId?: string): Promise<boolean> {
+    // Declare currentUser outside try-catch to be accessible in catch block
+    let currentUser = null;
+    
     try {
       // Check if user is authenticated
       const { auth } = await import("@/lib/firebase");
-      const currentUser = auth.currentUser;
+      currentUser = auth.currentUser;
 
       if (!(currentUser || userId)) {
         return false;

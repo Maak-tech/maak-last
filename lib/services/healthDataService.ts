@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Device from "expo-device";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 // iOS HealthKit permissions - correct format for react-native-health
@@ -81,7 +82,10 @@ export const healthDataService = {
     try {
       if (Platform.OS === "ios") {
         // For iOS, check if we're in Expo Go or standalone app
-        const isExpoGo = Device.isDevice && !Device.isDevice; // Expo Go detection
+        const isExpoGo =
+          Constants.executionEnvironment === "storeClient" ||
+          !Constants.appOwnership ||
+          Constants.appOwnership === "expo";
 
         if (isExpoGo) {
           // For demo purposes in Expo Go, simulate permission granted
