@@ -406,6 +406,8 @@ export default function AIAssistant() {
   const deleteSession = async (sessionId: string) => {
     if (!auth.currentUser) return;
 
+    const userId = auth.currentUser.uid;
+
     Alert.alert(
       "Delete Chat",
       "Are you sure you want to delete this chat session?",
@@ -420,7 +422,7 @@ export default function AIAssistant() {
                 doc(
                   db,
                   "users",
-                  auth.currentUser.uid,
+                  userId,
                   "chatSessions",
                   sessionId
                 )
@@ -524,7 +526,6 @@ export default function AIAssistant() {
         <View style={styles.inputContainer}>
           <TextInput
             editable={!isStreaming}
-            maxHeight={100}
             multiline
             onChangeText={setInputText}
             placeholder="Ask about your health, medications, symptoms..."
