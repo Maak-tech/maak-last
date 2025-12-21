@@ -14,7 +14,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "expo-modules-core": "~1.11.0"
+    "expo-modules-core": "~3.0.29"
   },
   "devDependencies": {
     "expo-module-scripts": "^3.0.0"
