@@ -433,6 +433,12 @@ export default function VitalsScreen() {
 
   useEffect(() => {
     loadVitalsData();
+    // Check HealthKit/Health Connect availability on mount
+    if (Platform.OS === "ios") {
+      checkHealthKitAvailability();
+    } else if (Platform.OS === "android") {
+      checkHealthConnectAvailability();
+    }
   }, []);
 
   useFocusEffect(

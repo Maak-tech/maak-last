@@ -93,9 +93,17 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
 
   try {
     const available = await AppleHealthKit.isAvailable();
+    if (!available) {
+      // HealthKit.isAvailable() returns false on iOS Simulator
+      // Provide helpful error message
+      return {
+        available: false,
+        reason: "HealthKit is not available on this device. HealthKit only works on real iOS devices, not on the iOS Simulator. Please test on a physical iPhone or iPad.",
+      };
+    }
     return {
-      available,
-      reason: available ? undefined : "HealthKit is not available on this device",
+      available: true,
+      reason: undefined,
     };
   } catch (error: any) {
     return {
