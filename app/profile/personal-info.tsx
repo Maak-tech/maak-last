@@ -318,20 +318,13 @@ export default function PersonalInfoScreen() {
 
             <View style={styles.statCard}>
               <Text style={[styles.statValue, isRTL && styles.rtlText]}>
-                {(() => {
-                  const notifications = user?.preferences?.notifications;
-                  const isEnabled =
-                    typeof notifications === "object"
-                      ? notifications.enabled
-                      : notifications === true;
-                  return isEnabled
-                    ? isRTL
-                      ? "مفعل"
-                      : "On"
-                    : isRTL
-                      ? "معطل"
-                      : "Off";
-                })()}
+                {user?.preferences?.notifications
+                  ? isRTL
+                    ? "مفعل"
+                    : "On"
+                  : isRTL
+                    ? "معطل"
+                    : "Off"}
               </Text>
               <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
                 {isRTL ? "الإشعارات" : "Notifications"}
