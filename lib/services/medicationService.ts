@@ -82,11 +82,20 @@ export const medicationService = {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        // Convert reminder takenAt Timestamps to Date objects
+        const processedReminders = (data.reminders || []).map((reminder: any) => ({
+          ...reminder,
+          takenAt: reminder.takenAt
+            ? reminder.takenAt.toDate
+              ? reminder.takenAt.toDate()
+              : new Date(reminder.takenAt)
+            : undefined,
+        }));
+        
         medications.push({
           id: doc.id,
           ...data,
-          // Ensure reminders is always an array
-          reminders: data.reminders || [],
+          reminders: processedReminders,
           startDate: data.startDate.toDate(),
           endDate: data.endDate?.toDate() || undefined,
         } as Medication);
@@ -134,10 +143,21 @@ export const medicationService = {
         throw new Error("Medication not found");
       }
 
-      // Update the specific reminder in the reminders array
+      // Find the reminder to toggle
+      const reminder = medication.reminders.find((r) => r.id === reminderId);
+      if (!reminder) {
+        throw new Error("Reminder not found");
+      }
+
+      // Toggle the taken state and update takenAt accordingly
+      const newTakenState = !reminder.taken;
       const updatedReminders = medication.reminders.map((reminder) =>
         reminder.id === reminderId
-          ? { ...reminder, taken: !reminder.taken, takenAt: Timestamp.now() }
+          ? {
+              ...reminder,
+              taken: newTakenState,
+              takenAt: newTakenState ? Timestamp.now() : null,
+            }
           : reminder
       );
 
@@ -161,11 +181,21 @@ export const medicationService = {
       }
 
       const data = docSnap.data();
+      
+      // Convert reminder takenAt Timestamps to Date objects
+      const processedReminders = (data.reminders || []).map((reminder: any) => ({
+        ...reminder,
+        takenAt: reminder.takenAt
+          ? reminder.takenAt.toDate
+            ? reminder.takenAt.toDate()
+            : new Date(reminder.takenAt)
+          : undefined,
+      }));
 
       return {
         id: docSnap.id,
         ...data,
-        reminders: data.reminders || [],
+        reminders: processedReminders,
         startDate: data.startDate.toDate(),
         endDate: data.endDate?.toDate() || undefined,
       } as Medication;
@@ -337,12 +367,22 @@ export const medicationService = {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        // Convert reminder takenAt Timestamps to Date objects
+        const processedReminders = (data.reminders || []).map((reminder: any) => ({
+          ...reminder,
+          takenAt: reminder.takenAt
+            ? reminder.takenAt.toDate
+              ? reminder.takenAt.toDate()
+              : new Date(reminder.takenAt)
+            : undefined,
+        }));
+        
         medications.push({
           id: doc.id,
           ...data,
           startDate: data.startDate.toDate(),
           endDate: data.endDate?.toDate(),
-          reminders: data.reminders || [],
+          reminders: processedReminders,
         } as Medication);
       });
 
@@ -387,12 +427,22 @@ export const medicationService = {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        // Convert reminder takenAt Timestamps to Date objects
+        const processedReminders = (data.reminders || []).map((reminder: any) => ({
+          ...reminder,
+          takenAt: reminder.takenAt
+            ? reminder.takenAt.toDate
+              ? reminder.takenAt.toDate()
+              : new Date(reminder.takenAt)
+            : undefined,
+        }));
+        
         medications.push({
           id: doc.id,
           ...data,
           startDate: data.startDate.toDate(),
           endDate: data.endDate?.toDate(),
-          reminders: data.reminders || [],
+          reminders: processedReminders,
         } as Medication);
       });
 

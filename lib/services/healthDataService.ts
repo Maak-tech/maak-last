@@ -97,7 +97,9 @@ export const healthDataService = {
           // Import react-native-health correctly
           let AppleHealthKit: any = null;
           try {
-            AppleHealthKit = require("react-native-health").default;
+            // react-native-health exports directly, not as .default
+            const healthModule = require("react-native-health");
+            AppleHealthKit = healthModule.default || healthModule;
           } catch (importError) {
             // Module not available - need to rebuild
             console.warn("HealthKit module not found. Please rebuild with: bun run build:ios:dev");
@@ -200,7 +202,9 @@ export const healthDataService = {
       try {
         let AppleHealthKit: any = null;
         try {
-          AppleHealthKit = require("react-native-health").default;
+          // react-native-health exports directly, not as .default
+          const healthModule = require("react-native-health");
+          AppleHealthKit = healthModule.default || healthModule;
         } catch (importError) {
           throw new Error("HealthKit module not found. Please rebuild with: bun run build:ios:dev");
         }

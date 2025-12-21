@@ -88,12 +88,7 @@
           "motionPermission": "Allow $(PRODUCT_NAME) to access motion and fitness data for fall detection."
         }
       ],
-      [
-        "react-native-health",
-        {
-          "enableHealthKit": true
-        }
-      ],
+      "react-native-health",
       "expo-localization",
       "expo-secure-store",
       "expo-web-browser"
@@ -101,7 +96,7 @@
     "experiments": {
       "typedRoutes": true
     },
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "extra": {
       "router": {},
       "eas": {

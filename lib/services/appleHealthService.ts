@@ -24,11 +24,24 @@ let AppleHealthKit: any = null;
 const loadHealthKit = () => {
   if (Platform.OS === "ios" && !AppleHealthKit) {
     try {
-      AppleHealthKit = require("react-native-health").default;
-      // Verify it's actually available
+      // Check if NativeModules has the native module linked
+      const { NativeModules } = require("react-native");
+      if (!NativeModules || !NativeModules.AppleHealthKit) {
+        console.warn("Native module AppleHealthKit not found in NativeModules. The native module is not linked.");
+        AppleHealthKit = null;
+        return false;
+      }
+
+      // react-native-health exports directly, not as .default
+      const healthModule = require("react-native-health");
+      AppleHealthKit = healthModule.default || healthModule;
+      
+      // Verify it's actually available and has the required methods
       if (AppleHealthKit && typeof AppleHealthKit.isAvailable === "function") {
         return true;
       }
+      
+      console.warn("HealthKit module loaded but native methods are not available. Native module may not be properly linked.");
       AppleHealthKit = null;
     } catch (error: any) {
       console.warn("Failed to load react-native-health:", error?.message || error);
@@ -68,9 +81,13 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
   const moduleLoaded = loadHealthKit();
   
   if (!moduleLoaded || !AppleHealthKit) {
+    // Additional diagnostic info
+    const { NativeModules } = require("react-native");
+    const hasNativeModule = NativeModules && NativeModules.AppleHealthKit;
+    
     return {
       available: false,
-      reason: "HealthKit native module not found. The react-native-health module needs to be compiled into your app. Please rebuild your development build:\n\n• For EAS Build: bun run build:ios:dev\n• For local build: bun run ios\n\nAfter rebuilding, reinstall the app on your device.",
+      reason: `HealthKit native module not found. The react-native-health module needs to be compiled into your app.\n\nDiagnostics:\n• Native module linked: ${hasNativeModule ? "Yes" : "No"}\n• Module loaded: ${moduleLoaded ? "Yes" : "No"}\n\nPlease rebuild your development build:\n• For EAS Build: bun run build:ios:dev\n• For local build: bun run ios\n\nAfter rebuilding, reinstall the app on your device.`,
     };
   }
 
