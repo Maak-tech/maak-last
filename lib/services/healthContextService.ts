@@ -96,7 +96,7 @@ class HealthContextService {
       const userData = userDoc.data() || {};
 
       // Fetch ALL medications (both active and inactive for context)
-      let medications = [];
+      let medications: HealthContext["medications"] = [];
       try {
         // Query without orderBy to avoid index requirement, then sort in memory
         const medicationsQuery = query(
@@ -104,10 +104,10 @@ class HealthContextService {
           where("userId", "==", uid)
         );
         const medicationsSnapshot = await getDocs(medicationsQuery);
-        medications = medicationsSnapshot.docs.map((doc) => {
+        // Use temporary type with _startDate for sorting
+        const medicationsWithSort = medicationsSnapshot.docs.map((doc) => {
           const data = doc.data();
           return {
-            id: doc.id,
             name: data.name || "Unknown medication",
             dosage: data.dosage || "",
             frequency: data.frequency || "",
@@ -121,15 +121,15 @@ class HealthContextService {
           };
         });
         // Sort by startDate descending in memory
-        medications.sort((a, b) => b._startDate.getTime() - a._startDate.getTime());
+        medicationsWithSort.sort((a, b) => b._startDate.getTime() - a._startDate.getTime());
         // Remove temporary sorting field
-        medications = medications.map(({ _startDate, ...med }) => med);
+        medications = medicationsWithSort.map(({ _startDate, ...med }) => med);
       } catch (error) {
         // Silently handle error
       }
 
       // Fetch ALL symptoms (extended time range)
-      let symptoms = [];
+      let symptoms: HealthContext["symptoms"] = [];
       try {
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -162,8 +162,8 @@ class HealthContextService {
       }
 
       // Fetch medical history
-      const medicalHistoryData = [];
-      const familyMedicalHistory = [];
+      const medicalHistoryData: HealthContext["medicalHistory"]["conditions"] = [];
+      const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] = [];
       try {
         const historyQuery = query(
           collection(db, "medicalHistory"),
@@ -250,7 +250,7 @@ class HealthContextService {
       }
 
       // Fetch recent alerts
-      let recentAlerts = [];
+      let recentAlerts: HealthContext["recentAlerts"] = [];
       try {
         const alertsQuery = query(
           collection(db, "alerts"),
@@ -373,7 +373,7 @@ ${
           (med) =>
             `• ${med.name}: ${med.dosage}, ${med.frequency}
   Started: ${med.startDate}${med.endDate ? `, Ends: ${med.endDate}` : " (ongoing)"}
-  ${med.reminders.length > 0 ? `Reminders: ${med.reminders.join(", ")}` : ""}
+  ${med.reminders && med.reminders.length > 0 ? `Reminders: ${med.reminders.join(", ")}` : ""}
   ${med.notes ? `Notes: ${med.notes}` : ""}`
         )
         .join("\n")
