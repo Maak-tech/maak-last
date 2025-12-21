@@ -3,6 +3,7 @@ import { router, useFocusEffect } from "expo-router";
 import {
   Activity,
   AlertTriangle,
+  Check,
   ChevronRight,
   Heart,
   Phone,
@@ -186,10 +187,12 @@ export default function DashboardScreen() {
     medicationStatus: {
       alignItems: "center" as const,
     },
-    statusDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
+    statusCheckContainer: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
     },
     symptomItem: {
       flexDirection: "row" as const,
@@ -1035,18 +1038,38 @@ export default function DashboardScreen() {
                   )}
                 </View>
                 <View style={styles.medicationStatus}>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      {
-                        backgroundColor:
-                          Array.isArray(medication.reminders) &&
-                          medication.reminders.some((r) => r.taken)
-                            ? theme.colors.accent.success
-                            : theme.colors.secondary.main,
-                      },
-                    ]}
-                  />
+                  {Array.isArray(medication.reminders) &&
+                  medication.reminders.some((r) => r.taken) ? (
+                    <View
+                      style={[
+                        styles.statusCheckContainer,
+                        { backgroundColor: theme.colors.accent.success },
+                      ]}
+                    >
+                      <Check
+                        color={theme.colors.neutral.white}
+                        size={16}
+                        strokeWidth={3}
+                      />
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.statusCheckContainer,
+                        {
+                          backgroundColor: theme.colors.background.secondary,
+                          borderColor: theme.colors.border.medium,
+                          borderWidth: 2,
+                        },
+                      ]}
+                    >
+                      <Check
+                        color={theme.colors.text.tertiary}
+                        size={16}
+                        strokeWidth={2}
+                      />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             ))

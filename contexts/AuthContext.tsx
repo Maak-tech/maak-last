@@ -141,25 +141,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             firstName,
             lastName
           );
+          
+          if (!userData) {
+            console.error("Failed to create/get user document");
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+
           setUser(userData);
 
+          // Initialize FCM in background (don't block on this)
           setTimeout(() => {
-            fcmService.initializeFCM(userData.id).catch(() => {
+            fcmService.initializeFCM(userData.id).catch((error) => {
+              console.warn("FCM initialization failed:", error);
               // Silently fail - will use local notifications
             });
           }, 3000);
 
-          const familyCodeProcessed = await processPendingFamilyCode(
-            firebaseUser.uid
-          );
+          // Process family code and ensure family exists (don't block on errors)
+          try {
+            const familyCodeProcessed = await processPendingFamilyCode(
+              firebaseUser.uid
+            );
 
-          if (!familyCodeProcessed) {
-            await ensureUserHasFamily(firebaseUser.uid);
+            if (!familyCodeProcessed) {
+              await ensureUserHasFamily(firebaseUser.uid);
+            }
+          } catch (error) {
+            console.warn("Family setup error:", error);
+            // Try to ensure family exists even if code processing failed
+            try {
+              await ensureUserHasFamily(firebaseUser.uid);
+            } catch (familyError) {
+              console.warn("Failed to ensure family:", familyError);
+            }
           }
         } else {
           setUser(null);
         }
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Auth state change error:", error);
         setUser(null);
       } finally {
         setLoading(false);
@@ -211,9 +233,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               result.message +
                 " A default family has been created for you instead."
             );
-            }, 2000);
-          } catch (error) {
-            setTimeout(() => {
+          }, 2000);
+        } catch (error: any) {
+          console.warn("Family code processing error:", error);
+          await AsyncStorage.default.removeItem("pendingFamilyCode").catch(() => {
+            // Ignore cleanup errors
+          });
+          setTimeout(() => {
             Alert.alert(
               "Family Code Error",
               "There was an issue processing your family invitation. A default family has been created for you. Please try using the code manually in the Family tab."
@@ -223,7 +249,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       return false;
-    } catch (error) {
+    } catch (error: any) {
+      console.warn("Failed to process pending family code:", error);
       return false;
     }
   };
@@ -232,10 +259,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const currentUser = await userService.getUser(userId);
 
-      if (!currentUser?.familyId) {
-        const fullName = currentUser?.firstName && currentUser?.lastName
+      if (!currentUser) {
+        console.warn("Cannot ensure family: user not found");
+        return;
+      }
+
+      if (!currentUser.familyId) {
+        const fullName = currentUser.firstName && currentUser.lastName
           ? `${currentUser.firstName} ${currentUser.lastName}`
-          : currentUser?.firstName || "User";
+          : currentUser.firstName || "User";
         await userService.createFamily(
           userId,
           `${fullName}'s Family` || "My Family"
@@ -246,8 +278,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser(updatedUser);
         }
       }
-    } catch (error) {
-      // Silently handle error
+    } catch (error: any) {
+      console.warn("Failed to ensure user has family:", error);
+      // Don't throw - this is not critical for user creation
     }
   };
 
@@ -301,13 +334,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         password
       );
 
-      await userService.ensureUserDocument(
-        userCredential.user.uid,
-        userCredential.user.email || "",
-        firstName,
-        lastName,
-        avatarType
-      );
+      // Ensure user document is created with proper error handling
+      try {
+        await userService.ensureUserDocument(
+          userCredential.user.uid,
+          userCredential.user.email || "",
+          firstName,
+          lastName,
+          avatarType
+        );
+      } catch (docError: any) {
+        console.error("Failed to create user document:", docError);
+        // If document creation fails, try to delete the auth user to prevent orphaned accounts
+        try {
+          await signOut(auth);
+        } catch (signOutError) {
+          console.error("Failed to sign out after document creation error:", signOutError);
+        }
+        throw new Error("Failed to create user profile. Please try again.");
+      }
     } catch (error: any) {
       let errorMessage = "Failed to create account. Please try again.";
 
@@ -317,6 +362,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         errorMessage = "Password should be at least 6 characters.";
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email address.";
+      } else if (error.message) {
+        errorMessage = error.message;
       }
 
       setLoading(false); // Only set loading to false on error

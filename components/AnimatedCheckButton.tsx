@@ -44,7 +44,7 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
 
   useEffect(() => {
     Animated.timing(checkOpacity, {
-      toValue: isChecked ? 1 : 0,
+      toValue: isChecked ? 1 : 0.3,
       duration: 200,
       useNativeDriver: Platform.OS !== "web",
     }).start();
@@ -103,8 +103,9 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
         >
           <Animated.View style={{ opacity: checkOpacity }}>
             <Check
-              color={theme.colors.neutral.white}
+              color={isChecked ? theme.colors.neutral.white : theme.colors.text.tertiary}
               size={currentSize.iconSize}
+              strokeWidth={isChecked ? 3 : 2}
             />
           </Animated.View>
         </TouchableOpacity>

@@ -485,21 +485,8 @@ export default function MedicationsScreen() {
     try {
       await medicationService.markMedicationTaken(medicationId, reminderId);
 
-      // Update local state
-      setMedications(
-        medications.map((med) =>
-          med.id === medicationId
-            ? {
-                ...med,
-                reminders: med.reminders.map((reminder) =>
-                  reminder.id === reminderId
-                    ? { ...reminder, taken: !reminder.taken }
-                    : reminder
-                ),
-              }
-            : med
-        )
-      );
+      // Reload medications from Firebase to ensure data is in sync
+      await loadMedications();
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
