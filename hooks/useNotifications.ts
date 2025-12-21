@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 
 export const useNotifications = () => {
-  const notificationListener = useRef<any>(undefined);
-  const responseListener = useRef<any>(undefined);
+  const notificationListener = useRef<any>();
+  const responseListener = useRef<any>();
   const isInitialized = useRef(false);
   const initializationInProgress = useRef(false);
   const initializationPromise = useRef<Promise<void> | null>(null);
@@ -34,8 +34,6 @@ export const useNotifications = () => {
           Notifications.setNotificationHandler({
             handleNotification: async () => ({
               shouldShowAlert: true,
-              shouldShowBanner: true,
-              shouldShowList: true,
               shouldPlaySound: true,
               shouldSetBadge: false,
             }),
@@ -125,22 +123,13 @@ export const useNotifications = () => {
 
       try {
         const Notifications = await import("expo-notifications");
-        const now = Date.now();
-        const triggerTime = trigger.getTime();
-        const secondsUntilTrigger = Math.max(0, Math.floor((triggerTime - now) / 1000));
-        
         await Notifications.scheduleNotificationAsync({
           content: {
             title,
             body,
             sound: "default",
           },
-          trigger: secondsUntilTrigger > 0
-            ? {
-                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                seconds: secondsUntilTrigger,
-              }
-            : null, // null means trigger immediately
+          trigger,
         });
       } catch (error) {
         // Silently handle scheduling error
@@ -188,8 +177,6 @@ export const useNotifications = () => {
               Notifications.setNotificationHandler({
                 handleNotification: async () => ({
                   shouldShowAlert: true,
-                  shouldShowBanner: true,
-                  shouldShowList: true,
                   shouldPlaySound: true,
                   shouldSetBadge: false,
                 }),

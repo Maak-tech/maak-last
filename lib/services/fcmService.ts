@@ -1,5 +1,4 @@
 import { type Functions, httpsCallable } from "firebase/functions";
-import { type FirebaseApp } from "firebase/app";
 import { Platform } from "react-native";
 
 export interface FCMTokenResult {
@@ -10,9 +9,7 @@ export interface FCMTokenResult {
 
 // Helper to get functions with current auth context
 async function getAuthenticatedFunctions(): Promise<Functions> {
-  const firebaseModule = await import("@/lib/firebase");
-  const { auth } = firebaseModule;
-  const app: FirebaseApp = firebaseModule.default;
+  const { auth, app } = await import("@/lib/firebase");
   const { getFunctions, connectFunctionsEmulator } = await import(
     "firebase/functions"
   );
