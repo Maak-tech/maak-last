@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
+  Linking,
   Modal,
+  Platform,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -14,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { convertTo12Hour, convertTo24Hour, isValidTimeFormat } from "@/lib/utils/timeFormat";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
@@ -43,7 +46,7 @@ export default function MedicationsScreen() {
     name: "",
     dosage: "",
     frequency: "",
-    reminders: [] as { time: string }[],
+    reminders: [] as { time: string; period: "AM" | "PM" }[],
     notes: "",
   });
   const [editingMedication, setEditingMedication] = useState<Medication | null>(
@@ -161,7 +164,7 @@ export default function MedicationsScreen() {
       return;
     }
 
-    // Validate reminder times format
+    // Validate reminder times format (HH:MM)
     const invalidReminders = newMedication.reminders.filter(
       (r) => !(r.time && r.time.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/))
     );
@@ -170,8 +173,8 @@ export default function MedicationsScreen() {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
-          ? "يرجى إدخال أوقات التذكير بالتنسيق الصحيح (HH:MM)"
-          : "Please enter reminder times in correct format (HH:MM)"
+          ? "يرجى إدخال أوقات التذكير بالتنسيق الصحيح (مثال: 8:00)"
+          : "Please enter reminder times in correct format (e.g., 8:00)"
       );
       return;
     }
@@ -185,11 +188,15 @@ export default function MedicationsScreen() {
           name: newMedication.name,
           dosage: newMedication.dosage,
           frequency: newMedication.frequency,
-          reminders: newMedication.reminders.map((reminder, index) => ({
-            id: reminder.id || `${Date.now()}_${index}`,
-            time: reminder.time,
-            taken: false,
-          })),
+          reminders: newMedication.reminders.map((reminder, index) => {
+            // Combine time and period, then convert to 24-hour format
+            const timeWithPeriod = `${reminder.time} ${reminder.period || "AM"}`;
+            return {
+              id: reminder.id || `${Date.now()}_${index}`,
+              time: convertTo24Hour(timeWithPeriod), // Convert to 24-hour for storage
+              taken: false,
+            };
+          }),
           ...(newMedication.notes.trim() && {
             notes: newMedication.notes.trim(),
           }),
@@ -202,14 +209,47 @@ export default function MedicationsScreen() {
 
         // Reschedule notifications for updated reminders (only for current user's medications)
         if (editingMedication.userId === user.id && newMedication.reminders.length > 0) {
+          const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
             if (reminder.time && reminder.time.trim()) {
-              await scheduleRecurringMedicationReminder(
+              const result = await scheduleRecurringMedicationReminder(
                 newMedication.name,
                 newMedication.dosage,
                 reminder.time
               );
+              schedulingResults.push(result || { success: false });
             }
+          }
+
+          // Check if any scheduling failed
+          const failedSchedules = schedulingResults.filter((r) => !r.success);
+          if (failedSchedules.length > 0) {
+            const errorMessage = failedSchedules[0]?.error || "Unknown error";
+            const isPermissionError = errorMessage.toLowerCase().includes("permission");
+            
+            Alert.alert(
+              isRTL ? "تحذير" : "Warning",
+              isRTL
+                ? `تم تحديث الدواء بنجاح، لكن فشل جدولة التذكير.${isPermissionError ? " يرجى تفعيل أذونات الإشعارات في إعدادات التطبيق." : ""}\n\n${errorMessage}`
+                : `Medication updated successfully, but failed to schedule reminder.${isPermissionError ? " Please enable notification permissions in app settings." : ""}\n\n${errorMessage}`,
+              [
+                { text: isRTL ? "حسناً" : "OK", style: "cancel" },
+                ...(isPermissionError
+                  ? [
+                      {
+                        text: isRTL ? "فتح الإعدادات" : "Open Settings",
+                        onPress: () => {
+                          if (Platform.OS === "ios") {
+                            Linking.openURL("app-settings:");
+                          } else {
+                            Linking.openSettings();
+                          }
+                        },
+                      },
+                    ]
+                  : []),
+              ]
+            );
           }
         }
         setEditingMedication(null);
@@ -222,11 +262,15 @@ export default function MedicationsScreen() {
           dosage: newMedication.dosage,
           frequency: newMedication.frequency,
           startDate: new Date(),
-          reminders: newMedication.reminders.map((reminder, index) => ({
-            id: `${Date.now()}_${index}`,
-            time: reminder.time,
-            taken: false,
-          })),
+          reminders: newMedication.reminders.map((reminder, index) => {
+            // Combine time and period, then convert to 24-hour format
+            const timeWithPeriod = `${reminder.time} ${reminder.period || "AM"}`;
+            return {
+              id: `${Date.now()}_${index}`,
+              time: convertTo24Hour(timeWithPeriod), // Convert to 24-hour for storage
+              taken: false,
+            };
+          }),
           ...(newMedication.notes.trim() && {
             notes: newMedication.notes.trim(),
           }),
@@ -246,14 +290,47 @@ export default function MedicationsScreen() {
 
         // Schedule notifications for reminders (only for current user's medications)
         if (targetUserId === user.id && newMedication.reminders.length > 0) {
+          const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
             if (reminder.time && reminder.time.trim()) {
-              await scheduleRecurringMedicationReminder(
+              const result = await scheduleRecurringMedicationReminder(
                 newMedication.name,
                 newMedication.dosage,
                 reminder.time
               );
+              schedulingResults.push(result || { success: false });
             }
+          }
+
+          // Check if any scheduling failed
+          const failedSchedules = schedulingResults.filter((r) => !r.success);
+          if (failedSchedules.length > 0) {
+            const errorMessage = failedSchedules[0]?.error || "Unknown error";
+            const isPermissionError = errorMessage.toLowerCase().includes("permission");
+            
+            Alert.alert(
+              isRTL ? "تحذير" : "Warning",
+              isRTL
+                ? `تمت إضافة الدواء بنجاح، لكن فشل جدولة التذكير.${isPermissionError ? " يرجى تفعيل أذونات الإشعارات في إعدادات التطبيق." : ""}\n\n${errorMessage}`
+                : `Medication added successfully, but failed to schedule reminder.${isPermissionError ? " Please enable notification permissions in app settings." : ""}\n\n${errorMessage}`,
+              [
+                { text: isRTL ? "حسناً" : "OK", style: "cancel" },
+                ...(isPermissionError
+                  ? [
+                      {
+                        text: isRTL ? "فتح الإعدادات" : "Open Settings",
+                        onPress: () => {
+                          if (Platform.OS === "ios") {
+                            Linking.openURL("app-settings:");
+                          } else {
+                            Linking.openSettings();
+                          }
+                        },
+                      },
+                    ]
+                  : []),
+              ]
+            );
           }
         }
       }
@@ -263,7 +340,7 @@ export default function MedicationsScreen() {
         name: "",
         dosage: "",
         frequency: "",
-        reminders: [{ time: "" }],
+        reminders: [{ time: "", period: "AM" }],
         notes: "",
       });
       setSelectedTargetUser("");
@@ -313,9 +390,34 @@ export default function MedicationsScreen() {
       name: medication.name,
       dosage: medication.dosage,
       frequency: medication.frequency,
-      reminders: medication.reminders.map((reminder) => ({
-        time: reminder.time,
-      })),
+      reminders: medication.reminders.map((reminder) => {
+        // Parse 24-hour time to get time and period
+        const [hoursStr, minutesStr] = reminder.time.split(":");
+        const hours = Number.parseInt(hoursStr, 10);
+        let timeValue = "";
+        let periodValue: "AM" | "PM" = "AM";
+        
+        if (hours >= 12) {
+          periodValue = "PM";
+          if (hours > 12) {
+            timeValue = `${hours - 12}:${minutesStr}`;
+          } else {
+            timeValue = `12:${minutesStr}`;
+          }
+        } else {
+          periodValue = "AM";
+          if (hours === 0) {
+            timeValue = `12:${minutesStr}`;
+          } else {
+            timeValue = reminder.time;
+          }
+        }
+        
+        return {
+          time: timeValue,
+          period: periodValue,
+        };
+      }),
       notes: medication.notes || "",
     });
     setSelectedTargetUser(medication.userId);
@@ -445,7 +547,7 @@ export default function MedicationsScreen() {
       nextDoseTime.setDate(nextDoseTime.getDate() + 1);
     }
 
-    return `Next: ${nextReminder.time}`;
+    return `Next: ${convertTo12Hour(nextReminder.time)}`;
   };
 
   const { totalMeds, takenMeds } = getTodayStats();
@@ -474,7 +576,7 @@ export default function MedicationsScreen() {
               name: "",
               dosage: "",
               frequency: "",
-              reminders: [{ time: "" }], // Start with one empty reminder
+              reminders: [{ time: "", period: "AM" }], // Start with one empty reminder
               notes: "",
             });
             setSelectedTargetUser(user.id);
@@ -627,7 +729,7 @@ export default function MedicationsScreen() {
                             disabled={!canMarkTaken}
                             isChecked={reminder.taken}
                             key={reminder.id}
-                            label={reminder.time}
+                            label={convertTo12Hour(reminder.time)}
                             onPress={() =>
                               toggleMedicationTaken(medication.id, reminder.id)
                             }
@@ -695,7 +797,7 @@ export default function MedicationsScreen() {
                   name: "",
                   dosage: "",
                   frequency: "",
-                  reminders: [{ time: "" }],
+                  reminders: [{ time: "", period: "AM" }],
                   notes: "",
                 });
               }}
@@ -834,41 +936,100 @@ export default function MedicationsScreen() {
               </Text>
               <Text style={[styles.helperText, isRTL && styles.rtlText]}>
                 {isRTL
-                  ? "التنسيق: HH:MM (24 ساعة) - مثال: 09:00، 14:30، 21:15"
-                  : "Format: HH:MM (24-hour) - Examples: 09:00, 14:30, 21:15"}
+                  ? "أدخل الوقت واختر AM أو PM - مثال: 8:00 AM، 2:30 PM"
+                  : "Enter time and select AM or PM - Examples: 8:00 AM, 2:30 PM"}
               </Text>
               <View style={styles.remindersList}>
-                {newMedication.reminders.map((reminder, index) => (
-                  <View key={index} style={styles.reminderItem}>
-                    <TextInput
-                      onChangeText={(text) =>
-                        setNewMedication({
-                          ...newMedication,
-                          reminders: newMedication.reminders.map((r, i) =>
-                            i === index ? { ...r, time: text } : r
-                          ),
-                        })
-                      }
-                      placeholder={isRTL ? "مثال: 08:00" : "e.g., 08:00"}
-                      style={[styles.reminderInput, isRTL && styles.rtlInput]}
-                      textAlign={isRTL ? "right" : "left"}
-                      value={reminder.time}
-                    />
-                    <TouchableOpacity
-                      onPress={() =>
-                        setNewMedication({
-                          ...newMedication,
-                          reminders: newMedication.reminders.filter(
-                            (_, i) => i !== index
-                          ),
-                        })
-                      }
-                      style={styles.removeButton}
-                    >
-                      <Minus color="#64748B" size={16} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                {newMedication.reminders.map((reminder, index) => {
+                  // Use the stored time and period values directly
+                  // When editing, these are already parsed from 24-hour format
+                  // When adding new, these start empty
+                  const timeValue = reminder.time || "";
+                  const periodValue: "AM" | "PM" = reminder.period || "AM";
+                  
+                  return (
+                    <View key={index} style={styles.reminderItem}>
+                      <TextInput
+                        onChangeText={(text) => {
+                          // Only allow HH:MM format
+                          const cleaned = text.replace(/[^\d:]/g, "");
+                          setNewMedication({
+                            ...newMedication,
+                            reminders: newMedication.reminders.map((r, i) =>
+                              i === index ? { ...r, time: cleaned, period: r.period || "AM" } : r
+                            ),
+                          });
+                        }}
+                        placeholder={isRTL ? "8:00" : "8:00"}
+                        style={[styles.reminderTimeInput, isRTL && styles.rtlInput]}
+                        textAlign={isRTL ? "right" : "left"}
+                        value={timeValue}
+                        keyboardType="numeric"
+                      />
+                      <View style={styles.periodSelector}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setNewMedication({
+                              ...newMedication,
+                              reminders: newMedication.reminders.map((r, i) =>
+                                i === index ? { ...r, period: "AM" } : r
+                              ),
+                            });
+                          }}
+                          style={[
+                            styles.periodButton,
+                            periodValue === "AM" && styles.periodButtonSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.periodButtonText,
+                              periodValue === "AM" && styles.periodButtonTextSelected,
+                            ]}
+                          >
+                            AM
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setNewMedication({
+                              ...newMedication,
+                              reminders: newMedication.reminders.map((r, i) =>
+                                i === index ? { ...r, period: "PM" } : r
+                              ),
+                            });
+                          }}
+                          style={[
+                            styles.periodButton,
+                            periodValue === "PM" && styles.periodButtonSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.periodButtonText,
+                              periodValue === "PM" && styles.periodButtonTextSelected,
+                            ]}
+                          >
+                            PM
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() =>
+                          setNewMedication({
+                            ...newMedication,
+                            reminders: newMedication.reminders.filter(
+                              (_, i) => i !== index
+                            ),
+                          })
+                        }
+                        style={styles.removeButton}
+                      >
+                        <Minus color="#64748B" size={16} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
               </View>
               <TouchableOpacity
                 onPress={() =>
@@ -1228,6 +1389,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-Regular",
     backgroundColor: "#FFFFFF",
+  },
+  reminderTimeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    fontFamily: "Geist-Regular",
+    backgroundColor: "#FFFFFF",
+    minWidth: 80,
+  },
+  periodSelector: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  periodButton: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    minWidth: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  periodButtonSelected: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  periodButtonText: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+  },
+  periodButtonTextSelected: {
+    color: "#FFFFFF",
   },
   removeButton: {
     padding: 8,
