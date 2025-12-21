@@ -89,7 +89,7 @@ export const useFallDetection = (
 
     let subscription: any;
     let isSubscriptionActive = false;
-    let initializationTimeout: number | undefined;
+    let initializationTimeout: NodeJS.Timeout | undefined;
 
     if (isActive && !isInitialized) {
       try {
