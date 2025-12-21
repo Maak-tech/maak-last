@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VS Code Settings Schema",
+  "type": "object",
+  "properties": {
+    "editor.defaultFormatter": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "patternProperties": {
+    "^\\[.*\\]$": {
+      "type": "object",
+      "properties": {
+        "editor.defaultFormatter": {
+          "anyOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
+
