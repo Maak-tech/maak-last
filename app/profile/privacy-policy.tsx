@@ -1,4 +1,4 @@
-import { useRouter, useNavigation } from "expo-router";
+import { useRouter } from "expo-router";
 import { ArrowLeft, Calendar, Shield } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,19 +19,11 @@ import {
 export default function PrivacyPolicyScreen() {
   const { i18n } = useTranslation();
   const router = useRouter();
-  const navigation = useNavigation();
   const [document, setDocument] = useState<ParsedDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const isRTL = i18n.language === "ar";
-
-  // Hide the default header to prevent duplicate back buttons
-  useEffect(() => {
-    navigation.setOptions({
-      headerShown: false,
-    });
-  }, [navigation]);
 
   useEffect(() => {
     loadPrivacyPolicy();
@@ -87,7 +79,7 @@ export default function PrivacyPolicyScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/profile")}
+          onPress={() => router.back()}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
