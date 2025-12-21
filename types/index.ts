@@ -1,18 +1,5 @@
 export type AvatarType = "man" | "woman" | "boy" | "girl" | "grandma" | "grandpa";
 
-export interface NotificationSettings {
-  enabled: boolean;
-  fallAlerts: boolean;
-  medicationReminders: boolean;
-  symptomAlerts: boolean;
-  familyUpdates: boolean;
-  quietHoursEnabled: boolean;
-  quietHoursStart: string;
-  quietHoursEnd: string;
-  sound: boolean;
-  vibration: boolean;
-}
-
 export interface User {
   id: string;
   email: string;
@@ -26,7 +13,7 @@ export interface User {
   onboardingCompleted: boolean;
   preferences: {
     language: "en" | "ar";
-    notifications: NotificationSettings | boolean; // Support both for backward compatibility
+    notifications: boolean;
     emergencyContacts: string[];
   };
 }
