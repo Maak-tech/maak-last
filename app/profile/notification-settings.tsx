@@ -28,7 +28,19 @@ import {
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
-import type { NotificationSettings } from "@/types";
+
+interface NotificationSettings {
+  enabled: boolean;
+  fallAlerts: boolean;
+  medicationReminders: boolean;
+  symptomAlerts: boolean;
+  familyUpdates: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  sound: boolean;
+  vibration: boolean;
+}
 
 export default function NotificationSettingsScreen() {
   const { t, i18n } = useTranslation();
@@ -70,20 +82,10 @@ export default function NotificationSettingsScreen() {
       setLoading(true);
       const userData = await userService.getUser(user.id);
       if (userData?.preferences?.notifications) {
-        const notificationPrefs = userData.preferences.notifications;
-        // Handle both object and boolean (backward compatibility)
-        if (typeof notificationPrefs === "object") {
-          setSettings({
-            ...settings,
-            ...notificationPrefs,
-          });
-        } else if (notificationPrefs === true) {
-          // If it's just true, use default settings with enabled=true
-          setSettings({
-            ...settings,
-            enabled: true,
-          });
-        }
+        setSettings({
+          ...settings,
+          ...userData.preferences.notifications,
+        });
       }
     } catch (error) {
       // Silently handle error

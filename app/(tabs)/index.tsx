@@ -606,8 +606,8 @@ export default function DashboardScreen() {
                 type: "emergency" as const,
                 severity: "critical" as const,
                 message: isRTL
-                  ? `${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "مستخدم"} بحاجة إلى مساعدة طارئة!`
-                  : `${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"} needs emergency help!`,
+                  ? `${user.name || "مستخدم"} بحاجة إلى مساعدة طارئة!`
+                  : `${user.name || "User"} needs emergency help!`,
                 timestamp: new Date(),
                 resolved: false,
                 responders: [],
