@@ -14,7 +14,6 @@ import {
   Lock,
   LogOut,
   Moon,
-  Settings,
   Shield,
   Sun,
   User,
@@ -329,12 +328,12 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <Avatar
+              avatarType={user?.avatarType}
               name={
                 user?.firstName && user?.lastName
                   ? `${user.firstName} ${user.lastName}`
                   : user?.firstName || "User"
               }
-              avatarType={user?.avatarType}
               onPress={() => setAvatarPickerVisible(true)}
               size="xl"
               source={user?.avatar ? { uri: user.avatar } : undefined}
@@ -445,7 +444,14 @@ export default function ProfileScreen() {
                       <View style={styles.sectionItemIcon}>
                         <IconComponent color="#64748B" size={20} />
                       </View>
-                      <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View
+                        style={{
+                          flex: 1,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
                         <Text
                           numberOfLines={1}
                           style={[
@@ -578,97 +584,129 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-          </View>
-        </Modal>
+        </View>
+      </Modal>
 
-        {/* Avatar Picker Modal */}
-        <Modal
-          animationType="slide"
-          onRequestClose={() => setAvatarPickerVisible(false)}
-          transparent={true}
-          visible={avatarPickerVisible}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { maxWidth: 400 }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-                  {isRTL ? "اختر صورة العائلة" : "Choose Family Avatar"}
-                </Text>
-                <TouchableOpacity onPress={() => setAvatarPickerVisible(false)}>
-                  <X color="#64748B" size={24} />
-                </TouchableOpacity>
-              </View>
+      {/* Avatar Picker Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setAvatarPickerVisible(false)}
+        transparent={true}
+        visible={avatarPickerVisible}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 400 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+                {isRTL ? "اختر صورة العائلة" : "Choose Family Avatar"}
+              </Text>
+              <TouchableOpacity onPress={() => setAvatarPickerVisible(false)}>
+                <X color="#64748B" size={24} />
+              </TouchableOpacity>
+            </View>
 
-              <View style={styles.avatarGrid}>
-                {[
-                  { type: "man" as AvatarType, emoji: "👨🏻", labelEn: "Man", labelAr: "رجل" },
-                  { type: "woman" as AvatarType, emoji: "👩🏻", labelEn: "Woman", labelAr: "امرأة" },
-                  { type: "boy" as AvatarType, emoji: "👦🏻", labelEn: "Boy", labelAr: "صبي" },
-                  { type: "girl" as AvatarType, emoji: "👧🏻", labelEn: "Girl", labelAr: "فتاة" },
-                  { type: "grandma" as AvatarType, emoji: "👵🏻", labelEn: "Grandma", labelAr: "جدة" },
-                  { type: "grandpa" as AvatarType, emoji: "👴🏻", labelEn: "Grandpa", labelAr: "جد" },
-                ].map((avatar) => (
-                  <TouchableOpacity
-                    key={avatar.type}
-                    onPress={async () => {
-                      try {
-                        setLoading(true);
-                        if (user?.id) {
-                          await userService.updateUser(user.id, {
-                            avatarType: avatar.type,
-                          });
-                          // Update user context immediately for instant UI update
-                          if (updateUser) {
-                            await updateUser({ avatarType: avatar.type });
-                          }
+            <View style={styles.avatarGrid}>
+              {[
+                {
+                  type: "man" as AvatarType,
+                  emoji: "👨🏻",
+                  labelEn: "Man",
+                  labelAr: "رجل",
+                },
+                {
+                  type: "woman" as AvatarType,
+                  emoji: "👩🏻",
+                  labelEn: "Woman",
+                  labelAr: "امرأة",
+                },
+                {
+                  type: "boy" as AvatarType,
+                  emoji: "👦🏻",
+                  labelEn: "Boy",
+                  labelAr: "صبي",
+                },
+                {
+                  type: "girl" as AvatarType,
+                  emoji: "👧🏻",
+                  labelEn: "Girl",
+                  labelAr: "فتاة",
+                },
+                {
+                  type: "grandma" as AvatarType,
+                  emoji: "👵🏻",
+                  labelEn: "Grandma",
+                  labelAr: "جدة",
+                },
+                {
+                  type: "grandpa" as AvatarType,
+                  emoji: "👴🏻",
+                  labelEn: "Grandpa",
+                  labelAr: "جد",
+                },
+              ].map((avatar) => (
+                <TouchableOpacity
+                  key={avatar.type}
+                  onPress={async () => {
+                    try {
+                      setLoading(true);
+                      if (user?.id) {
+                        await userService.updateUser(user.id, {
+                          avatarType: avatar.type,
+                        });
+                        // Update user context immediately for instant UI update
+                        if (updateUser) {
+                          await updateUser({ avatarType: avatar.type });
                         }
-                        setAvatarPickerVisible(false);
-                        Alert.alert(
-                          isRTL ? "تم التحديث" : "Updated",
-                          isRTL
-                            ? "تم تحديث الصورة الرمزية بنجاح"
-                            : "Avatar updated successfully"
-                        );
-                      } catch (error) {
-                        Alert.alert(
-                          isRTL ? "خطأ" : "Error",
-                          isRTL
-                            ? "فشل تحديث الصورة الرمزية"
-                            : "Failed to update avatar"
-                        );
-                      } finally {
-                        setLoading(false);
                       }
-                    }}
+                      setAvatarPickerVisible(false);
+                      Alert.alert(
+                        isRTL ? "تم التحديث" : "Updated",
+                        isRTL
+                          ? "تم تحديث الصورة الرمزية بنجاح"
+                          : "Avatar updated successfully"
+                      );
+                    } catch (error) {
+                      Alert.alert(
+                        isRTL ? "خطأ" : "Error",
+                        isRTL
+                          ? "فشل تحديث الصورة الرمزية"
+                          : "Failed to update avatar"
+                      );
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  style={[
+                    styles.avatarOption,
+                    user?.avatarType === avatar.type &&
+                      styles.avatarOptionSelected,
+                  ]}
+                >
+                  <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
+                  <Text
                     style={[
-                      styles.avatarOption,
-                      user?.avatarType === avatar.type && styles.avatarOptionSelected,
+                      styles.avatarLabel,
+                      user?.avatarType === avatar.type &&
+                        styles.avatarLabelSelected,
+                      isRTL && styles.rtlText,
                     ]}
                   >
-                    <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
-                    <Text
-                      style={[
-                        styles.avatarLabel,
-                        user?.avatarType === avatar.type && styles.avatarLabelSelected,
-                        isRTL && styles.rtlText,
-                      ]}
-                    >
-                      {isRTL ? avatar.labelAr : avatar.labelEn}
-                    </Text>
-                    {user?.avatarType === avatar.type && (
-                      <View style={styles.avatarCheck}>
-                        <Check color="#FFFFFF" size={16} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    {isRTL ? avatar.labelAr : avatar.labelEn}
+                  </Text>
+                  {user?.avatarType === avatar.type && (
+                    <View style={styles.avatarCheck}>
+                      <Check color="#FFFFFF" size={16} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
-        </Modal>
-      </SafeAreaView>
-    );
-  }
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
