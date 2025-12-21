@@ -100,19 +100,23 @@ const requestAuthorization = async (
 
   try {
     // Request permissions (read-only, we never write)
-    await AppleHealthKit.initHealthKit(
-      {
-        permissions: {
-          read: readPermissions,
-          write: [], // We only read, never write
+    await new Promise<void>((resolve, reject) => {
+      AppleHealthKit.initHealthKit(
+        {
+          permissions: {
+            read: readPermissions,
+            write: [], // We only read, never write
+          },
         },
-      },
         (error: any) => {
           if (error) {
-            throw error;
+            reject(error);
+          } else {
+            resolve();
           }
-      }
-    );
+        }
+      );
+    });
 
     // Check which permissions were actually granted
     const granted: string[] = [];

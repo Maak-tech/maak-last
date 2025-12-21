@@ -11,11 +11,9 @@ module.exports = (api) => {
       ],
     ],
     plugins: [
-      // Conditionally enable reanimated plugin for Hermes
-      // Only if ENABLE_REANIMATED=true is set
-      ...(process.env.ENABLE_REANIMATED === "true"
-        ? ["react-native-reanimated/plugin"]
-        : []),
+      // Reanimated plugin must be last in the plugins array
+      // Always include it since react-native-reanimated is installed
+      "react-native-reanimated/plugin",
     ],
     env: {
       production: {
