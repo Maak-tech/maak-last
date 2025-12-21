@@ -63,6 +63,10 @@ export default function HealthIntegrationsScreen() {
     },
   ];
 
+  useEffect(() => {
+    loadConnections();
+  }, [loadConnections]);
+
   const loadConnections = async () => {
     try {
       setLoading(true);
@@ -82,11 +86,6 @@ export default function HealthIntegrationsScreen() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadConnections();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleProviderPress = (provider: ProviderOption) => {
     if (!provider.available) {
@@ -111,10 +110,10 @@ export default function HealthIntegrationsScreen() {
   if (loading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
+        style={[styles.container, { backgroundColor: theme.background }]}
       >
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
       </SafeAreaView>
     );
@@ -122,23 +121,23 @@ export default function HealthIntegrationsScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
+      style={[styles.container, { backgroundColor: theme.background }]}
     >
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Heart size={48} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
+          <Heart size={48} color={theme.primary} />
+          <Text style={[styles.title, { color: theme.text }]}>
             Health Integrations
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Connect health data sources to provide better insights and care
           </Text>
         </View>
 
         {/* Providers List */}
         <View style={styles.providersSection}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Available Providers
           </Text>
 
@@ -163,24 +162,24 @@ export default function HealthIntegrationsScreen() {
                 <View style={styles.providerIconContainer}>
                   <provider.icon
                     size={24}
-                    color={isConnected ? theme.colors.accent.success : theme.colors.primary.main}
+                    color={isConnected ? theme.success : theme.primary}
                   />
                 </View>
 
                 <View style={styles.providerContent}>
                   <View style={styles.providerHeader}>
-                    <Text style={[styles.providerName, { color: theme.colors.text.primary }]}>
+                    <Text style={[styles.providerName, { color: theme.text }]}>
                       {provider.name}
                     </Text>
                     {provider.recommended && (
                       <View
                         style={[
                           styles.badge,
-                          { backgroundColor: theme.colors.primary.main + "20" },
+                          { backgroundColor: theme.primary + "20" },
                         ]}
                       >
                         <Text
-                          style={[styles.badgeText, { color: theme.colors.primary.main }]}
+                          style={[styles.badgeText, { color: theme.primary }]}
                         >
                           Recommended
                         </Text>
@@ -189,16 +188,16 @@ export default function HealthIntegrationsScreen() {
                   </View>
 
                   <Text
-                    style={[styles.providerDesc, { color: theme.colors.text.secondary }]}
+                    style={[styles.providerDesc, { color: theme.textSecondary }]}
                   >
                     {provider.description}
                   </Text>
 
                   {isConnected && (
                     <View style={styles.statusRow}>
-                      <Check size={16} color={theme.colors.accent.success} />
+                      <Check size={16} color={theme.success} />
                       <Text
-                        style={[styles.statusText, { color: theme.colors.accent.success }]}
+                        style={[styles.statusText, { color: theme.success }]}
                       >
                         Connected • {connection.selectedMetrics.length} metrics
                       </Text>
@@ -207,11 +206,11 @@ export default function HealthIntegrationsScreen() {
 
                   {!provider.available && (
                     <View style={styles.statusRow}>
-                      <AlertCircle size={16} color={theme.colors.text.secondary} />
+                      <AlertCircle size={16} color={theme.textSecondary} />
                       <Text
                         style={[
                           styles.statusText,
-                          { color: theme.colors.text.secondary },
+                          { color: theme.textSecondary },
                         ]}
                       >
                         Not available on this platform
@@ -221,7 +220,7 @@ export default function HealthIntegrationsScreen() {
                 </View>
 
                 {provider.available && (
-                  <ChevronRight size={20} color={theme.colors.text.secondary} />
+                  <ChevronRight size={20} color={theme.textSecondary} />
                 )}
               </TouchableOpacity>
             );
@@ -230,10 +229,10 @@ export default function HealthIntegrationsScreen() {
 
         {/* Info Section */}
         <View style={styles.infoSection}>
-          <Text style={[styles.infoTitle, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.infoTitle, { color: theme.text }]}>
             About Health Integrations
           </Text>
-          <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+          <Text style={[styles.infoText, { color: theme.textSecondary }]}>
             • Health data is read-only and fully under your control{"\n"}
             • You choose exactly which metrics to share{"\n"}
             • Data is encrypted and securely synced{"\n"}

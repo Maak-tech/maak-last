@@ -163,12 +163,7 @@ export default function TrackScreen() {
       return isRTL ? "أنت" : "You";
     }
     const member = familyMembers.find((m) => m.id === userId);
-    if (!member) {
-      return isRTL ? "عضو غير معروف" : "Unknown Member";
-    }
-    return member.firstName && member.lastName
-      ? `${member.firstName} ${member.lastName}`
-      : member.firstName || (isRTL ? "عضو غير معروف" : "Unknown Member");
+    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
   };
 
   const handleAddSymptom = async () => {

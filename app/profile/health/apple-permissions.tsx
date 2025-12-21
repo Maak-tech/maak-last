@@ -33,8 +33,10 @@ import {
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
 import { appleHealthService } from "@/lib/services/appleHealthService";
-import { saveProviderConnection } from "@/lib/health/healthSync";
-import type { ProviderConnection } from "@/lib/health/healthTypes";
+import {
+  saveProviderConnection,
+  type ProviderConnection,
+} from "@/lib/health/healthSync";
 
 export default function AppleHealthPermissionsScreen() {
   const router = useRouter();
@@ -150,9 +152,9 @@ export default function AppleHealthPermissionsScreen() {
 
   if (Platform.OS !== "ios") {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.errorText, { color: theme.text }]}>
             Apple Health is only available on iOS devices.
           </Text>
         </View>
@@ -163,21 +165,21 @@ export default function AppleHealthPermissionsScreen() {
   // Show error if HealthKit is not available
   if (healthKitAvailable === false) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <ArrowLeft size={24} color={theme.colors.text.primary} />
+            <ArrowLeft size={24} color={theme.text} />
           </TouchableOpacity>
-          <Heart size={48} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
+          <Heart size={48} color={theme.primary} />
+          <Text style={[styles.title, { color: theme.text }]}>
             HealthKit Not Available
           </Text>
         </View>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
+          <Text style={[styles.errorText, { color: theme.text }]}>
             {availabilityReason || "HealthKit is not available"}
           </Text>
         </View>
@@ -189,7 +191,7 @@ export default function AppleHealthPermissionsScreen() {
   const allSelected = selectedMetrics.size === availableMetrics.length;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -197,13 +199,13 @@ export default function AppleHealthPermissionsScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <ArrowLeft size={24} color={theme.colors.text.primary} />
+            <ArrowLeft size={24} color={theme.text} />
           </TouchableOpacity>
-          <Heart size={48} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
+          <Heart size={48} color={theme.primary} />
+          <Text style={[styles.title, { color: theme.text }]}>
             Select Metrics
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
             Choose which health metrics to sync from Apple Health
           </Text>
         </View>
@@ -215,7 +217,7 @@ export default function AppleHealthPermissionsScreen() {
               styles.selectAllButton,
               {
                 backgroundColor: allSelected
-                  ? theme.colors.primary.main + "20"
+                  ? theme.primary + "20"
                   : isDark
                     ? "#1E293B"
                     : "#F8FAFC",
@@ -227,7 +229,7 @@ export default function AppleHealthPermissionsScreen() {
               style={[
                 styles.selectAllText,
                 {
-                  color: allSelected ? theme.colors.primary.main : theme.colors.text.primary,
+                  color: allSelected ? theme.primary : theme.text,
                   fontWeight: allSelected ? "600" : "500",
                 },
               ]}
@@ -285,17 +287,17 @@ export default function AppleHealthPermissionsScreen() {
                       }}
                       trackColor={{
                         false: isDark ? "#334155" : "#E2E8F0",
-                        true: theme.colors.primary.main,
+                        true: theme.primary,
                       }}
                       thumbColor="#FFFFFF"
                     />
-                    <Text style={[styles.groupTitle, { color: theme.colors.text.primary }]}>
+                    <Text style={[styles.groupTitle, { color: theme.text }]}>
                       {getGroupDisplayName(group)}
                     </Text>
                     <Text
                       style={[
                         styles.groupCount,
-                        { color: theme.colors.text.secondary },
+                        { color: theme.textSecondary },
                       ]}
                     >
                       ({groupMetrics.length})
@@ -303,7 +305,7 @@ export default function AppleHealthPermissionsScreen() {
                   </View>
                   <ChevronRight
                     size={20}
-                    color={theme.colors.text.secondary}
+                    color={theme.textSecondary}
                     style={{
                       transform: [{ rotate: isExpanded ? "90deg" : "0deg" }],
                     }}
@@ -321,7 +323,7 @@ export default function AppleHealthPermissionsScreen() {
                           style={[
                             styles.metricItem,
                             isSelected && {
-                              backgroundColor: theme.colors.primary.main + "10",
+                              backgroundColor: theme.primary + "10",
                             },
                           ]}
                           onPress={() => toggleMetric(metric.key)}
@@ -331,7 +333,7 @@ export default function AppleHealthPermissionsScreen() {
                               <View
                                 style={[
                                   styles.checkbox,
-                                  { backgroundColor: theme.colors.primary.main },
+                                  { backgroundColor: theme.primary },
                                 ]}
                               >
                                 <Check size={14} color="#FFFFFF" />
@@ -348,7 +350,7 @@ export default function AppleHealthPermissionsScreen() {
                             )}
                             <View style={styles.metricInfo}>
                               <Text
-                                style={[styles.metricName, { color: theme.colors.text.primary }]}
+                                style={[styles.metricName, { color: theme.text }]}
                               >
                                 {metric.displayName}
                               </Text>
@@ -356,7 +358,7 @@ export default function AppleHealthPermissionsScreen() {
                                 <Text
                                   style={[
                                     styles.metricUnit,
-                                    { color: theme.colors.text.secondary },
+                                    { color: theme.textSecondary },
                                   ]}
                                 >
                                   {metric.unit}
@@ -377,8 +379,8 @@ export default function AppleHealthPermissionsScreen() {
         {/* Info */}
         <View style={styles.infoSection}>
           <View style={styles.infoRow}>
-            <Info size={16} color={theme.colors.text.secondary} />
-            <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+            <Info size={16} color={theme.textSecondary} />
+            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
               You can change these permissions later in iOS Settings → Privacy &
               Security → Health
             </Text>
@@ -392,7 +394,7 @@ export default function AppleHealthPermissionsScreen() {
               styles.primaryButton,
               {
                 backgroundColor:
-                  selectedMetrics.size > 0 ? theme.colors.primary.main : theme.colors.text.secondary,
+                  selectedMetrics.size > 0 ? theme.primary : theme.textSecondary,
               },
               selectedMetrics.size === 0 && styles.disabledButton,
             ]}
