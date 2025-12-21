@@ -149,31 +149,34 @@ export default function ResourcesScreen() {
     },
     header: {
       paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.base,
+      paddingTop: theme.spacing.xl,
+      paddingBottom: theme.spacing.md,
       backgroundColor: theme.colors.background.secondary,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border.light,
-      position: "relative" as const,
+      ...theme.shadows.sm,
     },
     backButton: {
-      position: "absolute" as const,
-      left: theme.spacing.lg,
-      top: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+      alignSelf: "flex-start",
       padding: theme.spacing.sm,
-      zIndex: 10,
+      marginLeft: -theme.spacing.sm,
     },
     backButtonRTL: {
-      left: "auto",
-      right: theme.spacing.lg,
+      marginLeft: 0,
+      marginRight: -theme.spacing.sm,
+      alignSelf: "flex-end",
+    },
+    headerContent: {
+      marginTop: 0,
     },
     headerTitle: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
       fontSize: 28,
+      marginBottom: theme.spacing.xs,
     },
     headerSubtitle: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      marginTop: 4,
     },
     content: {
       flex: 1,
@@ -370,7 +373,7 @@ export default function ResourcesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)/profile")}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
@@ -379,14 +382,16 @@ export default function ResourcesScreen() {
             style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
           />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? "المصادر التعليمية" : "Health Resources"}
-        </Text>
-        <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
-          {isRTL
-            ? "تعلم المزيد عن الصحة والرعاية"
-            : "Learn more about health and care"}
-        </Text>
+        <View style={styles.headerContent}>
+          <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+            {isRTL ? "المصادر التعليمية" : "Health Resources"}
+          </Text>
+          <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+            {isRTL
+              ? "تعلم المزيد عن الصحة والرعاية"
+              : "Learn more about health and care"}
+          </Text>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
