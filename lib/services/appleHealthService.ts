@@ -5,6 +5,7 @@
 
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import type {
   NormalizedMetricPayload,
   MetricSample,
@@ -80,6 +81,11 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
       available: false,
       reason: "Apple Health is only available on iOS",
     };
+  }
+
+  // Check device type - HealthKit has limited support on iPad
+  if (Device.deviceType === Device.DeviceType.TABLET) {
+    console.warn("HealthKit has limited support on iPad. Some features may not be available.");
   }
 
   // Check if running in Expo Go
