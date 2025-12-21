@@ -43,10 +43,8 @@ import {
 } from "@/lib/health/healthMetricsCatalog";
 import { appleHealthService } from "@/lib/services/appleHealthService";
 import { googleHealthService } from "@/lib/services/googleHealthService";
-import {
-  saveProviderConnection,
-  type ProviderConnection,
-} from "@/lib/health/healthSync";
+import { saveProviderConnection } from "@/lib/health/healthSync";
+import type { ProviderConnection } from "@/lib/health/healthTypes";
 
 interface VitalCard {
   key: string;
