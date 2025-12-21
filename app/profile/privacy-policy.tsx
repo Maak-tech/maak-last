@@ -87,7 +87,7 @@ export default function PrivacyPolicyScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.push("/(tabs)/profile")}
+          onPress={() => router.back()}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
