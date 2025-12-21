@@ -21,21 +21,15 @@ export const firebaseValidation = {
         return { isValid: false, issues, recommendations };
       }
 
-      console.log("✅ User is authenticated:", currentUser.email);
-
       // Check if user document exists in Firestore
       try {
         const userDoc = await userService.getUser(currentUser.uid);
-        if (userDoc) {
-          console.log("✅ User document exists");
-        } else {
-          console.log("🔧 User document missing, creating it...");
+        if (!userDoc) {
           await userService.ensureUserDocument(
             currentUser.uid,
             currentUser.email || "",
             currentUser.displayName || "User"
           );
-          console.log("✅ User document created successfully");
         }
       } catch (error) {
         issues.push("Cannot access user document in Firestore");
@@ -47,7 +41,6 @@ export const firebaseValidation = {
 
       // Test symptoms collection permissions
       try {
-        console.log("🧪 Testing symptoms collection permissions...");
         const testSymptom = {
           userId: currentUser.uid,
           type: "test",
@@ -57,11 +50,9 @@ export const firebaseValidation = {
         };
 
         const docRef = await addDoc(collection(db, "symptoms"), testSymptom);
-        console.log("✅ Can write to symptoms collection");
 
         // Clean up test document
         await deleteDoc(docRef);
-        console.log("✅ Can delete from symptoms collection");
       } catch (error: any) {
         issues.push(`Cannot write to symptoms collection: ${error.message}`);
         recommendations.push(
@@ -72,7 +63,6 @@ export const firebaseValidation = {
 
       // Test medications collection permissions
       try {
-        console.log("🧪 Testing medications collection permissions...");
         const testMedication = {
           userId: currentUser.uid,
           name: "Test Medication",
@@ -87,11 +77,9 @@ export const firebaseValidation = {
           collection(db, "medications"),
           testMedication
         );
-        console.log("✅ Can write to medications collection");
 
         // Clean up test document
         await deleteDoc(docRef);
-        console.log("✅ Can delete from medications collection");
       } catch (error: any) {
         issues.push(`Cannot write to medications collection: ${error.message}`);
         recommendations.push(
@@ -102,17 +90,13 @@ export const firebaseValidation = {
 
       // Test reading from collections
       try {
-        console.log("🧪 Testing read permissions...");
-
         // Try to read symptoms
         const symptomsQuery = collection(db, "symptoms");
         await getDocs(symptomsQuery);
-        console.log("✅ Can read from symptoms collection");
 
         // Try to read medications
         const medicationsQuery = collection(db, "medications");
         await getDocs(medicationsQuery);
-        console.log("✅ Can read from medications collection");
       } catch (error: any) {
         issues.push(`Cannot read from collections: ${error.message}`);
         recommendations.push(
@@ -129,13 +113,6 @@ export const firebaseValidation = {
     }
 
     const isValid = issues.length === 0;
-
-    if (isValid) {
-      console.log("🎉 Firebase setup validation passed!");
-    } else {
-      console.warn("⚠️ Firebase setup has issues:", issues);
-      console.log("💡 Recommendations:", recommendations);
-    }
 
     return { isValid, issues, recommendations };
   },

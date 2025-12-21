@@ -84,7 +84,6 @@ export const healthDataService = {
         const isExpoGo = Device.isDevice && !Device.isDevice; // Expo Go detection
 
         if (isExpoGo) {
-          console.log("⚠️ HealthKit requires standalone app build");
           // For demo purposes in Expo Go, simulate permission granted
           await this.savePermissionStatus(true);
           return true;
@@ -95,26 +94,11 @@ export const healthDataService = {
           const { NativeModules } = require("react-native");
           const AppleHealthKit = NativeModules.AppleHealthKit;
 
-          // Debug: Log available native modules
-          console.log(
-            "🔍 Available native modules:",
-            Object.keys(NativeModules).filter(
-              (key) => key.includes("Health") || key.includes("Apple")
-            )
-          );
-          console.log(
-            "🔍 AppleHealthKit module:",
-            AppleHealthKit ? "Found" : "Not found"
-          );
-
           // Check if the native module is available
           if (
             !AppleHealthKit ||
             typeof AppleHealthKit.initHealthKit !== "function"
           ) {
-            console.log(
-              "⚠️ HealthKit native module not available, using simulated data"
-            );
             await this.savePermissionStatus(true);
             return true;
           }
@@ -122,30 +106,25 @@ export const healthDataService = {
           return new Promise((resolve, reject) => {
             AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
               if (error) {
-                console.error("HealthKit initialization error:", error);
                 // Fallback to simulated data
                 this.savePermissionStatus(true);
                 resolve(true);
               } else {
-                console.log("✅ HealthKit initialized successfully");
                 this.savePermissionStatus(true);
                 resolve(true);
               }
             });
           });
         } catch (error) {
-          console.log("⚠️ HealthKit not available, using simulated data");
           await this.savePermissionStatus(true);
           return true;
         }
       } else if (Platform.OS === "android") {
         // For Android, use simulated data for now
         // In production build, you'd implement Google Fit integration
-        console.log("✅ Android Health Connect ready (simulated)");
         await this.savePermissionStatus(true);
         return true;
       } else {
-        console.log("⚠️ Health data not supported on this platform");
         return false;
       }
     } catch (error) {
@@ -181,7 +160,6 @@ export const healthDataService = {
     try {
       const hasPermissions = await this.hasHealthPermissions();
       if (!hasPermissions) {
-        console.log("⚠️ No health permissions granted");
         return null;
       }
 
@@ -314,7 +292,6 @@ export const healthDataService = {
             .catch(reject);
         });
       } catch (error) {
-        console.log("⚠️ HealthKit not available, using simulated data");
         // Return simulated iOS data
         return this.getSimulatedVitals();
       }
@@ -352,8 +329,6 @@ export const healthDataService = {
     try {
       // For Android, we'll use simulated data that looks realistic
       // In a production build, you'd integrate with Google Fit APIs
-      console.log("📱 Getting Android health data (simulated)...");
-
       return await this.getSimulatedVitals();
     } catch (error) {
       console.error("Error getting Android vitals:", error);
@@ -412,8 +387,6 @@ export const healthDataService = {
         HEALTH_DATA_STORAGE_KEY,
         JSON.stringify(vitals)
       );
-
-      console.log("✅ Health data synced successfully:", vitals);
     } catch (error) {
       console.error("Error syncing health data:", error);
     }

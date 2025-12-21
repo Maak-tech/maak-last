@@ -105,7 +105,6 @@ export const requestMotionPermission = async (): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.warn("Failed to request motion permission:", error);
     return false;
   }
 };

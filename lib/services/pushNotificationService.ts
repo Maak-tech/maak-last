@@ -161,10 +161,6 @@ export const pushNotificationService = {
         // Check if user is authenticated
         const { auth } = await import("@/lib/firebase");
         const currentUser = auth.currentUser;
-        console.log(
-          "🔐 Current auth user:",
-          currentUser ? currentUser.uid : "NOT AUTHENTICATED"
-        );
 
         // Use the main sendPushNotification function with authenticated context
         const functions = await getAuthenticatedFunctions();

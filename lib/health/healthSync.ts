@@ -121,7 +121,6 @@ export const disconnectProvider = async (
     }
 
     await AsyncStorage.removeItem(storageKey);
-    console.log(`Disconnected from ${provider}`);
   } catch (error) {
     console.error(`Error disconnecting ${provider}:`, error);
     throw error;
@@ -136,8 +135,6 @@ export const syncHealthData = async (
   retryOnce: boolean = true
 ): Promise<SyncResult> => {
   try {
-    console.log(`Starting health data sync for ${provider}...`);
-
     // Get provider connection
     const connection = await getProviderConnection(provider);
     if (!connection || !connection.connected) {
@@ -218,14 +215,12 @@ export const syncHealthData = async (
       ),
     };
 
-    console.log(`Health sync completed for ${provider}:`, result);
     return result;
   } catch (error: any) {
     console.error(`Health sync failed for ${provider}:`, error);
 
     // Retry once on network failure
     if (retryOnce && error.message?.includes("network")) {
-      console.log(`Retrying health sync for ${provider}...`);
       return syncHealthData(provider, false);
     }
 

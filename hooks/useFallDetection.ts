@@ -45,7 +45,6 @@ export const useFallDetection = (
       try {
         // Add timeout to prevent hanging initialization
         initializationTimeout = setTimeout(() => {
-          console.warn("Fall detection initialization timeout");
           setIsInitialized(false);
         }, 5000);
 
@@ -74,7 +73,6 @@ export const useFallDetection = (
             ])) as boolean;
 
             if (!isAvailable) {
-              console.warn("DeviceMotion is not available on this device");
               setIsInitialized(false);
               return;
             }
@@ -114,7 +112,6 @@ export const useFallDetection = (
                   setLastData(currentData);
                 }
               } catch (dataError) {
-                console.warn("Error processing sensor data:", dataError);
                 // Stop subscription on repeated errors to prevent crashes
                 isSubscriptionActive = false;
               }
@@ -123,7 +120,6 @@ export const useFallDetection = (
             isSubscriptionActive = true;
             setIsInitialized(true);
           } catch (importError) {
-            console.warn("Failed to initialize DeviceMotion:", importError);
             setIsInitialized(false);
             if (initializationTimeout) {
               clearTimeout(initializationTimeout);
@@ -133,7 +129,6 @@ export const useFallDetection = (
 
         initializeSensors();
       } catch (error) {
-        console.warn("DeviceMotion initialization error:", error);
         setIsInitialized(false);
         if (initializationTimeout) {
           clearTimeout(initializationTimeout);
@@ -150,7 +145,7 @@ export const useFallDetection = (
         try {
           subscription.remove();
         } catch (removeError) {
-          console.warn("Error removing sensor subscription:", removeError);
+          // Silently handle subscription removal error
         }
       }
     };
@@ -159,8 +154,6 @@ export const useFallDetection = (
   const startFallDetection = useCallback(() => {
     if (Platform.OS !== "web") {
       setIsActive(true);
-    } else {
-      console.warn("Fall detection is not available on web platform");
     }
   }, []);
 

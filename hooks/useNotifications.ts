@@ -214,7 +214,6 @@ async function registerForPushNotificationsAsync(
       }
 
       if (finalStatus !== "granted") {
-        console.warn("Push notification permissions not granted");
         return;
       }
 
