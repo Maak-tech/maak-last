@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native/index.js b/node_modules/react-native/index.js
-index c737c93..b638942 100644
+index c737c93..e8d1054 100644
 --- a/node_modules/react-native/index.js
 +++ b/node_modules/react-native/index.js
-@@ -271,14 +271,28 @@ module.exports = {
+@@ -271,14 +271,50 @@ module.exports = {
        .PlatformColor;
    },
    get PushNotificationIOS() {
@@ -14,28 +14,50 @@ index c737c93..b638942 100644
 -    );
 -    return require('./Libraries/PushNotificationIOS/PushNotificationIOS')
 -      .default;
-+    // Return polyfill for Expo development builds
++    // Polyfill for Expo development builds
 +    // PushNotificationIOS is not available in Expo and causes NativeEventEmitter errors
-+    return {
-+      requestPermissions: () => Promise.resolve({ alert: true, badge: true, sound: true }),
-+      addEventListener: () => ({ remove: () => {} }),
-+      removeEventListener: () => {},
-+      removeAllListeners: () => {},
++    // Create a proper polyfill object that mimics the structure of the real module
++    const polyfill = {
++      requestPermissions: (permissions) => {
++        // Log to help with debugging but don't warn in production
++        if (typeof __DEV__ !== 'undefined' && __DEV__) {
++          console.log('[PushNotificationIOS Polyfill] requestPermissions called - using expo-notifications instead');
++        }
++        return Promise.resolve({ alert: true, badge: true, sound: true });
++      },
++      addEventListener: (type, handler) => {
++        return { remove: () => {} };
++      },
++      removeEventListener: (type, handler) => {},
++      removeAllListeners: (type) => {},
 +      getInitialNotification: () => Promise.resolve(null),
-+      setApplicationIconBadgeNumber: () => {},
-+      getApplicationIconBadgeNumber: (callback) => { if (callback) callback(0); },
-+      presentLocalNotification: () => {},
-+      scheduleLocalNotification: () => {},
-+      cancelLocalNotifications: () => {},
++      setApplicationIconBadgeNumber: (number) => {},
++      getApplicationIconBadgeNumber: (callback) => {
++        if (callback) callback(0);
++      },
++      presentLocalNotification: (notification) => {},
++      scheduleLocalNotification: (notification) => {},
++      cancelLocalNotifications: (userInfo) => {},
 +      cancelAllLocalNotifications: () => {},
-+      getScheduledLocalNotifications: (callback) => { if (callback) callback([]); },
++      getScheduledLocalNotifications: (callback) => {
++        if (callback) callback([]);
++      },
 +      removeAllDeliveredNotifications: () => {},
-+      removeDeliveredNotifications: () => {},
-+      getDeliveredNotifications: (callback) => { if (callback) callback([]); },
-+      addListener: () => ({ remove: () => {} }),
-+      removeListeners: () => {},
-+      default: undefined,
++      removeDeliveredNotifications: (identifiers) => {},
++      getDeliveredNotifications: (callback) => {
++        if (callback) callback([]);
++      },
++      addListener: (eventType, listener, context) => {
++        return { remove: () => {} };
++      },
++      removeListeners: (eventType) => {},
 +    };
++    
++    // Make the polyfill object act as both a module and a default export
++    // This is critical for Expo's importAll to work correctly
++    polyfill.default = polyfill;
++    
++    return polyfill;
    },
    get processColor() {
      return require('./Libraries/StyleSheet/processColor').default;
