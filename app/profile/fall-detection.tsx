@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Bell,
   CheckCircle,
+  Shield,
   TestTube,
   Users,
   XCircle,
