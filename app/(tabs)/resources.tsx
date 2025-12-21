@@ -373,7 +373,13 @@ export default function ResourcesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack && router.canGoBack()) {
+              router.back();
+            } else {
+              router.push("/(tabs)/profile");
+            }
+          }}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
