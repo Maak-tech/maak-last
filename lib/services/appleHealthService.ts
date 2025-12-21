@@ -17,23 +17,32 @@ import {
 } from "../health/healthMetricsCatalog";
 import { getAllHealthKitReadTypes } from "../health/allHealthKitTypes";
 
-// Import react-native-health
+// Import react-native-health dynamically
+// This will be null if the native module isn't available (needs rebuild)
 let AppleHealthKit: any = null;
-if (Platform.OS === "ios") {
-  try {
-    AppleHealthKit = require("react-native-health").default;
-  } catch (error) {
-    // Silently handle error
+
+const loadHealthKit = () => {
+  if (Platform.OS === "ios" && !AppleHealthKit) {
+    try {
+      AppleHealthKit = require("react-native-health").default;
+      // Verify it's actually available
+      if (AppleHealthKit && typeof AppleHealthKit.isAvailable === "function") {
+        return true;
+      }
+      AppleHealthKit = null;
+    } catch (error: any) {
+      console.warn("Failed to load react-native-health:", error?.message || error);
+      AppleHealthKit = null;
+    }
   }
-}
+  return AppleHealthKit !== null;
+};
 
 // Check if running in Expo Go
+// In dev builds, executionEnvironment is "standalone", not "storeClient"
+// Only Expo Go has executionEnvironment === "storeClient"
 const isExpoGo = () => {
-  return (
-    Constants.executionEnvironment === "storeClient" ||
-    !Constants.appOwnership ||
-    Constants.appOwnership === "expo"
-  );
+  return Constants.executionEnvironment === "storeClient";
 };
 
 /**
@@ -55,10 +64,13 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
     };
   }
 
-  if (!AppleHealthKit) {
+  // Try to load the module if not already loaded
+  const moduleLoaded = loadHealthKit();
+  
+  if (!moduleLoaded || !AppleHealthKit) {
     return {
       available: false,
-      reason: "HealthKit library not available. Please ensure you're running a development build or standalone app, not Expo Go.",
+      reason: "HealthKit native module not found. The react-native-health module needs to be compiled into your app. Please rebuild your development build:\n\n• For EAS Build: bun run build:ios:dev\n• For local build: bun run ios\n\nAfter rebuilding, reinstall the app on your device.",
     };
   }
 
@@ -90,8 +102,11 @@ const requestAuthorization = async (
     throw new Error(availability.reason || "HealthKit is not available");
   }
 
-  if (!AppleHealthKit) {
-    throw new Error("HealthKit library not available. Please ensure you're running a development build or standalone app, not Expo Go.");
+  // Try to load the module if not already loaded
+  const moduleLoaded = loadHealthKit();
+  
+  if (!moduleLoaded || !AppleHealthKit) {
+    throw new Error("HealthKit native module not found. Please rebuild your development build with 'bun run build:ios:dev' or 'bun run ios'.");
   }
 
   // Determine which permissions to request
