@@ -17,7 +17,7 @@ import {
 } from "../../lib/services/documentService";
 
 export default function PrivacyPolicyScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const router = useRouter();
   const [document, setDocument] = useState<ParsedDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,7 @@ export default function PrivacyPolicyScreen() {
 
   useEffect(() => {
     loadPrivacyPolicy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadPrivacyPolicy = async () => {
@@ -35,7 +36,7 @@ export default function PrivacyPolicyScreen() {
       setError(null);
       const privacyDoc = await documentService.getPrivacyPolicy();
       setDocument(privacyDoc);
-    } catch (err) {
+    } catch {
       // Silently handle error
       setError(
         isRTL

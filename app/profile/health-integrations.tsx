@@ -54,15 +54,6 @@ export default function HealthIntegrationsScreen() {
       route: "/profile/health/apple-intro",
     },
     {
-      id: "health_connect",
-      name: "Health Connect",
-      description: "Sync data from Google Health Connect",
-      icon: Heart,
-      available: Platform.OS === "android",
-      recommended: Platform.OS === "android",
-      route: "/profile/health/health-connect-intro",
-    },
-    {
       id: "fitbit",
       name: "Fitbit",
       description: "Sync data from your Fitbit account",
@@ -74,7 +65,7 @@ export default function HealthIntegrationsScreen() {
 
   useEffect(() => {
     loadConnections();
-  }, []);
+  }, [loadConnections]);
 
   const loadConnections = async () => {
     try {
@@ -89,7 +80,7 @@ export default function HealthIntegrationsScreen() {
       }
 
       setConnections(connectionsMap);
-    } catch (error) {
+    } catch {
       // Silently handle error
     } finally {
       setLoading(false);
@@ -115,34 +106,6 @@ export default function HealthIntegrationsScreen() {
     }
   };
 
-  const handleDisconnect = async (provider: ProviderOption) => {
-    Alert.alert(
-      `Disconnect ${provider.name}`,
-      `Are you sure you want to disconnect ${provider.name}? You can reconnect anytime.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Disconnect",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await disconnectProvider(provider.id);
-              await loadConnections();
-              Alert.alert(
-                "Disconnected",
-                `${provider.name} has been disconnected.`
-              );
-            } catch (error: any) {
-              Alert.alert(
-                "Error",
-                error.message || "Failed to disconnect provider"
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
 
   if (loading) {
     return (

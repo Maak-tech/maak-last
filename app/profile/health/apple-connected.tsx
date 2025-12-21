@@ -19,14 +19,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Check,
   ArrowLeft,
-  Heart,
   RefreshCw,
   Settings,
   AlertCircle,
   X,
+  ChevronRight,
 } from "lucide-react-native";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Platform } from "react-native";
 import {
   getProviderConnection,
   disconnectProvider,
@@ -48,6 +47,7 @@ export default function AppleHealthConnectedScreen() {
 
   useEffect(() => {
     loadConnection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadConnection = async () => {
@@ -59,7 +59,7 @@ export default function AppleHealthConnectedScreen() {
         const syncTime = await getLastSyncTimestamp("apple_health");
         setLastSync(syncTime);
       }
-    } catch (error) {
+    } catch {
       // Silently handle error
     } finally {
       setLoading(false);

@@ -24,7 +24,7 @@ import {
 } from "../../lib/services/documentService";
 
 export default function TermsConditionsScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const router = useRouter();
   const [document, setDocument] = useState<ParsedDocument | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +34,7 @@ export default function TermsConditionsScreen() {
 
   useEffect(() => {
     loadTermsAndConditions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadTermsAndConditions = async () => {
@@ -42,7 +43,7 @@ export default function TermsConditionsScreen() {
       setError(null);
       const termsDoc = await documentService.getTermsAndConditions();
       setDocument(termsDoc);
-    } catch (err) {
+    } catch {
       // Silently handle error
       setError(
         isRTL

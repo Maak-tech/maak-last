@@ -279,8 +279,7 @@ export const fcmService = {
 
       // FCM is not available in Expo Go
       return !isExpoGo;
-    } catch (error) {
-      console.error("Error checking FCM availability:", error);
+    } catch {
       return false;
     }
   },

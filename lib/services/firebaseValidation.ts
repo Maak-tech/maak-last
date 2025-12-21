@@ -36,7 +36,6 @@ export const firebaseValidation = {
         recommendations.push(
           "Check Firestore security rules for users collection"
         );
-        console.error("User document check failed:", error);
       }
 
       // Test symptoms collection permissions
@@ -58,7 +57,6 @@ export const firebaseValidation = {
         recommendations.push(
           "Check Firestore security rules for symptoms collection"
         );
-        console.error("Symptoms collection test failed:", error);
       }
 
       // Test medications collection permissions
@@ -85,7 +83,6 @@ export const firebaseValidation = {
         recommendations.push(
           "Check Firestore security rules for medications collection"
         );
-        console.error("Medications collection test failed:", error);
       }
 
       // Test reading from collections
@@ -102,14 +99,12 @@ export const firebaseValidation = {
         recommendations.push(
           "Check Firestore security rules for read permissions"
         );
-        console.error("Read permissions test failed:", error);
       }
     } catch (error) {
       issues.push(`Validation failed: ${error}`);
       recommendations.push(
         "Check Firebase configuration and network connection"
       );
-      console.error("Firebase validation error:", error);
     }
 
     const isValid = issues.length === 0;

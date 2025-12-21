@@ -5,6 +5,7 @@
 
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import type {
   HealthSyncPayload,
   ProviderConnection,
@@ -33,7 +34,7 @@ const getDeviceInfo = (): DeviceInfo => {
       default: "Unknown",
     }),
     osVersion: Platform.Version?.toString(),
-    appVersion: "1.0.0", // TODO: Get from app.json
+    appVersion: Constants.expoConfig?.version || "1.0.0",
   };
 };
 
@@ -61,8 +62,7 @@ export const getProviderConnection = async (
 
     const data = await AsyncStorage.getItem(storageKey);
     return data ? JSON.parse(data) : null;
-  } catch (error) {
-    console.error(`Error getting ${provider} connection:`, error);
+  } catch {
     return null;
   }
 };
@@ -91,7 +91,6 @@ export const saveProviderConnection = async (
 
     await AsyncStorage.setItem(storageKey, JSON.stringify(connection));
   } catch (error) {
-    console.error(`Error saving ${connection.provider} connection:`, error);
     throw error;
   }
 };
@@ -122,7 +121,6 @@ export const disconnectProvider = async (
 
     await AsyncStorage.removeItem(storageKey);
   } catch (error) {
-    console.error(`Error disconnecting ${provider}:`, error);
     throw error;
   }
 };
@@ -217,8 +215,6 @@ export const syncHealthData = async (
 
     return result;
   } catch (error: any) {
-    console.error(`Health sync failed for ${provider}:`, error);
-
     // Retry once on network failure
     if (retryOnce && error.message?.includes("network")) {
       return syncHealthData(provider, false);
@@ -244,8 +240,7 @@ export const getLastSyncTimestamp = async (
   try {
     const connection = await getProviderConnection(provider);
     return connection?.lastSyncAt || null;
-  } catch (error) {
-    console.error(`Error getting last sync for ${provider}:`, error);
+  } catch {
     return null;
   }
 };

@@ -48,6 +48,7 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
       duration: 200,
       useNativeDriver: Platform.OS !== "web",
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChecked]);
 
   const handlePress = () => {

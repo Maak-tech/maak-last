@@ -31,7 +31,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
 
 export default function PersonalInfoScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user, updateUser } = useAuth();
   const router = useRouter();
   const [showEditModal, setShowEditModal] = useState(false);
@@ -79,7 +79,7 @@ export default function PersonalInfoScreen() {
         isRTL ? "تم الحفظ" : "Saved",
         isRTL ? "تم تحديث الملف الشخصي بنجاح" : "Profile updated successfully"
       );
-    } catch (error) {
+    } catch {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في تحديث الملف الشخصي" : "Failed to update profile"

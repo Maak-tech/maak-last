@@ -114,7 +114,7 @@ export default function AppleHealthIntroScreen() {
                   We only read what you choose
                 </Text>
                 <Text style={[styles.privacyDesc, { color: theme.textSecondary }]}>
-                  You have complete control. Select exactly which metrics to share, and we'll only access those.
+                  You have complete control. Select exactly which metrics to share, and we&apos;ll only access those.
                 </Text>
               </View>
             </View>

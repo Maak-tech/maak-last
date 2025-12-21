@@ -51,6 +51,7 @@ export default function AppleHealthPermissionsScreen() {
   useEffect(() => {
     loadAvailableMetrics();
     checkHealthKitAvailability();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkHealthKitAvailability = async () => {

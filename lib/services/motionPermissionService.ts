@@ -157,8 +157,8 @@ export const hasMotionPermission = async (): Promise<boolean> => {
 export const saveMotionPermissionStatus = async (granted: boolean): Promise<void> => {
   try {
     await AsyncStorage.setItem(MOTION_PERMISSION_STORAGE_KEY, granted.toString());
-  } catch (error) {
-    console.error("Error saving motion permission status:", error);
+  } catch {
+    // Silently handle error
   }
 };
 

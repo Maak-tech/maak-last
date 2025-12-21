@@ -131,8 +131,7 @@ export const healthDataService = {
       } else {
         return false;
       }
-    } catch (error) {
-      console.error("Error initializing health data:", error);
+    } catch {
       // Don't fail completely, provide simulated data
       await this.savePermissionStatus(true);
       return true;
@@ -144,8 +143,7 @@ export const healthDataService = {
     try {
       const status = await AsyncStorage.getItem(PERMISSIONS_STORAGE_KEY);
       return status === "true";
-    } catch (error) {
-      console.error("Error checking health permissions:", error);
+    } catch {
       return false;
     }
   },
@@ -154,8 +152,8 @@ export const healthDataService = {
   async savePermissionStatus(granted: boolean): Promise<void> {
     try {
       await AsyncStorage.setItem(PERMISSIONS_STORAGE_KEY, granted.toString());
-    } catch (error) {
-      console.error("Error saving permission status:", error);
+    } catch {
+      // Silently handle error
     }
   },
 
@@ -175,8 +173,7 @@ export const healthDataService = {
       }
 
       return null;
-    } catch (error) {
-      console.error("Error getting vitals:", error);
+    } catch {
       return null;
     }
   },
@@ -299,8 +296,7 @@ export const healthDataService = {
         // Return simulated iOS data
         return this.getSimulatedVitals();
       }
-    } catch (error) {
-      console.error("Error getting iOS vitals:", error);
+    } catch {
       return this.getSimulatedVitals();
     }
   },
@@ -334,8 +330,7 @@ export const healthDataService = {
       // For Android, we'll use simulated data that looks realistic
       // In a production build, you'd integrate with Google Fit APIs
       return await this.getSimulatedVitals();
-    } catch (error) {
-      console.error("Error getting Android vitals:", error);
+    } catch {
       return await this.getSimulatedVitals();
     }
   },
@@ -374,8 +369,7 @@ export const healthDataService = {
       };
 
       return summary;
-    } catch (error) {
-      console.error("Error getting health summary:", error);
+    } catch {
       return null;
     }
   },
@@ -391,8 +385,8 @@ export const healthDataService = {
         HEALTH_DATA_STORAGE_KEY,
         JSON.stringify(vitals)
       );
-    } catch (error) {
-      console.error("Error syncing health data:", error);
+    } catch {
+      // Silently handle error
     }
   },
 
@@ -407,8 +401,7 @@ export const healthDataService = {
         ...parsed,
         timestamp: new Date(parsed.timestamp),
       };
-    } catch (error) {
-      console.error("Error getting stored health data:", error);
+    } catch {
       return null;
     }
   },
@@ -417,8 +410,7 @@ export const healthDataService = {
   async requestHealthPermissions(): Promise<boolean> {
     try {
       return await this.initializeHealthData();
-    } catch (error) {
-      console.error("Error requesting health permissions:", error);
+    } catch {
       return false;
     }
   },
