@@ -169,27 +169,60 @@ export const useNotifications = () => {
         // If still not initialized after waiting, try to initialize now
         if (!isInitialized.current) {
           console.warn("Notifications not initialized, attempting to initialize now...");
-          const Notifications = await import("expo-notifications");
-          const Device = await import("expo-device");
-          
           try {
-            Notifications.setNotificationHandler({
-              handleNotification: async () => ({
-                shouldShowAlert: true,
-                shouldPlaySound: true,
-                shouldSetBadge: false,
-              }),
-            });
-            await registerForPushNotificationsAsync(Notifications, Device);
-            isInitialized.current = true;
-          } catch (initError) {
-            console.error("Failed to initialize notifications:", initError);
-            return { success: false, error: "Failed to initialize notifications" };
+            const Notifications = await import("expo-notifications");
+            const Device = await import("expo-device");
+            
+            try {
+              Notifications.setNotificationHandler({
+                handleNotification: async () => ({
+                  shouldShowAlert: true,
+                  shouldPlaySound: true,
+                  shouldSetBadge: false,
+                }),
+              });
+              await registerForPushNotificationsAsync(Notifications, Device);
+              isInitialized.current = true;
+            } catch (initError) {
+              console.error("Failed to initialize notifications:", initError);
+              return { success: false, error: "Failed to initialize notifications" };
+            }
+          } catch (importError) {
+            // Handle errors during import (e.g., PushNotificationIOS issues)
+            console.error("Failed to import notification modules:", importError);
+            return { 
+              success: false, 
+              error: "Notification system unavailable. Please restart the app." 
+            };
           }
         }
 
-        const Notifications = await import("expo-notifications");
-        const { Platform } = await import("react-native");
+        // Import notification modules with error handling
+        let Notifications;
+        let Platform;
+        try {
+          Notifications = await import("expo-notifications");
+          Platform = (await import("react-native")).Platform;
+        } catch (importError) {
+          // Handle errors during import (e.g., PushNotificationIOS issues)
+          console.error("Failed to import notification modules:", importError);
+          const errorMessage = importError instanceof Error 
+            ? importError.message 
+            : String(importError);
+          
+          // Check if it's the PushNotificationIOS error
+          if (errorMessage.includes("NativeEventEmitter") || errorMessage.includes("default")) {
+            return { 
+              success: false, 
+              error: "Notification system error. Please restart the app to fix this issue." 
+            };
+          }
+          
+          return { 
+            success: false, 
+            error: "Failed to load notification system. Please try again." 
+          };
+        }
 
         // Check notification permissions before scheduling
         const permissionResult = await Notifications.getPermissionsAsync();

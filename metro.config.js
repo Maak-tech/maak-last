@@ -15,10 +15,19 @@ config.transformer.unstable_allowRequireContext = true;
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Intercept PushNotificationIOS module from any import path and replace with polyfill
+  // This catches all possible import patterns including:
+  // - react-native/Libraries/PushNotificationIOS/PushNotificationIOS
+  // - react-native/Libraries/PushNotificationIOS
+  // - Any module name containing PushNotificationIOS
   if (
     moduleName === "react-native/Libraries/PushNotificationIOS/PushNotificationIOS" ||
     moduleName === "react-native/Libraries/PushNotificationIOS" ||
-    (typeof moduleName === 'string' && moduleName.includes('PushNotificationIOS'))
+    moduleName === "PushNotificationIOS" ||
+    (typeof moduleName === 'string' && (
+      moduleName.includes('PushNotificationIOS') ||
+      moduleName.endsWith('/PushNotificationIOS') ||
+      moduleName.includes('PushNotificationIOS/PushNotificationIOS')
+    ))
   ) {
     return {
       filePath: path.resolve(__dirname, "lib/polyfills/pushNotificationIOS.js"),

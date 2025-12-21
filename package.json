@@ -19,7 +19,8 @@
     "firebase:create-collections": "bunx tsx scripts/create-user-collections.ts",
     "firebase:fix-medications": "node scripts/fix-medications.js",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo-google-fonts/cairo": "^0.2.3",
@@ -80,6 +81,7 @@
     "firebase-admin": "^12.0.0",
     "metro": "^0.83.1",
     "metro-resolver": "^0.82.5",
+    "patch-package": "^8.0.0",
     "typescript": "~5.9.2",
     "ultracite": "6.4.2"
   },
