@@ -38,7 +38,9 @@ const THEME_STORAGE_KEY = "@maak_theme_mode";
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
+  // Initialize with "light" as default to prevent dark mode flash
+  // Will be updated from AsyncStorage once loaded
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Determine if dark mode should be active
@@ -49,16 +51,22 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Get current theme
   const theme = isDark ? Theme.dark : Theme.light;
 
-  // Load saved theme preference
+  // Load saved theme preference on mount
   useEffect(() => {
     const loadThemeMode = async () => {
       try {
         const savedMode = await AsyncStorage.getItem(THEME_STORAGE_KEY);
         if (savedMode && ["light", "dark", "system"].includes(savedMode)) {
           setThemeModeState(savedMode as ThemeMode);
+        } else {
+          // If no saved preference, default to "light" (not "system")
+          // This ensures users who turn off dark mode stay in light mode
+          setThemeModeState("light");
+          await AsyncStorage.setItem(THEME_STORAGE_KEY, "light");
         }
       } catch (error) {
-        // Silently handle error
+        // Silently handle error, but ensure we have a valid state
+        setThemeModeState("light");
       } finally {
         setIsLoaded(true);
       }

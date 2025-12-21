@@ -182,43 +182,124 @@ export const Shadows = {
   },
 };
 
-// Dark Theme Colors
+// Dark mode shadows - subtle glows instead of harsh shadows
+export const DarkShadows = {
+  sm: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  lg: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  xl: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+};
+
+// Dark Theme Colors - Enhanced for better visual appeal
 export const DarkColors = {
   primary: {
-    main: "#3B82F6", // Lighter navy for dark mode
-    light: "#60A5FA", // Even lighter
-    dark: "#1D4ED8", // Darker navy
-    50: "#1E293B", // Dark navy tint
-    100: "#334155", // Medium dark navy tint
-    200: "#475569", // Light dark navy tint
+    main: "#60A5FA", // Brighter, more vibrant blue for dark mode
+    light: "#93C5FD", // Even lighter for hover states
+    dark: "#3B82F6", // Slightly darker for pressed states
+    50: "#1E3A5F", // Dark navy tint with blue undertone
+    100: "#1E40AF", // Medium dark navy tint
+    200: "#2563EB", // Light dark navy tint
   },
 
   secondary: {
-    main: "#FB923C", // Lighter orange for dark mode
-    light: "#FDBA74", // Even lighter orange
-    dark: "#EA580C", // Darker orange
-    50: "#431407", // Dark orange tint
-    100: "#7C2D12", // Medium dark orange tint
-    200: "#9A3412", // Light dark orange tint
+    main: "#FB923C", // Vibrant orange for dark mode
+    light: "#FCD34D", // Lighter orange for highlights
+    dark: "#F97316", // Darker orange for depth
+    50: "#7C2D12", // Dark orange tint
+    100: "#9A3412", // Medium dark orange tint
+    200: "#C2410C", // Light dark orange tint
+  },
+
+  // Enhanced accent colors for dark mode
+  accent: {
+    success: "#34D399", // Brighter green for better visibility
+    warning: "#FBBF24", // Softer yellow that's easier on the eyes
+    error: "#F87171", // Softer red that's less harsh
+    info: "#60A5FA", // Bright blue for info states
+  },
+
+  // Dark mode neutral colors
+  neutral: {
+    50: "#1E293B", // Very dark background
+    100: "#334155", // Dark background
+    200: "#475569", // Dark border
+    300: "#64748B", // Medium dark border
+    400: "#94A3B8", // Light text
+    500: "#CBD5E1", // Medium light text
+    600: "#E2E8F0", // Lighter text
+    700: "#F1F5F9", // Very light text
+    800: "#F8FAFC", // Almost white text
+    900: "#FFFFFF", // Pure white
+    white: "#FFFFFF", // Pure white
   },
 
   background: {
-    primary: "#0F172A", // Dark background
-    secondary: "#1E293B", // Dark card background
+    primary: "#0A0F1C", // Richer, deeper dark background
+    secondary: "#1E293B", // Dark card background with subtle blue tint
     tertiary: "#334155", // Dark section background
   },
 
   text: {
-    primary: "#F1F5F9", // Light text on dark
-    secondary: "#CBD5E1", // Secondary light text
-    tertiary: "#94A3B8", // Tertiary light text
-    inverse: "#1E293B", // Dark text on light backgrounds
+    primary: "#F8FAFC", // Brighter white for better readability
+    secondary: "#CBD5E1", // Softer gray for secondary text
+    tertiary: "#94A3B8", // Muted gray for tertiary text
+    inverse: "#0F172A", // Dark text on light backgrounds
   },
 
   border: {
-    light: "#334155", // Dark light borders
-    medium: "#475569", // Dark medium borders
-    dark: "#64748B", // Dark dark borders
+    light: "#334155", // Subtle borders
+    medium: "#475569", // Medium borders with better visibility
+    dark: "#64748B", // Dark borders for emphasis
+  },
+
+  // Status colors optimized for dark mode
+  status: {
+    active: "#34D399", // Brighter green
+    pending: "#FB923C", // Vibrant orange
+    inactive: "#64748B", // Muted gray
+    critical: "#F87171", // Softer red
+  },
+
+  // Health colors optimized for dark mode
+  health: {
+    excellent: "#34D399", // Bright green
+    good: "#60A5FA", // Bright blue
+    fair: "#FBBF24", // Soft yellow
+    poor: "#FB923C", // Vibrant orange
+    critical: "#F87171", // Soft red
+  },
+
+  // Severity colors for dark mode
+  severity: {
+    1: "#34D399", // Mild - Bright green
+    2: "#FBBF24", // Mild-Moderate - Soft yellow
+    3: "#FB923C", // Moderate - Vibrant orange
+    4: "#F87171", // Severe - Soft red
+    5: "#EF4444", // Critical - Bright red
   },
 };
 
@@ -235,7 +316,7 @@ export const Theme = {
     typography: Typography,
     spacing: Spacing,
     borderRadius: BorderRadius,
-    shadows: Shadows,
+    shadows: DarkShadows, // Use dark mode shadows
   },
 };
 
