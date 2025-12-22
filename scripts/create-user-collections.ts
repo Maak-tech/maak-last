@@ -40,7 +40,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-async function createSampleData(userId) {
+async function createSampleData(userId: string) {
   console.log(`🔥 Creating sample data for user: ${userId}`);
 
   try {
@@ -179,7 +179,7 @@ async function createSampleData(userId) {
     console.log("✅ Sample vital signs added");
     console.log("✅ User document ensured");
   } catch (error) {
-    console.error("❌ Error creating sample data:", error.message);
+    console.error("❌ Error creating sample data:", error instanceof Error ? error.message : String(error));
     throw error;
   }
 }
@@ -212,7 +212,7 @@ async function main() {
     console.log("2. Test your app to see the sample data");
     console.log("3. Try adding new symptoms/medications through your app");
   } catch (error) {
-    console.error("\n💥 Script failed:", error.message);
+    console.error("\n💥 Script failed:", error instanceof Error ? error.message : String(error));
     console.log("\n🔧 Troubleshooting:");
     console.log("1. Check your Firebase configuration");
     console.log("2. Ensure your Firestore security rules allow writes");

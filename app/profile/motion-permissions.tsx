@@ -104,10 +104,10 @@ export default function MotionPermissionsScreen() {
 
   if (checking) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.primary} size="large" />
-          <Text style={[styles.loadingText, { color: theme.text }]}>
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
+          <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>
             Checking permission status...
           </Text>
         </View>
@@ -118,7 +118,7 @@ export default function MotionPermissionsScreen() {
   const isRTL = false; // Add RTL support if needed
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -126,13 +126,13 @@ export default function MotionPermissionsScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <ArrowLeft size={24} color={theme.text} />
+            <ArrowLeft size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
-          <Activity size={48} color={theme.primary} />
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Activity size={48} color={theme.colors.primary.main} />
+          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
             Motion & Fitness Access
           </Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
             Enable motion sensors for fall detection
           </Text>
         </View>
@@ -162,14 +162,14 @@ export default function MotionPermissionsScreen() {
                 <AlertTriangle color="#EF4444" size={32} />
               )}
               <View style={styles.statusInfo}>
-                <Text style={[styles.statusTitle, { color: theme.text }]}>
+                <Text style={[styles.statusTitle, { color: theme.colors.text.primary }]}>
                   {permissionStatus.granted
                     ? "Permission Granted"
                     : permissionStatus.available
                       ? "Permission Required"
                       : "Not Available"}
                 </Text>
-                <Text style={[styles.statusText, { color: theme.textSecondary }]}>
+                <Text style={[styles.statusText, { color: theme.colors.text.secondary }]}>
                   {permissionStatus.granted
                     ? "Motion sensors are enabled. Fall detection is ready."
                     : permissionStatus.reason ||
@@ -193,12 +193,12 @@ export default function MotionPermissionsScreen() {
             ]}
           >
             <View style={styles.infoHeader}>
-              <Activity color={theme.primary} size={24} />
-              <Text style={[styles.infoTitle, { color: theme.text }]}>
+              <Activity color={theme.colors.primary.main} size={24} />
+              <Text style={[styles.infoTitle, { color: theme.colors.text.primary }]}>
                 Why We Need This
               </Text>
             </View>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+            <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
               Maak Health uses your device&apos;s motion sensors (accelerometer and gyroscope) to detect
               sudden movements that may indicate a fall. This allows us to automatically alert your
               emergency contacts if a fall is detected.
@@ -216,12 +216,12 @@ export default function MotionPermissionsScreen() {
             ]}
           >
             <View style={styles.infoHeader}>
-              <Info color={theme.primary} size={24} />
-              <Text style={[styles.infoTitle, { color: theme.text }]}>
+              <Info color={theme.colors.primary.main} size={24} />
+              <Text style={[styles.infoTitle, { color: theme.colors.text.primary }]}>
                 How It Works
               </Text>
             </View>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+            <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
               The app continuously monitors motion patterns. When unusual acceleration patterns are
               detected that match a fall, an alert is automatically sent to your family members with
               your location.
@@ -239,12 +239,12 @@ export default function MotionPermissionsScreen() {
             ]}
           >
             <View style={styles.infoHeader}>
-              <CheckCircle color={theme.primary} size={24} />
-              <Text style={[styles.infoTitle, { color: theme.text }]}>
+              <CheckCircle color={theme.colors.primary.main} size={24} />
+              <Text style={[styles.infoTitle, { color: theme.colors.text.primary }]}>
                 Your Privacy
               </Text>
             </View>
-            <Text style={[styles.infoText, { color: theme.textSecondary }]}>
+            <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
               Motion data is processed locally on your device and is never stored or transmitted.
               Only fall detection alerts are sent to your emergency contacts.
             </Text>
@@ -258,7 +258,7 @@ export default function MotionPermissionsScreen() {
               style={[
                 styles.primaryButton,
                 {
-                  backgroundColor: theme.primary,
+                  backgroundColor: theme.colors.primary.main,
                 },
               ]}
               onPress={handleRequestPermission}
@@ -304,8 +304,8 @@ export default function MotionPermissionsScreen() {
             ]}
             onPress={handleOpenSettings}
           >
-            <Settings color={theme.text} size={20} />
-            <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
+            <Settings color={theme.colors.text.primary} size={20} />
+            <Text style={[styles.secondaryButtonText, { color: theme.colors.text.primary }]}>
               Open Settings
             </Text>
           </TouchableOpacity>

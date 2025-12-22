@@ -22,9 +22,12 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
+  StyleProp,
   Text,
+  TextStyle,
   TouchableOpacity,
   View,
+  ViewStyle,
   Switch,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,10 +46,8 @@ import {
 } from "@/lib/health/healthMetricsCatalog";
 import { appleHealthService } from "@/lib/services/appleHealthService";
 import { googleHealthService } from "@/lib/services/googleHealthService";
-import {
-  saveProviderConnection,
-  type ProviderConnection,
-} from "@/lib/health/healthSync";
+import { saveProviderConnection } from "@/lib/health/healthSync";
+import type { ProviderConnection } from "@/lib/health/healthTypes";
 
 interface VitalCard {
   key: string;
@@ -829,9 +830,9 @@ export default function VitalsScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Please log in to view vitals</Text>
+      <SafeAreaView style={styles.container as ViewStyle}>
+        <View style={styles.loadingContainer as ViewStyle}>
+          <Text style={styles.loadingText as StyleProp<TextStyle>}>Please log in to view vitals</Text>
         </View>
       </SafeAreaView>
     );
@@ -839,10 +840,10 @@ export default function VitalsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.container as ViewStyle}>
+        <View style={styles.loadingContainer as ViewStyle}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
-          <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+          <Text style={[styles.loadingText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL ? "جاري تحميل البيانات الصحية..." : "Loading health data..."}
           </Text>
         </View>
@@ -862,10 +863,10 @@ export default function VitalsScreen() {
       (Platform.OS === "android" && healthConnectAvailable === false)
     ) {
       return (
-        <SafeAreaView style={styles.container}>
-          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }]}>
+        <SafeAreaView style={styles.container as ViewStyle}>
+          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }] as StyleProp<ViewStyle>}>
             <TouchableOpacity
-              style={styles.backButton}
+              style={styles.backButton as ViewStyle}
               onPress={() => setShowMetricSelection(false)}
             >
               <ChevronRight
@@ -875,14 +876,14 @@ export default function VitalsScreen() {
               />
             </TouchableOpacity>
             <Heart size={48} color={theme.colors.primary.main} />
-            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }]}>
+            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }] as StyleProp<TextStyle>}>
               {isRTL 
                 ? Platform.OS === "ios" ? "HealthKit غير متاح" : "Health Connect غير متاح"
                 : Platform.OS === "ios" ? "HealthKit Not Available" : "Health Connect Not Available"}
             </Text>
           </View>
-          <View style={styles.permissionCard}>
-            <Text style={[styles.permissionDescription, isRTL && styles.rtlText]}>
+          <View style={styles.permissionCard as ViewStyle}>
+            <Text style={[styles.permissionDescription, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
               {availabilityReason || 
               (isRTL
                 ? "HealthKit غير متاح"
@@ -894,12 +895,12 @@ export default function VitalsScreen() {
     }
 
     return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <SafeAreaView style={styles.container as ViewStyle}>
+        <ScrollView style={styles.content as ViewStyle} showsVerticalScrollIndicator={false}>
           {/* Header */}
-          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }]}>
+          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }] as StyleProp<ViewStyle>}>
             <TouchableOpacity
-              style={styles.backButton}
+              style={styles.backButton as ViewStyle}
               onPress={() => setShowMetricSelection(false)}
             >
               <ChevronRight
@@ -909,10 +910,10 @@ export default function VitalsScreen() {
               />
             </TouchableOpacity>
             <Heart size={48} color={theme.colors.primary.main} />
-            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }]}>
+            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }] as StyleProp<TextStyle>}>
               {isRTL ? "اختر المقاييس" : "Select Metrics"}
             </Text>
-            <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.headerSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
               {isRTL
                 ? Platform.OS === "ios"
                   ? "اختر المقاييس الصحية التي تريد الوصول إليها. سيتم عرض شاشة أذونات iOS بعد ذلك."
@@ -924,7 +925,7 @@ export default function VitalsScreen() {
           </View>
 
           {/* Select All Toggle */}
-          <View style={styles.selectAllSection}>
+          <View style={styles.selectAllSection as ViewStyle}>
             <TouchableOpacity
               style={[
                 styles.selectAllButton,
@@ -935,7 +936,7 @@ export default function VitalsScreen() {
                   borderWidth: 1,
                   borderColor: "#FF8C42", // Orange border
                 },
-              ]}
+              ] as StyleProp<ViewStyle>}
               onPress={allSelected ? clearAllMetrics : selectAllMetrics}
             >
               <Text
@@ -945,7 +946,7 @@ export default function VitalsScreen() {
                     color: allSelected ? theme.colors.primary.main : theme.colors.text.primary,
                     fontWeight: allSelected ? "600" : "500",
                   },
-                ]}
+                ] as StyleProp<TextStyle>}
               >
                 {allSelected
                   ? (isRTL ? "✓ تم تحديد الكل" : "✓ All Selected")
@@ -955,7 +956,7 @@ export default function VitalsScreen() {
           </View>
 
           {/* Metric Groups */}
-          <View style={styles.metricsSection}>
+          <View style={styles.metricsSection as ViewStyle}>
             {groups.map((group) => {
               const groupMetrics = availableMetrics.filter(
                 (m) => m.group === group
@@ -979,14 +980,14 @@ export default function VitalsScreen() {
                       backgroundColor: "#FFF4E6", // Light orange background
                       borderColor: "#FF8C42", // Orange border
                     },
-                  ]}
+                  ] as StyleProp<ViewStyle>}
                 >
                   {/* Group Header */}
                   <TouchableOpacity
-                    style={styles.groupHeader}
+                    style={styles.groupHeader as ViewStyle}
                     onPress={() => toggleGroup(group)}
                   >
-                    <View style={styles.groupHeaderLeft}>
+                    <View style={styles.groupHeaderLeft as ViewStyle}>
                       <Switch
                         value={groupSelected}
                         onValueChange={(value) => {
@@ -1008,14 +1009,14 @@ export default function VitalsScreen() {
                         }}
                         thumbColor="#FFFFFF"
                       />
-                      <Text style={[styles.groupTitle, { color: theme.colors.text.primary }]}>
+                      <Text style={[styles.groupTitle, { color: theme.colors.text.primary }] as StyleProp<TextStyle>}>
                         {getGroupDisplayName(group)}
                       </Text>
                       <Text
                         style={[
                           styles.groupCount,
                           { color: theme.colors.text.secondary },
-                        ]}
+                        ] as StyleProp<TextStyle>}
                       >
                         ({groupMetrics.length})
                       </Text>
@@ -1031,7 +1032,7 @@ export default function VitalsScreen() {
 
                   {/* Group Metrics */}
                   {isExpanded && (
-                    <View style={styles.metricsList}>
+                    <View style={styles.metricsList as ViewStyle}>
                       {groupMetrics.map((metric) => {
                         const isSelected = selectedMetrics.has(metric.key);
                         return (
@@ -1042,7 +1043,7 @@ export default function VitalsScreen() {
                               isSelected && {
                                 backgroundColor: "#FF8C4220", // Light orange when selected
                               },
-                            ]}
+                            ] as StyleProp<ViewStyle>}
                             onPress={() => {
                               const newSelected = new Set(selectedMetrics);
                               // Remove "all" if selecting individual metrics
@@ -1055,13 +1056,13 @@ export default function VitalsScreen() {
                               setSelectedMetrics(newSelected);
                             }}
                           >
-                            <View style={styles.metricLeft}>
+                            <View style={styles.metricLeft as ViewStyle}>
                               {isSelected ? (
                                 <View
                                   style={[
                                     styles.checkbox,
                                     { backgroundColor: "#FF8C42" }, // Orange checkbox
-                                  ]}
+                                  ] as StyleProp<ViewStyle>}
                                 >
                                   <Check size={14} color="#FFFFFF" />
                                 </View>
@@ -1072,12 +1073,12 @@ export default function VitalsScreen() {
                                     {
                                       borderColor: "#FF8C42", // Orange border
                                     },
-                                  ]}
+                                  ] as StyleProp<ViewStyle>}
                                 />
                               )}
-                              <View style={styles.metricInfo}>
+                              <View style={styles.metricInfo as ViewStyle}>
                                 <Text
-                                  style={[styles.metricName, { color: theme.colors.text.primary }]}
+                                  style={[styles.metricName, { color: theme.colors.text.primary }] as StyleProp<TextStyle>}
                                 >
                                   {metric.displayName}
                                 </Text>
@@ -1086,7 +1087,7 @@ export default function VitalsScreen() {
                                     style={[
                                       styles.metricUnit,
                                       { color: theme.colors.text.secondary },
-                                    ]}
+                                    ] as StyleProp<TextStyle>}
                                   >
                                     {metric.unit}
                                   </Text>
@@ -1120,10 +1121,10 @@ export default function VitalsScreen() {
           </View>
 
           {/* Info */}
-          <View style={styles.infoSection}>
-            <View style={styles.infoRow}>
+          <View style={styles.infoSection as ViewStyle}>
+            <View style={styles.infoRow as ViewStyle}>
               <Info size={16} color={theme.colors.text.secondary} />
-              <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+              <Text style={[styles.infoText, { color: theme.colors.text.secondary }] as StyleProp<TextStyle>}>
                 {isRTL
                   ? Platform.OS === "ios"
                     ? "بعد النقر على \"تفويض\"، ستظهر شاشة أذونات iOS حيث يمكنك اختيار المقاييس المحددة. يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة"
@@ -1136,7 +1137,7 @@ export default function VitalsScreen() {
           </View>
 
           {/* CTA */}
-          <View style={styles.ctaSection}>
+          <View style={styles.ctaSection as ViewStyle}>
             <TouchableOpacity
               style={[
                 styles.primaryButton,
@@ -1147,7 +1148,7 @@ export default function VitalsScreen() {
                       : "#CCCCCC", // Gray when disabled
                 },
                 selectedMetrics.size === 0 && styles.disabledButton,
-              ]}
+              ] as StyleProp<ViewStyle>}
               onPress={handleAuthorizeMetrics}
               disabled={authorizing || selectedMetrics.size === 0}
             >
@@ -1155,7 +1156,7 @@ export default function VitalsScreen() {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText}>
+                  <Text style={styles.primaryButtonText as StyleProp<TextStyle>}>
                     {isRTL
                       ? selectedMetrics.has("all")
                         ? "تفويض جميع المقاييس"
@@ -1177,15 +1178,15 @@ export default function VitalsScreen() {
   // Show simple permission card for Android or when not showing metric selection
   if (!hasPermissions) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.permissionCard}>
-          <View style={styles.permissionIcon}>
+      <SafeAreaView style={styles.container as ViewStyle}>
+        <View style={styles.permissionCard as ViewStyle}>
+          <View style={styles.permissionIcon as ViewStyle}>
             <Heart color={theme.colors.neutral.white} size={40} />
           </View>
-          <Text style={[styles.permissionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.permissionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL ? "دمج البيانات الصحية" : "Health Data Integration"}
           </Text>
-          <Text style={[styles.permissionDescription, isRTL && styles.rtlText]}>
+          <Text style={[styles.permissionDescription, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL
               ? `ادمج بياناتك الصحية من ${Platform.OS === "ios" ? "تطبيق الصحة" : "Health Connect"} لمراقبة أفضل لصحتك ومعرفة المؤشرات الحيوية`
               : `Connect your health data from ${Platform.OS === "ios" ? "Health App" : "Health Connect"} to get comprehensive health monitoring and vital signs tracking`}
@@ -1193,7 +1194,7 @@ export default function VitalsScreen() {
           <TouchableOpacity
             disabled={authorizing || loading}
             onPress={handleEnableHealthData}
-            style={styles.enableButton}
+            style={styles.enableButton as ViewStyle}
           >
             {authorizing || loading ? (
               <ActivityIndicator
@@ -1203,7 +1204,7 @@ export default function VitalsScreen() {
             ) : (
               <Heart color={theme.colors.neutral.white} size={20} />
             )}
-            <Text style={styles.enableButtonText}>
+            <Text style={styles.enableButtonText as StyleProp<TextStyle>}>
               {authorizing || loading
                 ? isRTL
                   ? "جاري التفعيل..."
@@ -1218,7 +1219,7 @@ export default function VitalsScreen() {
             style={[
               styles.permissionDescription,
               { marginTop: theme.spacing.lg, fontSize: 12 },
-            ]}
+            ] as StyleProp<TextStyle>}
           >
             {isRTL
               ? Platform.OS === "ios"
@@ -1236,24 +1237,24 @@ export default function VitalsScreen() {
   const vitalCards = getVitalCards();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container as ViewStyle}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+      <View style={styles.header as ViewStyle}>
+        <Text style={[styles.headerTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
           {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
         </Text>
-        <Text style={[styles.headerSubtitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
           {isRTL
             ? "مراقبة صحتك من مصادر متعددة"
             : "Monitor your health from multiple sources"}
         </Text>
 
-        <View style={styles.headerActions}>
-          <View style={styles.syncInfo}>
+        <View style={styles.headerActions as ViewStyle}>
+          <View style={styles.syncInfo as ViewStyle}>
             {lastSync && (
               <>
                 <CheckCircle color={theme.colors.accent.success} size={12} />
-                <Text style={[styles.syncText, isRTL && styles.rtlText]}>
+                <Text style={[styles.syncText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
                   {isRTL
                     ? `آخر مزامنة: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                     : `Last sync: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
@@ -1265,7 +1266,7 @@ export default function VitalsScreen() {
           <TouchableOpacity
             disabled={refreshing}
             onPress={handleSyncData}
-            style={styles.syncButton}
+            style={styles.syncButton as ViewStyle}
           >
             {refreshing ? (
               <ActivityIndicator
@@ -1275,7 +1276,7 @@ export default function VitalsScreen() {
             ) : (
               <RefreshCw color={theme.colors.neutral.white} size={16} />
             )}
-            <Text style={styles.syncButtonText}>
+            <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
               {refreshing
                 ? isRTL
                   ? "مزامنة..."
@@ -1297,12 +1298,12 @@ export default function VitalsScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
+        style={styles.content as ViewStyle}
       >
         {/* Vitals Grid */}
-        <View style={styles.vitalsGrid}>
+        <View style={styles.vitalsGrid as ViewStyle}>
           {/* First Row - Heart Rate (large) + Steps */}
-          <View style={styles.vitalsRow}>
+          <View style={styles.vitalsRow as ViewStyle}>
             {vitalCards.slice(0, 2).map((vital, index) => {
               const IconComponent = vital.icon;
               const TrendIcon = getTrendIcon(vital.trend);
@@ -1311,18 +1312,18 @@ export default function VitalsScreen() {
               return (
                 <View
                   key={vital.key}
-                  style={[styles.vitalCard, isLarge && styles.vitalCardLarge]}
+                  style={[styles.vitalCard, isLarge && styles.vitalCardLarge] as StyleProp<ViewStyle>}
                 >
-                  <View style={styles.vitalHeader}>
+                  <View style={styles.vitalHeader as ViewStyle}>
                     <View
                       style={[
                         styles.vitalIcon,
                         { backgroundColor: vital.color + "20" },
-                      ]}
+                      ] as StyleProp<ViewStyle>}
                     >
                       <IconComponent color={vital.color} size={20} />
                     </View>
-                    <View style={styles.vitalTrend}>
+                    <View style={styles.vitalTrend as ViewStyle}>
                       <TrendIcon
                         color={getStatusColor(vital.status)}
                         size={12}
@@ -1330,7 +1331,7 @@ export default function VitalsScreen() {
                     </View>
                   </View>
 
-                  <Text style={[styles.vitalTitle, isRTL && styles.rtlText]}>
+                  <Text style={[styles.vitalTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
                     {isRTL ? vital.titleAr : vital.title}
                   </Text>
 
@@ -1339,16 +1340,16 @@ export default function VitalsScreen() {
                       styles.vitalValue,
                       isLarge && styles.vitalValueLarge,
                       isRTL && styles.rtlText,
-                    ]}
+                    ] as StyleProp<TextStyle>}
                   >
                     {vital.value}
                   </Text>
 
-                  <Text style={[styles.vitalUnit, isRTL && styles.rtlText]}>
+                  <Text style={[styles.vitalUnit, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
                     {vital.unit}
                   </Text>
 
-                  <View style={styles.statusIndicator}>
+                  <View style={styles.statusIndicator as ViewStyle}>
                     <View
                       style={{
                         width: 8,
@@ -1362,7 +1363,7 @@ export default function VitalsScreen() {
                         styles.statusText,
                         { color: getStatusColor(vital.status) },
                         isRTL && styles.rtlText,
-                      ]}
+                      ] as StyleProp<TextStyle>}
                     >
                       {vital.status === "normal"
                         ? isRTL
@@ -1383,23 +1384,23 @@ export default function VitalsScreen() {
           </View>
 
           {/* Second Row - Sleep + Weight */}
-          <View style={styles.vitalsRow}>
+          <View style={styles.vitalsRow as ViewStyle}>
             {vitalCards.slice(2, 4).map((vital) => {
               const IconComponent = vital.icon;
               const TrendIcon = getTrendIcon(vital.trend);
 
               return (
-                <View key={vital.key} style={styles.vitalCard}>
-                  <View style={styles.vitalHeader}>
+                <View key={vital.key} style={styles.vitalCard as ViewStyle}>
+                  <View style={styles.vitalHeader as ViewStyle}>
                     <View
                       style={[
                         styles.vitalIcon,
                         { backgroundColor: vital.color + "20" },
-                      ]}
+                      ] as StyleProp<ViewStyle>}
                     >
                       <IconComponent color={vital.color} size={20} />
                     </View>
-                    <View style={styles.vitalTrend}>
+                    <View style={styles.vitalTrend as ViewStyle}>
                       <TrendIcon
                         color={getStatusColor(vital.status)}
                         size={12}
@@ -1407,19 +1408,19 @@ export default function VitalsScreen() {
                     </View>
                   </View>
 
-                  <Text style={[styles.vitalTitle, isRTL && styles.rtlText]}>
+                  <Text style={[styles.vitalTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
                     {isRTL ? vital.titleAr : vital.title}
                   </Text>
 
-                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
                     {vital.value}
                   </Text>
 
-                  <Text style={[styles.vitalUnit, isRTL && styles.rtlText]}>
+                  <Text style={[styles.vitalUnit, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
                     {vital.unit}
                   </Text>
 
-                  <View style={styles.statusIndicator}>
+                  <View style={styles.statusIndicator as ViewStyle}>
                     <View
                       style={{
                         width: 8,
@@ -1433,7 +1434,7 @@ export default function VitalsScreen() {
                         styles.statusText,
                         { color: getStatusColor(vital.status) },
                         isRTL && styles.rtlText,
-                      ]}
+                      ] as StyleProp<TextStyle>}
                     >
                       {vital.status === "normal"
                         ? isRTL
@@ -1455,11 +1456,11 @@ export default function VitalsScreen() {
         </View>
 
         {/* Maak One-liner */}
-        <View style={styles.onelineCard}>
-          <Text style={[styles.onelineText, isRTL && styles.rtlText]}>
+        <View style={styles.onelineCard as ViewStyle}>
+          <Text style={[styles.onelineText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL ? '"خليهم دايمًا معك"' : '"Health starts at home"'}
           </Text>
-          <Text style={[styles.onelineSource, isRTL && styles.rtlText]}>
+          <Text style={[styles.onelineSource, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             - Maak
           </Text>
         </View>

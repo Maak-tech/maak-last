@@ -959,6 +959,12 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 300,
   },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
   modalTitle: {
     fontSize: 18,
     fontFamily: "Geist-SemiBold",

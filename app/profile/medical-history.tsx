@@ -137,6 +137,13 @@ export default function MedicalHistoryScreen() {
     try {
       const selectedMember = familyMembers.find(m => m.id === newCondition.familyMemberId);
       
+      // Construct member name from firstName and lastName
+      const memberName = selectedMember
+        ? selectedMember.firstName && selectedMember.lastName
+          ? `${selectedMember.firstName} ${selectedMember.lastName}`
+          : selectedMember.firstName || "Unknown Member"
+        : undefined;
+      
       const medicalData: Omit<MedicalHistory, "id" | "userId"> = {
         condition: newCondition.condition.trim(),
         severity: newCondition.severity,
@@ -145,7 +152,7 @@ export default function MedicalHistoryScreen() {
         isFamily: newCondition.isFamily,
         relation: newCondition.isFamily ? newCondition.relation : undefined,
         familyMemberId: newCondition.isFamily && newCondition.familyMemberId ? newCondition.familyMemberId : undefined,
-        familyMemberName: newCondition.isFamily && selectedMember ? selectedMember.name : undefined,
+        familyMemberName: newCondition.isFamily ? memberName : undefined,
       };
 
       await medicalHistoryService.addMedicalHistory(user.id, medicalData);

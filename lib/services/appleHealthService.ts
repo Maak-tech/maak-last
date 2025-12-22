@@ -269,10 +269,10 @@ const requestAuthorization = async (
             // But initHealthKit still shows the permission screen
             console.warn("HealthKit initialization error (user may have denied):", error);
             // Resolve anyway - the permission screen was shown
-            resolve();
+            resolve(undefined);
           } else {
             // Success - user granted at least some permissions
-            resolve();
+            resolve(undefined);
           }
         }
       );
@@ -317,16 +317,16 @@ const requestAuthorization = async (
           limit: 1,
         };
 
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           AppleHealthKit.getSamples(
             testOptions,
             (error: any, results: any[]) => {
               if (error || !results || results.length === 0) {
                 // Permission might be denied or no data available
                 // Assume granted if no error (user might just not have data)
-                resolve();
+                resolve(undefined);
               } else {
-                resolve();
+                resolve(undefined);
               }
             }
           );

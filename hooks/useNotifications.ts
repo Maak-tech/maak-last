@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 
 export const useNotifications = () => {
-  const notificationListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notificationListener = useRef<any>(undefined);
+  const responseListener = useRef<any>(undefined);
   const isInitialized = useRef(false);
   const initializationInProgress = useRef(false);
   const initializationPromise = useRef<Promise<void> | null>(null);
@@ -34,6 +34,8 @@ export const useNotifications = () => {
           Notifications.setNotificationHandler({
             handleNotification: async () => ({
               shouldShowAlert: true,
+              shouldShowBanner: true,
+              shouldShowList: true,
               shouldPlaySound: true,
               shouldSetBadge: false,
             }),
@@ -129,7 +131,10 @@ export const useNotifications = () => {
             body,
             sound: "default",
           },
-          trigger,
+          trigger: trigger ? {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: trigger,
+          } : null,
         });
       } catch (error) {
         // Silently handle scheduling error
@@ -177,6 +182,8 @@ export const useNotifications = () => {
               Notifications.setNotificationHandler({
                 handleNotification: async () => ({
                   shouldShowAlert: true,
+                  shouldShowBanner: true,
+                  shouldShowList: true,
                   shouldPlaySound: true,
                   shouldSetBadge: false,
                 }),

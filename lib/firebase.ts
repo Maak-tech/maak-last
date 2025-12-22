@@ -74,4 +74,5 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, "us-central1");
 
+export { app };
 export default app;

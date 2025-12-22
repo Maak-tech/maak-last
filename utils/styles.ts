@@ -13,16 +13,18 @@ export const createThemedStyles =
   <T extends StyleSheet.NamedStyles<T>>(
     stylesFunction: ThemedStylesFunction<T>
   ) =>
-  (theme: typeof Theme.light) =>
+  (theme: typeof Theme.light): StyleSheet.NamedStyles<T> =>
     StyleSheet.create(stylesFunction(theme));
+
+import type { TextStyle } from "react-native";
 
 export const getTextStyle = (
   theme: typeof Theme.light,
   variant: "heading" | "subheading" | "body" | "caption" | "button",
   weight: "regular" | "medium" | "semibold" | "bold" = "regular",
   color?: string
-) => {
-  const baseStyles = {
+): TextStyle => {
+  const baseStyles: TextStyle = {
     fontFamily:
       weight === "bold"
         ? theme.typography.fontFamily.bold
@@ -41,7 +43,7 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: headingSize,
         lineHeight: headingSize * theme.typography.lineHeight.tight,
-        fontWeight: theme.typography.fontWeight.bold,
+        fontWeight: theme.typography.fontWeight.bold as TextStyle["fontWeight"],
       };
     }
     case "subheading": {
@@ -50,7 +52,7 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: subheadingSize,
         lineHeight: subheadingSize * theme.typography.lineHeight.normal,
-        fontWeight: theme.typography.fontWeight.semibold,
+        fontWeight: theme.typography.fontWeight.semibold as TextStyle["fontWeight"],
       };
     }
     case "body": {
@@ -75,7 +77,7 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: buttonSize,
         lineHeight: buttonSize * theme.typography.lineHeight.tight,
-        fontWeight: theme.typography.fontWeight.semibold,
+        fontWeight: theme.typography.fontWeight.semibold as TextStyle["fontWeight"],
       };
     }
     default:

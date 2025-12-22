@@ -4,10 +4,14 @@ import { useTranslation } from "react-i18next";
 import {
   Dimensions,
   Image,
+  ImageStyle,
   SafeAreaView,
+  StyleProp,
   Text,
+  TextStyle,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -228,65 +232,65 @@ export default function OnboardingScreen() {
   const currentStepData = onboardingSteps[currentStep];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container as ViewStyle}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={skip} style={styles.skipButton}>
-          <Text style={[styles.skipText, isRTL && styles.rtlText]}>
+      <View style={styles.header as ViewStyle}>
+        <TouchableOpacity onPress={skip} style={styles.skipButton as ViewStyle}>
+          <Text style={[styles.skipText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL ? "تخطي" : "Skip"}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Progress Indicator */}
-      <View style={styles.progressContainer}>
+      <View style={styles.progressContainer as ViewStyle}>
         {onboardingSteps.map((_, index) => (
           <View
             key={index}
             style={[
               styles.progressDot,
               index === currentStep && styles.progressDotActive,
-            ]}
+            ] as StyleProp<ViewStyle>}
           />
         ))}
       </View>
 
       {/* Content */}
-      <View style={styles.content}>
+      <View style={styles.content as ViewStyle}>
         {/* Image Section */}
-        <View style={styles.imageSection}>
-          <View style={styles.imageContainer}>
+        <View style={styles.imageSection as ViewStyle}>
+          <View style={styles.imageContainer as ViewStyle}>
             <Image
               resizeMode="contain"
               source={currentStepData.image}
-              style={styles.image}
+              style={styles.image as StyleProp<ImageStyle>}
             />
           </View>
         </View>
 
         {/* Text Section */}
-        <View style={styles.textContainer}>
-          <Text style={[styles.title, isRTL && styles.rtlText]}>
+        <View style={styles.textContainer as ViewStyle}>
+          <Text style={[styles.title, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL ? currentStepData.titleAr : currentStepData.titleEn}
           </Text>
 
-          <Text style={[styles.description, isRTL && styles.rtlText]}>
+          <Text style={[styles.description, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL ? currentStepData.descAr : currentStepData.descEn}
           </Text>
 
-          <Text style={[styles.oneliner, isRTL && styles.rtlText]}>
+          <Text style={[styles.oneliner, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
             {isRTL ? currentStepData.onelinerAr : currentStepData.onelinerEn}
           </Text>
         </View>
       </View>
 
       {/* Footer */}
-      <View style={styles.footer}>
-        <View style={styles.buttonContainer}>
+      <View style={styles.footer as ViewStyle}>
+        <View style={styles.buttonContainer as ViewStyle}>
           {currentStep > 0 && (
-            <TouchableOpacity onPress={prevStep} style={styles.secondaryButton}>
+            <TouchableOpacity onPress={prevStep} style={styles.secondaryButton as ViewStyle}>
               <Text
-                style={[styles.secondaryButtonText, isRTL && styles.rtlText]}
+                style={[styles.secondaryButtonText, isRTL && styles.rtlText] as StyleProp<TextStyle>}
               >
                 {isRTL ? "السابق" : "Back"}
               </Text>
@@ -296,9 +300,9 @@ export default function OnboardingScreen() {
           <TouchableOpacity
             disabled={isCompleting}
             onPress={nextStep}
-            style={styles.primaryButton}
+            style={styles.primaryButton as ViewStyle}
           >
-            <Text style={[styles.primaryButtonText, isRTL && styles.rtlText]}>
+            <Text style={[styles.primaryButtonText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
               {currentStep === onboardingSteps.length - 1
                 ? isCompleting
                   ? isRTL

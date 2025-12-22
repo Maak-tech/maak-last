@@ -414,6 +414,10 @@ export default function ZeinaScreen() {
           style: "destructive",
           onPress: async () => {
             try {
+              if (!auth.currentUser) {
+                Alert.alert("Error", "You must be logged in to delete chat sessions");
+                return;
+              }
               await deleteDoc(
                 doc(
                   db,
@@ -517,7 +521,6 @@ export default function ZeinaScreen() {
         <View style={styles.inputContainer}>
           <TextInput
             editable={!isStreaming}
-            maxHeight={100}
             multiline
             onChangeText={setInputText}
             placeholder="Ask Zeina about your health, medications, symptoms..."

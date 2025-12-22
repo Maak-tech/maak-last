@@ -59,7 +59,10 @@ async function initializeFirebaseAdmin() {
 
     return admin.firestore();
   } catch (error) {
-    console.error("❌ Failed to initialize Firebase Admin:", error.message);
+    console.error(
+      "❌ Failed to initialize Firebase Admin:",
+      error instanceof Error ? error.message : String(error)
+    );
     throw error;
   }
 }
@@ -284,7 +287,10 @@ async function initializeCollections() {
       );
     }
   } catch (error) {
-    console.error("\n💥 Initialization failed:", error.message);
+    console.error(
+      "\n💥 Initialization failed:",
+      error instanceof Error ? error.message : String(error)
+    );
     console.log("\n🔧 Troubleshooting tips:");
     console.log("1. Make sure your Firebase project is set up correctly");
     console.log("2. Check your environment variables");

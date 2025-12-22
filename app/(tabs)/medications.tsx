@@ -132,7 +132,16 @@ export default function MedicationsScreen() {
       return isRTL ? "أنت" : "You";
     }
     const member = familyMembers.find((m) => m.id === userId);
-    return member?.name || (isRTL ? "عضو غير معروف" : "Unknown Member");
+    if (!member) {
+      return isRTL ? "عضو غير معروف" : "Unknown Member";
+    }
+    if (member.firstName && member.lastName) {
+      return `${member.firstName} ${member.lastName}`;
+    }
+    if (member.firstName) {
+      return member.firstName;
+    }
+    return isRTL ? "عضو غير معروف" : "Unknown Member";
   };
 
   const handleAddMedication = async () => {
@@ -192,7 +201,7 @@ export default function MedicationsScreen() {
             // Combine time and period, then convert to 24-hour format
             const timeWithPeriod = `${reminder.time} ${reminder.period || "AM"}`;
             return {
-              id: reminder.id || `${Date.now()}_${index}`,
+              id: `${Date.now()}_${index}`,
               time: convertTo24Hour(timeWithPeriod), // Convert to 24-hour for storage
               taken: false,
             };

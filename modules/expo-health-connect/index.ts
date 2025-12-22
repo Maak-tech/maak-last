@@ -1,4 +1,4 @@
-import { NativeModulesProxy, EventEmitter, Subscription } from 'expo-modules-core';
+import { NativeModulesProxy } from 'expo-modules-core';
 
 import ExpoHealthConnectModule from './ExpoHealthConnectModule';
 

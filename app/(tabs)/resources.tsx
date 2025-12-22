@@ -21,12 +21,11 @@ import {
   Linking,
   SafeAreaView,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTheme } from "@/contexts/ThemeContext";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface Resource {
   id: string;
@@ -127,7 +126,6 @@ const categories = [
 
 export default function ResourcesScreen() {
   const { t, i18n } = useTranslation();
-  const { theme } = useTheme();
   const router = useRouter();
   const navigation = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -141,182 +139,6 @@ export default function ResourcesScreen() {
       headerShown: false,
     });
   }, [navigation]);
-
-  const styles = createThemedStyles((theme) => ({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background.primary,
-    },
-    header: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.base,
-      backgroundColor: theme.colors.background.secondary,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
-      position: "relative" as const,
-    },
-    backButton: {
-      position: "absolute" as const,
-      left: theme.spacing.lg,
-      top: theme.spacing.lg,
-      padding: theme.spacing.sm,
-      zIndex: 10,
-    },
-    backButtonRTL: {
-      left: "auto",
-      right: theme.spacing.lg,
-    },
-    headerTitle: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
-      fontSize: 28,
-    },
-    headerSubtitle: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      marginTop: 4,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: theme.spacing.base,
-    },
-    categoryTabs: {
-      flexDirection: "row" as const,
-      paddingVertical: theme.spacing.base,
-    },
-    categoryTab: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      paddingHorizontal: theme.spacing.md,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.background.secondary,
-      marginRight: theme.spacing.sm,
-      gap: theme.spacing.xs,
-    },
-    categoryTabActive: {
-      backgroundColor: theme.colors.primary.main,
-    },
-    categoryTabText: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
-    },
-    categoryTabTextActive: {
-      color: theme.colors.neutral.white,
-    },
-    featuredSection: {
-      marginBottom: theme.spacing.xl,
-    },
-    sectionTitle: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
-      marginBottom: theme.spacing.base,
-    },
-    featuredCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginBottom: theme.spacing.base,
-      ...theme.shadows.md,
-    },
-    featuredBadge: {
-      backgroundColor: theme.colors.secondary.main,
-      paddingHorizontal: theme.spacing.sm,
-      paddingVertical: 2,
-      borderRadius: theme.borderRadius.sm,
-      alignSelf: "flex-start" as const,
-      marginBottom: theme.spacing.sm,
-    },
-    featuredBadgeText: {
-      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
-      fontSize: 10,
-    },
-    resourceCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.base,
-      marginBottom: theme.spacing.md,
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      ...theme.shadows.sm,
-    },
-    resourceIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: theme.colors.primary[50],
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginRight: theme.spacing.md,
-    },
-    resourceContent: {
-      flex: 1,
-    },
-    resourceTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
-      marginBottom: 2,
-    },
-    resourceDescription: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-      marginBottom: theme.spacing.xs,
-    },
-    resourceMeta: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: theme.spacing.sm,
-    },
-    metaItem: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: 2,
-    },
-    metaText: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary),
-      fontSize: 10,
-    },
-    resourceActions: {
-      alignItems: "center" as const,
-      gap: theme.spacing.sm,
-    },
-    bookmarkButton: {
-      padding: theme.spacing.xs,
-    },
-    externalLink: {
-      padding: theme.spacing.xs,
-    },
-    onelineCard: {
-      backgroundColor: theme.colors.secondary[50],
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginVertical: theme.spacing.lg,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
-      alignItems: "center" as const,
-      ...theme.shadows.sm,
-    },
-    onelineText: {
-      ...getTextStyle(
-        theme,
-        "subheading",
-        "semibold",
-        theme.colors.primary.main
-      ),
-      fontStyle: "italic" as const,
-      textAlign: "center" as const,
-      marginBottom: theme.spacing.sm,
-    },
-    onelineSource: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
-    },
-    rtlText: {
-      textAlign: "right" as const,
-    },
-  }))(theme);
-
-  const filteredResources =
-    selectedCategory === "all"
-      ? resources
-      : resources.filter((resource) => resource.category === selectedCategory);
-
-  const featuredResources = filteredResources.filter((r) => r.featured);
-  const regularResources = filteredResources.filter((r) => !r.featured);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -333,20 +155,13 @@ export default function ResourcesScreen() {
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "article":
-        return theme.colors.primary.main;
-      case "video":
-        return theme.colors.accent.error;
-      case "guide":
-        return theme.colors.accent.success;
-      case "checklist":
-        return theme.colors.secondary.main;
-      default:
-        return theme.colors.primary.main;
-    }
-  };
+  const filteredResources =
+    selectedCategory === "all"
+      ? resources
+      : resources.filter((resource) => resource.category === selectedCategory);
+
+  const featuredResources = filteredResources.filter((r) => r.featured);
+  const regularResources = filteredResources.filter((r) => !r.featured);
 
   const handleResourcePress = (resource: Resource) => {
     Alert.alert(
@@ -374,7 +189,7 @@ export default function ResourcesScreen() {
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
-            color={theme.colors.text.primary}
+            color="#1E293B"
             size={24}
             style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
           />
@@ -391,65 +206,18 @@ export default function ResourcesScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* Coming Soon Badge */}
-        <View
-          style={{
-            backgroundColor: theme.colors.secondary[50],
-            borderRadius: theme.borderRadius.lg,
-            padding: theme.spacing.lg,
-            marginBottom: theme.spacing.lg,
-            borderLeftWidth: 4,
-            borderLeftColor: theme.colors.secondary.main,
-            alignItems: "center",
-            ...theme.shadows.sm,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#FCD34D",
-              paddingHorizontal: theme.spacing.md,
-              paddingVertical: theme.spacing.xs,
-              borderRadius: theme.borderRadius.full,
-              marginBottom: theme.spacing.sm,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 12,
-                fontFamily: "Geist-Bold",
-                color: "#92400E",
-              }}
-            >
+        <View style={styles.comingSoonCard}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
               {isRTL ? "قريباً" : "COMING SOON"}
             </Text>
           </View>
-          <Text
-            style={[
-              getTextStyle(
-                theme,
-                "subheading",
-                "semibold",
-                theme.colors.primary.main
-              ),
-              isRTL && styles.rtlText,
-              { textAlign: "center", marginBottom: theme.spacing.xs },
-            ]}
-          >
+          <Text style={[styles.comingSoonTitle, isRTL && styles.rtlText]}>
             {isRTL
               ? "المصادر التعليمية قريباً"
               : "Health Resources Coming Soon"}
           </Text>
-          <Text
-            style={[
-              getTextStyle(
-                theme,
-                "body",
-                "regular",
-                theme.colors.text.secondary
-              ),
-              isRTL && styles.rtlText,
-              { textAlign: "center" },
-            ]}
-          >
+          <Text style={[styles.comingSoonDescription, isRTL && styles.rtlText]}>
             {isRTL
               ? "سنضيف قريباً مصادر تعليمية شاملة حول الصحة والرعاية"
               : "We'll be adding comprehensive health and care resources soon"}
@@ -469,3 +237,116 @@ export default function ResourcesScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    position: "relative",
+  },
+  backButton: {
+    position: "absolute",
+    left: 20,
+    top: 20,
+    padding: 8,
+    zIndex: 10,
+  },
+  backButtonRTL: {
+    left: undefined,
+    right: 20,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontFamily: "Geist-Bold",
+    color: "#2563EB",
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginTop: 4,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  comingSoonCard: {
+    backgroundColor: "#FEF3C7",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    marginTop: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  badge: {
+    backgroundColor: "#FCD34D",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginBottom: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontFamily: "Geist-Bold",
+    color: "#92400E",
+  },
+  comingSoonTitle: {
+    fontSize: 20,
+    fontFamily: "Geist-SemiBold",
+    color: "#2563EB",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  comingSoonDescription: {
+    fontSize: 16,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    textAlign: "center",
+  },
+  onelineCard: {
+    backgroundColor: "#EBF4FF",
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: "#2563EB",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  onelineText: {
+    fontSize: 18,
+    fontFamily: "Geist-SemiBold",
+    color: "#2563EB",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  onelineSource: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#2563EB",
+  },
+  rtlText: {
+    fontFamily: "Cairo-Regular",
+    textAlign: "right",
+  },
+});

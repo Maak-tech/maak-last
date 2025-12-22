@@ -82,9 +82,10 @@ export default function NotificationSettingsScreen() {
       setLoading(true);
       const userData = await userService.getUser(user.id);
       if (userData?.preferences?.notifications) {
+        const notificationPrefs = userData.preferences.notifications as unknown as NotificationSettings;
         setSettings({
           ...settings,
-          ...userData.preferences.notifications,
+          ...notificationPrefs,
         });
       }
     } catch (error) {
@@ -110,10 +111,11 @@ export default function NotificationSettingsScreen() {
       await updatePreferences({ preferences: settings });
 
       // Also update locally
+      // Note: notifications is stored as an object in Firestore, but User type defines it as boolean
       await userService.updateUser(user.id, {
         preferences: {
           ...user.preferences,
-          notifications: settings,
+          notifications: settings as any,
         },
       });
 

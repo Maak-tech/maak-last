@@ -47,12 +47,12 @@ async function runValidation() {
     );
   } else {
     console.log("❌ Issues found:\n");
-    validation.issues.forEach((issue, index) => {
+    validation.issues.forEach((issue: string, index: number) => {
       console.log(`${index + 1}. ${issue}`);
     });
 
     console.log("\n💡 Recommendations:\n");
-    validation.recommendations.forEach((rec, index) => {
+    validation.recommendations.forEach((rec: string, index: number) => {
       console.log(`${index + 1}. ${rec}`);
     });
 
