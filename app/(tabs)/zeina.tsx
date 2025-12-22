@@ -522,6 +522,8 @@ export default function ZeinaScreen() {
           <TextInput
             editable={!isStreaming}
             multiline
+            scrollEnabled
+            textAlignVertical="top"
             onChangeText={setInputText}
             placeholder="Ask Zeina about your health, medications, symptoms..."
             placeholderTextColor="#999"

@@ -46,7 +46,7 @@ export default function MedicationsScreen() {
     name: "",
     dosage: "",
     frequency: "",
-    reminders: [] as { time: string; period: "AM" | "PM" }[],
+    reminders: [] as { id?: string; time: string; period: "AM" | "PM" }[],
     notes: "",
   });
   const [editingMedication, setEditingMedication] = useState<Medication | null>(
@@ -201,7 +201,7 @@ export default function MedicationsScreen() {
             // Combine time and period, then convert to 24-hour format
             const timeWithPeriod = `${reminder.time} ${reminder.period || "AM"}`;
             return {
-              id: `${Date.now()}_${index}`,
+              id: reminder.id || `${Date.now()}_${index}`, // Preserve existing ID or generate new one
               time: convertTo24Hour(timeWithPeriod), // Convert to 24-hour for storage
               taken: false,
             };
@@ -423,6 +423,7 @@ export default function MedicationsScreen() {
         }
         
         return {
+          id: reminder.id, // Preserve existing ID when editing
           time: timeValue,
           period: periodValue,
         };

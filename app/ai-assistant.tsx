@@ -529,6 +529,8 @@ export default function AIAssistant() {
           <TextInput
             editable={!isStreaming}
             multiline
+            scrollEnabled
+            textAlignVertical="top"
             onChangeText={setInputText}
             placeholder="Ask about your health, medications, symptoms..."
             placeholderTextColor="#999"
