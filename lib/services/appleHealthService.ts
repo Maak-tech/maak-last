@@ -176,8 +176,26 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
     }
 
     // react-native-health's isAvailable() returns a Promise
-    // Wrap in try-catch to prevent crashes from native module issues
-    const available = await Promise.resolve(AppleHealthKit.isAvailable());
+    // Wrap in nested try-catch to prevent crashes from native module issues
+    let available = false;
+    try {
+      available = await Promise.resolve(AppleHealthKit.isAvailable());
+    } catch (nativeError: any) {
+      // Catch folly/RCTModuleMethod errors from native module
+      console.error("Native module error in isAvailable():", nativeError);
+      
+      let errorReason = "HealthKit native module error. ";
+      if (nativeError?.message?.includes("folly") || nativeError?.message?.includes("RCTModuleMethod")) {
+        errorReason += "The native module bridge encountered an error. Please rebuild the app: bun run build:ios:dev";
+      } else {
+        errorReason += nativeError?.message || "Unknown native module error.";
+      }
+      
+      return {
+        available: false,
+        reason: errorReason,
+      };
+    }
     
     if (!available) {
       // HealthKit.isAvailable() returns false on iOS Simulator

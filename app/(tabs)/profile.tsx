@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   modalOverlay: {
     flex: 1,

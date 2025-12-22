@@ -3,16 +3,29 @@
  * Pre-permission explanation before requesting HealthKit access
  */
 
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Heart, Shield, Lock, ChevronRight, ArrowLeft, Settings } from "lucide-react-native";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Platform } from "react-native";
 
 export default function AppleHealthIntroScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { t, i18n } = useTranslation();
   const { theme, isDark } = useTheme();
+
+  const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate headers
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   if (Platform.OS !== "ios") {
     return (
@@ -28,21 +41,35 @@ export default function AppleHealthIntroScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/profile')}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color="#1E293B"
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
+        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          {isRTL ? "ربط Apple Health" : "Connect Apple Health"}
+        </Text>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color={theme.colors.text.primary} />
-          </TouchableOpacity>
+        {/* Intro Section */}
+        <View style={styles.introSection}>
           <Heart size={64} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-            Connect Apple Health
+          <Text style={[styles.title, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}>
+            {isRTL ? "ربط Apple Health" : "Connect Apple Health"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-            Sync your health data to provide better care insights
+          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}>
+            {isRTL ? "قم بمزامنة بياناتك الصحية لتوفير رؤى رعاية أفضل" : "Sync your health data to provide better care insights"}
           </Text>
         </View>
 
@@ -208,27 +235,56 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   header: {
-    padding: 24,
+    flexDirection: "row",
     alignItems: "center",
-    position: "relative",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
   backButton: {
-    position: "absolute",
-    left: 24,
-    top: 24,
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backButtonRTL: {
+    transform: [{ scaleX: -1 }],
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    flex: 1,
+    textAlign: "center",
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  introSection: {
+    padding: 24,
+    alignItems: "center",
   },
   title: {
     fontSize: 32,
-    fontWeight: "700",
+    fontFamily: "Geist-Bold",
     marginTop: 16,
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
+    fontFamily: "Geist-Regular",
     textAlign: "center",
     lineHeight: 24,
+  },
+  rtlText: {
+    fontFamily: "Geist-Regular",
   },
   section: {
     padding: 24,

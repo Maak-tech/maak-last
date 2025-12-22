@@ -22,6 +22,8 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const { signUp, loading } = useAuth();
   const router = useRouter();
+  
+  // State
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -109,15 +111,13 @@ export default function RegisterScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboardContainer}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          bounces={false}
         >
           <View style={styles.header}>
             <TouchableOpacity
@@ -208,21 +208,14 @@ export default function RegisterScreen() {
                 {isRTL ? "الاسم الأول" : "First Name"}
               </Text>
               <TextInput
-                onChangeText={(text) => {
-                  try {
-                    setFirstName(text);
-                  } catch (error) {
-                    console.error("Error setting first name:", error);
-                  }
-                }}
-                returnKeyType="next"
+                onChangeText={setFirstName}
                 placeholder={
                   isRTL ? "ادخل اسمك الأول" : "Enter your first name"
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={firstName}
-                blurOnSubmit={false}
+                autoCorrect={false}
               />
             </View>
 
@@ -231,21 +224,14 @@ export default function RegisterScreen() {
                 {isRTL ? "اسم العائلة" : "Last Name"}
               </Text>
               <TextInput
-                onChangeText={(text) => {
-                  try {
-                    setLastName(text);
-                  } catch (error) {
-                    console.error("Error setting last name:", error);
-                  }
-                }}
-                returnKeyType="next"
+                onChangeText={setLastName}
                 placeholder={
                   isRTL ? "ادخل اسم عائلتك" : "Enter your last name"
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={lastName}
-                blurOnSubmit={false}
+                autoCorrect={false}
               />
             </View>
 
@@ -256,21 +242,14 @@ export default function RegisterScreen() {
               <TextInput
                 autoCapitalize="none"
                 keyboardType="email-address"
-                onChangeText={(text) => {
-                  try {
-                    setEmail(text);
-                  } catch (error) {
-                    console.error("Error setting email:", error);
-                  }
-                }}
-                returnKeyType="next"
+                onChangeText={setEmail}
                 placeholder={
                   isRTL ? "ادخل بريدك الإلكتروني" : "Enter your email"
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={email}
-                blurOnSubmit={false}
+                autoCorrect={false}
               />
             </View>
 
@@ -279,14 +258,7 @@ export default function RegisterScreen() {
                 {t("password")}
               </Text>
               <TextInput
-                onChangeText={(text) => {
-                  try {
-                    setPassword(text);
-                  } catch (error) {
-                    console.error("Error setting password:", error);
-                  }
-                }}
-                returnKeyType="next"
+                onChangeText={setPassword}
                 placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
                 secureTextEntry
                 style={[
@@ -296,7 +268,7 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 value={password}
-                blurOnSubmit={false}
+                autoCorrect={false}
               />
               {errors.password && (
                 <Text style={styles.fieldErrorText}>{errors.password}</Text>
@@ -308,14 +280,7 @@ export default function RegisterScreen() {
                 {t("confirmPassword")}
               </Text>
               <TextInput
-                onChangeText={(text) => {
-                  try {
-                    setConfirmPassword(text);
-                  } catch (error) {
-                    console.error("Error setting confirm password:", error);
-                  }
-                }}
-                returnKeyType="done"
+                onChangeText={setConfirmPassword}
                 placeholder={
                   isRTL ? "أعد إدخال كلمة المرور" : "Confirm your password"
                 }
@@ -327,7 +292,7 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 value={confirmPassword}
-                blurOnSubmit={false}
+                autoCorrect={false}
               />
               {errors.confirmPassword && (
                 <Text style={styles.fieldErrorText}>
@@ -370,6 +335,7 @@ export default function RegisterScreen() {
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     value={familyCode}
+                    autoCorrect={false}
                   />
                   <Text style={[styles.helperText, isRTL && styles.rtlText]}>
                     {isRTL
@@ -525,7 +491,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   rtlInput: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   registerButton: {
     backgroundColor: "#2563EB",
@@ -560,7 +526,7 @@ const styles = StyleSheet.create({
     color: "#2563EB",
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   familySection: {
     marginVertical: 16,

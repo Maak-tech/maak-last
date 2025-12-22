@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   rtlInput: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   forgotButton: {
     alignSelf: "flex-end",
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     color: "#2563EB",
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   familySection: {
     marginVertical: 16,

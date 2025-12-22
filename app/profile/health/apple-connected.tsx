@@ -3,7 +3,7 @@
  * Shows connection status, granted metrics, and sync controls
  */
 
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -25,6 +25,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   getProviderConnection,
@@ -38,7 +39,18 @@ import { format } from "date-fns";
 
 export default function AppleHealthConnectedScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { t, i18n } = useTranslation();
   const { theme, isDark } = useTheme();
+
+  const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate headers
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [connection, setConnection] = useState<ProviderConnection | null>(null);
@@ -149,15 +161,29 @@ export default function AppleHealthConnectedScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/profile')}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color="#1E293B"
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
+        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          {isRTL ? "Apple Health متصل" : "Apple Health Connected"}
+        </Text>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color={theme.colors.text.primary} />
-          </TouchableOpacity>
+        {/* Status Section */}
+        <View style={styles.statusSection}>
           <View
             style={[
               styles.iconContainer,
@@ -166,11 +192,14 @@ export default function AppleHealthConnectedScreen() {
           >
             <Check size={32} color={theme.colors.accent.success} />
           </View>
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-            Apple Health Connected
+          <Text style={[styles.title, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}>
+            {isRTL ? "Apple Health متصل" : "Apple Health Connected"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-            Connected on {format(new Date(connection.connectedAt!), "MMM d, yyyy")}
+          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}>
+            {isRTL 
+              ? `متصل في ${format(new Date(connection.connectedAt!), "d MMM yyyy")}`
+              : `Connected on ${format(new Date(connection.connectedAt!), "MMM d, yyyy")}`
+            }
           </Text>
         </View>
 
@@ -365,15 +394,43 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   header: {
-    padding: 24,
+    flexDirection: "row",
     alignItems: "center",
-    position: "relative",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
   backButton: {
-    position: "absolute",
-    left: 24,
-    top: 24,
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backButtonRTL: {
+    transform: [{ scaleX: -1 }],
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    flex: 1,
+    textAlign: "center",
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  statusSection: {
+    padding: 24,
+    alignItems: "center",
+  },
+  rtlText: {
+    fontFamily: "Geist-Regular",
   },
   iconContainer: {
     width: 64,

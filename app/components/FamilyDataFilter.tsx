@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     color: "#1E293B",
   },
   headerTitleRTL: {
-    fontFamily: "Cairo-SemiBold",
+    fontFamily: "Geist-SemiBold",
   },
   expandButton: {
     padding: 4,
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   filterTextRTL: {
-    fontFamily: "Cairo-Medium",
+    fontFamily: "Geist-Medium",
   },
   memberAvatar: {
     width: 20,
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   selectedIndicatorTextRTL: {
-    fontFamily: "Cairo-Medium",
+    fontFamily: "Geist-Medium",
   },
 });
 

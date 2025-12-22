@@ -31,10 +31,6 @@ export default function RootLayout() {
     "Geist-Medium": require("@/assets/fonts/Geist-Medium.ttf"),
     "Geist-SemiBold": require("@/assets/fonts/Geist-SemiBold.ttf"),
     "Geist-Bold": require("@/assets/fonts/Geist-Bold.ttf"),
-    "Cairo-Regular": require("@expo-google-fonts/cairo/Cairo_400Regular.ttf"),
-    "Cairo-Medium": require("@expo-google-fonts/cairo/Cairo_500Medium.ttf"),
-    "Cairo-SemiBold": require("@expo-google-fonts/cairo/Cairo_600SemiBold.ttf"),
-    "Cairo-Bold": require("@expo-google-fonts/cairo/Cairo_700Bold.ttf"),
   });
 
   useEffect(() => {

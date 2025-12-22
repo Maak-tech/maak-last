@@ -1306,7 +1306,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   rtlInput: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   frequencyGrid: {
     flexDirection: "row",
@@ -1354,7 +1354,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   centerContainer: {
     flex: 1,

@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
     color: "#1E293B",
   },
   rtlText: {
-    fontFamily: "Cairo-Bold",
+    fontFamily: "Geist-Bold",
     textAlign: "right",
   },
   addButton: {
@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
     color: "#1E293B",
   },
   rtlTextInput: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   textArea: {
     minHeight: 80,

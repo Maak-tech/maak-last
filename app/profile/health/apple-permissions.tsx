@@ -3,7 +3,7 @@
  * Metric selection before requesting HealthKit permissions
  */
 
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { useState, useEffect } from "react";
 import {
   View,
@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Info,
 } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Platform } from "react-native";
 import {
@@ -38,7 +39,18 @@ import type { ProviderConnection } from "@/lib/health/healthTypes";
 
 export default function AppleHealthPermissionsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { t, i18n } = useTranslation();
   const { theme, isDark } = useTheme();
+
+  const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate headers
+  useEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
   const [loading, setLoading] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
@@ -48,14 +60,21 @@ export default function AppleHealthPermissionsScreen() {
 
   useEffect(() => {
     loadAvailableMetrics();
-    checkHealthKitAvailability();
+    // Don't check HealthKit availability on mount to prevent crashes
+    // Will check when user tries to continue
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkHealthKitAvailability = async () => {
-    const availability = await appleHealthService.isAvailable();
-    setHealthKitAvailable(availability.available);
-    setAvailabilityReason(availability.reason);
+    try {
+      const availability = await appleHealthService.isAvailable();
+      setHealthKitAvailable(availability.available);
+      setAvailabilityReason(availability.reason);
+    } catch (error) {
+      console.error("Error checking HealthKit availability:", error);
+      setHealthKitAvailable(false);
+      setAvailabilityReason("Failed to check HealthKit availability. Please try again.");
+    }
   };
 
   const loadAvailableMetrics = () => {
@@ -105,18 +124,21 @@ export default function AppleHealthPermissionsScreen() {
       return;
     }
 
-    // Check availability before proceeding
-    const availability = await appleHealthService.isAvailable();
-    if (!availability.available) {
-      Alert.alert(
-        "HealthKit Not Available",
-        availability.reason || "HealthKit is not available. Please ensure you're running a development build or standalone app."
-      );
-      return;
-    }
-
     setLoading(true);
+    
     try {
+      // Check availability before proceeding - wrapped in try-catch to prevent crashes
+      const availability = await appleHealthService.isAvailable();
+      
+      if (!availability.available) {
+        setLoading(false);
+        Alert.alert(
+          "HealthKit Not Available",
+          availability.reason || "HealthKit is not available. Please ensure you're running a development build or standalone app."
+        );
+        return;
+      }
+
       // Request HealthKit permissions
       const { granted, denied } = await appleHealthService.requestAuthorization(
         Array.from(selectedMetrics)
@@ -137,11 +159,21 @@ export default function AppleHealthPermissionsScreen() {
       // Navigate to connected screen
       router.replace("/profile/health/apple-connected" as any);
     } catch (error: any) {
-      // Silently handle error
+      // Handle native module errors and crashes
+      console.error("HealthKit permission request error:", error);
+      
+      let errorMessage = "Failed to request HealthKit permissions. Please try again.";
+      
+      // Check for specific native module errors
+      if (error?.message?.includes("RCTModuleMethod") || error?.message?.includes("folly")) {
+        errorMessage = "HealthKit native module error. Please rebuild the app with: bun run build:ios:dev";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       Alert.alert(
         "Permission Error",
-        error.message ||
-          "Failed to request HealthKit permissions. Please try again."
+        errorMessage
       );
     } finally {
       setLoading(false);
@@ -164,17 +196,24 @@ export default function AppleHealthPermissionsScreen() {
   if (healthKitAvailable === false) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/(tabs)/profile')}
+            style={[styles.backButton, isRTL && styles.backButtonRTL]}
           >
-            <ArrowLeft size={24} color={theme.colors.text.primary} />
+            <ArrowLeft
+              color="#1E293B"
+              size={24}
+              style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+            />
           </TouchableOpacity>
-          <Heart size={48} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-            HealthKit Not Available
+
+          <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+            {isRTL ? "أذونات Apple Health" : "Apple Health Permissions"}
           </Text>
+
+          <View style={styles.headerSpacer} />
         </View>
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
@@ -190,21 +229,35 @@ export default function AppleHealthPermissionsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color="#1E293B"
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
+        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          {isRTL ? "أذونات Apple Health" : "Apple Health Permissions"}
+        </Text>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color={theme.colors.text.primary} />
-          </TouchableOpacity>
+        {/* Intro Section */}
+        <View style={styles.introSection}>
           <Heart size={48} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-            Select Metrics
+          <Text style={[styles.title, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}>
+            {isRTL ? "اختر المقاييس" : "Select Metrics"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-            Choose which health metrics to sync from Apple Health
+          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}>
+            {isRTL ? "اختر مقاييس الصحة التي تريد مزامنتها من Apple Health" : "Choose which health metrics to sync from Apple Health"}
           </Text>
         </View>
 
@@ -435,19 +488,47 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   header: {
-    padding: 24,
+    flexDirection: "row",
     alignItems: "center",
-    position: "relative",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
   },
   backButton: {
-    position: "absolute",
-    left: 24,
-    top: 24,
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backButtonRTL: {
+    transform: [{ scaleX: -1 }],
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    flex: 1,
+    textAlign: "center",
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  rtlText: {
+    fontFamily: "Geist-Regular",
+  },
+  introSection: {
+    padding: 24,
+    alignItems: "center",
   },
   title: {
     fontSize: 28,
-    fontWeight: "700",
+    fontFamily: "Geist-Bold",
     marginTop: 16,
     marginBottom: 8,
     textAlign: "center",

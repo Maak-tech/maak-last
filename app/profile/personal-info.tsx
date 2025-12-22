@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   modalContainer: {
     flex: 1,
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   rtlInput: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   fieldDescription: {
     fontSize: 12,

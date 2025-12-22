@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     color: "#2563EB",
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
     textAlign: "right",
   },
 });

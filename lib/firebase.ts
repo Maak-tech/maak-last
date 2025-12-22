@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
@@ -69,7 +69,33 @@ try {
   );
 }
 
-export const auth = getAuth(app);
+// Initialize Auth with persistence for React Native
+// This ensures authentication state persists across app restarts
+let auth;
+try {
+  // Try to initialize with local persistence (uses AsyncStorage in React Native)
+  auth = initializeAuth(app, {
+    persistence: browserLocalPersistence,
+  });
+} catch (error: any) {
+  // If auth is already initialized (e.g., during hot reload), use getAuth instead
+  if (error.code === "auth/already-initialized") {
+    auth = getAuth(app);
+    // Set persistence explicitly for existing auth instance
+    setPersistence(auth, browserLocalPersistence).catch((persistError) => {
+      console.warn("Failed to set auth persistence:", persistError);
+    });
+  } else {
+    // Fallback to getAuth if initialization fails
+    auth = getAuth(app);
+    // Set persistence explicitly
+    setPersistence(auth, browserLocalPersistence).catch((persistError) => {
+      console.warn("Failed to set auth persistence:", persistError);
+    });
+  }
+}
+
+export { auth };
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, "us-central1");

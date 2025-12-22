@@ -24,8 +24,25 @@ export default function AppleHealthPermissionsScreen() {
 
     setAuthorizing(true);
     try {
-      // Check availability first
-      const availability = await appleHealthService.isAvailable();
+      // Check availability first - wrapped in try-catch to prevent crashes
+      let availability;
+      try {
+        availability = await appleHealthService.isAvailable();
+      } catch (availError: any) {
+        console.error("Error checking HealthKit availability:", availError);
+        Alert.alert(
+          "HealthKit Error",
+          "Failed to check HealthKit availability. Please rebuild the app if you see native module errors.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+        return;
+      }
+      
       if (!availability.available) {
         Alert.alert(
           "HealthKit Not Available",
@@ -86,9 +103,20 @@ export default function AppleHealthPermissionsScreen() {
         );
       }
     } catch (error: any) {
+      console.error("HealthKit permission request error:", error);
+      
+      let errorMessage = "Failed to request HealthKit permissions. Please try again.";
+      
+      // Check for specific native module errors
+      if (error?.message?.includes("RCTModuleMethod") || error?.message?.includes("folly")) {
+        errorMessage = "HealthKit native module error. Please rebuild the app with: bun run build:ios:dev";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       Alert.alert(
         "Permission Error",
-        error.message || "Failed to request HealthKit permissions. Please try again.",
+        errorMessage,
         [
           {
             text: "OK",

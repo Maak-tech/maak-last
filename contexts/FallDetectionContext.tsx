@@ -114,7 +114,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     loadFallDetectionSetting();
-  }, [user?.id]);
+  }, [user?.id, fallDetection]);
 
   // Toggle fall detection setting
   const toggleFallDetection = useCallback(

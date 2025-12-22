@@ -1949,7 +1949,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   rtlInput: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   relationOptions: {
     flexDirection: "row",
@@ -2026,7 +2026,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   memberStats: {
     alignItems: "flex-end",

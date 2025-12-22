@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   tabContainer: {
     flexDirection: "row",
@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   rtlInput: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
   severityOptions: {
     flexDirection: "row",

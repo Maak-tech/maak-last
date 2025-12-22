@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import {
   ArrowLeft,
   Book,
@@ -11,6 +11,7 @@ import {
   Phone,
   Video,
 } from "lucide-react-native";
+import { useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -23,11 +24,23 @@ import {
   View,
 } from "react-native";
 
+export const options = {
+  headerShown: false,
+};
+
 export default function HelpSupportScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const navigation = useNavigation();
 
   const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate headers
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   const handleContactMethod = (method: string, value: string) => {
     switch (method) {
@@ -135,7 +148,7 @@ export default function HelpSupportScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push('/(tabs)/profile')}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
@@ -648,6 +661,6 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
 });

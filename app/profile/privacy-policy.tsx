@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { ArrowLeft, Calendar, Shield } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -16,14 +16,26 @@ import {
   type ParsedDocument,
 } from "../../lib/services/documentService";
 
+export const options = {
+  headerShown: false,
+};
+
 export default function PrivacyPolicyScreen() {
   const { i18n } = useTranslation();
   const router = useRouter();
+  const navigation = useNavigation();
   const [document, setDocument] = useState<ParsedDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const isRTL = i18n.language === "ar";
+
+  // Hide the default header to prevent duplicate headers
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   useEffect(() => {
     loadPrivacyPolicy();
@@ -79,7 +91,7 @@ export default function PrivacyPolicyScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.push("/(tabs)/profile")}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
@@ -337,6 +349,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   rtlText: {
-    fontFamily: "Cairo-Regular",
+    fontFamily: "Geist-Regular",
   },
 });
