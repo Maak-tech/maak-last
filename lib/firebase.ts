@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, initializeAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getAuth, initializeAuth, browserLocalPersistence, setPersistence, type Auth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
@@ -71,7 +71,7 @@ try {
 
 // Initialize Auth with persistence for React Native
 // This ensures authentication state persists across app restarts
-let auth;
+let auth: Auth;
 try {
   // Try to initialize with local persistence (uses AsyncStorage in React Native)
   auth = initializeAuth(app, {
