@@ -7,7 +7,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import type { AvatarType } from "@/types";
 
@@ -107,16 +107,17 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardContainer}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
           <View style={styles.header}>
             <TouchableOpacity
@@ -307,7 +308,14 @@ export default function RegisterScreen() {
                 {t("confirmPassword")}
               </Text>
               <TextInput
-                onChangeText={setConfirmPassword}
+                onChangeText={(text) => {
+                  try {
+                    setConfirmPassword(text);
+                  } catch (error) {
+                    console.error("Error setting confirm password:", error);
+                  }
+                }}
+                returnKeyType="done"
                 placeholder={
                   isRTL ? "أعد إدخال كلمة المرور" : "Confirm your password"
                 }
@@ -319,6 +327,7 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 value={confirmPassword}
+                blurOnSubmit={false}
               />
               {errors.confirmPassword && (
                 <Text style={styles.fieldErrorText}>
