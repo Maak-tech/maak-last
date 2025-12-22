@@ -56,6 +56,7 @@
     "i18next": "^23.11.5",
     "i18next-resources-to-backend": "^1.2.1",
     "lucide-react-native": "^0.400.0",
+    "nativewind": "^4.2.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-firebase-hooks": "^5.1.1",
@@ -82,6 +83,7 @@
     "metro": "^0.83.1",
     "metro-resolver": "^0.82.5",
     "patch-package": "^8.0.0",
+    "tailwindcss": "^4.1.18",
     "typescript": "~5.9.2",
     "ultracite": "6.4.2"
   },

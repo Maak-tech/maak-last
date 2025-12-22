@@ -11,6 +11,8 @@ module.exports = (api) => {
       ],
     ],
     plugins: [
+      // NativeWind plugin for Tailwind CSS support
+      "nativewind/babel",
       // Reanimated plugin must be last in the plugins array
       // Always include it since react-native-reanimated is installed
       "react-native-reanimated/plugin",
