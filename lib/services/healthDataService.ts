@@ -331,7 +331,8 @@ export const healthDataService = {
           standTime: getSumValue("stand_time"), // Sum stand time for daily total
           workouts: (() => {
             const metric = metrics.find((m) => m.metricKey === "workouts");
-            return metric?.samples.length || 0;
+            if (!metric || metric.samples.length === 0) return undefined;
+            return metric.samples.length;
           })(),
           
           // Sleep
