@@ -17,6 +17,9 @@ import {
   Thermometer,
   Droplet,
   Gauge,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -150,10 +153,8 @@ export default function FamilyScreen() {
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members);
 
-      // Load metrics if in dashboard view
-      if (viewMode === "dashboard") {
-        await loadMemberMetrics(members);
-      }
+      // Always load metrics for attention items
+      await loadMemberMetrics(members);
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
@@ -259,12 +260,12 @@ export default function FamilyScreen() {
     }
   };
 
-  // Load metrics when switching to dashboard view
+  // Load metrics when family members change
   useEffect(() => {
-    if (viewMode === "dashboard" && familyMembers.length > 0) {
+    if (familyMembers.length > 0) {
       loadMemberMetrics(familyMembers);
     }
-  }, [viewMode]);
+  }, [familyMembers.length]);
 
   // Refresh data when tab is focused
   useFocusEffect(
@@ -853,7 +854,7 @@ export default function FamilyScreen() {
 
   // Get items that need attention
   const getItemsNeedingAttention = () => {
-    if (viewMode !== "dashboard" || memberMetrics.length === 0) {
+    if (memberMetrics.length === 0) {
       return [];
     }
 
@@ -863,6 +864,7 @@ export default function FamilyScreen() {
       reason: string;
       severity: "low" | "medium" | "high";
       icon: string;
+      trend?: "up" | "down" | "stable";
     }> = [];
 
     memberMetrics.forEach((metric) => {
@@ -870,6 +872,14 @@ export default function FamilyScreen() {
         metric.user.firstName && metric.user.lastName
           ? `${metric.user.firstName} ${metric.user.lastName}`
           : metric.user.firstName || "User";
+
+      // Determine trend based on health score (lower is worse)
+      let healthTrend: "up" | "down" | "stable" = "stable";
+      if (metric.healthScore < 60) {
+        healthTrend = "down"; // Critical - trending down
+      } else if (metric.healthScore < 80) {
+        healthTrend = "down"; // Needs attention - trending down
+      }
 
       // Check for critical health score
       if (metric.healthScore < 60) {
@@ -881,6 +891,7 @@ export default function FamilyScreen() {
             : `Low health score (${metric.healthScore})`,
           severity: "high",
           icon: "health",
+          trend: healthTrend,
         });
       } else if (metric.healthScore < 80) {
         attentionItems.push({
@@ -891,6 +902,7 @@ export default function FamilyScreen() {
             : `Health score needs attention (${metric.healthScore})`,
           severity: "medium",
           icon: "health",
+          trend: healthTrend,
         });
       }
 
@@ -904,6 +916,7 @@ export default function FamilyScreen() {
             : `${metric.alertsCount} active ${metric.alertsCount === 1 ? "alert" : "alerts"}`,
           severity: metric.alertsCount > 2 ? "high" : "medium",
           icon: "alert",
+          trend: metric.alertsCount > 2 ? "up" : "stable", // More alerts = trending up
         });
       }
 
@@ -917,6 +930,7 @@ export default function FamilyScreen() {
             : `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "symptom" : "symptoms"} this week`,
           severity: metric.symptomsThisWeek > 5 ? "high" : "medium",
           icon: "symptom",
+          trend: metric.symptomsThisWeek > 5 ? "up" : "stable", // More symptoms = trending up
         });
       }
 
@@ -928,6 +942,7 @@ export default function FamilyScreen() {
           reason: isRTL ? "علامات حيوية غير طبيعية" : "Abnormal vital signs",
           severity: "high",
           icon: "vitals",
+          trend: "down", // Abnormal vitals = trending down
         });
       }
     });
@@ -1038,15 +1053,15 @@ export default function FamilyScreen() {
         {/* Active Alerts */}
         <AlertsCard />
 
-        {/* Items Needing Attention */}
-        {viewMode === "dashboard" && attentionItems.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.attentionHeader}>
-              <AlertTriangle color="#F59E0B" size={20} />
-              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "العناصر التي تحتاج انتباه" : "Items Needing Attention"}
-              </Text>
-            </View>
+        {/* Needs Attention */}
+        <View style={styles.section}>
+          <View style={styles.attentionHeader}>
+            <AlertTriangle color="#F59E0B" size={20} />
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {isRTL ? "يحتاج انتباه" : "Needs Attention"}
+            </Text>
+          </View>
+          {attentionItems.length > 0 ? (
             <View style={styles.attentionCard}>
               {attentionItems.map((item, index) => {
                 const severityColors = {
@@ -1097,14 +1112,41 @@ export default function FamilyScreen() {
                           >
                             {item.memberName}
                           </Text>
-                          <Text
-                            style={[
-                              styles.attentionItemReason,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {item.reason}
-                          </Text>
+                          <View style={styles.attentionItemReasonRow}>
+                            <Text
+                              style={[
+                                styles.attentionItemReason,
+                                isRTL && styles.rtlText,
+                              ]}
+                            >
+                              {item.reason}
+                            </Text>
+                            {item.trend && (
+                              <View style={styles.trendContainer}>
+                                {item.trend === "up" && (
+                                  <TrendingUp
+                                    color={colors.text}
+                                    size={14}
+                                    style={styles.trendIcon}
+                                  />
+                                )}
+                                {item.trend === "down" && (
+                                  <TrendingDown
+                                    color={colors.text}
+                                    size={14}
+                                    style={styles.trendIcon}
+                                  />
+                                )}
+                                {item.trend === "stable" && (
+                                  <Minus
+                                    color={colors.text}
+                                    size={14}
+                                    style={styles.trendIcon}
+                                  />
+                                )}
+                              </View>
+                            )}
+                          </View>
                         </View>
                       </View>
                       <View
@@ -1139,8 +1181,16 @@ export default function FamilyScreen() {
                 );
               })}
             </View>
-          </View>
-        )}
+          ) : (
+            <View style={styles.emptyAttentionCard}>
+              <Text style={[styles.emptyAttentionText, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? "لا توجد عناصر تحتاج انتباه في الوقت الحالي"
+                  : "No items need attention at this time"}
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Family Members */}
         <View style={styles.section}>
@@ -2613,6 +2663,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Geist-Regular",
     color: "#64748B",
+    flex: 1,
+  },
+  attentionItemReasonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  trendContainer: {
+    marginLeft: 4,
+  },
+  trendIcon: {
+    marginTop: 1,
   },
   severityBadge: {
     paddingHorizontal: 8,
@@ -2622,5 +2685,22 @@ const styles = StyleSheet.create({
   severityBadgeText: {
     fontSize: 10,
     fontFamily: "Geist-SemiBold",
+  },
+  emptyAttentionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  emptyAttentionText: {
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    textAlign: "center",
   },
 });
