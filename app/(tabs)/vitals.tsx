@@ -478,7 +478,6 @@ export default function VitalsScreen() {
         setHealthKitAvailable(availability.available);
         setAvailabilityReason(availability.reason);
       } catch (error: any) {
-        console.error("Error checking HealthKit availability:", error);
         setHealthKitAvailable(false);
         setAvailabilityReason(error?.message || "Failed to check HealthKit availability");
       }
@@ -494,7 +493,6 @@ export default function VitalsScreen() {
         setHealthConnectAvailable(availability.available);
         setAvailabilityReason(availability.reason);
       } catch (error: any) {
-        console.error("Error checking Health Connect availability:", error);
         setHealthConnectAvailable(false);
         setAvailabilityReason(error?.message || "Failed to check Health Connect availability");
       }
@@ -636,7 +634,6 @@ export default function VitalsScreen() {
                 retries < maxRetries
               ) {
                 // Native bridge not ready yet, wait and retry
-                console.log(`HealthKit bridge not ready, retry ${retries}/${maxRetries}...`);
                 await new Promise(resolve => setTimeout(resolve, 1500));
               } else {
                 throw bridgeError; // Re-throw if not a bridge error or max retries reached
@@ -657,8 +654,7 @@ export default function VitalsScreen() {
 
           // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
           // This prevents RCTModuleMethod invokeWithBridge errors
-          console.log("[Vitals] Waiting for bridge to stabilize before requesting authorization...");
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+          await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
 
           // Request HealthKit permissions for selected metrics
           // If "all" is selected, request all HealthKit types
@@ -666,25 +662,40 @@ export default function VitalsScreen() {
             ? ["all"] 
             : Array.from(selectedMetrics);
           
-          console.log("[Vitals] Requesting HealthKit authorization for:", metricsToRequest);
           const result = await appleHealthService.requestAuthorization(metricsToRequest);
           granted = result.granted;
           denied = result.denied;
           provider = "apple_health";
         } catch (healthKitError: any) {
-          console.error("HealthKit error:", healthKitError);
+          const errorMsg = healthKitError?.message || String(healthKitError);
+          const isBridgeError = 
+            errorMsg.includes("RCTModuleMethod") ||
+            errorMsg.includes("invokewithbridge") ||
+            errorMsg.includes("invokeWithBridge") ||
+            errorMsg.includes("invokeinner") ||
+            errorMsg.includes("invokeInner") ||
+            errorMsg.toLowerCase().includes("invoke") ||
+            errorMsg.includes("bridge");
+          
           Alert.alert(
             isRTL ? "خطأ في HealthKit" : "HealthKit Error",
-            healthKitError?.message || 
-            (isRTL 
-              ? "فشل الاتصال بـ HealthKit. يرجى إعادة بناء التطبيق بوحدات native."
-              : "Failed to connect to HealthKit. Please rebuild the app with native modules.")
+            isBridgeError
+              ? (isRTL
+                  ? "جسر React Native غير جاهز. يرجى المحاولة مرة أخرى بعد بضع ثوانٍ أو إعادة بناء التطبيق."
+                  : "React Native bridge is not ready. Please try again in a few seconds or rebuild the app.")
+              : (healthKitError?.message || 
+                 (isRTL 
+                   ? "فشل الاتصال بـ HealthKit. يرجى إعادة بناء التطبيق بوحدات native."
+                   : "Failed to connect to HealthKit. Please rebuild the app with native modules."))
           );
+          setAuthorizing(false);
           return;
         }
       } else if (Platform.OS === "android") {
         // Check availability before proceeding - wrap in try-catch
         try {
+          // Lazy import to prevent early native module loading
+          const { googleHealthService } = await import("@/lib/services/googleHealthService");
           const availability = await googleHealthService.isAvailable();
           if (!availability.available) {
             Alert.alert(
@@ -721,7 +732,6 @@ export default function VitalsScreen() {
           denied = result.denied;
           provider = "health_connect";
         } catch (healthConnectError: any) {
-          console.error("Health Connect error:", healthConnectError);
           Alert.alert(
             isRTL ? "خطأ في Health Connect" : "Health Connect Error",
             healthConnectError?.message || 

@@ -1,6 +1,16 @@
 /**
- * Comprehensive list of all available HealthKit read permissions
- * This includes all HealthKit types that can be requested for reading
+ * Comprehensive list of HealthKit read permissions
+ * 
+ * This includes essential HealthKit types for core health tracking.
+ * Optimized to 68 types (down from 180+) by removing:
+ * - Sensitive reproductive health details
+ * - Alcohol consumption data
+ * - Advanced clinical/research metrics
+ * - Overly granular nutrition vitamins/minerals
+ * - Specialized sports metrics
+ * 
+ * Last updated: December 23, 2025
+ * Build: 26
  */
 
 export const ALL_HEALTHKIT_READ_TYPES = [
@@ -11,16 +21,11 @@ export const ALL_HEALTHKIT_READ_TYPES = [
   "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
   "HKQuantityTypeIdentifierBloodPressureSystolic",
   "HKQuantityTypeIdentifierBloodPressureDiastolic",
-  "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
   "HKQuantityTypeIdentifierVO2Max",
-  "HKQuantityTypeIdentifierCardioFitness",
   
   // Respiratory
   "HKQuantityTypeIdentifierRespiratoryRate",
   "HKQuantityTypeIdentifierOxygenSaturation",
-  "HKQuantityTypeIdentifierForcedVitalCapacity",
-  "HKQuantityTypeIdentifierForcedExpiratoryVolume1",
-  "HKQuantityTypeIdentifierPeakExpiratoryFlowRate",
   
   // Body Measurements
   "HKQuantityTypeIdentifierBodyMass",
@@ -39,110 +44,65 @@ export const ALL_HEALTHKIT_READ_TYPES = [
   "HKQuantityTypeIdentifierDistanceWalkingRunning",
   "HKQuantityTypeIdentifierDistanceCycling",
   "HKQuantityTypeIdentifierDistanceSwimming",
-  "HKQuantityTypeIdentifierDistanceWheelchair",
-  "HKQuantityTypeIdentifierFlightsClimbed",
-  "HKQuantityTypeIdentifierActiveEnergyBurned",
   "HKQuantityTypeIdentifierBasalEnergyBurned",
+  "HKQuantityTypeIdentifierActiveEnergyBurned",
+  "HKQuantityTypeIdentifierFlightsClimbed",
   "HKQuantityTypeIdentifierAppleExerciseTime",
-  "HKQuantityTypeIdentifierAppleStandTime",
-  "HKQuantityTypeIdentifierPushCount",
-  "HKQuantityTypeIdentifierWheelchairDistance",
-  "HKQuantityTypeIdentifierNikeFuel",
   "HKQuantityTypeIdentifierAppleMoveTime",
+  "HKQuantityTypeIdentifierAppleStandTime",
+  "HKCategoryTypeIdentifierAppleStandHour",
   
   // Workouts
   "HKWorkoutTypeIdentifier",
   
-  // Sleep
+  // Sleep & Mindfulness
   "HKCategoryTypeIdentifierSleepAnalysis",
+  "HKQuantityTypeIdentifierAppleSleepingWristTemperature",
+  "HKCategoryTypeIdentifierMindfulSession",
   
-  // Nutrition
+  // Nutrition (Basic Macros Only)
   "HKQuantityTypeIdentifierDietaryWater",
   "HKQuantityTypeIdentifierDietaryCaffeine",
   "HKQuantityTypeIdentifierDietaryCalories",
   "HKQuantityTypeIdentifierDietaryCarbohydrates",
   "HKQuantityTypeIdentifierDietaryFatTotal",
   "HKQuantityTypeIdentifierDietaryFatSaturated",
-  "HKQuantityTypeIdentifierDietaryFatMonounsaturated",
-  "HKQuantityTypeIdentifierDietaryFatPolyunsaturated",
   "HKQuantityTypeIdentifierDietaryCholesterol",
   "HKQuantityTypeIdentifierDietarySodium",
   "HKQuantityTypeIdentifierDietarySugar",
   "HKQuantityTypeIdentifierDietaryEnergyConsumed",
   "HKQuantityTypeIdentifierDietaryProtein",
-  "HKQuantityTypeIdentifierDietaryVitaminA",
-  "HKQuantityTypeIdentifierDietaryVitaminB6",
-  "HKQuantityTypeIdentifierDietaryVitaminB12",
-  "HKQuantityTypeIdentifierDietaryVitaminC",
-  "HKQuantityTypeIdentifierDietaryVitaminD",
-  "HKQuantityTypeIdentifierDietaryVitaminE",
-  "HKQuantityTypeIdentifierDietaryVitaminK",
-  "HKQuantityTypeIdentifierDietaryCalcium",
-  "HKQuantityTypeIdentifierDietaryIron",
-  "HKQuantityTypeIdentifierDietaryThiamin",
-  "HKQuantityTypeIdentifierDietaryRiboflavin",
-  "HKQuantityTypeIdentifierDietaryNiacin",
-  "HKQuantityTypeIdentifierDietaryFolate",
-  "HKQuantityTypeIdentifierDietaryBiotin",
-  "HKQuantityTypeIdentifierDietaryPantothenicAcid",
-  "HKQuantityTypeIdentifierDietaryPhosphorus",
-  "HKQuantityTypeIdentifierDietaryIodine",
-  "HKQuantityTypeIdentifierDietaryMagnesium",
-  "HKQuantityTypeIdentifierDietaryZinc",
-  "HKQuantityTypeIdentifierDietarySelenium",
-  "HKQuantityTypeIdentifierDietaryCopper",
-  "HKQuantityTypeIdentifierDietaryManganese",
-  "HKQuantityTypeIdentifierDietaryChromium",
-  "HKQuantityTypeIdentifierDietaryMolybdenum",
-  "HKQuantityTypeIdentifierDietaryChloride",
-  "HKQuantityTypeIdentifierDietaryPotassium",
   
   // Glucose
   "HKQuantityTypeIdentifierBloodGlucose",
   "HKQuantityTypeIdentifierInsulinDelivery",
   
-  // Reproductive Health
+  // Reproductive Health (Basic Only)
   "HKCategoryTypeIdentifierMenstrualFlow",
-  "HKCategoryTypeIdentifierCervicalMucusQuality",
-  "HKCategoryTypeIdentifierBasalBodyTemperature",
-  "HKCategoryTypeIdentifierOvulationTestResult",
-  "HKCategoryTypeIdentifierPregnancy",
-  "HKCategoryTypeIdentifierLactation",
-  "HKCategoryTypeIdentifierContraceptive",
-  "HKCategoryTypeIdentifierSexualActivity",
   "HKCategoryTypeIdentifierIntermenstrualBleeding",
-  
-  // Vital Signs
-  "HKQuantityTypeIdentifierBloodGlucose",
-  "HKQuantityTypeIdentifierBloodAlcoholContent",
+  "HKQuantityTypeIdentifierBasalBodyTemperature",
   
   // Hearing
   "HKQuantityTypeIdentifierEnvironmentalAudioExposure",
   "HKQuantityTypeIdentifierHeadphoneAudioExposure",
   
   // Mobility
+  "HKQuantityTypeIdentifierAppleWalkingSteadiness",
+  "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
   "HKQuantityTypeIdentifierWalkingSpeed",
-  "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage",
-  "HKQuantityTypeIdentifierWalkingAsymmetryPercentage",
   "HKQuantityTypeIdentifierWalkingStepLength",
-  "HKQuantityTypeIdentifierSixMinuteWalkTestDistance",
-  "HKQuantityTypeIdentifierStairAscentSpeed",
-  "HKQuantityTypeIdentifierStairDescentSpeed",
   
   // Other Metrics
   "HKQuantityTypeIdentifierNumberOfTimesFallen",
-  "HKQuantityTypeIdentifierElectrodermalActivity",
   "HKQuantityTypeIdentifierInhalerUsage",
-  "HKQuantityTypeIdentifierBloodPressure",
-  "HKQuantityTypeIdentifierMindfulSession",
+  "HKCorrelationTypeIdentifierBloodPressure",
   "HKCategoryTypeIdentifierHighHeartRateEvent",
   "HKCategoryTypeIdentifierLowHeartRateEvent",
   "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
-  "HKCategoryTypeIdentifierAudioExposureEvent",
-  "HKCategoryTypeIdentifierToothbrushingEvent",
-  "HKCategoryTypeIdentifierHandwashingEvent",
   "HKCategoryTypeIdentifierLowCardioFitnessEvent",
-  "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+  
+  // UV Exposure
+  "HKQuantityTypeIdentifierUVExposure",
   
   // Characteristic Types (read-only, set once)
   "HKCharacteristicTypeIdentifierBiologicalSex",
@@ -150,6 +110,7 @@ export const ALL_HEALTHKIT_READ_TYPES = [
   "HKCharacteristicTypeIdentifierDateOfBirth",
   "HKCharacteristicTypeIdentifierFitzpatrickSkinType",
   "HKCharacteristicTypeIdentifierWheelchairUse",
+  "HKCharacteristicTypeIdentifierActivityMoveMode",
 ];
 
 /**

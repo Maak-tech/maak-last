@@ -74,7 +74,6 @@ export default function AppleHealthPermissionsScreen() {
       setHealthKitAvailable(availability.available);
       setAvailabilityReason(availability.reason);
     } catch (error) {
-      console.error("Error checking HealthKit availability:", error);
       setHealthKitAvailable(false);
       setAvailabilityReason("Failed to check HealthKit availability. Please try again.");
     }
@@ -147,11 +146,9 @@ export default function AppleHealthPermissionsScreen() {
 
       // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
       // This prevents RCTModuleMethod invokeWithBridge errors
-      console.log("[Apple Permissions] Waiting for bridge to stabilize before requesting authorization...");
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+      await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
 
       // Request HealthKit permissions
-      console.log("[Apple Permissions] Requesting HealthKit authorization for:", Array.from(selectedMetrics));
       const { granted, denied } = await appleHealthService.requestAuthorization(
         Array.from(selectedMetrics)
       );
@@ -172,9 +169,19 @@ export default function AppleHealthPermissionsScreen() {
       router.replace("/profile/health/apple-connected" as any);
     } catch (error: any) {
       // Handle native module errors and crashes
-      console.error("HealthKit permission request error:", error);
+      const errorMsg = error?.message || String(error);
+      const isBridgeError = 
+        errorMsg.includes("RCTModuleMethod") ||
+        errorMsg.includes("invokewithbridge") ||
+        errorMsg.includes("invokeWithBridge") ||
+        errorMsg.includes("invokeinner") ||
+        errorMsg.includes("invokeInner") ||
+        errorMsg.toLowerCase().includes("invoke") ||
+        errorMsg.includes("bridge");
       
-      let errorMessage = "Failed to request HealthKit permissions. Please try again.";
+      let errorMessage = isBridgeError
+        ? "React Native bridge is not ready. Please try again in a few seconds or rebuild the app."
+        : "Failed to request HealthKit permissions. Please try again.";
       
       // Check for specific native module errors
       if (error?.message?.includes("RCTModuleMethod") || error?.message?.includes("folly")) {

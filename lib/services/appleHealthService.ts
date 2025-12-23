@@ -35,30 +35,24 @@ const loadHealthKit = async (): Promise<boolean> => {
   
   // If already loaded, return immediately
   if (healthKitLoadAttempted && AppleHealthKit !== null) {
-    console.log("[HealthKit Debug] Module already loaded, returning cached instance");
     return true;
   }
   
   // If currently loading, wait for that to complete
   if (loadPromise) {
-    console.log("[HealthKit Debug] Module already loading, waiting for existing promise");
     return loadPromise;
   }
   
   // Only attempt to load once to avoid repeated crashes
   if (healthKitLoadAttempted) {
-    console.log("[HealthKit Debug] Load already attempted, returning status");
     return AppleHealthKit !== null;
   }
   
   healthKitLoadAttempted = true;
-  const timeSinceStart = Date.now() - APP_START_TIME;
-  console.log(`[HealthKit Debug] Starting HealthKit load. Time since app start: ${timeSinceStart}ms`);
   
   loadPromise = (async () => {
   
   if (Platform.OS !== "ios") {
-    console.log("[HealthKit Debug] Not iOS, skipping HealthKit load");
     return false;
   }
   
@@ -85,7 +79,6 @@ const loadHealthKit = async (): Promise<boolean> => {
   }
   
   if (!bridgeReady) {
-    console.warn("React Native bridge not ready after waiting");
     AppleHealthKit = null;
     return false;
   }
@@ -123,7 +116,6 @@ const loadHealthKit = async (): Promise<boolean> => {
     }
     
     if (!bridgeReady) {
-      console.error("React Native bridge not ready after 10 seconds. Cannot load HealthKit.");
       AppleHealthKit = null;
       return false;
     }
@@ -132,24 +124,15 @@ const loadHealthKit = async (): Promise<boolean> => {
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Now try to load the module
-    console.log("[HealthKit Debug] Attempting to load react-native-health module...");
     let healthModule: any = null;
     
     // First, check NativeModules (some modules register there)
     try {
-      console.log("[HealthKit Debug] Checking NativeModules for registered HealthKit module...");
-      const allModuleNames = Object.keys(NativeModules || {});
-      console.log(`[HealthKit Debug] Available native modules: ${allModuleNames.slice(0, 10).join(", ")}...`);
-      
       const moduleName = "RNFitness";
       if (NativeModules[moduleName]) {
         healthModule = NativeModules[moduleName];
-        console.log("[HealthKit Debug] Found HealthKit module in NativeModules");
-      } else {
-        console.log("[HealthKit Debug] HealthKit module not found in NativeModules, will use require()");
       }
     } catch (e: any) {
-      console.error("[HealthKit Debug] Error checking NativeModules:", e?.message);
       // Not in NativeModules, continue to require
     }
     
@@ -157,15 +140,12 @@ const loadHealthKit = async (): Promise<boolean> => {
     // Wrap require in try-catch to handle bridge errors
     if (!healthModule) {
       try {
-        console.log("[HealthKit Debug] Calling require('react-native-health')...");
         // Use a function to prevent require from being hoisted
         const loadModule = () => {
           try {
             const module = require("react-native-health");
-            console.log("[HealthKit Debug] require() succeeded, module type:", typeof module);
             return module;
           } catch (e: any) {
-            console.error("[HealthKit Debug] require() failed:", e?.message, e?.stack);
             return null;
           }
         };
@@ -175,34 +155,13 @@ const loadHealthKit = async (): Promise<boolean> => {
         if (!healthModule) {
           throw new Error("require() returned null");
         }
-        
-        console.log("[HealthKit Debug] Module loaded successfully");
       } catch (requireError: any) {
-        const errorMsg = requireError?.message || String(requireError);
-        const errorStack = requireError?.stack || "No stack";
-        console.error("[HealthKit Debug] Failed to require react-native-health:", errorMsg);
-        console.error("[HealthKit Debug] Error stack:", errorStack);
-        
-        // If it's a bridge error, the module might be registered but bridge isn't ready
-        if (errorMsg.includes("RCTModuleMethod") || errorMsg.includes("invokewithbridge") || errorMsg.includes("invokeWithBridge")) {
-          console.error("[HealthKit Debug] BRIDGE ERROR DETECTED! Module may be registered but bridge not ready.");
-          console.error("[HealthKit Debug] This suggests the Expo plugin registered the module at build time,");
-          console.error("[HealthKit Debug] and React Native is trying to initialize it before the bridge is ready.");
-        }
-        
         AppleHealthKit = null;
         return false;
       }
     }
     
     if (!healthModule) {
-      console.warn("react-native-health module is null");
-      AppleHealthKit = null;
-      return false;
-    }
-    
-    if (!healthModule) {
-      console.warn("react-native-health module returned undefined");
       AppleHealthKit = null;
       return false;
     }
@@ -211,38 +170,18 @@ const loadHealthKit = async (): Promise<boolean> => {
     
     // Check if module was loaded
     if (!AppleHealthKit) {
-      console.warn("react-native-health module is null or undefined");
       return false;
-    }
-    
-    // Log available methods for debugging (only in dev)
-    if (__DEV__) {
-      const availableMethods = Object.keys(AppleHealthKit).filter(
-        key => typeof AppleHealthKit[key] === "function"
-      );
-      console.log("HealthKit module methods:", availableMethods.slice(0, 10)); // Log first 10 methods
     }
     
     // Verify it has the required methods without calling them (to avoid crashes)
     if (typeof AppleHealthKit.isAvailable === "function") {
-      if (__DEV__) {
-        console.log("HealthKit module loaded successfully");
-      }
       return true;
     }
     
-    // Log what methods are available if isAvailable is missing
-    const availableMethods = Object.keys(AppleHealthKit).filter(
-      key => typeof AppleHealthKit[key] === "function"
-    );
-    console.warn("HealthKit module loaded but isAvailable method not found. Available methods:", availableMethods);
+    // If isAvailable method is missing, module is invalid
     AppleHealthKit = null;
   } catch (error: any) {
     // Catch any errors during module loading to prevent app crash
-    console.error("Failed to load react-native-health:", error?.message || error);
-    if (__DEV__ && error?.stack) {
-      console.error("Error stack:", error.stack);
-    }
     AppleHealthKit = null;
   } finally {
     loadPromise = null;
@@ -261,8 +200,8 @@ const loadHealthKit = async (): Promise<boolean> => {
 export const prewarmHealthKit = () => {
   if (Platform.OS === "ios" && !healthKitLoadAttempted) {
     // Start loading in background without waiting
-    loadHealthKit().catch(err => {
-      console.log("Background HealthKit pre-warm failed (this is OK):", err?.message);
+    loadHealthKit().catch(() => {
+      // Silently handle background pre-warm failures
     });
   }
 };
@@ -286,9 +225,6 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
   }
 
   // Check device type - HealthKit has limited support on iPad
-  if (Device.deviceType === Device.DeviceType.TABLET) {
-    console.warn("HealthKit has limited support on iPad. Some features may not be available.");
-  }
 
   // Check if running in Expo Go
   if (isExpoGo()) {
@@ -345,9 +281,6 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
           };
         }
 
-        // Call with timeout to prevent hanging
-        console.log(`[HealthKit Debug] Calling AppleHealthKit.isAvailable() (attempt ${retries + 1}/${maxRetries})...`);
-        
         // react-native-health's isAvailable() can return boolean, Promise, or undefined
         // Handle all cases properly
         let isAvailableResult: boolean | undefined;
@@ -371,12 +304,10 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
           // If undefined - module loaded successfully, so assume HealthKit is available
           // (react-native-health wouldn't load if HealthKit wasn't available)
           else if (result === undefined) {
-            console.log(`[HealthKit Debug] isAvailable() returned undefined, but module loaded successfully. Assuming HealthKit is available.`);
             isAvailableResult = true; // Module loaded = HealthKit available
           }
           // Fallback
           else {
-            console.warn(`[HealthKit Debug] isAvailable() returned unexpected type: ${typeof result}, assuming available`);
             isAvailableResult = true;
           }
         } catch (callError: any) {
@@ -386,19 +317,20 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
           if (
             (errorMsg.includes("RCTModuleMethod") || 
              errorMsg.includes("invokewithbridge") ||
-             errorMsg.includes("invokeWithBridge")) &&
+             errorMsg.includes("invokeWithBridge") ||
+             errorMsg.includes("invokeinner") ||
+             errorMsg.includes("invokeInner") ||
+             errorMsg.toLowerCase().includes("invoke")) &&
             retries < maxRetries
           ) {
             throw callError; // Will be caught and retried
           }
           
           // Other errors - if module loaded, assume available
-          console.warn(`[HealthKit Debug] isAvailable() error but module loaded:`, errorMsg);
           isAvailableResult = true; // Module loaded = assume available
         }
         
         available = isAvailableResult === true;
-        console.log(`[HealthKit Debug] isAvailable() final result: ${available} (raw: ${isAvailableResult})`);
         
         // Success! Exit retry loop
         break;
@@ -410,12 +342,15 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
         if (
           (errorMsg.includes("RCTModuleMethod") || 
            errorMsg.includes("invokewithbridge") ||
-           errorMsg.includes("invokeWithBridge")) &&
+           errorMsg.includes("invokeWithBridge") ||
+           errorMsg.includes("invokeinner") ||
+           errorMsg.includes("invokeInner") ||
+           errorMsg.toLowerCase().includes("invoke")) &&
           retries < maxRetries
         ) {
-          // Bridge not ready yet, wait and retry
-          console.log(`HealthKit bridge not ready for isAvailable(), retry ${retries}/${maxRetries}...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Bridge not ready yet, wait and retry with increasing delay
+          const delay = Math.min(2000 * (retries + 1), 5000); // 2s, 4s, 5s max
+          await new Promise(resolve => setTimeout(resolve, delay));
           continue; // Retry
         } else {
           // Different error or max retries reached, throw
@@ -437,11 +372,6 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
       } else {
         // Real device but isAvailable() returned false
         // This could mean HealthKit is disabled, or there's still a bridge issue
-        console.warn("[HealthKit Debug] isAvailable() returned false on real device. This may indicate:");
-        console.warn("[HealthKit Debug] 1. HealthKit is disabled in device settings");
-        console.warn("[HealthKit Debug] 2. Bridge error prevented proper check");
-        console.warn("[HealthKit Debug] 3. Module not properly linked");
-        
         return {
           available: false,
           reason: "HealthKit is not available on this device. Please check:\n1. HealthKit is enabled in iOS Settings > Privacy & Security > Health\n2. The app has been rebuilt with native modules\n3. Try restarting the app",
@@ -456,7 +386,6 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
     // Catch all errors during native method invocation
     // This prevents the app from crashing if there's a folly/native module issue
     const errorMessage = error?.message || String(error);
-    console.error("[HealthKit Debug] Native module error in isAvailable():", errorMessage);
     
     // Check if this is a bridge error (the main issue we're debugging)
     const isBridgeError = 
@@ -467,7 +396,6 @@ const isAvailable = async (): Promise<ProviderAvailability> => {
     
     if (isBridgeError) {
       // This is the bridge error - don't assume it's a simulator issue
-      console.error("[HealthKit Debug] Bridge error detected - this is the root cause!");
       return {
         available: false,
         reason: `HealthKit bridge error: The React Native bridge is not ready to handle HealthKit calls. This error occurs when native modules are accessed before the bridge is fully initialized.\n\nError: ${errorMessage}\n\nPossible solutions:\n1. Wait longer before accessing HealthKit (try again in a few seconds)\n2. Rebuild the app with: eas build -p ios --profile development --clear-cache\n3. Check console logs for [HealthKit Debug] messages`,
@@ -537,13 +465,11 @@ const requestAuthorization = async (
     // CRITICAL: Wait significantly longer before calling initHealthKit
     // The bridge needs time to fully stabilize after isAvailable() call
     // Increased delay to prevent RCTModuleMethod invokeWithBridge errors
-    console.log("[HealthKit Debug] Waiting for bridge to be ready before initHealthKit()...");
-    await new Promise(resolve => setTimeout(resolve, 3000)); // Increased to 3 seconds
+    await new Promise(resolve => setTimeout(resolve, 5000)); // Increased to 5 seconds
     
     // Request permissions - this will trigger the iOS HealthKit permission screen
-    // The user will see the native iOS permission dialog (like the screenshots shown)
+    // The user will see the native iOS permission dialog
     // with all the health data types they selected, organized by category
-    console.log("[HealthKit Debug] Requesting HealthKit permissions for:", readPermissions.length, "types");
     
     // Retry logic for initHealthKit() to handle bridge errors
     let retries = 0;
@@ -552,8 +478,6 @@ const requestAuthorization = async (
     
     while (retries < maxRetries && !initSuccess) {
       try {
-        console.log(`[HealthKit Debug] Calling initHealthKit() (attempt ${retries + 1}/${maxRetries})...`);
-        
         await new Promise<void>((resolve, reject) => {
           try {
             // Add timeout protection
@@ -576,20 +500,20 @@ const requestAuthorization = async (
                   if (
                     errorMsg.includes("RCTModuleMethod") ||
                     errorMsg.includes("invokewithbridge") ||
-                    errorMsg.includes("invokeWithBridge")
+                    errorMsg.includes("invokeWithBridge") ||
+                    errorMsg.includes("invokeinner") ||
+                    errorMsg.includes("invokeInner") ||
+                    errorMsg.toLowerCase().includes("invoke")
                   ) {
-                    console.error(`[HealthKit Debug] Bridge error in initHealthKit() (attempt ${retries + 1}):`, errorMsg);
                     reject(new Error("BRIDGE_ERROR")); // Special error code for retry
                     return;
                   }
                   // Error can occur if user denies all permissions
                   // But initHealthKit still shows the permission screen
-                  console.warn("[HealthKit Debug] HealthKit initialization error (user may have denied):", error);
                   // Resolve anyway - the permission screen was shown
                   resolve(undefined);
                 } else {
                   // Success - user granted at least some permissions
-                  console.log("[HealthKit Debug] initHealthKit() succeeded!");
                   resolve(undefined);
                 }
               }
@@ -599,7 +523,10 @@ const requestAuthorization = async (
             if (
               errorMsg.includes("RCTModuleMethod") ||
               errorMsg.includes("invokewithbridge") ||
-              errorMsg.includes("invokeWithBridge")
+              errorMsg.includes("invokeWithBridge") ||
+              errorMsg.includes("invokeinner") ||
+              errorMsg.includes("invokeInner") ||
+              errorMsg.toLowerCase().includes("invoke")
             ) {
               reject(new Error("BRIDGE_ERROR")); // Special error code for retry
             } else {
@@ -610,7 +537,6 @@ const requestAuthorization = async (
         
         // Success! Exit retry loop
         initSuccess = true;
-        console.log(`[HealthKit Debug] initHealthKit() succeeded on attempt ${retries + 1}`);
         break;
       } catch (initError: any) {
         retries++;
@@ -621,16 +547,18 @@ const requestAuthorization = async (
           (errorMsg.includes("BRIDGE_ERROR") ||
            errorMsg.includes("RCTModuleMethod") ||
            errorMsg.includes("invokewithbridge") ||
-           errorMsg.includes("invokeWithBridge")) &&
+           errorMsg.includes("invokeWithBridge") ||
+           errorMsg.includes("invokeinner") ||
+           errorMsg.includes("invokeInner") ||
+           errorMsg.toLowerCase().includes("invoke")) &&
           retries < maxRetries
         ) {
-          // Bridge not ready yet, wait and retry
-          console.log(`[HealthKit Debug] Bridge not ready for initHealthKit(), retry ${retries}/${maxRetries}...`);
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+          // Bridge not ready yet, wait and retry with increasing delay
+          const delay = Math.min(2000 * (retries + 1), 5000); // 2s, 4s, 5s max
+          await new Promise(resolve => setTimeout(resolve, delay));
           continue; // Retry
         } else {
           // Different error or max retries reached, throw
-          console.error(`[HealthKit Debug] initHealthKit() failed after ${retries} attempts:`, errorMsg);
           throw initError;
         }
       }
@@ -694,7 +622,10 @@ const requestAuthorization = async (
                 if (
                   errorMsg.includes("RCTModuleMethod") ||
                   errorMsg.includes("invokewithbridge") ||
-                  errorMsg.includes("invokeWithBridge")
+                  errorMsg.includes("invokeWithBridge") ||
+                  errorMsg.includes("invokeinner") ||
+                  errorMsg.includes("invokeInner") ||
+                  errorMsg.toLowerCase().includes("invoke")
                 ) {
                   reject(new Error("HealthKit bridge error. Please rebuild: bun run build:ios:dev"));
                   return;
@@ -713,7 +644,10 @@ const requestAuthorization = async (
             if (
               errorMsg.includes("RCTModuleMethod") ||
               errorMsg.includes("invokewithbridge") ||
-              errorMsg.includes("invokeWithBridge")
+              errorMsg.includes("invokeWithBridge") ||
+              errorMsg.includes("invokeinner") ||
+              errorMsg.includes("invokeInner") ||
+              errorMsg.toLowerCase().includes("invoke")
             ) {
               reject(new Error("HealthKit bridge not ready. Please rebuild: bun run build:ios:dev"));
             } else {
@@ -740,7 +674,6 @@ const requestAuthorization = async (
     return { granted, denied };
   } catch (error: any) {
     // If initHealthKit fails completely, all permissions were denied
-    console.error("HealthKit authorization failed:", error);
     return { 
       granted: [], 
       denied: selectedMetrics 
@@ -849,7 +782,10 @@ const fetchMetricSamples = async (
               if (
                 errorMsg.includes("RCTModuleMethod") ||
                 errorMsg.includes("invokewithbridge") ||
-                errorMsg.includes("invokeWithBridge")
+                errorMsg.includes("invokeWithBridge") ||
+                errorMsg.includes("invokeinner") ||
+                errorMsg.includes("invokeInner") ||
+                errorMsg.toLowerCase().includes("invoke")
               ) {
                 reject(new Error("HealthKit bridge error. Please rebuild: bun run build:ios:dev"));
                 return;
@@ -866,7 +802,10 @@ const fetchMetricSamples = async (
           if (
             errorMsg.includes("RCTModuleMethod") ||
             errorMsg.includes("invokewithbridge") ||
-            errorMsg.includes("invokeWithBridge")
+            errorMsg.includes("invokeWithBridge") ||
+            errorMsg.includes("invokeinner") ||
+            errorMsg.includes("invokeInner") ||
+            errorMsg.toLowerCase().includes("invoke")
           ) {
             reject(new Error("HealthKit bridge not ready. Please rebuild: bun run build:ios:dev"));
           } else {
@@ -890,7 +829,10 @@ const fetchMetricSamples = async (
               if (
                 errorMsg.includes("RCTModuleMethod") ||
                 errorMsg.includes("invokewithbridge") ||
-                errorMsg.includes("invokeWithBridge")
+                errorMsg.includes("invokeWithBridge") ||
+                errorMsg.includes("invokeinner") ||
+                errorMsg.includes("invokeInner") ||
+                errorMsg.toLowerCase().includes("invoke")
               ) {
                 reject(new Error("HealthKit bridge error. Please rebuild: bun run build:ios:dev"));
                 return;
@@ -907,7 +849,10 @@ const fetchMetricSamples = async (
           if (
             errorMsg.includes("RCTModuleMethod") ||
             errorMsg.includes("invokewithbridge") ||
-            errorMsg.includes("invokeWithBridge")
+            errorMsg.includes("invokeWithBridge") ||
+            errorMsg.includes("invokeinner") ||
+            errorMsg.includes("invokeInner") ||
+            errorMsg.toLowerCase().includes("invoke")
           ) {
             reject(new Error("HealthKit bridge not ready. Please rebuild: bun run build:ios:dev"));
           } else {
@@ -931,7 +876,10 @@ const fetchMetricSamples = async (
               if (
                 errorMsg.includes("RCTModuleMethod") ||
                 errorMsg.includes("invokewithbridge") ||
-                errorMsg.includes("invokeWithBridge")
+                errorMsg.includes("invokeWithBridge") ||
+                errorMsg.includes("invokeinner") ||
+                errorMsg.includes("invokeInner") ||
+                errorMsg.toLowerCase().includes("invoke")
               ) {
                 reject(new Error("HealthKit bridge error. Please rebuild: bun run build:ios:dev"));
                 return;
@@ -948,7 +896,10 @@ const fetchMetricSamples = async (
           if (
             errorMsg.includes("RCTModuleMethod") ||
             errorMsg.includes("invokewithbridge") ||
-            errorMsg.includes("invokeWithBridge")
+            errorMsg.includes("invokeWithBridge") ||
+            errorMsg.includes("invokeinner") ||
+            errorMsg.includes("invokeInner") ||
+            errorMsg.toLowerCase().includes("invoke")
           ) {
             reject(new Error("HealthKit bridge not ready. Please rebuild: bun run build:ios:dev"));
           } else {

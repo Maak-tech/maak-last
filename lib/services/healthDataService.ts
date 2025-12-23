@@ -100,7 +100,6 @@ export const healthDataService = {
           // Check if HealthKit is available on device
           const availability = await appleHealthService.isAvailable();
           if (!availability.available) {
-            console.warn("HealthKit is not available:", availability.reason);
             await this.savePermissionStatus(false);
             return false;
           }
@@ -111,7 +110,6 @@ export const healthDataService = {
           await this.savePermissionStatus(success);
           return success;
         } catch (error: any) {
-          console.error("HealthKit initialization failed:", error);
           await this.savePermissionStatus(false);
           return false;
         }
@@ -177,11 +175,10 @@ export const healthDataService = {
       const { appleHealthService } = await import("./appleHealthService");
       
       // Check if HealthKit is available
-      const availability = await appleHealthService.isAvailable();
-      if (!availability.available) {
-        console.warn("HealthKit not available:", availability.reason);
-        return this.getSimulatedVitals();
-      }
+          const availability = await appleHealthService.isAvailable();
+          if (!availability.available) {
+            return this.getSimulatedVitals();
+          }
 
       // Get health metrics using appleHealthService
       try {
@@ -210,7 +207,6 @@ export const healthDataService = {
         
         return vitals;
       } catch (error) {
-        console.warn("Error fetching HealthKit vitals:", error);
         return this.getSimulatedVitals();
       }
     } catch {

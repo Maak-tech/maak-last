@@ -9,7 +9,9 @@
       "distribution": "internal",
       "ios": {
         "resourceClass": "m-medium",
-        "simulator": false
+        "simulator": false,
+        "buildConfiguration": "Debug",
+        "prebuildCommand": "npx expo prebuild --clean"
       },
       "android": {
         "resourceClass": "medium"
