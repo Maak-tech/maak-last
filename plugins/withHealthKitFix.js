@@ -40,18 +40,20 @@ const withHealthKitFix = (config) => {
         const targetBlockMatch = podfileContent.match(targetBlockRegex);
         
         if (targetBlockMatch) {
-          // Check if use_native_modules! is present
-          if (targetBlockMatch[2].includes("use_native_modules!")) {
-            console.log("[HealthKit Fix] use_native_modules! found, should auto-link");
-          } else {
-            // Add explicit pod reference as fallback
-            const podLine = `  pod 'RNAppleHealthKit', :path => '../node_modules/react-native-health'\n`;
-            const endMarker = targetBlockMatch[3];
+          // Always add explicit pod reference to ensure it's linked
+          // Even if use_native_modules! is present, auto-linking might skip it
+          const podLine = `  pod 'RNAppleHealthKit', :path => '../node_modules/react-native-health'\n`;
+          const endMarker = targetBlockMatch[3];
+          
+          // Check if pod is already there
+          if (!targetBlockMatch[2].includes("RNAppleHealthKit")) {
             podfileContent = podfileContent.replace(
               targetBlockMatch[0],
               `${targetBlockMatch[1]}${targetBlockMatch[2]}${podLine}${endMarker}`
             );
-            console.log("[HealthKit Fix] Added explicit RNAppleHealthKit pod reference");
+            console.log("[HealthKit Fix] Added explicit RNAppleHealthKit pod reference to ensure linking");
+          } else {
+            console.log("[HealthKit Fix] RNAppleHealthKit pod already present");
           }
         }
       }

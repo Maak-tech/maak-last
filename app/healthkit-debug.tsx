@@ -94,7 +94,10 @@ export default function HealthKitDebugScreen() {
                            lower.includes("apple") ||
                            lower.includes("fitness") ||
                            lower.includes("rnhealth") ||
-                           name === "RNFitness";
+                           name === "RNFitness" ||
+                           name === "RCTAppleHealthKit" ||
+                           name === "AppleHealthKit" ||
+                           name === "RNAppleHealthKit";
                   } catch {
                     return false;
                   }

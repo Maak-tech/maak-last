@@ -127,10 +127,14 @@ const loadHealthKit = async (): Promise<boolean> => {
     let healthModule: any = null;
     
     // First, check NativeModules (some modules register there)
+    // react-native-health registers as RCTAppleHealthKit or AppleHealthKit
     try {
-      const moduleName = "RNFitness";
-      if (NativeModules[moduleName]) {
-        healthModule = NativeModules[moduleName];
+      const possibleNames = ["RCTAppleHealthKit", "AppleHealthKit", "RNFitness", "RNAppleHealthKit"];
+      for (const moduleName of possibleNames) {
+        if (NativeModules[moduleName]) {
+          healthModule = NativeModules[moduleName];
+          break;
+        }
       }
     } catch (e: any) {
       // Not in NativeModules, continue to require
