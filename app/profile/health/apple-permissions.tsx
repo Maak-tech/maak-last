@@ -33,7 +33,8 @@ import {
   getMetricsByGroup,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
-import { appleHealthService } from "@/lib/services/appleHealthService";
+// Lazy import to prevent early native module loading
+// import { appleHealthService } from "@/lib/services/appleHealthService";
 import { saveProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
 
@@ -67,6 +68,8 @@ export default function AppleHealthPermissionsScreen() {
 
   const checkHealthKitAvailability = async () => {
     try {
+      // Lazy import to prevent early native module loading
+      const { appleHealthService } = await import("@/lib/services/appleHealthService");
       const availability = await appleHealthService.isAvailable();
       setHealthKitAvailable(availability.available);
       setAvailabilityReason(availability.reason);
@@ -127,6 +130,9 @@ export default function AppleHealthPermissionsScreen() {
     setLoading(true);
     
     try {
+      // Lazy import to prevent early native module loading
+      const { appleHealthService } = await import("@/lib/services/appleHealthService");
+      
       // Check availability before proceeding - wrapped in try-catch to prevent crashes
       const availability = await appleHealthService.isAvailable();
       
@@ -139,7 +145,13 @@ export default function AppleHealthPermissionsScreen() {
         return;
       }
 
+      // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
+      // This prevents RCTModuleMethod invokeWithBridge errors
+      console.log("[Apple Permissions] Waiting for bridge to stabilize before requesting authorization...");
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+
       // Request HealthKit permissions
+      console.log("[Apple Permissions] Requesting HealthKit authorization for:", Array.from(selectedMetrics));
       const { granted, denied } = await appleHealthService.requestAuthorization(
         Array.from(selectedMetrics)
       );

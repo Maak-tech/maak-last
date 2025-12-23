@@ -94,61 +94,22 @@ export const healthDataService = {
         }
         // Try to initialize HealthKit in standalone app
         try {
-          // Import react-native-health correctly
-          let AppleHealthKit: any = null;
-          try {
-            // react-native-health exports directly, not as .default
-            const healthModule = require("react-native-health");
-            AppleHealthKit = healthModule.default || healthModule;
-          } catch (importError) {
-            // Module not available - need to rebuild
-            console.warn("HealthKit module not found. Please rebuild with: bun run build:ios:dev");
+          // Use appleHealthService which handles lazy loading and delays properly
+          const { appleHealthService } = await import("./appleHealthService");
+          
+          // Check if HealthKit is available on device
+          const availability = await appleHealthService.isAvailable();
+          if (!availability.available) {
+            console.warn("HealthKit is not available:", availability.reason);
             await this.savePermissionStatus(false);
             return false;
           }
 
-          // Check if the native module is available
-          if (!AppleHealthKit || typeof AppleHealthKit.isAvailable !== "function") {
-            console.warn("HealthKit module not properly initialized. Please rebuild with: bun run build:ios:dev");
-            await this.savePermissionStatus(false);
-            return false;
-          }
-
-          // Check if HealthKit is available on device - wrap in try-catch to prevent crashes
-          let isAvailable = false;
-          try {
-            isAvailable = await Promise.resolve(AppleHealthKit.isAvailable());
-          } catch (availError) {
-            console.warn("Error checking HealthKit availability:", availError);
-            await this.savePermissionStatus(false);
-            return false;
-          }
-
-          if (!isAvailable) {
-            console.warn("HealthKit is not available on this device");
-            await this.savePermissionStatus(false);
-            return false;
-          }
-
-          // Initialize HealthKit with permissions
-          return new Promise((resolve) => {
-            try {
-              AppleHealthKit.initHealthKit(HealthKitPermissions, (error: any) => {
-                if (error) {
-                  console.error("HealthKit initialization error:", error);
-                  this.savePermissionStatus(false);
-                  resolve(false);
-                } else {
-                  this.savePermissionStatus(true);
-                  resolve(true);
-                }
-              });
-            } catch (initError) {
-              console.error("HealthKit initialization crashed:", initError);
-              this.savePermissionStatus(false);
-              resolve(false);
-            }
-          });
+          // Request authorization using appleHealthService
+          const result = await appleHealthService.requestAuthorization(["all"]);
+          const success = result.granted.length > 0;
+          await this.savePermissionStatus(success);
+          return success;
         } catch (error: any) {
           console.error("HealthKit initialization failed:", error);
           await this.savePermissionStatus(false);
@@ -212,125 +173,44 @@ export const healthDataService = {
   // iOS HealthKit data retrieval (with fallback)
   async getIOSVitals(): Promise<VitalSigns | null> {
     try {
+      // Use appleHealthService which handles lazy loading and delays properly
+      const { appleHealthService } = await import("./appleHealthService");
+      
       // Check if HealthKit is available
+      const availability = await appleHealthService.isAvailable();
+      if (!availability.available) {
+        console.warn("HealthKit not available:", availability.reason);
+        return this.getSimulatedVitals();
+      }
+
+      // Get health metrics using appleHealthService
       try {
-        let AppleHealthKit: any = null;
-        try {
-          // react-native-health exports directly, not as .default
-          const healthModule = require("react-native-health");
-          AppleHealthKit = healthModule.default || healthModule;
-        } catch (importError) {
-          throw new Error("HealthKit module not found. Please rebuild with: bun run build:ios:dev");
-        }
-
-        if (
-          !AppleHealthKit ||
-          typeof AppleHealthKit.getHeartRateSamples !== "function"
-        ) {
-          throw new Error("HealthKit not available. Please rebuild with: bun run build:ios:dev");
-        }
-
         const today = new Date();
-        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-
-        const options = {
-          startDate: yesterday.toISOString(),
-          endDate: today.toISOString(),
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000); // 1 day ago
+        
+        const metrics = await appleHealthService.fetchMetrics(["all"], yesterday, today);
+        
+        // Helper to get latest value from samples
+        const getLatestValue = (metricKey: string): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === metricKey);
+          if (!metric || metric.samples.length === 0) return undefined;
+          // Get the most recent sample value
+          const latestSample = metric.samples[metric.samples.length - 1];
+          return typeof latestSample.value === "number" ? latestSample.value : undefined;
         };
-
-        return new Promise((resolve, reject) => {
-          // Get multiple health data points
-          const promises = [
-            // Heart Rate
-            new Promise((resolve) => {
-              AppleHealthKit.getHeartRateSamples(
-                options,
-                (error: any, results: any) => {
-                  if (error || !results || results.length === 0) {
-                    resolve(null);
-                  } else {
-                    const latest = results[results.length - 1];
-                    resolve(latest.value);
-                  }
-                }
-              );
-            }),
-
-            // Steps
-            new Promise((resolve) => {
-              AppleHealthKit.getStepCount(
-                options,
-                (error: any, results: any) => {
-                  if (error || !results) {
-                    resolve(null);
-                  } else {
-                    resolve(results.value);
-                  }
-                }
-              );
-            }),
-
-            // Weight
-            new Promise((resolve) => {
-              AppleHealthKit.getWeightSamples(
-                options,
-                (error: any, results: any) => {
-                  if (error || !results || results.length === 0) {
-                    resolve(null);
-                  } else {
-                    const latest = results[results.length - 1];
-                    resolve(latest.value);
-                  }
-                }
-              );
-            }),
-
-            // Sleep
-            new Promise((resolve) => {
-              AppleHealthKit.getSleepSamples(
-                options,
-                (error: any, results: any) => {
-                  if (error || !results || results.length === 0) {
-                    resolve(null);
-                  } else {
-                    // Calculate total sleep time
-                    const totalMinutes = results.reduce(
-                      (sum: number, sample: any) => {
-                        if (sample.value === "ASLEEP") {
-                          const start = new Date(sample.startDate);
-                          const end = new Date(sample.endDate);
-                          return (
-                            sum +
-                            (end.getTime() - start.getTime()) / (1000 * 60)
-                          );
-                        }
-                        return sum;
-                      },
-                      0
-                    );
-                    resolve(totalMinutes / 60); // Convert to hours
-                  }
-                }
-              );
-            }),
-          ];
-
-          Promise.all(promises)
-            .then(([heartRate, steps, weight, sleepHours]) => {
-              const vitals: VitalSigns = {
-                heartRate: (heartRate as number) || undefined,
-                steps: (steps as number) || undefined,
-                weight: (weight as number) || undefined,
-                sleepHours: (sleepHours as number) || undefined,
-                timestamp: new Date(),
-              };
-
-              resolve(vitals);
-            })
-            .catch(reject);
-        });
+        
+        // Convert to VitalSigns format
+        const vitals: VitalSigns = {
+          heartRate: getLatestValue("heart_rate"),
+          steps: getLatestValue("steps"),
+          weight: getLatestValue("weight"),
+          sleepHours: getLatestValue("sleep"),
+          timestamp: new Date(),
+        };
+        
+        return vitals;
       } catch (error) {
-        // Return simulated iOS data
+        console.warn("Error fetching HealthKit vitals:", error);
         return this.getSimulatedVitals();
       }
     } catch {

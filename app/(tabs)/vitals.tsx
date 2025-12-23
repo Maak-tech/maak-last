@@ -44,8 +44,9 @@ import {
   getGroupDisplayName,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
-import { appleHealthService } from "@/lib/services/appleHealthService";
-import { googleHealthService } from "@/lib/services/googleHealthService";
+// Lazy import to prevent early native module loading
+// import { appleHealthService } from "@/lib/services/appleHealthService";
+// import { googleHealthService } from "@/lib/services/googleHealthService";
 import { saveProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
 
@@ -433,10 +434,15 @@ export default function VitalsScreen() {
   };
 
   useEffect(() => {
-    loadVitalsData();
-    // Delay HealthKit/Health Connect availability check to avoid crashes during app initialization
-    // Check availability only when user tries to enable health data
-    // This prevents native module crashes during app startup
+    // CRITICAL: Delay loading vitals data to prevent HealthKit from loading at app startup
+    // This prevents RCTModuleMethod errors during app initialization
+    // Wait 10 seconds after component mount before attempting to load health data
+    // This ensures the React Native bridge is fully ready
+    const timer = setTimeout(() => {
+      loadVitalsData();
+    }, 10000); // 10 second delay
+    
+    return () => clearTimeout(timer);
   }, []);
 
   useFocusEffect(
@@ -466,6 +472,8 @@ export default function VitalsScreen() {
   const checkHealthKitAvailability = async () => {
     if (Platform.OS === "ios") {
       try {
+        // Lazy import to prevent early native module loading
+        const { appleHealthService } = await import("@/lib/services/appleHealthService");
         const availability = await appleHealthService.isAvailable();
         setHealthKitAvailable(availability.available);
         setAvailabilityReason(availability.reason);
@@ -480,6 +488,8 @@ export default function VitalsScreen() {
   const checkHealthConnectAvailability = async () => {
     if (Platform.OS === "android") {
       try {
+        // Lazy import to prevent early native module loading
+        const { googleHealthService } = await import("@/lib/services/googleHealthService");
         const availability = await googleHealthService.isAvailable();
         setHealthConnectAvailable(availability.available);
         setAvailabilityReason(availability.reason);
@@ -600,11 +610,44 @@ export default function VitalsScreen() {
       if (Platform.OS === "ios") {
         // Check availability before proceeding - wrap in try-catch to prevent native crashes
         try {
-          const availability = await appleHealthService.isAvailable();
-          if (!availability.available) {
+          // Add extra delay for first-time native module access
+          // This ensures the native bridge is fully ready
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Lazy import to prevent early native module loading
+          const { appleHealthService } = await import("@/lib/services/appleHealthService");
+          
+          // Retry logic for native bridge readiness
+          let availability;
+          let retries = 0;
+          const maxRetries = 3;
+          
+          while (retries < maxRetries) {
+            try {
+              availability = await appleHealthService.isAvailable();
+              break; // Success, exit retry loop
+            } catch (bridgeError: any) {
+              retries++;
+              const errorMsg = bridgeError?.message || String(bridgeError);
+              if (
+                (errorMsg.includes("RCTModuleMethod") || 
+                 errorMsg.includes("invokewithbridge") ||
+                 errorMsg.includes("invokeWithBridge")) &&
+                retries < maxRetries
+              ) {
+                // Native bridge not ready yet, wait and retry
+                console.log(`HealthKit bridge not ready, retry ${retries}/${maxRetries}...`);
+                await new Promise(resolve => setTimeout(resolve, 1500));
+              } else {
+                throw bridgeError; // Re-throw if not a bridge error or max retries reached
+              }
+            }
+          }
+          
+          if (!availability?.available) {
             Alert.alert(
               isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
-              availability.reason || 
+              availability?.reason || 
               (isRTL 
                 ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
                 : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
@@ -612,12 +655,18 @@ export default function VitalsScreen() {
             return;
           }
 
+          // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
+          // This prevents RCTModuleMethod invokeWithBridge errors
+          console.log("[Vitals] Waiting for bridge to stabilize before requesting authorization...");
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+
           // Request HealthKit permissions for selected metrics
           // If "all" is selected, request all HealthKit types
           const metricsToRequest = selectedMetrics.has("all") 
             ? ["all"] 
             : Array.from(selectedMetrics);
           
+          console.log("[Vitals] Requesting HealthKit authorization for:", metricsToRequest);
           const result = await appleHealthService.requestAuthorization(metricsToRequest);
           granted = result.granted;
           denied = result.denied;

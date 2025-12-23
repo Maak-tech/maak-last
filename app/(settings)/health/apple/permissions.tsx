@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, ActivityIndicator, Alert, Platform } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { appleHealthService } from "@/lib/services/appleHealthService";
+// Lazy import to prevent early native module loading
+// import { appleHealthService } from "@/lib/services/appleHealthService";
 import { saveProviderConnection, getProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
 import { getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
@@ -24,12 +25,16 @@ export default function AppleHealthPermissionsScreen() {
 
     setAuthorizing(true);
     try {
+      // Lazy import to prevent early native module loading
+      const { appleHealthService } = await import("@/lib/services/appleHealthService");
+      
       // Check availability first - wrapped in try-catch to prevent crashes
       let availability;
       try {
         availability = await appleHealthService.isAvailable();
       } catch (availError: any) {
         console.error("Error checking HealthKit availability:", availError);
+        setAuthorizing(false);
         Alert.alert(
           "HealthKit Error",
           "Failed to check HealthKit availability. Please rebuild the app if you see native module errors.",
@@ -44,6 +49,7 @@ export default function AppleHealthPermissionsScreen() {
       }
       
       if (!availability.available) {
+        setAuthorizing(false);
         Alert.alert(
           "HealthKit Not Available",
           availability.reason ||
@@ -58,9 +64,15 @@ export default function AppleHealthPermissionsScreen() {
         return;
       }
 
+      // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
+      // This prevents RCTModuleMethod invokeWithBridge errors
+      console.log("[Settings Apple Permissions] Waiting for bridge to stabilize before requesting authorization...");
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+
       // Request authorization for ALL HealthKit types
       // This will immediately show the iOS permission screen with all available metrics
       // The iOS screen itself allows users to select all or individual metrics
+      console.log("[Settings Apple Permissions] Requesting HealthKit authorization for all metrics...");
       const result = await appleHealthService.requestAuthorization(["all"]);
 
       // Get all metrics from catalog for saving connection info

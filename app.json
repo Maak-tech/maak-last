@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Maak Health",
-    "slug": "maak-health",
-    "owner": "nour_maak",
+    "slug": "maak-app",
+    "owner": "maak-tech",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/generated_image.png",
@@ -107,7 +107,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "62019bb9-d9c3-4e37-9b2d-7693917c0a71"
+        "projectId": "4ee7df2f-34c7-4be6-aaa0-f6bfca8f98c0"
       }
     }
   }

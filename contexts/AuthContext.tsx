@@ -159,6 +159,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             });
           }, 3000);
 
+          // DISABLED: Pre-warming HealthKit causes RCTModuleMethod errors at app startup
+          // HealthKit will be loaded on-demand when user navigates to vitals screen
+          // This ensures the native bridge is fully ready before loading the module
+
           // Process family code and ensure family exists (don't block on errors)
           try {
             const familyCodeProcessed = await processPendingFamilyCode(

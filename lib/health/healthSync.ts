@@ -16,7 +16,8 @@ import type { HealthProvider } from "./healthMetricsCatalog";
 import { HEALTH_STORAGE_KEYS } from "./healthTypes";
 
 // Import services
-import { appleHealthService } from "../services/appleHealthService";
+// Lazy import to prevent early native module loading
+// import { appleHealthService } from "../services/appleHealthService";
 import { healthConnectService } from "../services/healthConnectService";
 import { fitbitService } from "../services/fitbitService";
 
@@ -149,6 +150,8 @@ export const syncHealthData = async (
     let metrics;
     switch (provider) {
       case "apple_health":
+        // Lazy import to prevent early native module loading
+        const { appleHealthService } = await import("../services/appleHealthService");
         metrics = await appleHealthService.fetchMetrics(
           connection.selectedMetrics,
           startDate,
