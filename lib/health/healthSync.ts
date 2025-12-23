@@ -142,11 +142,24 @@ export const syncHealthData = async (
 
     // Calculate date range (last 30 days or since last sync)
     const endDate = new Date();
-    const startDate = connection.lastSyncAt
-      ? new Date(connection.lastSyncAt)
-      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+    let startDate: Date;
+    if (connection.lastSyncAt) {
+      // Start from last sync, but ensure at least 1 day range
+      const lastSync = new Date(connection.lastSyncAt);
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      startDate = lastSync < oneDayAgo ? lastSync : oneDayAgo;
+    } else {
+      // First sync: get last 30 days
+      startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    }
+    
+    console.log(`[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
     // Fetch metrics from provider
+    console.log(`[Health Sync] Fetching metrics for provider: ${provider}`);
+    console.log(`[Health Sync] Selected metrics: ${JSON.stringify(connection.selectedMetrics)}`);
+    console.log(`[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    
     let metrics;
     switch (provider) {
       case "apple_health":
@@ -157,6 +170,7 @@ export const syncHealthData = async (
           startDate,
           endDate
         );
+        console.log(`[Health Sync] Fetched ${metrics.length} metrics from Apple Health`);
         break;
       case "health_connect":
         metrics = await healthConnectService.fetchMetrics(

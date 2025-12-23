@@ -161,7 +161,12 @@ export default function AppleHealthConnectedScreen() {
   const grantedMetrics = rawGrantedMetrics.includes("all")
     ? getAvailableMetricsForProvider("apple_health").map((m) => m.key)
     : rawGrantedMetrics;
-  const deniedMetrics = connection.deniedMetrics || [];
+  
+  // Expand "all" in denied metrics as well
+  const rawDeniedMetrics = connection.deniedMetrics || [];
+  const deniedMetrics = rawDeniedMetrics.includes("all")
+    ? getAvailableMetricsForProvider("apple_health").map((m) => m.key)
+    : rawDeniedMetrics;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>

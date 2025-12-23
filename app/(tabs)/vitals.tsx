@@ -12,6 +12,16 @@ import {
   Check,
   ChevronRight,
   Info,
+  Thermometer,
+  Droplet,
+  Gauge,
+  Zap,
+  Flame,
+  Route,
+  Dumbbell,
+  Clock,
+  Waves,
+  TestTube,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -753,7 +763,7 @@ export default function VitalsScreen() {
         ? allAvailableMetrics
         : granted;
       const expandedDenied = denied.includes("all")
-        ? [] // If "all" was denied, we can't expand it meaningfully
+        ? allAvailableMetrics // Expand "all" to all available metrics when denied
         : denied;
 
       // Save connection
@@ -767,6 +777,9 @@ export default function VitalsScreen() {
       };
 
       await saveProviderConnection(connection);
+
+      // Also save permission status to AsyncStorage for backward compatibility
+      await healthDataService.savePermissionStatus(expandedGranted.length > 0);
 
       // Update permissions status using expandedGranted to match the stored connection
       setHasPermissions(expandedGranted.length > 0);
@@ -822,58 +835,340 @@ export default function VitalsScreen() {
     if (!(vitals && summary)) return [];
 
     const formatted = healthDataService.formatVitalSigns(vitals);
+    const cards: VitalCard[] = [];
 
-    return [
-      {
-        key: "heartRate",
-        title: "Heart Rate",
-        titleAr: "معدل ضربات القلب",
-        icon: Heart,
-        color: theme.colors.accent.error,
-        value: vitals.heartRate?.toString() || "0",
-        unit: "BPM",
-        trend: summary.heartRate.trend,
-        status:
-          vitals.heartRate && vitals.heartRate > 100 ? "warning" : "normal",
-      },
-      {
-        key: "steps",
-        title: "Steps Today",
-        titleAr: "خطوات اليوم",
-        icon: Activity,
-        color: theme.colors.primary.main,
-        value: vitals.steps?.toLocaleString() || "0",
-        unit: "steps",
-        trend: "stable",
-        status:
-          vitals.steps && vitals.steps >= summary.steps.goal
-            ? "normal"
-            : "warning",
-      },
-      {
-        key: "sleep",
-        title: "Sleep Last Night",
-        titleAr: "النوم الليلة الماضية",
-        icon: Moon,
-        color: theme.colors.accent.info,
-        value: vitals.sleepHours?.toFixed(1) || "0",
-        unit: "hours",
-        trend: "stable",
-        status:
-          vitals.sleepHours && vitals.sleepHours >= 7 ? "normal" : "warning",
-      },
-      {
-        key: "weight",
-        title: "Weight",
-        titleAr: "الوزن",
-        icon: Scale,
-        color: theme.colors.accent.success,
-        value: vitals.weight?.toFixed(1) || "0",
-        unit: "kg",
-        trend: summary.weight.trend,
-        status: "normal",
-      },
-    ];
+    // Helper to get value or "N/A"
+    const getValue = (val: number | undefined, formatter: (v: number) => string = (v) => v.toString()): string => {
+      return val !== undefined ? formatter(val) : "N/A";
+    };
+
+    // Helper to get status
+    const getStatus = (val: number | undefined, check: (v: number) => boolean): "normal" | "warning" => {
+      if (val === undefined) return "normal";
+      return check(val) ? "warning" : "normal";
+    };
+
+    // Heart Rate (1/24)
+    cards.push({
+      key: "heartRate",
+      title: "Heart Rate",
+      titleAr: "معدل ضربات القلب",
+      icon: Heart,
+      color: theme.colors.accent.error,
+      value: getValue(vitals.heartRate),
+      unit: "BPM",
+      trend: summary.heartRate?.trend || "stable",
+      status: getStatus(vitals.heartRate, (v) => v > 100),
+    });
+
+    // Steps (2/24)
+    cards.push({
+      key: "steps",
+      title: "Steps Today",
+      titleAr: "خطوات اليوم",
+      icon: Activity,
+      color: theme.colors.primary.main,
+      value: getValue(vitals.steps, (v) => v.toLocaleString()),
+      unit: "steps",
+      trend: "stable",
+      status: getStatus(vitals.steps, (v) => v < (summary.steps?.goal || 10000)),
+    });
+
+    // Sleep (3/24)
+    cards.push({
+      key: "sleep",
+      title: "Sleep Last Night",
+      titleAr: "النوم الليلة الماضية",
+      icon: Moon,
+      color: theme.colors.accent.info,
+      value: getValue(vitals.sleepHours, (v) => v.toFixed(1)),
+      unit: "hours",
+      trend: "stable",
+      status: getStatus(vitals.sleepHours, (v) => v < 7),
+    });
+
+    // Weight (4/24)
+    cards.push({
+      key: "weight",
+      title: "Weight",
+      titleAr: "الوزن",
+      icon: Scale,
+      color: theme.colors.accent.success,
+      value: getValue(vitals.weight, (v) => v.toFixed(1)),
+      unit: "kg",
+      trend: summary.weight?.trend || "stable",
+      status: "normal",
+    });
+
+    // Blood Pressure Systolic (5/24)
+    cards.push({
+      key: "bloodPressureSystolic",
+      title: "BP Systolic",
+      titleAr: "الضغط الانقباضي",
+      icon: Gauge,
+      color: theme.colors.accent.warning,
+      value: vitals.bloodPressure 
+        ? vitals.bloodPressure.systolic.toString()
+        : "N/A",
+      unit: "mmHg",
+      trend: "stable",
+      status: vitals.bloodPressure 
+        ? (vitals.bloodPressure.systolic > 140 ? "warning" : "normal")
+        : "normal",
+    });
+
+    // Blood Pressure Diastolic (6/24)
+    cards.push({
+      key: "bloodPressureDiastolic",
+      title: "BP Diastolic",
+      titleAr: "الضغط الانبساطي",
+      icon: Gauge,
+      color: theme.colors.accent.warning,
+      value: vitals.bloodPressure 
+        ? vitals.bloodPressure.diastolic.toString()
+        : "N/A",
+      unit: "mmHg",
+      trend: "stable",
+      status: vitals.bloodPressure 
+        ? (vitals.bloodPressure.diastolic > 90 ? "warning" : "normal")
+        : "normal",
+    });
+
+    // Body Temperature (7/24)
+    cards.push({
+      key: "bodyTemperature",
+      title: "Body Temperature",
+      titleAr: "درجة حرارة الجسم",
+      icon: Thermometer,
+      color: theme.colors.accent.error,
+      value: getValue(vitals.bodyTemperature, (v) => v.toFixed(1)),
+      unit: "°C",
+      trend: "stable",
+      status: getStatus(vitals.bodyTemperature, (v) => v > 37.5 || v < 36.1),
+    });
+
+    // Oxygen Saturation (8/24)
+    cards.push({
+      key: "oxygenSaturation",
+      title: "Blood Oxygen",
+      titleAr: "تشبع الأكسجين",
+      icon: Droplet,
+      color: theme.colors.accent.info,
+      value: getValue(vitals.oxygenSaturation, (v) => v.toFixed(1)),
+      unit: "%",
+      trend: "stable",
+      status: getStatus(vitals.oxygenSaturation, (v) => v < 95),
+    });
+
+    // Height (9/24)
+    cards.push({
+      key: "height",
+      title: "Height",
+      titleAr: "الطول",
+      icon: Activity,
+      color: theme.colors.accent.success,
+      value: getValue(vitals.height, (v) => (v / 100).toFixed(2)), // Convert cm to m
+      unit: "m",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Resting Heart Rate (10/24)
+    cards.push({
+      key: "restingHeartRate",
+      title: "Resting Heart Rate",
+      titleAr: "معدل ضربات القلب أثناء الراحة",
+      icon: Heart,
+      color: theme.colors.accent.error,
+      value: getValue(vitals.restingHeartRate),
+      unit: "BPM",
+      trend: "stable",
+      status: getStatus(vitals.restingHeartRate, (v) => v > 100),
+    });
+
+    // Heart Rate Variability (11/24)
+    cards.push({
+      key: "heartRateVariability",
+      title: "Heart Rate Variability",
+      titleAr: "تغير معدل ضربات القلب",
+      icon: Activity,
+      color: theme.colors.accent.info,
+      value: getValue(vitals.heartRateVariability, (v) => v.toFixed(0)),
+      unit: "ms",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Walking Heart Rate Average (12/24)
+    cards.push({
+      key: "walkingHeartRateAverage",
+      title: "Walking Heart Rate",
+      titleAr: "معدل ضربات القلب أثناء المشي",
+      icon: Activity,
+      color: theme.colors.primary.main,
+      value: getValue(vitals.walkingHeartRateAverage),
+      unit: "BPM",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Respiratory Rate (13/24)
+    cards.push({
+      key: "respiratoryRate",
+      title: "Respiratory Rate",
+      titleAr: "معدل التنفس",
+      icon: Activity,
+      color: theme.colors.accent.info,
+      value: getValue(vitals.respiratoryRate, (v) => v.toFixed(1)),
+      unit: "breaths/min",
+      trend: "stable",
+      status: getStatus(vitals.respiratoryRate, (v) => v > 20 || v < 12),
+    });
+
+    // Body Mass Index (14/24)
+    cards.push({
+      key: "bodyMassIndex",
+      title: "BMI",
+      titleAr: "مؤشر كتلة الجسم",
+      icon: Scale,
+      color: theme.colors.accent.success,
+      value: getValue(vitals.bodyMassIndex, (v) => v.toFixed(1)),
+      unit: "kg/m²",
+      trend: "stable",
+      status: getStatus(vitals.bodyMassIndex, (v) => v > 30 || v < 18.5),
+    });
+
+    // Body Fat Percentage (15/24)
+    cards.push({
+      key: "bodyFatPercentage",
+      title: "Body Fat",
+      titleAr: "نسبة الدهون في الجسم",
+      icon: Scale,
+      color: theme.colors.accent.success,
+      value: getValue(vitals.bodyFatPercentage, (v) => v.toFixed(1)),
+      unit: "%",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Active Energy (16/24)
+    cards.push({
+      key: "activeEnergy",
+      title: "Active Energy",
+      titleAr: "الطاقة النشطة",
+      icon: Zap,
+      color: theme.colors.accent.warning,
+      value: getValue(vitals.activeEnergy, (v) => v.toFixed(0)),
+      unit: "kcal",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Basal Energy (17/24)
+    cards.push({
+      key: "basalEnergy",
+      title: "Basal Energy",
+      titleAr: "الطاقة الأساسية",
+      icon: Flame,
+      color: theme.colors.accent.warning,
+      value: getValue(vitals.basalEnergy, (v) => v.toFixed(0)),
+      unit: "kcal",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Distance Walking/Running (18/24)
+    cards.push({
+      key: "distanceWalkingRunning",
+      title: "Distance",
+      titleAr: "المسافة",
+      icon: Route,
+      color: theme.colors.primary.main,
+      value: getValue(vitals.distanceWalkingRunning, (v) => v.toFixed(2)),
+      unit: "km",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Flights Climbed (19/24)
+    cards.push({
+      key: "flightsClimbed",
+      title: "Flights Climbed",
+      titleAr: "السلالم المتسلقة",
+      icon: Activity,
+      color: theme.colors.primary.main,
+      value: getValue(vitals.flightsClimbed),
+      unit: "flights",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Exercise Minutes (20/24)
+    cards.push({
+      key: "exerciseMinutes",
+      title: "Exercise Time",
+      titleAr: "وقت التمرين",
+      icon: Dumbbell,
+      color: theme.colors.primary.main,
+      value: getValue(vitals.exerciseMinutes),
+      unit: "min",
+      trend: "stable",
+      status: getStatus(vitals.exerciseMinutes, (v) => v < 30),
+    });
+
+    // Stand Time (21/24)
+    cards.push({
+      key: "standTime",
+      title: "Stand Time",
+      titleAr: "وقت الوقوف",
+      icon: Clock,
+      color: theme.colors.primary.main,
+      value: getValue(vitals.standTime),
+      unit: "min",
+      trend: "stable",
+      status: getStatus(vitals.standTime, (v) => v < 60),
+    });
+
+    // Workouts (22/24)
+    cards.push({
+      key: "workouts",
+      title: "Workouts",
+      titleAr: "التمارين",
+      icon: Dumbbell,
+      color: theme.colors.primary.main,
+      value: getValue(vitals.workouts),
+      unit: "sessions",
+      trend: "stable",
+      status: "normal",
+    });
+
+    // Water Intake (23/24)
+    cards.push({
+      key: "waterIntake",
+      title: "Water Intake",
+      titleAr: "استهلاك الماء",
+      icon: Waves,
+      color: theme.colors.accent.info,
+      value: getValue(vitals.waterIntake, (v) => v.toFixed(0)),
+      unit: "ml",
+      trend: "stable",
+      status: getStatus(vitals.waterIntake, (v) => v < 2000),
+    });
+
+    // Blood Glucose (24/24)
+    cards.push({
+      key: "bloodGlucose",
+      title: "Blood Glucose",
+      titleAr: "سكر الدم",
+      icon: TestTube,
+      color: theme.colors.accent.error,
+      value: getValue(vitals.bloodGlucose, (v) => v.toFixed(0)),
+      unit: "mg/dL",
+      trend: "stable",
+      status: getStatus(vitals.bloodGlucose, (v) => v > 140 || v < 70),
+    });
+
+    return cards;
   };
 
   const getTrendIcon = (trend?: string) => {
@@ -1374,14 +1669,20 @@ export default function VitalsScreen() {
       >
         {/* Vitals Grid */}
         <View style={styles.vitalsGrid as ViewStyle}>
-          {/* First Row - Heart Rate (large) + Steps */}
-          <View style={styles.vitalsRow as ViewStyle}>
-            {vitalCards.slice(0, 2).map((vital, index) => {
-              const IconComponent = vital.icon;
-              const TrendIcon = getTrendIcon(vital.trend);
-              const isLarge = index === 0;
+          {/* Render all vital cards dynamically in rows of 2 */}
+          {Array.from({ length: Math.ceil(vitalCards.length / 2) }).map((_, rowIndex) => {
+            const startIndex = rowIndex * 2;
+            const rowCards = vitalCards.slice(startIndex, startIndex + 2);
+            
+            return (
+              <View key={rowIndex} style={styles.vitalsRow as ViewStyle}>
+                {rowCards.map((vital, index) => {
+                  const IconComponent = vital.icon;
+                  const TrendIcon = getTrendIcon(vital.trend);
+                  // First card in first row is large, others are regular size
+                  const isLarge = rowIndex === 0 && index === 0;
 
-              return (
+                  return (
                 <View
                   key={vital.key}
                   style={[styles.vitalCard, isLarge && styles.vitalCardLarge] as StyleProp<ViewStyle>}
@@ -1451,80 +1752,15 @@ export default function VitalsScreen() {
                     </Text>
                   </View>
                 </View>
-              );
-            })}
-          </View>
-
-          {/* Second Row - Sleep + Weight */}
-          <View style={styles.vitalsRow as ViewStyle}>
-            {vitalCards.slice(2, 4).map((vital) => {
-              const IconComponent = vital.icon;
-              const TrendIcon = getTrendIcon(vital.trend);
-
-              return (
-                <View key={vital.key} style={styles.vitalCard as ViewStyle}>
-                  <View style={styles.vitalHeader as ViewStyle}>
-                    <View
-                      style={[
-                        styles.vitalIcon,
-                        { backgroundColor: vital.color + "20" },
-                      ] as StyleProp<ViewStyle>}
-                    >
-                      <IconComponent color={vital.color} size={20} />
-                    </View>
-                    <View style={styles.vitalTrend as ViewStyle}>
-                      <TrendIcon
-                        color={getStatusColor(vital.status)}
-                        size={12}
-                      />
-                    </View>
-                  </View>
-
-                  <Text style={[styles.vitalTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-                    {isRTL ? vital.titleAr : vital.title}
-                  </Text>
-
-                  <Text style={[styles.vitalValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-                    {vital.value}
-                  </Text>
-
-                  <Text style={[styles.vitalUnit, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-                    {vital.unit}
-                  </Text>
-
-                  <View style={styles.statusIndicator as ViewStyle}>
-                    <View
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: getStatusColor(vital.status),
-                      }}
-                    />
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: getStatusColor(vital.status) },
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>}
-                    >
-                      {vital.status === "normal"
-                        ? isRTL
-                          ? "طبيعي"
-                          : "Normal"
-                        : vital.status === "warning"
-                          ? isRTL
-                            ? "انتباه"
-                            : "Attention"
-                          : isRTL
-                            ? "خطر"
-                            : "Critical"}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                  );
+                })}
+                {/* Add empty placeholder if odd number of cards in last row */}
+                {rowCards.length === 1 && rowIndex === Math.ceil(vitalCards.length / 2) - 1 && (
+                  <View style={styles.vitalCard as ViewStyle} />
+                )}
+              </View>
+            );
+          })}
         </View>
 
         {/* Maak One-liner */}

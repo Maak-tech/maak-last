@@ -3,8 +3,8 @@
  * Provider selection and management
  */
 
-import { useRouter } from "expo-router";
-import { useState, useEffect, useCallback } from "react";
+import { useRouter, useNavigation } from "expo-router";
+import { useState, useEffect, useCallback, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -16,8 +16,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Heart, ChevronRight, Check, AlertCircle } from "lucide-react-native";
+import { Heart, ChevronRight, Check, AlertCircle, ArrowLeft } from "lucide-react-native";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useTranslation } from "react-i18next";
 import type { HealthProvider } from "@/lib/health/healthMetricsCatalog";
 import {
   getProviderConnection,
@@ -35,13 +36,27 @@ interface ProviderOption {
   route: string;
 }
 
+export const options = {
+  headerShown: false,
+};
+
 export default function HealthIntegrationsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { theme, isDark } = useTheme();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === "ar";
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<
     Map<HealthProvider, ProviderConnection>
   >(new Map());
+
+  // Hide the default header to prevent duplicate headers
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
   const providers: ProviderOption[] = [
     {
@@ -123,15 +138,39 @@ export default function HealthIntegrationsScreen() {
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
     >
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: isDark ? theme.colors.background.secondary : "#FFFFFF", borderBottomColor: isDark ? theme.colors.border : "#E2E8F0" }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color={isDark ? theme.colors.text.primary : "#1E293B"}
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
+        <Text style={[styles.headerTitle, { color: isDark ? theme.colors.text.primary : "#1E293B" }, isRTL && styles.rtlText]}>
+          {isRTL ? "تكاملات الصحة" : "Health Integrations"}
+        </Text>
+
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Heart size={48} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-            Health Integrations
+        {/* Welcome Section */}
+        <View style={[styles.welcomeSection, { backgroundColor: isDark ? theme.colors.background.secondary : "#FFFFFF" }]}>
+          <View style={[styles.welcomeIcon, { backgroundColor: theme.colors.primary.main + "20" }]}>
+            <Heart size={40} color={theme.colors.primary.main} />
+          </View>
+          <Text style={[styles.welcomeTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}>
+            {isRTL ? "تكاملات الصحة" : "Health Integrations"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-            Connect health data sources to provide better insights and care
+          <Text style={[styles.welcomeDescription, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}>
+            {isRTL
+              ? "قم بتوصيل مصادر البيانات الصحية لتوفير رؤى أفضل ورعاية محسّنة"
+              : "Connect health data sources to provide better insights and care"}
           </Text>
         </View>
 
@@ -257,19 +296,65 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    padding: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
     alignItems: "center",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginTop: 16,
-    marginBottom: 8,
+  backButtonRTL: {
+    transform: [{ scaleX: -1 }],
   },
-  subtitle: {
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: "Geist-SemiBold",
+    flex: 1,
+    textAlign: "center",
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  welcomeSection: {
+    alignItems: "center",
+    paddingVertical: 32,
+    marginTop: 20,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    marginBottom: 24,
+  },
+  welcomeIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontFamily: "Geist-Bold",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  welcomeDescription: {
     fontSize: 16,
+    fontFamily: "Geist-Regular",
     textAlign: "center",
     lineHeight: 24,
+    paddingHorizontal: 16,
+  },
+  rtlText: {
+    fontFamily: "Geist-Regular",
   },
   providersSection: {
     padding: 24,

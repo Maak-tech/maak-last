@@ -121,9 +121,15 @@ const fetchMetricSamples = async (
   endDate: Date
 ): Promise<MetricSample[]> => {
   try {
-    if (!authorizationRequested) {
-      throw new Error("Authorization not requested. Call authorize() first.");
+    // Check if HealthKit is available
+    if (!isHealthDataAvailable()) {
+      throw new Error("HealthKit is not available on this device");
     }
+    
+    // Note: We don't check authorizationRequested here because it's a module-level variable
+    // that resets on app restart/module reload. The caller already verifies that a connection
+    // exists. If authorization wasn't granted, HealthKit queries will fail gracefully with
+    // appropriate error messages.
 
     // Determine if this is a quantity, category, or workout type
     if (healthKitType === "HKWorkoutTypeIdentifier") {
@@ -233,10 +239,14 @@ const fetchMetrics = async (
         );
     }
 
+    // Debug logging
+    console.log(`[HealthKit Service] Fetching ${metricsToFetch.length} metrics for ${selectedMetricKeys.length} selected keys`);
+
     // Fetch samples for each metric
     for (const metric of metricsToFetch) {
       try {
         if (!metric.appleHealth?.type) {
+          console.log(`[HealthKit Service] Skipping metric ${metric.key}: no HealthKit type`);
           continue;
         }
         
@@ -245,6 +255,8 @@ const fetchMetrics = async (
         startDate,
         endDate
       );
+
+      console.log(`[HealthKit Service] Fetched ${samples.length} samples for ${metric.key} (${metric.appleHealth.type})`);
 
       if (samples.length > 0) {
         results.push({
@@ -260,6 +272,8 @@ const fetchMetrics = async (
         // Continue with other metrics even if one fails
     }
   }
+
+  console.log(`[HealthKit Service] Total metrics fetched: ${results.length}, total samples: ${results.reduce((sum, m) => sum + m.samples.length, 0)}`);
 
   return results;
   } catch (error: any) {

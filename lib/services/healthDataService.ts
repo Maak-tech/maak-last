@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { appleHealthService } from "./appleHealthService";
 
 // iOS HealthKit permissions - legacy format (not used with @kingstinct/react-native-healthkit)
 const HealthKitPermissions = {
@@ -36,16 +37,31 @@ const AndroidHealthPermissions = [
 
 export interface VitalSigns {
   heartRate?: number;
+  restingHeartRate?: number;
+  heartRateVariability?: number;
+  walkingHeartRateAverage?: number;
   bloodPressure?: {
     systolic: number;
     diastolic: number;
   };
+  respiratoryRate?: number;
   weight?: number;
   height?: number;
+  bodyMassIndex?: number;
+  bodyFatPercentage?: number;
   steps?: number;
+  activeEnergy?: number;
+  basalEnergy?: number;
+  distanceWalkingRunning?: number;
+  flightsClimbed?: number;
+  exerciseMinutes?: number;
+  standTime?: number;
+  workouts?: number;
   sleepHours?: number;
   bodyTemperature?: number;
   oxygenSaturation?: number;
+  waterIntake?: number;
+  bloodGlucose?: number;
   timestamp: Date;
 }
 
@@ -94,9 +110,6 @@ export const healthDataService = {
         }
         // Try to initialize HealthKit in standalone app
         try {
-          // Use appleHealthService which handles lazy loading and delays properly
-          const { appleHealthService } = await import("./appleHealthService");
-          
           // Check if HealthKit is available on device
           const availability = await appleHealthService.checkAvailability();
           if (!availability.available) {
@@ -130,6 +143,22 @@ export const healthDataService = {
   // Check if health permissions are granted
   async hasHealthPermissions(): Promise<boolean> {
     try {
+      // Check stored connection status (more reliable than AsyncStorage flag)
+      if (Platform.OS === "ios") {
+        const { getProviderConnection } = await import("../health/healthSync");
+        const connection = await getProviderConnection("apple_health");
+        if (connection && connection.connected) {
+          return true;
+        }
+      } else if (Platform.OS === "android") {
+        const { getProviderConnection } = await import("../health/healthSync");
+        const connection = await getProviderConnection("health_connect");
+        if (connection && connection.connected) {
+          return true;
+        }
+      }
+      
+      // Fallback to AsyncStorage check for backward compatibility
       const status = await AsyncStorage.getItem(PERMISSIONS_STORAGE_KEY);
       return status === "true";
     } catch {
@@ -170,9 +199,6 @@ export const healthDataService = {
   // iOS HealthKit data retrieval (with fallback)
   async getIOSVitals(): Promise<VitalSigns | null> {
     try {
-      // Use appleHealthService which handles lazy loading and delays properly
-      const { appleHealthService } = await import("./appleHealthService");
-      
       // Check if HealthKit is available
       const availability = await appleHealthService.checkAvailability();
       if (!availability.available) {
@@ -197,13 +223,33 @@ export const healthDataService = {
         
         const metrics = await appleHealthService.fetchMetrics(["all"], yesterday, today);
         
-        // Helper to get latest value from samples
-        const getLatestValue = (metricKey: string): number | undefined => {
+        // Helper to get latest value from samples with unit conversion
+        const getLatestValue = (metricKey: string, convertToKg: boolean = false): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
           if (!metric || metric.samples.length === 0) return undefined;
           // Get the most recent sample value (samples are sorted by date)
           const latestSample = metric.samples[metric.samples.length - 1];
-          return typeof latestSample.value === "number" ? latestSample.value : undefined;
+          if (typeof latestSample.value !== "number") return undefined;
+          
+          let value = latestSample.value;
+          
+          // Convert weight from pounds to kilograms if needed
+          if (convertToKg && latestSample.unit) {
+            const unit = latestSample.unit.toLowerCase();
+            // Debug logging for weight unit conversion
+            if (metricKey === "weight") {
+              console.log(`[Health Data Service] Weight sample: value=${value}, unit="${latestSample.unit}"`);
+            }
+            // Check if unit is in pounds (lb, lbs, pound, pounds, or imperial units)
+            if (unit.includes("lb") || unit.includes("pound") || unit === "lb" || unit === "lbs") {
+              const originalValue = value;
+              value = value / 2.20462; // Convert pounds to kg
+              console.log(`[Health Data Service] Converted weight from ${originalValue} ${latestSample.unit} to ${value.toFixed(2)} kg`);
+            }
+            // If already in kg, use as-is
+          }
+          
+          return value;
         };
         
         // Helper to get sum for metrics like steps (daily total)
@@ -215,7 +261,8 @@ export const healthDataService = {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
           }, 0);
-          return sum > 0 ? sum : undefined;
+          // Return sum even if 0, since samples exist (distinguishes "no data" from "zero value")
+          return sum;
         };
         
         // Helper to calculate sleep hours from sleep analysis category samples
@@ -241,16 +288,17 @@ export const healthDataService = {
           
           // Convert milliseconds to hours
           const sleepHours = totalSleepMs / (1000 * 60 * 60);
-          return sleepHours > 0 ? sleepHours : undefined;
+          // Return sleepHours even if 0, since samples exist (distinguishes "no data" from "zero value")
+          return sleepHours;
         };
         
         // Convert to VitalSigns format
         const vitals: VitalSigns = {
+          // Heart & Cardiovascular
           heartRate: getLatestValue("heart_rate"),
-          steps: getSumValue("steps"), // Steps should be summed for daily total
-          weight: getLatestValue("weight"),
-          sleepHours: getSleepHours(), // Calculate from sleep analysis samples
-          bodyTemperature: getLatestValue("body_temperature"),
+          restingHeartRate: getLatestValue("resting_heart_rate"),
+          heartRateVariability: getLatestValue("heart_rate_variability"),
+          walkingHeartRateAverage: getLatestValue("walking_heart_rate_average"),
           bloodPressure: (() => {
             const systolic = getLatestValue("blood_pressure_systolic");
             const diastolic = getLatestValue("blood_pressure_diastolic");
@@ -259,7 +307,42 @@ export const healthDataService = {
             }
             return undefined;
           })(),
-          oxygenSaturation: getLatestValue("blood_oxygen"), // Metric key is "blood_oxygen"
+          
+          // Respiratory
+          respiratoryRate: getLatestValue("respiratory_rate"),
+          oxygenSaturation: getLatestValue("blood_oxygen"),
+          
+          // Temperature
+          bodyTemperature: getLatestValue("body_temperature"),
+          
+          // Body Measurements
+          weight: getLatestValue("weight", true), // Convert weight to kg if needed
+          height: getLatestValue("height"), // Height is in cm from HealthKit
+          bodyMassIndex: getLatestValue("body_mass_index"),
+          bodyFatPercentage: getLatestValue("body_fat_percentage"),
+          
+          // Activity & Fitness
+          steps: getSumValue("steps"), // Steps should be summed for daily total
+          activeEnergy: getSumValue("active_energy"), // Sum active energy for daily total
+          basalEnergy: getSumValue("basal_energy"), // Sum basal energy for daily total
+          distanceWalkingRunning: getSumValue("distance_walking_running"), // Sum distance for daily total
+          flightsClimbed: getSumValue("flights_climbed"), // Sum flights climbed for daily total
+          exerciseMinutes: getSumValue("exercise_minutes"), // Sum exercise minutes for daily total
+          standTime: getSumValue("stand_time"), // Sum stand time for daily total
+          workouts: (() => {
+            const metric = metrics.find((m) => m.metricKey === "workouts");
+            return metric?.samples.length || 0;
+          })(),
+          
+          // Sleep
+          sleepHours: getSleepHours(), // Calculate from sleep analysis samples
+          
+          // Nutrition
+          waterIntake: getSumValue("water_intake"), // Sum water intake for daily total
+          
+          // Glucose
+          bloodGlucose: getLatestValue("blood_glucose"),
+          
           timestamp: new Date(),
         };
         
