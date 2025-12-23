@@ -13,6 +13,10 @@ import {
   UserPlus,
   Users,
   X,
+  Activity,
+  Thermometer,
+  Droplet,
+  Gauge,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,8 +48,10 @@ import { familyInviteService } from "@/lib/services/familyInviteService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { healthContextService } from "@/lib/services/healthContextService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import type { User } from "@/types";
+import type { VitalSigns } from "@/lib/services/healthDataService";
 
 const RELATIONS = [
   { key: "father", labelEn: "Father", labelAr: "الأب" },
@@ -64,6 +70,7 @@ interface FamilyMemberMetrics {
   symptomsThisWeek: number;
   activeMedications: number;
   alertsCount: number;
+  vitals?: VitalSigns | null;
 }
 
 export default function FamilyScreen() {
@@ -168,11 +175,12 @@ export default function FamilyScreen() {
       setLoadingMetrics(true);
       const metricsPromises = members.map(async (member) => {
         try {
-          // Fetch symptoms, medications, and alerts for each member
-          const [symptoms, medications, alertsCount] = await Promise.all([
+          // Fetch symptoms, medications, alerts, and vitals for each member
+          const [symptoms, medications, alertsCount, healthContext] = await Promise.all([
             symptomService.getUserSymptoms(member.id),
             medicationService.getUserMedications(member.id),
             alertService.getActiveAlertsCount(member.id),
+            healthContextService.getUserHealthContext(member.id).catch(() => null),
           ]);
 
           // Calculate health score
@@ -193,6 +201,32 @@ export default function FamilyScreen() {
               Date.now() - 7 * 24 * 60 * 60 * 1000
           ).length;
 
+          // Extract vitals from health context
+          let vitals: VitalSigns | null = null;
+          if (healthContext?.vitalSigns) {
+            const vs = healthContext.vitalSigns;
+            vitals = {
+              heartRate: vs.heartRate,
+              bloodPressure: vs.bloodPressure
+                ? (() => {
+                    const bp = vs.bloodPressure.split("/");
+                    if (bp.length === 2) {
+                      return {
+                        systolic: parseFloat(bp[0]),
+                        diastolic: parseFloat(bp[1]),
+                      };
+                    }
+                    return undefined;
+                  })()
+                : undefined,
+              bodyTemperature: vs.temperature,
+              oxygenSaturation: vs.oxygenLevel,
+              bloodGlucose: vs.glucoseLevel,
+              weight: vs.weight,
+              timestamp: vs.lastUpdated || new Date(),
+            };
+          }
+
           return {
             id: member.id,
             user: member,
@@ -200,6 +234,7 @@ export default function FamilyScreen() {
             symptomsThisWeek,
             activeMedications: activeMedications.length,
             alertsCount,
+            vitals,
           };
         } catch (error) {
           // Return default metrics if error
@@ -210,6 +245,7 @@ export default function FamilyScreen() {
             symptomsThisWeek: 0,
             activeMedications: 0,
             alertsCount: 0,
+            vitals: null,
           };
         }
       });
@@ -1024,6 +1060,85 @@ export default function FamilyScreen() {
                           </View>
                         )}
                       </View>
+
+                      {/* Vitals Section */}
+                      {metric.vitals && (
+                        <View style={styles.vitalsSection}>
+                          <Text style={[styles.vitalsTitle, isRTL && styles.rtlText]}>
+                            {isRTL ? "العلامات الحيوية" : "Vitals"}
+                          </Text>
+                          <View style={styles.vitalsGrid}>
+                            {metric.vitals.heartRate !== undefined && (
+                              <View style={styles.vitalItem}>
+                                <Heart color="#EF4444" size={14} />
+                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                  {Math.round(metric.vitals.heartRate)}
+                                </Text>
+                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                  BPM
+                                </Text>
+                              </View>
+                            )}
+                            {metric.vitals.bloodPressure && (
+                              <View style={styles.vitalItem}>
+                                <Gauge color="#F59E0B" size={14} />
+                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                  {metric.vitals.bloodPressure.systolic}/{metric.vitals.bloodPressure.diastolic}
+                                </Text>
+                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                  BP
+                                </Text>
+                              </View>
+                            )}
+                            {metric.vitals.steps !== undefined && (
+                              <View style={styles.vitalItem}>
+                                <Activity color="#2563EB" size={14} />
+                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                  {metric.vitals.steps > 1000 
+                                    ? `${(metric.vitals.steps / 1000).toFixed(1)}k`
+                                    : metric.vitals.steps}
+                                </Text>
+                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                  {isRTL ? "خطوات" : "Steps"}
+                                </Text>
+                              </View>
+                            )}
+                            {metric.vitals.bodyTemperature !== undefined && (
+                              <View style={styles.vitalItem}>
+                                <Thermometer color="#EF4444" size={14} />
+                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                  {metric.vitals.bodyTemperature.toFixed(1)}
+                                </Text>
+                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                  °C
+                                </Text>
+                              </View>
+                            )}
+                            {metric.vitals.oxygenSaturation !== undefined && (
+                              <View style={styles.vitalItem}>
+                                <Droplet color="#3B82F6" size={14} />
+                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                  {Math.round(metric.vitals.oxygenSaturation)}
+                                </Text>
+                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                  SpO2
+                                </Text>
+                              </View>
+                            )}
+                            {metric.vitals.weight !== undefined && (
+                              <View style={styles.vitalItem}>
+                                <Activity color="#10B981" size={14} />
+                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                  {metric.vitals.weight.toFixed(1)}
+                                </Text>
+                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                  kg
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -1784,6 +1899,40 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: "Geist-Regular",
     color: "#64748B",
+    marginTop: 2,
+  },
+  vitalsSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  vitalsTitle: {
+    fontSize: 12,
+    fontFamily: "Geist-SemiBold",
+    color: "#64748B",
+    marginBottom: 8,
+  },
+  vitalsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  vitalItem: {
+    alignItems: "center",
+    flex: 1,
+    minWidth: "30%",
+  },
+  vitalValue: {
+    fontSize: 14,
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
+    marginTop: 4,
+  },
+  vitalLabel: {
+    fontSize: 9,
+    fontFamily: "Geist-Regular",
+    color: "#94A3B8",
     marginTop: 2,
   },
   membersList: {

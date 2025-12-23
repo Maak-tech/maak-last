@@ -267,11 +267,6 @@ export default function ProfileScreen() {
           onPress: () => router.push("/profile/health-integrations" as any),
         },
         {
-          icon: Activity,
-          label: "🔧 HealthKit Debug",
-          onPress: () => router.push("/healthkit-debug" as any),
-        },
-        {
           icon: isDark ? Sun : Moon,
           label: isRTL ? "المظهر الداكن" : "Dark Mode",
           hasSwitch: true,
