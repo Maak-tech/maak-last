@@ -202,6 +202,7 @@ export default function VitalsScreen() {
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
       ...theme.shadows.md,
+      minWidth: 0, // Allow flex items to shrink below content size for proper text wrapping
     },
     vitalCardLarge: {
       flex: 2,
@@ -231,9 +232,11 @@ export default function VitalsScreen() {
     vitalValue: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
       fontSize: 24,
+      flexShrink: 1,
     },
     vitalValueLarge: {
       fontSize: 32,
+      flexShrink: 1,
     },
     vitalUnit: {
       ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary),
@@ -868,7 +871,15 @@ export default function VitalsScreen() {
       titleAr: "خطوات اليوم",
       icon: Activity,
       color: theme.colors.primary.main,
-      value: getValue(vitals.steps, (v) => v.toLocaleString()),
+      value: getValue(vitals.steps, (v) => {
+        // Format large numbers more compactly to prevent truncation
+        if (v >= 1000000) {
+          return `${(v / 1000000).toFixed(1)}M`;
+        } else if (v >= 1000) {
+          return `${(v / 1000).toFixed(1)}k`;
+        }
+        return v.toLocaleString();
+      }),
       unit: "steps",
       trend: "stable",
       status: getStatus(vitals.steps, (v) => v < (summary.steps?.goal || 10000)),
@@ -1166,6 +1177,16 @@ export default function VitalsScreen() {
       unit: "mg/dL",
       trend: "stable",
       status: getStatus(vitals.bloodGlucose, (v) => v > 140 || v < 70),
+    });
+
+    // Sort cards: vitals with data first, then vitals without data (N/A)
+    cards.sort((a, b) => {
+      const aHasData = a.value !== "N/A";
+      const bHasData = b.value !== "N/A";
+      
+      if (aHasData && !bHasData) return -1; // a comes first
+      if (!aHasData && bHasData) return 1;  // b comes first
+      return 0; // Keep original order for items with same data status
     });
 
     return cards;
@@ -1708,15 +1729,20 @@ export default function VitalsScreen() {
                     {isRTL ? vital.titleAr : vital.title}
                   </Text>
 
-                  <Text
-                    style={[
-                      styles.vitalValue,
-                      isLarge && styles.vitalValueLarge,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>}
-                  >
-                    {vital.value}
-                  </Text>
+                  <View style={{ flexShrink: 1, minWidth: 0 }}>
+                    <Text
+                      style={[
+                        styles.vitalValue,
+                        isLarge && styles.vitalValueLarge,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>}
+                      numberOfLines={3}
+                      adjustsFontSizeToFit={true}
+                      minimumFontScale={0.6}
+                    >
+                      {vital.value}
+                    </Text>
+                  </View>
 
                   <Text style={[styles.vitalUnit, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
                     {vital.unit}

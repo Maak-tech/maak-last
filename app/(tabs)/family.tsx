@@ -816,6 +816,131 @@ export default function FamilyScreen() {
   const { totalMembers, activeMembers, totalAlerts, avgHealthScore } =
     getFamilyStats();
 
+  // Helper function to check if vitals are abnormal
+  const hasAbnormalVitals = (vitals: VitalSigns | null | undefined): boolean => {
+    if (!vitals) return false;
+
+    // Check heart rate (normal: 60-100 BPM)
+    if (vitals.heartRate !== undefined) {
+      if (vitals.heartRate < 60 || vitals.heartRate > 100) {
+        return true;
+      }
+    }
+
+    // Check blood pressure (normal: systolic < 120, diastolic < 80)
+    if (vitals.bloodPressure) {
+      if (vitals.bloodPressure.systolic >= 120 || vitals.bloodPressure.diastolic >= 80) {
+        return true;
+      }
+    }
+
+    // Check body temperature (normal: 36.1-37.2°C or 97-99°F)
+    if (vitals.bodyTemperature !== undefined) {
+      if (vitals.bodyTemperature < 36.1 || vitals.bodyTemperature > 37.2) {
+        return true;
+      }
+    }
+
+    // Check oxygen saturation (normal: >= 95%)
+    if (vitals.oxygenSaturation !== undefined) {
+      if (vitals.oxygenSaturation < 95) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  // Get items that need attention
+  const getItemsNeedingAttention = () => {
+    if (viewMode !== "dashboard" || memberMetrics.length === 0) {
+      return [];
+    }
+
+    const attentionItems: Array<{
+      memberId: string;
+      memberName: string;
+      reason: string;
+      severity: "low" | "medium" | "high";
+      icon: string;
+    }> = [];
+
+    memberMetrics.forEach((metric) => {
+      const fullName =
+        metric.user.firstName && metric.user.lastName
+          ? `${metric.user.firstName} ${metric.user.lastName}`
+          : metric.user.firstName || "User";
+
+      // Check for critical health score
+      if (metric.healthScore < 60) {
+        attentionItems.push({
+          memberId: metric.id,
+          memberName: fullName,
+          reason: isRTL
+            ? `نقاط الصحة منخفضة (${metric.healthScore})`
+            : `Low health score (${metric.healthScore})`,
+          severity: "high",
+          icon: "health",
+        });
+      } else if (metric.healthScore < 80) {
+        attentionItems.push({
+          memberId: metric.id,
+          memberName: fullName,
+          reason: isRTL
+            ? `نقاط الصحة تحتاج انتباه (${metric.healthScore})`
+            : `Health score needs attention (${metric.healthScore})`,
+          severity: "medium",
+          icon: "health",
+        });
+      }
+
+      // Check for active alerts
+      if (metric.alertsCount > 0) {
+        attentionItems.push({
+          memberId: metric.id,
+          memberName: fullName,
+          reason: isRTL
+            ? `${metric.alertsCount} ${metric.alertsCount === 1 ? "تنبيه نشط" : "تنبيهات نشطة"}`
+            : `${metric.alertsCount} active ${metric.alertsCount === 1 ? "alert" : "alerts"}`,
+          severity: metric.alertsCount > 2 ? "high" : "medium",
+          icon: "alert",
+        });
+      }
+
+      // Check for high symptom count
+      if (metric.symptomsThisWeek > 3) {
+        attentionItems.push({
+          memberId: metric.id,
+          memberName: fullName,
+          reason: isRTL
+            ? `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "عرض هذا الأسبوع" : "أعراض هذا الأسبوع"}`
+            : `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "symptom" : "symptoms"} this week`,
+          severity: metric.symptomsThisWeek > 5 ? "high" : "medium",
+          icon: "symptom",
+        });
+      }
+
+      // Check for abnormal vitals
+      if (hasAbnormalVitals(metric.vitals)) {
+        attentionItems.push({
+          memberId: metric.id,
+          memberName: fullName,
+          reason: isRTL ? "علامات حيوية غير طبيعية" : "Abnormal vital signs",
+          severity: "high",
+          icon: "vitals",
+        });
+      }
+    });
+
+    // Sort by severity (high first)
+    const severityOrder = { high: 0, medium: 1, low: 2 };
+    return attentionItems.sort(
+      (a, b) => severityOrder[a.severity] - severityOrder[b.severity]
+    );
+  };
+
+  const attentionItems = getItemsNeedingAttention();
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -912,6 +1037,110 @@ export default function FamilyScreen() {
 
         {/* Active Alerts */}
         <AlertsCard />
+
+        {/* Items Needing Attention */}
+        {viewMode === "dashboard" && attentionItems.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.attentionHeader}>
+              <AlertTriangle color="#F59E0B" size={20} />
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                {isRTL ? "العناصر التي تحتاج انتباه" : "Items Needing Attention"}
+              </Text>
+            </View>
+            <View style={styles.attentionCard}>
+              {attentionItems.map((item, index) => {
+                const severityColors = {
+                  high: { bg: "#FEF2F2", border: "#FECACA", text: "#DC2626" },
+                  medium: { bg: "#FFFBEB", border: "#FDE68A", text: "#D97706" },
+                  low: { bg: "#F0F9FF", border: "#BAE6FD", text: "#0284C7" },
+                };
+                const colors = severityColors[item.severity];
+
+                return (
+                  <TouchableOpacity
+                    key={`${item.memberId}-${index}`}
+                    style={[
+                      styles.attentionItem,
+                      {
+                        backgroundColor: colors.bg,
+                        borderLeftColor: colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      const member = familyMembers.find((m) => m.id === item.memberId);
+                      if (member) {
+                        handleEditMember(member);
+                      }
+                    }}
+                  >
+                    <View style={styles.attentionItemContent}>
+                      <View style={styles.attentionItemLeft}>
+                        {item.icon === "health" && (
+                          <Heart color={colors.text} size={18} />
+                        )}
+                        {item.icon === "alert" && (
+                          <AlertTriangle color={colors.text} size={18} />
+                        )}
+                        {item.icon === "symptom" && (
+                          <Activity color={colors.text} size={18} />
+                        )}
+                        {item.icon === "vitals" && (
+                          <Gauge color={colors.text} size={18} />
+                        )}
+                        <View style={styles.attentionItemText}>
+                          <Text
+                            style={[
+                              styles.attentionItemMember,
+                              { color: colors.text },
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {item.memberName}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.attentionItemReason,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {item.reason}
+                          </Text>
+                        </View>
+                      </View>
+                      <View
+                        style={[
+                          styles.severityBadge,
+                          {
+                            backgroundColor: colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.severityBadgeText,
+                            { color: colors.text },
+                          ]}
+                        >
+                          {item.severity === "high"
+                            ? isRTL
+                              ? "عالي"
+                              : "High"
+                            : item.severity === "medium"
+                              ? isRTL
+                                ? "متوسط"
+                                : "Medium"
+                              : isRTL
+                                ? "منخفض"
+                                : "Low"}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* Family Members */}
         <View style={styles.section}>
@@ -2338,5 +2567,60 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+  },
+  attentionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  attentionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  attentionItem: {
+    borderLeftWidth: 4,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  attentionItemContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  attentionItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 12,
+  },
+  attentionItemText: {
+    flex: 1,
+  },
+  attentionItemMember: {
+    fontSize: 14,
+    fontFamily: "Geist-SemiBold",
+    marginBottom: 4,
+  },
+  attentionItemReason: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+  },
+  severityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  severityBadgeText: {
+    fontSize: 10,
+    fontFamily: "Geist-SemiBold",
   },
 });
