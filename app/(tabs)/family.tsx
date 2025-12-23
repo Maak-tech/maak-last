@@ -1512,7 +1512,7 @@ export default function FamilyScreen() {
             >
               <Share2 color="#2563EB" size={24} />
               <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? "مشاركة رمز الدعوة" : "Share Invite Code"}
+                {isRTL ? "دعوة عضو عائلة" : "Invite a Family Member"}
               </Text>
             </TouchableOpacity>
 
