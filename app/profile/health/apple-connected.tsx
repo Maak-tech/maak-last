@@ -34,7 +34,7 @@ import {
   getLastSyncTimestamp,
 } from "@/lib/health/healthSync";
 import type { ProviderConnection, SyncResult } from "@/lib/health/healthTypes";
-import { getMetricByKey } from "@/lib/health/healthMetricsCatalog";
+import { getMetricByKey, getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
 import { format } from "date-fns";
 
 export default function AppleHealthConnectedScreen() {
@@ -156,7 +156,11 @@ export default function AppleHealthConnectedScreen() {
     );
   }
 
-  const grantedMetrics = connection.grantedMetrics || connection.selectedMetrics;
+  // Expand "all" to actual metric keys if present (for backward compatibility)
+  const rawGrantedMetrics = connection.grantedMetrics || connection.selectedMetrics || [];
+  const grantedMetrics = rawGrantedMetrics.includes("all")
+    ? getAvailableMetricsForProvider("apple_health").map((m) => m.key)
+    : rawGrantedMetrics;
   const deniedMetrics = connection.deniedMetrics || [];
 
   return (

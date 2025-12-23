@@ -179,6 +179,17 @@ export const healthDataService = {
         return this.getSimulatedVitals();
       }
 
+      // Check if a connection exists (authorization was granted)
+      // Note: We check the stored connection instead of isConnected() because
+      // the module-level authorizationRequested flag resets on app restart
+      const { getProviderConnection } = await import("../health/healthSync");
+      const connection = await getProviderConnection("apple_health");
+      if (!connection || !connection.connected) {
+        // If not connected, return simulated data
+        // User needs to authorize in settings first
+        return this.getSimulatedVitals();
+      }
+
       // Get health metrics using appleHealthService
       try {
         const today = new Date();
@@ -190,25 +201,75 @@ export const healthDataService = {
         const getLatestValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
           if (!metric || metric.samples.length === 0) return undefined;
-          // Get the most recent sample value
+          // Get the most recent sample value (samples are sorted by date)
           const latestSample = metric.samples[metric.samples.length - 1];
           return typeof latestSample.value === "number" ? latestSample.value : undefined;
+        };
+        
+        // Helper to get sum for metrics like steps (daily total)
+        const getSumValue = (metricKey: string): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === metricKey);
+          if (!metric || metric.samples.length === 0) return undefined;
+          // Sum all values for metrics like steps
+          const sum = metric.samples.reduce((acc, sample) => {
+            const value = typeof sample.value === "number" ? sample.value : 0;
+            return acc + value;
+          }, 0);
+          return sum > 0 ? sum : undefined;
+        };
+        
+        // Helper to calculate sleep hours from sleep analysis category samples
+        const getSleepHours = (): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === "sleep_analysis");
+          if (!metric || metric.samples.length === 0) return undefined;
+          
+          // Sleep analysis returns category samples with startDate and endDate
+          // Filter for "asleep" samples and calculate total duration
+          let totalSleepMs = 0;
+          for (const sample of metric.samples) {
+            // Check if this is a sleep sample (value might be "asleep", "inBed", etc.)
+            // For now, calculate duration for all samples (assuming they're sleep periods)
+            if (sample.startDate && sample.endDate) {
+              const start = new Date(sample.startDate);
+              const end = new Date(sample.endDate);
+              const duration = end.getTime() - start.getTime();
+              if (duration > 0) {
+                totalSleepMs += duration;
+              }
+            }
+          }
+          
+          // Convert milliseconds to hours
+          const sleepHours = totalSleepMs / (1000 * 60 * 60);
+          return sleepHours > 0 ? sleepHours : undefined;
         };
         
         // Convert to VitalSigns format
         const vitals: VitalSigns = {
           heartRate: getLatestValue("heart_rate"),
-          steps: getLatestValue("steps"),
+          steps: getSumValue("steps"), // Steps should be summed for daily total
           weight: getLatestValue("weight"),
-          sleepHours: getLatestValue("sleep"),
+          sleepHours: getSleepHours(), // Calculate from sleep analysis samples
+          bodyTemperature: getLatestValue("body_temperature"),
+          bloodPressure: (() => {
+            const systolic = getLatestValue("blood_pressure_systolic");
+            const diastolic = getLatestValue("blood_pressure_diastolic");
+            if (systolic && diastolic) {
+              return { systolic, diastolic };
+            }
+            return undefined;
+          })(),
+          oxygenSaturation: getLatestValue("blood_oxygen"), // Metric key is "blood_oxygen"
           timestamp: new Date(),
         };
         
         return vitals;
-      } catch (error) {
+      } catch (error: any) {
+        console.error("[Health Data Service] Error fetching HealthKit data:", error?.message || String(error));
         return this.getSimulatedVitals();
       }
-    } catch {
+    } catch (error: any) {
+      console.error("[Health Data Service] Error in getIOSVitals:", error?.message || String(error));
       return this.getSimulatedVitals();
     }
   },

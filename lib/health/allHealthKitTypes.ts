@@ -2,15 +2,16 @@
  * Comprehensive list of HealthKit read permissions
  * 
  * This includes essential HealthKit types for core health tracking.
- * Optimized to 68 types (down from 180+) by removing:
+ * Optimized to 66 types (down from 180+) by removing:
  * - Sensitive reproductive health details
  * - Alcohol consumption data
  * - Advanced clinical/research metrics
  * - Overly granular nutrition vitamins/minerals
  * - Specialized sports metrics
+ * - Invalid types (HKQuantityTypeIdentifierDietaryCalories - use DietaryEnergyConsumed instead)
  * 
  * Last updated: December 23, 2025
- * Build: 26
+ * Build: 27
  */
 
 export const ALL_HEALTHKIT_READ_TYPES = [
@@ -63,14 +64,13 @@ export const ALL_HEALTHKIT_READ_TYPES = [
   // Nutrition (Basic Macros Only)
   "HKQuantityTypeIdentifierDietaryWater",
   "HKQuantityTypeIdentifierDietaryCaffeine",
-  "HKQuantityTypeIdentifierDietaryCalories",
   "HKQuantityTypeIdentifierDietaryCarbohydrates",
   "HKQuantityTypeIdentifierDietaryFatTotal",
   "HKQuantityTypeIdentifierDietaryFatSaturated",
   "HKQuantityTypeIdentifierDietaryCholesterol",
   "HKQuantityTypeIdentifierDietarySodium",
   "HKQuantityTypeIdentifierDietarySugar",
-  "HKQuantityTypeIdentifierDietaryEnergyConsumed",
+  "HKQuantityTypeIdentifierDietaryEnergyConsumed", // Dietary calories/energy
   "HKQuantityTypeIdentifierDietaryProtein",
   
   // Glucose
@@ -80,7 +80,7 @@ export const ALL_HEALTHKIT_READ_TYPES = [
   // Reproductive Health (Basic Only)
   "HKCategoryTypeIdentifierMenstrualFlow",
   "HKCategoryTypeIdentifierIntermenstrualBleeding",
-  "HKQuantityTypeIdentifierBasalBodyTemperature",
+  // Note: BasalBodyTemperature is already included in Temperature section above
   
   // Hearing
   "HKQuantityTypeIdentifierEnvironmentalAudioExposure",

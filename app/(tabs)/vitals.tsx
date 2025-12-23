@@ -743,23 +743,36 @@ export default function VitalsScreen() {
         }
       }
 
+      // Expand "all" to actual metric keys before storing
+      // Use the dynamically determined provider instead of hardcoding "apple_health"
+      const allAvailableMetrics = getAvailableMetricsForProvider(provider).map((m) => m.key);
+      const expandedSelected = selectedMetrics.has("all")
+        ? allAvailableMetrics
+        : Array.from(selectedMetrics);
+      const expandedGranted = granted.includes("all")
+        ? allAvailableMetrics
+        : granted;
+      const expandedDenied = denied.includes("all")
+        ? [] // If "all" was denied, we can't expand it meaningfully
+        : denied;
+
       // Save connection
       const connection: ProviderConnection = {
         provider,
-        connected: granted.length > 0,
+        connected: expandedGranted.length > 0,
         connectedAt: new Date().toISOString(),
-        selectedMetrics: Array.from(selectedMetrics),
-        grantedMetrics: granted,
-        deniedMetrics: denied,
+        selectedMetrics: expandedSelected,
+        grantedMetrics: expandedGranted,
+        deniedMetrics: expandedDenied,
       };
 
       await saveProviderConnection(connection);
 
-      // Update permissions status
-      setHasPermissions(granted.length > 0);
+      // Update permissions status using expandedGranted to match the stored connection
+      setHasPermissions(expandedGranted.length > 0);
       setShowMetricSelection(false);
       
-      if (granted.length > 0) {
+      if (expandedGranted.length > 0) {
         await loadVitalsData();
         Alert.alert(
           isRTL ? "تم التفعيل" : "Enabled",
