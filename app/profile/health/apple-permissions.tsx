@@ -70,7 +70,7 @@ export default function AppleHealthPermissionsScreen() {
     try {
       // Lazy import to prevent early native module loading
       const { appleHealthService } = await import("@/lib/services/appleHealthService");
-      const availability = await appleHealthService.isAvailable();
+      const availability = await appleHealthService.checkAvailability();
       setHealthKitAvailable(availability.available);
       setAvailabilityReason(availability.reason);
     } catch (error) {
@@ -133,7 +133,7 @@ export default function AppleHealthPermissionsScreen() {
       const { appleHealthService } = await import("@/lib/services/appleHealthService");
       
       // Check availability before proceeding - wrapped in try-catch to prevent crashes
-      const availability = await appleHealthService.isAvailable();
+      const availability = await appleHealthService.checkAvailability();
       
       if (!availability.available) {
         setLoading(false);
@@ -149,18 +149,16 @@ export default function AppleHealthPermissionsScreen() {
       await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
 
       // Request HealthKit permissions
-      const { granted, denied } = await appleHealthService.requestAuthorization(
+      const success = await appleHealthService.authorize(
         Array.from(selectedMetrics)
       );
 
       // Save connection
       const connection: ProviderConnection = {
         provider: "apple_health",
-        connected: granted.length > 0,
+        connected: success,
         connectedAt: new Date().toISOString(),
         selectedMetrics: Array.from(selectedMetrics),
-        grantedMetrics: granted,
-        deniedMetrics: denied,
       };
 
       await saveProviderConnection(connection);

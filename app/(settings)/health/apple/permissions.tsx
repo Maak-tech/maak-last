@@ -31,7 +31,7 @@ export default function AppleHealthPermissionsScreen() {
       // Check availability first - wrapped in try-catch to prevent crashes
       let availability;
       try {
-        availability = await appleHealthService.isAvailable();
+        availability = await appleHealthService.checkAvailability();
       } catch (availError: any) {
         console.error("Error checking HealthKit availability:", availError);
         setAuthorizing(false);
@@ -73,7 +73,7 @@ export default function AppleHealthPermissionsScreen() {
       // This will immediately show the iOS permission screen with all available metrics
       // The iOS screen itself allows users to select all or individual metrics
       console.log("[Settings Apple Permissions] Requesting HealthKit authorization for all metrics...");
-      const result = await appleHealthService.requestAuthorization(["all"]);
+      const granted = await appleHealthService.authorize();
 
       // Get all metrics from catalog for saving connection info
       const allMetrics = getAvailableMetricsForProvider("apple_health");
@@ -82,19 +82,17 @@ export default function AppleHealthPermissionsScreen() {
       // Save connection
       const connection: ProviderConnection = {
         provider: "apple_health",
-        connected: result.granted.length > 0,
+        connected: granted,
         connectedAt: new Date().toISOString(),
-        selectedMetrics: allMetricKeys, // Save catalog metrics for reference
-        grantedMetrics: result.granted,
-        deniedMetrics: result.denied,
+        selectedMetrics: allMetricKeys,
       };
 
       await saveProviderConnection(connection);
 
-      if (result.granted.length > 0) {
+      if (granted) {
         Alert.alert(
           "Success",
-          `Health data integration enabled successfully. ${result.granted.length} metric${result.granted.length !== 1 ? "s" : ""} enabled.`,
+          "Health data integration enabled successfully.",
           [
             {
               text: "OK",

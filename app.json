@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maak.health",
-      "buildNumber": "26",
+      "buildNumber": "27",
       "jsEngine": "hermes",
       "splash": {
         "image": "./assets/images/generated_image.png",
@@ -89,13 +89,12 @@
         }
       ],
       [
-        "react-native-health",
+        "@kingstinct/react-native-healthkit",
         {
           "healthSharePermission": "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
           "healthUpdatePermission": "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records."
         }
       ],
-      "./plugins/withHealthKitFix.js",
       "expo-localization",
       "expo-secure-store",
       "expo-web-browser",

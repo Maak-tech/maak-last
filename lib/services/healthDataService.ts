@@ -3,7 +3,7 @@ import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-// iOS HealthKit permissions - correct format for react-native-health
+// iOS HealthKit permissions - legacy format (not used with @kingstinct/react-native-healthkit)
 const HealthKitPermissions = {
   permissions: {
     read: [
@@ -98,17 +98,16 @@ export const healthDataService = {
           const { appleHealthService } = await import("./appleHealthService");
           
           // Check if HealthKit is available on device
-          const availability = await appleHealthService.isAvailable();
+          const availability = await appleHealthService.checkAvailability();
           if (!availability.available) {
             await this.savePermissionStatus(false);
             return false;
           }
 
           // Request authorization using appleHealthService
-          const result = await appleHealthService.requestAuthorization(["all"]);
-          const success = result.granted.length > 0;
-          await this.savePermissionStatus(success);
-          return success;
+          const granted = await appleHealthService.authorize();
+          await this.savePermissionStatus(granted);
+          return granted;
         } catch (error: any) {
           await this.savePermissionStatus(false);
           return false;
@@ -175,10 +174,10 @@ export const healthDataService = {
       const { appleHealthService } = await import("./appleHealthService");
       
       // Check if HealthKit is available
-          const availability = await appleHealthService.isAvailable();
-          if (!availability.available) {
-            return this.getSimulatedVitals();
-          }
+      const availability = await appleHealthService.checkAvailability();
+      if (!availability.available) {
+        return this.getSimulatedVitals();
+      }
 
       // Get health metrics using appleHealthService
       try {

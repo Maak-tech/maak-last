@@ -474,7 +474,7 @@ export default function VitalsScreen() {
       try {
         // Lazy import to prevent early native module loading
         const { appleHealthService } = await import("@/lib/services/appleHealthService");
-        const availability = await appleHealthService.isAvailable();
+        const availability = await appleHealthService.checkAvailability();
         setHealthKitAvailable(availability.available);
         setAvailabilityReason(availability.reason);
       } catch (error: any) {
@@ -622,7 +622,7 @@ export default function VitalsScreen() {
           
           while (retries < maxRetries) {
             try {
-              availability = await appleHealthService.isAvailable();
+              availability = await appleHealthService.checkAvailability();
               break; // Success, exit retry loop
             } catch (bridgeError: any) {
               retries++;
@@ -662,9 +662,9 @@ export default function VitalsScreen() {
             ? ["all"] 
             : Array.from(selectedMetrics);
           
-          const result = await appleHealthService.requestAuthorization(metricsToRequest);
-          granted = result.granted;
-          denied = result.denied;
+          const success = await appleHealthService.authorize(metricsToRequest);
+          granted = success ? metricsToRequest : [];
+          denied = success ? [] : metricsToRequest;
           provider = "apple_health";
         } catch (healthKitError: any) {
           const errorMsg = healthKitError?.message || String(healthKitError);

@@ -32,7 +32,7 @@ export default function HealthKitDebugScreen() {
       }
       
       try {
-        const model = Device?.modelName || Device?.model || "Unknown";
+        const model = Device?.modelName || Device?.modelId || "Unknown";
         results.push(`Device Model: ${model}`);
       } catch (e) {
         results.push(`Device Model: Error - ${e}`);
@@ -130,13 +130,13 @@ export default function HealthKitDebugScreen() {
         results.push(`❌ Error checking native modules: ${modulesError?.message || String(modulesError)}`);
       }
       
-      // Try to load react-native-health - very defensive
-      results.push(`\n\nTrying to require('react-native-health')...`);
+      // Try to load @kingstinct/react-native-healthkit - very defensive
+      results.push(`\n\nTrying to require('@kingstinct/react-native-healthkit')...`);
       try {
         // Use a function to isolate the require call
         let RNHealth: any = null;
         try {
-          RNHealth = require("react-native-health");
+          RNHealth = require("@kingstinct/react-native-healthkit");
         } catch (requireError: any) {
           results.push(`❌ require() failed: ${requireError?.message || String(requireError)}`);
           setDiagnostics(results);
