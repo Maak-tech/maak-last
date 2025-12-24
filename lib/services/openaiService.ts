@@ -34,9 +34,33 @@ class OpenAIService {
   private baseURL = "https://api.openai.com/v1";
   private model = "gpt-3.5-turbo"; // Default to cheaper model
 
+  // Helper to get default API key from environment variable only
+  private getDefaultApiKey(): string | null {
+    const envKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+    if (envKey && envKey.trim() !== "") {
+      return envKey.trim();
+    }
+    return null;
+  }
+
   async initialize() {
     try {
-      this.apiKey = await AsyncStorage.getItem("openai_api_key");
+      // Check AsyncStorage first
+      const storedKey = await AsyncStorage.getItem("openai_api_key");
+      
+      // If we have a valid stored key, use it
+      if (storedKey && storedKey.trim() !== "") {
+        this.apiKey = storedKey;
+      } else {
+        // Otherwise check environment variable
+        const envKey = this.getDefaultApiKey();
+        if (envKey) {
+          this.apiKey = envKey;
+          // Save to AsyncStorage for persistence
+          await AsyncStorage.setItem("openai_api_key", envKey);
+        }
+      }
+      
       const savedModel = await AsyncStorage.getItem("openai_model");
       if (savedModel) {
         this.model = savedModel;
@@ -52,8 +76,20 @@ class OpenAIService {
   }
 
   async getApiKey(): Promise<string | null> {
-    if (!this.apiKey) {
-      this.apiKey = await AsyncStorage.getItem("openai_api_key");
+    if (!this.apiKey || this.apiKey.trim() === "") {
+      // Check AsyncStorage first
+      const storedKey = await AsyncStorage.getItem("openai_api_key");
+      if (storedKey && storedKey.trim() !== "") {
+        this.apiKey = storedKey;
+      } else {
+        // Fall back to environment variable
+        const envKey = this.getDefaultApiKey();
+        if (envKey) {
+          this.apiKey = envKey;
+          // Save to AsyncStorage for persistence
+          await AsyncStorage.setItem("openai_api_key", envKey);
+        }
+      }
     }
     return this.apiKey;
   }
