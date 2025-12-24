@@ -46,14 +46,17 @@ const missingVars = Object.entries(requiredEnvVars)
   .map(([key]) => key);
 
 if (missingVars.length > 0) {
-  const errorMessage = `Missing required Firebase environment variables: ${missingVars.join(", ")}. Please ensure your .env file contains all required EXPO_PUBLIC_FIREBASE_* variables.\n\nTo fix this:\n1. Create a .env file in your project root\n2. Add your Firebase configuration variables:\n   EXPO_PUBLIC_FIREBASE_API_KEY=your-api-key\n   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com\n   EXPO_PUBLIC_FIREBASE_PROJECT_ID=your-project-id\n   EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com\n   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id\n   EXPO_PUBLIC_FIREBASE_APP_ID=your-app-id\n3. Restart your development server\n\nSee docs/FIREBASE_SETUP.md for detailed instructions.`;
+  const errorMessage = `Missing required Firebase environment variables: ${missingVars.join(", ")}. Please ensure your .env file contains all required EXPO_PUBLIC_FIREBASE_* variables.`;
 
-  console.error(`❌ Firebase Configuration Error:\n${errorMessage}`);
-  
-  // Throw error to prevent Firebase initialization with invalid config
-  throw new Error(
-    `Firebase configuration is incomplete. Missing: ${missingVars.join(", ")}. Please check your .env file.`
-  );
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.error(`❌ ${errorMessage}`);
+  }
+
+  // In production, still initialize but log the error
+  // This prevents the app from crashing but Firebase operations will fail
+  if (typeof __DEV__ === "undefined" || !__DEV__) {
+    console.error(`Firebase Configuration Error: ${errorMessage}`);
+  }
 }
 
 // Check if Firebase app already exists (prevents duplicate initialization during HMR)

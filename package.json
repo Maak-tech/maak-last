@@ -17,7 +17,6 @@
     "firebase:check": "bunx tsx scripts/firebase-setup-check.ts",
     "firebase:create-collections": "bunx tsx scripts/create-user-collections.ts",
     "firebase:fix-medications": "node scripts/fix-medications.js",
-    "firebase:validate-migration": "bunx tsx scripts/validate-firebase-migration.ts",
     "validate:env": "bunx tsx scripts/validate-env.ts",
     "android": "expo run:android",
     "ios": "expo run:ios",
