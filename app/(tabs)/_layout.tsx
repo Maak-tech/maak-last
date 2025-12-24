@@ -52,6 +52,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="moods"
+        options={{
+          href: null, // Access via track tab
+        }}
+      />
+      <Tabs.Screen
         name="zeina"
         options={{
           title: "Zeina",

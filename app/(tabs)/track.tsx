@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router";
-import { Activity, ChevronRight, FileText, Heart, Pill, Zap } from "lucide-react-native";
+import { Activity, ChevronRight, FileText, Heart, Pill, Smile, Zap } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,8 +22,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
+import { moodService } from "@/lib/services/moodService";
 import { userService } from "@/lib/services/userService";
-import type { Medication, Symptom, User as UserType, MedicalHistory } from "@/types";
+import type { Medication, Symptom, User as UserType, MedicalHistory, Mood } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function TrackScreen() {
@@ -35,6 +36,7 @@ export default function TrackScreen() {
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
   const [recentMedicalHistory, setRecentMedicalHistory] = useState<MedicalHistory[]>([]);
+  const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
@@ -48,6 +50,8 @@ export default function TrackScreen() {
     medicationCompliance: 0,
     upcomingMedications: 0,
     totalConditions: 0,
+    moodsThisWeek: 0,
+    avgMoodIntensity: 0,
   });
 
   const isRTL = i18n.language === "ar";
@@ -266,15 +270,18 @@ export default function TrackScreen() {
       }
 
       // Load recent data for overview
-      const [symptoms, medications, medicalHistory] = await Promise.all([
+      const [symptoms, medications, medicalHistory, moods, moodStats] = await Promise.all([
         symptomService.getUserSymptoms(user.id, 3),
         medicationService.getTodaysMedications(user.id),
         medicalHistoryService.getUserMedicalHistory(user.id),
+        moodService.getUserMoods(user.id, 3),
+        moodService.getMoodStats(user.id, 7),
       ]);
 
       setRecentSymptoms(symptoms);
       setTodaysMedications(medications);
       setRecentMedicalHistory(medicalHistory.slice(0, 3)); // Get 3 most recent
+      setRecentMoods(moods);
 
       // Calculate stats
       const totalSymptoms = symptoms.length;
@@ -307,6 +314,8 @@ export default function TrackScreen() {
         medicationCompliance: Math.round(compliance),
         upcomingMedications,
         totalConditions,
+        moodsThisWeek: moodStats.totalMoods,
+        avgMoodIntensity: moodStats.avgIntensity,
       });
     } catch (error) {
       // Silently handle error
@@ -332,6 +341,17 @@ export default function TrackScreen() {
 
   const formatTime = (date: Date) =>
     date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const getMoodEmoji = (moodType: string) => {
+    const moodMap: { [key: string]: string } = {
+      veryHappy: "😄",
+      happy: "😊",
+      neutral: "😐",
+      sad: "😔",
+      verySad: "😢",
+    };
+    return moodMap[moodType] || "😐";
+  };
 
   if (!user) {
     return (
@@ -512,6 +532,50 @@ export default function TrackScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Mood Tracking */}
+              <View style={[styles.trackingOptions, { marginTop: theme.spacing.md }] as StyleProp<ViewStyle>}>
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/moods")}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={[
+                      styles.trackingCardIcon,
+                      { backgroundColor: theme.colors.accent.warning + "20" },
+                    ] as StyleProp<ViewStyle>}
+                  >
+                    <Smile color={theme.colors.accent.warning} size={28} />
+                  </View>
+                  <Text
+                    style={[styles.trackingCardTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                  >
+                    {isRTL ? "المزاج" : "Mood"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.trackingCardSubtitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>}
+                  >
+                    {isRTL
+                      ? "تسجيل ومراقبة المزاج"
+                      : "Track your mood"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/moods")}
+                    style={[
+                      styles.trackingCardButton,
+                      { backgroundColor: theme.colors.accent.warning },
+                    ] as StyleProp<ViewStyle>}
+                  >
+                    <Smile color={theme.colors.neutral.white} size={16} />
+                    <Text style={styles.trackingCardButtonText as StyleProp<TextStyle>}>
+                      {isRTL ? "تتبع" : "Track"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
+
               {/* Medical History and Vitals - Side by Side */}
               <View style={[styles.trackingOptions, { marginTop: theme.spacing.md }] as StyleProp<ViewStyle>}>
                 <TouchableOpacity
@@ -635,6 +699,56 @@ export default function TrackScreen() {
                       >
                         {formatTime(symptom.timestamp)} •{" "}
                         {isRTL ? "شدة" : "Severity"} {symptom.severity}/5
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Recent Activity - Moods */}
+            {recentMoods.length > 0 && (
+              <View style={styles.recentSection as ViewStyle}>
+                <View style={styles.sectionHeader as ViewStyle}>
+                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                    {isRTL ? "المزاجات الأخيرة" : "Recent Moods"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/moods")}
+                    style={styles.viewAllButton as ViewStyle}
+                  >
+                    <Text style={[styles.viewAllText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                      {isRTL ? "عرض الكل" : "View All"}
+                    </Text>
+                    <ChevronRight color={theme.colors.primary.main} size={16} />
+                  </TouchableOpacity>
+                </View>
+
+                {recentMoods.slice(0, 3).map((mood) => (
+                  <TouchableOpacity
+                    key={mood.id}
+                    onPress={() => router.push("/(tabs)/moods")}
+                    style={styles.recentItem as ViewStyle}
+                  >
+                    <View
+                      style={[
+                        styles.recentIcon,
+                        { backgroundColor: theme.colors.accent.warning + "20" },
+                      ] as StyleProp<ViewStyle>}
+                    >
+                      <Text style={{ fontSize: 20 }}>{getMoodEmoji(mood.mood)}</Text>
+                    </View>
+                    <View style={styles.recentInfo as ViewStyle}>
+                      <Text
+                        style={[styles.recentTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                      >
+                        {t(mood.mood)}
+                      </Text>
+                      <Text
+                        style={[styles.recentSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                      >
+                        {formatTime(mood.timestamp)} •{" "}
+                        {isRTL ? "شدة" : "Intensity"} {mood.intensity}/5
                       </Text>
                     </View>
                   </TouchableOpacity>

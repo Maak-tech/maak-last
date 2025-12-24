@@ -1,9 +1,10 @@
 import { useFocusEffect } from "expo-router";
 import { Clock, Edit, Minus, Pill, Plus, Trash2, X } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
+  FlatList,
   Linking,
   Modal,
   Platform,
@@ -35,6 +36,160 @@ const FREQUENCY_OPTIONS = [
   { key: "needed", labelEn: "As needed", labelAr: "عند الحاجة" },
 ];
 
+// Common medications in the Middle East
+const COMMON_MEDICATIONS_MIDDLE_EAST = [
+  // Pain & Fever Relief
+  "Paracetamol",
+  "Ibuprofen",
+  "Aspirin",
+  "Panadol",
+  "Brufen",
+  "Voltaren",
+  "Diclofenac",
+  // Antibiotics
+  "Amoxicillin",
+  "Augmentin",
+  "Azithromycin",
+  "Ciprofloxacin",
+  "Cefuroxime",
+  "Clarithromycin",
+  "Erythromycin",
+  // Antihistamines & Allergies
+  "Cetirizine",
+  "Loratadine",
+  "Fexofenadine",
+  "Desloratadine",
+  "Claritin",
+  "Zyrtec",
+  // Digestive System
+  "Omeprazole",
+  "Pantoprazole",
+  "Ranitidine",
+  "Gaviscon",
+  "Maalox",
+  "Metoclopramide",
+  "Domperidone",
+  // Diabetes
+  "Metformin",
+  "Glibenclamide",
+  "Gliclazide",
+  "Insulin",
+  // Hypertension & Heart
+  "Amlodipine",
+  "Atenolol",
+  "Losartan",
+  "Enalapril",
+  "Captopril",
+  "Propranolol",
+  // Vitamins & Supplements
+  "Vitamin D",
+  "Vitamin C",
+  "Calcium",
+  "Iron",
+  "Folic Acid",
+  "Multivitamin",
+  // Respiratory
+  "Salbutamol",
+  "Ventolin",
+  "Beclomethasone",
+  "Montelukast",
+  // Antidepressants & Mental Health
+  "Sertraline",
+  "Fluoxetine",
+  "Citalopram",
+  "Escitalopram",
+  // Cholesterol
+  "Atorvastatin",
+  "Simvastatin",
+  "Rosuvastatin",
+  // Thyroid
+  "Levothyroxine",
+  "Thyroxine",
+  // Traditional/Herbal (commonly used in Middle East)
+  "Honey",
+  "Black Seed Oil",
+  "Ginger",
+  "Turmeric",
+  "Cumin",
+];
+
+// Common dosages for medications (typical adult dosages)
+const MEDICATION_DOSAGES: Record<string, string> = {
+  // Pain & Fever Relief
+  "Paracetamol": "500mg",
+  "Ibuprofen": "400mg",
+  "Aspirin": "100mg",
+  "Panadol": "500mg",
+  "Brufen": "400mg",
+  "Voltaren": "50mg",
+  "Diclofenac": "50mg",
+  // Antibiotics
+  "Amoxicillin": "500mg",
+  "Augmentin": "625mg",
+  "Azithromycin": "500mg",
+  "Ciprofloxacin": "500mg",
+  "Cefuroxime": "500mg",
+  "Clarithromycin": "500mg",
+  "Erythromycin": "500mg",
+  // Antihistamines & Allergies
+  "Cetirizine": "10mg",
+  "Loratadine": "10mg",
+  "Fexofenadine": "180mg",
+  "Desloratadine": "5mg",
+  "Claritin": "10mg",
+  "Zyrtec": "10mg",
+  // Digestive System
+  "Omeprazole": "20mg",
+  "Pantoprazole": "40mg",
+  "Ranitidine": "150mg",
+  "Gaviscon": "10-20ml",
+  "Maalox": "10-20ml",
+  "Metoclopramide": "10mg",
+  "Domperidone": "10mg",
+  // Diabetes
+  "Metformin": "500mg",
+  "Glibenclamide": "5mg",
+  "Gliclazide": "80mg",
+  "Insulin": "As prescribed",
+  // Hypertension & Heart
+  "Amlodipine": "5mg",
+  "Atenolol": "50mg",
+  "Losartan": "50mg",
+  "Enalapril": "5mg",
+  "Captopril": "25mg",
+  "Propranolol": "40mg",
+  // Vitamins & Supplements
+  "Vitamin D": "1000 IU",
+  "Vitamin C": "500mg",
+  "Calcium": "500mg",
+  "Iron": "200mg",
+  "Folic Acid": "5mg",
+  "Multivitamin": "1 tablet",
+  // Respiratory
+  "Salbutamol": "100mcg",
+  "Ventolin": "100mcg",
+  "Beclomethasone": "100mcg",
+  "Montelukast": "10mg",
+  // Antidepressants & Mental Health
+  "Sertraline": "50mg",
+  "Fluoxetine": "20mg",
+  "Citalopram": "20mg",
+  "Escitalopram": "10mg",
+  // Cholesterol
+  "Atorvastatin": "20mg",
+  "Simvastatin": "20mg",
+  "Rosuvastatin": "10mg",
+  // Thyroid
+  "Levothyroxine": "50mcg",
+  "Thyroxine": "50mcg",
+  // Traditional/Herbal
+  "Honey": "1-2 teaspoons",
+  "Black Seed Oil": "1 teaspoon",
+  "Ginger": "500mg",
+  "Turmeric": "500mg",
+  "Cumin": "As needed",
+};
+
 export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -59,6 +214,9 @@ export default function MedicationsScreen() {
     label: "",
   });
   const [selectedTargetUser, setSelectedTargetUser] = useState<string>("");
+  const [medicationSuggestions, setMedicationSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -122,6 +280,15 @@ export default function MedicationsScreen() {
   useEffect(() => {
     loadMedications();
   }, [user, selectedFilter]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);
@@ -353,6 +520,8 @@ export default function MedicationsScreen() {
         notes: "",
       });
       setSelectedTargetUser("");
+      setMedicationSuggestions([]);
+      setShowSuggestions(false);
       setShowAddModal(false);
 
       // Reload medications
@@ -394,6 +563,12 @@ export default function MedicationsScreen() {
       return;
     }
 
+    // Clear any existing timeout
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+    
     setEditingMedication(medication);
     setNewMedication({
       name: medication.name,
@@ -431,6 +606,9 @@ export default function MedicationsScreen() {
       notes: medication.notes || "",
     });
     setSelectedTargetUser(medication.userId);
+    // Clear suggestions state when opening edit modal
+    setMedicationSuggestions([]);
+    setShowSuggestions(false);
     setShowAddModal(true);
   };
 
@@ -577,6 +755,8 @@ export default function MedicationsScreen() {
               notes: "",
             });
             setSelectedTargetUser(user.id);
+            setMedicationSuggestions([]);
+            setShowSuggestions(false);
             setShowAddModal(true);
           }}
           style={styles.headerAddButton}
@@ -797,6 +977,8 @@ export default function MedicationsScreen() {
                   reminders: [{ time: "", period: "AM" }],
                   notes: "",
                 });
+                setMedicationSuggestions([]);
+                setShowSuggestions(false);
               }}
               style={styles.closeButton}
             >
@@ -804,7 +986,11 @@ export default function MedicationsScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView 
+            style={styles.modalContent}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Target User Selector (for admins) */}
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldContainer}>
@@ -862,14 +1048,99 @@ export default function MedicationsScreen() {
                 {t("medicationName")} *
               </Text>
               <TextInput
-                onChangeText={(text) =>
-                  setNewMedication({ ...newMedication, name: text })
-                }
+                onChangeText={(text) => {
+                  setNewMedication({ ...newMedication, name: text });
+                  // Filter suggestions based on input
+                  if (text.trim().length > 0) {
+                    const filtered = COMMON_MEDICATIONS_MIDDLE_EAST.filter(
+                      (med) =>
+                        med.toLowerCase().includes(text.toLowerCase().trim())
+                    );
+                    setMedicationSuggestions(filtered); // Show all matches
+                    setShowSuggestions(filtered.length > 0);
+                  } else {
+                    setMedicationSuggestions([]);
+                    setShowSuggestions(false);
+                  }
+                }}
+                  onFocus={() => {
+                    // Clear any existing timeout when input is focused
+                    if (blurTimeoutRef.current) {
+                      clearTimeout(blurTimeoutRef.current);
+                      blurTimeoutRef.current = null;
+                    }
+                    // Show suggestions when input is focused if there's text
+                    if (newMedication.name.trim().length > 0) {
+                      const filtered = COMMON_MEDICATIONS_MIDDLE_EAST.filter(
+                        (med) =>
+                          med.toLowerCase().includes(newMedication.name.toLowerCase().trim())
+                      );
+                      setMedicationSuggestions(filtered);
+                      setShowSuggestions(filtered.length > 0);
+                    }
+                  }}
+                onBlur={() => {
+                  // Clear any existing timeout
+                  if (blurTimeoutRef.current) {
+                    clearTimeout(blurTimeoutRef.current);
+                  }
+                  // Delay hiding suggestions to allow for selection
+                  blurTimeoutRef.current = setTimeout(() => {
+                    setShowSuggestions(false);
+                    blurTimeoutRef.current = null;
+                  }, 300);
+                }}
                 placeholder={isRTL ? "اسم الدواء" : "Medication name"}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.name}
               />
+              {showSuggestions && medicationSuggestions.length > 0 && (
+                <View style={styles.suggestionsContainer}>
+                  <FlatList
+                    data={medicationSuggestions}
+                    keyExtractor={(item) => item}
+                    renderItem={({ item: suggestion, index }) => {
+                      const commonDosage = MEDICATION_DOSAGES[suggestion];
+                      const isLastItem = index === medicationSuggestions.length - 1;
+                      return (
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            // Clear timeout when suggestion is selected
+                            if (blurTimeoutRef.current) {
+                              clearTimeout(blurTimeoutRef.current);
+                              blurTimeoutRef.current = null;
+                            }
+                            const dosageToSet = commonDosage && !newMedication.dosage ? commonDosage : newMedication.dosage;
+                            setNewMedication({
+                              ...newMedication,
+                              name: suggestion,
+                              dosage: dosageToSet,
+                            });
+                            setShowSuggestions(false);
+                            setMedicationSuggestions([]);
+                          }}
+                          style={[
+                            styles.suggestionItem,
+                            isLastItem && styles.suggestionItemLast,
+                          ]}
+                        >
+                          <Text style={[styles.suggestionText, isRTL && styles.rtlText]}>
+                            {suggestion}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    }}
+                    nestedScrollEnabled={true}
+                    style={styles.suggestionsScrollView}
+                    showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                    scrollEnabled={true}
+                    removeClippedSubviews={false}
+                  />
+                </View>
+              )}
             </View>
 
             {/* Dosage */}
@@ -1532,5 +1803,37 @@ const styles = StyleSheet.create({
   memberRoleSelected: {
     color: "#2563EB",
     backgroundColor: "#EBF4FF",
+  },
+  suggestionsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    marginTop: 8,
+    maxHeight: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: "hidden",
+  },
+  suggestionsScrollView: {
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
+  },
+  suggestionItemLast: {
+    borderBottomWidth: 0,
+  },
+  suggestionText: {
+    fontSize: 16,
+    fontFamily: "Geist-Regular",
+    color: "#1E293B",
   },
 });
