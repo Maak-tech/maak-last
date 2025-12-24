@@ -184,33 +184,8 @@ export default function ProfileScreen() {
     setExporting(true);
 
     try {
-      // Show format selection dialog
-      Alert.alert(
-        isRTL ? "تصدير المقاييس الصحية" : "Export Health Metrics",
-        isRTL ? "اختر تنسيق التصدير" : "Choose export format",
-        [
-          {
-            text: isRTL ? "CSV" : "CSV",
-            onPress: async () => {
-              await performExport("csv");
-            },
-          },
-          {
-            text: isRTL ? "PDF" : "PDF",
-            onPress: async () => {
-              await performExport("pdf");
-            },
-          },
-          {
-            text: isRTL ? "إلغاء" : "Cancel",
-            style: "cancel",
-            onPress: () => {
-              // Reset flag if user cancels
-              setExporting(false);
-            },
-          },
-        ]
-      );
+      // Export directly as PDF (CSV option removed)
+      await performExport("pdf");
     } catch (error: any) {
       setExporting(false);
       Alert.alert(

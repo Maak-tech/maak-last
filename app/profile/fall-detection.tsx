@@ -10,6 +10,7 @@ import {
   Users,
   XCircle,
   Settings,
+  Bug,
 } from "lucide-react-native";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -47,6 +48,7 @@ export default function FallDetectionScreen() {
     isInitialized,
     toggleFallDetection,
     testFallDetection,
+    runDiagnostics,
     lastAlert,
   } = useFallDetectionContext();
   const [testingNotifications, setTestingNotifications] = useState(false);
@@ -63,10 +65,29 @@ export default function FallDetectionScreen() {
   const checkMotionPermission = async () => {
     setCheckingPermission(true);
     try {
+      console.log("[FallDetectionScreen] 🔍 Checking motion permissions...");
       const hasPermission = await motionPermissionService.hasMotionPermission();
+      console.log("[FallDetectionScreen] 📋 Stored permission status:", hasPermission);
+      
       const status = await motionPermissionService.checkMotionAvailability();
-      setMotionPermissionGranted(hasPermission && status.available);
+      console.log("[FallDetectionScreen] 📋 Motion availability status:", {
+        available: status.available,
+        granted: status.granted,
+        reason: status.reason,
+      });
+      
+      const isGranted = hasPermission && status.available;
+      console.log("[FallDetectionScreen] ✅ Motion permission granted:", isGranted);
+      setMotionPermissionGranted(isGranted);
+      
+      if (!isGranted) {
+        console.warn("[FallDetectionScreen] ⚠️ Motion permissions not granted. Fall detection may not work.");
+        if (!status.available) {
+          console.error("[FallDetectionScreen] ❌ Motion sensors not available:", status.reason);
+        }
+      }
     } catch (error) {
+      console.error("[FallDetectionScreen] ❌ Error checking motion permissions:", error);
       setMotionPermissionGranted(false);
     } finally {
       setCheckingPermission(false);
@@ -113,6 +134,24 @@ export default function FallDetectionScreen() {
       // Silently handle error
     } finally {
       setTestingFallDetection(false);
+    }
+  };
+
+  const handleRunDiagnostics = async () => {
+    try {
+      await runDiagnostics();
+      Alert.alert(
+        isRTL ? "التشخيص" : "Diagnostics",
+        isRTL
+          ? "تم تشغيل التشخيص. تحقق من سجل وحدة التحكم (Console) للتفاصيل."
+          : "Diagnostics completed. Check the console logs for details.",
+        [{ text: isRTL ? "موافق" : "OK" }]
+      );
+    } catch (error) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في تشغيل التشخيص" : "Failed to run diagnostics"
+      );
     }
   };
 
@@ -227,9 +266,49 @@ export default function FallDetectionScreen() {
               >
                 {getStatusText()}
               </Text>
+              {!motionPermissionGranted && (
+                <Text
+                  style={[
+                    styles.permissionWarning,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  {isRTL
+                    ? "⚠️ أذونات الحركة مطلوبة"
+                    : "⚠️ Motion permissions required"}
+                </Text>
+              )}
             </View>
           </View>
         </View>
+
+        {/* Motion Permissions Card */}
+        {!motionPermissionGranted && (
+          <View style={styles.permissionCard}>
+            <View style={styles.permissionHeader}>
+              <AlertTriangle color="#F59E0B" size={24} />
+              <View style={styles.permissionInfo}>
+                <Text style={[styles.permissionTitle, isRTL && styles.rtlText]}>
+                  {isRTL ? "أذونات الحركة" : "Motion Permissions"}
+                </Text>
+                <Text style={[styles.permissionText, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? "يجب تفعيل أذونات الحركة واللياقة البدنية لكشف السقوط"
+                    : "Motion & Fitness permissions are required for fall detection"}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={handleOpenMotionPermissions}
+              style={styles.permissionButton}
+            >
+              <Settings color="#FFFFFF" size={20} />
+              <Text style={styles.permissionButtonText}>
+                {isRTL ? "فتح إعدادات الأذونات" : "Open Permission Settings"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Information Cards */}
         <View style={styles.infoCards}>
@@ -316,6 +395,18 @@ export default function FallDetectionScreen() {
               style={[styles.testButtonTextSecondary, isRTL && styles.rtlText]}
             >
               {isRTL ? "اختبار الإشعارات" : "Test Notifications"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleRunDiagnostics}
+            style={[styles.testButton, styles.diagnosticButton]}
+          >
+            <Bug color="#F59E0B" size={24} />
+            <Text
+              style={[styles.testButtonTextDiagnostic, isRTL && styles.rtlText]}
+            >
+              {isRTL ? "تشخيص النظام" : "Run Diagnostics"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -499,6 +590,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D1D5DB",
   },
+  diagnosticButton: {
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FEF3C7",
+  },
   testButtonText: {
     fontSize: 16,
     fontWeight: "600",
@@ -509,6 +605,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#2563EB",
+    marginLeft: 12,
+  },
+  testButtonTextDiagnostic: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#F59E0B",
     marginLeft: 12,
   },
   warningCard: {
@@ -572,5 +674,38 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
+  },
+  permissionCard: {
+    backgroundColor: "#FFFBEB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#FEF3C7",
+  },
+  permissionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  permissionInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  permissionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#92400E",
+    marginBottom: 4,
+  },
+  permissionText: {
+    fontSize: 14,
+    color: "#92400E",
+    lineHeight: 20,
+  },
+  permissionWarning: {
+    fontSize: 12,
+    color: "#F59E0B",
+    marginTop: 4,
   },
 });
