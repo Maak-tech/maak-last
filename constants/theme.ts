@@ -303,6 +303,8 @@ export const DarkColors = {
   },
 };
 
+const DarkThemeColors = { ...Colors, ...DarkColors } as const;
+
 export const Theme = {
   light: {
     colors: Colors,
@@ -312,12 +314,12 @@ export const Theme = {
     shadows: Shadows,
   },
   dark: {
-    colors: { ...Colors, ...DarkColors },
+    colors: DarkThemeColors,
     typography: Typography,
     spacing: Spacing,
     borderRadius: BorderRadius,
     shadows: DarkShadows, // Use dark mode shadows
   },
-};
+} as const;
 
 export default Theme;

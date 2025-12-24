@@ -12,8 +12,10 @@ import { Theme } from "@/constants/theme";
 
 type ThemeMode = "light" | "dark" | "system";
 
+type ThemeType = typeof Theme.light | typeof Theme.dark;
+
 interface ThemeContextType {
-  theme: typeof Theme.light;
+  theme: ThemeType;
   themeMode: ThemeMode;
   isDark: boolean;
   setThemeMode: (mode: ThemeMode) => void;
