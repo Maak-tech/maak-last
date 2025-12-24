@@ -69,16 +69,16 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.flex}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          bounces={false}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardContainer}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
           <View style={styles.header}>
             <TouchableOpacity
@@ -112,7 +112,7 @@ export default function RegisterScreen() {
               {t("createAccount")}
             </Text>
 
-            {errors.general && (
+            {errors?.general && (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{errors.general}</Text>
               </View>
@@ -129,7 +129,7 @@ export default function RegisterScreen() {
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={firstName}
+                value={firstName ?? ""}
               />
             </View>
 
@@ -144,7 +144,7 @@ export default function RegisterScreen() {
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={lastName}
+                value={lastName ?? ""}
               />
             </View>
 
@@ -161,7 +161,7 @@ export default function RegisterScreen() {
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={email}
+                value={email ?? ""}
               />
             </View>
 
@@ -176,12 +176,12 @@ export default function RegisterScreen() {
                 style={[
                   styles.input,
                   isRTL && styles.rtlInput,
-                  errors.password && styles.inputError,
+                  errors?.password && styles.inputError,
                 ]}
                 textAlign={isRTL ? "right" : "left"}
-                value={password}
+                value={password ?? ""}
               />
-              {errors.password && (
+              {errors?.password && (
                 <Text style={styles.fieldErrorText}>{errors.password}</Text>
               )}
             </View>
@@ -199,12 +199,12 @@ export default function RegisterScreen() {
                 style={[
                   styles.input,
                   isRTL && styles.rtlInput,
-                  errors.confirmPassword && styles.inputError,
+                  errors?.confirmPassword && styles.inputError,
                 ]}
                 textAlign={isRTL ? "right" : "left"}
-                value={confirmPassword}
+                value={confirmPassword ?? ""}
               />
-              {errors.confirmPassword && (
+              {errors?.confirmPassword && (
                 <Text style={styles.fieldErrorText}>
                   {errors.confirmPassword}
                 </Text>
@@ -238,8 +238,8 @@ export default function RegisterScreen() {
               </Link>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -249,14 +249,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
-  flex: {
-    flex: 1,
-  },
   scrollContainer: {
     flexGrow: 1,
     minHeight: "100%",
     justifyContent: "center",
     padding: 24,
+  },
+  keyboardContainer: {
+    width: "100%",
   },
   header: {
     position: "absolute",
