@@ -533,7 +533,6 @@ export const exportMetrics = async (
           errorMessage.includes("ExpoPrint") ||
           errorMessage.includes("expo-print") ||
           errorMessage.includes("is not a function") ||
-          errorMessage.includes("undefined") ||
           error?.code === "ERR_MODULE_NOT_FOUND";
 
         if (isNativeModuleError) {
