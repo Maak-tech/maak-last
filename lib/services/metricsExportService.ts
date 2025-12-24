@@ -500,7 +500,25 @@ export const exportMetrics = async (
       
       // Generate PDF using expo-print (dynamic import to handle missing native module)
       try {
+        // Check platform - expo-print doesn't work on web
+        if (Platform.OS === "web") {
+          throw new Error(
+            "PDF export is not available on web. Please use CSV format instead or use a native device."
+          );
+        }
+
         const Print = await import("expo-print");
+        
+        // Check if the function exists (handles cases where module loads but native code isn't linked)
+        if (!Print.printToFileAsync || typeof Print.printToFileAsync !== "function") {
+          throw new Error(
+            "PDF export requires rebuilding the app. The expo-print native module is not available.\n\n" +
+            "To rebuild:\n" +
+            "- iOS: npx expo run:ios\n" +
+            "- Android: npx expo run:android"
+          );
+        }
+
         const { uri } = await Print.printToFileAsync({
           html,
           base64: false,
@@ -508,13 +526,23 @@ export const exportMetrics = async (
         
         fileUri = uri;
       } catch (error: any) {
-        // Check if it's a native module error
-        if (error?.message?.includes("native module") || error?.message?.includes("expo-print") || error?.code === "ERR_MODULE_NOT_FOUND") {
+        // Check if it's a native module error or function not found
+        const errorMessage = error?.message || String(error);
+        const isNativeModuleError = 
+          errorMessage.includes("native module") || 
+          errorMessage.includes("ExpoPrint") ||
+          errorMessage.includes("expo-print") ||
+          errorMessage.includes("is not a function") ||
+          errorMessage.includes("undefined") ||
+          error?.code === "ERR_MODULE_NOT_FOUND";
+
+        if (isNativeModuleError) {
           throw new Error(
-            "PDF export requires rebuilding the app. Please rebuild your development client or use CSV format instead.\n\n" +
+            "PDF export requires rebuilding the app. The expo-print native module is not available.\n\n" +
             "To rebuild:\n" +
             "- iOS: npx expo run:ios\n" +
-            "- Android: npx expo run:android"
+            "- Android: npx expo run:android\n\n" +
+            "Alternatively, use CSV format which doesn't require native modules."
           );
         }
         throw error;
