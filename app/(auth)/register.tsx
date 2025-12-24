@@ -1,9 +1,7 @@
 import { Link, useRouter } from "expo-router";
-import { Users, Check } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -16,32 +14,27 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
-import type { AvatarType } from "@/types";
 
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const { signUp, loading } = useAuth();
   const router = useRouter();
-  
-  // State
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [familyCode, setFamilyCode] = useState("");
-  const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedAvatar, setSelectedAvatar] = useState<AvatarType | undefined>(undefined);
 
   const isRTL = i18n.language === "ar";
 
   const handleRegister = async () => {
     setErrors({});
 
-    if (!(firstName && lastName && email && password && confirmPassword)) {
+    // Validate required fields - lastName is optional
+    if (!(firstName && email && password && confirmPassword)) {
       setErrors({
-        general: isRTL ? "يرجى ملء جميع الحقول" : "Please fill in all fields",
+        general: isRTL ? "يرجى ملء جميع الحقول المطلوبة" : "Please fill in all required fields",
       });
       return;
     }
@@ -61,42 +54,8 @@ export default function RegisterScreen() {
     }
 
     try {
-      // If user provided a family code, store it BEFORE authentication
-      // This ensures it's available when onAuthStateChanged triggers
-      if (familyCode.trim()) {
-        try {
-          const AsyncStorage = await import(
-            "@react-native-async-storage/async-storage"
-          );
-          await AsyncStorage.default.setItem(
-            "pendingFamilyCode",
-            familyCode.trim()
-          );
-        } catch (error) {
-          Alert.alert(
-            "Notice",
-            "There was an issue storing your family code. Please use the family code in the Family tab after registration."
-          );
-        }
-      }
-
-      await signUp(email, password, firstName, lastName, selectedAvatar);
-
-      // Show success message for family code
-      if (familyCode.trim()) {
-        Alert.alert(
-          "Registration Successful",
-          "You will be added to the family group shortly."
-        );
-      }
-
-      // Navigate back to index so it can handle the authenticated user routing
-      // This ensures proper auth state establishment before navigation
-
-      // Small delay to ensure auth state is fully established
-      setTimeout(() => {
-        router.replace("/");
-      }, 100);
+      await signUp(email, password, firstName, lastName);
+      router.replace("/");
     } catch (error: any) {
       setErrors({
         general: error.message || "Registration failed. Please try again.",
@@ -112,12 +71,14 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardContainer}
+        style={styles.flex}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
           <View style={styles.header}>
             <TouchableOpacity
@@ -157,52 +118,6 @@ export default function RegisterScreen() {
               </View>
             )}
 
-            {/* Avatar Selection */}
-            <View style={styles.avatarSection}>
-              <Text style={[styles.label, isRTL && styles.rtlText]}>
-                {isRTL ? "اختر صورتك الرمزية (اختياري)" : "Choose your avatar (optional)"}
-              </Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.avatarScrollContent}
-              >
-                {[
-                  { type: "man" as AvatarType, emoji: "👨🏻", labelEn: "Man", labelAr: "رجل" },
-                  { type: "woman" as AvatarType, emoji: "👩🏻", labelEn: "Woman", labelAr: "امرأة" },
-                  { type: "boy" as AvatarType, emoji: "👦🏻", labelEn: "Boy", labelAr: "صبي" },
-                  { type: "girl" as AvatarType, emoji: "👧🏻", labelEn: "Girl", labelAr: "فتاة" },
-                  { type: "grandma" as AvatarType, emoji: "👵🏻", labelEn: "Grandma", labelAr: "جدة" },
-                  { type: "grandpa" as AvatarType, emoji: "👴🏻", labelEn: "Grandpa", labelAr: "جد" },
-                ].map((avatar) => (
-                  <TouchableOpacity
-                    key={avatar.type}
-                    onPress={() => setSelectedAvatar(avatar.type)}
-                    style={[
-                      styles.avatarOption,
-                      selectedAvatar === avatar.type && styles.avatarOptionSelected,
-                    ]}
-                  >
-                    <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
-                    <Text
-                      style={[
-                        styles.avatarLabel,
-                        selectedAvatar === avatar.type && styles.avatarLabelSelected,
-                        isRTL && styles.rtlText,
-                      ]}
-                    >
-                      {isRTL ? avatar.labelAr : avatar.labelEn}
-                    </Text>
-                    {selectedAvatar === avatar.type && (
-                      <View style={styles.avatarCheck}>
-                        <Check color="#FFFFFF" size={14} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.rtlText]}>
                 {isRTL ? "الاسم الأول" : "First Name"}
@@ -215,7 +130,6 @@ export default function RegisterScreen() {
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={firstName}
-                autoCorrect={false}
               />
             </View>
 
@@ -231,7 +145,6 @@ export default function RegisterScreen() {
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={lastName}
-                autoCorrect={false}
               />
             </View>
 
@@ -249,7 +162,6 @@ export default function RegisterScreen() {
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={email}
-                autoCorrect={false}
               />
             </View>
 
@@ -268,7 +180,6 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 value={password}
-                autoCorrect={false}
               />
               {errors.password && (
                 <Text style={styles.fieldErrorText}>{errors.password}</Text>
@@ -292,7 +203,6 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 value={confirmPassword}
-                autoCorrect={false}
               />
               {errors.confirmPassword && (
                 <Text style={styles.fieldErrorText}>
@@ -301,50 +211,6 @@ export default function RegisterScreen() {
               )}
             </View>
 
-            {/* Family Code Section */}
-            <View style={styles.familySection}>
-              <TouchableOpacity
-                onPress={() => setShowFamilyCode(!showFamilyCode)}
-                style={styles.familyToggle}
-              >
-                <Users color="#2563EB" size={20} />
-                <Text
-                  style={[styles.familyToggleText, isRTL && styles.rtlText]}
-                >
-                  {isRTL ? "الانضمام إلى عائلة موجودة" : "Join existing family"}
-                </Text>
-                <Text style={styles.optionalText}>
-                  {isRTL ? "(اختياري)" : "(Optional)"}
-                </Text>
-              </TouchableOpacity>
-
-              {showFamilyCode && (
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isRTL && styles.rtlText]}>
-                    {isRTL ? "رمز العائلة" : "Family Code"}
-                  </Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    maxLength={6}
-                    onChangeText={setFamilyCode}
-                    placeholder={
-                      isRTL
-                        ? "أدخل رمز الدعوة (6 أرقام)"
-                        : "Enter invitation code (6 digits)"
-                    }
-                    style={[styles.input, isRTL && styles.rtlInput]}
-                    textAlign={isRTL ? "right" : "left"}
-                    value={familyCode}
-                    autoCorrect={false}
-                  />
-                  <Text style={[styles.helperText, isRTL && styles.rtlText]}>
-                    {isRTL
-                      ? "أدخل رمز الدعوة المرسل إليك من أحد أفراد العائلة"
-                      : "Enter the invitation code sent to you by a family member"}
-                  </Text>
-                </View>
-              )}
-            </View>
 
             <TouchableOpacity
               disabled={loading}
@@ -383,12 +249,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
+  flex: {
+    flex: 1,
+  },
   scrollContainer: {
     flexGrow: 1,
     minHeight: "100%",
-  },
-  keyboardContainer: {
-    flex: 1,
     justifyContent: "center",
     padding: 24,
   },
@@ -527,84 +393,5 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     fontFamily: "Geist-Regular",
-  },
-  familySection: {
-    marginVertical: 16,
-  },
-  familyToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  familyToggleText: {
-    fontSize: 14,
-    fontFamily: "Geist-Medium",
-    color: "#2563EB",
-    marginLeft: 8,
-    flex: 1,
-  },
-  optionalText: {
-    fontSize: 12,
-    fontFamily: "Geist-Regular",
-    color: "#64748B",
-  },
-  helperText: {
-    fontSize: 12,
-    fontFamily: "Geist-Regular",
-    color: "#64748B",
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  avatarSection: {
-    marginBottom: 20,
-  },
-  avatarScrollContent: {
-    paddingVertical: 8,
-    gap: 12,
-  },
-  avatarOption: {
-    width: 85,
-    height: 100,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    position: "relative",
-    marginRight: 12,
-  },
-  avatarOptionSelected: {
-    backgroundColor: "#EBF4FF",
-    borderColor: "#2563EB",
-  },
-  avatarEmoji: {
-    fontSize: 36,
-    marginBottom: 6,
-  },
-  avatarLabel: {
-    fontSize: 11,
-    fontFamily: "Geist-Medium",
-    color: "#64748B",
-    textAlign: "center",
-  },
-  avatarLabelSelected: {
-    color: "#2563EB",
-    fontFamily: "Geist-SemiBold",
-  },
-  avatarCheck: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    backgroundColor: "#2563EB",
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
   },
 });

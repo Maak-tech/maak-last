@@ -108,6 +108,15 @@ const resources = {
       severe: "Severe",
       verySevere: "Very Severe",
 
+      // Mood types
+      veryHappy: "Very Happy",
+      happy: "Happy",
+      neutral: "Neutral",
+      sad: "Sad",
+      verySad: "Very Sad",
+      notes: "Notes",
+      thisWeek: "This Week",
+
       // Relations
       father: "Father",
       mother: "Mother",
@@ -238,6 +247,15 @@ const resources = {
       moderate: "متوسط",
       severe: "شديد",
       verySevere: "شديد جداً",
+
+      // Mood types
+      veryHappy: "سعيد جداً",
+      happy: "سعيد",
+      neutral: "عادي",
+      sad: "حزين",
+      verySad: "حزين جداً",
+      notes: "ملاحظات",
+      thisWeek: "هذا الأسبوع",
 
       // Relations
       father: "الأب",

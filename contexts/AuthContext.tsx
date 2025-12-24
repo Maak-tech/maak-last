@@ -126,14 +126,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
+    let isMounted = true;
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Prevent processing if component unmounted
+      if (!isMounted) return;
+      
       try {
         if (firebaseUser) {
-          // Parse displayName into firstName and lastName
-          const displayName = firebaseUser.displayName || "User";
-          const nameParts = displayName.split(" ");
-          const firstName = nameParts[0] || "User";
-          const lastName = nameParts.slice(1).join(" ") || "";
+          // Check if user document already exists first
+          let existingUser = null;
+          try {
+            existingUser = await userService.getUser(firebaseUser.uid);
+          } catch (getUserError) {
+            // Silently handle getUser error - will create new user document
+          }
+          
+          // Only parse displayName if user doesn't exist yet
+          // Otherwise use existing firstName/lastName to avoid overwriting
+          let firstName = "User";
+          let lastName = "";
+          
+          if (existingUser && existingUser.firstName) {
+            // User exists with proper firstName/lastName, use those
+            firstName = existingUser.firstName;
+            lastName = existingUser.lastName || "";
+          } else {
+            // New user - parse displayName or use defaults
+            const displayName = firebaseUser.displayName || "User";
+            const nameParts = displayName.split(" ");
+            firstName = nameParts[0] || "User";
+            lastName = nameParts.slice(1).join(" ") || "";
+          }
+
+          if (!isMounted) return;
 
           const userData = await userService.ensureUserDocument(
             firebaseUser.uid,
@@ -142,21 +168,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             lastName
           );
           
+          if (!isMounted) return;
+
           if (!userData) {
-            console.error("Failed to create/get user document");
-            setUser(null);
-            setLoading(false);
+            if (isMounted) {
+              setUser(null);
+              setLoading(false);
+            }
             return;
           }
 
-          setUser(userData);
+          if (isMounted) {
+            setUser(userData);
+          }
 
           // Initialize FCM in background (don't block on this)
           setTimeout(() => {
-            fcmService.initializeFCM(userData.id).catch((error) => {
-              console.warn("FCM initialization failed:", error);
-              // Silently fail - will use local notifications
-            });
+            if (isMounted) {
+              fcmService.initializeFCM(userData.id).catch((error) => {
+                // Silently fail - will use local notifications
+              });
+            }
           }, 3000);
 
           // DISABLED: Pre-warming HealthKit causes RCTModuleMethod errors at app startup
@@ -164,38 +196,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // This ensures the native bridge is fully ready before loading the module
 
           // Process family code and ensure family exists (don't block on errors)
-          try {
-            const familyCodeProcessed = await processPendingFamilyCode(
-              firebaseUser.uid
-            );
-
-            if (!familyCodeProcessed) {
-              await ensureUserHasFamily(firebaseUser.uid);
-            }
-          } catch (error) {
-            console.warn("Family setup error:", error);
-            // Try to ensure family exists even if code processing failed
+          if (isMounted) {
             try {
-              await ensureUserHasFamily(firebaseUser.uid);
-            } catch (familyError) {
-              console.warn("Failed to ensure family:", familyError);
+              const familyCodeProcessed = await processPendingFamilyCode(
+                firebaseUser.uid,
+                isMounted
+              );
+
+              if (!isMounted) return;
+
+              if (!familyCodeProcessed) {
+                await ensureUserHasFamily(firebaseUser.uid, isMounted);
+              }
+            } catch (error) {
+              // Try to ensure family exists even if code processing failed
+              if (isMounted) {
+                try {
+                  await ensureUserHasFamily(firebaseUser.uid, isMounted);
+                } catch (familyError) {
+                  // Silently handle family setup errors
+                }
+              }
             }
           }
         } else {
-          setUser(null);
+          if (isMounted) {
+            setUser(null);
+          }
         }
       } catch (error: any) {
-        console.error("Auth state change error:", error);
-        setUser(null);
+        // Silently handle auth state change errors
+        if (isMounted) {
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     });
 
-    return unsubscribe;
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
-  const processPendingFamilyCode = async (userId: string) => {
+  const processPendingFamilyCode = async (userId: string, isMounted: boolean) => {
     try {
       const AsyncStorage = await import(
         "@react-native-async-storage/async-storage"
@@ -214,8 +261,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await userService.joinFamily(userId, result.familyId);
             await AsyncStorage.default.removeItem("pendingFamilyCode");
 
+            if (!isMounted) return false;
+
             const updatedUser = await userService.getUser(userId);
-            if (updatedUser) {
+            if (updatedUser && isMounted) {
               setUser(updatedUser);
             }
 
@@ -259,7 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const ensureUserHasFamily = async (userId: string) => {
+  const ensureUserHasFamily = async (userId: string, isMounted: boolean) => {
     try {
       const currentUser = await userService.getUser(userId);
 
@@ -277,8 +326,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           `${fullName}'s Family` || "My Family"
         );
 
+        if (!isMounted) return;
+
         const updatedUser = await userService.getUser(userId);
-        if (updatedUser) {
+        if (updatedUser && isMounted) {
           setUser(updatedUser);
         }
       }

@@ -79,6 +79,26 @@ service cloud.firestore {
       allow read, write, create, update, delete: if request.auth != null;
     }
 
+    // Moods collection
+    match /moods/{moodId} {
+      // Allow users to create their own moods OR admins to create moods for family members
+      allow create: if request.auth != null && (
+        request.resource.data.userId == request.auth.uid ||
+        (isFamilyAdmin() && isSameFamily(request.resource.data.userId))
+      );
+      
+      // Allow users to read and write their own moods
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Allow family members to read each other's moods (for viewing family data)
+      allow read: if request.auth != null && isSameFamily(resource.data.userId);
+      
+      // Allow admins to update/delete moods for family members
+      allow update, delete: if request.auth != null && 
+        isFamilyAdmin() && 
+        isSameFamily(resource.data.userId);
+    }
+
     // Medical History collection
     match /medicalHistory/{historyId} {
       // Allow users to read and write their own medical history

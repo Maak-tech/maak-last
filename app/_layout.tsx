@@ -13,30 +13,6 @@ import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import "@/lib/i18n";
 
-// DEBUG: Check if HealthKit module is registered at startup
-if (Platform.OS === "ios" && __DEV__) {
-  useEffect(() => {
-    console.log("[App Startup Debug] Checking for HealthKit module registration...");
-    try {
-      const moduleNames = Object.keys(NativeModules || {});
-      console.log(`[App Startup Debug] Native modules registered at startup: ${moduleNames.length} modules`);
-      const healthModules = moduleNames.filter(name => 
-        name.toLowerCase().includes("health") || 
-        name.toLowerCase().includes("fitness") ||
-        name.toLowerCase().includes("apple")
-      );
-      if (healthModules.length > 0) {
-        console.log(`[App Startup Debug] ⚠️ HealthKit-related modules found at startup:`, healthModules);
-        console.log(`[App Startup Debug] This may cause RCTModuleMethod errors if bridge isn't ready!`);
-      } else {
-        console.log(`[App Startup Debug] ✓ No HealthKit modules registered at startup (good)`);
-      }
-    } catch (e) {
-      console.error("[App Startup Debug] Error checking native modules:", e);
-    }
-  }, []);
-}
-
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
 
@@ -63,6 +39,30 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // DEBUG: Check if HealthKit module is registered at startup
+  useEffect(() => {
+    if (Platform.OS === "ios" && __DEV__) {
+      console.log("[App Startup Debug] Checking for HealthKit module registration...");
+      try {
+        const moduleNames = Object.keys(NativeModules || {});
+        console.log(`[App Startup Debug] Native modules registered at startup: ${moduleNames.length} modules`);
+        const healthModules = moduleNames.filter(name => 
+          name.toLowerCase().includes("health") || 
+          name.toLowerCase().includes("fitness") ||
+          name.toLowerCase().includes("apple")
+        );
+        if (healthModules.length > 0) {
+          console.log(`[App Startup Debug] ⚠️ HealthKit-related modules found at startup:`, healthModules);
+          console.log(`[App Startup Debug] This may cause RCTModuleMethod errors if bridge isn't ready!`);
+        } else {
+          console.log(`[App Startup Debug] ✓ No HealthKit modules registered at startup (good)`);
+        }
+      } catch (e) {
+        console.error("[App Startup Debug] Error checking native modules:", e);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Request notification permissions on app start

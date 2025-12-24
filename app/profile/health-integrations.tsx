@@ -134,12 +134,21 @@ export default function HealthIntegrationsScreen() {
     );
   }
 
+  // Header styles with proper border color
+  const headerBackgroundColor = isDark ? theme.colors.background.secondary : "#FFFFFF";
+  const headerBorderColor = isDark ? theme.colors.border.medium : "#E2E8F0";
+  
+  const headerStyles = {
+    backgroundColor: headerBackgroundColor,
+    borderBottomColor: headerBorderColor
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? theme.colors.background.secondary : "#FFFFFF", borderBottomColor: isDark ? theme.colors.border : "#E2E8F0" }]}>
+      <View style={[styles.header, headerStyles]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}

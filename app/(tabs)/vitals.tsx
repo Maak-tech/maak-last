@@ -852,7 +852,7 @@ export default function VitalsScreen() {
     };
 
     // Heart Rate (1/24)
-    // Medical guideline: Normal 60-100 bpm, Needs attention: <50 or >110
+    // Medical guideline: Normal 60-100 bpm, Needs attention: <60 or >100
     cards.push({
       key: "heartRate",
       title: "Heart Rate",
@@ -862,7 +862,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.heartRate),
       unit: "BPM",
       trend: summary.heartRate?.trend || "stable",
-      status: getStatus(vitals.heartRate, (v) => v < 50 || v > 110),
+      status: getStatus(vitals.heartRate, (v) => v < 60 || v > 100),
     });
 
     // Steps (2/24)
@@ -949,7 +949,7 @@ export default function VitalsScreen() {
     });
 
     // Body Temperature (7/24)
-    // Medical guideline: Normal 36.1-37.2°C, Needs attention: ≥38°C
+    // Medical guideline: Normal 36.1-37.2°C, Needs attention: <36.1°C (hypothermia) or ≥38°C (fever)
     cards.push({
       key: "bodyTemperature",
       title: "Body Temperature",
@@ -959,11 +959,11 @@ export default function VitalsScreen() {
       value: getValue(vitals.bodyTemperature, (v) => v.toFixed(1)),
       unit: "°C",
       trend: "stable",
-      status: getStatus(vitals.bodyTemperature, (v) => v >= 38),
+      status: getStatus(vitals.bodyTemperature, (v) => v >= 38 || v < 36.1),
     });
 
     // Oxygen Saturation (8/24)
-    // Medical guideline: Normal ≥95%, Needs attention: <92%
+    // Medical guideline: Normal ≥95%, Needs attention: <95%
     cards.push({
       key: "oxygenSaturation",
       title: "Blood Oxygen",
@@ -973,7 +973,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.oxygenSaturation, (v) => v.toFixed(1)),
       unit: "%",
       trend: "stable",
-      status: getStatus(vitals.oxygenSaturation, (v) => v < 92),
+      status: getStatus(vitals.oxygenSaturation, (v) => v < 95),
     });
 
     // Height (9/24)
@@ -990,7 +990,7 @@ export default function VitalsScreen() {
     });
 
     // Resting Heart Rate (10/24)
-    // Medical guideline: Normal 60-100 bpm, Needs attention: <50 or >110
+    // Medical guideline: Normal 60-100 bpm, Needs attention: <60 or >100
     cards.push({
       key: "restingHeartRate",
       title: "Resting Heart Rate",
@@ -1000,7 +1000,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.restingHeartRate),
       unit: "BPM",
       trend: "stable",
-      status: getStatus(vitals.restingHeartRate, (v) => v < 50 || v > 110),
+      status: getStatus(vitals.restingHeartRate, (v) => v < 60 || v > 100),
     });
 
     // Heart Rate Variability (11/24)
@@ -1030,7 +1030,7 @@ export default function VitalsScreen() {
     });
 
     // Respiratory Rate (13/24)
-    // Medical guideline: Normal 12-20/min, Needs attention: <10 or >24
+    // Medical guideline: Normal 12-20/min, Needs attention: <12 or >20
     cards.push({
       key: "respiratoryRate",
       title: "Respiratory Rate",
@@ -1040,7 +1040,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.respiratoryRate, (v) => v.toFixed(1)),
       unit: "breaths/min",
       trend: "stable",
-      status: getStatus(vitals.respiratoryRate, (v) => v < 10 || v > 24),
+      status: getStatus(vitals.respiratoryRate, (v) => v < 12 || v > 20),
     });
 
     // Body Mass Index (14/24)

@@ -216,7 +216,7 @@ export default function MedicationsScreen() {
   const [selectedTargetUser, setSelectedTargetUser] = useState<string>("");
   const [medicationSuggestions, setMedicationSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -1112,6 +1112,7 @@ export default function MedicationsScreen() {
                               clearTimeout(blurTimeoutRef.current);
                               blurTimeoutRef.current = null;
                             }
+                            // Only use suggested dosage if user hasn't entered a custom dosage yet
                             const dosageToSet = commonDosage && !newMedication.dosage ? commonDosage : newMedication.dosage;
                             setNewMedication({
                               ...newMedication,

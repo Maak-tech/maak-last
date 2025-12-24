@@ -41,6 +41,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { exportMetrics, type ExportFormat } from "@/lib/services/metricsExportService";
 import type { AvatarType, Medication, Symptom } from "@/types";
 
 interface ProfileSectionItem {
@@ -76,6 +77,7 @@ export default function ProfileScreen() {
     medications: [] as Medication[],
     healthScore: 85,
   });
+  const [exporting, setExporting] = useState(false);
 
   const isRTL = i18n.language === "ar";
 
@@ -166,13 +168,90 @@ export default function ProfileScreen() {
     router.push("/profile/change-password");
   };
 
-  const handleHealthReports = () => {
-    Alert.alert(
-      isRTL ? "قريباً" : "Coming Soon",
-      isRTL
-        ? "ستتوفر التقارير الصحية قريباً"
-        : "Health reports will be available soon"
-    );
+  const handleHealthReports = async () => {
+    // Prevent concurrent exports
+    if (exporting) {
+      Alert.alert(
+        isRTL ? "جاري التصدير" : "Export in Progress",
+        isRTL 
+          ? "يتم تصدير المقاييس الصحية حالياً. يرجى الانتظار حتى يكتمل التصدير."
+          : "An export is already in progress. Please wait for it to complete."
+      );
+      return;
+    }
+
+    // Set exporting flag immediately to prevent concurrent exports
+    setExporting(true);
+
+    try {
+      // Show format selection dialog
+      Alert.alert(
+        isRTL ? "تصدير المقاييس الصحية" : "Export Health Metrics",
+        isRTL ? "اختر تنسيق التصدير" : "Choose export format",
+        [
+          {
+            text: isRTL ? "CSV" : "CSV",
+            onPress: async () => {
+              await performExport("csv");
+            },
+          },
+          {
+            text: isRTL ? "PDF" : "PDF",
+            onPress: async () => {
+              await performExport("pdf");
+            },
+          },
+          {
+            text: isRTL ? "إلغاء" : "Cancel",
+            style: "cancel",
+            onPress: () => {
+              // Reset flag if user cancels
+              setExporting(false);
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      setExporting(false);
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "حدث خطأ في التصدير" : "Error exporting metrics"
+      );
+    }
+  };
+
+  const performExport = async (format: ExportFormat) => {
+    try {
+      // exporting flag already set to true in handleHealthReports
+      
+      await exportMetrics(
+        {
+          format,
+          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+          endDate: new Date(),
+        },
+        (message) => {
+          // Progress callback - silently handle progress updates
+        }
+      );
+
+      Alert.alert(
+        isRTL ? "نجح التصدير" : "Export Successful",
+        isRTL
+          ? "تم تصدير المقاييس الصحية بنجاح. استخدم خيار المشاركة لحفظ الملف."
+          : "Health metrics exported successfully. Use the share option to save the file."
+      );
+    } catch (error: any) {
+      Alert.alert(
+        isRTL ? "خطأ في التصدير" : "Export Error",
+        error?.message ||
+          (isRTL
+            ? "حدث خطأ أثناء تصدير المقاييس الصحية"
+            : "An error occurred while exporting health metrics")
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleHelpSupport = () => {
@@ -238,7 +317,6 @@ export default function ProfileScreen() {
           icon: FileText,
           label: isRTL ? "التقارير الصحية" : "Health Reports",
           onPress: handleHealthReports,
-          comingSoon: true,
         },
         {
           icon: BookOpen,
@@ -481,24 +559,30 @@ export default function ProfileScreen() {
                         />
                       ) : (
                         <>
-                          {item.value && (
-                            <Text
-                              numberOfLines={1}
-                              style={[
-                                styles.sectionItemValue,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {item.value}
-                            </Text>
+                          {exporting && item.label === (isRTL ? "التقارير الصحية" : "Health Reports") ? (
+                            <ActivityIndicator size="small" color="#2563EB" />
+                          ) : (
+                            <>
+                              {item.value && (
+                                <Text
+                                  numberOfLines={1}
+                                  style={[
+                                    styles.sectionItemValue,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
+                                  {item.value}
+                                </Text>
+                              )}
+                              <ChevronRight
+                                color="#94A3B8"
+                                size={16}
+                                style={[
+                                  isRTL && { transform: [{ rotate: "180deg" }] },
+                                ]}
+                              />
+                            </>
                           )}
-                          <ChevronRight
-                            color="#94A3B8"
-                            size={16}
-                            style={[
-                              isRTL && { transform: [{ rotate: "180deg" }] },
-                            ]}
-                          />
                         </>
                       )}
                     </View>

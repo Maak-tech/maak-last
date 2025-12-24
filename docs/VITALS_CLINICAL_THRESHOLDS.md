@@ -13,25 +13,25 @@ The vitals screen displays health metrics with status indicators:
 ### 1. Heart Rate (Resting)
 
 **Normal Range**: 60-100 bpm  
-**Needs Attention**: < 50 bpm or > 110 bpm
+**Needs Attention**: < 60 bpm or > 100 bpm
 
 **Clinical Basis**: 
 - Normal resting heart rate for adults is 60-100 beats per minute
-- Bradycardia (< 50 bpm) may indicate heart conduction issues
-- Tachycardia (> 110 bpm) may indicate stress, fever, or cardiac issues
+- Bradycardia (< 60 bpm) may indicate heart conduction issues
+- Tachycardia (> 100 bpm) may indicate stress, fever, or cardiac issues
 
-**Implementation**: `v < 50 || v > 110`
+**Implementation**: `v < 60 || v > 100`
 
 ---
 
 ### 2. Resting Heart Rate
 
 **Normal Range**: 60-100 bpm  
-**Needs Attention**: < 50 bpm or > 110 bpm
+**Needs Attention**: < 60 bpm or > 100 bpm
 
 **Clinical Basis**: Same as Heart Rate (Resting) - represents the heart rate when the body is at rest.
 
-**Implementation**: `v < 50 || v > 110`
+**Implementation**: `v < 60 || v > 100`
 
 ---
 
@@ -80,28 +80,28 @@ The vitals screen displays health metrics with status indicators:
 ### 6. Oxygen Saturation (SpO₂)
 
 **Normal Range**: ≥ 95%  
-**Needs Attention**: < 92%
+**Needs Attention**: < 95%
 
 **Clinical Basis**: 
 - Normal oxygen saturation is ≥ 95%
-- SpO₂ < 92% indicates hypoxemia and may require supplemental oxygen
-- Values < 92% are clinically significant and warrant medical evaluation
+- SpO₂ < 95% indicates hypoxemia and may require medical evaluation
+- Values < 95% are clinically significant and warrant medical attention
 
-**Implementation**: `v < 92`
+**Implementation**: `v < 95`
 
 ---
 
 ### 7. Respiratory Rate
 
 **Normal Range**: 12-20 breaths/min  
-**Needs Attention**: < 10 breaths/min or > 24 breaths/min
+**Needs Attention**: < 12 breaths/min or > 20 breaths/min
 
 **Clinical Basis**: 
 - Normal respiratory rate for adults is 12-20 breaths per minute
-- Bradypnea (< 10 breaths/min) may indicate respiratory depression or CNS issues
-- Tachypnea (> 24 breaths/min) may indicate respiratory distress, fever, or metabolic acidosis
+- Bradypnea (< 12 breaths/min) may indicate respiratory depression or CNS issues
+- Tachypnea (> 20 breaths/min) may indicate respiratory distress, fever, or metabolic acidosis
 
-**Implementation**: `v < 10 || v > 24`
+**Implementation**: `v < 12 || v > 20`
 
 ---
 

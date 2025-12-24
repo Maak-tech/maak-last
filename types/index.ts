@@ -29,6 +29,16 @@ export interface Symptom {
   triggers?: string[];
 }
 
+export interface Mood {
+  id: string;
+  userId: string;
+  mood: "veryHappy" | "happy" | "neutral" | "sad" | "verySad";
+  intensity: 1 | 2 | 3 | 4 | 5;
+  notes?: string;
+  timestamp: Date;
+  activities?: string[];
+}
+
 export interface Medication {
   id: string;
   userId: string;
