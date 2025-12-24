@@ -852,6 +852,7 @@ export default function VitalsScreen() {
     };
 
     // Heart Rate (1/24)
+    // Medical guideline: Normal 60-100 bpm, Needs attention: <50 or >110
     cards.push({
       key: "heartRate",
       title: "Heart Rate",
@@ -861,7 +862,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.heartRate),
       unit: "BPM",
       trend: summary.heartRate?.trend || "stable",
-      status: getStatus(vitals.heartRate, (v) => v > 100),
+      status: getStatus(vitals.heartRate, (v) => v < 50 || v > 110),
     });
 
     // Steps (2/24)
@@ -912,6 +913,7 @@ export default function VitalsScreen() {
     });
 
     // Blood Pressure Systolic (5/24)
+    // Medical guideline: Normal <120, Needs attention: ≥140
     cards.push({
       key: "bloodPressureSystolic",
       title: "BP Systolic",
@@ -924,11 +926,12 @@ export default function VitalsScreen() {
       unit: "mmHg",
       trend: "stable",
       status: vitals.bloodPressure 
-        ? (vitals.bloodPressure.systolic > 140 ? "warning" : "normal")
+        ? (vitals.bloodPressure.systolic >= 140 ? "warning" : "normal")
         : "normal",
     });
 
     // Blood Pressure Diastolic (6/24)
+    // Medical guideline: Normal <80, Needs attention: ≥90
     cards.push({
       key: "bloodPressureDiastolic",
       title: "BP Diastolic",
@@ -941,11 +944,12 @@ export default function VitalsScreen() {
       unit: "mmHg",
       trend: "stable",
       status: vitals.bloodPressure 
-        ? (vitals.bloodPressure.diastolic > 90 ? "warning" : "normal")
+        ? (vitals.bloodPressure.diastolic >= 90 ? "warning" : "normal")
         : "normal",
     });
 
     // Body Temperature (7/24)
+    // Medical guideline: Normal 36.1-37.2°C, Needs attention: ≥38°C
     cards.push({
       key: "bodyTemperature",
       title: "Body Temperature",
@@ -955,10 +959,11 @@ export default function VitalsScreen() {
       value: getValue(vitals.bodyTemperature, (v) => v.toFixed(1)),
       unit: "°C",
       trend: "stable",
-      status: getStatus(vitals.bodyTemperature, (v) => v > 37.5 || v < 36.1),
+      status: getStatus(vitals.bodyTemperature, (v) => v >= 38),
     });
 
     // Oxygen Saturation (8/24)
+    // Medical guideline: Normal ≥95%, Needs attention: <92%
     cards.push({
       key: "oxygenSaturation",
       title: "Blood Oxygen",
@@ -968,7 +973,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.oxygenSaturation, (v) => v.toFixed(1)),
       unit: "%",
       trend: "stable",
-      status: getStatus(vitals.oxygenSaturation, (v) => v < 95),
+      status: getStatus(vitals.oxygenSaturation, (v) => v < 92),
     });
 
     // Height (9/24)
@@ -985,6 +990,7 @@ export default function VitalsScreen() {
     });
 
     // Resting Heart Rate (10/24)
+    // Medical guideline: Normal 60-100 bpm, Needs attention: <50 or >110
     cards.push({
       key: "restingHeartRate",
       title: "Resting Heart Rate",
@@ -994,7 +1000,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.restingHeartRate),
       unit: "BPM",
       trend: "stable",
-      status: getStatus(vitals.restingHeartRate, (v) => v > 100),
+      status: getStatus(vitals.restingHeartRate, (v) => v < 50 || v > 110),
     });
 
     // Heart Rate Variability (11/24)
@@ -1024,6 +1030,7 @@ export default function VitalsScreen() {
     });
 
     // Respiratory Rate (13/24)
+    // Medical guideline: Normal 12-20/min, Needs attention: <10 or >24
     cards.push({
       key: "respiratoryRate",
       title: "Respiratory Rate",
@@ -1033,7 +1040,7 @@ export default function VitalsScreen() {
       value: getValue(vitals.respiratoryRate, (v) => v.toFixed(1)),
       unit: "breaths/min",
       trend: "stable",
-      status: getStatus(vitals.respiratoryRate, (v) => v > 20 || v < 12),
+      status: getStatus(vitals.respiratoryRate, (v) => v < 10 || v > 24),
     });
 
     // Body Mass Index (14/24)
