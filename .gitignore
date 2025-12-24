@@ -64,6 +64,11 @@ xcuserdata/
 
 # Firebase
 google-services.json
+serviceAccountKey.json
+# Allow example file to be committed
+!serviceAccountKey.example.json
+*serviceAccount*.json
+*service-account*.json
 # GoogleService-Info.plist
 
 # Logs
