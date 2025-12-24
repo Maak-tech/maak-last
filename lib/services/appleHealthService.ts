@@ -3,28 +3,28 @@
  * iOS HealthKit integration using @kingstinct/react-native-healthkit
  */
 
-import { Platform } from "react-native";
 import {
-  isHealthDataAvailable,
-  requestAuthorization,
-  queryQuantitySamples,
-  queryCategorySamples,
-  queryWorkoutSamples,
-  type QuantitySample,
   type CategorySampleTyped,
   type CategoryTypeIdentifier,
+  isHealthDataAvailable,
+  type QuantitySample,
+  queryCategorySamples,
+  queryQuantitySamples,
+  queryWorkoutSamples,
+  requestAuthorization,
 } from "@kingstinct/react-native-healthkit";
-import type {
-  NormalizedMetricPayload,
-  MetricSample,
-  ProviderAvailability,
-} from "../health/healthTypes";
+import { Platform } from "react-native";
+import { getAllHealthKitReadTypes } from "../health/allHealthKitTypes";
 import {
-  getMetricByKey,
   getAvailableMetricsForProvider,
+  getMetricByKey,
   type HealthMetric,
 } from "../health/healthMetricsCatalog";
-import { getAllHealthKitReadTypes } from "../health/allHealthKitTypes";
+import type {
+  MetricSample,
+  NormalizedMetricPayload,
+  ProviderAvailability,
+} from "../health/healthTypes";
 
 // Track if authorization has been requested
 let authorizationRequested = false;
@@ -34,11 +34,11 @@ let authorizationRequested = false;
  */
 const checkAvailability = async (): Promise<ProviderAvailability> => {
   try {
-  if (Platform.OS !== "ios") {
-    return {
-      available: false,
-      reason: "iOS only",
-    };
+    if (Platform.OS !== "ios") {
+      return {
+        available: false,
+        reason: "iOS only",
+      };
     }
 
     const available = isHealthDataAvailable();
@@ -54,9 +54,12 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
       available: true,
     };
   } catch (error: any) {
-    console.error("[HealthKit Service] Error checking availability:", error?.message || String(error));
-      return {
-        available: false,
+    console.error(
+      "[HealthKit Service] Error checking availability:",
+      error?.message || String(error)
+    );
+    return {
+      available: false,
       reason: error?.message || "Unknown error",
     };
   }
@@ -67,25 +70,27 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
  */
 const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
   try {
-  // Check availability first
+    // Check availability first
     const availability = await checkAvailability();
-  if (!availability.available) {
+    if (!availability.available) {
       throw new Error(availability.reason || "HealthKit not available");
-  }
+    }
 
-  // Determine which permissions to request
-  let readPermissions: string[];
+    // Determine which permissions to request
+    let readPermissions: string[];
     if (selectedMetricKeys && selectedMetricKeys.length > 0) {
       // Check if "all" is requested
       if (selectedMetricKeys.includes("all")) {
         // Request all HealthKit types
-    readPermissions = getAllHealthKitReadTypes();
-  } else {
+        readPermissions = getAllHealthKitReadTypes();
+      } else {
         // Map selected metric keys to HealthKit type identifiers
         readPermissions = selectedMetricKeys
-      .map((key) => {
-        const metric = getMetricByKey(key);
-            return metric?.appleHealth?.available ? metric.appleHealth.type : null;
+          .map((key) => {
+            const metric = getMetricByKey(key);
+            return metric?.appleHealth?.available
+              ? metric.appleHealth.type
+              : null;
           })
           .filter(Boolean) as string[];
       }
@@ -107,7 +112,10 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
 
     return granted;
   } catch (error: any) {
-    console.error("[HealthKit Service] Authorization error:", error?.message || String(error));
+    console.error(
+      "[HealthKit Service] Authorization error:",
+      error?.message || String(error)
+    );
     throw error;
   }
 };
@@ -125,7 +133,7 @@ const fetchMetricSamples = async (
     if (!isHealthDataAvailable()) {
       throw new Error("HealthKit is not available on this device");
     }
-    
+
     // Note: We don't check authorizationRequested here because it's a module-level variable
     // that resets on app restart/module reload. The caller already verifies that a connection
     // exists. If authorization wasn't granted, HealthKit queries will fail gracefully with
@@ -137,8 +145,8 @@ const fetchMetricSamples = async (
       const workouts = await queryWorkoutSamples({
         filter: {
           date: {
-            startDate: startDate,
-            endDate: endDate,
+            startDate,
+            endDate,
           },
         },
         limit: 1000,
@@ -154,15 +162,16 @@ const fetchMetricSamples = async (
           workoutActivityType: workout.workoutActivityType,
         },
       }));
-    } else if (healthKitType.includes("Category")) {
+    }
+    if (healthKitType.includes("Category")) {
       // Handle category types
       const samples = await queryCategorySamples(
         healthKitType as CategoryTypeIdentifier,
         {
           filter: {
             date: {
-              startDate: startDate,
-              endDate: endDate,
+              startDate,
+              endDate,
             },
           },
           limit: 1000,
@@ -177,29 +186,31 @@ const fetchMetricSamples = async (
         endDate: sample.endDate.toISOString(),
         metadata: sample.metadata,
       }));
-    } else {
-      // Handle quantity types
-      const samples = await queryQuantitySamples(healthKitType as any, {
-        filter: {
-          date: {
-            startDate: startDate,
-            endDate: endDate,
-          },
-        },
-        limit: 1000,
-        ascending: false,
-      });
-
-      return samples.map((sample: QuantitySample) => ({
-        value: sample.quantity,
-        unit: sample.unit,
-        startDate: sample.startDate.toISOString(),
-        endDate: sample.endDate.toISOString(),
-        metadata: sample.metadata,
-      }));
     }
+    // Handle quantity types
+    const samples = await queryQuantitySamples(healthKitType as any, {
+      filter: {
+        date: {
+          startDate,
+          endDate,
+        },
+      },
+      limit: 1000,
+      ascending: false,
+    });
+
+    return samples.map((sample: QuantitySample) => ({
+      value: sample.quantity,
+      unit: sample.unit,
+      startDate: sample.startDate.toISOString(),
+      endDate: sample.endDate.toISOString(),
+      metadata: sample.metadata,
+    }));
   } catch (error: any) {
-    console.error(`[HealthKit Service] Error fetching ${healthKitType}:`, error?.message || String(error));
+    console.error(
+      `[HealthKit Service] Error fetching ${healthKitType}:`,
+      error?.message || String(error)
+    );
     throw error;
   }
 };
@@ -217,13 +228,13 @@ const fetchMetrics = async (
     if (!isHealthDataAvailable()) {
       throw new Error("HealthKit is not available on this device");
     }
-    
+
     // Note: We don't check authorizationRequested here because it's a module-level variable
     // that resets on app restart/module reload. The caller (syncHealthData) already verifies
     // that a connection exists. If authorization wasn't granted, HealthKit queries will fail
     // gracefully with appropriate error messages.
 
-  const results: NormalizedMetricPayload[] = [];
+    const results: NormalizedMetricPayload[] = [];
 
     // Determine which metrics to fetch
     let metricsToFetch: HealthMetric[];
@@ -234,50 +245,65 @@ const fetchMetrics = async (
       // Fetch only selected metrics
       metricsToFetch = selectedMetricKeys
         .map((key) => getMetricByKey(key))
-        .filter((metric): metric is HealthMetric => 
-          metric !== undefined && metric.appleHealth?.available === true
+        .filter(
+          (metric): metric is HealthMetric =>
+            metric !== undefined && metric.appleHealth?.available === true
         );
     }
 
     // Debug logging
-    console.log(`[HealthKit Service] Fetching ${metricsToFetch.length} metrics for ${selectedMetricKeys.length} selected keys`);
+    console.log(
+      `[HealthKit Service] Fetching ${metricsToFetch.length} metrics for ${selectedMetricKeys.length} selected keys`
+    );
 
     // Fetch samples for each metric
     for (const metric of metricsToFetch) {
       try {
         if (!metric.appleHealth?.type) {
-          console.log(`[HealthKit Service] Skipping metric ${metric.key}: no HealthKit type`);
+          console.log(
+            `[HealthKit Service] Skipping metric ${metric.key}: no HealthKit type`
+          );
           continue;
         }
-        
-      const samples = await fetchMetricSamples(
+
+        const samples = await fetchMetricSamples(
           metric.appleHealth.type,
-        startDate,
-        endDate
-      );
+          startDate,
+          endDate
+        );
 
-      console.log(`[HealthKit Service] Fetched ${samples.length} samples for ${metric.key} (${metric.appleHealth.type})`);
+        console.log(
+          `[HealthKit Service] Fetched ${samples.length} samples for ${metric.key} (${metric.appleHealth.type})`
+        );
 
-      if (samples.length > 0) {
-        results.push({
+        if (samples.length > 0) {
+          results.push({
             metricKey: metric.key,
-          displayName: metric.displayName,
-          unit: metric.unit,
-            samples: samples,
+            displayName: metric.displayName,
+            unit: metric.unit,
+            samples,
             provider: "apple_health",
           });
         }
       } catch (error: any) {
-        console.error(`[HealthKit Service] Error fetching metric ${metric.key}:`, error?.message || String(error));
+        console.error(
+          `[HealthKit Service] Error fetching metric ${metric.key}:`,
+          error?.message || String(error)
+        );
         // Continue with other metrics even if one fails
+      }
     }
-  }
 
-  console.log(`[HealthKit Service] Total metrics fetched: ${results.length}, total samples: ${results.reduce((sum, m) => sum + m.samples.length, 0)}`);
+    console.log(
+      `[HealthKit Service] Total metrics fetched: ${results.length}, total samples: ${results.reduce((sum, m) => sum + m.samples.length, 0)}`
+    );
 
-  return results;
+    return results;
   } catch (error: any) {
-    console.error("[HealthKit Service] Error fetching data:", error?.message || String(error));
+    console.error(
+      "[HealthKit Service] Error fetching data:",
+      error?.message || String(error)
+    );
     throw error;
   }
 };
@@ -285,16 +311,13 @@ const fetchMetrics = async (
 /**
  * Get available metrics for Apple Health
  */
-const getAvailableMetrics = (): HealthMetric[] => {
-  return getAvailableMetricsForProvider("apple_health");
-};
+const getAvailableMetrics = (): HealthMetric[] =>
+  getAvailableMetricsForProvider("apple_health");
 
 /**
  * Check if the service is connected (authorized)
  */
-const isConnected = (): boolean => {
-  return authorizationRequested;
-};
+const isConnected = (): boolean => authorizationRequested;
 
 export const appleHealthService = {
   checkAvailability,

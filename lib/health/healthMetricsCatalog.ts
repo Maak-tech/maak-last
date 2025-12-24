@@ -533,19 +533,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
 /**
  * Get metrics grouped by category
  */
-export const getMetricsByGroup = (
-  group: MetricGroup
-): HealthMetric[] => {
-  return HEALTH_METRICS_CATALOG.filter((metric) => metric.group === group);
-};
+export const getMetricsByGroup = (group: MetricGroup): HealthMetric[] =>
+  HEALTH_METRICS_CATALOG.filter((metric) => metric.group === group);
 
 /**
  * Get available metrics for a specific provider
  */
 export const getAvailableMetricsForProvider = (
   provider: HealthProvider
-): HealthMetric[] => {
-  return HEALTH_METRICS_CATALOG.filter((metric) => {
+): HealthMetric[] =>
+  HEALTH_METRICS_CATALOG.filter((metric) => {
     switch (provider) {
       case "apple_health":
         return metric.appleHealth?.available;
@@ -557,14 +554,12 @@ export const getAvailableMetricsForProvider = (
         return false;
     }
   });
-};
 
 /**
  * Get metric by key
  */
-export const getMetricByKey = (key: string): HealthMetric | undefined => {
-  return HEALTH_METRICS_CATALOG.find((metric) => metric.key === key);
-};
+export const getMetricByKey = (key: string): HealthMetric | undefined =>
+  HEALTH_METRICS_CATALOG.find((metric) => metric.key === key);
 
 /**
  * Get group display name
@@ -586,18 +581,16 @@ export const getGroupDisplayName = (group: MetricGroup): string => {
 /**
  * Get all unique groups
  */
-export const getAllGroups = (): MetricGroup[] => {
-  return [
-    "heart_cardiovascular",
-    "respiratory",
-    "temperature",
-    "body_measurements",
-    "activity_fitness",
-    "sleep",
-    "nutrition",
-    "glucose",
-  ];
-};
+export const getAllGroups = (): MetricGroup[] => [
+  "heart_cardiovascular",
+  "respiratory",
+  "temperature",
+  "body_measurements",
+  "activity_fitness",
+  "sleep",
+  "nutrition",
+  "glucose",
+];
 
 /**
  * Get Fitbit scopes needed for selected metrics
@@ -628,4 +621,3 @@ export const getHealthConnectPermissionsForMetrics = (
   });
   return Array.from(permissions);
 };
-

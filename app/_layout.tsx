@@ -7,7 +7,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { Platform, NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -43,20 +43,32 @@ export default function RootLayout() {
   // DEBUG: Check if HealthKit module is registered at startup
   useEffect(() => {
     if (Platform.OS === "ios" && __DEV__) {
-      console.log("[App Startup Debug] Checking for HealthKit module registration...");
+      console.log(
+        "[App Startup Debug] Checking for HealthKit module registration..."
+      );
       try {
         const moduleNames = Object.keys(NativeModules || {});
-        console.log(`[App Startup Debug] Native modules registered at startup: ${moduleNames.length} modules`);
-        const healthModules = moduleNames.filter(name => 
-          name.toLowerCase().includes("health") || 
-          name.toLowerCase().includes("fitness") ||
-          name.toLowerCase().includes("apple")
+        console.log(
+          `[App Startup Debug] Native modules registered at startup: ${moduleNames.length} modules`
+        );
+        const healthModules = moduleNames.filter(
+          (name) =>
+            name.toLowerCase().includes("health") ||
+            name.toLowerCase().includes("fitness") ||
+            name.toLowerCase().includes("apple")
         );
         if (healthModules.length > 0) {
-          console.log(`[App Startup Debug] ⚠️ HealthKit-related modules found at startup:`, healthModules);
-          console.log(`[App Startup Debug] This may cause RCTModuleMethod errors if bridge isn't ready!`);
+          console.log(
+            "[App Startup Debug] ⚠️ HealthKit-related modules found at startup:",
+            healthModules
+          );
+          console.log(
+            `[App Startup Debug] This may cause RCTModuleMethod errors if bridge isn't ready!`
+          );
         } else {
-          console.log(`[App Startup Debug] ✓ No HealthKit modules registered at startup (good)`);
+          console.log(
+            "[App Startup Debug] ✓ No HealthKit modules registered at startup (good)"
+          );
         }
       } catch (e) {
         console.error("[App Startup Debug] Error checking native modules:", e);
@@ -69,7 +81,7 @@ export default function RootLayout() {
     const requestPermissions = async () => {
       try {
         const { Platform } = await import("react-native");
-        
+
         // Skip on web - notifications work differently
         if (Platform.OS === "web") {
           return;
@@ -77,7 +89,7 @@ export default function RootLayout() {
 
         // Check current status first
         const currentPermission = await Notifications.getPermissionsAsync();
-        
+
         // Only request if not already determined
         if (currentPermission.status === "undetermined") {
           await Notifications.requestPermissionsAsync({

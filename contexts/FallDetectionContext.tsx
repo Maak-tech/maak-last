@@ -10,8 +10,8 @@ import {
 import { Alert } from "react-native";
 import { useFallDetection } from "@/hooks/useFallDetection";
 import { alertService } from "@/lib/services/alertService";
-import { useAuth } from "./AuthContext";
 import { logFallDetectionDiagnostics } from "@/lib/utils/fallDetectionDiagnostics";
+import { useAuth } from "./AuthContext";
 
 interface FallDetectionContextType {
   isEnabled: boolean;
@@ -99,26 +99,40 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const loadFallDetectionSetting = async () => {
       try {
-        console.log("[FallDetectionContext] 📂 Loading fall detection setting from storage...");
+        console.log(
+          "[FallDetectionContext] 📂 Loading fall detection setting from storage..."
+        );
         const enabled = await AsyncStorage.getItem("fall_detection_enabled");
         if (enabled !== null) {
           const isEnabledValue = JSON.parse(enabled);
-          console.log("[FallDetectionContext] 📂 Loaded setting: enabled =", isEnabledValue);
+          console.log(
+            "[FallDetectionContext] 📂 Loaded setting: enabled =",
+            isEnabledValue
+          );
           setIsEnabled(isEnabledValue);
 
           // Auto-start fall detection if enabled
           if (isEnabledValue && user?.id) {
-            console.log("[FallDetectionContext] ▶️ Auto-starting fall detection (was previously enabled)");
+            console.log(
+              "[FallDetectionContext] ▶️ Auto-starting fall detection (was previously enabled)"
+            );
             fallDetection.startFallDetection();
           } else if (isEnabledValue && !user?.id) {
-            console.log("[FallDetectionContext] ⚠️ Fall detection enabled but no user ID. Waiting for user...");
+            console.log(
+              "[FallDetectionContext] ⚠️ Fall detection enabled but no user ID. Waiting for user..."
+            );
           }
         } else {
-          console.log("[FallDetectionContext] 📂 No saved setting found. Fall detection will be disabled by default.");
+          console.log(
+            "[FallDetectionContext] 📂 No saved setting found. Fall detection will be disabled by default."
+          );
         }
         setIsInitialized(true);
       } catch (error) {
-        console.error("[FallDetectionContext] ❌ Error loading fall detection setting:", error);
+        console.error(
+          "[FallDetectionContext] ❌ Error loading fall detection setting:",
+          error
+        );
         setIsInitialized(true);
       }
     };
@@ -130,7 +144,10 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   const toggleFallDetection = useCallback(
     async (enabled: boolean) => {
       try {
-        console.log("[FallDetectionContext] 🔄 Toggling fall detection:", enabled ? "ON" : "OFF");
+        console.log(
+          "[FallDetectionContext] 🔄 Toggling fall detection:",
+          enabled ? "ON" : "OFF"
+        );
         setIsEnabled(enabled);
         await AsyncStorage.setItem(
           "fall_detection_enabled",
@@ -142,13 +159,18 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
           console.log("[FallDetectionContext] ▶️ Starting fall detection...");
           fallDetection.startFallDetection();
         } else if (enabled && !user?.id) {
-          console.log("[FallDetectionContext] ⚠️ Cannot start: user not logged in");
+          console.log(
+            "[FallDetectionContext] ⚠️ Cannot start: user not logged in"
+          );
         } else {
           console.log("[FallDetectionContext] ⏹️ Stopping fall detection...");
           fallDetection.stopFallDetection();
         }
       } catch (error) {
-        console.error("[FallDetectionContext] ❌ Error toggling fall detection:", error);
+        console.error(
+          "[FallDetectionContext] ❌ Error toggling fall detection:",
+          error
+        );
       }
     },
     [user?.id, fallDetection]
@@ -159,7 +181,9 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("[FallDetectionContext] 🧪 Testing fall detection...");
       if (!user?.id) {
-        console.error("[FallDetectionContext] ❌ Test failed: User not logged in");
+        console.error(
+          "[FallDetectionContext] ❌ Test failed: User not logged in"
+        );
         Alert.alert("Error", "User not logged in");
         return;
       }
@@ -170,12 +194,16 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("[FallDetectionContext] ✅ Test alert created:", alertId);
 
       // Simulate fall detection
-      console.log("[FallDetectionContext] 🚨 Simulating fall detection event...");
+      console.log(
+        "[FallDetectionContext] 🚨 Simulating fall detection event..."
+      );
       await handleFallDetected(alertId);
       console.log("[FallDetectionContext] ✅ Test fall detection completed");
-
     } catch (error) {
-      console.error("[FallDetectionContext] ❌ Test fall detection failed:", error);
+      console.error(
+        "[FallDetectionContext] ❌ Test fall detection failed:",
+        error
+      );
       Alert.alert("Error", "Failed to test fall detection");
     }
   }, [user?.id, handleFallDetected]);

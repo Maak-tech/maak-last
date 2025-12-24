@@ -3,34 +3,33 @@
  * Metric selection before requesting HealthKit permissions
  */
 
-import { useRouter, useNavigation } from "expo-router";
-import { useState, useEffect } from "react";
+import { useNavigation, useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Switch,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  Check,
   ArrowLeft,
-  Heart,
+  Check,
   ChevronRight,
+  Heart,
   Info,
 } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useTheme } from "@/contexts/ThemeContext";
-import { Platform } from "react-native";
 import {
-  getAvailableMetricsForProvider,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "@/contexts/ThemeContext";
+import {
   getAllGroups,
+  getAvailableMetricsForProvider,
   getGroupDisplayName,
-  getMetricsByGroup,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
 // Lazy import to prevent early native module loading
@@ -53,11 +52,17 @@ export default function AppleHealthPermissionsScreen() {
     });
   }, [navigation]);
   const [loading, setLoading] = useState(false);
-  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(
+    new Set()
+  );
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [healthKitAvailable, setHealthKitAvailable] = useState<boolean | null>(null);
-  const [availabilityReason, setAvailabilityReason] = useState<string | undefined>();
+  const [healthKitAvailable, setHealthKitAvailable] = useState<boolean | null>(
+    null
+  );
+  const [availabilityReason, setAvailabilityReason] = useState<
+    string | undefined
+  >();
 
   useEffect(() => {
     loadAvailableMetrics();
@@ -69,13 +74,17 @@ export default function AppleHealthPermissionsScreen() {
   const checkHealthKitAvailability = async () => {
     try {
       // Lazy import to prevent early native module loading
-      const { appleHealthService } = await import("@/lib/services/appleHealthService");
+      const { appleHealthService } = await import(
+        "@/lib/services/appleHealthService"
+      );
       const availability = await appleHealthService.checkAvailability();
       setHealthKitAvailable(availability.available);
       setAvailabilityReason(availability.reason);
     } catch (error) {
       setHealthKitAvailable(false);
-      setAvailabilityReason("Failed to check HealthKit availability. Please try again.");
+      setAvailabilityReason(
+        "Failed to check HealthKit availability. Please try again."
+      );
     }
   };
 
@@ -127,26 +136,29 @@ export default function AppleHealthPermissionsScreen() {
     }
 
     setLoading(true);
-    
+
     try {
       // Lazy import to prevent early native module loading
-      const { appleHealthService } = await import("@/lib/services/appleHealthService");
-      
+      const { appleHealthService } = await import(
+        "@/lib/services/appleHealthService"
+      );
+
       // Check availability before proceeding - wrapped in try-catch to prevent crashes
       const availability = await appleHealthService.checkAvailability();
-      
+
       if (!availability.available) {
         setLoading(false);
         Alert.alert(
           "HealthKit Not Available",
-          availability.reason || "HealthKit is not available. Please ensure you're running a development build or standalone app."
+          availability.reason ||
+            "HealthKit is not available. Please ensure you're running a development build or standalone app."
         );
         return;
       }
 
       // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
       // This prevents RCTModuleMethod invokeWithBridge errors
-      await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+      await new Promise((resolve) => setTimeout(resolve, 3000)); // 3 second delay
 
       // Request HealthKit permissions
       const success = await appleHealthService.authorize(
@@ -168,7 +180,7 @@ export default function AppleHealthPermissionsScreen() {
     } catch (error: any) {
       // Handle native module errors and crashes
       const errorMsg = error?.message || String(error);
-      const isBridgeError = 
+      const isBridgeError =
         errorMsg.includes("RCTModuleMethod") ||
         errorMsg.includes("invokewithbridge") ||
         errorMsg.includes("invokeWithBridge") ||
@@ -176,22 +188,23 @@ export default function AppleHealthPermissionsScreen() {
         errorMsg.includes("invokeInner") ||
         errorMsg.toLowerCase().includes("invoke") ||
         errorMsg.includes("bridge");
-      
+
       let errorMessage = isBridgeError
         ? "React Native bridge is not ready. Please try again in a few seconds or rebuild the app."
         : "Failed to request HealthKit permissions. Please try again.";
-      
+
       // Check for specific native module errors
-      if (error?.message?.includes("RCTModuleMethod") || error?.message?.includes("folly")) {
-        errorMessage = "HealthKit native module error. Please rebuild the app with: bun run build:ios:dev";
+      if (
+        error?.message?.includes("RCTModuleMethod") ||
+        error?.message?.includes("folly")
+      ) {
+        errorMessage =
+          "HealthKit native module error. Please rebuild the app with: bun run build:ios:dev";
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
-      Alert.alert(
-        "Permission Error",
-        errorMessage
-      );
+
+      Alert.alert("Permission Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -199,9 +212,16 @@ export default function AppleHealthPermissionsScreen() {
 
   if (Platform.OS !== "ios") {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: theme.colors.background.primary },
+        ]}
+      >
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
+          <Text
+            style={[styles.errorText, { color: theme.colors.text.primary }]}
+          >
             Apple Health is only available on iOS devices.
           </Text>
         </View>
@@ -212,11 +232,16 @@ export default function AppleHealthPermissionsScreen() {
   // Show error if HealthKit is not available
   if (healthKitAvailable === false) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: theme.colors.background.primary },
+        ]}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push("/(tabs)/profile")}
             style={[styles.backButton, isRTL && styles.backButtonRTL]}
           >
             <ArrowLeft
@@ -233,7 +258,9 @@ export default function AppleHealthPermissionsScreen() {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.errorContainer}>
-          <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
+          <Text
+            style={[styles.errorText, { color: theme.colors.text.primary }]}
+          >
             {availabilityReason || "HealthKit is not available"}
           </Text>
         </View>
@@ -245,7 +272,12 @@ export default function AppleHealthPermissionsScreen() {
   const allSelected = selectedMetrics.size === availableMetrics.length;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -266,38 +298,54 @@ export default function AppleHealthPermissionsScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
         {/* Intro Section */}
         <View style={styles.introSection}>
-          <Heart size={48} color={theme.colors.primary.main} />
-          <Text style={[styles.title, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}>
+          <Heart color={theme.colors.primary.main} size={48} />
+          <Text
+            style={[
+              styles.title,
+              { color: theme.colors.text.primary },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "اختر المقاييس" : "Select Metrics"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}>
-            {isRTL ? "اختر مقاييس الصحة التي تريد مزامنتها من Apple Health" : "Choose which health metrics to sync from Apple Health"}
+          <Text
+            style={[
+              styles.subtitle,
+              { color: theme.colors.text.secondary },
+              isRTL && styles.rtlText,
+            ]}
+          >
+            {isRTL
+              ? "اختر مقاييس الصحة التي تريد مزامنتها من Apple Health"
+              : "Choose which health metrics to sync from Apple Health"}
           </Text>
         </View>
 
         {/* Select All Toggle */}
         <View style={styles.selectAllSection}>
           <TouchableOpacity
-              style={[
-                styles.selectAllButton,
-                {
-                  backgroundColor: allSelected
-                    ? theme.colors.primary.main + "20"
-                    : isDark
-                      ? "#1E293B"
-                      : "#F8FAFC",
-                },
-              ]}
             onPress={allSelected ? clearAllMetrics : selectAllMetrics}
+            style={[
+              styles.selectAllButton,
+              {
+                backgroundColor: allSelected
+                  ? theme.colors.primary.main + "20"
+                  : isDark
+                    ? "#1E293B"
+                    : "#F8FAFC",
+              },
+            ]}
           >
             <Text
               style={[
                 styles.selectAllText,
                 {
-                  color: allSelected ? theme.colors.primary.main : theme.colors.text.primary,
+                  color: allSelected
+                    ? theme.colors.primary.main
+                    : theme.colors.text.primary,
                   fontWeight: allSelected ? "600" : "500",
                 },
               ]}
@@ -336,12 +384,11 @@ export default function AppleHealthPermissionsScreen() {
               >
                 {/* Group Header */}
                 <TouchableOpacity
-                  style={styles.groupHeader}
                   onPress={() => toggleGroup(group)}
+                  style={styles.groupHeader}
                 >
                   <View style={styles.groupHeaderLeft}>
                     <Switch
-                      value={groupSelected}
                       onValueChange={(value) => {
                         const newSelected = new Set(selectedMetrics);
                         groupMetrics.forEach((m) => {
@@ -353,13 +400,19 @@ export default function AppleHealthPermissionsScreen() {
                         });
                         setSelectedMetrics(newSelected);
                       }}
+                      thumbColor="#FFFFFF"
                       trackColor={{
                         false: isDark ? "#334155" : "#E2E8F0",
                         true: theme.colors.primary.main,
                       }}
-                      thumbColor="#FFFFFF"
+                      value={groupSelected}
                     />
-                    <Text style={[styles.groupTitle, { color: theme.colors.text.primary }]}>
+                    <Text
+                      style={[
+                        styles.groupTitle,
+                        { color: theme.colors.text.primary },
+                      ]}
+                    >
                       {getGroupDisplayName(group)}
                     </Text>
                     <Text
@@ -372,8 +425,8 @@ export default function AppleHealthPermissionsScreen() {
                     </Text>
                   </View>
                   <ChevronRight
-                    size={20}
                     color={theme.colors.text.secondary}
+                    size={20}
                     style={{
                       transform: [{ rotate: isExpanded ? "90deg" : "0deg" }],
                     }}
@@ -388,23 +441,25 @@ export default function AppleHealthPermissionsScreen() {
                       return (
                         <TouchableOpacity
                           key={metric.key}
+                          onPress={() => toggleMetric(metric.key)}
                           style={[
                             styles.metricItem,
                             isSelected && {
                               backgroundColor: theme.colors.primary.main + "10",
                             },
                           ]}
-                          onPress={() => toggleMetric(metric.key)}
                         >
                           <View style={styles.metricLeft}>
                             {isSelected ? (
                               <View
                                 style={[
                                   styles.checkbox,
-                                  { backgroundColor: theme.colors.primary.main },
+                                  {
+                                    backgroundColor: theme.colors.primary.main,
+                                  },
                                 ]}
                               >
-                                <Check size={14} color="#FFFFFF" />
+                                <Check color="#FFFFFF" size={14} />
                               </View>
                             ) : (
                               <View
@@ -418,7 +473,10 @@ export default function AppleHealthPermissionsScreen() {
                             )}
                             <View style={styles.metricInfo}>
                               <Text
-                                style={[styles.metricName, { color: theme.colors.text.primary }]}
+                                style={[
+                                  styles.metricName,
+                                  { color: theme.colors.text.primary },
+                                ]}
                               >
                                 {metric.displayName}
                               </Text>
@@ -447,8 +505,10 @@ export default function AppleHealthPermissionsScreen() {
         {/* Info */}
         <View style={styles.infoSection}>
           <View style={styles.infoRow}>
-            <Info size={16} color={theme.colors.text.secondary} />
-            <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+            <Info color={theme.colors.text.secondary} size={16} />
+            <Text
+              style={[styles.infoText, { color: theme.colors.text.secondary }]}
+            >
               You can change these permissions later in iOS Settings → Privacy &
               Security → Health
             </Text>
@@ -458,16 +518,18 @@ export default function AppleHealthPermissionsScreen() {
         {/* CTA */}
         <View style={styles.ctaSection}>
           <TouchableOpacity
+            disabled={loading || selectedMetrics.size === 0}
+            onPress={handleContinue}
             style={[
               styles.primaryButton,
               {
                 backgroundColor:
-                  selectedMetrics.size > 0 ? theme.colors.primary.main : theme.colors.text.secondary,
+                  selectedMetrics.size > 0
+                    ? theme.colors.primary.main
+                    : theme.colors.text.secondary,
               },
               selectedMetrics.size === 0 && styles.disabledButton,
             ]}
-            onPress={handleContinue}
-            disabled={loading || selectedMetrics.size === 0}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -477,7 +539,7 @@ export default function AppleHealthPermissionsScreen() {
                   Authorize {selectedMetrics.size} Metric
                   {selectedMetrics.size !== 1 ? "s" : ""}
                 </Text>
-                <ChevronRight size={20} color="#FFFFFF" />
+                <ChevronRight color="#FFFFFF" size={20} />
               </>
             )}
           </TouchableOpacity>
@@ -669,4 +731,3 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 });
-

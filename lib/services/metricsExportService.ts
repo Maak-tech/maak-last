@@ -3,11 +3,11 @@
  * Handles exporting health metrics to CSV or PDF format
  */
 
-import { Platform, Share } from "react-native";
 import * as FileSystem from "expo-file-system";
-import type { NormalizedMetricPayload } from "../health/healthTypes";
-import { getProviderConnection, getAllConnectedProviders } from "../health/healthSync";
+import { Platform, Share } from "react-native";
 import type { HealthProvider } from "../health/healthMetricsCatalog";
+import { getProviderConnection } from "../health/healthSync";
+import type { NormalizedMetricPayload } from "../health/healthTypes";
 
 export type ExportFormat = "csv" | "pdf";
 
@@ -25,15 +25,18 @@ const fetchMetricsForExport = async (
   options: ExportOptions
 ): Promise<NormalizedMetricPayload[]> => {
   const endDate = options.endDate || new Date();
-  const startDate = options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: last 30 days
+  const startDate =
+    options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: last 30 days
 
-  const { getAvailableMetricsForProvider } = await import("../health/healthMetricsCatalog");
+  const { getAvailableMetricsForProvider } = await import(
+    "../health/healthMetricsCatalog"
+  );
 
   const allMetrics: NormalizedMetricPayload[] = [];
 
   // Determine which providers to fetch from based on platform and availability
   const providersToTry: HealthProvider[] = [];
-  
+
   if (options.provider) {
     providersToTry.push(options.provider);
   } else {
@@ -51,21 +54,22 @@ const fetchMetricsForExport = async (
     try {
       // Check if provider is connected
       const connection = await getProviderConnection(provider);
-      
+
       // Get all available metrics for this provider
       const availableMetrics = getAvailableMetricsForProvider(provider);
-      
+
       if (availableMetrics.length === 0) {
         continue;
       }
 
       // Use "all" to fetch all available metrics, or use selected metrics if connected
-      const metricsToFetch = connection?.connected && connection.selectedMetrics.length > 0
-        ? connection.selectedMetrics
-        : availableMetrics.map((m) => m.key);
+      const metricsToFetch =
+        connection?.connected && connection.selectedMetrics.length > 0
+          ? connection.selectedMetrics
+          : availableMetrics.map((m) => m.key);
 
       let metrics: NormalizedMetricPayload[] = [];
-      
+
       switch (provider) {
         case "apple_health": {
           // Check if HealthKit is available
@@ -74,7 +78,7 @@ const fetchMetricsForExport = async (
           if (!availability.available) {
             continue;
           }
-          
+
           metrics = await appleHealthService.fetchMetrics(
             metricsToFetch,
             startDate,
@@ -83,7 +87,9 @@ const fetchMetricsForExport = async (
           break;
         }
         case "health_connect": {
-          const { healthConnectService } = await import("./healthConnectService");
+          const { healthConnectService } = await import(
+            "./healthConnectService"
+          );
           metrics = await healthConnectService.fetchMetrics(
             metricsToFetch,
             startDate,
@@ -108,18 +114,22 @@ const fetchMetricsForExport = async (
 
       allMetrics.push(...metrics);
     } catch (error: any) {
-      console.error(`[Metrics Export] Error fetching metrics from ${provider}:`, error?.message || String(error));
+      console.error(
+        `[Metrics Export] Error fetching metrics from ${provider}:`,
+        error?.message || String(error)
+      );
       // Continue with other providers even if one fails
     }
   }
 
   // If no metrics were fetched from providers, create a catalog export with available metrics info
   if (allMetrics.length === 0) {
-    const availableMetrics = Platform.OS === "ios" 
-      ? getAvailableMetricsForProvider("apple_health")
-      : Platform.OS === "android"
-      ? getAvailableMetricsForProvider("health_connect")
-      : [];
+    const availableMetrics =
+      Platform.OS === "ios"
+        ? getAvailableMetricsForProvider("apple_health")
+        : Platform.OS === "android"
+          ? getAvailableMetricsForProvider("health_connect")
+          : [];
 
     // Create empty metrics entries for available metrics (for catalog reference)
     for (const metric of availableMetrics) {
@@ -145,7 +155,7 @@ const convertToCSV = (metrics: NormalizedMetricPayload[]): string => {
   }
 
   const rows: string[] = [];
-  
+
   // CSV Header
   rows.push("Metric,Display Name,Unit,Value,Start Date,End Date,Source");
 
@@ -178,7 +188,7 @@ const convertToPDFHTML = (
 ): string => {
   const exportDate = new Date().toLocaleDateString();
   const dateRange = `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
-  
+
   const totalSamples = metrics.reduce((sum, m) => sum + m.samples.length, 0);
   const providers = [...new Set(metrics.map((m) => m.provider))];
 
@@ -401,10 +411,10 @@ const convertToPDFHTML = (
       const samplesToShow = metric.samples.slice(0, 100);
       for (const sample of samplesToShow) {
         const startDateFormatted = new Date(sample.startDate).toLocaleString();
-        const endDateFormatted = sample.endDate 
-          ? new Date(sample.endDate).toLocaleString() 
+        const endDateFormatted = sample.endDate
+          ? new Date(sample.endDate).toLocaleString()
           : "N/A";
-        
+
         html += `
               <tr>
                 <td>${sample.value}</td>
@@ -462,10 +472,10 @@ export const exportMetrics = async (
 ): Promise<void> => {
   try {
     onProgress?.("Fetching metrics...");
-    
+
     // Fetch metrics from providers
     const metrics = await fetchMetricsForExport(options);
-    
+
     if (metrics.length === 0) {
       throw new Error("No metrics data available to export");
     }
@@ -477,14 +487,15 @@ export const exportMetrics = async (
     let fileName: string;
     let mimeType: string;
 
-    const startDate = options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const startDate =
+      options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const endDate = options.endDate || new Date();
 
     if (options.format === "csv") {
       const content = convertToCSV(metrics);
       fileName = `health-metrics-${new Date().toISOString().split("T")[0]}.csv`;
       mimeType = "text/csv";
-      
+
       // Save CSV to document directory for sharing
       fileUri = `${FileSystem.documentDirectory}${fileName}`;
       await FileSystem.writeAsStringAsync(fileUri, content);
@@ -492,12 +503,12 @@ export const exportMetrics = async (
       // PDF format
       fileName = `health-metrics-${new Date().toISOString().split("T")[0]}.pdf`;
       mimeType = "application/pdf";
-      
+
       onProgress?.("Generating PDF...");
-      
+
       // Generate HTML for PDF
       const html = convertToPDFHTML(metrics, startDate, endDate);
-      
+
       // Generate PDF using expo-print (dynamic import to handle missing native module)
       try {
         // Check platform - expo-print doesn't work on web
@@ -508,14 +519,17 @@ export const exportMetrics = async (
         }
 
         const Print = await import("expo-print");
-        
+
         // Check if the function exists (handles cases where module loads but native code isn't linked)
-        if (!Print.printToFileAsync || typeof Print.printToFileAsync !== "function") {
+        if (
+          !Print.printToFileAsync ||
+          typeof Print.printToFileAsync !== "function"
+        ) {
           throw new Error(
             "PDF export requires rebuilding the app. The expo-print native module is not available.\n\n" +
-            "To rebuild:\n" +
-            "- iOS: npx expo run:ios\n" +
-            "- Android: npx expo run:android"
+              "To rebuild:\n" +
+              "- iOS: npx expo run:ios\n" +
+              "- Android: npx expo run:android"
           );
         }
 
@@ -523,13 +537,13 @@ export const exportMetrics = async (
           html,
           base64: false,
         });
-        
+
         fileUri = uri;
       } catch (error: any) {
         // Check if it's a native module error or function not found
         const errorMessage = error?.message || String(error);
-        const isNativeModuleError = 
-          errorMessage.includes("native module") || 
+        const isNativeModuleError =
+          errorMessage.includes("native module") ||
           errorMessage.includes("ExpoPrint") ||
           errorMessage.includes("expo-print") ||
           errorMessage.includes("is not a function") ||
@@ -538,10 +552,10 @@ export const exportMetrics = async (
         if (isNativeModuleError) {
           throw new Error(
             "PDF export requires rebuilding the app. The expo-print native module is not available.\n\n" +
-            "To rebuild:\n" +
-            "- iOS: npx expo run:ios\n" +
-            "- Android: npx expo run:android\n\n" +
-            "Alternatively, use CSV format which doesn't require native modules."
+              "To rebuild:\n" +
+              "- iOS: npx expo run:ios\n" +
+              "- Android: npx expo run:android\n\n" +
+              "Alternatively, use CSV format which doesn't require native modules."
           );
         }
         throw error;
@@ -555,11 +569,11 @@ export const exportMetrics = async (
       // Try to import expo-sharing dynamically
       const Sharing = await import("expo-sharing");
       const isAvailable = await Sharing.isAvailableAsync();
-      
+
       if (isAvailable) {
         // Use expo-sharing for better cross-platform file sharing
         await Sharing.shareAsync(fileUri, {
-          mimeType: mimeType,
+          mimeType,
           dialogTitle: "Export Health Metrics",
         });
         onProgress?.("Export completed successfully");
@@ -578,7 +592,7 @@ export const exportMetrics = async (
         url: fileUri,
         title: "Export Health Metrics",
       });
-      
+
       if (shareResult.action === Share.sharedAction) {
         onProgress?.("Export completed successfully");
       } else if (shareResult.action === Share.dismissedAction) {
@@ -593,7 +607,7 @@ export const exportMetrics = async (
           message: `Health Metrics Export\n\nFile: ${fileName}\n\n${content.substring(0, 1000)}${content.length > 1000 ? "\n\n... (truncated, use export to get full file)" : ""}`,
           title: "Export Health Metrics",
         });
-        
+
         if (shareResult.action === Share.sharedAction) {
           onProgress?.("Export completed successfully");
         } else if (shareResult.action === Share.dismissedAction) {
@@ -602,11 +616,16 @@ export const exportMetrics = async (
       } else {
         // PDF on Android - expo-sharing should have worked above
         // If we reach here, sharing failed
-        throw new Error("Unable to share PDF file. Please ensure expo-sharing is properly configured.");
+        throw new Error(
+          "Unable to share PDF file. Please ensure expo-sharing is properly configured."
+        );
       }
     }
   } catch (error: any) {
-    console.error("[Metrics Export] Export error:", error?.message || String(error));
+    console.error(
+      "[Metrics Export] Export error:",
+      error?.message || String(error)
+    );
     throw error;
   }
 };
@@ -623,7 +642,8 @@ export const getExportStats = async (
   providers: string[];
 }> => {
   const endDate = options.endDate || new Date();
-  const startDate = options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const startDate =
+    options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   const metrics = await fetchMetricsForExport({
     ...options,
@@ -643,4 +663,3 @@ export const getExportStats = async (
     providers,
   };
 };
-

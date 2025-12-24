@@ -17,7 +17,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { convertTo12Hour, convertTo24Hour, isValidTimeFormat } from "@/lib/utils/timeFormat";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
@@ -26,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { medicationService } from "@/lib/services/medicationService";
 import { userService } from "@/lib/services/userService";
+import { convertTo12Hour, convertTo24Hour } from "@/lib/utils/timeFormat";
 import type { Medication, MedicationReminder, User as UserType } from "@/types";
 
 const FREQUENCY_OPTIONS = [
@@ -116,78 +116,78 @@ const COMMON_MEDICATIONS_MIDDLE_EAST = [
 // Common dosages for medications (typical adult dosages)
 const MEDICATION_DOSAGES: Record<string, string> = {
   // Pain & Fever Relief
-  "Paracetamol": "500mg",
-  "Ibuprofen": "400mg",
-  "Aspirin": "100mg",
-  "Panadol": "500mg",
-  "Brufen": "400mg",
-  "Voltaren": "50mg",
-  "Diclofenac": "50mg",
+  Paracetamol: "500mg",
+  Ibuprofen: "400mg",
+  Aspirin: "100mg",
+  Panadol: "500mg",
+  Brufen: "400mg",
+  Voltaren: "50mg",
+  Diclofenac: "50mg",
   // Antibiotics
-  "Amoxicillin": "500mg",
-  "Augmentin": "625mg",
-  "Azithromycin": "500mg",
-  "Ciprofloxacin": "500mg",
-  "Cefuroxime": "500mg",
-  "Clarithromycin": "500mg",
-  "Erythromycin": "500mg",
+  Amoxicillin: "500mg",
+  Augmentin: "625mg",
+  Azithromycin: "500mg",
+  Ciprofloxacin: "500mg",
+  Cefuroxime: "500mg",
+  Clarithromycin: "500mg",
+  Erythromycin: "500mg",
   // Antihistamines & Allergies
-  "Cetirizine": "10mg",
-  "Loratadine": "10mg",
-  "Fexofenadine": "180mg",
-  "Desloratadine": "5mg",
-  "Claritin": "10mg",
-  "Zyrtec": "10mg",
+  Cetirizine: "10mg",
+  Loratadine: "10mg",
+  Fexofenadine: "180mg",
+  Desloratadine: "5mg",
+  Claritin: "10mg",
+  Zyrtec: "10mg",
   // Digestive System
-  "Omeprazole": "20mg",
-  "Pantoprazole": "40mg",
-  "Ranitidine": "150mg",
-  "Gaviscon": "10-20ml",
-  "Maalox": "10-20ml",
-  "Metoclopramide": "10mg",
-  "Domperidone": "10mg",
+  Omeprazole: "20mg",
+  Pantoprazole: "40mg",
+  Ranitidine: "150mg",
+  Gaviscon: "10-20ml",
+  Maalox: "10-20ml",
+  Metoclopramide: "10mg",
+  Domperidone: "10mg",
   // Diabetes
-  "Metformin": "500mg",
-  "Glibenclamide": "5mg",
-  "Gliclazide": "80mg",
-  "Insulin": "As prescribed",
+  Metformin: "500mg",
+  Glibenclamide: "5mg",
+  Gliclazide: "80mg",
+  Insulin: "As prescribed",
   // Hypertension & Heart
-  "Amlodipine": "5mg",
-  "Atenolol": "50mg",
-  "Losartan": "50mg",
-  "Enalapril": "5mg",
-  "Captopril": "25mg",
-  "Propranolol": "40mg",
+  Amlodipine: "5mg",
+  Atenolol: "50mg",
+  Losartan: "50mg",
+  Enalapril: "5mg",
+  Captopril: "25mg",
+  Propranolol: "40mg",
   // Vitamins & Supplements
   "Vitamin D": "1000 IU",
   "Vitamin C": "500mg",
-  "Calcium": "500mg",
-  "Iron": "200mg",
+  Calcium: "500mg",
+  Iron: "200mg",
   "Folic Acid": "5mg",
-  "Multivitamin": "1 tablet",
+  Multivitamin: "1 tablet",
   // Respiratory
-  "Salbutamol": "100mcg",
-  "Ventolin": "100mcg",
-  "Beclomethasone": "100mcg",
-  "Montelukast": "10mg",
+  Salbutamol: "100mcg",
+  Ventolin: "100mcg",
+  Beclomethasone: "100mcg",
+  Montelukast: "10mg",
   // Antidepressants & Mental Health
-  "Sertraline": "50mg",
-  "Fluoxetine": "20mg",
-  "Citalopram": "20mg",
-  "Escitalopram": "10mg",
+  Sertraline: "50mg",
+  Fluoxetine: "20mg",
+  Citalopram: "20mg",
+  Escitalopram: "10mg",
   // Cholesterol
-  "Atorvastatin": "20mg",
-  "Simvastatin": "20mg",
-  "Rosuvastatin": "10mg",
+  Atorvastatin: "20mg",
+  Simvastatin: "20mg",
+  Rosuvastatin: "10mg",
   // Thyroid
-  "Levothyroxine": "50mcg",
-  "Thyroxine": "50mcg",
+  Levothyroxine: "50mcg",
+  Thyroxine: "50mcg",
   // Traditional/Herbal
-  "Honey": "1-2 teaspoons",
+  Honey: "1-2 teaspoons",
   "Black Seed Oil": "1 teaspoon",
-  "Ginger": "500mg",
-  "Turmeric": "500mg",
-  "Cumin": "As needed",
+  Ginger: "500mg",
+  Turmeric: "500mg",
+  Cumin: "As needed",
 };
 
 export default function MedicationsScreen() {
@@ -214,7 +214,9 @@ export default function MedicationsScreen() {
     label: "",
   });
   const [selectedTargetUser, setSelectedTargetUser] = useState<string>("");
-  const [medicationSuggestions, setMedicationSuggestions] = useState<string[]>([]);
+  const [medicationSuggestions, setMedicationSuggestions] = useState<string[]>(
+    []
+  );
   const [showSuggestions, setShowSuggestions] = useState(false);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -282,13 +284,14 @@ export default function MedicationsScreen() {
   }, [user, selectedFilter]);
 
   // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (blurTimeoutRef.current) {
         clearTimeout(blurTimeoutRef.current);
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);
@@ -384,7 +387,10 @@ export default function MedicationsScreen() {
         );
 
         // Reschedule notifications for updated reminders (only for current user's medications)
-        if (editingMedication.userId === user.id && newMedication.reminders.length > 0) {
+        if (
+          editingMedication.userId === user.id &&
+          newMedication.reminders.length > 0
+        ) {
           const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
             if (reminder.time && reminder.time.trim()) {
@@ -401,8 +407,10 @@ export default function MedicationsScreen() {
           const failedSchedules = schedulingResults.filter((r) => !r.success);
           if (failedSchedules.length > 0) {
             const errorMessage = failedSchedules[0]?.error || "Unknown error";
-            const isPermissionError = errorMessage.toLowerCase().includes("permission");
-            
+            const isPermissionError = errorMessage
+              .toLowerCase()
+              .includes("permission");
+
             Alert.alert(
               isRTL ? "تحذير" : "Warning",
               isRTL
@@ -482,8 +490,10 @@ export default function MedicationsScreen() {
           const failedSchedules = schedulingResults.filter((r) => !r.success);
           if (failedSchedules.length > 0) {
             const errorMessage = failedSchedules[0]?.error || "Unknown error";
-            const isPermissionError = errorMessage.toLowerCase().includes("permission");
-            
+            const isPermissionError = errorMessage
+              .toLowerCase()
+              .includes("permission");
+
             Alert.alert(
               isRTL ? "تحذير" : "Warning",
               isRTL
@@ -568,7 +578,7 @@ export default function MedicationsScreen() {
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
-    
+
     setEditingMedication(medication);
     setNewMedication({
       name: medication.name,
@@ -580,7 +590,7 @@ export default function MedicationsScreen() {
         const hours = Number.parseInt(hoursStr, 10);
         let timeValue = "";
         let periodValue: "AM" | "PM" = "AM";
-        
+
         if (hours >= 12) {
           periodValue = "PM";
           if (hours > 12) {
@@ -596,7 +606,7 @@ export default function MedicationsScreen() {
             timeValue = reminder.time;
           }
         }
-        
+
         return {
           id: reminder.id, // Preserve existing ID when editing
           time: timeValue,
@@ -986,10 +996,10 @@ export default function MedicationsScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView 
-            style={styles.modalContent}
-            nestedScrollEnabled={true}
+          <ScrollView
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            style={styles.modalContent}
           >
             {/* Target User Selector (for admins) */}
             {isAdmin && hasFamily && familyMembers.length > 0 && (
@@ -1021,7 +1031,9 @@ export default function MedicationsScreen() {
                             ? isRTL
                               ? "أنت"
                               : "You"
-                            : member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
+                            : member.firstName && member.lastName
+                              ? `${member.firstName} ${member.lastName}`
+                              : member.firstName || "User"}
                         </Text>
                         {member.role === "admin" && (
                           <Text
@@ -1048,6 +1060,17 @@ export default function MedicationsScreen() {
                 {t("medicationName")} *
               </Text>
               <TextInput
+                onBlur={() => {
+                  // Clear any existing timeout
+                  if (blurTimeoutRef.current) {
+                    clearTimeout(blurTimeoutRef.current);
+                  }
+                  // Delay hiding suggestions to allow for selection
+                  blurTimeoutRef.current = setTimeout(() => {
+                    setShowSuggestions(false);
+                    blurTimeoutRef.current = null;
+                  }, 300);
+                }}
                 onChangeText={(text) => {
                   setNewMedication({ ...newMedication, name: text });
                   // Filter suggestions based on input
@@ -1063,32 +1086,23 @@ export default function MedicationsScreen() {
                     setShowSuggestions(false);
                   }
                 }}
-                  onFocus={() => {
-                    // Clear any existing timeout when input is focused
-                    if (blurTimeoutRef.current) {
-                      clearTimeout(blurTimeoutRef.current);
-                      blurTimeoutRef.current = null;
-                    }
-                    // Show suggestions when input is focused if there's text
-                    if (newMedication.name.trim().length > 0) {
-                      const filtered = COMMON_MEDICATIONS_MIDDLE_EAST.filter(
-                        (med) =>
-                          med.toLowerCase().includes(newMedication.name.toLowerCase().trim())
-                      );
-                      setMedicationSuggestions(filtered);
-                      setShowSuggestions(filtered.length > 0);
-                    }
-                  }}
-                onBlur={() => {
-                  // Clear any existing timeout
+                onFocus={() => {
+                  // Clear any existing timeout when input is focused
                   if (blurTimeoutRef.current) {
                     clearTimeout(blurTimeoutRef.current);
-                  }
-                  // Delay hiding suggestions to allow for selection
-                  blurTimeoutRef.current = setTimeout(() => {
-                    setShowSuggestions(false);
                     blurTimeoutRef.current = null;
-                  }, 300);
+                  }
+                  // Show suggestions when input is focused if there's text
+                  if (newMedication.name.trim().length > 0) {
+                    const filtered = COMMON_MEDICATIONS_MIDDLE_EAST.filter(
+                      (med) =>
+                        med
+                          .toLowerCase()
+                          .includes(newMedication.name.toLowerCase().trim())
+                    );
+                    setMedicationSuggestions(filtered);
+                    setShowSuggestions(filtered.length > 0);
+                  }
                 }}
                 placeholder={isRTL ? "اسم الدواء" : "Medication name"}
                 style={[styles.input, isRTL && styles.rtlInput]}
@@ -1099,10 +1113,14 @@ export default function MedicationsScreen() {
                 <View style={styles.suggestionsContainer}>
                   <FlatList
                     data={medicationSuggestions}
+                    keyboardShouldPersistTaps="handled"
                     keyExtractor={(item) => item}
+                    nestedScrollEnabled={true}
+                    removeClippedSubviews={false}
                     renderItem={({ item: suggestion, index }) => {
                       const commonDosage = MEDICATION_DOSAGES[suggestion];
-                      const isLastItem = index === medicationSuggestions.length - 1;
+                      const isLastItem =
+                        index === medicationSuggestions.length - 1;
                       return (
                         <TouchableOpacity
                           activeOpacity={0.7}
@@ -1113,7 +1131,10 @@ export default function MedicationsScreen() {
                               blurTimeoutRef.current = null;
                             }
                             // Only use suggested dosage if user hasn't entered a custom dosage yet
-                            const dosageToSet = commonDosage && !newMedication.dosage ? commonDosage : newMedication.dosage;
+                            const dosageToSet =
+                              commonDosage && !newMedication.dosage
+                                ? commonDosage
+                                : newMedication.dosage;
                             setNewMedication({
                               ...newMedication,
                               name: suggestion,
@@ -1127,18 +1148,20 @@ export default function MedicationsScreen() {
                             isLastItem && styles.suggestionItemLast,
                           ]}
                         >
-                          <Text style={[styles.suggestionText, isRTL && styles.rtlText]}>
+                          <Text
+                            style={[
+                              styles.suggestionText,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
                             {suggestion}
                           </Text>
                         </TouchableOpacity>
                       );
                     }}
-                    nestedScrollEnabled={true}
-                    style={styles.suggestionsScrollView}
-                    showsVerticalScrollIndicator={true}
-                    keyboardShouldPersistTaps="handled"
                     scrollEnabled={true}
-                    removeClippedSubviews={false}
+                    showsVerticalScrollIndicator={true}
+                    style={styles.suggestionsScrollView}
                   />
                 </View>
               )}
@@ -1215,14 +1238,16 @@ export default function MedicationsScreen() {
                   // When adding new, these start empty
                   const timeValue = reminder.time || "";
                   const periodValue: "AM" | "PM" = reminder.period || "AM";
-                  
+
                   return (
                     <View key={index} style={styles.reminderItem}>
                       <TextInput
+                        keyboardType="number-pad"
+                        maxLength={5}
                         onChangeText={(text) => {
                           // Remove all non-digits first
                           const digitsOnly = text.replace(/\D/g, "");
-                          
+
                           // Auto-format as HH:MM
                           let formatted = "";
                           if (digitsOnly.length > 0) {
@@ -1233,27 +1258,37 @@ export default function MedicationsScreen() {
                               formatted = digitsOnly.substring(0, 2) + ":";
                               if (digitsOnly.length > 2) {
                                 // Add minutes
-                                formatted = digitsOnly.substring(0, 2) + ":" + digitsOnly.substring(2, 4);
+                                formatted =
+                                  digitsOnly.substring(0, 2) +
+                                  ":" +
+                                  digitsOnly.substring(2, 4);
                               }
                             }
                           }
-                          
+
                           // Limit to HH:MM format (max 5 characters: "12:34")
                           if (formatted.length <= 5) {
                             setNewMedication({
                               ...newMedication,
                               reminders: newMedication.reminders.map((r, i) =>
-                                i === index ? { ...r, time: formatted, period: r.period || "AM" } : r
+                                i === index
+                                  ? {
+                                      ...r,
+                                      time: formatted,
+                                      period: r.period || "AM",
+                                    }
+                                  : r
                               ),
                             });
                           }
                         }}
                         placeholder={isRTL ? "08:34" : "08:34"}
-                        style={[styles.reminderTimeInput, isRTL && styles.rtlInput]}
+                        style={[
+                          styles.reminderTimeInput,
+                          isRTL && styles.rtlInput,
+                        ]}
                         textAlign={isRTL ? "right" : "left"}
                         value={timeValue}
-                        keyboardType="number-pad"
-                        maxLength={5}
                       />
                       <View style={styles.periodSelector}>
                         <TouchableOpacity
@@ -1273,7 +1308,8 @@ export default function MedicationsScreen() {
                           <Text
                             style={[
                               styles.periodButtonText,
-                              periodValue === "AM" && styles.periodButtonTextSelected,
+                              periodValue === "AM" &&
+                                styles.periodButtonTextSelected,
                             ]}
                           >
                             AM
@@ -1296,7 +1332,8 @@ export default function MedicationsScreen() {
                           <Text
                             style={[
                               styles.periodButtonText,
-                              periodValue === "PM" && styles.periodButtonTextSelected,
+                              periodValue === "PM" &&
+                                styles.periodButtonTextSelected,
                             ]}
                           >
                             PM
@@ -1324,7 +1361,10 @@ export default function MedicationsScreen() {
                 onPress={() =>
                   setNewMedication({
                     ...newMedication,
-                    reminders: [...newMedication.reminders, { time: "", period: "AM" }],
+                    reminders: [
+                      ...newMedication.reminders,
+                      { time: "", period: "AM" },
+                    ],
                   })
                 }
                 style={styles.addButton}

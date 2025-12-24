@@ -1,13 +1,13 @@
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   type User as FirebaseUser,
   onAuthStateChanged,
+  reauthenticateWithCredential,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
   updatePassword,
-  reauthenticateWithCredential,
-  EmailAuthProvider,
-  sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
@@ -17,16 +17,25 @@ import { auth, db } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
 import { userService } from "@/lib/services/userService";
-import type { User, AvatarType } from "@/types";
+import type { AvatarType, User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, firstName: string, lastName: string, avatarType?: AvatarType) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    avatarType?: AvatarType
+  ) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
 
@@ -59,7 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // Handle migration from old name field to firstName/lastName
         let firstName = userData.firstName;
         let lastName = userData.lastName;
-        if (!firstName && !lastName && userData.name) {
+        if (!(firstName || lastName) && userData.name) {
           // Migrate old name field
           const nameParts = (userData.name as string).split(" ");
           firstName = nameParts[0] || "User";
@@ -127,11 +136,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // Prevent processing if component unmounted
       if (!isMounted) return;
-      
+
       try {
         if (firebaseUser) {
           // Check if user document already exists first
@@ -141,12 +150,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch (getUserError) {
             // Silently handle getUser error - will create new user document
           }
-          
+
           // Only parse displayName if user doesn't exist yet
           // Otherwise use existing firstName/lastName to avoid overwriting
           let firstName = "User";
           let lastName = "";
-          
+
           if (existingUser && existingUser.firstName) {
             // User exists with proper firstName/lastName, use those
             firstName = existingUser.firstName;
@@ -167,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             firstName,
             lastName
           );
-          
+
           if (!isMounted) return;
 
           if (!userData) {
@@ -219,10 +228,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               }
             }
           }
-        } else {
-          if (isMounted) {
-            setUser(null);
-          }
+        } else if (isMounted) {
+          setUser(null);
         }
       } catch (error: any) {
         // Silently handle auth state change errors
@@ -242,7 +249,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
-  const processPendingFamilyCode = async (userId: string, isMounted: boolean) => {
+  const processPendingFamilyCode = async (
+    userId: string,
+    isMounted: boolean
+  ) => {
     try {
       const AsyncStorage = await import(
         "@react-native-async-storage/async-storage"
@@ -289,9 +299,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }, 2000);
         } catch (error: any) {
           console.warn("Family code processing error:", error);
-          await AsyncStorage.default.removeItem("pendingFamilyCode").catch(() => {
-            // Ignore cleanup errors
-          });
+          await AsyncStorage.default
+            .removeItem("pendingFamilyCode")
+            .catch(() => {
+              // Ignore cleanup errors
+            });
           setTimeout(() => {
             Alert.alert(
               "Family Code Error",
@@ -318,9 +330,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (!currentUser.familyId) {
-        const fullName = currentUser.firstName && currentUser.lastName
-          ? `${currentUser.firstName} ${currentUser.lastName}`
-          : currentUser.firstName || "User";
+        const fullName =
+          currentUser.firstName && currentUser.lastName
+            ? `${currentUser.firstName} ${currentUser.lastName}`
+            : currentUser.firstName || "User";
         await userService.createFamily(
           userId,
           `${fullName}'s Family` || "My Family"
@@ -380,7 +393,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string, avatarType?: AvatarType) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    avatarType?: AvatarType
+  ) => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -400,24 +419,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       } catch (docError: any) {
         console.error("Failed to create user document:", docError);
-        
+
         // Provide more specific error messages
-        let docErrorMessage = "Failed to create user profile. Please try again.";
+        let docErrorMessage =
+          "Failed to create user profile. Please try again.";
         if (docError?.code === "permission-denied") {
-          docErrorMessage = "Permission denied. Please check your Firestore security rules.";
+          docErrorMessage =
+            "Permission denied. Please check your Firestore security rules.";
         } else if (docError?.code === "unavailable") {
-          docErrorMessage = "Database unavailable. Please check your internet connection.";
+          docErrorMessage =
+            "Database unavailable. Please check your internet connection.";
         } else if (docError?.message) {
           docErrorMessage = docError.message;
         }
-        
+
         // If document creation fails, try to delete the auth user to prevent orphaned accounts
         try {
           await signOut(auth);
         } catch (signOutError) {
-          console.error("Failed to sign out after document creation error:", signOutError);
+          console.error(
+            "Failed to sign out after document creation error:",
+            signOutError
+          );
         }
-        
+
         setLoading(false);
         throw new Error(docErrorMessage);
       }
@@ -478,25 +503,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const changePassword = async (currentPassword: string, newPassword: string) => {
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ) => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       throw new Error("No user is currently signed in.");
     }
 
     if (!currentUser.email) {
-      throw new Error("Cannot change password: User account does not have an email address.");
+      throw new Error(
+        "Cannot change password: User account does not have an email address."
+      );
     }
 
     // Check if user is signed in with email/password provider
     // Firebase uses "password" as providerId for email/password accounts
     const providerData = currentUser.providerData;
     const hasEmailProvider = providerData.some(
-      (provider) => provider.providerId === "password" || provider.providerId === "firebase"
+      (provider) =>
+        provider.providerId === "password" || provider.providerId === "firebase"
     );
 
     if (!hasEmailProvider && providerData.length > 0) {
-      throw new Error("Password change is only available for email/password accounts.");
+      throw new Error(
+        "Password change is only available for email/password accounts."
+      );
     }
 
     try {
@@ -511,7 +544,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         currentUser.email,
         currentPassword
       );
-      
+
       // Reauthenticate - this may throw if password is wrong or user needs recent login
       await reauthenticateWithCredential(currentUser, credential);
 
@@ -526,19 +559,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         error.code === "auth/invalid-credential" ||
         error.code === "auth/invalid-login-credentials"
       ) {
-        errorMessage = "Current password is incorrect. Please check and try again.";
+        errorMessage =
+          "Current password is incorrect. Please check and try again.";
       } else if (error.code === "auth/user-mismatch") {
-        errorMessage = "Authentication error. Please sign out and sign in again.";
+        errorMessage =
+          "Authentication error. Please sign out and sign in again.";
       } else if (error.code === "auth/weak-password") {
         errorMessage = "New password should be at least 6 characters.";
       } else if (error.code === "auth/requires-recent-login") {
-        errorMessage = "For security reasons, please sign out and sign in again before changing your password.";
+        errorMessage =
+          "For security reasons, please sign out and sign in again before changing your password.";
       } else if (error.code === "auth/network-request-failed") {
-        errorMessage = "Network error. Please check your internet connection and try again.";
+        errorMessage =
+          "Network error. Please check your internet connection and try again.";
       } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Too many failed attempts. Please try again later.";
       } else if (error.code === "auth/user-not-found") {
-        errorMessage = "User account not found. Please sign out and sign in again.";
+        errorMessage =
+          "User account not found. Please sign out and sign in again.";
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email address. Please contact support.";
       } else if (error.message) {
@@ -553,7 +591,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await sendPasswordResetEmail(auth, email);
     } catch (error: any) {
-      let errorMessage = "Failed to send password reset email. Please try again.";
+      let errorMessage =
+        "Failed to send password reset email. Please try again.";
 
       // Handle specific Firebase Auth error codes
       if (error.code === "auth/user-not-found") {
@@ -561,7 +600,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else if (error.code === "auth/invalid-email") {
         errorMessage = "Invalid email address.";
       } else if (error.code === "auth/network-request-failed") {
-        errorMessage = "Network error. Please check your internet connection and try again.";
+        errorMessage =
+          "Network error. Please check your internet connection and try again.";
       } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Too many requests. Please try again later.";
       } else if (error.message) {

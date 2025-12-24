@@ -1,4 +1,4 @@
-import { useRouter, useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   AlertTriangle,
   ArrowLeft,

@@ -1,10 +1,21 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, LayoutAnimation, Platform, SafeAreaView, ScrollView, type ViewStyle, type TextStyle, type StyleProp } from "react-native";
 import { router } from "expo-router";
+import { ChevronRight, Heart } from "lucide-react-native";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  type StyleProp,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import { Heart, ChevronRight } from "lucide-react-native";
 
 export default function AppleHealthIntroScreen() {
   const { t, i18n } = useTranslation();
@@ -50,7 +61,12 @@ export default function AppleHealthIntroScreen() {
       marginBottom: theme.spacing.lg,
     },
     sectionTitle: {
-      ...getTextStyle(theme, "subheading", "semibold", theme.colors.text.primary),
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.text.primary
+      ),
       marginBottom: theme.spacing.md,
     },
     bulletPoint: {
@@ -67,7 +83,12 @@ export default function AppleHealthIntroScreen() {
       marginBottom: theme.spacing.lg,
     },
     notDoTitle: {
-      ...getTextStyle(theme, "subheading", "semibold", theme.colors.secondary.dark),
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.secondary.dark
+      ),
       marginBottom: theme.spacing.md,
     },
     notDoText: {
@@ -134,10 +155,18 @@ export default function AppleHealthIntroScreen() {
           <View style={styles.iconContainer as ViewStyle}>
             <Heart color={theme.colors.primary.main} size={40} />
           </View>
-          <Text style={[styles.title, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [styles.title, isRTL && styles.rtlText] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? "ربط Apple Health" : "Connect Apple Health"}
           </Text>
-          <Text style={[styles.subtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [styles.subtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>
+            }
+          >
             {isRTL
               ? "يمكن لـ Maak قراءة البيانات الصحية التي تختارها لمساعدتك وعائلتك في تتبع الاتجاهات واكتشاف المخاطر مبكرًا."
               : "Maak can read the health data you choose to help you and your family track trends and spot risks early."}
@@ -145,43 +174,147 @@ export default function AppleHealthIntroScreen() {
         </View>
 
         <View style={styles.section as ViewStyle}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.sectionTitle,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? "ما سنفعله:" : "What we will do:"}
           </Text>
-          <Text style={[styles.bulletPoint, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "أنت تختار ما تشاركه (اختر مقاييس محددة)" : "You choose what to share (pick specific metrics)"}
+          <Text
+            style={
+              [
+                styles.bulletPoint,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "أنت تختار ما تشاركه (اختر مقاييس محددة)"
+              : "You choose what to share (pick specific metrics)"}
           </Text>
-          <Text style={[styles.bulletPoint, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "وصول للقراءة فقط (Maak لا يكتب أبدًا في Apple Health)" : "Read-only access (Maak never writes to Apple Health)"}
+          <Text
+            style={
+              [
+                styles.bulletPoint,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "وصول للقراءة فقط (Maak لا يكتب أبدًا في Apple Health)"
+              : "Read-only access (Maak never writes to Apple Health)"}
           </Text>
-          <Text style={[styles.bulletPoint, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "استخدام البيانات لتقديم رؤى صحية ودعم الرعاية" : "Use data to provide health insights and caregiving support"}
+          <Text
+            style={
+              [
+                styles.bulletPoint,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "استخدام البيانات لتقديم رؤى صحية ودعم الرعاية"
+              : "Use data to provide health insights and caregiving support"}
           </Text>
-          <Text style={[styles.bulletPoint, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "التغيير في أي وقت (إدارة أو إلغاء في إعدادات iOS)" : "Change anytime (manage or revoke in iOS Settings)"}
+          <Text
+            style={
+              [
+                styles.bulletPoint,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "التغيير في أي وقت (إدارة أو إلغاء في إعدادات iOS)"
+              : "Change anytime (manage or revoke in iOS Settings)"}
           </Text>
         </View>
 
         <View style={styles.notDoSection as ViewStyle}>
-          <Text style={[styles.notDoTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.notDoTitle,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? "ما لن نفعله:" : "What we will NOT do:"}
           </Text>
-          <Text style={[styles.notDoText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "لن نبيع بياناتك الصحية أبدًا" : "We will never sell your health data"}
+          <Text
+            style={
+              [
+                styles.notDoText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "لن نبيع بياناتك الصحية أبدًا"
+              : "We will never sell your health data"}
           </Text>
-          <Text style={[styles.notDoText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "لن نشارك بياناتك مع أطراف ثالثة" : "We will never share your data with third parties"}
+          <Text
+            style={
+              [
+                styles.notDoText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "لن نشارك بياناتك مع أطراف ثالثة"
+              : "We will never share your data with third parties"}
           </Text>
-          <Text style={[styles.notDoText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "لن نكتب أو نعدل بيانات Apple Health الخاصة بك" : "We will never write to or modify your Apple Health data"}
+          <Text
+            style={
+              [
+                styles.notDoText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "لن نكتب أو نعدل بيانات Apple Health الخاصة بك"
+              : "We will never write to or modify your Apple Health data"}
           </Text>
-          <Text style={[styles.notDoText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            • {isRTL ? "بياناتك تبقى آمنة وخاصة" : "Your data stays secure and private"}
+          <Text
+            style={
+              [
+                styles.notDoText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            •{" "}
+            {isRTL
+              ? "بياناتك تبقى آمنة وخاصة"
+              : "Your data stays secure and private"}
           </Text>
         </View>
 
-        <Pressable onPress={toggleLearnMore} style={styles.learnMoreButton as ViewStyle}>
-          <Text style={[styles.learnMoreText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+        <Pressable
+          onPress={toggleLearnMore}
+          style={styles.learnMoreButton as ViewStyle}
+        >
+          <Text
+            style={
+              [
+                styles.learnMoreText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {expanded
               ? isRTL
                 ? "إخفاء التفاصيل"
@@ -193,7 +326,14 @@ export default function AppleHealthIntroScreen() {
         </Pressable>
 
         {expanded && (
-          <Text style={[styles.expandedText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.expandedText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL
               ? "يستخدم Apple Health HealthKit لتخزين البيانات الصحية بشكل آمن على جهازك. يستخدم Maak البيانات التي تختارها لتقديم رؤى الرعاية (مثل الاتجاهات والتنبيهات) ولا نبيع بياناتك الصحية."
               : "Apple Health uses HealthKit to store health data securely on your device. Maak uses the data you select to provide caregiving insights (like trends and alerts) and we do not sell your health data."}
@@ -214,7 +354,10 @@ export default function AppleHealthIntroScreen() {
           />
         </Pressable>
 
-        <Pressable onPress={() => router.back()} style={styles.secondaryButton as ViewStyle}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.secondaryButton as ViewStyle}
+        >
           <Text style={styles.secondaryButtonText as TextStyle}>
             {isRTL ? "ليس الآن" : "Not now"}
           </Text>

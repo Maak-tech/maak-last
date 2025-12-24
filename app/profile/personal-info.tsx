@@ -1,4 +1,4 @@
-import { useRouter, useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   ArrowLeft,
   Calendar,
@@ -12,7 +12,7 @@ import {
   User,
   X,
 } from "lucide-react-native";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -159,12 +159,12 @@ export default function PersonalInfoScreen() {
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <Avatar
+              avatarType={user?.avatarType}
               name={
                 user?.firstName && user?.lastName
                   ? `${user.firstName} ${user.lastName}`
                   : user?.firstName || "User"
               }
-              avatarType={user?.avatarType}
               size="xl"
               source={user?.avatar ? { uri: user.avatar } : undefined}
             />
@@ -389,9 +389,7 @@ export default function PersonalInfoScreen() {
                 onChangeText={(text) =>
                   setEditForm({ ...editForm, lastName: text })
                 }
-                placeholder={
-                  isRTL ? "ادخل اسم عائلتك" : "Enter your last name"
-                }
+                placeholder={isRTL ? "ادخل اسم عائلتك" : "Enter your last name"}
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={editForm.lastName}

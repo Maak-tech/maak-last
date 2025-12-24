@@ -179,7 +179,10 @@ async function createSampleData(userId: string) {
     console.log("✅ Sample vital signs added");
     console.log("✅ User document ensured");
   } catch (error) {
-    console.error("❌ Error creating sample data:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "❌ Error creating sample data:",
+      error instanceof Error ? error.message : String(error)
+    );
     throw error;
   }
 }
@@ -212,7 +215,10 @@ async function main() {
     console.log("2. Test your app to see the sample data");
     console.log("3. Try adding new symptoms/medications through your app");
   } catch (error) {
-    console.error("\n💥 Script failed:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "\n💥 Script failed:",
+      error instanceof Error ? error.message : String(error)
+    );
     console.log("\n🔧 Troubleshooting:");
     console.log("1. Check your Firebase configuration");
     console.log("2. Ensure your Firestore security rules allow writes");

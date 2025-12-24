@@ -3,19 +3,16 @@
  * Placeholder - not implemented yet (iOS-only focus)
  */
 
-import { Platform } from "react-native";
 import type {
   NormalizedMetricPayload,
   ProviderAvailability,
 } from "../health/healthTypes";
 
 export const healthConnectService = {
-  isAvailable: async (): Promise<ProviderAvailability> => {
-    return {
-      available: false,
-      reason: "Health Connect integration not implemented yet (iOS-only focus)",
-    };
-  },
+  isAvailable: async (): Promise<ProviderAvailability> => ({
+    available: false,
+    reason: "Health Connect integration not implemented yet (iOS-only focus)",
+  }),
   requestPermissions: async (_selectedMetrics: string[]) => {
     throw new Error("Health Connect not implemented");
   },
@@ -27,4 +24,3 @@ export const healthConnectService = {
     throw new Error("Health Connect not implemented");
   },
 };
-

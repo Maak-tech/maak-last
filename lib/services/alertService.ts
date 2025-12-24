@@ -93,30 +93,32 @@ export const alertService = {
   async resolveAlert(alertId: string, resolverId: string): Promise<void> {
     try {
       const alertRef = doc(db, "alerts", alertId);
-      
+
       // Verify the document exists
       const alertDoc = await getDoc(alertRef);
       if (!alertDoc.exists()) {
         throw new Error(`Alert ${alertId} does not exist`);
       }
-      
+
       // Update the document
       await updateDoc(alertRef, {
         resolved: true,
         resolvedAt: Timestamp.now(),
         resolvedBy: resolverId,
       });
-      
+
       // Verify the update worked
       const updatedDoc = await getDoc(alertRef);
       const updatedData = updatedDoc.data();
-      
+
       if (!updatedData?.resolved) {
         throw new Error(`Alert ${alertId} was not marked as resolved`);
       }
     } catch (error: any) {
       // Silently handle error
-      throw new Error(`Failed to resolve alert: ${error.message || "Unknown error"}`);
+      throw new Error(
+        `Failed to resolve alert: ${error.message || "Unknown error"}`
+      );
     }
   },
 
@@ -149,9 +151,10 @@ export const alertService = {
       try {
         const user = await userService.getUser(userId);
         if (user && user.familyId) {
-          const userName = user.firstName && user.lastName
-            ? `${user.firstName} ${user.lastName}`
-            : user.firstName || "User";
+          const userName =
+            user.firstName && user.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user.firstName || "User";
           await pushNotificationService.sendFallAlert(
             userId,
             alertId,
@@ -159,9 +162,10 @@ export const alertService = {
             user.familyId
           );
         } else {
-          const userName = user?.firstName && user?.lastName
-            ? `${user.firstName} ${user.lastName}`
-            : user?.firstName || "User";
+          const userName =
+            user?.firstName && user?.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user?.firstName || "User";
           await pushNotificationService.sendFallAlert(
             userId,
             alertId,
@@ -254,27 +258,32 @@ export const alertService = {
           id: doc.id,
           ...data,
           timestamp: data.timestamp?.toDate() || new Date(),
-          resolved: data.resolved || false,
+          resolved: data.resolved,
         } as EmergencyAlert;
-        
+
         // Double-check resolved status in memory
         if (!alert.resolved) {
           alerts.push(alert);
         }
       });
-      
+
       // Additional filter to ensure no resolved alerts slip through
-      const filteredAlerts = alerts.filter(a => !a.resolved);
+      const filteredAlerts = alerts.filter((a) => !a.resolved);
 
       // Sort by timestamp descending
-      filteredAlerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      filteredAlerts.sort(
+        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+      );
 
       return filteredAlerts;
     } catch (error: any) {
       // Silently handle error
-      
+
       // If it's an index error, try without the resolved filter
-      if (error.message?.includes("index") || error.code === "failed-precondition") {
+      if (
+        error.message?.includes("index") ||
+        error.code === "failed-precondition"
+      ) {
         try {
           const q = query(
             collection(db, "alerts"),
@@ -288,9 +297,9 @@ export const alertService = {
               id: doc.id,
               ...data,
               timestamp: data.timestamp?.toDate() || new Date(),
-              resolved: data.resolved || false,
+              resolved: data.resolved,
             } as EmergencyAlert;
-            
+
             if (!alert.resolved) {
               alerts.push(alert);
             }

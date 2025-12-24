@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Activity, Home, User, Users, Sparkles } from "lucide-react-native";
+import { Activity, Home, Sparkles, User, Users } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 

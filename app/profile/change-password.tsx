@@ -3,9 +3,9 @@
  * Allows users to change their password
  */
 
-import { useRouter, useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { ArrowLeft, Eye, EyeOff, Lock, Save } from "lucide-react-native";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -139,7 +139,7 @@ export default function ChangePasswordScreen() {
     setLoading(true);
     try {
       await resetPassword(user.email);
-      
+
       const successMessage = isRTL
         ? `تم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}. يرجى التحقق من بريدك الإلكتروني.`
         : `Password reset link has been sent to ${user.email}. Please check your email.`;
@@ -148,28 +148,24 @@ export default function ChangePasswordScreen() {
         window.alert(successMessage);
         router.back();
       } else {
-        Alert.alert(
-          isRTL ? "تم الإرسال" : "Email Sent",
-          successMessage,
-          [
-            {
-              text: isRTL ? "موافق" : "OK",
-              onPress: () => router.back(),
-            },
-          ]
-        );
+        Alert.alert(isRTL ? "تم الإرسال" : "Email Sent", successMessage, [
+          {
+            text: isRTL ? "موافق" : "OK",
+            onPress: () => router.back(),
+          },
+        ]);
       }
     } catch (error: any) {
-      const errorMessage = error.message || (isRTL ? "فشل إرسال البريد الإلكتروني" : "Failed to send email");
-      
+      const errorMessage =
+        error.message ||
+        (isRTL ? "فشل إرسال البريد الإلكتروني" : "Failed to send email");
+
       if (Platform.OS === "web") {
         window.alert(errorMessage);
       } else {
-        Alert.alert(
-          isRTL ? "خطأ" : "Error",
-          errorMessage,
-          [{ text: isRTL ? "موافق" : "OK" }]
-        );
+        Alert.alert(isRTL ? "خطأ" : "Error", errorMessage, [
+          { text: isRTL ? "موافق" : "OK" },
+        ]);
       }
     } finally {
       setLoading(false);
@@ -209,8 +205,10 @@ export default function ChangePasswordScreen() {
       );
     } catch (error: any) {
       // Extract error message
-      let errorMessage = error.message || (isRTL ? "فشل تغيير كلمة المرور" : "Failed to change password");
-      
+      let errorMessage =
+        error.message ||
+        (isRTL ? "فشل تغيير كلمة المرور" : "Failed to change password");
+
       // Provide more helpful error messages based on error content
       if (
         errorMessage.toLowerCase().includes("incorrect") ||
@@ -218,7 +216,7 @@ export default function ChangePasswordScreen() {
         errorMessage.toLowerCase().includes("invalid-login") ||
         errorMessage.toLowerCase().includes("invalid-credential")
       ) {
-        errorMessage = isRTL 
+        errorMessage = isRTL
           ? "كلمة المرور الحالية غير صحيحة. يرجى التحقق من كلمة المرور والمحاولة مرة أخرى."
           : "Current password is incorrect. Please verify your current password and try again.";
         // Set error on current password field
@@ -227,7 +225,10 @@ export default function ChangePasswordScreen() {
         errorMessage = isRTL
           ? "خطأ في الاتصال بالشبكة. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى."
           : "Network error. Please check your internet connection and try again.";
-      } else if (errorMessage.toLowerCase().includes("sign out") || errorMessage.toLowerCase().includes("recent login")) {
+      } else if (
+        errorMessage.toLowerCase().includes("sign out") ||
+        errorMessage.toLowerCase().includes("recent login")
+      ) {
         errorMessage = isRTL
           ? "لأسباب أمنية، يرجى تسجيل الخروج وتسجيل الدخول مرة أخرى قبل تغيير كلمة المرور."
           : "For security reasons, please sign out and sign in again before changing your password.";
@@ -237,19 +238,22 @@ export default function ChangePasswordScreen() {
           : "New password is too weak. It must be at least 6 characters long.";
         setErrors({ newPassword: errorMessage });
       }
-      
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        errorMessage,
-        [{ text: isRTL ? "موافق" : "OK" }]
-      );
+
+      Alert.alert(isRTL ? "خطأ" : "Error", errorMessage, [
+        { text: isRTL ? "موافق" : "OK" },
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
@@ -257,16 +261,18 @@ export default function ChangePasswordScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
             onPress={() => router.back()}
+            style={styles.backButton}
           >
-            <ArrowLeft size={24} color={theme.colors.text.primary} />
+            <ArrowLeft color={theme.colors.text.primary} size={24} />
           </TouchableOpacity>
-          <Lock size={32} color={theme.colors.primary.main} />
+          <Lock color={theme.colors.primary.main} size={32} />
           <Text style={[styles.title, { color: theme.colors.text.primary }]}>
             {isRTL ? "تغيير كلمة المرور" : "Change Password"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+          <Text
+            style={[styles.subtitle, { color: theme.colors.text.secondary }]}
+          >
             {isRTL
               ? "قم بتحديث كلمة المرور لحسابك"
               : "Update your account password"}
@@ -274,9 +280,9 @@ export default function ChangePasswordScreen() {
         </View>
 
         <ScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.content}
         >
           {/* Current Password */}
           <View style={styles.inputGroup}>
@@ -285,6 +291,19 @@ export default function ChangePasswordScreen() {
             </Text>
             <View style={styles.inputContainer}>
               <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={(text) => {
+                  setCurrentPassword(text);
+                  if (errors.currentPassword) {
+                    setErrors({ ...errors, currentPassword: "" });
+                  }
+                }}
+                placeholder={
+                  isRTL ? "أدخل كلمة المرور الحالية" : "Enter current password"
+                }
+                placeholderTextColor={theme.colors.text.secondary}
+                secureTextEntry={!showCurrentPassword}
                 style={[
                   styles.input,
                   {
@@ -297,38 +316,27 @@ export default function ChangePasswordScreen() {
                         : "#E2E8F0",
                   },
                 ]}
-                placeholder={isRTL ? "أدخل كلمة المرور الحالية" : "Enter current password"}
-                placeholderTextColor={theme.colors.text.secondary}
-                secureTextEntry={!showCurrentPassword}
                 value={currentPassword}
-                onChangeText={(text) => {
-                  setCurrentPassword(text);
-                  if (errors.currentPassword) {
-                    setErrors({ ...errors, currentPassword: "" });
-                  }
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
               />
               <TouchableOpacity
-                style={styles.eyeButton}
                 onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                style={styles.eyeButton}
               >
                 {showCurrentPassword ? (
-                  <EyeOff size={20} color={theme.colors.text.secondary} />
+                  <EyeOff color={theme.colors.text.secondary} size={20} />
                 ) : (
-                  <Eye size={20} color={theme.colors.text.secondary} />
+                  <Eye color={theme.colors.text.secondary} size={20} />
                 )}
               </TouchableOpacity>
             </View>
             {errors.currentPassword && (
               <Text style={styles.errorText}>{errors.currentPassword}</Text>
             )}
-            
+
             {/* Forgot Password Link */}
             <TouchableOpacity
-              style={styles.forgotPasswordLink}
               onPress={handleForgotPassword}
+              style={styles.forgotPasswordLink}
             >
               <Text style={[styles.forgotPasswordText, { color: "#FF8C42" }]}>
                 {isRTL ? "نسيت كلمة المرور؟" : "Forgot Password?"}
@@ -343,6 +351,19 @@ export default function ChangePasswordScreen() {
             </Text>
             <View style={styles.inputContainer}>
               <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={(text) => {
+                  setNewPassword(text);
+                  if (errors.newPassword) {
+                    setErrors({ ...errors, newPassword: "" });
+                  }
+                }}
+                placeholder={
+                  isRTL ? "أدخل كلمة المرور الجديدة" : "Enter new password"
+                }
+                placeholderTextColor={theme.colors.text.secondary}
+                secureTextEntry={!showNewPassword}
                 style={[
                   styles.input,
                   {
@@ -355,34 +376,28 @@ export default function ChangePasswordScreen() {
                         : "#E2E8F0",
                   },
                 ]}
-                placeholder={isRTL ? "أدخل كلمة المرور الجديدة" : "Enter new password"}
-                placeholderTextColor={theme.colors.text.secondary}
-                secureTextEntry={!showNewPassword}
                 value={newPassword}
-                onChangeText={(text) => {
-                  setNewPassword(text);
-                  if (errors.newPassword) {
-                    setErrors({ ...errors, newPassword: "" });
-                  }
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
               />
               <TouchableOpacity
-                style={styles.eyeButton}
                 onPress={() => setShowNewPassword(!showNewPassword)}
+                style={styles.eyeButton}
               >
                 {showNewPassword ? (
-                  <EyeOff size={20} color={theme.colors.text.secondary} />
+                  <EyeOff color={theme.colors.text.secondary} size={20} />
                 ) : (
-                  <Eye size={20} color={theme.colors.text.secondary} />
+                  <Eye color={theme.colors.text.secondary} size={20} />
                 )}
               </TouchableOpacity>
             </View>
             {errors.newPassword && (
               <Text style={styles.errorText}>{errors.newPassword}</Text>
             )}
-            <Text style={[styles.helperText, { color: theme.colors.text.secondary }]}>
+            <Text
+              style={[
+                styles.helperText,
+                { color: theme.colors.text.secondary },
+              ]}
+            >
               {isRTL
                 ? "يجب أن تكون 6 أحرف على الأقل"
                 : "Must be at least 6 characters"}
@@ -396,6 +411,21 @@ export default function ChangePasswordScreen() {
             </Text>
             <View style={styles.inputContainer}>
               <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  if (errors.confirmPassword) {
+                    setErrors({ ...errors, confirmPassword: "" });
+                  }
+                }}
+                placeholder={
+                  isRTL
+                    ? "أعد إدخال كلمة المرور الجديدة"
+                    : "Re-enter new password"
+                }
+                placeholderTextColor={theme.colors.text.secondary}
+                secureTextEntry={!showConfirmPassword}
                 style={[
                   styles.input,
                   {
@@ -408,29 +438,16 @@ export default function ChangePasswordScreen() {
                         : "#E2E8F0",
                   },
                 ]}
-                placeholder={
-                  isRTL ? "أعد إدخال كلمة المرور الجديدة" : "Re-enter new password"
-                }
-                placeholderTextColor={theme.colors.text.secondary}
-                secureTextEntry={!showConfirmPassword}
                 value={confirmPassword}
-                onChangeText={(text) => {
-                  setConfirmPassword(text);
-                  if (errors.confirmPassword) {
-                    setErrors({ ...errors, confirmPassword: "" });
-                  }
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
               />
               <TouchableOpacity
-                style={styles.eyeButton}
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.eyeButton}
               >
                 {showConfirmPassword ? (
-                  <EyeOff size={20} color={theme.colors.text.secondary} />
+                  <EyeOff color={theme.colors.text.secondary} size={20} />
                 ) : (
-                  <Eye size={20} color={theme.colors.text.secondary} />
+                  <Eye color={theme.colors.text.secondary} size={20} />
                 )}
               </TouchableOpacity>
             </View>
@@ -441,6 +458,8 @@ export default function ChangePasswordScreen() {
 
           {/* Save Button */}
           <TouchableOpacity
+            disabled={loading}
+            onPress={handleChangePassword}
             style={[
               styles.saveButton,
               {
@@ -448,8 +467,6 @@ export default function ChangePasswordScreen() {
                 opacity: loading ? 0.6 : 1,
               },
             ]}
-            onPress={handleChangePassword}
-            disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />
@@ -473,8 +490,13 @@ export default function ChangePasswordScreen() {
               },
             ]}
           >
-            <Lock size={16} color={theme.colors.text.secondary} />
-            <Text style={[styles.securityNoteText, { color: theme.colors.text.secondary }]}>
+            <Lock color={theme.colors.text.secondary} size={16} />
+            <Text
+              style={[
+                styles.securityNoteText,
+                { color: theme.colors.text.secondary },
+              ]}
+            >
               {isRTL
                 ? "لأسباب أمنية، سيُطلب منك إعادة تسجيل الدخول بعد تغيير كلمة المرور."
                 : "For security reasons, you may need to sign in again after changing your password."}
@@ -592,4 +614,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

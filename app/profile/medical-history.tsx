@@ -98,11 +98,11 @@ export default function MedicalHistoryScreen() {
 
   const loadFamilyMembers = async () => {
     if (!user?.familyId) return;
-    
+
     try {
       setLoadingFamilyMembers(true);
       const members = await userService.getFamilyMembers(user.familyId);
-      setFamilyMembers(members.filter(m => m.id !== user.id)); // Exclude current user
+      setFamilyMembers(members.filter((m) => m.id !== user.id)); // Exclude current user
     } catch (error) {
       // Silently handle error
     } finally {
@@ -126,24 +126,24 @@ export default function MedicalHistoryScreen() {
     if (newCondition.isFamily && !newCondition.familyMemberId) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "يرجى اختيار عضو العائلة"
-          : "Please select a family member"
+        isRTL ? "يرجى اختيار عضو العائلة" : "Please select a family member"
       );
       return;
     }
 
     setAddLoading(true);
     try {
-      const selectedMember = familyMembers.find(m => m.id === newCondition.familyMemberId);
-      
+      const selectedMember = familyMembers.find(
+        (m) => m.id === newCondition.familyMemberId
+      );
+
       // Construct member name from firstName and lastName
       const memberName = selectedMember
         ? selectedMember.firstName && selectedMember.lastName
           ? `${selectedMember.firstName} ${selectedMember.lastName}`
           : selectedMember.firstName || "Unknown Member"
         : undefined;
-      
+
       const medicalData: Omit<MedicalHistory, "id" | "userId"> = {
         condition: newCondition.condition.trim(),
         severity: newCondition.severity,
@@ -151,7 +151,10 @@ export default function MedicalHistoryScreen() {
         notes: newCondition.notes.trim() || undefined,
         isFamily: newCondition.isFamily,
         relation: newCondition.isFamily ? newCondition.relation : undefined,
-        familyMemberId: newCondition.isFamily && newCondition.familyMemberId ? newCondition.familyMemberId : undefined,
+        familyMemberId:
+          newCondition.isFamily && newCondition.familyMemberId
+            ? newCondition.familyMemberId
+            : undefined,
         familyMemberName: newCondition.isFamily ? memberName : undefined,
       };
 
@@ -430,12 +433,12 @@ export default function MedicalHistoryScreen() {
                                 ? `لـ ${record.familyMemberName}`
                                 : `for ${record.familyMemberName}`
                               : record.relation
-                              ? isRTL
-                                ? `للـ ${record.relation}`
-                                : `for ${record.relation}`
-                              : isRTL
-                              ? "عائلي"
-                              : "Family"}
+                                ? isRTL
+                                  ? `للـ ${record.relation}`
+                                  : `for ${record.relation}`
+                                : isRTL
+                                  ? "عائلي"
+                                  : "Family"}
                           </Text>
                         )}
                       </View>
@@ -559,14 +562,18 @@ export default function MedicalHistoryScreen() {
               <View style={styles.fieldContainer}>
                 <View style={styles.toggleContainer}>
                   <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                    {isRTL ? "هذا السجل لعضو في العائلة" : "This record is for a family member"}
+                    {isRTL
+                      ? "هذا السجل لعضو في العائلة"
+                      : "This record is for a family member"}
                   </Text>
                   <Switch
                     onValueChange={(value) => {
                       setNewCondition({
                         ...newCondition,
                         isFamily: value,
-                        familyMemberId: value ? newCondition.familyMemberId : "",
+                        familyMemberId: value
+                          ? newCondition.familyMemberId
+                          : "",
                         relation: value ? newCondition.relation : "",
                       });
                     }}
@@ -585,7 +592,11 @@ export default function MedicalHistoryScreen() {
                   {isRTL ? "عضو العائلة" : "Family Member"} *
                 </Text>
                 {loadingFamilyMembers ? (
-                  <ActivityIndicator color="#2563EB" size="small" style={{ marginVertical: 12 }} />
+                  <ActivityIndicator
+                    color="#2563EB"
+                    size="small"
+                    style={{ marginVertical: 12 }}
+                  />
                 ) : familyMembers.length === 0 ? (
                   <Text style={[styles.helperText, isRTL && styles.rtlText]}>
                     {isRTL
@@ -617,7 +628,9 @@ export default function MedicalHistoryScreen() {
                             isRTL && styles.rtlText,
                           ]}
                         >
-                          {member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
+                          {member.firstName && member.lastName
+                            ? `${member.firstName} ${member.lastName}`
+                            : member.firstName || "User"}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -630,7 +643,8 @@ export default function MedicalHistoryScreen() {
             {newCondition.isFamily && (
               <View style={styles.fieldContainer}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "صلة القرابة" : "Relationship"} ({isRTL ? "اختياري" : "Optional"})
+                  {isRTL ? "صلة القرابة" : "Relationship"} (
+                  {isRTL ? "اختياري" : "Optional"})
                 </Text>
                 <TextInput
                   onChangeText={(text) =>

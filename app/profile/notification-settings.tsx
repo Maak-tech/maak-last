@@ -1,4 +1,4 @@
-import { useRouter, useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   AlertTriangle,
@@ -82,7 +82,8 @@ export default function NotificationSettingsScreen() {
       setLoading(true);
       const userData = await userService.getUser(user.id);
       if (userData?.preferences?.notifications) {
-        const notificationPrefs = userData.preferences.notifications as unknown as NotificationSettings;
+        const notificationPrefs = userData.preferences
+          .notifications as unknown as NotificationSettings;
         setSettings({
           ...settings,
           ...notificationPrefs,

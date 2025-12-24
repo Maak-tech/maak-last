@@ -39,7 +39,9 @@ export const getFallDetectionDiagnostics = async (
   // Check permissions
   if (Platform.OS !== "web") {
     try {
-      const { motionPermissionService } = await import("@/lib/services/motionPermissionService");
+      const { motionPermissionService } = await import(
+        "@/lib/services/motionPermissionService"
+      );
       const hasPermission = await motionPermissionService.hasMotionPermission();
       const status = await motionPermissionService.checkMotionAvailability();
       diagnostics.permissionsGranted = hasPermission && status.available;
@@ -50,17 +52,27 @@ export const getFallDetectionDiagnostics = async (
 
   // Generate recommendations
   if (Platform.OS === "web") {
-    diagnostics.recommendations.push("Fall detection is not available on web. Use a mobile device.");
+    diagnostics.recommendations.push(
+      "Fall detection is not available on web. Use a mobile device."
+    );
   } else if (!diagnostics.permissionsGranted) {
-    diagnostics.recommendations.push("Motion permissions are not granted. Go to Settings → Motion Permissions to enable.");
+    diagnostics.recommendations.push(
+      "Motion permissions are not granted. Go to Settings → Motion Permissions to enable."
+    );
   } else if (!diagnostics.isEnabled) {
-    diagnostics.recommendations.push("Fall detection is disabled. Enable it in Settings.");
+    diagnostics.recommendations.push(
+      "Fall detection is disabled. Enable it in Settings."
+    );
   } else if (!diagnostics.isActive) {
-    diagnostics.recommendations.push("Fall detection is enabled but not active. Check console logs for initialization errors.");
-  } else if (!diagnostics.isInitialized) {
-    diagnostics.recommendations.push("Fall detection is initializing. Wait a few seconds and check again.");
-  } else {
+    diagnostics.recommendations.push(
+      "Fall detection is enabled but not active. Check console logs for initialization errors."
+    );
+  } else if (diagnostics.isInitialized) {
     diagnostics.recommendations.push("Fall detection is working correctly!");
+  } else {
+    diagnostics.recommendations.push(
+      "Fall detection is initializing. Wait a few seconds and check again."
+    );
   }
 
   return diagnostics;
@@ -84,8 +96,14 @@ export const logFallDetectionDiagnostics = async (
   );
 
   console.log("[FallDetection] Platform:", diagnostics.platform);
-  console.log("[FallDetection] Sensors Available:", diagnostics.sensorsAvailable);
-  console.log("[FallDetection] Permissions Granted:", diagnostics.permissionsGranted);
+  console.log(
+    "[FallDetection] Sensors Available:",
+    diagnostics.sensorsAvailable
+  );
+  console.log(
+    "[FallDetection] Permissions Granted:",
+    diagnostics.permissionsGranted
+  );
   console.log("[FallDetection] Enabled:", diagnostics.isEnabled);
   console.log("[FallDetection] Active:", diagnostics.isActive);
   console.log("[FallDetection] Initialized:", diagnostics.isInitialized);
@@ -100,4 +118,3 @@ export const logFallDetectionDiagnostics = async (
 
   console.log("[FallDetection] ============================\n");
 };
-

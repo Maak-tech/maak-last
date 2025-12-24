@@ -193,7 +193,9 @@ export default function FirebaseTestScreen() {
         <View style={styles.userInfo}>
           <Text style={styles.label}>User Status:</Text>
           <Text style={styles.value}>
-            {user ? `${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"} (${user.id})` : "Not authenticated"}
+            {user
+              ? `${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"} (${user.id})`
+              : "Not authenticated"}
           </Text>
           {user?.familyId && (
             <>

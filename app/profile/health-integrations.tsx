@@ -3,27 +3,30 @@
  * Provider selection and management
  */
 
-import { useRouter, useNavigation } from "expo-router";
-import { useState, useEffect, useCallback, useLayoutEffect } from "react";
+import { useNavigation, useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Platform,
-  Alert,
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  Heart,
+} from "lucide-react-native";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
   ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Heart, ChevronRight, Check, AlertCircle, ArrowLeft } from "lucide-react-native";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useTranslation } from "react-i18next";
 import type { HealthProvider } from "@/lib/health/healthMetricsCatalog";
-import {
-  getProviderConnection,
-  disconnectProvider,
-} from "@/lib/health/healthSync";
+import { getProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
 
 interface ProviderOption {
@@ -121,31 +124,38 @@ export default function HealthIntegrationsScreen() {
     }
   };
 
-
   if (loading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
+        style={[
+          styles.container,
+          { backgroundColor: theme.colors.background.primary },
+        ]}
       >
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
         </View>
       </SafeAreaView>
     );
   }
 
   // Header styles with proper border color
-  const headerBackgroundColor = isDark ? theme.colors.background.secondary : "#FFFFFF";
+  const headerBackgroundColor = isDark
+    ? theme.colors.background.secondary
+    : "#FFFFFF";
   const headerBorderColor = isDark ? theme.colors.border.medium : "#E2E8F0";
-  
+
   const headerStyles = {
     backgroundColor: headerBackgroundColor,
-    borderBottomColor: headerBorderColor
+    borderBottomColor: headerBorderColor,
   };
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
     >
       {/* Header */}
       <View style={[styles.header, headerStyles]}>
@@ -160,23 +170,55 @@ export default function HealthIntegrationsScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: isDark ? theme.colors.text.primary : "#1E293B" }, isRTL && styles.rtlText]}>
+        <Text
+          style={[
+            styles.headerTitle,
+            { color: isDark ? theme.colors.text.primary : "#1E293B" },
+            isRTL && styles.rtlText,
+          ]}
+        >
           {isRTL ? "تكاملات الصحة" : "Health Integrations"}
         </Text>
 
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
         {/* Welcome Section */}
-        <View style={[styles.welcomeSection, { backgroundColor: isDark ? theme.colors.background.secondary : "#FFFFFF" }]}>
-          <View style={[styles.welcomeIcon, { backgroundColor: theme.colors.primary.main + "20" }]}>
-            <Heart size={40} color={theme.colors.primary.main} />
+        <View
+          style={[
+            styles.welcomeSection,
+            {
+              backgroundColor: isDark
+                ? theme.colors.background.secondary
+                : "#FFFFFF",
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.welcomeIcon,
+              { backgroundColor: theme.colors.primary.main + "20" },
+            ]}
+          >
+            <Heart color={theme.colors.primary.main} size={40} />
           </View>
-          <Text style={[styles.welcomeTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.welcomeTitle,
+              { color: theme.colors.text.primary },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "تكاملات الصحة" : "Health Integrations"}
           </Text>
-          <Text style={[styles.welcomeDescription, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.welcomeDescription,
+              { color: theme.colors.text.secondary },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL
               ? "قم بتوصيل مصادر البيانات الصحية لتوفير رؤى أفضل ورعاية محسّنة"
               : "Connect health data sources to provide better insights and care"}
@@ -185,7 +227,9 @@ export default function HealthIntegrationsScreen() {
 
         {/* Providers List */}
         <View style={styles.providersSection}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          <Text
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }]}
+          >
             Available Providers
           </Text>
 
@@ -195,7 +239,9 @@ export default function HealthIntegrationsScreen() {
 
             return (
               <TouchableOpacity
+                disabled={!provider.available}
                 key={provider.id}
+                onPress={() => handleProviderPress(provider)}
                 style={[
                   styles.providerCard,
                   {
@@ -204,19 +250,26 @@ export default function HealthIntegrationsScreen() {
                     opacity: provider.available ? 1 : 0.5,
                   },
                 ]}
-                onPress={() => handleProviderPress(provider)}
-                disabled={!provider.available}
               >
                 <View style={styles.providerIconContainer}>
                   <provider.icon
+                    color={
+                      isConnected
+                        ? theme.colors.accent.success
+                        : theme.colors.primary.main
+                    }
                     size={24}
-                    color={isConnected ? theme.colors.accent.success : theme.colors.primary.main}
                   />
                 </View>
 
                 <View style={styles.providerContent}>
                   <View style={styles.providerHeader}>
-                    <Text style={[styles.providerName, { color: theme.colors.text.primary }]}>
+                    <Text
+                      style={[
+                        styles.providerName,
+                        { color: theme.colors.text.primary },
+                      ]}
+                    >
                       {provider.name}
                     </Text>
                     {provider.recommended && (
@@ -227,7 +280,10 @@ export default function HealthIntegrationsScreen() {
                         ]}
                       >
                         <Text
-                          style={[styles.badgeText, { color: theme.colors.primary.main }]}
+                          style={[
+                            styles.badgeText,
+                            { color: theme.colors.primary.main },
+                          ]}
                         >
                           Recommended
                         </Text>
@@ -236,16 +292,22 @@ export default function HealthIntegrationsScreen() {
                   </View>
 
                   <Text
-                    style={[styles.providerDesc, { color: theme.colors.text.secondary }]}
+                    style={[
+                      styles.providerDesc,
+                      { color: theme.colors.text.secondary },
+                    ]}
                   >
                     {provider.description}
                   </Text>
 
                   {isConnected && (
                     <View style={styles.statusRow}>
-                      <Check size={16} color={theme.colors.accent.success} />
+                      <Check color={theme.colors.accent.success} size={16} />
                       <Text
-                        style={[styles.statusText, { color: theme.colors.accent.success }]}
+                        style={[
+                          styles.statusText,
+                          { color: theme.colors.accent.success },
+                        ]}
                       >
                         Connected • {connection.selectedMetrics.length} metrics
                       </Text>
@@ -254,7 +316,10 @@ export default function HealthIntegrationsScreen() {
 
                   {!provider.available && (
                     <View style={styles.statusRow}>
-                      <AlertCircle size={16} color={theme.colors.text.secondary} />
+                      <AlertCircle
+                        color={theme.colors.text.secondary}
+                        size={16}
+                      />
                       <Text
                         style={[
                           styles.statusText,
@@ -268,7 +333,7 @@ export default function HealthIntegrationsScreen() {
                 </View>
 
                 {provider.available && (
-                  <ChevronRight size={20} color={theme.colors.text.secondary} />
+                  <ChevronRight color={theme.colors.text.secondary} size={20} />
                 )}
               </TouchableOpacity>
             );
@@ -277,14 +342,17 @@ export default function HealthIntegrationsScreen() {
 
         {/* Info Section */}
         <View style={styles.infoSection}>
-          <Text style={[styles.infoTitle, { color: theme.colors.text.primary }]}>
+          <Text
+            style={[styles.infoTitle, { color: theme.colors.text.primary }]}
+          >
             About Health Integrations
           </Text>
-          <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
-            • Health data is read-only and fully under your control{"\n"}
-            • You choose exactly which metrics to share{"\n"}
-            • Data is encrypted and securely synced{"\n"}
-            • You can disconnect anytime
+          <Text
+            style={[styles.infoText, { color: theme.colors.text.secondary }]}
+          >
+            • Health data is read-only and fully under your control{"\n"}• You
+            choose exactly which metrics to share{"\n"}• Data is encrypted and
+            securely synced{"\n"}• You can disconnect anytime
           </Text>
         </View>
       </ScrollView>
@@ -442,4 +510,3 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 });
-

@@ -36,7 +36,9 @@ export default function MoodsScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedMood, setSelectedMood] = useState<"veryHappy" | "happy" | "neutral" | "sad" | "verySad" | "">("");
+  const [selectedMood, setSelectedMood] = useState<
+    "veryHappy" | "happy" | "neutral" | "sad" | "verySad" | ""
+  >("");
   const [intensity, setIntensity] = useState(1);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -208,14 +210,19 @@ export default function MoodsScreen() {
       } else {
         // Add new mood
         const targetUserId = selectedTargetUser || user.id;
-        
+
         if (!targetUserId) {
           throw new Error("Target user ID is required");
         }
 
         const moodData: Omit<Mood, "id"> = {
           userId: targetUserId,
-          mood: selectedMood as "veryHappy" | "happy" | "neutral" | "sad" | "verySad",
+          mood: selectedMood as
+            | "veryHappy"
+            | "happy"
+            | "neutral"
+            | "sad"
+            | "verySad",
           intensity: intensity as 1 | 2 | 3 | 4 | 5,
           timestamp: new Date(),
           activities: [],
@@ -253,16 +260,22 @@ export default function MoodsScreen() {
       );
     } catch (error: any) {
       console.error("Error saving mood:", error);
-      
+
       // Provide more specific error messages
       let errorMessage = isRTL ? "حدث خطأ في حفظ المزاج" : "Error saving mood";
-      
+
       if (error?.message) {
-        if (error.message.includes("permission") || error.message.includes("Permission")) {
-          errorMessage = isRTL 
+        if (
+          error.message.includes("permission") ||
+          error.message.includes("Permission")
+        ) {
+          errorMessage = isRTL
             ? "ليس لديك صلاحية لحفظ المزاج. يرجى التحقق من إعدادات الحساب."
             : "You don't have permission to save mood. Please check your account settings.";
-        } else if (error.message.includes("network") || error.message.includes("Network")) {
+        } else if (
+          error.message.includes("network") ||
+          error.message.includes("Network")
+        ) {
           errorMessage = isRTL
             ? "خطأ في الاتصال بالإنترنت. يرجى المحاولة مرة أخرى."
             : "Network error. Please try again.";
@@ -276,11 +289,8 @@ export default function MoodsScreen() {
             : `Error saving mood: ${error.message}`;
         }
       }
-      
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        errorMessage
-      );
+
+      Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -330,8 +340,8 @@ export default function MoodsScreen() {
     Alert.alert(
       isRTL ? "حذف المزاج" : "Delete Mood",
       isRTL
-        ? `هل أنت متأكد من رغبتك في حذف هذا المزاج؟`
-        : `Are you sure you want to delete this mood?`,
+        ? "هل أنت متأكد من رغبتك في حذف هذا المزاج؟"
+        : "Are you sure you want to delete this mood?",
       [
         {
           text: isRTL ? "إلغاء" : "Cancel",
@@ -568,9 +578,7 @@ export default function MoodsScreen() {
                       </Text>
                     </View>
                     <View style={styles.moodMeta}>
-                      <Text
-                        style={[styles.moodDate, isRTL && styles.rtlText]}
-                      >
+                      <Text style={[styles.moodDate, isRTL && styles.rtlText]}>
                         {formatDate(mood.timestamp)}
                       </Text>
                       {/* Show member name for family/admin views */}
@@ -596,9 +604,7 @@ export default function MoodsScreen() {
                         { backgroundColor: getMoodColor(mood.mood) },
                       ]}
                     >
-                      <Text style={styles.intensityText}>
-                        {mood.intensity}
-                      </Text>
+                      <Text style={styles.intensityText}>{mood.intensity}</Text>
                     </View>
                     {/* Show action menu only for moods user can manage */}
                     {(mood.userId === user.id ||
@@ -620,9 +626,7 @@ export default function MoodsScreen() {
                 </View>
 
                 {mood.notes && (
-                  <Text
-                    style={[styles.moodNotes, isRTL && styles.rtlText]}
-                  >
+                  <Text style={[styles.moodNotes, isRTL && styles.rtlText]}>
                     {mood.notes}
                   </Text>
                 )}
@@ -1234,4 +1238,3 @@ const styles = StyleSheet.create({
     backgroundColor: "#EBF4FF",
   },
 });
-

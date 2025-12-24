@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, ActivityIndicator, Alert, Platform } from "react-native";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Platform, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
 // Lazy import to prevent early native module loading
 // import { appleHealthService } from "@/lib/services/appleHealthService";
-import { saveProviderConnection, getProviderConnection } from "@/lib/health/healthSync";
+import { saveProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
-import { getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
 
 export default function AppleHealthPermissionsScreen() {
   const [authorizing, setAuthorizing] = useState(false);
@@ -18,7 +18,10 @@ export default function AppleHealthPermissionsScreen() {
 
   const requestIOSPermissions = async () => {
     if (Platform.OS !== "ios") {
-      Alert.alert("Not Available", "Apple Health is only available on iOS devices.");
+      Alert.alert(
+        "Not Available",
+        "Apple Health is only available on iOS devices."
+      );
       router.back();
       return;
     }
@@ -26,8 +29,10 @@ export default function AppleHealthPermissionsScreen() {
     setAuthorizing(true);
     try {
       // Lazy import to prevent early native module loading
-      const { appleHealthService } = await import("@/lib/services/appleHealthService");
-      
+      const { appleHealthService } = await import(
+        "@/lib/services/appleHealthService"
+      );
+
       // Check availability first - wrapped in try-catch to prevent crashes
       let availability;
       try {
@@ -47,7 +52,7 @@ export default function AppleHealthPermissionsScreen() {
         );
         return;
       }
-      
+
       if (!availability.available) {
         setAuthorizing(false);
         Alert.alert(
@@ -66,13 +71,17 @@ export default function AppleHealthPermissionsScreen() {
 
       // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
       // This prevents RCTModuleMethod invokeWithBridge errors
-      console.log("[Settings Apple Permissions] Waiting for bridge to stabilize before requesting authorization...");
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+      console.log(
+        "[Settings Apple Permissions] Waiting for bridge to stabilize before requesting authorization..."
+      );
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
 
       // Request authorization for ALL HealthKit types
       // This will immediately show the iOS permission screen with all available metrics
       // The iOS screen itself allows users to select all or individual metrics
-      console.log("[Settings Apple Permissions] Requesting HealthKit authorization for all metrics...");
+      console.log(
+        "[Settings Apple Permissions] Requesting HealthKit authorization for all metrics..."
+      );
       const granted = await appleHealthService.authorize();
 
       // Get all metrics from catalog for saving connection info
@@ -114,26 +123,27 @@ export default function AppleHealthPermissionsScreen() {
       }
     } catch (error: any) {
       console.error("HealthKit permission request error:", error);
-      
-      let errorMessage = "Failed to request HealthKit permissions. Please try again.";
-      
+
+      let errorMessage =
+        "Failed to request HealthKit permissions. Please try again.";
+
       // Check for specific native module errors
-      if (error?.message?.includes("RCTModuleMethod") || error?.message?.includes("folly")) {
-        errorMessage = "HealthKit native module error. Please rebuild the app with: bun run build:ios:dev";
+      if (
+        error?.message?.includes("RCTModuleMethod") ||
+        error?.message?.includes("folly")
+      ) {
+        errorMessage =
+          "HealthKit native module error. Please rebuild the app with: bun run build:ios:dev";
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
-      Alert.alert(
-        "Permission Error",
-        errorMessage,
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]
-      );
+
+      Alert.alert("Permission Error", errorMessage, [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
     } finally {
       setAuthorizing(false);
     }
@@ -141,13 +151,35 @@ export default function AppleHealthPermissionsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      <View style={{ flex: 1, padding: 20, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#000000" />
-        <Text style={{ fontSize: 18, fontWeight: "600", marginTop: 20, textAlign: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          padding: 20,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator color="#000000" size="large" />
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: "600",
+            marginTop: 20,
+            textAlign: "center",
+          }}
+        >
           Opening iOS Permission Screen...
         </Text>
-        <Text style={{ fontSize: 14, opacity: 0.7, marginTop: 8, textAlign: "center" }}>
-          The iOS permission screen will appear where you can select all or individual health metrics.
+        <Text
+          style={{
+            fontSize: 14,
+            opacity: 0.7,
+            marginTop: 8,
+            textAlign: "center",
+          }}
+        >
+          The iOS permission screen will appear where you can select all or
+          individual health metrics.
         </Text>
       </View>
     </SafeAreaView>

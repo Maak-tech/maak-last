@@ -1,5 +1,13 @@
 import { router, useFocusEffect } from "expo-router";
-import { Activity, ChevronRight, FileText, Heart, Pill, Smile, Zap } from "lucide-react-native";
+import {
+  Activity,
+  ChevronRight,
+  FileText,
+  Heart,
+  Pill,
+  Smile,
+  Zap,
+} from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,24 +15,30 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
-  StyleProp,
+  type StyleProp,
   Text,
-  TextStyle,
+  type TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
+  type ViewStyle,
 } from "react-native";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { medicationService } from "@/lib/services/medicationService";
-import { symptomService } from "@/lib/services/symptomService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
+import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
+import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
-import type { Medication, Symptom, User as UserType, MedicalHistory, Mood } from "@/types";
+import type {
+  MedicalHistory,
+  Medication,
+  Mood,
+  Symptom,
+  User as UserType,
+} from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function TrackScreen() {
@@ -35,7 +49,9 @@ export default function TrackScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
   const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
-  const [recentMedicalHistory, setRecentMedicalHistory] = useState<MedicalHistory[]>([]);
+  const [recentMedicalHistory, setRecentMedicalHistory] = useState<
+    MedicalHistory[]
+  >([]);
   const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
@@ -270,13 +286,14 @@ export default function TrackScreen() {
       }
 
       // Load recent data for overview
-      const [symptoms, medications, medicalHistory, moods, moodStats] = await Promise.all([
-        symptomService.getUserSymptoms(user.id, 3),
-        medicationService.getTodaysMedications(user.id),
-        medicalHistoryService.getUserMedicalHistory(user.id),
-        moodService.getUserMoods(user.id, 3),
-        moodService.getMoodStats(user.id, 7),
-      ]);
+      const [symptoms, medications, medicalHistory, moods, moodStats] =
+        await Promise.all([
+          symptomService.getUserSymptoms(user.id, 3),
+          medicationService.getTodaysMedications(user.id),
+          medicalHistoryService.getUserMedicalHistory(user.id),
+          moodService.getUserMoods(user.id, 3),
+          moodService.getMoodStats(user.id, 7),
+        ]);
 
       setRecentSymptoms(symptoms);
       setTodaysMedications(medications);
@@ -369,10 +386,24 @@ export default function TrackScreen() {
     <SafeAreaView style={styles.container as ViewStyle}>
       {/* Header */}
       <View style={styles.header as ViewStyle}>
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+        <Text
+          style={
+            [
+              styles.headerTitle,
+              isRTL && styles.rtlText,
+            ] as StyleProp<TextStyle>
+          }
+        >
           {isRTL ? "تتبع الصحة" : "Health Tracking"}
         </Text>
-        <Text style={[styles.headerSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+        <Text
+          style={
+            [
+              styles.headerSubtitle,
+              isRTL && styles.rtlText,
+            ] as StyleProp<TextStyle>
+          }
+        >
           {isRTL
             ? "راقب أعراضك وأدويتك"
             : "Monitor your symptoms and medications"}
@@ -404,7 +435,14 @@ export default function TrackScreen() {
         {loading ? (
           <View style={styles.loadingContainer as ViewStyle}>
             <ActivityIndicator color={theme.colors.primary.main} size="large" />
-            <Text style={[styles.loadingText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.loadingText,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "جاري التحميل..." : "Loading..."}
             </Text>
           </View>
@@ -413,34 +451,66 @@ export default function TrackScreen() {
             <View style={styles.summaryGrid as ViewStyle}>
               <View style={styles.summaryCard as ViewStyle}>
                 <View
-                  style={[
-                    styles.summaryIcon,
-                    { backgroundColor: theme.colors.primary[50] },
-                  ] as StyleProp<ViewStyle>}
+                  style={
+                    [
+                      styles.summaryIcon,
+                      { backgroundColor: theme.colors.primary[50] },
+                    ] as StyleProp<ViewStyle>
+                  }
                 >
                   <Activity color={theme.colors.primary.main} size={24} />
                 </View>
-                <Text style={[styles.summaryValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                <Text
+                  style={
+                    [
+                      styles.summaryValue,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
                   {stats.symptomsThisWeek}
                 </Text>
-                <Text style={[styles.summaryLabel, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                <Text
+                  style={
+                    [
+                      styles.summaryLabel,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
                   {isRTL ? "أعراض هذا الأسبوع" : "Symptoms This Week"}
                 </Text>
               </View>
 
               <View style={styles.summaryCard as ViewStyle}>
                 <View
-                  style={[
-                    styles.summaryIcon,
-                    { backgroundColor: theme.colors.accent.success + "20" },
-                  ] as StyleProp<ViewStyle>}
+                  style={
+                    [
+                      styles.summaryIcon,
+                      { backgroundColor: theme.colors.accent.success + "20" },
+                    ] as StyleProp<ViewStyle>
+                  }
                 >
                   <Pill color={theme.colors.accent.success} size={24} />
                 </View>
-                <Text style={[styles.summaryValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                <Text
+                  style={
+                    [
+                      styles.summaryValue,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
                   {stats.medicationCompliance}%
                 </Text>
-                <Text style={[styles.summaryLabel, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                <Text
+                  style={
+                    [
+                      styles.summaryLabel,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
                   {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
                 </Text>
               </View>
@@ -449,7 +519,14 @@ export default function TrackScreen() {
             {/* Tracking Options */}
             <View style={styles.trackingSection as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                <Text
+                  style={
+                    [
+                      styles.sectionTitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
                   {isRTL ? "خيارات التتبع" : "Tracking Options"}
                 </Text>
               </View>
@@ -460,23 +537,32 @@ export default function TrackScreen() {
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.primary[50] },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.primary[50] },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <Activity color={theme.colors.primary.main} size={28} />
                   </View>
                   <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL ? "الأعراض" : "Symptoms"}
                   </Text>
                   <Text
-                    style={[
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL
                       ? "تسجيل ومراقبة الأعراض"
@@ -487,7 +573,11 @@ export default function TrackScreen() {
                     style={styles.trackingCardButton as ViewStyle}
                   >
                     <Activity color={theme.colors.neutral.white} size={16} />
-                    <Text style={styles.trackingCardButtonText as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "تتبع" : "Track"}
                     </Text>
                   </TouchableOpacity>
@@ -498,23 +588,32 @@ export default function TrackScreen() {
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.success + "20" },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.success + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <Pill color={theme.colors.accent.success} size={28} />
                   </View>
                   <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL ? "الأدوية" : "Medications"}
                   </Text>
                   <Text
-                    style={[
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL
                       ? "إدارة الأدوية والتذكيرات"
@@ -525,7 +624,11 @@ export default function TrackScreen() {
                     style={styles.trackingCardButton as ViewStyle}
                   >
                     <Pill color={theme.colors.neutral.white} size={16} />
-                    <Text style={styles.trackingCardButtonText as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "إدارة" : "Manage"}
                     </Text>
                   </TouchableOpacity>
@@ -533,43 +636,63 @@ export default function TrackScreen() {
               </View>
 
               {/* Mood Tracking */}
-              <View style={[styles.trackingOptions, { marginTop: theme.spacing.md }] as StyleProp<ViewStyle>}>
+              <View
+                style={
+                  [
+                    styles.trackingOptions,
+                    { marginTop: theme.spacing.md },
+                  ] as StyleProp<ViewStyle>
+                }
+              >
                 <TouchableOpacity
                   onPress={() => router.push("/(tabs)/moods")}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.warning + "20" },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.warning + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <Smile color={theme.colors.accent.warning} size={28} />
                   </View>
                   <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL ? "المزاج" : "Mood"}
                   </Text>
                   <Text
-                    style={[
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
-                    {isRTL
-                      ? "تسجيل ومراقبة المزاج"
-                      : "Track your mood"}
+                    {isRTL ? "تسجيل ومراقبة المزاج" : "Track your mood"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/moods")}
-                    style={[
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.warning },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.warning },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <Smile color={theme.colors.neutral.white} size={16} />
-                    <Text style={styles.trackingCardButtonText as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "تتبع" : "Track"}
                     </Text>
                   </TouchableOpacity>
@@ -577,26 +700,45 @@ export default function TrackScreen() {
               </View>
 
               {/* Medical History and Vitals - Side by Side */}
-              <View style={[styles.trackingOptions, { marginTop: theme.spacing.md }] as StyleProp<ViewStyle>}>
+              <View
+                style={
+                  [
+                    styles.trackingOptions,
+                    { marginTop: theme.spacing.md },
+                  ] as StyleProp<ViewStyle>
+                }
+              >
                 <TouchableOpacity
                   onPress={() => router.push("/profile/medical-history")}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.info + "20" },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.info + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <FileText color={theme.colors.accent.info} size={28} />
                   </View>
                   <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL ? "التاريخ الطبي" : "Medical History"}
                   </Text>
                   <Text
-                    style={[styles.trackingCardSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL
                       ? "تسجيل وإدارة الحالات الطبية"
@@ -604,13 +746,19 @@ export default function TrackScreen() {
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/profile/medical-history")}
-                    style={[
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.info },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.info },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <FileText color={theme.colors.neutral.white} size={16} />
-                    <Text style={styles.trackingCardButtonText as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "إدارة" : "Manage"}
                     </Text>
                   </TouchableOpacity>
@@ -621,20 +769,32 @@ export default function TrackScreen() {
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
-                    style={[
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.secondary.main + "20" },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.secondary.main + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <Zap color={theme.colors.secondary.main} size={28} />
                   </View>
                   <Text
-                    style={[styles.trackingCardTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
                   </Text>
                   <Text
-                    style={[styles.trackingCardSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL
                       ? "مراقبة النبض، الخطوات، النوم"
@@ -642,13 +802,19 @@ export default function TrackScreen() {
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/vitals")}
-                    style={[
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.secondary.main },
-                    ] as StyleProp<ViewStyle>}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.secondary.main },
+                      ] as StyleProp<ViewStyle>
+                    }
                   >
                     <Heart color={theme.colors.neutral.white} size={16} />
-                    <Text style={styles.trackingCardButtonText as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "عرض" : "View"}
                     </Text>
                   </TouchableOpacity>
@@ -660,14 +826,28 @@ export default function TrackScreen() {
             {recentSymptoms.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
-                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                  <Text
+                    style={
+                      [
+                        styles.sectionTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
                     {isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/symptoms")}
                     style={styles.viewAllButton as ViewStyle}
                   >
-                    <Text style={[styles.viewAllText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        [
+                          styles.viewAllText,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "عرض الكل" : "View All"}
                     </Text>
                     <ChevronRight color={theme.colors.primary.main} size={16} />
@@ -681,21 +861,33 @@ export default function TrackScreen() {
                     style={styles.recentItem as ViewStyle}
                   >
                     <View
-                      style={[
-                        styles.recentIcon,
-                        { backgroundColor: theme.colors.primary[50] },
-                      ] as StyleProp<ViewStyle>}
+                      style={
+                        [
+                          styles.recentIcon,
+                          { backgroundColor: theme.colors.primary[50] },
+                        ] as StyleProp<ViewStyle>
+                      }
                     >
                       <Activity color={theme.colors.primary.main} size={20} />
                     </View>
                     <View style={styles.recentInfo as ViewStyle}>
                       <Text
-                        style={[styles.recentTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentTitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {t(symptom.type)}
                       </Text>
                       <Text
-                        style={[styles.recentSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentSubtitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {formatTime(symptom.timestamp)} •{" "}
                         {isRTL ? "شدة" : "Severity"} {symptom.severity}/5
@@ -710,14 +902,28 @@ export default function TrackScreen() {
             {recentMoods.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
-                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                  <Text
+                    style={
+                      [
+                        styles.sectionTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
                     {isRTL ? "المزاجات الأخيرة" : "Recent Moods"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/moods")}
                     style={styles.viewAllButton as ViewStyle}
                   >
-                    <Text style={[styles.viewAllText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        [
+                          styles.viewAllText,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "عرض الكل" : "View All"}
                     </Text>
                     <ChevronRight color={theme.colors.primary.main} size={16} />
@@ -731,21 +937,37 @@ export default function TrackScreen() {
                     style={styles.recentItem as ViewStyle}
                   >
                     <View
-                      style={[
-                        styles.recentIcon,
-                        { backgroundColor: theme.colors.accent.warning + "20" },
-                      ] as StyleProp<ViewStyle>}
+                      style={
+                        [
+                          styles.recentIcon,
+                          {
+                            backgroundColor: theme.colors.accent.warning + "20",
+                          },
+                        ] as StyleProp<ViewStyle>
+                      }
                     >
-                      <Text style={{ fontSize: 20 }}>{getMoodEmoji(mood.mood)}</Text>
+                      <Text style={{ fontSize: 20 }}>
+                        {getMoodEmoji(mood.mood)}
+                      </Text>
                     </View>
                     <View style={styles.recentInfo as ViewStyle}>
                       <Text
-                        style={[styles.recentTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentTitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {t(mood.mood)}
                       </Text>
                       <Text
-                        style={[styles.recentSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentSubtitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {formatTime(mood.timestamp)} •{" "}
                         {isRTL ? "شدة" : "Intensity"} {mood.intensity}/5
@@ -760,14 +982,28 @@ export default function TrackScreen() {
             {todaysMedications.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
-                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                  <Text
+                    style={
+                      [
+                        styles.sectionTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
                     {isRTL ? "أدوية اليوم" : "Today's Medications"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/medications")}
                     style={styles.viewAllButton as ViewStyle}
                   >
-                    <Text style={[styles.viewAllText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        [
+                          styles.viewAllText,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "عرض الكل" : "View All"}
                     </Text>
                     <ChevronRight color={theme.colors.primary.main} size={16} />
@@ -781,21 +1017,35 @@ export default function TrackScreen() {
                     style={styles.recentItem as ViewStyle}
                   >
                     <View
-                      style={[
-                        styles.recentIcon,
-                        { backgroundColor: theme.colors.accent.success + "20" },
-                      ] as StyleProp<ViewStyle>}
+                      style={
+                        [
+                          styles.recentIcon,
+                          {
+                            backgroundColor: theme.colors.accent.success + "20",
+                          },
+                        ] as StyleProp<ViewStyle>
+                      }
                     >
                       <Pill color={theme.colors.accent.success} size={20} />
                     </View>
                     <View style={styles.recentInfo as ViewStyle}>
                       <Text
-                        style={[styles.recentTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentTitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {medication.name}
                       </Text>
                       <Text
-                        style={[styles.recentSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentSubtitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {medication.dosage} • {medication.frequency}
                       </Text>
@@ -809,14 +1059,28 @@ export default function TrackScreen() {
             {recentMedicalHistory.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
-                  <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                  <Text
+                    style={
+                      [
+                        styles.sectionTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
                     {isRTL ? "التاريخ الطبي الأخير" : "Recent Medical History"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/profile/medical-history")}
                     style={styles.viewAllButton as ViewStyle}
                   >
-                    <Text style={[styles.viewAllText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                    <Text
+                      style={
+                        [
+                          styles.viewAllText,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
                       {isRTL ? "عرض الكل" : "View All"}
                     </Text>
                     <ChevronRight color={theme.colors.primary.main} size={16} />
@@ -830,28 +1094,41 @@ export default function TrackScreen() {
                     style={styles.recentItem as ViewStyle}
                   >
                     <View
-                      style={[
-                        styles.recentIcon,
-                        { backgroundColor: theme.colors.accent.info + "20" },
-                      ] as StyleProp<ViewStyle>}
+                      style={
+                        [
+                          styles.recentIcon,
+                          { backgroundColor: theme.colors.accent.info + "20" },
+                        ] as StyleProp<ViewStyle>
+                      }
                     >
                       <FileText color={theme.colors.accent.info} size={20} />
                     </View>
                     <View style={styles.recentInfo as ViewStyle}>
                       <Text
-                        style={[styles.recentTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentTitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {history.condition}
                       </Text>
                       <Text
-                        style={[styles.recentSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.recentSubtitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {history.diagnosedDate
                           ? new Date(history.diagnosedDate).toLocaleDateString()
                           : isRTL
                             ? "بدون تاريخ"
                             : "No date"}{" "}
-                        • {history.severity
+                        •{" "}
+                        {history.severity
                           ? history.severity.charAt(0).toUpperCase() +
                             history.severity.slice(1)
                           : ""}
@@ -862,12 +1139,19 @@ export default function TrackScreen() {
               </View>
             )}
 
-          {/* Maak One-liner */}
-          <View style={styles.onelineCard as ViewStyle}>
-            <Text style={[styles.onelineText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-              {isRTL ? '"الصحة، تتجاوز الحدود"' : '"Health, beyond borders"'}
-            </Text>
-          </View>
+            {/* Maak One-liner */}
+            <View style={styles.onelineCard as ViewStyle}>
+              <Text
+                style={
+                  [
+                    styles.onelineText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {isRTL ? '"الصحة، تتجاوز الحدود"' : '"Health, beyond borders"'}
+              </Text>
+            </View>
           </>
         )}
       </ScrollView>

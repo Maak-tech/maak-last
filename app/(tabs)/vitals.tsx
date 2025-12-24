@@ -1,27 +1,27 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   Activity,
+  Check,
   CheckCircle,
+  ChevronRight,
+  Clock,
+  Droplet,
+  Dumbbell,
+  Flame,
+  Gauge,
   Heart,
+  Info,
   Minus,
   Moon,
   RefreshCw,
+  Route,
   Scale,
+  TestTube,
+  Thermometer,
   TrendingDown,
   TrendingUp,
-  Check,
-  ChevronRight,
-  Info,
-  Thermometer,
-  Droplet,
-  Gauge,
-  Zap,
-  Flame,
-  Route,
-  Dumbbell,
-  Clock,
   Waves,
-  TestTube,
+  Zap,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,25 +32,19 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
-  StyleProp,
+  type StyleProp,
+  Switch,
   Text,
-  TextStyle,
+  type TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
-  Switch,
+  type ViewStyle,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  type HealthDataSummary,
-  healthDataService,
-  type VitalSigns,
-} from "@/lib/services/healthDataService";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import {
-  getAvailableMetricsForProvider,
   getAllGroups,
+  getAvailableMetricsForProvider,
   getGroupDisplayName,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
@@ -59,6 +53,12 @@ import {
 // import { googleHealthService } from "@/lib/services/googleHealthService";
 import { saveProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
+import {
+  type HealthDataSummary,
+  healthDataService,
+  type VitalSigns,
+} from "@/lib/services/healthDataService";
+import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface VitalCard {
   key: string;
@@ -83,15 +83,23 @@ export default function VitalsScreen() {
   const [vitals, setVitals] = useState<VitalSigns | null>(null);
   const [summary, setSummary] = useState<HealthDataSummary | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
-  
+
   // Health metrics selection state
   const [showMetricSelection, setShowMetricSelection] = useState(false);
-  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(
+    new Set()
+  );
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [healthKitAvailable, setHealthKitAvailable] = useState<boolean | null>(null);
-  const [healthConnectAvailable, setHealthConnectAvailable] = useState<boolean | null>(null);
-  const [availabilityReason, setAvailabilityReason] = useState<string | undefined>();
+  const [healthKitAvailable, setHealthKitAvailable] = useState<boolean | null>(
+    null
+  );
+  const [healthConnectAvailable, setHealthConnectAvailable] = useState<
+    boolean | null
+  >(null);
+  const [availabilityReason, setAvailabilityReason] = useState<
+    string | undefined
+  >();
   const [authorizing, setAuthorizing] = useState(false);
 
   const isRTL = i18n.language === "ar";
@@ -453,8 +461,8 @@ export default function VitalsScreen() {
     // This ensures the React Native bridge is fully ready
     const timer = setTimeout(() => {
       loadVitalsData();
-    }, 10000); // 10 second delay
-    
+    }, 10_000); // 10 second delay
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -486,13 +494,17 @@ export default function VitalsScreen() {
     if (Platform.OS === "ios") {
       try {
         // Lazy import to prevent early native module loading
-        const { appleHealthService } = await import("@/lib/services/appleHealthService");
+        const { appleHealthService } = await import(
+          "@/lib/services/appleHealthService"
+        );
         const availability = await appleHealthService.checkAvailability();
         setHealthKitAvailable(availability.available);
         setAvailabilityReason(availability.reason);
       } catch (error: any) {
         setHealthKitAvailable(false);
-        setAvailabilityReason(error?.message || "Failed to check HealthKit availability");
+        setAvailabilityReason(
+          error?.message || "Failed to check HealthKit availability"
+        );
       }
     }
   };
@@ -501,13 +513,17 @@ export default function VitalsScreen() {
     if (Platform.OS === "android") {
       try {
         // Lazy import to prevent early native module loading
-        const { googleHealthService } = await import("@/lib/services/googleHealthService");
+        const { googleHealthService } = await import(
+          "@/lib/services/googleHealthService"
+        );
         const availability = await googleHealthService.isAvailable();
         setHealthConnectAvailable(availability.available);
         setAvailabilityReason(availability.reason);
       } catch (error: any) {
         setHealthConnectAvailable(false);
-        setAvailabilityReason(error?.message || "Failed to check Health Connect availability");
+        setAvailabilityReason(
+          error?.message || "Failed to check Health Connect availability"
+        );
       }
     }
   };
@@ -623,16 +639,18 @@ export default function VitalsScreen() {
         try {
           // Add extra delay for first-time native module access
           // This ensures the native bridge is fully ready
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
           // Lazy import to prevent early native module loading
-          const { appleHealthService } = await import("@/lib/services/appleHealthService");
-          
+          const { appleHealthService } = await import(
+            "@/lib/services/appleHealthService"
+          );
+
           // Retry logic for native bridge readiness
           let availability;
           let retries = 0;
           const maxRetries = 3;
-          
+
           while (retries < maxRetries) {
             try {
               availability = await appleHealthService.checkAvailability();
@@ -641,47 +659,47 @@ export default function VitalsScreen() {
               retries++;
               const errorMsg = bridgeError?.message || String(bridgeError);
               if (
-                (errorMsg.includes("RCTModuleMethod") || 
-                 errorMsg.includes("invokewithbridge") ||
-                 errorMsg.includes("invokeWithBridge")) &&
+                (errorMsg.includes("RCTModuleMethod") ||
+                  errorMsg.includes("invokewithbridge") ||
+                  errorMsg.includes("invokeWithBridge")) &&
                 retries < maxRetries
               ) {
                 // Native bridge not ready yet, wait and retry
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise((resolve) => setTimeout(resolve, 1500));
               } else {
                 throw bridgeError; // Re-throw if not a bridge error or max retries reached
               }
             }
           }
-          
+
           if (!availability?.available) {
             Alert.alert(
               isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
-              availability?.reason || 
-              (isRTL 
-                ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
-                : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
+              availability?.reason ||
+                (isRTL
+                  ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
+                  : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
             );
             return;
           }
 
           // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
           // This prevents RCTModuleMethod invokeWithBridge errors
-          await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+          await new Promise((resolve) => setTimeout(resolve, 3000)); // 3 second delay
 
           // Request HealthKit permissions for selected metrics
           // If "all" is selected, request all HealthKit types
-          const metricsToRequest = selectedMetrics.has("all") 
-            ? ["all"] 
+          const metricsToRequest = selectedMetrics.has("all")
+            ? ["all"]
             : Array.from(selectedMetrics);
-          
+
           const success = await appleHealthService.authorize(metricsToRequest);
           granted = success ? metricsToRequest : [];
           denied = success ? [] : metricsToRequest;
           provider = "apple_health";
         } catch (healthKitError: any) {
           const errorMsg = healthKitError?.message || String(healthKitError);
-          const isBridgeError = 
+          const isBridgeError =
             errorMsg.includes("RCTModuleMethod") ||
             errorMsg.includes("invokewithbridge") ||
             errorMsg.includes("invokeWithBridge") ||
@@ -689,17 +707,17 @@ export default function VitalsScreen() {
             errorMsg.includes("invokeInner") ||
             errorMsg.toLowerCase().includes("invoke") ||
             errorMsg.includes("bridge");
-          
+
           Alert.alert(
             isRTL ? "خطأ في HealthKit" : "HealthKit Error",
             isBridgeError
-              ? (isRTL
-                  ? "جسر React Native غير جاهز. يرجى المحاولة مرة أخرى بعد بضع ثوانٍ أو إعادة بناء التطبيق."
-                  : "React Native bridge is not ready. Please try again in a few seconds or rebuild the app.")
-              : (healthKitError?.message || 
-                 (isRTL 
-                   ? "فشل الاتصال بـ HealthKit. يرجى إعادة بناء التطبيق بوحدات native."
-                   : "Failed to connect to HealthKit. Please rebuild the app with native modules."))
+              ? isRTL
+                ? "جسر React Native غير جاهز. يرجى المحاولة مرة أخرى بعد بضع ثوانٍ أو إعادة بناء التطبيق."
+                : "React Native bridge is not ready. Please try again in a few seconds or rebuild the app."
+              : healthKitError?.message ||
+                  (isRTL
+                    ? "فشل الاتصال بـ HealthKit. يرجى إعادة بناء التطبيق بوحدات native."
+                    : "Failed to connect to HealthKit. Please rebuild the app with native modules.")
           );
           setAuthorizing(false);
           return;
@@ -708,15 +726,19 @@ export default function VitalsScreen() {
         // Check availability before proceeding - wrap in try-catch
         try {
           // Lazy import to prevent early native module loading
-          const { googleHealthService } = await import("@/lib/services/googleHealthService");
+          const { googleHealthService } = await import(
+            "@/lib/services/googleHealthService"
+          );
           const availability = await googleHealthService.isAvailable();
           if (!availability.available) {
             Alert.alert(
-              isRTL ? "Health Connect غير متاح" : "Health Connect Not Available",
-              availability.reason || 
-              (isRTL 
-                ? "Health Connect غير متاح. يرجى التأكد من تثبيت تطبيق Health Connect من متجر Play."
-                : "Health Connect is not available. Please ensure Health Connect app is installed from Play Store.")
+              isRTL
+                ? "Health Connect غير متاح"
+                : "Health Connect Not Available",
+              availability.reason ||
+                (isRTL
+                  ? "Health Connect غير متاح. يرجى التأكد من تثبيت تطبيق Health Connect من متجر Play."
+                  : "Health Connect is not available. Please ensure Health Connect app is installed from Play Store.")
             );
             // Offer to open Play Store
             if (availability.requiresInstall) {
@@ -747,10 +769,10 @@ export default function VitalsScreen() {
         } catch (healthConnectError: any) {
           Alert.alert(
             isRTL ? "خطأ في Health Connect" : "Health Connect Error",
-            healthConnectError?.message || 
-            (isRTL 
-              ? "فشل الاتصال بـ Health Connect."
-              : "Failed to connect to Health Connect.")
+            healthConnectError?.message ||
+              (isRTL
+                ? "فشل الاتصال بـ Health Connect."
+                : "Failed to connect to Health Connect.")
           );
           return;
         }
@@ -758,7 +780,9 @@ export default function VitalsScreen() {
 
       // Expand "all" to actual metric keys before storing
       // Use the dynamically determined provider instead of hardcoding "apple_health"
-      const allAvailableMetrics = getAvailableMetricsForProvider(provider).map((m) => m.key);
+      const allAvailableMetrics = getAvailableMetricsForProvider(provider).map(
+        (m) => m.key
+      );
       const expandedSelected = selectedMetrics.has("all")
         ? allAvailableMetrics
         : Array.from(selectedMetrics);
@@ -787,7 +811,7 @@ export default function VitalsScreen() {
       // Update permissions status using expandedGranted to match the stored connection
       setHasPermissions(expandedGranted.length > 0);
       setShowMetricSelection(false);
-      
+
       if (expandedGranted.length > 0) {
         await loadVitalsData();
         Alert.alert(
@@ -808,13 +832,13 @@ export default function VitalsScreen() {
       Alert.alert(
         isRTL ? "خطأ في الأذونات" : "Permission Error",
         error.message ||
-        (isRTL
-          ? Platform.OS === "ios"
-            ? "فشل طلب أذونات HealthKit. يرجى المحاولة مرة أخرى."
-            : "فشل طلب أذونات Health Connect. يرجى المحاولة مرة أخرى."
-          : Platform.OS === "ios"
-            ? "Failed to request HealthKit permissions. Please try again."
-            : "Failed to request Health Connect permissions. Please try again.")
+          (isRTL
+            ? Platform.OS === "ios"
+              ? "فشل طلب أذونات HealthKit. يرجى المحاولة مرة أخرى."
+              : "فشل طلب أذونات Health Connect. يرجى المحاولة مرة أخرى."
+            : Platform.OS === "ios"
+              ? "Failed to request HealthKit permissions. Please try again."
+              : "Failed to request Health Connect permissions. Please try again.")
       );
     } finally {
       setAuthorizing(false);
@@ -841,12 +865,16 @@ export default function VitalsScreen() {
     const cards: VitalCard[] = [];
 
     // Helper to get value or "N/A"
-    const getValue = (val: number | undefined, formatter: (v: number) => string = (v) => v.toString()): string => {
-      return val !== undefined ? formatter(val) : "N/A";
-    };
+    const getValue = (
+      val: number | undefined,
+      formatter: (v: number) => string = (v) => v.toString()
+    ): string => (val !== undefined ? formatter(val) : "N/A");
 
     // Helper to get status
-    const getStatus = (val: number | undefined, check: (v: number) => boolean): "normal" | "warning" => {
+    const getStatus = (
+      val: number | undefined,
+      check: (v: number) => boolean
+    ): "normal" | "warning" => {
       if (val === undefined) return "normal";
       return check(val) ? "warning" : "normal";
     };
@@ -874,16 +902,20 @@ export default function VitalsScreen() {
       color: theme.colors.primary.main,
       value: getValue(vitals.steps, (v) => {
         // Format large numbers more compactly to prevent truncation
-        if (v >= 1000000) {
-          return `${(v / 1000000).toFixed(1)}M`;
-        } else if (v >= 1000) {
+        if (v >= 1_000_000) {
+          return `${(v / 1_000_000).toFixed(1)}M`;
+        }
+        if (v >= 1000) {
           return `${(v / 1000).toFixed(1)}k`;
         }
         return v.toLocaleString();
       }),
       unit: "steps",
       trend: "stable",
-      status: getStatus(vitals.steps, (v) => v < (summary.steps?.goal || 10000)),
+      status: getStatus(
+        vitals.steps,
+        (v) => v < (summary.steps?.goal || 10_000)
+      ),
     });
 
     // Sleep (3/24)
@@ -920,13 +952,15 @@ export default function VitalsScreen() {
       titleAr: "الضغط الانقباضي",
       icon: Gauge,
       color: theme.colors.accent.warning,
-      value: vitals.bloodPressure 
+      value: vitals.bloodPressure
         ? vitals.bloodPressure.systolic.toString()
         : "N/A",
       unit: "mmHg",
       trend: "stable",
-      status: vitals.bloodPressure 
-        ? (vitals.bloodPressure.systolic >= 140 ? "warning" : "normal")
+      status: vitals.bloodPressure
+        ? vitals.bloodPressure.systolic >= 140
+          ? "warning"
+          : "normal"
         : "normal",
     });
 
@@ -938,13 +972,15 @@ export default function VitalsScreen() {
       titleAr: "الضغط الانبساطي",
       icon: Gauge,
       color: theme.colors.accent.warning,
-      value: vitals.bloodPressure 
+      value: vitals.bloodPressure
         ? vitals.bloodPressure.diastolic.toString()
         : "N/A",
       unit: "mmHg",
       trend: "stable",
-      status: vitals.bloodPressure 
-        ? (vitals.bloodPressure.diastolic >= 90 ? "warning" : "normal")
+      status: vitals.bloodPressure
+        ? vitals.bloodPressure.diastolic >= 90
+          ? "warning"
+          : "normal"
         : "normal",
     });
 
@@ -1190,9 +1226,9 @@ export default function VitalsScreen() {
     cards.sort((a, b) => {
       const aHasData = a.value !== "N/A";
       const bHasData = b.value !== "N/A";
-      
+
       if (aHasData && !bHasData) return -1; // a comes first
-      if (!aHasData && bHasData) return 1;  // b comes first
+      if (!aHasData && bHasData) return 1; // b comes first
       return 0; // Keep original order for items with same data status
     });
 
@@ -1227,7 +1263,9 @@ export default function VitalsScreen() {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
         <View style={styles.loadingContainer as ViewStyle}>
-          <Text style={styles.loadingText as StyleProp<TextStyle>}>Please log in to view vitals</Text>
+          <Text style={styles.loadingText as StyleProp<TextStyle>}>
+            Please log in to view vitals
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -1238,7 +1276,14 @@ export default function VitalsScreen() {
       <SafeAreaView style={styles.container as ViewStyle}>
         <View style={styles.loadingContainer as ViewStyle}>
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
-          <Text style={[styles.loadingText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.loadingText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? "جاري تحميل البيانات الصحية..." : "Loading health data..."}
           </Text>
         </View>
@@ -1248,9 +1293,15 @@ export default function VitalsScreen() {
 
   // Show pre-permission metric selection screen for iOS/Android when permissions not granted
   // This is shown BEFORE the iOS HealthKit permission screen
-  if (!hasPermissions && (Platform.OS === "ios" || Platform.OS === "android") && showMetricSelection) {
+  if (
+    !hasPermissions &&
+    (Platform.OS === "ios" || Platform.OS === "android") &&
+    showMetricSelection
+  ) {
     const groups = getAllGroups();
-    const allSelected = selectedMetrics.has("all") || selectedMetrics.size === availableMetrics.length;
+    const allSelected =
+      selectedMetrics.has("all") ||
+      selectedMetrics.size === availableMetrics.length;
 
     // Show error if HealthKit/Health Connect is not available
     if (
@@ -1259,30 +1310,57 @@ export default function VitalsScreen() {
     ) {
       return (
         <SafeAreaView style={styles.container as ViewStyle}>
-          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }] as StyleProp<ViewStyle>}>
+          <View
+            style={
+              [
+                styles.header,
+                {
+                  position: "relative" as const,
+                  alignItems: "center" as const,
+                },
+              ] as StyleProp<ViewStyle>
+            }
+          >
             <TouchableOpacity
-              style={styles.backButton as ViewStyle}
               onPress={() => setShowMetricSelection(false)}
+              style={styles.backButton as ViewStyle}
             >
               <ChevronRight
-                size={24}
                 color={theme.colors.text.primary}
+                size={24}
                 style={{ transform: [{ rotate: isRTL ? "0deg" : "180deg" }] }}
               />
             </TouchableOpacity>
-            <Heart size={48} color={theme.colors.primary.main} />
-            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }] as StyleProp<TextStyle>}>
-              {isRTL 
-                ? Platform.OS === "ios" ? "HealthKit غير متاح" : "Health Connect غير متاح"
-                : Platform.OS === "ios" ? "HealthKit Not Available" : "Health Connect Not Available"}
+            <Heart color={theme.colors.primary.main} size={48} />
+            <Text
+              style={
+                [
+                  styles.headerTitle,
+                  isRTL && styles.rtlText,
+                  { marginTop: theme.spacing.base },
+                ] as StyleProp<TextStyle>
+              }
+            >
+              {isRTL
+                ? Platform.OS === "ios"
+                  ? "HealthKit غير متاح"
+                  : "Health Connect غير متاح"
+                : Platform.OS === "ios"
+                  ? "HealthKit Not Available"
+                  : "Health Connect Not Available"}
             </Text>
           </View>
           <View style={styles.permissionCard as ViewStyle}>
-            <Text style={[styles.permissionDescription, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-              {availabilityReason || 
-              (isRTL
-                ? "HealthKit غير متاح"
-                : "HealthKit is not available")}
+            <Text
+              style={
+                [
+                  styles.permissionDescription,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
+              {availabilityReason ||
+                (isRTL ? "HealthKit غير متاح" : "HealthKit is not available")}
             </Text>
           </View>
         </SafeAreaView>
@@ -1291,24 +1369,52 @@ export default function VitalsScreen() {
 
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
-        <ScrollView style={styles.content as ViewStyle} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.content as ViewStyle}
+        >
           {/* Header */}
-          <View style={[styles.header, { position: "relative" as const, alignItems: "center" as const }] as StyleProp<ViewStyle>}>
+          <View
+            style={
+              [
+                styles.header,
+                {
+                  position: "relative" as const,
+                  alignItems: "center" as const,
+                },
+              ] as StyleProp<ViewStyle>
+            }
+          >
             <TouchableOpacity
-              style={styles.backButton as ViewStyle}
               onPress={() => setShowMetricSelection(false)}
+              style={styles.backButton as ViewStyle}
             >
               <ChevronRight
-                size={24}
                 color={theme.colors.text.primary}
+                size={24}
                 style={{ transform: [{ rotate: isRTL ? "0deg" : "180deg" }] }}
               />
             </TouchableOpacity>
-            <Heart size={48} color={theme.colors.primary.main} />
-            <Text style={[styles.headerTitle, isRTL && styles.rtlText, { marginTop: theme.spacing.base }] as StyleProp<TextStyle>}>
+            <Heart color={theme.colors.primary.main} size={48} />
+            <Text
+              style={
+                [
+                  styles.headerTitle,
+                  isRTL && styles.rtlText,
+                  { marginTop: theme.spacing.base },
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "اختر المقاييس" : "Select Metrics"}
             </Text>
-            <Text style={[styles.headerSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.headerSubtitle,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL
                 ? Platform.OS === "ios"
                   ? "اختر المقاييس الصحية التي تريد الوصول إليها. سيتم عرض شاشة أذونات iOS بعد ذلك."
@@ -1322,30 +1428,40 @@ export default function VitalsScreen() {
           {/* Select All Toggle */}
           <View style={styles.selectAllSection as ViewStyle}>
             <TouchableOpacity
-              style={[
-                styles.selectAllButton,
-                {
-                  backgroundColor: allSelected
-                    ? "#FF8C4220" // Light orange when selected
-                    : "#FFF4E6", // Light orange background
-                  borderWidth: 1,
-                  borderColor: "#FF8C42", // Orange border
-                },
-              ] as StyleProp<ViewStyle>}
               onPress={allSelected ? clearAllMetrics : selectAllMetrics}
+              style={
+                [
+                  styles.selectAllButton,
+                  {
+                    backgroundColor: allSelected
+                      ? "#FF8C4220" // Light orange when selected
+                      : "#FFF4E6", // Light orange background
+                    borderWidth: 1,
+                    borderColor: "#FF8C42", // Orange border
+                  },
+                ] as StyleProp<ViewStyle>
+              }
             >
               <Text
-                style={[
-                  styles.selectAllText,
-                  {
-                    color: allSelected ? theme.colors.primary.main : theme.colors.text.primary,
-                    fontWeight: allSelected ? "600" : "500",
-                  },
-                ] as StyleProp<TextStyle>}
+                style={
+                  [
+                    styles.selectAllText,
+                    {
+                      color: allSelected
+                        ? theme.colors.primary.main
+                        : theme.colors.text.primary,
+                      fontWeight: allSelected ? "600" : "500",
+                    },
+                  ] as StyleProp<TextStyle>
+                }
               >
                 {allSelected
-                  ? (isRTL ? "✓ تم تحديد الكل" : "✓ All Selected")
-                  : (isRTL ? "تحديد الكل" : "Select All")}
+                  ? isRTL
+                    ? "✓ تم تحديد الكل"
+                    : "✓ All Selected"
+                  : isRTL
+                    ? "تحديد الكل"
+                    : "Select All"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1369,22 +1485,23 @@ export default function VitalsScreen() {
               return (
                 <View
                   key={group}
-                  style={[
-                    styles.groupCard,
-                    {
-                      backgroundColor: "#FFF4E6", // Light orange background
-                      borderColor: "#FF8C42", // Orange border
-                    },
-                  ] as StyleProp<ViewStyle>}
+                  style={
+                    [
+                      styles.groupCard,
+                      {
+                        backgroundColor: "#FFF4E6", // Light orange background
+                        borderColor: "#FF8C42", // Orange border
+                      },
+                    ] as StyleProp<ViewStyle>
+                  }
                 >
                   {/* Group Header */}
                   <TouchableOpacity
-                    style={styles.groupHeader as ViewStyle}
                     onPress={() => toggleGroup(group)}
+                    style={styles.groupHeader as ViewStyle}
                   >
                     <View style={styles.groupHeaderLeft as ViewStyle}>
                       <Switch
-                        value={groupSelected}
                         onValueChange={(value) => {
                           const newSelected = new Set(selectedMetrics);
                           // Remove "all" if selecting individual groups
@@ -1398,27 +1515,37 @@ export default function VitalsScreen() {
                           });
                           setSelectedMetrics(newSelected);
                         }}
+                        thumbColor="#FFFFFF"
                         trackColor={{
                           false: "#E0E0E0",
                           true: "#FF8C42", // Orange when on
                         }}
-                        thumbColor="#FFFFFF"
+                        value={groupSelected}
                       />
-                      <Text style={[styles.groupTitle, { color: theme.colors.text.primary }] as StyleProp<TextStyle>}>
+                      <Text
+                        style={
+                          [
+                            styles.groupTitle,
+                            { color: theme.colors.text.primary },
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
                         {getGroupDisplayName(group)}
                       </Text>
                       <Text
-                        style={[
-                          styles.groupCount,
-                          { color: theme.colors.text.secondary },
-                        ] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            styles.groupCount,
+                            { color: theme.colors.text.secondary },
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         ({groupMetrics.length})
                       </Text>
                     </View>
                     <ChevronRight
-                      size={20}
                       color={theme.colors.text.secondary}
+                      size={20}
                       style={{
                         transform: [{ rotate: isExpanded ? "90deg" : "0deg" }],
                       }}
@@ -1433,12 +1560,6 @@ export default function VitalsScreen() {
                         return (
                           <TouchableOpacity
                             key={metric.key}
-                            style={[
-                              styles.metricItem,
-                              isSelected && {
-                                backgroundColor: "#FF8C4220", // Light orange when selected
-                              },
-                            ] as StyleProp<ViewStyle>}
                             onPress={() => {
                               const newSelected = new Set(selectedMetrics);
                               // Remove "all" if selecting individual metrics
@@ -1450,39 +1571,58 @@ export default function VitalsScreen() {
                               }
                               setSelectedMetrics(newSelected);
                             }}
+                            style={
+                              [
+                                styles.metricItem,
+                                isSelected && {
+                                  backgroundColor: "#FF8C4220", // Light orange when selected
+                                },
+                              ] as StyleProp<ViewStyle>
+                            }
                           >
                             <View style={styles.metricLeft as ViewStyle}>
                               {isSelected ? (
                                 <View
-                                  style={[
-                                    styles.checkbox,
-                                    { backgroundColor: "#FF8C42" }, // Orange checkbox
-                                  ] as StyleProp<ViewStyle>}
+                                  style={
+                                    [
+                                      styles.checkbox,
+                                      { backgroundColor: "#FF8C42" }, // Orange checkbox
+                                    ] as StyleProp<ViewStyle>
+                                  }
                                 >
-                                  <Check size={14} color="#FFFFFF" />
+                                  <Check color="#FFFFFF" size={14} />
                                 </View>
                               ) : (
                                 <View
-                                  style={[
-                                    styles.checkbox,
-                                    {
-                                      borderColor: "#FF8C42", // Orange border
-                                    },
-                                  ] as StyleProp<ViewStyle>}
+                                  style={
+                                    [
+                                      styles.checkbox,
+                                      {
+                                        borderColor: "#FF8C42", // Orange border
+                                      },
+                                    ] as StyleProp<ViewStyle>
+                                  }
                                 />
                               )}
                               <View style={styles.metricInfo as ViewStyle}>
                                 <Text
-                                  style={[styles.metricName, { color: theme.colors.text.primary }] as StyleProp<TextStyle>}
+                                  style={
+                                    [
+                                      styles.metricName,
+                                      { color: theme.colors.text.primary },
+                                    ] as StyleProp<TextStyle>
+                                  }
                                 >
                                   {metric.displayName}
                                 </Text>
                                 {metric.unit && (
                                   <Text
-                                    style={[
-                                      styles.metricUnit,
-                                      { color: theme.colors.text.secondary },
-                                    ] as StyleProp<TextStyle>}
+                                    style={
+                                      [
+                                        styles.metricUnit,
+                                        { color: theme.colors.text.secondary },
+                                      ] as StyleProp<TextStyle>
+                                    }
                                   >
                                     {metric.unit}
                                   </Text>
@@ -1500,7 +1640,12 @@ export default function VitalsScreen() {
                                 }}
                                 style={{ padding: 4 }}
                               >
-                                <Text style={{ fontSize: 12, color: theme.colors.primary.main }}>
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    color: theme.colors.primary.main,
+                                  }}
+                                >
                                   {isRTL ? "اختر" : "Select"}
                                 </Text>
                               </TouchableOpacity>
@@ -1518,14 +1663,21 @@ export default function VitalsScreen() {
           {/* Info */}
           <View style={styles.infoSection as ViewStyle}>
             <View style={styles.infoRow as ViewStyle}>
-              <Info size={16} color={theme.colors.text.secondary} />
-              <Text style={[styles.infoText, { color: theme.colors.text.secondary }] as StyleProp<TextStyle>}>
+              <Info color={theme.colors.text.secondary} size={16} />
+              <Text
+                style={
+                  [
+                    styles.infoText,
+                    { color: theme.colors.text.secondary },
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL
                   ? Platform.OS === "ios"
-                    ? "بعد النقر على \"تفويض\"، ستظهر شاشة أذونات iOS حيث يمكنك اختيار المقاييس المحددة. يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة"
+                    ? 'بعد النقر على "تفويض"، ستظهر شاشة أذونات iOS حيث يمكنك اختيار المقاييس المحددة. يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة'
                     : "يمكنك تغيير هذه الأذونات لاحقًا في تطبيق Health Connect → الأذونات"
                   : Platform.OS === "ios"
-                    ? "After clicking \"Authorize\", the iOS permission screen will appear where you can grant access to the selected metrics. You can change these permissions later in iOS Settings → Privacy & Security → Health"
+                    ? 'After clicking "Authorize", the iOS permission screen will appear where you can grant access to the selected metrics. You can change these permissions later in iOS Settings → Privacy & Security → Health'
                     : "You can change these permissions later in the Health Connect app → Permissions"}
               </Text>
             </View>
@@ -1534,24 +1686,28 @@ export default function VitalsScreen() {
           {/* CTA */}
           <View style={styles.ctaSection as ViewStyle}>
             <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                {
-                  backgroundColor:
-                    selectedMetrics.size > 0
-                      ? "#FF8C42" // Orange button
-                      : "#CCCCCC", // Gray when disabled
-                },
-                selectedMetrics.size === 0 && styles.disabledButton,
-              ] as StyleProp<ViewStyle>}
-              onPress={handleAuthorizeMetrics}
               disabled={authorizing || selectedMetrics.size === 0}
+              onPress={handleAuthorizeMetrics}
+              style={
+                [
+                  styles.primaryButton,
+                  {
+                    backgroundColor:
+                      selectedMetrics.size > 0
+                        ? "#FF8C42" // Orange button
+                        : "#CCCCCC", // Gray when disabled
+                  },
+                  selectedMetrics.size === 0 && styles.disabledButton,
+                ] as StyleProp<ViewStyle>
+              }
             >
               {authorizing ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Text style={styles.primaryButtonText as StyleProp<TextStyle>}>
+                  <Text
+                    style={styles.primaryButtonText as StyleProp<TextStyle>}
+                  >
                     {isRTL
                       ? selectedMetrics.has("all")
                         ? "تفويض جميع المقاييس"
@@ -1560,7 +1716,7 @@ export default function VitalsScreen() {
                         ? "Authorize All Metrics"
                         : `Authorize ${selectedMetrics.size} Metric${selectedMetrics.size !== 1 ? "s" : ""}`}
                   </Text>
-                  <ChevronRight size={20} color="#FFFFFF" />
+                  <ChevronRight color="#FFFFFF" size={20} />
                 </>
               )}
             </TouchableOpacity>
@@ -1578,10 +1734,24 @@ export default function VitalsScreen() {
           <View style={styles.permissionIcon as ViewStyle}>
             <Heart color={theme.colors.neutral.white} size={40} />
           </View>
-          <Text style={[styles.permissionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.permissionTitle,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? "دمج البيانات الصحية" : "Health Data Integration"}
           </Text>
-          <Text style={[styles.permissionDescription, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.permissionDescription,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL
               ? `ادمج بياناتك الصحية من ${Platform.OS === "ios" ? "تطبيق الصحة" : "Health Connect"} لمراقبة أفضل لصحتك ومعرفة المؤشرات الحيوية`
               : `Connect your health data from ${Platform.OS === "ios" ? "Health App" : "Health Connect"} to get comprehensive health monitoring and vital signs tracking`}
@@ -1611,10 +1781,12 @@ export default function VitalsScreen() {
           </TouchableOpacity>
 
           <Text
-            style={[
-              styles.permissionDescription,
-              { marginTop: theme.spacing.lg, fontSize: 12 },
-            ] as StyleProp<TextStyle>}
+            style={
+              [
+                styles.permissionDescription,
+                { marginTop: theme.spacing.lg, fontSize: 12 },
+              ] as StyleProp<TextStyle>
+            }
           >
             {isRTL
               ? Platform.OS === "ios"
@@ -1635,10 +1807,24 @@ export default function VitalsScreen() {
     <SafeAreaView style={styles.container as ViewStyle}>
       {/* Header */}
       <View style={styles.header as ViewStyle}>
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+        <Text
+          style={
+            [
+              styles.headerTitle,
+              isRTL && styles.rtlText,
+            ] as StyleProp<TextStyle>
+          }
+        >
           {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
         </Text>
-        <Text style={[styles.headerSubtitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+        <Text
+          style={
+            [
+              styles.headerSubtitle,
+              isRTL && styles.rtlText,
+            ] as StyleProp<TextStyle>
+          }
+        >
           {isRTL
             ? "مراقبة صحتك من مصادر متعددة"
             : "Monitor your health from multiple sources"}
@@ -1649,7 +1835,14 @@ export default function VitalsScreen() {
             {lastSync && (
               <>
                 <CheckCircle color={theme.colors.accent.success} size={12} />
-                <Text style={[styles.syncText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                <Text
+                  style={
+                    [
+                      styles.syncText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
                   {isRTL
                     ? `آخر مزامنة: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                     : `Last sync: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
@@ -1698,110 +1891,152 @@ export default function VitalsScreen() {
         {/* Vitals Grid */}
         <View style={styles.vitalsGrid as ViewStyle}>
           {/* Render all vital cards dynamically in rows of 2 */}
-          {Array.from({ length: Math.ceil(vitalCards.length / 2) }).map((_, rowIndex) => {
-            const startIndex = rowIndex * 2;
-            const rowCards = vitalCards.slice(startIndex, startIndex + 2);
-            
-            return (
-              <View key={rowIndex} style={styles.vitalsRow as ViewStyle}>
-                {rowCards.map((vital, index) => {
-                  const IconComponent = vital.icon;
-                  const TrendIcon = getTrendIcon(vital.trend);
-                  // First card in first row is large, others are regular size
-                  const isLarge = rowIndex === 0 && index === 0;
+          {Array.from({ length: Math.ceil(vitalCards.length / 2) }).map(
+            (_, rowIndex) => {
+              const startIndex = rowIndex * 2;
+              const rowCards = vitalCards.slice(startIndex, startIndex + 2);
 
-                  return (
-                <View
-                  key={vital.key}
-                  style={[styles.vitalCard, isLarge && styles.vitalCardLarge] as StyleProp<ViewStyle>}
-                >
-                  <View style={styles.vitalHeader as ViewStyle}>
-                    <View
-                      style={[
-                        styles.vitalIcon,
-                        { backgroundColor: vital.color + "20" },
-                      ] as StyleProp<ViewStyle>}
-                    >
-                      <IconComponent color={vital.color} size={20} />
-                    </View>
-                    <View style={styles.vitalTrend as ViewStyle}>
-                      <TrendIcon
-                        color={getStatusColor(vital.status)}
-                        size={12}
-                      />
-                    </View>
-                  </View>
+              return (
+                <View key={rowIndex} style={styles.vitalsRow as ViewStyle}>
+                  {rowCards.map((vital, index) => {
+                    const IconComponent = vital.icon;
+                    const TrendIcon = getTrendIcon(vital.trend);
+                    // First card in first row is large, others are regular size
+                    const isLarge = rowIndex === 0 && index === 0;
 
-                  <Text style={[styles.vitalTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-                    {isRTL ? vital.titleAr : vital.title}
-                  </Text>
+                    return (
+                      <View
+                        key={vital.key}
+                        style={
+                          [
+                            styles.vitalCard,
+                            isLarge && styles.vitalCardLarge,
+                          ] as StyleProp<ViewStyle>
+                        }
+                      >
+                        <View style={styles.vitalHeader as ViewStyle}>
+                          <View
+                            style={
+                              [
+                                styles.vitalIcon,
+                                { backgroundColor: vital.color + "20" },
+                              ] as StyleProp<ViewStyle>
+                            }
+                          >
+                            <IconComponent color={vital.color} size={20} />
+                          </View>
+                          <View style={styles.vitalTrend as ViewStyle}>
+                            <TrendIcon
+                              color={getStatusColor(vital.status)}
+                              size={12}
+                            />
+                          </View>
+                        </View>
 
-                  <View style={{ flexShrink: 1, minWidth: 0 }}>
-                    <Text
-                      style={[
-                        styles.vitalValue,
-                        isLarge && styles.vitalValueLarge,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>}
-                      numberOfLines={3}
-                      adjustsFontSizeToFit={true}
-                      minimumFontScale={0.6}
-                    >
-                      {vital.value}
-                    </Text>
-                  </View>
+                        <Text
+                          style={
+                            [
+                              styles.vitalTitle,
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {isRTL ? vital.titleAr : vital.title}
+                        </Text>
 
-                  <Text style={[styles.vitalUnit, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-                    {vital.unit}
-                  </Text>
+                        <View style={{ flexShrink: 1, minWidth: 0 }}>
+                          <Text
+                            adjustsFontSizeToFit={true}
+                            minimumFontScale={0.6}
+                            numberOfLines={3}
+                            style={
+                              [
+                                styles.vitalValue,
+                                isLarge && styles.vitalValueLarge,
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {vital.value}
+                          </Text>
+                        </View>
 
-                  <View style={styles.statusIndicator as ViewStyle}>
-                    <View
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: getStatusColor(vital.status),
-                      }}
-                    />
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: getStatusColor(vital.status) },
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>}
-                    >
-                      {vital.status === "normal"
-                        ? isRTL
-                          ? "طبيعي"
-                          : "Normal"
-                        : vital.status === "warning"
-                          ? isRTL
-                            ? "انتباه"
-                            : "Attention"
-                          : isRTL
-                            ? "خطر"
-                            : "Critical"}
-                    </Text>
-                  </View>
+                        <Text
+                          style={
+                            [
+                              styles.vitalUnit,
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {vital.unit}
+                        </Text>
+
+                        <View style={styles.statusIndicator as ViewStyle}>
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: getStatusColor(vital.status),
+                            }}
+                          />
+                          <Text
+                            style={
+                              [
+                                styles.statusText,
+                                { color: getStatusColor(vital.status) },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {vital.status === "normal"
+                              ? isRTL
+                                ? "طبيعي"
+                                : "Normal"
+                              : vital.status === "warning"
+                                ? isRTL
+                                  ? "انتباه"
+                                  : "Attention"
+                                : isRTL
+                                  ? "خطر"
+                                  : "Critical"}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                  {/* Add empty placeholder if odd number of cards in last row */}
+                  {rowCards.length === 1 &&
+                    rowIndex === Math.ceil(vitalCards.length / 2) - 1 && (
+                      <View style={styles.vitalCard as ViewStyle} />
+                    )}
                 </View>
-                  );
-                })}
-                {/* Add empty placeholder if odd number of cards in last row */}
-                {rowCards.length === 1 && rowIndex === Math.ceil(vitalCards.length / 2) - 1 && (
-                  <View style={styles.vitalCard as ViewStyle} />
-                )}
-              </View>
-            );
-          })}
+              );
+            }
+          )}
         </View>
 
         {/* Maak One-liner */}
         <View style={styles.onelineCard as ViewStyle}>
-          <Text style={[styles.onelineText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.onelineText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? '"خليهم دايمًا معك"' : '"Health starts at home"'}
           </Text>
-          <Text style={[styles.onelineSource, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.onelineSource,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             - Maak
           </Text>
         </View>

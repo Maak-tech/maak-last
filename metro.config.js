@@ -20,14 +20,14 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // - react-native/Libraries/PushNotificationIOS
   // - Any module name containing PushNotificationIOS
   if (
-    moduleName === "react-native/Libraries/PushNotificationIOS/PushNotificationIOS" ||
+    moduleName ===
+      "react-native/Libraries/PushNotificationIOS/PushNotificationIOS" ||
     moduleName === "react-native/Libraries/PushNotificationIOS" ||
     moduleName === "PushNotificationIOS" ||
-    (typeof moduleName === 'string' && (
-      moduleName.includes('PushNotificationIOS') ||
-      moduleName.endsWith('/PushNotificationIOS') ||
-      moduleName.includes('PushNotificationIOS/PushNotificationIOS')
-    ))
+    (typeof moduleName === "string" &&
+      (moduleName.includes("PushNotificationIOS") ||
+        moduleName.endsWith("/PushNotificationIOS") ||
+        moduleName.includes("PushNotificationIOS/PushNotificationIOS")))
   ) {
     return {
       filePath: path.resolve(__dirname, "lib/polyfills/pushNotificationIOS.js"),

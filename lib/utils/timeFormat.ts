@@ -8,7 +8,7 @@
  * @returns Time in 12-hour format (e.g., "2:30 PM")
  */
 export function convertTo12Hour(time24: string): string {
-  if (!time24 || !time24.includes(":")) {
+  if (!(time24 && time24.includes(":"))) {
     return time24;
   }
 
@@ -38,10 +38,10 @@ export function convertTo24Hour(time12: string): string {
 
   // Remove extra spaces and convert to uppercase for parsing
   const cleaned = time12.trim().toUpperCase();
-  
+
   // Match patterns like "2:30 PM", "2:30PM", "14:30" (already 24-hour)
   const match = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/);
-  
+
   if (!match) {
     // If it doesn't match 12-hour format, check if it's already 24-hour format
     const match24 = cleaned.match(/^(\d{1,2}):(\d{2})$/);
@@ -49,7 +49,12 @@ export function convertTo24Hour(time12: string): string {
       const hours = Number.parseInt(match24[1], 10);
       const minutes = match24[2];
       // Validate 24-hour format
-      if (hours >= 0 && hours <= 23 && Number.parseInt(minutes, 10) >= 0 && Number.parseInt(minutes, 10) <= 59) {
+      if (
+        hours >= 0 &&
+        hours <= 23 &&
+        Number.parseInt(minutes, 10) >= 0 &&
+        Number.parseInt(minutes, 10) <= 59
+      ) {
         return `${hours.toString().padStart(2, "0")}:${minutes}`;
       }
     }
@@ -60,12 +65,17 @@ export function convertTo24Hour(time12: string): string {
   const minutes = match[2];
   const period = match[3] || "";
 
-  if (hours < 1 || hours > 12 || Number.parseInt(minutes, 10) < 0 || Number.parseInt(minutes, 10) > 59) {
+  if (
+    hours < 1 ||
+    hours > 12 ||
+    Number.parseInt(minutes, 10) < 0 ||
+    Number.parseInt(minutes, 10) > 59
+  ) {
     return time12; // Invalid time
   }
 
   let hours24 = hours;
-  
+
   if (period === "PM" && hours !== 12) {
     hours24 = hours + 12;
   } else if (period === "AM" && hours === 12) {
@@ -81,12 +91,12 @@ export function convertTo24Hour(time12: string): string {
  * @returns true if valid, false otherwise
  */
 export function isValidTimeFormat(time: string): boolean {
-  if (!time || !time.trim()) {
+  if (!(time && time.trim())) {
     return false;
   }
 
   const cleaned = time.trim().toUpperCase();
-  
+
   // Check 12-hour format (h:mm AM/PM)
   const match12 = cleaned.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
   if (match12) {
@@ -105,4 +115,3 @@ export function isValidTimeFormat(time: string): boolean {
 
   return false;
 }
-

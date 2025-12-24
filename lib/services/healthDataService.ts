@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { appleHealthService } from "./appleHealthService";
@@ -157,7 +156,7 @@ export const healthDataService = {
           return true;
         }
       }
-      
+
       // Fallback to AsyncStorage check for backward compatibility
       const status = await AsyncStorage.getItem(PERMISSIONS_STORAGE_KEY);
       return status === "true";
@@ -210,7 +209,7 @@ export const healthDataService = {
       // the module-level authorizationRequested flag resets on app restart
       const { getProviderConnection } = await import("../health/healthSync");
       const connection = await getProviderConnection("apple_health");
-      if (!connection || !connection.connected) {
+      if (!(connection && connection.connected)) {
         // If not connected, return simulated data
         // User needs to authorize in settings first
         return this.getSimulatedVitals();
@@ -220,42 +219,58 @@ export const healthDataService = {
       try {
         const today = new Date();
         const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000); // 1 day ago
-        
-        const metrics = await appleHealthService.fetchMetrics(["all"], yesterday, today);
-        
+
+        const metrics = await appleHealthService.fetchMetrics(
+          ["all"],
+          yesterday,
+          today
+        );
+
         // Helper to get latest value from samples with unit conversion
-        const getLatestValue = (metricKey: string, convertToKg: boolean = false): number | undefined => {
+        const getLatestValue = (
+          metricKey: string,
+          convertToKg = false
+        ): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return undefined;
+          if (!metric || metric.samples.length === 0) return;
           // Get the most recent sample value (samples are sorted by date)
           const latestSample = metric.samples[metric.samples.length - 1];
-          if (typeof latestSample.value !== "number") return undefined;
-          
+          if (typeof latestSample.value !== "number") return;
+
           let value = latestSample.value;
-          
+
           // Convert weight from pounds to kilograms if needed
           if (convertToKg && latestSample.unit) {
             const unit = latestSample.unit.toLowerCase();
             // Debug logging for weight unit conversion
             if (metricKey === "weight") {
-              console.log(`[Health Data Service] Weight sample: value=${value}, unit="${latestSample.unit}"`);
+              console.log(
+                `[Health Data Service] Weight sample: value=${value}, unit="${latestSample.unit}"`
+              );
             }
             // Check if unit is in pounds (lb, lbs, pound, pounds, or imperial units)
-            if (unit.includes("lb") || unit.includes("pound") || unit === "lb" || unit === "lbs") {
+            if (
+              unit.includes("lb") ||
+              unit.includes("pound") ||
+              unit === "lb" ||
+              unit === "lbs"
+            ) {
               const originalValue = value;
-              value = value / 2.20462; // Convert pounds to kg
-              console.log(`[Health Data Service] Converted weight from ${originalValue} ${latestSample.unit} to ${value.toFixed(2)} kg`);
+              value = value / 2.204_62; // Convert pounds to kg
+              console.log(
+                `[Health Data Service] Converted weight from ${originalValue} ${latestSample.unit} to ${value.toFixed(2)} kg`
+              );
             }
             // If already in kg, use as-is
           }
-          
+
           return value;
         };
-        
+
         // Helper to get sum for metrics like steps (daily total)
         const getSumValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return undefined;
+          if (!metric || metric.samples.length === 0) return;
           // Sum all values for metrics like steps
           const sum = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
@@ -264,12 +279,12 @@ export const healthDataService = {
           // Return sum even if 0, since samples exist (distinguishes "no data" from "zero value")
           return sum;
         };
-        
+
         // Helper to calculate sleep hours from sleep analysis category samples
         const getSleepHours = (): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === "sleep_analysis");
-          if (!metric || metric.samples.length === 0) return undefined;
-          
+          if (!metric || metric.samples.length === 0) return;
+
           // Sleep analysis returns category samples with startDate and endDate
           // Filter for "asleep" samples and calculate total duration
           let totalSleepMs = 0;
@@ -285,13 +300,13 @@ export const healthDataService = {
               }
             }
           }
-          
+
           // Convert milliseconds to hours
           const sleepHours = totalSleepMs / (1000 * 60 * 60);
           // Return sleepHours even if 0, since samples exist (distinguishes "no data" from "zero value")
           return sleepHours;
         };
-        
+
         // Convert to VitalSigns format
         const vitals: VitalSigns = {
           // Heart & Cardiovascular
@@ -305,22 +320,22 @@ export const healthDataService = {
             if (systolic && diastolic) {
               return { systolic, diastolic };
             }
-            return undefined;
+            return;
           })(),
-          
+
           // Respiratory
           respiratoryRate: getLatestValue("respiratory_rate"),
           oxygenSaturation: getLatestValue("blood_oxygen"),
-          
+
           // Temperature
           bodyTemperature: getLatestValue("body_temperature"),
-          
+
           // Body Measurements
           weight: getLatestValue("weight", true), // Convert weight to kg if needed
           height: getLatestValue("height"), // Height is in cm from HealthKit
           bodyMassIndex: getLatestValue("body_mass_index"),
           bodyFatPercentage: getLatestValue("body_fat_percentage"),
-          
+
           // Activity & Fitness
           steps: getSumValue("steps"), // Steps should be summed for daily total
           activeEnergy: getSumValue("active_energy"), // Sum active energy for daily total
@@ -331,29 +346,35 @@ export const healthDataService = {
           standTime: getSumValue("stand_time"), // Sum stand time for daily total
           workouts: (() => {
             const metric = metrics.find((m) => m.metricKey === "workouts");
-            if (!metric || metric.samples.length === 0) return undefined;
+            if (!metric || metric.samples.length === 0) return;
             return metric.samples.length;
           })(),
-          
+
           // Sleep
           sleepHours: getSleepHours(), // Calculate from sleep analysis samples
-          
+
           // Nutrition
           waterIntake: getSumValue("water_intake"), // Sum water intake for daily total
-          
+
           // Glucose
           bloodGlucose: getLatestValue("blood_glucose"),
-          
+
           timestamp: new Date(),
         };
-        
+
         return vitals;
       } catch (error: any) {
-        console.error("[Health Data Service] Error fetching HealthKit data:", error?.message || String(error));
+        console.error(
+          "[Health Data Service] Error fetching HealthKit data:",
+          error?.message || String(error)
+        );
         return this.getSimulatedVitals();
       }
     } catch (error: any) {
-      console.error("[Health Data Service] Error in getIOSVitals:", error?.message || String(error));
+      console.error(
+        "[Health Data Service] Error in getIOSVitals:",
+        error?.message || String(error)
+      );
       return this.getSimulatedVitals();
     }
   },

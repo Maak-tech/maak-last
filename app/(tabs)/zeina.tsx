@@ -415,7 +415,10 @@ export default function ZeinaScreen() {
           onPress: async () => {
             try {
               if (!auth.currentUser) {
-                Alert.alert("Error", "You must be logged in to delete chat sessions");
+                Alert.alert(
+                  "Error",
+                  "You must be logged in to delete chat sessions"
+                );
                 return;
               }
               await deleteDoc(
@@ -522,12 +525,12 @@ export default function ZeinaScreen() {
           <TextInput
             editable={!isStreaming}
             multiline
-            scrollEnabled
-            textAlignVertical="top"
             onChangeText={setInputText}
             placeholder="Ask Zeina about your health, medications, symptoms..."
             placeholderTextColor="#999"
+            scrollEnabled
             style={styles.textInput}
+            textAlignVertical="top"
             value={inputText}
           />
           <TouchableOpacity
@@ -996,4 +999,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

@@ -131,10 +131,12 @@ export const useNotifications = () => {
             body,
             sound: "default",
           },
-          trigger: trigger ? {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: trigger,
-          } : null,
+          trigger: trigger
+            ? {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: trigger,
+              }
+            : null,
         });
       } catch (error) {
         // Silently handle scheduling error
@@ -167,17 +169,22 @@ export const useNotifications = () => {
           try {
             await initializationPromise.current;
           } catch (error) {
-            console.error("Failed to wait for notification initialization:", error);
+            console.error(
+              "Failed to wait for notification initialization:",
+              error
+            );
           }
         }
 
         // If still not initialized after waiting, try to initialize now
         if (!isInitialized.current) {
-          console.warn("Notifications not initialized, attempting to initialize now...");
+          console.warn(
+            "Notifications not initialized, attempting to initialize now..."
+          );
           try {
             const Notifications = await import("expo-notifications");
             const Device = await import("expo-device");
-            
+
             try {
               Notifications.setNotificationHandler({
                 handleNotification: async () => ({
@@ -192,14 +199,20 @@ export const useNotifications = () => {
               isInitialized.current = true;
             } catch (initError) {
               console.error("Failed to initialize notifications:", initError);
-              return { success: false, error: "Failed to initialize notifications" };
+              return {
+                success: false,
+                error: "Failed to initialize notifications",
+              };
             }
           } catch (importError) {
             // Handle errors during import (e.g., PushNotificationIOS issues)
-            console.error("Failed to import notification modules:", importError);
-            return { 
-              success: false, 
-              error: "Notification system unavailable. Please restart the app." 
+            console.error(
+              "Failed to import notification modules:",
+              importError
+            );
+            return {
+              success: false,
+              error: "Notification system unavailable. Please restart the app.",
             };
           }
         }
@@ -213,58 +226,80 @@ export const useNotifications = () => {
         } catch (importError) {
           // Handle errors during import (e.g., PushNotificationIOS issues)
           console.error("Failed to import notification modules:", importError);
-          const errorMessage = importError instanceof Error 
-            ? importError.message 
-            : String(importError);
-          
+          const errorMessage =
+            importError instanceof Error
+              ? importError.message
+              : String(importError);
+
           // Check if it's the PushNotificationIOS error
-          if (errorMessage.includes("NativeEventEmitter") || errorMessage.includes("default")) {
-            return { 
-              success: false, 
-              error: "Notification system error. Please restart the app to fix this issue." 
+          if (
+            errorMessage.includes("NativeEventEmitter") ||
+            errorMessage.includes("default")
+          ) {
+            return {
+              success: false,
+              error:
+                "Notification system error. Please restart the app to fix this issue.",
             };
           }
-          
-          return { 
-            success: false, 
-            error: "Failed to load notification system. Please try again." 
+
+          return {
+            success: false,
+            error: "Failed to load notification system. Please try again.",
           };
         }
 
         // Check notification permissions before scheduling
         const permissionResult = await Notifications.getPermissionsAsync();
-        console.log("Current notification permissions:", JSON.stringify(permissionResult, null, 2));
-        
+        console.log(
+          "Current notification permissions:",
+          JSON.stringify(permissionResult, null, 2)
+        );
+
         const { status } = permissionResult;
         if (status !== "granted") {
-          console.warn("Notification permissions not granted, requesting... Status:", status);
-          
+          console.warn(
+            "Notification permissions not granted, requesting... Status:",
+            status
+          );
+
           // Request permissions with proper iOS options
-          const requestOptions = Platform.OS === "ios" 
-            ? {
-                ios: {
-                  allowAlert: true,
-                  allowBadge: true,
-                  allowSound: true,
-                  allowAnnouncements: false,
-                },
-              }
-            : undefined;
-          
-          const requestResult = await Notifications.requestPermissionsAsync(requestOptions);
-          console.log("Permission request result:", JSON.stringify(requestResult, null, 2));
-          
+          const requestOptions =
+            Platform.OS === "ios"
+              ? {
+                  ios: {
+                    allowAlert: true,
+                    allowBadge: true,
+                    allowSound: true,
+                    allowAnnouncements: false,
+                  },
+                }
+              : undefined;
+
+          const requestResult =
+            await Notifications.requestPermissionsAsync(requestOptions);
+          console.log(
+            "Permission request result:",
+            JSON.stringify(requestResult, null, 2)
+          );
+
           const newStatus = requestResult.status;
           if (newStatus !== "granted") {
-            console.error("Notification permissions denied. Status:", newStatus);
-            const errorMessage = newStatus === "denied" 
-              ? "Notification permissions were denied. Please enable them in Settings > Notifications."
-              : `Notification permissions not granted (status: ${newStatus}). Please enable them in Settings.`;
+            console.error(
+              "Notification permissions denied. Status:",
+              newStatus
+            );
+            const errorMessage =
+              newStatus === "denied"
+                ? "Notification permissions were denied. Please enable them in Settings > Notifications."
+                : `Notification permissions not granted (status: ${newStatus}). Please enable them in Settings.`;
             return { success: false, error: errorMessage };
           }
         }
 
-        console.log("Notification permissions granted, proceeding to schedule...");
+        console.log(
+          "Notification permissions granted, proceeding to schedule..."
+        );
 
         const [hourStr, minuteStr] = reminderTime.split(":");
         const hour = Number.parseInt(hourStr);
@@ -281,7 +316,7 @@ export const useNotifications = () => {
         const now = new Date();
         const triggerDate = new Date();
         triggerDate.setHours(hour, minute, 0, 0);
-        
+
         // If the time has already passed today, schedule for tomorrow
         if (triggerDate <= now) {
           triggerDate.setDate(triggerDate.getDate() + 1);
@@ -315,26 +350,42 @@ export const useNotifications = () => {
           trigger,
         };
 
-        console.log("Scheduling notification with config:", JSON.stringify(notificationConfig, null, 2));
-        
-        const notificationId = await Notifications.scheduleNotificationAsync(notificationConfig);
+        console.log(
+          "Scheduling notification with config:",
+          JSON.stringify(notificationConfig, null, 2)
+        );
 
-        console.log(`✅ Successfully scheduled medication reminder for ${medicationName} at ${reminderTime} (ID: ${notificationId})`);
-        
+        const notificationId =
+          await Notifications.scheduleNotificationAsync(notificationConfig);
+
+        console.log(
+          `✅ Successfully scheduled medication reminder for ${medicationName} at ${reminderTime} (ID: ${notificationId})`
+        );
+
         // Verify the notification was scheduled by getting all scheduled notifications
         try {
-          const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-          console.log(`Total scheduled notifications: ${scheduledNotifications.length}`);
-          const ourNotification = scheduledNotifications.find(n => n.identifier === notificationId);
+          const scheduledNotifications =
+            await Notifications.getAllScheduledNotificationsAsync();
+          console.log(
+            `Total scheduled notifications: ${scheduledNotifications.length}`
+          );
+          const ourNotification = scheduledNotifications.find(
+            (n) => n.identifier === notificationId
+          );
           if (ourNotification) {
-            console.log("Verified notification is scheduled:", JSON.stringify(ourNotification, null, 2));
+            console.log(
+              "Verified notification is scheduled:",
+              JSON.stringify(ourNotification, null, 2)
+            );
           } else {
-            console.warn("Warning: Could not find scheduled notification in list");
+            console.warn(
+              "Warning: Could not find scheduled notification in list"
+            );
           }
         } catch (verifyError) {
           console.warn("Could not verify scheduled notification:", verifyError);
         }
-        
+
         return { success: true, notificationId };
       } catch (error) {
         console.error("❌ Error scheduling medication reminder:", error);
@@ -343,21 +394,24 @@ export const useNotifications = () => {
           stack: error instanceof Error ? error.stack : undefined,
           errorType: error?.constructor?.name,
         });
-        
-        const errorMessage = error instanceof Error 
-          ? error.message 
-          : String(error);
-        
+
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
         // Provide more helpful error messages
         let userFriendlyError = errorMessage;
         if (errorMessage.toLowerCase().includes("permission")) {
-          userFriendlyError = "Notification permissions not granted. Please enable notifications in Settings.";
-        } else if (errorMessage.toLowerCase().includes("trigger") || errorMessage.toLowerCase().includes("invalid")) {
+          userFriendlyError =
+            "Notification permissions not granted. Please enable notifications in Settings.";
+        } else if (
+          errorMessage.toLowerCase().includes("trigger") ||
+          errorMessage.toLowerCase().includes("invalid")
+        ) {
           userFriendlyError = `Invalid reminder time format: ${reminderTime}`;
         }
-        
-        return { 
-          success: false, 
+
+        return {
+          success: false,
           error: userFriendlyError,
           rawError: errorMessage,
         };
@@ -398,31 +452,37 @@ export const useNotifications = () => {
     try {
       const Notifications = await import("expo-notifications");
       const { Platform } = await import("react-native");
-      
+
       const { status } = await Notifications.getPermissionsAsync();
-      
+
       if (status === "granted") {
         return { granted: true, status };
       }
 
       // Request permissions with proper iOS options
-      const requestOptions = Platform.OS === "ios" 
-        ? {
-            ios: {
-              allowAlert: true,
-              allowBadge: true,
-              allowSound: true,
-              allowAnnouncements: false,
-            },
-          }
-        : undefined;
+      const requestOptions =
+        Platform.OS === "ios"
+          ? {
+              ios: {
+                allowAlert: true,
+                allowBadge: true,
+                allowSound: true,
+                allowAnnouncements: false,
+              },
+            }
+          : undefined;
 
-      const { status: newStatus } = await Notifications.requestPermissionsAsync(requestOptions);
-      
+      const { status: newStatus } =
+        await Notifications.requestPermissionsAsync(requestOptions);
+
       return { granted: newStatus === "granted", status: newStatus };
     } catch (error) {
       console.error("Error checking/requesting permissions:", error);
-      return { granted: false, status: "error", error: error instanceof Error ? error.message : String(error) };
+      return {
+        granted: false,
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }, []);
 
@@ -463,7 +523,6 @@ async function registerForPushNotificationsAsync(
       if (finalStatus !== "granted") {
         return;
       }
-
     }
   } catch (error) {
     throw error; // Re-throw to be caught by the calling function

@@ -120,10 +120,7 @@ export const moodService = {
   },
 
   // Get moods for all family members (for admins)
-  async getFamilyMoods(
-    familyId: string,
-    limitCount = 50
-  ): Promise<Mood[]> {
+  async getFamilyMoods(familyId: string, limitCount = 50): Promise<Mood[]> {
     try {
       // First get all family members
       const familyMembersQuery = query(
@@ -264,10 +261,7 @@ export const moodService = {
   },
 
   // Update mood
-  async updateMood(
-    moodId: string,
-    updates: Partial<Mood>
-  ): Promise<void> {
+  async updateMood(moodId: string, updates: Partial<Mood>): Promise<void> {
     try {
       const updateData: any = { ...updates };
       if (updates.timestamp) {
@@ -349,10 +343,7 @@ export const moodService = {
   },
 
   // Get moods for a specific family member (for admins)
-  async getMemberMoods(
-    memberId: string,
-    limitCount = 50
-  ): Promise<Mood[]> {
+  async getMemberMoods(memberId: string, limitCount = 50): Promise<Mood[]> {
     try {
       const q = query(
         collection(db, "moods"),
@@ -441,4 +432,3 @@ export const moodService = {
     }
   },
 };
-

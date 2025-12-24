@@ -4,14 +4,14 @@ import { useTranslation } from "react-i18next";
 import {
   Dimensions,
   Image,
-  ImageStyle,
+  type ImageStyle,
   SafeAreaView,
-  StyleProp,
+  type StyleProp,
   Text,
-  TextStyle,
+  type TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
+  type ViewStyle,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -236,7 +236,11 @@ export default function OnboardingScreen() {
       {/* Header */}
       <View style={styles.header as ViewStyle}>
         <TouchableOpacity onPress={skip} style={styles.skipButton as ViewStyle}>
-          <Text style={[styles.skipText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [styles.skipText, isRTL && styles.rtlText] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? "تخطي" : "Skip"}
           </Text>
         </TouchableOpacity>
@@ -247,10 +251,12 @@ export default function OnboardingScreen() {
         {onboardingSteps.map((_, index) => (
           <View
             key={index}
-            style={[
-              styles.progressDot,
-              index === currentStep && styles.progressDotActive,
-            ] as StyleProp<ViewStyle>}
+            style={
+              [
+                styles.progressDot,
+                index === currentStep && styles.progressDotActive,
+              ] as StyleProp<ViewStyle>
+            }
           />
         ))}
       </View>
@@ -270,15 +276,30 @@ export default function OnboardingScreen() {
 
         {/* Text Section */}
         <View style={styles.textContainer as ViewStyle}>
-          <Text style={[styles.title, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [styles.title, isRTL && styles.rtlText] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? currentStepData.titleAr : currentStepData.titleEn}
           </Text>
 
-          <Text style={[styles.description, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [
+                styles.description,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? currentStepData.descAr : currentStepData.descEn}
           </Text>
 
-          <Text style={[styles.oneliner, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+          <Text
+            style={
+              [styles.oneliner, isRTL && styles.rtlText] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? currentStepData.onelinerAr : currentStepData.onelinerEn}
           </Text>
         </View>
@@ -288,9 +309,17 @@ export default function OnboardingScreen() {
       <View style={styles.footer as ViewStyle}>
         <View style={styles.buttonContainer as ViewStyle}>
           {currentStep > 0 && (
-            <TouchableOpacity onPress={prevStep} style={styles.secondaryButton as ViewStyle}>
+            <TouchableOpacity
+              onPress={prevStep}
+              style={styles.secondaryButton as ViewStyle}
+            >
               <Text
-                style={[styles.secondaryButtonText, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                style={
+                  [
+                    styles.secondaryButtonText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
               >
                 {isRTL ? "السابق" : "Back"}
               </Text>
@@ -302,7 +331,14 @@ export default function OnboardingScreen() {
             onPress={nextStep}
             style={styles.primaryButton as ViewStyle}
           >
-            <Text style={[styles.primaryButtonText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.primaryButtonText,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {currentStep === onboardingSteps.length - 1
                 ? isCompleting
                   ? isRTL

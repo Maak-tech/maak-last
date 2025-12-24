@@ -29,7 +29,7 @@ export const firebaseValidation = {
           const nameParts = displayName.split(" ");
           const firstName = nameParts[0] || "User";
           const lastName = nameParts.slice(1).join(" ") || "";
-          
+
           await userService.ensureUserDocument(
             currentUser.uid,
             currentUser.email || "",
@@ -134,7 +134,7 @@ export const firebaseValidation = {
       const nameParts = displayName.split(" ");
       const firstName = nameParts[0] || "User";
       const lastName = nameParts.slice(1).join(" ") || "";
-      
+
       await userService.ensureUserDocument(
         currentUser.uid,
         currentUser.email || "",

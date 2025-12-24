@@ -10,8 +10,11 @@ const withFollyFix = (config) => {
   return withDangerousMod(config, [
     "ios",
     async (config) => {
-      const podfilePath = path.join(config.modRequest.platformProjectRoot, "Podfile");
-      
+      const podfilePath = path.join(
+        config.modRequest.platformProjectRoot,
+        "Podfile"
+      );
+
       if (!fs.existsSync(podfilePath)) {
         return config;
       }
@@ -25,7 +28,8 @@ const withFollyFix = (config) => {
 
       // Find the post_install hook or create one
       // Use consistent regex pattern that matches both with and without newline before 'end'
-      const postInstallRegex = /(post_install do \|installer\|)([\s\S]*?)(\n?end\b)/;
+      const postInstallRegex =
+        /(post_install do \|installer\|)([\s\S]*?)(\n?end\b)/;
       const postInstallMatch = podfileContent.match(postInstallRegex);
       const hasPostInstall = postInstallMatch !== null;
 
@@ -50,17 +54,21 @@ const withFollyFix = (config) => {
       } else {
         // Create new post_install hook - add before the final 'end' of the target block
         // Find the last occurrence of 'end' that's likely the end of the target block
-        const lines = podfileContent.split('\n');
+        const lines = podfileContent.split("\n");
         let lastEndIndex = -1;
         for (let i = lines.length - 1; i >= 0; i--) {
-          if (lines[i].trim() === 'end') {
+          if (lines[i].trim() === "end") {
             lastEndIndex = i;
             break;
           }
         }
         if (lastEndIndex !== -1) {
-          lines.splice(lastEndIndex, 0, `post_install do |installer|${follyFix}end`);
-          podfileContent = lines.join('\n');
+          lines.splice(
+            lastEndIndex,
+            0,
+            `post_install do |installer|${follyFix}end`
+          );
+          podfileContent = lines.join("\n");
         }
       }
 
@@ -71,4 +79,3 @@ const withFollyFix = (config) => {
 };
 
 module.exports = withFollyFix;
-

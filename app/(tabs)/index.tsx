@@ -20,12 +20,12 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
-  StyleProp,
+  type StyleProp,
   Text,
-  TextStyle,
+  type TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
+  type ViewStyle,
 } from "react-native";
 import FamilyDataFilter, {
   type FilterOption,
@@ -604,9 +604,10 @@ export default function DashboardScreen() {
               }
 
               // Create emergency alert
-              const userName = user.firstName && user.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : user.firstName || (isRTL ? "مستخدم" : "User");
+              const userName =
+                user.firstName && user.lastName
+                  ? `${user.firstName} ${user.lastName}`
+                  : user.firstName || (isRTL ? "مستخدم" : "User");
               const alertData = {
                 userId: user.id,
                 type: "emergency" as const,
@@ -623,7 +624,9 @@ export default function DashboardScreen() {
 
               // Send notification to family if user has family
               if (user.familyId) {
-                const { pushNotificationService } = await import("@/lib/services/pushNotificationService");
+                const { pushNotificationService } = await import(
+                  "@/lib/services/pushNotificationService"
+                );
                 await pushNotificationService.sendEmergencyAlert(
                   user.id,
                   alertData.message,
@@ -677,12 +680,26 @@ export default function DashboardScreen() {
         {/* Header with SOS Button */}
         <View style={styles.headerWithSOS as ViewStyle}>
           <View style={styles.headerContent as ViewStyle}>
-            <Text style={[styles.welcomeText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.welcomeText,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL
                 ? `مرحباً، ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`
                 : `Welcome, ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`}
             </Text>
-            <Text style={[styles.dateText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.dateText,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {new Date().toLocaleDateString(isRTL ? "ar-SA" : "en-US", {
                 weekday: "long",
                 year: "numeric",
@@ -698,7 +715,9 @@ export default function DashboardScreen() {
             style={styles.sosHeaderButton as ViewStyle}
           >
             <Phone color={theme.colors.neutral.white} size={20} />
-            <Text style={styles.sosHeaderText as StyleProp<TextStyle>}>{isRTL ? "SOS" : "SOS"}</Text>
+            <Text style={styles.sosHeaderText as StyleProp<TextStyle>}>
+              {isRTL ? "SOS" : "SOS"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -716,20 +735,48 @@ export default function DashboardScreen() {
         <View style={styles.statsContainer as ViewStyle}>
           <View style={styles.statCard as ViewStyle}>
             <Activity color={theme.colors.primary.main} size={24} />
-            <Text style={[styles.statValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.statValue,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {stats.symptomsThisWeek}
             </Text>
-            <Text style={[styles.statLabel, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.statLabel,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "الأعراض هذا الأسبوع" : "Symptoms This Week"}
             </Text>
           </View>
 
           <View style={styles.statCard as ViewStyle}>
             <Pill color={theme.colors.accent.success} size={24} />
-            <Text style={[styles.statValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.statValue,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {stats.medicationCompliance}%
             </Text>
-            <Text style={[styles.statLabel, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.statLabel,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
             </Text>
           </View>
@@ -739,10 +786,24 @@ export default function DashboardScreen() {
             style={styles.statCard as ViewStyle}
           >
             <Users color={theme.colors.secondary.main} size={24} />
-            <Text style={[styles.statValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.statValue,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {familyMembersCount}
             </Text>
-            <Text style={[styles.statLabel, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.statLabel,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "أفراد العائلة" : "Family Members"}
             </Text>
           </TouchableOpacity>
@@ -751,7 +812,6 @@ export default function DashboardScreen() {
         {/* Alerts */}
         {alertsCount > 0 && (
           <TouchableOpacity
-            style={styles.alertCard as ViewStyle}
             onPress={async () => {
               setShowAlertsModal(true);
               setLoadingAlerts(true);
@@ -762,13 +822,28 @@ export default function DashboardScreen() {
                 setLoadingAlerts(false);
               }
             }}
+            style={styles.alertCard as ViewStyle}
           >
             <AlertTriangle color={theme.colors.accent.error} size={24} />
             <View style={styles.alertContent as ViewStyle}>
-              <Text style={[styles.alertTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.alertTitle,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
               </Text>
-              <Text style={[styles.alertText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.alertText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL
                   ? `لديك ${alertsCount} تنبيه${
                       alertsCount > 1 ? "ات" : ""
@@ -814,26 +889,30 @@ export default function DashboardScreen() {
                 }}
               >
                 <Text
-                  style={[
-                    getTextStyle(
-                      theme,
-                      "heading",
-                      "bold",
-                      theme.colors.text.primary
-                    ),
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>}
+                  style={
+                    [
+                      getTextStyle(
+                        theme,
+                        "heading",
+                        "bold",
+                        theme.colors.text.primary
+                      ),
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
                 >
                   {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
                 </Text>
                 <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
                   <Text
-                    style={getTextStyle(
-                      theme,
-                      "body",
-                      "medium",
-                      theme.colors.primary.main
-                    ) as StyleProp<TextStyle>}
+                    style={
+                      getTextStyle(
+                        theme,
+                        "body",
+                        "medium",
+                        theme.colors.primary.main
+                      ) as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL ? "إغلاق" : "Close"}
                   </Text>
@@ -860,15 +939,17 @@ export default function DashboardScreen() {
                   }}
                 >
                   <Text
-                    style={[
-                      getTextStyle(
-                        theme,
-                        "body",
-                        "regular",
-                        theme.colors.text.secondary
-                      ),
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        getTextStyle(
+                          theme,
+                          "body",
+                          "regular",
+                          theme.colors.text.secondary
+                        ),
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {isRTL ? "لا توجد تنبيهات نشطة" : "No active alerts"}
                   </Text>
@@ -897,15 +978,17 @@ export default function DashboardScreen() {
                       >
                         <View style={{ flex: 1 }}>
                           <Text
-                            style={[
-                              getTextStyle(
-                                theme,
-                                "subheading",
-                                "bold",
-                                theme.colors.text.primary
-                              ),
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>}
+                            style={
+                              [
+                                getTextStyle(
+                                  theme,
+                                  "subheading",
+                                  "bold",
+                                  theme.colors.text.primary
+                                ),
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
                           >
                             {alert.type === "fall"
                               ? isRTL
@@ -924,16 +1007,18 @@ export default function DashboardScreen() {
                                     : "Vitals"}
                           </Text>
                           <Text
-                            style={[
-                              getTextStyle(
-                                theme,
-                                "caption",
-                                "regular",
-                                theme.colors.text.secondary
-                              ),
-                              isRTL && styles.rtlText,
-                              { marginTop: 4 },
-                            ] as StyleProp<TextStyle>}
+                            style={
+                              [
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                isRTL && styles.rtlText,
+                                { marginTop: 4 },
+                              ] as StyleProp<TextStyle>
+                            }
                           >
                             {alert.timestamp.toLocaleString()}
                           </Text>
@@ -943,27 +1028,27 @@ export default function DashboardScreen() {
                           onPress={async () => {
                             try {
                               setLoadingAlerts(true);
-                              
+
                               await alertService.resolveAlert(
                                 alert.id,
                                 user.id
                               );
-                              
+
                               // Wait for Firestore to update
-                              await new Promise(resolve => setTimeout(resolve, 1500));
-                              
+                              await new Promise((resolve) =>
+                                setTimeout(resolve, 1500)
+                              );
+
                               // Refresh alerts list
                               const updatedAlerts =
-                                await alertService.getActiveAlerts(
-                                  user.id
-                                );
-                              
+                                await alertService.getActiveAlerts(user.id);
+
                               setUserAlerts(updatedAlerts);
                               setAlertsCount(updatedAlerts.length);
-                              
+
                               // Refresh dashboard data
                               await loadDashboardData();
-                              
+
                               if (updatedAlerts.length === 0) {
                                 setShowAlertsModal(false);
                                 Alert.alert(
@@ -975,9 +1060,7 @@ export default function DashboardScreen() {
                               } else {
                                 Alert.alert(
                                   isRTL ? "نجح" : "Success",
-                                  isRTL
-                                    ? "تم حل التنبيه"
-                                    : "Alert resolved"
+                                  isRTL ? "تم حل التنبيه" : "Alert resolved"
                                 );
                               }
                             } catch (error: any) {
@@ -993,8 +1076,8 @@ export default function DashboardScreen() {
                             }
                           }}
                           style={{
-                            backgroundColor: loadingAlerts 
-                              ? theme.colors.neutral[400] 
+                            backgroundColor: loadingAlerts
+                              ? theme.colors.neutral[400]
                               : theme.colors.accent.error,
                             paddingHorizontal: theme.spacing.md,
                             paddingVertical: theme.spacing.sm,
@@ -1003,28 +1086,32 @@ export default function DashboardScreen() {
                           }}
                         >
                           <Text
-                            style={getTextStyle(
-                              theme,
-                              "caption",
-                              "bold",
-                              theme.colors.neutral.white
-                            ) as StyleProp<TextStyle>}
+                            style={
+                              getTextStyle(
+                                theme,
+                                "caption",
+                                "bold",
+                                theme.colors.neutral.white
+                              ) as StyleProp<TextStyle>
+                            }
                           >
                             {isRTL ? "حل" : "Resolve"}
                           </Text>
                         </TouchableOpacity>
                       </View>
                       <Text
-                        style={[
-                          getTextStyle(
-                            theme,
-                            "body",
-                            "regular",
-                            theme.colors.text.primary
-                          ),
-                          isRTL && styles.rtlText,
-                          { marginTop: theme.spacing.sm },
-                        ] as StyleProp<TextStyle>}
+                        style={
+                          [
+                            getTextStyle(
+                              theme,
+                              "body",
+                              "regular",
+                              theme.colors.text.primary
+                            ),
+                            isRTL && styles.rtlText,
+                            { marginTop: theme.spacing.sm },
+                          ] as StyleProp<TextStyle>
+                        }
                       >
                         {alert.message}
                       </Text>
@@ -1039,14 +1126,28 @@ export default function DashboardScreen() {
         {/* Today's Medications */}
         <View style={styles.section as ViewStyle}>
           <View style={styles.sectionHeader as ViewStyle}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.sectionTitle,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "أدوية اليوم" : "Today's Medications"}
             </Text>
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/medications")}
               style={styles.viewAllButton as ViewStyle}
             >
-              <Text style={[styles.viewAllText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.viewAllText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL ? "عرض الكل" : "View All"}
               </Text>
               <ChevronRight color={theme.colors.primary.main} size={16} />
@@ -1065,12 +1166,22 @@ export default function DashboardScreen() {
                 </View>
                 <View style={styles.medicationInfo as ViewStyle}>
                   <Text
-                    style={[styles.medicationName, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.medicationName,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {medication.name}
                   </Text>
                   <Text
-                    style={[styles.medicationDosage, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                    style={
+                      [
+                        styles.medicationDosage,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
                   >
                     {medication.dosage} • {medication.frequency}
                   </Text>
@@ -1078,7 +1189,12 @@ export default function DashboardScreen() {
                   {(selectedFilter.type === "family" ||
                     selectedFilter.type === "member") && (
                     <Text
-                      style={[styles.memberIndicator, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                      style={
+                        [
+                          styles.memberIndicator,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
                     >
                       {isRTL
                         ? `للـ ${getMemberName(medication.userId)}`
@@ -1090,10 +1206,12 @@ export default function DashboardScreen() {
                   {Array.isArray(medication.reminders) &&
                   medication.reminders.some((r) => r.taken) ? (
                     <View
-                      style={[
-                        styles.statusCheckContainer,
-                        { backgroundColor: theme.colors.accent.success },
-                      ] as StyleProp<ViewStyle>}
+                      style={
+                        [
+                          styles.statusCheckContainer,
+                          { backgroundColor: theme.colors.accent.success },
+                        ] as StyleProp<ViewStyle>
+                      }
                     >
                       <Check
                         color={theme.colors.neutral.white}
@@ -1103,14 +1221,16 @@ export default function DashboardScreen() {
                     </View>
                   ) : (
                     <View
-                      style={[
-                        styles.statusCheckContainer,
-                        {
-                          backgroundColor: theme.colors.background.secondary,
-                          borderColor: theme.colors.border.medium,
-                          borderWidth: 2,
-                        },
-                      ] as StyleProp<ViewStyle>}
+                      style={
+                        [
+                          styles.statusCheckContainer,
+                          {
+                            backgroundColor: theme.colors.background.secondary,
+                            borderColor: theme.colors.border.medium,
+                            borderWidth: 2,
+                          },
+                        ] as StyleProp<ViewStyle>
+                      }
                     >
                       <Check
                         color={theme.colors.text.tertiary}
@@ -1127,7 +1247,14 @@ export default function DashboardScreen() {
               onPress={() => router.push("/(tabs)/medications")}
               style={styles.emptyContainer as ViewStyle}
             >
-              <Text style={[styles.emptyText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.emptyText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL
                   ? "لا توجد أدوية لليوم - اضغط لإضافة دواء"
                   : "No medications for today - tap to add"}
@@ -1139,14 +1266,28 @@ export default function DashboardScreen() {
         {/* Recent Symptoms */}
         <View style={styles.section as ViewStyle}>
           <View style={styles.sectionHeader as ViewStyle}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.sectionTitle,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}
             </Text>
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/symptoms")}
               style={styles.viewAllButton as ViewStyle}
             >
-              <Text style={[styles.viewAllText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.viewAllText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL ? "عرض الكل" : "View All"}
               </Text>
               <ChevronRight color={theme.colors.primary.main} size={16} />
@@ -1161,17 +1302,36 @@ export default function DashboardScreen() {
                 style={styles.symptomItem as ViewStyle}
               >
                 <View style={styles.symptomInfo as ViewStyle}>
-                  <Text style={[styles.symptomType, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                  <Text
+                    style={
+                      [
+                        styles.symptomType,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
                     {t(symptom.type)}
                   </Text>
-                  <Text style={[styles.symptomTime, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+                  <Text
+                    style={
+                      [
+                        styles.symptomTime,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
                     {formatTime(symptom.timestamp)}
                   </Text>
                   {/* Show member name for family/member views */}
                   {(selectedFilter.type === "family" ||
                     selectedFilter.type === "member") && (
                     <Text
-                      style={[styles.memberIndicator, isRTL && styles.rtlText] as StyleProp<TextStyle>}
+                      style={
+                        [
+                          styles.memberIndicator,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
                     >
                       {isRTL
                         ? `للـ ${getMemberName(symptom.userId)}`
@@ -1183,15 +1343,17 @@ export default function DashboardScreen() {
                   {[...Array(5)].map((_, i) => (
                     <View
                       key={i}
-                      style={[
-                        styles.severityDot,
-                        {
-                          backgroundColor:
-                            i < symptom.severity
-                              ? getSeverityColor(symptom.severity)
-                              : theme.colors.neutral[200],
-                        },
-                      ] as StyleProp<ViewStyle>}
+                      style={
+                        [
+                          styles.severityDot,
+                          {
+                            backgroundColor:
+                              i < symptom.severity
+                                ? getSeverityColor(symptom.severity)
+                                : theme.colors.neutral[200],
+                          },
+                        ] as StyleProp<ViewStyle>
+                      }
                     />
                   ))}
                 </View>
@@ -1202,7 +1364,14 @@ export default function DashboardScreen() {
               onPress={() => router.push("/(tabs)/symptoms")}
               style={styles.emptyContainer as ViewStyle}
             >
-              <Text style={[styles.emptyText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.emptyText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL
                   ? "لا توجد أعراض مسجلة - اضغط لإضافة عرض"
                   : "No symptoms recorded - tap to add"}
@@ -1215,10 +1384,24 @@ export default function DashboardScreen() {
         <View style={styles.healthScoreCard as ViewStyle}>
           <Heart color={theme.colors.accent.error} size={32} />
           <View style={styles.healthScoreInfo as ViewStyle}>
-            <Text style={[styles.healthScoreTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.healthScoreTitle,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "نقاط الصحة" : "Health Score"}
             </Text>
-            <Text style={[styles.healthScoreValue, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.healthScoreValue,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {Math.max(
                 60,
                 100 -
@@ -1226,7 +1409,14 @@ export default function DashboardScreen() {
                   (100 - stats.medicationCompliance)
               )}
             </Text>
-            <Text style={[styles.healthScoreDesc, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.healthScoreDesc,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "نقاط من 100" : "out of 100"}
             </Text>
           </View>
@@ -1235,7 +1425,14 @@ export default function DashboardScreen() {
         {/* Quick Actions Hub */}
         <View style={styles.section as ViewStyle}>
           <View style={styles.sectionHeader as ViewStyle}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+            <Text
+              style={
+                [
+                  styles.sectionTitle,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
               {isRTL ? "إجراءات سريعة" : "Quick Actions"}
             </Text>
           </View>
@@ -1246,7 +1443,14 @@ export default function DashboardScreen() {
               style={styles.quickActionCard as ViewStyle}
             >
               <Activity color={theme.colors.primary.main} size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.quickActionText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL ? "تتبع الصحة" : "Track Health"}
               </Text>
             </TouchableOpacity>
@@ -1256,7 +1460,14 @@ export default function DashboardScreen() {
               style={styles.quickActionCard as ViewStyle}
             >
               <Pill color={theme.colors.accent.success} size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.quickActionText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL ? "إدارة الأدوية" : "Medications"}
               </Text>
             </TouchableOpacity>
@@ -1266,7 +1477,14 @@ export default function DashboardScreen() {
               style={styles.quickActionCard as ViewStyle}
             >
               <Heart color={theme.colors.secondary.main} size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.quickActionText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
               </Text>
             </TouchableOpacity>
@@ -1276,7 +1494,14 @@ export default function DashboardScreen() {
               style={styles.quickActionCard as ViewStyle}
             >
               <Users color={theme.colors.primary.light} size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
+              <Text
+                style={
+                  [
+                    styles.quickActionText,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
                 {isRTL ? "إدارة العائلة" : "Manage Family"}
               </Text>
             </TouchableOpacity>
@@ -1285,8 +1510,17 @@ export default function DashboardScreen() {
 
         {/* Maak One-liner */}
         <View style={styles.onelineCard as ViewStyle}>
-          <Text style={[styles.onelineText, isRTL && styles.rtlText] as StyleProp<TextStyle>}>
-            {isRTL ? '"لأن الصحة تبدأ من المنزل"' : '"Because health starts at home."'}
+          <Text
+            style={
+              [
+                styles.onelineText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>
+            }
+          >
+            {isRTL
+              ? '"لأن الصحة تبدأ من المنزل"'
+              : '"Because health starts at home."'}
           </Text>
         </View>
       </ScrollView>

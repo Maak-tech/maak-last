@@ -10,7 +10,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { User, AvatarType } from "@/types";
+import type { AvatarType, User } from "@/types";
 
 export const userService = {
   // Get user by ID
@@ -45,11 +45,13 @@ export const userService = {
         throw new Error(
           "Permission denied. Please check your Firestore security rules."
         );
-      } else if (error?.code === "unavailable") {
+      }
+      if (error?.code === "unavailable") {
         throw new Error(
           "Firestore is unavailable. Please check your internet connection."
         );
-      } else if (error?.message) {
+      }
+      if (error?.message) {
         throw new Error(`Failed to create user: ${error.message}`);
       }
       throw error;
@@ -68,7 +70,10 @@ export const userService = {
       const existingUser = await this.getUser(userId);
       if (existingUser) {
         // Migrate old name field if needed
-        if (!existingUser.firstName && !existingUser.lastName && (existingUser as any).name) {
+        if (
+          !(existingUser.firstName || existingUser.lastName) &&
+          (existingUser as any).name
+        ) {
           const nameParts = ((existingUser as any).name as string).split(" ");
           const migratedFirstName = nameParts[0] || "User";
           const migratedLastName = nameParts.slice(1).join(" ") || "";
@@ -76,7 +81,11 @@ export const userService = {
             firstName: migratedFirstName,
             lastName: migratedLastName,
           });
-          return { ...existingUser, firstName: migratedFirstName, lastName: migratedLastName };
+          return {
+            ...existingUser,
+            firstName: migratedFirstName,
+            lastName: migratedLastName,
+          };
         }
         return existingUser;
       }
@@ -209,7 +218,6 @@ export const userService = {
   // Leave previous family and handle family status
   async leavePreviousFamily(userId: string, familyId: string): Promise<void> {
     try {
-
       const familyDoc = await getDoc(doc(db, "families", familyId));
       if (familyDoc.exists()) {
         const familyData = familyDoc.data();

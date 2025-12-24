@@ -1,4 +1,4 @@
-import { useRouter, useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { ArrowLeft, Calendar, Shield } from "lucide-react-native";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

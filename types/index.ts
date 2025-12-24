@@ -1,4 +1,10 @@
-export type AvatarType = "man" | "woman" | "boy" | "girl" | "grandma" | "grandpa";
+export type AvatarType =
+  | "man"
+  | "woman"
+  | "boy"
+  | "girl"
+  | "grandma"
+  | "grandpa";
 
 export interface User {
   id: string;

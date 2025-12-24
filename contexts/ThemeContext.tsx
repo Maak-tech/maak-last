@@ -82,9 +82,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     try {
       setThemeModeState(mode);
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
-      } catch (error) {
-        // Silently handle error
-      }
+    } catch (error) {
+      // Silently handle error
+    }
   };
 
   // Toggle between light and dark (ignoring system)

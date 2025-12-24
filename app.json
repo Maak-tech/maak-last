@@ -32,10 +32,7 @@
         "NSHealthUpdateUsageDescription": "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
         "NSUserTrackingUsageDescription": "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": [
-          "location",
-          "processing"
-        ]
+        "UIBackgroundModes": ["location", "processing"]
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,

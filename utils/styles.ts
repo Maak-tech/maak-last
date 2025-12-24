@@ -52,7 +52,8 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: subheadingSize,
         lineHeight: subheadingSize * theme.typography.lineHeight.normal,
-        fontWeight: theme.typography.fontWeight.semibold as TextStyle["fontWeight"],
+        fontWeight: theme.typography.fontWeight
+          .semibold as TextStyle["fontWeight"],
       };
     }
     case "body": {
@@ -77,7 +78,8 @@ export const getTextStyle = (
         ...baseStyles,
         fontSize: buttonSize,
         lineHeight: buttonSize * theme.typography.lineHeight.tight,
-        fontWeight: theme.typography.fontWeight.semibold as TextStyle["fontWeight"],
+        fontWeight: theme.typography.fontWeight
+          .semibold as TextStyle["fontWeight"],
       };
     }
     default:

@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import type { FirebaseApp } from "firebase/app";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { Platform } from "react-native";
 import { fcmService } from "./fcmService";
 import { userService } from "./userService";
@@ -160,7 +160,6 @@ export const pushNotificationService = {
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable && familyId) {
-
         // Check if user is authenticated
         const { auth } = await import("@/lib/firebase");
         const currentUser = auth.currentUser;
@@ -465,7 +464,6 @@ export const pushNotificationService = {
           deviceName: deviceInfo?.deviceName || `${Platform.OS} Device`,
         },
       });
-
     } catch (error) {
       // Silently handle token save error
       // Fallback to direct save

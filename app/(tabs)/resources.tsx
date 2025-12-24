@@ -1,11 +1,9 @@
+import { useNavigation, useRouter } from "expo-router";
 import {
   Activity,
   ArrowLeft,
   Book,
-  Bookmark,
   BookOpen,
-  Clock,
-  ExternalLink,
   FileText,
   Heart,
   Pill,
@@ -13,12 +11,10 @@ import {
   Star,
   Users,
 } from "lucide-react-native";
-import { useState, useEffect } from "react";
-import { useRouter, useNavigation } from "expo-router";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
-  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -166,9 +162,7 @@ export default function ResourcesScreen() {
   const handleResourcePress = (resource: Resource) => {
     Alert.alert(
       isRTL ? "قريباً" : "Coming Soon",
-      isRTL
-        ? "هذا المحتوى سيتوفر قريباً"
-        : "This content will be available soon"
+      isRTL ? "هذا المحتوى سيتوفر قريباً" : "This content will be available soon"
     );
   };
 
@@ -213,9 +207,7 @@ export default function ResourcesScreen() {
             </Text>
           </View>
           <Text style={[styles.comingSoonTitle, isRTL && styles.rtlText]}>
-            {isRTL
-              ? "المصادر التعليمية قريباً"
-              : "Health Resources Coming Soon"}
+            {isRTL ? "المصادر التعليمية قريباً" : "Health Resources Coming Soon"}
           </Text>
           <Text style={[styles.comingSoonDescription, isRTL && styles.rtlText]}>
             {isRTL

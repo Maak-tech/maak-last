@@ -47,7 +47,7 @@ class OpenAIService {
     try {
       // Check AsyncStorage first
       const storedKey = await AsyncStorage.getItem("openai_api_key");
-      
+
       // If we have a valid stored key, use it
       if (storedKey && storedKey.trim() !== "") {
         this.apiKey = storedKey;
@@ -60,7 +60,7 @@ class OpenAIService {
           await AsyncStorage.setItem("openai_api_key", envKey);
         }
       }
-      
+
       const savedModel = await AsyncStorage.getItem("openai_model");
       if (savedModel) {
         this.model = savedModel;
@@ -142,7 +142,6 @@ class OpenAIService {
     }
 
     try {
-
       const response = await fetch(`${this.baseURL}/chat/completions`, {
         method: "POST",
         headers: {
@@ -160,7 +159,6 @@ class OpenAIService {
           stream: false,
         }),
       });
-
 
       if (!response.ok) {
         let errorMessage = "";

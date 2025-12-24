@@ -107,4 +107,3 @@ export const HEALTH_STORAGE_KEYS = {
   FITBIT_TOKENS: "@health/fitbit_tokens_secure", // Stored in Keychain/Keystore
   LAST_SYNC_TIMESTAMPS: "@health/last_sync_timestamps",
 } as const;
-

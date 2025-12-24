@@ -2,8 +2,8 @@ import { User } from "lucide-react-native";
 import type React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
-import { getTextStyle } from "@/utils/styles";
 import type { AvatarType } from "@/types";
+import { getTextStyle } from "@/utils/styles";
 
 interface AvatarProps {
   source?: string | { uri: string };

@@ -346,7 +346,7 @@ export default function TrackScreen() {
                 isRTL ? "تم حذف العرض بنجاح" : "Symptom deleted successfully"
               );
             } catch (error) {
-                      // Silently handle symptom delete error
+              // Silently handle symptom delete error
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL ? "حدث خطأ في حذف العرض" : "Error deleting symptom"
@@ -720,7 +720,9 @@ export default function TrackScreen() {
                             ? isRTL
                               ? "أنت"
                               : "You"
-                            : member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
+                            : member.firstName && member.lastName
+                              ? `${member.firstName} ${member.lastName}`
+                              : member.firstName || "User"}
                         </Text>
                         {member.role === "admin" && (
                           <Text

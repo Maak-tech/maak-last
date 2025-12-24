@@ -1,5 +1,5 @@
-import { type Functions, httpsCallable } from "firebase/functions";
 import type { FirebaseApp } from "firebase/app";
+import { type Functions, httpsCallable } from "firebase/functions";
 import { Platform } from "react-native";
 
 export interface FCMTokenResult {
@@ -23,15 +23,15 @@ async function getAuthenticatedFunctions(): Promise<Functions> {
   // Wait for auth to be ready
   const currentUser = auth.currentUser;
   if (currentUser) {
-      // Force token refresh to ensure we have a valid token
-      try {
-        await currentUser.getIdToken(true);
-        // Wait a bit to ensure the token is propagated
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      } catch (e) {
-        // Silently handle token refresh error
-      }
+    // Force token refresh to ensure we have a valid token
+    try {
+      await currentUser.getIdToken(true);
+      // Wait a bit to ensure the token is propagated
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } catch (e) {
+      // Silently handle token refresh error
     }
+  }
 
   // Return the functions instance (it will use the current auth state)
   return functionsInstance;
@@ -95,7 +95,7 @@ export const fcmService = {
   async saveFCMToken(token: string, userId?: string): Promise<boolean> {
     // Declare currentUser outside try-catch to be accessible in catch block
     let currentUser = null;
-    
+
     try {
       // Check if user is authenticated
       const { auth } = await import("@/lib/firebase");

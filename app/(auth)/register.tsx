@@ -34,7 +34,9 @@ export default function RegisterScreen() {
     // Validate required fields - lastName is optional
     if (!(firstName && email && password && confirmPassword)) {
       setErrors({
-        general: isRTL ? "يرجى ملء جميع الحقول المطلوبة" : "Please fill in all required fields",
+        general: isRTL
+          ? "يرجى ملء جميع الحقول المطلوبة"
+          : "Please fill in all required fields",
       });
       return;
     }
@@ -68,17 +70,17 @@ export default function RegisterScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScrollView 
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
+      <ScrollView
+        bounces={false}
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        bounces={false}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardContainer}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          style={styles.keyboardContainer}
         >
           <View style={styles.header}>
             <TouchableOpacity
@@ -139,9 +141,7 @@ export default function RegisterScreen() {
               </Text>
               <TextInput
                 onChangeText={setLastName}
-                placeholder={
-                  isRTL ? "ادخل اسم عائلتك" : "Enter your last name"
-                }
+                placeholder={isRTL ? "ادخل اسم عائلتك" : "Enter your last name"}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={lastName ?? ""}
@@ -210,7 +210,6 @@ export default function RegisterScreen() {
                 </Text>
               )}
             </View>
-
 
             <TouchableOpacity
               disabled={loading}

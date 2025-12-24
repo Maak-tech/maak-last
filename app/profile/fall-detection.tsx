@@ -1,18 +1,18 @@
-import { useRouter, useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
   ArrowLeft,
   Bell,
+  Bug,
   CheckCircle,
+  Settings,
   Shield,
   TestTube,
   Users,
   XCircle,
-  Settings,
-  Bug,
 } from "lucide-react-native";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -27,8 +27,8 @@ import {
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
-import { pushNotificationService } from "@/lib/services/pushNotificationService";
 import { motionPermissionService } from "@/lib/services/motionPermissionService";
+import { pushNotificationService } from "@/lib/services/pushNotificationService";
 
 export default function FallDetectionScreen() {
   const { t, i18n } = useTranslation();
@@ -53,7 +53,9 @@ export default function FallDetectionScreen() {
   } = useFallDetectionContext();
   const [testingNotifications, setTestingNotifications] = useState(false);
   const [testingFallDetection, setTestingFallDetection] = useState(false);
-  const [motionPermissionGranted, setMotionPermissionGranted] = useState<boolean | null>(null);
+  const [motionPermissionGranted, setMotionPermissionGranted] = useState<
+    boolean | null
+  >(null);
   const [checkingPermission, setCheckingPermission] = useState(true);
 
   const isRTL = i18n.language === "ar";
@@ -67,27 +69,41 @@ export default function FallDetectionScreen() {
     try {
       console.log("[FallDetectionScreen] 🔍 Checking motion permissions...");
       const hasPermission = await motionPermissionService.hasMotionPermission();
-      console.log("[FallDetectionScreen] 📋 Stored permission status:", hasPermission);
-      
+      console.log(
+        "[FallDetectionScreen] 📋 Stored permission status:",
+        hasPermission
+      );
+
       const status = await motionPermissionService.checkMotionAvailability();
       console.log("[FallDetectionScreen] 📋 Motion availability status:", {
         available: status.available,
         granted: status.granted,
         reason: status.reason,
       });
-      
+
       const isGranted = hasPermission && status.available;
-      console.log("[FallDetectionScreen] ✅ Motion permission granted:", isGranted);
+      console.log(
+        "[FallDetectionScreen] ✅ Motion permission granted:",
+        isGranted
+      );
       setMotionPermissionGranted(isGranted);
-      
+
       if (!isGranted) {
-        console.warn("[FallDetectionScreen] ⚠️ Motion permissions not granted. Fall detection may not work.");
+        console.warn(
+          "[FallDetectionScreen] ⚠️ Motion permissions not granted. Fall detection may not work."
+        );
         if (!status.available) {
-          console.error("[FallDetectionScreen] ❌ Motion sensors not available:", status.reason);
+          console.error(
+            "[FallDetectionScreen] ❌ Motion sensors not available:",
+            status.reason
+          );
         }
       }
     } catch (error) {
-      console.error("[FallDetectionScreen] ❌ Error checking motion permissions:", error);
+      console.error(
+        "[FallDetectionScreen] ❌ Error checking motion permissions:",
+        error
+      );
       setMotionPermissionGranted(false);
     } finally {
       setCheckingPermission(false);
@@ -103,7 +119,10 @@ export default function FallDetectionScreen() {
 
     try {
       setTestingNotifications(true);
-      const fullName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User";
+      const fullName =
+        user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : user.firstName || "User";
       await pushNotificationService.sendTestNotification(user.id, fullName);
 
       Alert.alert(
@@ -227,7 +246,10 @@ export default function FallDetectionScreen() {
                     {isRTL ? "كشف السقوط" : "Fall Detection"}
                   </Text>
                   <Text
-                    style={[styles.masterToggleSubtitle, isRTL && styles.rtlText]}
+                    style={[
+                      styles.masterToggleSubtitle,
+                      isRTL && styles.rtlText,
+                    ]}
                   >
                     {isEnabled
                       ? isRTL
@@ -268,10 +290,7 @@ export default function FallDetectionScreen() {
               </Text>
               {!motionPermissionGranted && (
                 <Text
-                  style={[
-                    styles.permissionWarning,
-                    isRTL && styles.rtlText,
-                  ]}
+                  style={[styles.permissionWarning, isRTL && styles.rtlText]}
                 >
                   {isRTL
                     ? "⚠️ أذونات الحركة مطلوبة"

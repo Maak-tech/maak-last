@@ -3,41 +3,38 @@
  * Handles syncing health data from all providers to backend
  */
 
-import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import type {
-  HealthSyncPayload,
-  ProviderConnection,
-  SyncResult,
-  DeviceInfo,
-} from "./healthTypes";
-import type { HealthProvider } from "./healthMetricsCatalog";
-import { HEALTH_STORAGE_KEYS } from "./healthTypes";
-
+import { Platform } from "react-native";
+import { fitbitService } from "../services/fitbitService";
 // Import services
 // Lazy import to prevent early native module loading
 // import { appleHealthService } from "../services/appleHealthService";
 import { healthConnectService } from "../services/healthConnectService";
-import { fitbitService } from "../services/fitbitService";
+import type { HealthProvider } from "./healthMetricsCatalog";
+import type {
+  DeviceInfo,
+  HealthSyncPayload,
+  ProviderConnection,
+  SyncResult,
+} from "./healthTypes";
+import { HEALTH_STORAGE_KEYS } from "./healthTypes";
 
 const BACKEND_HEALTH_SYNC_URL = "/health/sync"; // Unified endpoint
 
 /**
  * Get device information
  */
-const getDeviceInfo = (): DeviceInfo => {
-  return {
-    platform: Platform.OS as "ios" | "android",
-    model: Platform.select({
-      ios: "iOS Device",
-      android: "Android Device",
-      default: "Unknown",
-    }),
-    osVersion: Platform.Version?.toString(),
-    appVersion: Constants.expoConfig?.version || "1.0.0",
-  };
-};
+const getDeviceInfo = (): DeviceInfo => ({
+  platform: Platform.OS as "ios" | "android",
+  model: Platform.select({
+    ios: "iOS Device",
+    android: "Android Device",
+    default: "Unknown",
+  }),
+  osVersion: Platform.Version?.toString(),
+  appVersion: Constants.expoConfig?.version || "1.0.0",
+});
 
 /**
  * Get provider connection status
@@ -131,12 +128,12 @@ export const disconnectProvider = async (
  */
 export const syncHealthData = async (
   provider: HealthProvider,
-  retryOnce: boolean = true
+  retryOnce = true
 ): Promise<SyncResult> => {
   try {
     // Get provider connection
     const connection = await getProviderConnection(provider);
-    if (!connection || !connection.connected) {
+    if (!(connection && connection.connected)) {
       throw new Error(`${provider} not connected`);
     }
 
@@ -152,26 +149,37 @@ export const syncHealthData = async (
       // First sync: get last 30 days
       startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }
-    
-    console.log(`[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+    console.log(
+      `[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+    );
 
     // Fetch metrics from provider
     console.log(`[Health Sync] Fetching metrics for provider: ${provider}`);
-    console.log(`[Health Sync] Selected metrics: ${JSON.stringify(connection.selectedMetrics)}`);
-    console.log(`[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-    
+    console.log(
+      `[Health Sync] Selected metrics: ${JSON.stringify(connection.selectedMetrics)}`
+    );
+    console.log(
+      `[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+    );
+
     let metrics;
     switch (provider) {
-      case "apple_health":
+      case "apple_health": {
         // Lazy import to prevent early native module loading
-        const { appleHealthService } = await import("../services/appleHealthService");
+        const { appleHealthService } = await import(
+          "../services/appleHealthService"
+        );
         metrics = await appleHealthService.fetchMetrics(
           connection.selectedMetrics,
           startDate,
           endDate
         );
-        console.log(`[Health Sync] Fetched ${metrics.length} metrics from Apple Health`);
+        console.log(
+          `[Health Sync] Fetched ${metrics.length} metrics from Apple Health`
+        );
         break;
+      }
       case "health_connect":
         metrics = await healthConnectService.fetchMetrics(
           connection.selectedMetrics,
@@ -224,10 +232,7 @@ export const syncHealthData = async (
       provider,
       syncedAt: connection.lastSyncAt,
       metricsCount: metrics.length,
-      samplesCount: metrics.reduce(
-        (sum, m) => sum + m.samples.length,
-        0
-      ),
+      samplesCount: metrics.reduce((sum, m) => sum + m.samples.length, 0),
     };
 
     return result;
@@ -282,4 +287,3 @@ export const getAllConnectedProviders = async (): Promise<
     (c): c is ProviderConnection => c !== null && c.connected
   );
 };
-

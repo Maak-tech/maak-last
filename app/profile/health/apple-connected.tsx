@@ -3,39 +3,42 @@
  * Shows connection status, granted metrics, and sync controls
  */
 
-import { useRouter, useNavigation } from "expo-router";
-import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { useNavigation, useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  RefreshCw,
+  Settings,
+  X,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
   ActivityIndicator,
   Alert,
   Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  Check,
-  ArrowLeft,
-  RefreshCw,
-  Settings,
-  AlertCircle,
-  X,
-  ChevronRight,
-} from "lucide-react-native";
-import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  getProviderConnection,
+  getAvailableMetricsForProvider,
+  getMetricByKey,
+} from "@/lib/health/healthMetricsCatalog";
+import {
   disconnectProvider,
-  syncHealthData,
   getLastSyncTimestamp,
+  getProviderConnection,
+  syncHealthData,
 } from "@/lib/health/healthSync";
 import type { ProviderConnection, SyncResult } from "@/lib/health/healthTypes";
-import { getMetricByKey, getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
-import { format } from "date-fns";
 
 export default function AppleHealthConnectedScreen() {
   const router = useRouter();
@@ -129,25 +132,40 @@ export default function AppleHealthConnectedScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: theme.colors.background.primary },
+        ]}
+      >
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
         </View>
       </SafeAreaView>
     );
   }
 
-  if (!connection || !connection.connected) {
+  if (!(connection && connection.connected)) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: theme.colors.background.primary },
+        ]}
+      >
         <View style={styles.errorContainer}>
-          <AlertCircle size={48} color={theme.colors.accent.error} />
-          <Text style={[styles.errorText, { color: theme.colors.text.primary }]}>
+          <AlertCircle color={theme.colors.accent.error} size={48} />
+          <Text
+            style={[styles.errorText, { color: theme.colors.text.primary }]}
+          >
             Not Connected
           </Text>
           <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: theme.colors.primary.main }]}
             onPress={() => router.replace("/profile/health/apple-intro" as any)}
+            style={[
+              styles.primaryButton,
+              { backgroundColor: theme.colors.primary.main },
+            ]}
           >
             <Text style={styles.primaryButtonText}>Connect Apple Health</Text>
           </TouchableOpacity>
@@ -157,11 +175,12 @@ export default function AppleHealthConnectedScreen() {
   }
 
   // Expand "all" to actual metric keys if present (for backward compatibility)
-  const rawGrantedMetrics = connection.grantedMetrics || connection.selectedMetrics || [];
+  const rawGrantedMetrics =
+    connection.grantedMetrics || connection.selectedMetrics || [];
   const grantedMetrics = rawGrantedMetrics.includes("all")
     ? getAvailableMetricsForProvider("apple_health").map((m) => m.key)
     : rawGrantedMetrics;
-  
+
   // Expand "all" in denied metrics as well
   const rawDeniedMetrics = connection.deniedMetrics || [];
   const deniedMetrics = rawDeniedMetrics.includes("all")
@@ -169,11 +188,16 @@ export default function AppleHealthConnectedScreen() {
     : rawDeniedMetrics;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.push('/(tabs)/profile')}
+          onPress={() => router.push("/(tabs)/profile")}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft
@@ -190,7 +214,7 @@ export default function AppleHealthConnectedScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
         {/* Status Section */}
         <View style={styles.statusSection}>
           <View
@@ -199,16 +223,27 @@ export default function AppleHealthConnectedScreen() {
               { backgroundColor: theme.colors.accent.success + "20" },
             ]}
           >
-            <Check size={32} color={theme.colors.accent.success} />
+            <Check color={theme.colors.accent.success} size={32} />
           </View>
-          <Text style={[styles.title, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.title,
+              { color: theme.colors.text.primary },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "Apple Health متصل" : "Apple Health Connected"}
           </Text>
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}>
-            {isRTL 
+          <Text
+            style={[
+              styles.subtitle,
+              { color: theme.colors.text.secondary },
+              isRTL && styles.rtlText,
+            ]}
+          >
+            {isRTL
               ? `متصل في ${format(new Date(connection.connectedAt!), "d MMM yyyy")}`
-              : `Connected on ${format(new Date(connection.connectedAt!), "MMM d, yyyy")}`
-            }
+              : `Connected on ${format(new Date(connection.connectedAt!), "MMM d, yyyy")}`}
           </Text>
         </View>
 
@@ -225,29 +260,39 @@ export default function AppleHealthConnectedScreen() {
           >
             <View style={styles.syncHeader}>
               <View>
-                <Text style={[styles.syncTitle, { color: theme.colors.text.primary }]}>
+                <Text
+                  style={[
+                    styles.syncTitle,
+                    { color: theme.colors.text.primary },
+                  ]}
+                >
                   Last Sync
                 </Text>
-                <Text style={[styles.syncTime, { color: theme.colors.text.secondary }]}>
+                <Text
+                  style={[
+                    styles.syncTime,
+                    { color: theme.colors.text.secondary },
+                  ]}
+                >
                   {lastSync
                     ? format(new Date(lastSync), "MMM d, yyyy 'at' h:mm a")
                     : "Never"}
                 </Text>
               </View>
               <TouchableOpacity
+                disabled={syncing}
+                onPress={handleSyncNow}
                 style={[
                   styles.syncButton,
                   { backgroundColor: theme.colors.primary.main },
                   syncing && styles.syncButtonDisabled,
                 ]}
-                onPress={handleSyncNow}
-                disabled={syncing}
               >
                 {syncing ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
                   <>
-                    <RefreshCw size={18} color="#FFFFFF" />
+                    <RefreshCw color="#FFFFFF" size={18} />
                     <Text style={styles.syncButtonText}>Sync Now</Text>
                   </>
                 )}
@@ -260,7 +305,9 @@ export default function AppleHealthConnectedScreen() {
                   style={[
                     styles.syncResultText,
                     {
-                      color: syncResult.success ? theme.colors.accent.success : theme.colors.accent.error,
+                      color: syncResult.success
+                        ? theme.colors.accent.success
+                        : theme.colors.accent.error,
                     },
                   ]}
                 >
@@ -275,7 +322,9 @@ export default function AppleHealthConnectedScreen() {
 
         {/* Granted Metrics */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          <Text
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }]}
+          >
             Granted Metrics ({grantedMetrics.length})
           </Text>
           <View
@@ -291,8 +340,13 @@ export default function AppleHealthConnectedScreen() {
               const metric = getMetricByKey(key);
               return (
                 <View key={key} style={styles.metricRow}>
-                  <Check size={16} color={theme.colors.accent.success} />
-                  <Text style={[styles.metricText, { color: theme.colors.text.primary }]}>
+                  <Check color={theme.colors.accent.success} size={16} />
+                  <Text
+                    style={[
+                      styles.metricText,
+                      { color: theme.colors.text.primary },
+                    ]}
+                  >
                     {metric?.displayName || key}
                   </Text>
                 </View>
@@ -304,7 +358,12 @@ export default function AppleHealthConnectedScreen() {
         {/* Denied Metrics (if any) */}
         {deniedMetrics.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: theme.colors.text.primary },
+              ]}
+            >
               Denied Metrics ({deniedMetrics.length})
             </Text>
             <View
@@ -320,17 +379,26 @@ export default function AppleHealthConnectedScreen() {
                 const metric = getMetricByKey(key);
                 return (
                   <View key={key} style={styles.metricRow}>
-                    <X size={16} color={theme.colors.accent.error} />
-                    <Text style={[styles.metricText, { color: theme.colors.text.secondary }]}>
+                    <X color={theme.colors.accent.error} size={16} />
+                    <Text
+                      style={[
+                        styles.metricText,
+                        { color: theme.colors.text.secondary },
+                      ]}
+                    >
                       {metric?.displayName || key}
                     </Text>
                   </View>
                 );
               })}
               <Text
-                style={[styles.deniedHint, { color: theme.colors.text.secondary }]}
+                style={[
+                  styles.deniedHint,
+                  { color: theme.colors.text.secondary },
+                ]}
               >
-                You can enable these in iOS Settings → Privacy & Security → Health
+                You can enable these in iOS Settings → Privacy & Security →
+                Health
               </Text>
             </View>
           </View>
@@ -339,6 +407,7 @@ export default function AppleHealthConnectedScreen() {
         {/* Actions */}
         <View style={styles.section}>
           <TouchableOpacity
+            onPress={handleOpenSettings}
             style={[
               styles.actionButton,
               {
@@ -346,16 +415,21 @@ export default function AppleHealthConnectedScreen() {
                 borderColor: isDark ? "#334155" : "#E2E8F0",
               },
             ]}
-            onPress={handleOpenSettings}
           >
-            <Settings size={20} color={theme.colors.primary.main} />
-            <Text style={[styles.actionButtonText, { color: theme.colors.primary.main }]}>
+            <Settings color={theme.colors.primary.main} size={20} />
+            <Text
+              style={[
+                styles.actionButtonText,
+                { color: theme.colors.primary.main },
+              ]}
+            >
               Manage Permissions in Settings
             </Text>
-            <ChevronRight size={20} color={theme.colors.text.secondary} />
+            <ChevronRight color={theme.colors.text.secondary} size={20} />
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={handleDisconnect}
             style={[
               styles.actionButton,
               styles.dangerButton,
@@ -364,10 +438,14 @@ export default function AppleHealthConnectedScreen() {
                 borderColor: theme.colors.accent.error + "40",
               },
             ]}
-            onPress={handleDisconnect}
           >
-            <X size={20} color={theme.colors.accent.error} />
-            <Text style={[styles.actionButtonText, { color: theme.colors.accent.error }]}>
+            <X color={theme.colors.accent.error} size={20} />
+            <Text
+              style={[
+                styles.actionButtonText,
+                { color: theme.colors.accent.error },
+              ]}
+            >
               Disconnect Apple Health
             </Text>
           </TouchableOpacity>
@@ -561,4 +639,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-

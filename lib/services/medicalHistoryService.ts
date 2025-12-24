@@ -111,7 +111,8 @@ export const medicalHistoryService = {
         typeof medicalHistoryData.familyMemberName === "string" &&
         medicalHistoryData.familyMemberName.trim() !== ""
       ) {
-        cleanedData.familyMemberName = medicalHistoryData.familyMemberName.trim();
+        cleanedData.familyMemberName =
+          medicalHistoryData.familyMemberName.trim();
       }
 
       const docRef = await addDoc(

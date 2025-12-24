@@ -1,25 +1,25 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import {
+  Activity,
   AlertTriangle,
+  Droplet,
   Edit,
+  Gauge,
   Grid3x3,
   Heart,
   List,
+  Minus,
   Plus,
   Settings,
   Share2,
+  Thermometer,
   Trash2,
+  TrendingDown,
+  TrendingUp,
   UserPlus,
   Users,
   X,
-  Activity,
-  Thermometer,
-  Droplet,
-  Gauge,
-  TrendingUp,
-  TrendingDown,
-  Minus,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -48,13 +48,12 @@ import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { alertService } from "@/lib/services/alertService";
 import { familyInviteService } from "@/lib/services/familyInviteService";
+import { healthContextService } from "@/lib/services/healthContextService";
+import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
-import { healthContextService } from "@/lib/services/healthContextService";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import type { User } from "@/types";
-import type { VitalSigns } from "@/lib/services/healthDataService";
 
 const RELATIONS = [
   { key: "father", labelEn: "Father", labelAr: "الأب" },
@@ -177,12 +176,15 @@ export default function FamilyScreen() {
       const metricsPromises = members.map(async (member) => {
         try {
           // Fetch symptoms, medications, alerts, and vitals for each member
-          const [symptoms, medications, alertsCount, healthContext] = await Promise.all([
-            symptomService.getUserSymptoms(member.id),
-            medicationService.getUserMedications(member.id),
-            alertService.getActiveAlertsCount(member.id),
-            healthContextService.getUserHealthContext(member.id).catch(() => null),
-          ]);
+          const [symptoms, medications, alertsCount, healthContext] =
+            await Promise.all([
+              symptomService.getUserSymptoms(member.id),
+              medicationService.getUserMedications(member.id),
+              alertService.getActiveAlertsCount(member.id),
+              healthContextService
+                .getUserHealthContext(member.id)
+                .catch(() => null),
+            ]);
 
           // Calculate health score
           const recentSymptoms = symptoms.filter(
@@ -213,11 +215,11 @@ export default function FamilyScreen() {
                     const bp = vs.bloodPressure.split("/");
                     if (bp.length === 2) {
                       return {
-                        systolic: parseFloat(bp[0]),
-                        diastolic: parseFloat(bp[1]),
+                        systolic: Number.parseFloat(bp[0]),
+                        diastolic: Number.parseFloat(bp[1]),
                       };
                     }
-                    return undefined;
+                    return;
                   })()
                 : undefined,
               bodyTemperature: vs.temperature,
@@ -456,7 +458,13 @@ export default function FamilyScreen() {
       await loadFamilyMembers();
 
       setShowEditMemberModal(false);
-      setEditMemberForm({ id: "", firstName: "", lastName: "", email: "", role: "member" });
+      setEditMemberForm({
+        id: "",
+        firstName: "",
+        lastName: "",
+        email: "",
+        role: "member",
+      });
 
       Alert.alert(
         isRTL ? "تم الحفظ" : "Saved",
@@ -527,8 +535,8 @@ export default function FamilyScreen() {
                   ? "تم إزالة العضو من العائلة بنجاح"
                   : "Member removed from family successfully"
               );
-              } catch (error) {
-                Alert.alert(
+            } catch (error) {
+              Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL ? "فشل في إزالة العضو" : "Failed to remove member"
               );
@@ -818,35 +826,39 @@ export default function FamilyScreen() {
     getFamilyStats();
 
   // Helper function to check if vitals are abnormal
-  const hasAbnormalVitals = (vitals: VitalSigns | null | undefined): boolean => {
+  const hasAbnormalVitals = (
+    vitals: VitalSigns | null | undefined
+  ): boolean => {
     if (!vitals) return false;
 
     // Check heart rate (normal: 60-100 BPM)
-    if (vitals.heartRate !== undefined) {
-      if (vitals.heartRate < 60 || vitals.heartRate > 100) {
-        return true;
-      }
+    if (
+      vitals.heartRate !== undefined &&
+      (vitals.heartRate < 60 || vitals.heartRate > 100)
+    ) {
+      return true;
     }
 
     // Check blood pressure (normal: systolic < 120, diastolic < 80)
-    if (vitals.bloodPressure) {
-      if (vitals.bloodPressure.systolic >= 120 || vitals.bloodPressure.diastolic >= 80) {
-        return true;
-      }
+    if (
+      vitals.bloodPressure &&
+      (vitals.bloodPressure.systolic >= 120 ||
+        vitals.bloodPressure.diastolic >= 80)
+    ) {
+      return true;
     }
 
     // Check body temperature (normal: 36.1-37.2°C or 97-99°F)
-    if (vitals.bodyTemperature !== undefined) {
-      if (vitals.bodyTemperature < 36.1 || vitals.bodyTemperature > 37.2) {
-        return true;
-      }
+    if (
+      vitals.bodyTemperature !== undefined &&
+      (vitals.bodyTemperature < 36.1 || vitals.bodyTemperature > 37.2)
+    ) {
+      return true;
     }
 
     // Check oxygen saturation (normal: >= 95%)
-    if (vitals.oxygenSaturation !== undefined) {
-      if (vitals.oxygenSaturation < 95) {
-        return true;
-      }
+    if (vitals.oxygenSaturation !== undefined && vitals.oxygenSaturation < 95) {
+      return true;
     }
 
     return false;
@@ -982,7 +994,9 @@ export default function FamilyScreen() {
         </Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
-            onPress={() => setViewMode(viewMode === "list" ? "dashboard" : "list")}
+            onPress={() =>
+              setViewMode(viewMode === "list" ? "dashboard" : "list")
+            }
             style={styles.viewToggleButton}
           >
             {viewMode === "list" ? (
@@ -1074,6 +1088,14 @@ export default function FamilyScreen() {
                 return (
                   <TouchableOpacity
                     key={`${item.memberId}-${index}`}
+                    onPress={() => {
+                      const member = familyMembers.find(
+                        (m) => m.id === item.memberId
+                      );
+                      if (member) {
+                        handleEditMember(member);
+                      }
+                    }}
                     style={[
                       styles.attentionItem,
                       {
@@ -1081,12 +1103,6 @@ export default function FamilyScreen() {
                         borderLeftColor: colors.border,
                       },
                     ]}
-                    onPress={() => {
-                      const member = familyMembers.find((m) => m.id === item.memberId);
-                      if (member) {
-                        handleEditMember(member);
-                      }
-                    }}
                   >
                     <View style={styles.attentionItemContent}>
                       <View style={styles.attentionItemLeft}>
@@ -1183,7 +1199,9 @@ export default function FamilyScreen() {
             </View>
           ) : (
             <View style={styles.emptyAttentionCard}>
-              <Text style={[styles.emptyAttentionText, isRTL && styles.rtlText]}>
+              <Text
+                style={[styles.emptyAttentionText, isRTL && styles.rtlText]}
+              >
                 {isRTL
                   ? "لا توجد عناصر تحتاج انتباه في الوقت الحالي"
                   : "No items need attention at this time"}
@@ -1216,8 +1234,8 @@ export default function FamilyScreen() {
                   return (
                     <TouchableOpacity
                       key={metric.id}
-                      style={styles.dashboardCard}
                       onPress={() => handleEditMember(metric.user)}
+                      style={styles.dashboardCard}
                     >
                       <View style={styles.dashboardCardHeader}>
                         <Avatar
@@ -1240,8 +1258,11 @@ export default function FamilyScreen() {
                       </View>
 
                       <Text
-                        style={[styles.dashboardCardName, isRTL && styles.rtlText]}
                         numberOfLines={1}
+                        style={[
+                          styles.dashboardCardName,
+                          isRTL && styles.rtlText,
+                        ]}
                       >
                         {fullName}
                       </Text>
@@ -1343,17 +1364,32 @@ export default function FamilyScreen() {
                       {/* Vitals Section */}
                       {metric.vitals && (
                         <View style={styles.vitalsSection}>
-                          <Text style={[styles.vitalsTitle, isRTL && styles.rtlText]}>
+                          <Text
+                            style={[
+                              styles.vitalsTitle,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
                             {isRTL ? "العلامات الحيوية" : "Vitals"}
                           </Text>
                           <View style={styles.vitalsGrid}>
                             {metric.vitals.heartRate !== undefined && (
                               <View style={styles.vitalItem}>
                                 <Heart color="#EF4444" size={14} />
-                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalValue,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   {Math.round(metric.vitals.heartRate)}
                                 </Text>
-                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalLabel,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   BPM
                                 </Text>
                               </View>
@@ -1361,10 +1397,21 @@ export default function FamilyScreen() {
                             {metric.vitals.bloodPressure && (
                               <View style={styles.vitalItem}>
                                 <Gauge color="#F59E0B" size={14} />
-                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
-                                  {metric.vitals.bloodPressure.systolic}/{metric.vitals.bloodPressure.diastolic}
+                                <Text
+                                  style={[
+                                    styles.vitalValue,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
+                                  {metric.vitals.bloodPressure.systolic}/
+                                  {metric.vitals.bloodPressure.diastolic}
                                 </Text>
-                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalLabel,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   BP
                                 </Text>
                               </View>
@@ -1372,12 +1419,22 @@ export default function FamilyScreen() {
                             {metric.vitals.steps !== undefined && (
                               <View style={styles.vitalItem}>
                                 <Activity color="#2563EB" size={14} />
-                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
-                                  {metric.vitals.steps > 1000 
+                                <Text
+                                  style={[
+                                    styles.vitalValue,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
+                                  {metric.vitals.steps > 1000
                                     ? `${(metric.vitals.steps / 1000).toFixed(1)}k`
                                     : metric.vitals.steps}
                                 </Text>
-                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalLabel,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   {isRTL ? "خطوات" : "Steps"}
                                 </Text>
                               </View>
@@ -1385,10 +1442,20 @@ export default function FamilyScreen() {
                             {metric.vitals.bodyTemperature !== undefined && (
                               <View style={styles.vitalItem}>
                                 <Thermometer color="#EF4444" size={14} />
-                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalValue,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   {metric.vitals.bodyTemperature.toFixed(1)}
                                 </Text>
-                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalLabel,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   °C
                                 </Text>
                               </View>
@@ -1396,10 +1463,20 @@ export default function FamilyScreen() {
                             {metric.vitals.oxygenSaturation !== undefined && (
                               <View style={styles.vitalItem}>
                                 <Droplet color="#3B82F6" size={14} />
-                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalValue,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   {Math.round(metric.vitals.oxygenSaturation)}
                                 </Text>
-                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalLabel,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   SpO2
                                 </Text>
                               </View>
@@ -1407,10 +1484,20 @@ export default function FamilyScreen() {
                             {metric.vitals.weight !== undefined && (
                               <View style={styles.vitalItem}>
                                 <Activity color="#10B981" size={14} />
-                                <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalValue,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   {metric.vitals.weight.toFixed(1)}
                                 </Text>
-                                <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                                <Text
+                                  style={[
+                                    styles.vitalLabel,
+                                    isRTL && styles.rtlText,
+                                  ]}
+                                >
                                   kg
                                 </Text>
                               </View>
@@ -1427,75 +1514,83 @@ export default function FamilyScreen() {
             // List View
             <View style={styles.membersList}>
               {familyMembers.map((member) => (
-              <View key={member.id} style={styles.memberItem}>
-                <View style={styles.memberLeft}>
-                  <View style={styles.avatarContainer}>
-                    <Avatar
-                      avatarType={member.avatarType}
-                      badgeColor="#10B981"
-                      name={member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
-                      showBadge={member.id === user?.id}
-                      size="md"
-                      source={
-                        member.avatar ? { uri: member.avatar } : undefined
-                      }
-                    />
-                  </View>
+                <View key={member.id} style={styles.memberItem}>
+                  <View style={styles.memberLeft}>
+                    <View style={styles.avatarContainer}>
+                      <Avatar
+                        avatarType={member.avatarType}
+                        badgeColor="#10B981"
+                        name={
+                          member.firstName && member.lastName
+                            ? `${member.firstName} ${member.lastName}`
+                            : member.firstName || "User"
+                        }
+                        showBadge={member.id === user?.id}
+                        size="md"
+                        source={
+                          member.avatar ? { uri: member.avatar } : undefined
+                        }
+                      />
+                    </View>
 
-                  <View style={styles.memberInfo}>
-                    <Text style={[styles.memberName, isRTL && styles.rtlText]}>
-                      {member.firstName && member.lastName ? `${member.firstName} ${member.lastName}` : member.firstName || "User"}
-                    </Text>
-                    <Text
-                      style={[styles.memberRelation, isRTL && styles.rtlText]}
-                    >
-                      {member.role === "admin"
-                        ? isRTL
-                          ? "مدير"
-                          : "Admin"
-                        : isRTL
-                          ? "عضو"
-                          : "Member"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.memberRight}>
-                  <View style={styles.memberStats}>
-                    <View
-                      style={[
-                        styles.statusIndicator,
-                        {
-                          backgroundColor: "#10B981",
-                        },
-                      ]}
-                    >
-                      <Text style={styles.statusText}>
-                        {isRTL ? "نشط" : "Active"}
+                    <View style={styles.memberInfo}>
+                      <Text
+                        style={[styles.memberName, isRTL && styles.rtlText]}
+                      >
+                        {member.firstName && member.lastName
+                          ? `${member.firstName} ${member.lastName}`
+                          : member.firstName || "User"}
+                      </Text>
+                      <Text
+                        style={[styles.memberRelation, isRTL && styles.rtlText]}
+                      >
+                        {member.role === "admin"
+                          ? isRTL
+                            ? "مدير"
+                            : "Admin"
+                          : isRTL
+                            ? "عضو"
+                            : "Member"}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={styles.memberActions}>
-                    <TouchableOpacity
-                      onPress={() => handleEditMember(member)}
-                      style={styles.actionButton}
-                    >
-                      <Edit color="#64748B" size={16} />
-                    </TouchableOpacity>
-                    {member.id !== user?.id && (
-                      <TouchableOpacity
-                        onPress={() => handleDeleteMember(member)}
-                        style={[styles.actionButton, styles.deleteButton]}
+                  <View style={styles.memberRight}>
+                    <View style={styles.memberStats}>
+                      <View
+                        style={[
+                          styles.statusIndicator,
+                          {
+                            backgroundColor: "#10B981",
+                          },
+                        ]}
                       >
-                        <Trash2 color="#EF4444" size={16} />
+                        <Text style={styles.statusText}>
+                          {isRTL ? "نشط" : "Active"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.memberActions}>
+                      <TouchableOpacity
+                        onPress={() => handleEditMember(member)}
+                        style={styles.actionButton}
+                      >
+                        <Edit color="#64748B" size={16} />
                       </TouchableOpacity>
-                    )}
+                      {member.id !== user?.id && (
+                        <TouchableOpacity
+                          onPress={() => handleDeleteMember(member)}
+                          style={[styles.actionButton, styles.deleteButton]}
+                        >
+                          <Trash2 color="#EF4444" size={16} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
           )}
         </View>
 

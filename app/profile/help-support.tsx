@@ -1,4 +1,4 @@
-import { useRouter, useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   ArrowLeft,
   Book,
@@ -112,9 +112,14 @@ export default function HelpSupportScreen() {
     </View>
   );
 
-  const HelpCard = ({ icon: Icon, title, description, color, comingSoon = false }: any) => (
-    <TouchableOpacity 
-      style={styles.helpCard}
+  const HelpCard = ({
+    icon: Icon,
+    title,
+    description,
+    color,
+    comingSoon = false,
+  }: any) => (
+    <TouchableOpacity
       onPress={() => {
         if (comingSoon) {
           Alert.alert(
@@ -125,6 +130,7 @@ export default function HelpSupportScreen() {
           );
         }
       }}
+      style={styles.helpCard}
     >
       <View style={[styles.helpIcon, { backgroundColor: color + "20" }]}>
         <Icon color={color} size={20} />
@@ -148,7 +154,7 @@ export default function HelpSupportScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.push('/(tabs)/profile')}
+          onPress={() => router.push("/(tabs)/profile")}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
           <ArrowLeft

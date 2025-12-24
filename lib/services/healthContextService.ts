@@ -89,7 +89,6 @@ class HealthContextService {
       throw new Error("No user ID provided");
     }
 
-
     try {
       // Fetch user profile
       const userDoc = await getDoc(doc(db, "users", uid));
@@ -121,7 +120,9 @@ class HealthContextService {
           };
         });
         // Sort by startDate descending in memory
-        medicationsWithSort.sort((a, b) => b._startDate.getTime() - a._startDate.getTime());
+        medicationsWithSort.sort(
+          (a, b) => b._startDate.getTime() - a._startDate.getTime()
+        );
         // Remove temporary sorting field
         medications = medicationsWithSort.map(({ _startDate, ...med }) => med);
       } catch (error) {
@@ -162,8 +163,10 @@ class HealthContextService {
       }
 
       // Fetch medical history
-      const medicalHistoryData: HealthContext["medicalHistory"]["conditions"] = [];
-      const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] = [];
+      const medicalHistoryData: HealthContext["medicalHistory"]["conditions"] =
+        [];
+      const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] =
+        [];
       try {
         const historyQuery = query(
           collection(db, "medicalHistory"),
@@ -307,7 +310,6 @@ class HealthContextService {
           lastUpdated: userData.vitalsLastUpdated?.toDate(),
         },
       };
-
 
       return healthContext;
     } catch (error) {

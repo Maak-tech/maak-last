@@ -1,6 +1,4 @@
-import { NativeModulesProxy } from 'expo-modules-core';
-
-import ExpoHealthConnectModule from './ExpoHealthConnectModule';
+import ExpoHealthConnectModule from "./ExpoHealthConnectModule";
 
 export interface HealthConnectAvailability {
   available: boolean;
@@ -41,7 +39,11 @@ export async function readRecords(
   startTime: string,
   endTime: string
 ): Promise<HealthRecord[]> {
-  return await ExpoHealthConnectModule.readRecords(recordType, startTime, endTime);
+  return await ExpoHealthConnectModule.readRecords(
+    recordType,
+    startTime,
+    endTime
+  );
 }
 
 /**
@@ -57,4 +59,3 @@ export default {
   readRecords,
   getPermissionStatus,
 };
-

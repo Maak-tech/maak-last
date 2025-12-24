@@ -88,17 +88,17 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScrollView 
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
+      <ScrollView
+        bounces={false}
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        bounces={false}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardContainer}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          style={styles.keyboardContainer}
         >
           <View style={styles.header}>
             <TouchableOpacity

@@ -103,7 +103,11 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
         >
           <Animated.View style={{ opacity: checkOpacity }}>
             <Check
-              color={isChecked ? theme.colors.neutral.white : theme.colors.text.tertiary}
+              color={
+                isChecked
+                  ? theme.colors.neutral.white
+                  : theme.colors.text.tertiary
+              }
               size={currentSize.iconSize}
               strokeWidth={isChecked ? 3 : 2}
             />

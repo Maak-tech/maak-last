@@ -3,7 +3,8 @@
  * Tracks when and where HealthKit is being loaded
  */
 
-let loadAttempts: Array<{ timestamp: number; stack: string; source: string }> = [];
+let loadAttempts: Array<{ timestamp: number; stack: string; source: string }> =
+  [];
 
 export const logHealthKitLoadAttempt = (source: string) => {
   const stack = new Error().stack || "No stack trace";
@@ -13,7 +14,7 @@ export const logHealthKitLoadAttempt = (source: string) => {
     source,
   });
   console.log(`[HealthKit Debug] Load attempt from: ${source}`);
-  console.log(`[HealthKit Debug] Stack:`, stack);
+  console.log("[HealthKit Debug] Stack:", stack);
 };
 
 export const getLoadAttempts = () => loadAttempts;
@@ -21,4 +22,3 @@ export const getLoadAttempts = () => loadAttempts;
 export const clearLoadAttempts = () => {
   loadAttempts = [];
 };
-

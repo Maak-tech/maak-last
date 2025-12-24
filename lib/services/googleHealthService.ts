@@ -12,12 +12,10 @@ import type {
 /**
  * Check if Health Connect is available
  */
-const isAvailable = async (): Promise<ProviderAvailability> => {
-  return {
-    available: false,
-    reason: "Health Connect integration has been removed from this version",
-  };
-};
+const isAvailable = async (): Promise<ProviderAvailability> => ({
+  available: false,
+  reason: "Health Connect integration has been removed from this version",
+});
 
 /**
  * Open Health Connect app or Play Store
@@ -31,21 +29,17 @@ const openHealthConnect = async () => {
  */
 const requestAuthorization = async (
   selectedMetrics: string[]
-): Promise<{ granted: string[]; denied: string[] }> => {
-  return {
-    granted: [],
-    denied: selectedMetrics,
-  };
-};
+): Promise<{ granted: string[]; denied: string[] }> => ({
+  granted: [],
+  denied: selectedMetrics,
+});
 
 /**
  * Check authorization status for a metric
  */
 const getAuthorizationStatus = async (
   _metricKey: string
-): Promise<"authorized" | "denied" | "undetermined"> => {
-  return "undetermined";
-};
+): Promise<"authorized" | "denied" | "undetermined"> => "undetermined";
 
 /**
  * Fetch metrics from Health Connect
@@ -54,9 +48,7 @@ const fetchMetrics = async (
   _selectedMetrics: string[],
   _startDate: Date,
   _endDate: Date
-): Promise<NormalizedMetricPayload[]> => {
-  return [];
-};
+): Promise<NormalizedMetricPayload[]> => [];
 
 export const googleHealthService = {
   isAvailable,
@@ -65,4 +57,3 @@ export const googleHealthService = {
   fetchMetrics,
   openHealthConnect,
 };
-

@@ -6,16 +6,13 @@
 import type {
   NormalizedMetricPayload,
   ProviderAvailability,
-  FitbitTokens,
 } from "../health/healthTypes";
 
 export const fitbitService = {
-  isAvailable: async (): Promise<ProviderAvailability> => {
-    return {
-      available: false,
-      reason: "Fitbit integration not implemented yet (iOS-only focus)",
-    };
-  },
+  isAvailable: async (): Promise<ProviderAvailability> => ({
+    available: false,
+    reason: "Fitbit integration not implemented yet (iOS-only focus)",
+  }),
   startAuth: async (_selectedMetrics: string[]): Promise<void> => {
     throw new Error("Fitbit not implemented");
   },
@@ -36,4 +33,3 @@ export const fitbitService = {
     // No-op for placeholder
   },
 };
-

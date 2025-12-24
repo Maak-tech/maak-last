@@ -39,9 +39,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { medicationService } from "@/lib/services/medicationService";
+import {
+  type ExportFormat,
+  exportMetrics,
+} from "@/lib/services/metricsExportService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
-import { exportMetrics, type ExportFormat } from "@/lib/services/metricsExportService";
 import type { AvatarType, Medication, Symptom } from "@/types";
 
 interface ProfileSectionItem {
@@ -173,7 +176,7 @@ export default function ProfileScreen() {
     if (exporting) {
       Alert.alert(
         isRTL ? "جاري التصدير" : "Export in Progress",
-        isRTL 
+        isRTL
           ? "يتم تصدير المقاييس الصحية حالياً. يرجى الانتظار حتى يكتمل التصدير."
           : "An export is already in progress. Please wait for it to complete."
       );
@@ -198,7 +201,7 @@ export default function ProfileScreen() {
   const performExport = async (format: ExportFormat) => {
     try {
       // exporting flag already set to true in handleHealthReports
-      
+
       await exportMetrics(
         {
           format,
@@ -534,8 +537,10 @@ export default function ProfileScreen() {
                         />
                       ) : (
                         <>
-                          {exporting && item.label === (isRTL ? "التقارير الصحية" : "Health Reports") ? (
-                            <ActivityIndicator size="small" color="#2563EB" />
+                          {exporting &&
+                          item.label ===
+                            (isRTL ? "التقارير الصحية" : "Health Reports") ? (
+                            <ActivityIndicator color="#2563EB" size="small" />
                           ) : (
                             <>
                               {item.value && (
@@ -553,7 +558,9 @@ export default function ProfileScreen() {
                                 color="#94A3B8"
                                 size={16}
                                 style={[
-                                  isRTL && { transform: [{ rotate: "180deg" }] },
+                                  isRTL && {
+                                    transform: [{ rotate: "180deg" }],
+                                  },
                                 ]}
                               />
                             </>
