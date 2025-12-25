@@ -48,7 +48,7 @@ import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { alertService } from "@/lib/services/alertService";
 import { familyInviteService } from "@/lib/services/familyInviteService";
-import { healthContextService } from "@/lib/services/healthContextService";
+import healthContextService from "@/lib/services/healthContextService";
 import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
@@ -188,18 +188,18 @@ export default function FamilyScreen() {
 
           // Calculate health score
           const recentSymptoms = symptoms.filter(
-            (s) =>
+            (s: { timestamp: Date }) =>
               new Date(s.timestamp).getTime() >
               Date.now() - 30 * 24 * 60 * 60 * 1000
           );
-          const activeMedications = medications.filter((m) => m.isActive);
+          const activeMedications = medications.filter((m: { isActive: boolean }) => m.isActive);
           let healthScore = 100;
           healthScore -= recentSymptoms.length * 5;
           healthScore = Math.max(healthScore, 0);
 
           // Count symptoms this week
           const symptomsThisWeek = symptoms.filter(
-            (s) =>
+            (s: { timestamp: Date }) =>
               new Date(s.timestamp).getTime() >
               Date.now() - 7 * 24 * 60 * 60 * 1000
           ).length;

@@ -873,6 +873,7 @@ export const useFallDetection = (
                       // Check if person remained relatively still
                       const recentFilteredData =
                         filteredDataRef.current.slice(-20); // Last ~1 second
+                      let confidence = 0; // Declare confidence outside inner if block
                       if (recentFilteredData.length >= 10) {
                         const accelerations = recentFilteredData.map(
                           (d) => d.acceleration
@@ -880,7 +881,7 @@ export const useFallDetection = (
                         const variance = calculateVariance(accelerations);
 
                         // Calculate confidence score based on multiple factors
-                        let confidence = 0;
+                        confidence = 0;
 
                         // Factor 1: Low variance (stillness) - 40% weight
                         if (variance < FALL_CONFIG.POST_IMPACT_THRESHOLD) {
@@ -964,7 +965,9 @@ export const useFallDetection = (
                         const recentDirections = filteredDataRef.current
                           .slice(-10)
                           .map((d) => d.fallDirection)
-                          .filter((d) => d && d !== "unknown");
+                          .filter((d): d is "forward" | "backward" | "sideways" => 
+                            d !== undefined && d !== null && d !== "unknown"
+                          );
                         if (recentDirections.length >= 3) {
                           // Check direction consistency
                           const directionCounts: Record<string, number> = {};

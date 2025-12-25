@@ -722,9 +722,4 @@ const styles = StyleSheet.create({
     color: "#92400E",
     lineHeight: 20,
   },
-  permissionWarning: {
-    fontSize: 12,
-    color: "#F59E0B",
-    marginTop: 4,
-  },
 });
