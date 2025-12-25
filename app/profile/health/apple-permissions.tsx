@@ -68,22 +68,57 @@ export default function AppleHealthPermissionsScreen() {
     loadAvailableMetrics();
     // Don't check HealthKit availability on mount to prevent crashes
     // Will check when user tries to continue
+    // Add a delay before allowing any native module access
+    const timer = setTimeout(() => {
+      // Screen is ready, user can interact
+    }, 2000); // 2 second delay after mount
+    
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkHealthKitAvailability = async () => {
     try {
+      // CRITICAL: Add delay before accessing native modules to prevent crashes
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
+
       // Lazy import to prevent early native module loading
       const { appleHealthService } = await import(
         "@/lib/services/appleHealthService"
       );
-      const availability = await appleHealthService.checkAvailability();
-      setHealthKitAvailable(availability.available);
-      setAvailabilityReason(availability.reason);
-    } catch (error) {
+      
+      // Retry logic for native bridge readiness
+      let availability;
+      let retries = 0;
+      const maxRetries = 3;
+
+      while (retries < maxRetries) {
+        try {
+          availability = await appleHealthService.checkAvailability();
+          break; // Success, exit retry loop
+        } catch (bridgeError: any) {
+          retries++;
+          const errorMsg = bridgeError?.message || String(bridgeError);
+          if (
+            (errorMsg.includes("RCTModuleMethod") ||
+              errorMsg.includes("invokewithbridge") ||
+              errorMsg.includes("invokeWithBridge")) &&
+            retries < maxRetries
+          ) {
+            // Native bridge not ready yet, wait and retry
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+          } else {
+            throw bridgeError; // Re-throw if not a bridge error or max retries reached
+          }
+        }
+      }
+
+      setHealthKitAvailable(availability?.available ?? false);
+      setAvailabilityReason(availability?.reason);
+    } catch (error: any) {
       setHealthKitAvailable(false);
       setAvailabilityReason(
-        "Failed to check HealthKit availability. Please try again."
+        error?.message || "Failed to check HealthKit availability. Please try again."
       );
     }
   };
@@ -138,32 +173,81 @@ export default function AppleHealthPermissionsScreen() {
     setLoading(true);
 
     try {
+      // CRITICAL: Add initial delay before accessing native modules to prevent crashes
+      // Wait for React Native bridge to be fully ready
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
+
       // Lazy import to prevent early native module loading
       const { appleHealthService } = await import(
         "@/lib/services/appleHealthService"
       );
 
-      // Check availability before proceeding - wrapped in try-catch to prevent crashes
-      const availability = await appleHealthService.checkAvailability();
+      // Retry logic for native bridge readiness when checking availability
+      let availability;
+      let retries = 0;
+      const maxRetries = 3;
 
-      if (!availability.available) {
+      while (retries < maxRetries) {
+        try {
+          availability = await appleHealthService.checkAvailability();
+          break; // Success, exit retry loop
+        } catch (bridgeError: any) {
+          retries++;
+          const errorMsg = bridgeError?.message || String(bridgeError);
+          if (
+            (errorMsg.includes("RCTModuleMethod") ||
+              errorMsg.includes("invokewithbridge") ||
+              errorMsg.includes("invokeWithBridge")) &&
+            retries < maxRetries
+          ) {
+            // Native bridge not ready yet, wait and retry
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+          } else {
+            throw bridgeError; // Re-throw if not a bridge error or max retries reached
+          }
+        }
+      }
+
+      if (!availability?.available) {
         setLoading(false);
         Alert.alert(
           "HealthKit Not Available",
-          availability.reason ||
+          availability?.reason ||
             "HealthKit is not available. Please ensure you're running a development build or standalone app."
         );
         return;
       }
 
-      // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
+      // CRITICAL: Wait for bridge to stabilize after checkAvailability() before requesting authorization
       // This prevents RCTModuleMethod invokeWithBridge errors
       await new Promise((resolve) => setTimeout(resolve, 3000)); // 3 second delay
 
-      // Request HealthKit permissions
-      const success = await appleHealthService.authorize(
-        Array.from(selectedMetrics)
-      );
+      // Request HealthKit permissions with retry logic
+      let success = false;
+      retries = 0;
+      
+      while (retries < maxRetries && !success) {
+        try {
+          success = await appleHealthService.authorize(
+            Array.from(selectedMetrics)
+          );
+          break; // Success, exit retry loop
+        } catch (authError: any) {
+          retries++;
+          const errorMsg = authError?.message || String(authError);
+          if (
+            (errorMsg.includes("RCTModuleMethod") ||
+              errorMsg.includes("invokewithbridge") ||
+              errorMsg.includes("invokeWithBridge")) &&
+            retries < maxRetries
+          ) {
+            // Native bridge not ready yet, wait and retry
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          } else {
+            throw authError; // Re-throw if not a bridge error or max retries reached
+          }
+        }
+      }
 
       // Save connection
       const connection: ProviderConnection = {

@@ -80,8 +80,6 @@ export default function RootLayout() {
     // Request notification permissions on app start
     const requestPermissions = async () => {
       try {
-        const { Platform } = await import("react-native");
-
         // Skip on web - notifications work differently
         if (Platform.OS === "web") {
           return;

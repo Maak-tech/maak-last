@@ -1,27 +1,40 @@
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Index() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const lastNavigationTarget = useRef<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
 
+    // Determine target route based on user state
+    let targetRoute: string | null = null;
+    if (!user) {
+      targetRoute = "/(auth)/login";
+    } else if (user.onboardingCompleted) {
+      targetRoute = "/(tabs)";
+    } else {
+      targetRoute = "/onboarding";
+    }
+
+    // Only navigate if target has changed
+    if (targetRoute === lastNavigationTarget.current) {
+      return;
+    }
+
+    lastNavigationTarget.current = targetRoute;
+
     try {
-      if (!user) {
-        router.replace("/(auth)/login");
-      } else if (user.onboardingCompleted) {
-        router.replace("/(tabs)");
-      } else {
-        router.replace("/onboarding");
-      }
+      router.replace(targetRoute);
     } catch (error) {
       // Silently handle error
+      lastNavigationTarget.current = null;
     }
-  }, [loading, user?.id, user?.onboardingCompleted, router]);
+  }, [loading, user?.id, user?.onboardingCompleted]);
 
   return (
     <View style={styles.container}>

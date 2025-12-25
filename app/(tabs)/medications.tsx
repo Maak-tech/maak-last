@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
-  FlatList,
   Linking,
   Modal,
   Platform,
@@ -1111,19 +1110,20 @@ export default function MedicationsScreen() {
               />
               {showSuggestions && medicationSuggestions.length > 0 && (
                 <View style={styles.suggestionsContainer}>
-                  <FlatList
-                    data={medicationSuggestions}
+                  <ScrollView
                     keyboardShouldPersistTaps="handled"
-                    keyExtractor={(item) => item}
                     nestedScrollEnabled={true}
-                    removeClippedSubviews={false}
-                    renderItem={({ item: suggestion, index }) => {
+                    showsVerticalScrollIndicator={true}
+                    style={styles.suggestionsScrollView}
+                  >
+                    {medicationSuggestions.map((suggestion, index) => {
                       const commonDosage = MEDICATION_DOSAGES[suggestion];
                       const isLastItem =
                         index === medicationSuggestions.length - 1;
                       return (
                         <TouchableOpacity
                           activeOpacity={0.7}
+                          key={suggestion}
                           onPress={() => {
                             // Clear timeout when suggestion is selected
                             if (blurTimeoutRef.current) {
@@ -1158,11 +1158,8 @@ export default function MedicationsScreen() {
                           </Text>
                         </TouchableOpacity>
                       );
-                    }}
-                    scrollEnabled={true}
-                    showsVerticalScrollIndicator={true}
-                    style={styles.suggestionsScrollView}
-                  />
+                    })}
+                  </ScrollView>
                 </View>
               )}
             </View>

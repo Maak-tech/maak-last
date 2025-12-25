@@ -24,10 +24,33 @@ export const useNotifications = () => {
         // Add delay to ensure React Native bridge is ready
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        const [Notifications, Device] = await Promise.all([
-          import("expo-notifications"),
-          import("expo-device"),
-        ]);
+        // Import modules with better error handling for bundle loading errors
+        let Notifications, Device;
+        try {
+          [Notifications, Device] = await Promise.all([
+            import("expo-notifications"),
+            import("expo-device"),
+          ]);
+        } catch (importError) {
+          const errorMessage =
+            importError instanceof Error
+              ? importError.message
+              : String(importError);
+          
+          // Check if it's a bundle loading error
+          if (
+            errorMessage.toLowerCase().includes("loadbundle") ||
+            errorMessage.toLowerCase().includes("bundle") ||
+            errorMessage.toLowerCase().includes("server")
+          ) {
+            console.warn(
+              "Bundle loading error during notification initialization. This may occur if Metro bundler is not running or network is unavailable."
+            );
+            // Don't throw - allow initialization to continue gracefully
+            return;
+          }
+          throw importError;
+        }
 
         // Set notification handler with error boundary
         try {

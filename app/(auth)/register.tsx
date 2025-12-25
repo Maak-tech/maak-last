@@ -1,9 +1,11 @@
 import { Link, useRouter } from "expo-router";
-import { useState } from "react";
+import { Check, X } from "lucide-react-native";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,7 +15,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import type { AvatarType } from "@/types";
 
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
@@ -25,8 +29,18 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedAvatarType, setSelectedAvatarType] = useState<AvatarType | undefined>();
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
   const isRTL = i18n.language === "ar";
+
+  // Memoize the avatar name to prevent unnecessary re-renders
+  const avatarName = useMemo(() => {
+    if (firstName || lastName) {
+      return `${firstName} ${lastName}`.trim();
+    }
+    return undefined;
+  }, [firstName, lastName]);
 
   const handleRegister = async () => {
     setErrors({});
@@ -56,7 +70,7 @@ export default function RegisterScreen() {
     }
 
     try {
-      await signUp(email, password, firstName, lastName);
+      await signUp(email, password, firstName, lastName, selectedAvatarType);
       router.replace("/");
     } catch (error: any) {
       setErrors({
@@ -120,6 +134,26 @@ export default function RegisterScreen() {
               </View>
             )}
 
+            {/* Avatar Selection */}
+            <View style={styles.avatarContainer}>
+              <Text style={[styles.label, isRTL && styles.rtlText]}>
+                {isRTL ? "اختر الصورة الرمزية" : "Choose Avatar"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setAvatarPickerVisible(true)}
+                style={styles.avatarButton}
+              >
+                <Avatar
+                  avatarType={selectedAvatarType}
+                  name={avatarName}
+                  size="lg"
+                />
+                <Text style={[styles.avatarHint, isRTL && styles.rtlText]}>
+                  {isRTL ? "اضغط للاختيار" : "Tap to select"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.rtlText]}>
                 {isRTL ? "الاسم الأول" : "First Name"}
@@ -154,6 +188,7 @@ export default function RegisterScreen() {
               </Text>
               <TextInput
                 autoCapitalize="none"
+                autoComplete="username"
                 keyboardType="email-address"
                 onChangeText={setEmail}
                 placeholder={
@@ -161,6 +196,7 @@ export default function RegisterScreen() {
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
+                textContentType="username"
                 value={email ?? ""}
               />
             </View>
@@ -170,7 +206,9 @@ export default function RegisterScreen() {
                 {t("password")}
               </Text>
               <TextInput
+                autoComplete="off"
                 onChangeText={setPassword}
+                passwordRules=""
                 placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
                 secureTextEntry
                 style={[
@@ -179,6 +217,7 @@ export default function RegisterScreen() {
                   errors?.password && styles.inputError,
                 ]}
                 textAlign={isRTL ? "right" : "left"}
+                textContentType="none"
                 value={password ?? ""}
               />
               {errors?.password && (
@@ -191,7 +230,9 @@ export default function RegisterScreen() {
                 {t("confirmPassword")}
               </Text>
               <TextInput
+                autoComplete="off"
                 onChangeText={setConfirmPassword}
+                passwordRules=""
                 placeholder={
                   isRTL ? "أعد إدخال كلمة المرور" : "Confirm your password"
                 }
@@ -202,6 +243,7 @@ export default function RegisterScreen() {
                   errors?.confirmPassword && styles.inputError,
                 ]}
                 textAlign={isRTL ? "right" : "left"}
+                textContentType="none"
                 value={confirmPassword ?? ""}
               />
               {errors?.confirmPassword && (
@@ -239,6 +281,98 @@ export default function RegisterScreen() {
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
+
+      {/* Avatar Picker Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setAvatarPickerVisible(false)}
+        transparent={true}
+        visible={avatarPickerVisible}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 400 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+                {isRTL ? "اختر الصورة الرمزية" : "Choose Avatar"}
+              </Text>
+              <TouchableOpacity onPress={() => setAvatarPickerVisible(false)}>
+                <X color="#64748B" size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.avatarGrid}>
+              {[
+                {
+                  type: "man" as AvatarType,
+                  emoji: "👨🏻",
+                  labelEn: "Man",
+                  labelAr: "رجل",
+                },
+                {
+                  type: "woman" as AvatarType,
+                  emoji: "👩🏻",
+                  labelEn: "Woman",
+                  labelAr: "امرأة",
+                },
+                {
+                  type: "boy" as AvatarType,
+                  emoji: "👦🏻",
+                  labelEn: "Boy",
+                  labelAr: "صبي",
+                },
+                {
+                  type: "girl" as AvatarType,
+                  emoji: "👧🏻",
+                  labelEn: "Girl",
+                  labelAr: "فتاة",
+                },
+                {
+                  type: "grandma" as AvatarType,
+                  emoji: "👵🏻",
+                  labelEn: "Grandma",
+                  labelAr: "جدة",
+                },
+                {
+                  type: "grandpa" as AvatarType,
+                  emoji: "👴🏻",
+                  labelEn: "Grandpa",
+                  labelAr: "جد",
+                },
+              ].map((avatar) => (
+                <TouchableOpacity
+                  key={avatar.type}
+                  onPress={() => {
+                    setSelectedAvatarType(avatar.type);
+                    setAvatarPickerVisible(false);
+                  }}
+                  style={[
+                    styles.avatarOption,
+                    selectedAvatarType === avatar.type &&
+                      styles.avatarOptionSelected,
+                  ]}
+                >
+                  <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.avatarLabel,
+                      selectedAvatarType === avatar.type &&
+                        styles.avatarLabelSelected,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {isRTL ? avatar.labelAr : avatar.labelEn}
+                  </Text>
+                  {selectedAvatarType === avatar.type && (
+                    <View style={styles.avatarCheck}>
+                      <Check color="#FFFFFF" size={16} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -392,5 +526,91 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     fontFamily: "Geist-Regular",
+  },
+  avatarContainer: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  avatarButton: {
+    alignItems: "center",
+    marginTop: 8,
+  },
+  avatarHint: {
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 300,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  avatarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 16,
+  },
+  avatarOption: {
+    width: "30%",
+    aspectRatio: 1,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    position: "relative",
+  },
+  avatarOptionSelected: {
+    backgroundColor: "#EBF4FF",
+    borderColor: "#2563EB",
+  },
+  avatarEmoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  avatarLabel: {
+    fontSize: 12,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+  },
+  avatarLabelSelected: {
+    color: "#2563EB",
+    fontFamily: "Geist-SemiBold",
+  },
+  avatarCheck: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

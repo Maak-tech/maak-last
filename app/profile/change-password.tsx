@@ -292,6 +292,7 @@ export default function ChangePasswordScreen() {
             <View style={styles.inputContainer}>
               <TextInput
                 autoCapitalize="none"
+                autoComplete="off"
                 autoCorrect={false}
                 onChangeText={(text) => {
                   setCurrentPassword(text);
@@ -299,6 +300,7 @@ export default function ChangePasswordScreen() {
                     setErrors({ ...errors, currentPassword: "" });
                   }
                 }}
+                passwordRules=""
                 placeholder={
                   isRTL ? "أدخل كلمة المرور الحالية" : "Enter current password"
                 }
@@ -316,6 +318,7 @@ export default function ChangePasswordScreen() {
                         : "#E2E8F0",
                   },
                 ]}
+                textContentType="none"
                 value={currentPassword}
               />
               <TouchableOpacity
@@ -352,6 +355,7 @@ export default function ChangePasswordScreen() {
             <View style={styles.inputContainer}>
               <TextInput
                 autoCapitalize="none"
+                autoComplete="off"
                 autoCorrect={false}
                 onChangeText={(text) => {
                   setNewPassword(text);
@@ -359,6 +363,7 @@ export default function ChangePasswordScreen() {
                     setErrors({ ...errors, newPassword: "" });
                   }
                 }}
+                passwordRules=""
                 placeholder={
                   isRTL ? "أدخل كلمة المرور الجديدة" : "Enter new password"
                 }
@@ -376,6 +381,7 @@ export default function ChangePasswordScreen() {
                         : "#E2E8F0",
                   },
                 ]}
+                textContentType="none"
                 value={newPassword}
               />
               <TouchableOpacity
@@ -412,6 +418,7 @@ export default function ChangePasswordScreen() {
             <View style={styles.inputContainer}>
               <TextInput
                 autoCapitalize="none"
+                autoComplete="off"
                 autoCorrect={false}
                 onChangeText={(text) => {
                   setConfirmPassword(text);
@@ -419,6 +426,7 @@ export default function ChangePasswordScreen() {
                     setErrors({ ...errors, confirmPassword: "" });
                   }
                 }}
+                passwordRules=""
                 placeholder={
                   isRTL
                     ? "أعد إدخال كلمة المرور الجديدة"
@@ -438,6 +446,7 @@ export default function ChangePasswordScreen() {
                         : "#E2E8F0",
                   },
                 ]}
+                textContentType="none"
                 value={confirmPassword}
               />
               <TouchableOpacity

@@ -144,6 +144,7 @@ export default function LoginScreen() {
               </Text>
               <TextInput
                 autoCapitalize="none"
+                autoComplete="username"
                 keyboardType="email-address"
                 onChangeText={setEmail}
                 placeholder={
@@ -151,6 +152,7 @@ export default function LoginScreen() {
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
+                textContentType="username"
                 value={email}
               />
             </View>
@@ -160,11 +162,14 @@ export default function LoginScreen() {
                 {t("password")}
               </Text>
               <TextInput
+                autoComplete="off"
                 onChangeText={setPassword}
+                passwordRules=""
                 placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
                 secureTextEntry
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
+                textContentType="none"
                 value={password}
               />
             </View>

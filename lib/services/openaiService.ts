@@ -31,28 +31,41 @@ export interface ChatCompletionChunk {
 
 class OpenAIService {
   private apiKey: string | null = null;
+  private zeinaApiKey: string | null = null;
   private baseURL = "https://api.openai.com/v1";
   private model = "gpt-3.5-turbo"; // Default to cheaper model
+  private useZeinaKey = false; // Flag to use Zeina API key for premium users
 
-  async initialize() {
+  async initialize(usePremiumKey = false) {
     try {
-      // Get API key from app config (server-side, not user-provided)
+      // Get API keys from app config (server-side, not user-provided)
+      // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
       this.apiKey = config?.openaiApiKey || null;
+      this.zeinaApiKey = config?.zeinaApiKey || config?.openaiApiKey || null; // Fallback to openaiApiKey if zeinaApiKey not set
+      this.useZeinaKey = usePremiumKey;
       
       if (!this.apiKey) {
-        console.warn("OpenAI API key not configured in app.json");
+        console.warn("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
       }
     } catch (error) {
       // Silently handle error
     }
   }
 
-  async getApiKey(): Promise<string | null> {
-    if (!this.apiKey) {
-      await this.initialize();
+  async getApiKey(usePremiumKey = false): Promise<string | null> {
+    // Use the provided parameter instead of instance state to ensure context-specific behavior
+    const shouldUseZeinaKey = usePremiumKey || this.useZeinaKey;
+    
+    if (!this.apiKey && !shouldUseZeinaKey) {
+      await this.initialize(false);
     }
-    return this.apiKey;
+    if (!this.zeinaApiKey && shouldUseZeinaKey) {
+      await this.initialize(true);
+    }
+    
+    // Return Zeina API key for premium users, otherwise regular API key
+    return shouldUseZeinaKey ? (this.zeinaApiKey || this.apiKey) : (this.apiKey || this.zeinaApiKey);
   }
 
   async getModel(): Promise<string> {
@@ -63,12 +76,13 @@ class OpenAIService {
     messages: ChatMessage[],
     onChunk: (text: string) => void,
     onComplete?: () => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
+    usePremiumKey = false
   ) {
     // React Native doesn't support streaming properly, so we'll use the regular API
     // and simulate streaming for better UX
     try {
-      const response = await this.createChatCompletion(messages);
+      const response = await this.createChatCompletion(messages, usePremiumKey);
 
       // Simulate streaming by gradually revealing the response
       const words = response.split(" ");
@@ -88,13 +102,26 @@ class OpenAIService {
     }
   }
 
-  async createChatCompletion(messages: ChatMessage[]): Promise<string> {
-    if (!this.apiKey) {
-      await this.initialize();
+  async createChatCompletion(messages: ChatMessage[], usePremiumKey = false): Promise<string> {
+    // Initialize with the appropriate key based on premium status
+    // Reset useZeinaKey flag based on the current call context to prevent state inconsistency
+    this.useZeinaKey = usePremiumKey;
+    
+    if (usePremiumKey) {
+      if (!this.zeinaApiKey) {
+        await this.initialize(true);
+      }
+    } else {
+      if (!this.apiKey) {
+        await this.initialize(false);
+      }
     }
     
-    if (!this.apiKey) {
-      throw new Error("OpenAI API key not configured. Please contact support.");
+    // Both regular and premium users use the same API key
+    const activeApiKey = usePremiumKey ? (this.zeinaApiKey || this.apiKey) : (this.apiKey || this.zeinaApiKey);
+    
+    if (!activeApiKey) {
+      throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
     }
 
     try {
@@ -102,7 +129,7 @@ class OpenAIService {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${activeApiKey}`,
         },
         body: JSON.stringify({
           model: this.model,

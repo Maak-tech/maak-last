@@ -81,9 +81,9 @@ export default function ZeinaScreen() {
     }
 
     try {
-      // Initialize OpenAI service
-      await openaiService.initialize();
-      const key = await openaiService.getApiKey();
+      // Initialize OpenAI service with premium key for Zeina
+      await openaiService.initialize(true);
+      const key = await openaiService.getApiKey(true);
 
       if (!key) {
         Alert.alert(
@@ -284,7 +284,8 @@ export default function ZeinaScreen() {
           "Error",
           error.message || "Failed to get response. Please try again."
         );
-      }
+      },
+      true // Use premium key for Zeina
     );
   };
 

@@ -23,7 +23,7 @@ import {
   Waves,
   Zap,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -101,6 +101,7 @@ export default function VitalsScreen() {
     string | undefined
   >();
   const [authorizing, setAuthorizing] = useState(false);
+  const initialLoadCompleted = useRef(false);
 
   const isRTL = i18n.language === "ar";
 
@@ -420,7 +421,7 @@ export default function VitalsScreen() {
     },
   }))(theme);
 
-  const loadVitalsData = async (isRefresh = false) => {
+  const loadVitalsData = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -443,6 +444,9 @@ export default function VitalsScreen() {
         setSummary(summaryData);
         setLastSync(new Date());
       }
+      
+      // Mark initial load as completed
+      initialLoadCompleted.current = true;
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
@@ -452,7 +456,7 @@ export default function VitalsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [isRTL]);
 
   useEffect(() => {
     // CRITICAL: Delay loading vitals data to prevent HealthKit from loading at app startup
@@ -464,12 +468,20 @@ export default function VitalsScreen() {
     }, 10_000); // 10 second delay
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [loadVitalsData]);
 
   useFocusEffect(
     useCallback(() => {
-      loadVitalsData();
-    }, [])
+      // CRITICAL: Only refresh data on focus if initial load has completed
+      // This prevents crashes when navigating to this screen before React Native bridge is ready
+      // The initial load is handled by useEffect with a delay
+      // On subsequent focuses, refresh immediately since bridge should be ready
+      if (initialLoadCompleted.current) {
+        // Already loaded once, safe to refresh immediately
+        loadVitalsData();
+      }
+      // If initial load hasn't completed yet, let useEffect handle it
+    }, [loadVitalsData])
   );
 
   const loadAvailableMetrics = () => {
@@ -493,13 +505,43 @@ export default function VitalsScreen() {
   const checkHealthKitAvailability = async () => {
     if (Platform.OS === "ios") {
       try {
+        // CRITICAL: Add delay before accessing native modules to prevent crashes
+        // Wait for React Native bridge to be fully ready
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
+
         // Lazy import to prevent early native module loading
         const { appleHealthService } = await import(
           "@/lib/services/appleHealthService"
         );
-        const availability = await appleHealthService.checkAvailability();
-        setHealthKitAvailable(availability.available);
-        setAvailabilityReason(availability.reason);
+        
+        // Retry logic for native bridge readiness
+        let availability;
+        let retries = 0;
+        const maxRetries = 3;
+
+        while (retries < maxRetries) {
+          try {
+            availability = await appleHealthService.checkAvailability();
+            break; // Success, exit retry loop
+          } catch (bridgeError: any) {
+            retries++;
+            const errorMsg = bridgeError?.message || String(bridgeError);
+            if (
+              (errorMsg.includes("RCTModuleMethod") ||
+                errorMsg.includes("invokewithbridge") ||
+                errorMsg.includes("invokeWithBridge")) &&
+              retries < maxRetries
+            ) {
+              // Native bridge not ready yet, wait and retry
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+            } else {
+              throw bridgeError; // Re-throw if not a bridge error or max retries reached
+            }
+          }
+        }
+
+        setHealthKitAvailable(availability?.available ?? false);
+        setAvailabilityReason(availability?.reason);
       } catch (error: any) {
         setHealthKitAvailable(false);
         setAvailabilityReason(
@@ -530,15 +572,9 @@ export default function VitalsScreen() {
 
   const handleEnableHealthData = async () => {
     if (Platform.OS === "ios") {
-      // Check availability before navigating (lazy load to prevent crashes)
-      try {
-        await checkHealthKitAvailability();
-        // Navigate to Apple Health intro screen
-        router.push("/health/apple");
-      } catch (error) {
-        // If check fails, still navigate but availability will be checked there
-        router.push("/health/apple");
-      }
+      // Navigate to Apple Health intro screen immediately
+      // Don't check availability here to prevent crashes - let the permission screen handle it
+      router.push("/health/apple");
     } else if (Platform.OS === "android") {
       // For Android, show metric selection directly (Health Connect flow)
       loadAvailableMetrics();
@@ -1758,7 +1794,10 @@ export default function VitalsScreen() {
           </Text>
           <TouchableOpacity
             disabled={authorizing || loading}
-            onPress={handleEnableHealthData}
+            onPress={() => {
+              // Navigate to health integrations section in profile
+              router.push("/profile/health-integrations" as any);
+            }}
             style={styles.enableButton as ViewStyle}
           >
             {authorizing || loading ? (
@@ -1770,13 +1809,9 @@ export default function VitalsScreen() {
               <Heart color={theme.colors.neutral.white} size={20} />
             )}
             <Text style={styles.enableButtonText as StyleProp<TextStyle>}>
-              {authorizing || loading
-                ? isRTL
-                  ? "جاري التفعيل..."
-                  : "Enabling..."
-                : isRTL
-                  ? "تفعيل الدمج"
-                  : "Enable Integration"}
+              {isRTL
+                ? "إعداد التكامل"
+                : "Set Up Integration"}
             </Text>
           </TouchableOpacity>
 
@@ -1789,12 +1824,8 @@ export default function VitalsScreen() {
             }
           >
             {isRTL
-              ? Platform.OS === "ios"
-                ? "انقر لعرض شاشة أذونات HealthKit واختيار البيانات الصحية"
-                : "انقر للاختيار من المقاييس الصحية المتاحة في Health Connect"
-              : Platform.OS === "ios"
-                ? "Click to open HealthKit permissions and select health data"
-                : "Click to select from available health metrics in Health Connect"}
+              ? "انقر للانتقال إلى إعدادات التكامل الصحية في الملف الشخصي"
+              : "Click to go to Health Integrations in your profile settings"}
           </Text>
         </View>
       </SafeAreaView>
