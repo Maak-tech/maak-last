@@ -33,25 +33,21 @@ async function initializeFirebaseAdmin() {
         // and set the path here or use environment variable
         const serviceAccountPath =
           process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
-          path.join(__dirname, "../serviceAccountKey.json");
+          path.join(__dirname, "../firebase-service-account.json");
 
         try {
           const serviceAccount = require(serviceAccountPath);
           admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
-            projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "maak-app-12cb8",
+            projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
           });
-          console.log("✅ Firebase Admin initialized with service account");
         } catch (error) {
           console.error("❌ Service account file not found. Please:");
           console.log(
             "1. Download your service account key from Firebase Console"
           );
           console.log(
-            "   Project: Maak App (maak-app-12cb8)"
-          );
-          console.log(
-            "2. Save it as serviceAccountKey.json in the project root"
+            "2. Save it as firebase-service-account.json in the project root"
           );
           console.log(
             "3. Or set FIREBASE_SERVICE_ACCOUNT_PATH environment variable"

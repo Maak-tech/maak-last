@@ -2,51 +2,9 @@ import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import * as path from "path";
 
-// Initialize Firebase Admin SDK
-// In Cloud Functions environment, this uses default credentials automatically
-// For local development, use service account key file
-if (admin.apps.length === 0) {
-  // Check if running in Cloud Functions environment
-  const isCloudFunctions = process.env.FUNCTION_TARGET || process.env.K_SERVICE;
-  
-  if (isCloudFunctions) {
-    // Production: Use default credentials (automatically provided by Cloud Functions)
-    admin.initializeApp({
-      projectId: "maak-app-12cb8",
-    });
-  } else {
-    // Local development: Use service account key file
-    const serviceAccountPath =
-      process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
-      path.join(__dirname, "../../serviceAccountKey.json");
-    
-    try {
-      // Standard Firebase Admin SDK pattern:
-      // var admin = require("firebase-admin");
-      // var serviceAccount = require("path/to/serviceAccountKey.json");
-      // admin.initializeApp({
-      //   credential: admin.credential.cert(serviceAccount)
-      // });
-      const serviceAccount = require(serviceAccountPath);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        projectId: "maak-app-12cb8",
-      });
-      console.log("✅ Firebase Admin initialized with service account");
-    } catch (error) {
-      console.warn(
-        "⚠️ Service account file not found. Using default credentials.",
-        "For local development, place serviceAccountKey.json in the project root."
-      );
-      // Fallback to default credentials (works if using Firebase emulator or gcloud auth)
-      admin.initializeApp({
-        projectId: "maak-app-12cb8",
-      });
-    }
-  }
-}
+// Initialize Firebase Admin
+admin.initializeApp();
 
 /**
  * Helper function to get FCM tokens for a user

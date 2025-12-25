@@ -321,56 +321,6 @@ The app already includes the necessary Firebase dependencies. If you need to rei
 npm install firebase@^10.12.2 @react-native-async-storage/async-storage
 ```
 
-## 8.5. Set Up Firebase Admin SDK (For Cloud Functions & Scripts)
-
-Firebase Admin SDK is used for server-side operations like Cloud Functions and initialization scripts. It requires a service account key file.
-
-### Get Service Account Key:
-
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select your project: **Maak App** (maak-app-12cb8)
-3. Click the gear icon ⚙️ → **Project Settings**
-4. Go to the **Service Accounts** tab
-5. Click **Generate New Private Key**
-6. Click **Generate Key** in the confirmation dialog
-7. A JSON file will be downloaded (e.g., `maak-app-12cb8-firebase-adminsdk-xxxxx.json`)
-
-### Configure Service Account Key:
-
-1. Rename the downloaded file to `serviceAccountKey.json`
-2. Place it in the **project root** directory (same level as `package.json`)
-3. **Important**: The file is already added to `.gitignore` for security - never commit it to version control!
-
-### Verify Setup:
-
-The Firebase Admin SDK will automatically use the service account key when:
-- Running Cloud Functions locally
-- Running initialization scripts (`npm run firebase:init`)
-- Running other Firebase Admin scripts
-
-**Project Details:**
-- **Project Name**: Maak App
-- **Project ID**: maak-app-12cb8
-- **Project Number**: 426849383346
-- **Parent Org/Folder**: maaktech.net
-- **Default Service Account**: `firebase-adminsdk-fbsvc@maak-app-12cb8.iam.gserviceaccount.com`
-
-> 📘 **See also**: [Firebase Service Account Documentation](./FIREBASE_SERVICE_ACCOUNT.md) for detailed information about the service account and IAM permissions.
-
-### Usage Example:
-
-```javascript
-const admin = require("firebase-admin");
-const serviceAccount = require("./serviceAccountKey.json");
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  projectId: "maak-app-12cb8"
-});
-```
-
-**Note**: In Cloud Functions (when deployed), the Admin SDK uses default credentials automatically - no service account file needed in production.
-
 ## 9. Test the Setup
 
 1. Start your development server: `npm run dev`
