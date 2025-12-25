@@ -88,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           role: userData.role || "admin",
           createdAt: userData.createdAt?.toDate() || new Date(),
           onboardingCompleted: userData.onboardingCompleted,
+          isPremium: userData.isPremium || false,
           preferences: userData.preferences || {
             language: "en",
             notifications: true,
@@ -114,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       role: "admin",
       createdAt: new Date(),
       onboardingCompleted: false,
+      isPremium: false,
       preferences: {
         language: "en",
         notifications: true,

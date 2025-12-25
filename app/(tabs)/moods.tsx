@@ -21,14 +21,41 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { moodService } from "@/lib/services/moodService";
 import { userService } from "@/lib/services/userService";
-import type { Mood, User as UserType } from "@/types";
+import type { Mood, MoodType, User as UserType } from "@/types";
 
 const MOOD_OPTIONS = [
-  { value: "veryHappy", emoji: "😄", label: "veryHappy" },
-  { value: "happy", emoji: "😊", label: "happy" },
-  { value: "neutral", emoji: "😐", label: "neutral" },
-  { value: "sad", emoji: "😔", label: "sad" },
-  { value: "verySad", emoji: "😢", label: "verySad" },
+  // Positive emotions
+  { value: "veryHappy", emoji: "😄", label: "veryHappy", category: "positive" },
+  { value: "happy", emoji: "😊", label: "happy", category: "positive" },
+  { value: "excited", emoji: "🤩", label: "excited", category: "positive" },
+  { value: "content", emoji: "😌", label: "content", category: "positive" },
+  { value: "grateful", emoji: "🙏", label: "grateful", category: "positive" },
+  { value: "hopeful", emoji: "✨", label: "hopeful", category: "positive" },
+  { value: "proud", emoji: "😎", label: "proud", category: "positive" },
+  { value: "calm", emoji: "🧘", label: "calm", category: "positive" },
+  { value: "peaceful", emoji: "☮️", label: "peaceful", category: "positive" },
+  // Negative emotions
+  { value: "sad", emoji: "😔", label: "sad", category: "negative" },
+  { value: "verySad", emoji: "😢", label: "verySad", category: "negative" },
+  { value: "anxious", emoji: "😰", label: "anxious", category: "negative" },
+  { value: "angry", emoji: "😠", label: "angry", category: "negative" },
+  { value: "frustrated", emoji: "😤", label: "frustrated", category: "negative" },
+  { value: "overwhelmed", emoji: "😵", label: "overwhelmed", category: "negative" },
+  { value: "hopeless", emoji: "😞", label: "hopeless", category: "negative" },
+  { value: "guilty", emoji: "😟", label: "guilty", category: "negative" },
+  { value: "ashamed", emoji: "😳", label: "ashamed", category: "negative" },
+  { value: "lonely", emoji: "😕", label: "lonely", category: "negative" },
+  { value: "irritable", emoji: "😒", label: "irritable", category: "negative" },
+  { value: "restless", emoji: "😣", label: "restless", category: "negative" },
+  // Neutral/Other mental states
+  { value: "neutral", emoji: "😐", label: "neutral", category: "neutral" },
+  { value: "confused", emoji: "😕", label: "confused", category: "neutral" },
+  { value: "numb", emoji: "😑", label: "numb", category: "neutral" },
+  { value: "detached", emoji: "😶", label: "detached", category: "neutral" },
+  { value: "empty", emoji: "🫥", label: "empty", category: "neutral" },
+  { value: "apathetic", emoji: "😐", label: "apathetic", category: "neutral" },
+  { value: "tired", emoji: "😴", label: "tired", category: "neutral" },
+  { value: "stressed", emoji: "😫", label: "stressed", category: "negative" },
 ];
 
 export default function MoodsScreen() {
@@ -36,9 +63,7 @@ export default function MoodsScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedMood, setSelectedMood] = useState<
-    "veryHappy" | "happy" | "neutral" | "sad" | "verySad" | ""
-  >("");
+  const [selectedMood, setSelectedMood] = useState<MoodType | "">("");
   const [intensity, setIntensity] = useState(1);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,40 +106,115 @@ export default function MoodsScreen() {
       }
 
       // Load data based on selected filter
+      // Load moods and stats separately to handle errors gracefully
+      let moodsError: any = null;
+      let statsError: any = null;
+      
       if (selectedFilter.type === "family" && user.familyId) {
         // Load family moods and stats (both admins and members can view)
-        const [familyMoods, familyStats] = await Promise.all([
-          moodService.getFamilyMoods(user.familyId, 50),
-          moodService.getFamilyMoodStats(user.familyId, 7),
-        ]);
-
-        setMoods(familyMoods);
-        setStats(familyStats);
+        try {
+          const familyMoods = await moodService.getFamilyMoods(user.familyId, 50);
+          setMoods(familyMoods);
+        } catch (error: any) {
+          console.error("Error loading family moods:", error);
+          moodsError = error;
+          setMoods([]);
+        }
+        
+        try {
+          const familyStats = await moodService.getFamilyMoodStats(user.familyId, 7);
+          setStats(familyStats);
+        } catch (error: any) {
+          console.error("Error loading family mood stats:", error);
+          statsError = error;
+          // Keep default stats if stats fail, but track the error
+          setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
+        }
       } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
         // Load specific member moods and stats (both admins and members can view)
-        const [memberMoods, memberStats] = await Promise.all([
-          moodService.getMemberMoods(selectedFilter.memberId, 50),
-          moodService.getMemberMoodStats(selectedFilter.memberId, 7),
-        ]);
-
-        setMoods(memberMoods);
-        setStats(memberStats);
+        try {
+          const memberMoods = await moodService.getMemberMoods(selectedFilter.memberId, 50);
+          setMoods(memberMoods);
+        } catch (error: any) {
+          console.error("Error loading member moods:", error);
+          moodsError = error;
+          setMoods([]);
+        }
+        
+        try {
+          const memberStats = await moodService.getMemberMoodStats(selectedFilter.memberId, 7);
+          setStats(memberStats);
+        } catch (error: any) {
+          console.error("Error loading member mood stats:", error);
+          statsError = error;
+          // Keep default stats if stats fail, but track the error
+          setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
+        }
       } else {
         // Load personal moods and stats (default)
-        const [userMoods, moodStats] = await Promise.all([
-          moodService.getUserMoods(user.id, 50),
-          moodService.getMoodStats(user.id, 7),
-        ]);
-
-        setMoods(userMoods);
-        setStats(moodStats);
+        try {
+          const userMoods = await moodService.getUserMoods(user.id, 50);
+          setMoods(userMoods);
+        } catch (error: any) {
+          console.error("Error loading user moods:", error);
+          moodsError = error;
+          setMoods([]);
+        }
+        
+        try {
+          const moodStats = await moodService.getMoodStats(user.id, 7);
+          setStats(moodStats);
+        } catch (error: any) {
+          console.error("Error loading mood stats:", error);
+          statsError = error;
+          // Keep default stats if stats fail, but track the error
+          setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
+        }
       }
-    } catch (error) {
-      // Silently handle moods load error
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data"
-      );
+      
+      // Handle errors: prioritize moods error, but also report stats errors
+      if (moodsError) {
+        // If moods failed, throw the error (this is critical)
+        throw moodsError;
+      } else if (statsError) {
+        // If only stats failed, show a warning but don't throw (partial data is still useful)
+        // This allows moods to display even if stats couldn't be loaded
+        const statsErrorMessage = isRTL
+          ? "تم تحميل المزاجات بنجاح، لكن تعذر تحميل الإحصائيات. قد لا تكون البيانات الإحصائية دقيقة."
+          : "Moods loaded successfully, but statistics could not be loaded. Statistics may be incomplete.";
+        
+        // Show a non-blocking warning
+        Alert.alert(
+          isRTL ? "تحذير" : "Warning",
+          statsErrorMessage
+        );
+      }
+    } catch (error: any) {
+      console.error("Error loading moods:", error);
+      // Provide more specific error messages
+      let errorMessage = isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
+      
+      if (error?.message) {
+        if (error.message.includes("index") || error.message.includes("indexes")) {
+          errorMessage = isRTL
+            ? "خطأ في قاعدة البيانات. يرجى المحاولة مرة أخرى."
+            : "Database error. Please try again.";
+        } else if (error.message.includes("permission") || error.message.includes("Permission")) {
+          errorMessage = isRTL
+            ? "ليس لديك صلاحية لعرض البيانات. يرجى التحقق من إعدادات الحساب."
+            : "You don't have permission to view data. Please check your account settings.";
+        } else if (error.message.includes("network") || error.message.includes("Network")) {
+          errorMessage = isRTL
+            ? "خطأ في الاتصال بالإنترنت. يرجى المحاولة مرة أخرى."
+            : "Network error. Please try again.";
+        } else {
+          errorMessage = isRTL
+            ? `حدث خطأ في تحميل البيانات: ${error.message}`
+            : `Error loading data: ${error.message}`;
+        }
+      }
+      
+      Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -217,12 +317,7 @@ export default function MoodsScreen() {
 
         const moodData: Omit<Mood, "id"> = {
           userId: targetUserId,
-          mood: selectedMood as
-            | "veryHappy"
-            | "happy"
-            | "neutral"
-            | "sad"
-            | "verySad",
+          mood: selectedMood as MoodType,
           intensity: intensity as 1 | 2 | 3 | 4 | 5,
           timestamp: new Date(),
           activities: [],
@@ -377,16 +472,67 @@ export default function MoodsScreen() {
 
   const getMoodColor = (moodType: string) => {
     switch (moodType) {
+      // Positive emotions - greens
       case "veryHappy":
         return "#10B981";
       case "happy":
         return "#34D399";
-      case "neutral":
-        return "#F59E0B";
+      case "excited":
+        return "#22C55E";
+      case "content":
+        return "#4ADE80";
+      case "grateful":
+        return "#16A34A";
+      case "hopeful":
+        return "#84CC16";
+      case "proud":
+        return "#65A30D";
+      case "calm":
+        return "#86EFAC";
+      case "peaceful":
+        return "#A7F3D0";
+      // Negative emotions - reds/oranges
       case "sad":
         return "#F87171";
       case "verySad":
         return "#EF4444";
+      case "anxious":
+        return "#F97316";
+      case "angry":
+        return "#DC2626";
+      case "frustrated":
+        return "#EA580C";
+      case "overwhelmed":
+        return "#F59E0B";
+      case "hopeless":
+        return "#B91C1C";
+      case "guilty":
+        return "#C2410C";
+      case "ashamed":
+        return "#991B1B";
+      case "lonely":
+        return "#FCA5A5";
+      case "irritable":
+        return "#FB923C";
+      case "restless":
+        return "#FB7185";
+      case "stressed":
+        return "#F97316";
+      // Neutral/Other - yellows/grays
+      case "neutral":
+        return "#F59E0B";
+      case "confused":
+        return "#EAB308";
+      case "numb":
+        return "#94A3B8";
+      case "detached":
+        return "#64748B";
+      case "empty":
+        return "#475569";
+      case "apathetic":
+        return "#6B7280";
+      case "tired":
+        return "#A78BFA";
       default:
         return "#6B7280";
     }
@@ -765,32 +911,107 @@ export default function MoodsScreen() {
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? "اختر المزاج" : "Select Mood"}
               </Text>
-              <View style={styles.moodsGrid}>
-                {MOOD_OPTIONS.map((moodOption) => (
-                  <TouchableOpacity
-                    key={moodOption.value}
-                    onPress={() => setSelectedMood(moodOption.value as any)}
-                    style={[
-                      styles.moodOption,
-                      selectedMood === moodOption.value &&
-                        styles.moodOptionSelected,
-                    ]}
-                  >
-                    <Text style={styles.moodOptionEmoji}>
-                      {moodOption.emoji}
-                    </Text>
-                    <Text
+              
+              {/* Positive Emotions */}
+              <View style={styles.moodCategory}>
+                <Text style={[styles.categoryLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "مشاعر إيجابية" : "Positive Emotions"}
+                </Text>
+                <View style={styles.moodsGrid}>
+                  {MOOD_OPTIONS.filter(m => m.category === "positive").map((moodOption) => (
+                    <TouchableOpacity
+                      key={moodOption.value}
+                      onPress={() => setSelectedMood(moodOption.value as MoodType)}
                       style={[
-                        styles.moodOptionText,
+                        styles.moodOption,
                         selectedMood === moodOption.value &&
-                          styles.moodOptionTextSelected,
-                        isRTL && styles.rtlText,
+                          styles.moodOptionSelected,
                       ]}
                     >
-                      {t(moodOption.label)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text style={styles.moodOptionEmoji}>
+                        {moodOption.emoji}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.moodOptionText,
+                          selectedMood === moodOption.value &&
+                            styles.moodOptionTextSelected,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {t(moodOption.label)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Negative Emotions */}
+              <View style={styles.moodCategory}>
+                <Text style={[styles.categoryLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "مشاعر سلبية" : "Negative Emotions"}
+                </Text>
+                <View style={styles.moodsGrid}>
+                  {MOOD_OPTIONS.filter(m => m.category === "negative").map((moodOption) => (
+                    <TouchableOpacity
+                      key={moodOption.value}
+                      onPress={() => setSelectedMood(moodOption.value as MoodType)}
+                      style={[
+                        styles.moodOption,
+                        selectedMood === moodOption.value &&
+                          styles.moodOptionSelected,
+                      ]}
+                    >
+                      <Text style={styles.moodOptionEmoji}>
+                        {moodOption.emoji}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.moodOptionText,
+                          selectedMood === moodOption.value &&
+                            styles.moodOptionTextSelected,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {t(moodOption.label)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Neutral/Other States */}
+              <View style={styles.moodCategory}>
+                <Text style={[styles.categoryLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "حالات أخرى" : "Other States"}
+                </Text>
+                <View style={styles.moodsGrid}>
+                  {MOOD_OPTIONS.filter(m => m.category === "neutral").map((moodOption) => (
+                    <TouchableOpacity
+                      key={moodOption.value}
+                      onPress={() => setSelectedMood(moodOption.value as MoodType)}
+                      style={[
+                        styles.moodOption,
+                        selectedMood === moodOption.value &&
+                          styles.moodOptionSelected,
+                      ]}
+                    >
+                      <Text style={styles.moodOptionEmoji}>
+                        {moodOption.emoji}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.moodOptionText,
+                          selectedMood === moodOption.value &&
+                            styles.moodOptionTextSelected,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        {t(moodOption.label)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </View>
 
@@ -1089,6 +1310,17 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     marginBottom: 8,
   },
+  moodCategory: {
+    marginBottom: 20,
+  },
+  categoryLabel: {
+    fontSize: 14,
+    fontFamily: "Geist-SemiBold",
+    color: "#64748B",
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   moodsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1098,7 +1330,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: "30%",
     backgroundColor: "#F1F5F9",
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     alignItems: "center",
     borderWidth: 1,

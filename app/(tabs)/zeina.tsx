@@ -27,9 +27,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 import healthContextService from "@/lib/services/healthContextService";
 import openaiService, {
-  AI_MODELS,
   type ChatMessage as AIMessage,
 } from "@/lib/services/openaiService";
 import ChatMessage from "../components/ChatMessage";
@@ -52,20 +52,18 @@ interface SavedSession {
 }
 
 export default function ZeinaScreen() {
+  const { user } = useAuth();
   const scrollViewRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [tempApiKey, setTempApiKey] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
-  const [tempModel, setTempModel] = useState("gpt-3.5-turbo");
   const [systemPrompt, setSystemPrompt] = useState<string>("");
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<SavedSession[]>([]);
+  
+  const isPremium = user?.isPremium || false;
 
   useEffect(() => {
     initializeChat();
@@ -77,25 +75,23 @@ export default function ZeinaScreen() {
   }, [messages]);
 
   const initializeChat = async () => {
+    if (!isPremium) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // Initialize OpenAI service
       await openaiService.initialize();
       const key = await openaiService.getApiKey();
-      const model = await openaiService.getModel();
 
-      if (key) {
-        setApiKey(key);
-        setSelectedModel(model);
-        setTempModel(model);
-      } else {
+      if (!key) {
         Alert.alert(
-          "Setup Required",
-          "Please configure your OpenAI API key to use Zeina.\n\nYou can get a free API key from platform.openai.com",
-          [
-            { text: "Cancel", style: "cancel" },
-            { text: "Configure", onPress: () => setShowSettings(true) },
-          ]
+          "Service Unavailable",
+          "Zeina is temporarily unavailable. Please contact support."
         );
+        setIsLoading(false);
+        return;
       }
 
       // Load health context
@@ -221,12 +217,14 @@ export default function ZeinaScreen() {
   const handleSend = async () => {
     if (!inputText.trim() || isStreaming) return;
 
-    if (!apiKey) {
+    if (!isPremium) {
       Alert.alert(
-        "API Key Required",
-        "Please configure your OpenAI API key first."
+        "Premium Feature",
+        "Zeina is a premium feature. Please upgrade to access your personal health AI assistant.",
+        [
+          { text: "OK", style: "default" },
+        ]
       );
-      setShowSettings(true);
       return;
     }
 
@@ -282,46 +280,12 @@ export default function ZeinaScreen() {
         // Silently handle chat error
 
         // More user-friendly error messages
-        if (error.message.includes("quota exceeded")) {
-          Alert.alert(
-            "Quota Exceeded",
-            "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing.",
-            [
-              { text: "Open Settings", onPress: () => setShowSettings(true) },
-              { text: "OK", style: "cancel" },
-            ]
-          );
-        } else if (error.message.includes("Invalid API key")) {
-          Alert.alert(
-            "Invalid API Key",
-            "The API key appears to be invalid. Please check and update it.",
-            [
-              { text: "Open Settings", onPress: () => setShowSettings(true) },
-              { text: "Cancel", style: "cancel" },
-            ]
-          );
-        } else {
-          Alert.alert(
-            "Error",
-            error.message || "Failed to get response. Please try again."
-          );
-        }
+        Alert.alert(
+          "Error",
+          error.message || "Failed to get response. Please try again."
+        );
       }
     );
-  };
-
-  const handleSaveSettings = async () => {
-    if (!tempApiKey.trim()) {
-      Alert.alert("Error", "Please enter a valid API key");
-      return;
-    }
-
-    await openaiService.setApiKey(tempApiKey);
-    await openaiService.setModel(tempModel);
-    setApiKey(tempApiKey);
-    setSelectedModel(tempModel);
-    setShowSettings(false);
-    Alert.alert("Success", "Settings saved successfully!");
   };
 
   const handleNewChat = async () => {
@@ -476,12 +440,6 @@ export default function ZeinaScreen() {
               )}
             </View>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowSettings(true)}
-            style={styles.headerButton}
-          >
-            <Ionicons color="#666" name="settings-sharp" size={26} />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -496,7 +454,29 @@ export default function ZeinaScreen() {
           showsVerticalScrollIndicator={false}
           style={styles.messagesContainer}
         >
-          {isLoading ? (
+          {!isPremium ? (
+            <View style={styles.premiumContainer}>
+              <Ionicons color="#007AFF" name="lock-closed" size={64} />
+              <Text style={styles.premiumTitle}>Premium Feature</Text>
+              <Text style={styles.premiumText}>
+                Zeina is your personal health AI assistant, available exclusively for premium subscribers.
+              </Text>
+              <Text style={styles.premiumSubtext}>
+                Upgrade to premium to access Zeina and get personalized health insights powered by AI.
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    "Upgrade to Premium",
+                    "Please upgrade to premium to access Zeina. Contact support for more information."
+                  );
+                }}
+                style={styles.upgradeButton}
+              >
+                <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+              </TouchableOpacity>
+            </View>
+          ) : isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#007AFF" size="large" />
               <Text style={styles.loadingText}>
@@ -521,113 +501,37 @@ export default function ZeinaScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            editable={!isStreaming}
-            multiline
-            onChangeText={setInputText}
-            placeholder="Ask Zeina about your health, medications, symptoms..."
-            placeholderTextColor="#999"
-            scrollEnabled
-            style={styles.textInput}
-            textAlignVertical="top"
-            value={inputText}
-          />
-          <TouchableOpacity
-            disabled={!inputText.trim() || isStreaming}
-            onPress={handleSend}
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isStreaming) && styles.sendButtonDisabled,
-            ]}
-          >
-            {isStreaming ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Ionicons color="white" name="send" size={20} />
-            )}
-          </TouchableOpacity>
-        </View>
+        {isPremium && (
+          <View style={styles.inputContainer}>
+            <TextInput
+              editable={!isStreaming}
+              multiline
+              onChangeText={setInputText}
+              placeholder="Ask Zeina about your health, medications, symptoms..."
+              placeholderTextColor="#999"
+              scrollEnabled
+              style={styles.textInput}
+              textAlignVertical="top"
+              value={inputText}
+            />
+            <TouchableOpacity
+              disabled={!inputText.trim() || isStreaming}
+              onPress={handleSend}
+              style={[
+                styles.sendButton,
+                (!inputText.trim() || isStreaming) && styles.sendButtonDisabled,
+              ]}
+            >
+              {isStreaming ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Ionicons color="white" name="send" size={20} />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
 
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setShowSettings(false)}
-        transparent={true}
-        visible={showSettings}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Settings</Text>
-              <TouchableOpacity onPress={() => setShowSettings(false)}>
-                <Ionicons color="#333" name="close" size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalLabel}>OpenAI API Key</Text>
-            <TextInput
-              autoCapitalize="none"
-              onChangeText={setTempApiKey}
-              placeholder="sk-..."
-              placeholderTextColor="#999"
-              secureTextEntry
-              style={styles.modalInput}
-              value={tempApiKey || apiKey}
-            />
-
-            <Text style={styles.modalHint}>
-              Get your API key from platform.openai.com
-            </Text>
-
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>AI Model</Text>
-            <View style={styles.modelSelector}>
-              {Object.entries(AI_MODELS).map(([modelKey, modelName]) => (
-                <TouchableOpacity
-                  key={modelKey}
-                  onPress={() => setTempModel(modelKey)}
-                  style={[
-                    styles.modelOption,
-                    tempModel === modelKey && styles.modelOptionSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.modelOptionText,
-                      tempModel === modelKey && styles.modelOptionTextSelected,
-                    ]}
-                  >
-                    {modelName}
-                  </Text>
-                  {modelKey === "gpt-3.5-turbo" && (
-                    <Text style={styles.recommendedBadge}>RECOMMENDED</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.modalHint}>
-              GPT-3.5 Turbo is recommended for best cost/performance balance
-            </Text>
-
-            <TouchableOpacity
-              onPress={handleSaveSettings}
-              style={styles.saveButton}
-            >
-              <Text style={styles.saveButtonText}>Save Settings</Text>
-            </TouchableOpacity>
-
-            <View style={styles.helpSection}>
-              <Text style={styles.helpTitle}>⚠️ Quota Exceeded?</Text>
-              <Text style={styles.helpText}>
-                1. Visit platform.openai.com{"\n"}
-                2. Add payment method ($5 minimum){"\n"}
-                3. Or use GPT-3.5 Turbo (cheapest option)
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Chat History Modal */}
       <Modal
@@ -797,6 +701,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
+  premiumContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingTop: 100,
+  },
+  premiumTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#333",
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  premiumText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  premiumSubtext: {
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  upgradeButton: {
+    backgroundColor: "#007AFF",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    minWidth: 200,
+  },
+  upgradeButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
   inputContainer: {
     flexDirection: "row",
     padding: 16,
@@ -850,87 +795,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     color: "#333",
-  },
-  modalLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#666",
-    marginBottom: 8,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: "#333",
-    marginBottom: 8,
-  },
-  modalHint: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 20,
-  },
-  link: {
-    color: "#007AFF",
-    textDecorationLine: "underline",
-  },
-  modelSelector: {
-    marginBottom: 8,
-  },
-  modelOption: {
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  modelOptionSelected: {
-    borderColor: "#007AFF",
-    backgroundColor: "#F0F8FF",
-  },
-  modelOptionText: {
-    fontSize: 14,
-    color: "#333",
-  },
-  modelOptionTextSelected: {
-    color: "#007AFF",
-    fontWeight: "600",
-  },
-  recommendedBadge: {
-    fontSize: 10,
-    color: "#10B981",
-    fontWeight: "600",
-    marginTop: 4,
-  },
-  helpSection: {
-    marginTop: 20,
-    padding: 12,
-    backgroundColor: "#FFF3CD",
-    borderRadius: 8,
-  },
-  helpTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#856404",
-    marginBottom: 8,
-  },
-  helpText: {
-    fontSize: 12,
-    color: "#856404",
-    lineHeight: 18,
-  },
-  saveButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  saveButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
   },
   emptyHistory: {
     alignItems: "center",

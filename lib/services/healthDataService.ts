@@ -143,14 +143,20 @@ export const healthDataService = {
   async hasHealthPermissions(): Promise<boolean> {
     try {
       // Check stored connection status (more reliable than AsyncStorage flag)
+      const { getProviderConnection } = await import("../health/healthSync");
+      
+      // Check Fitbit connection first (works on both iOS and Android)
+      const fitbitConnection = await getProviderConnection("fitbit");
+      if (fitbitConnection && fitbitConnection.connected) {
+        return true;
+      }
+      
       if (Platform.OS === "ios") {
-        const { getProviderConnection } = await import("../health/healthSync");
         const connection = await getProviderConnection("apple_health");
         if (connection && connection.connected) {
           return true;
         }
       } else if (Platform.OS === "android") {
-        const { getProviderConnection } = await import("../health/healthSync");
         const connection = await getProviderConnection("health_connect");
         if (connection && connection.connected) {
           return true;
@@ -177,11 +183,15 @@ export const healthDataService = {
   // Get latest vital signs
   async getLatestVitals(): Promise<VitalSigns | null> {
     try {
-      const hasPermissions = await this.hasHealthPermissions();
-      if (!hasPermissions) {
-        return null;
+      const { getProviderConnection } = await import("../health/healthSync");
+      
+      // Check Fitbit first (works on both platforms)
+      const fitbitConnection = await getProviderConnection("fitbit");
+      if (fitbitConnection && fitbitConnection.connected) {
+        return await this.getFitbitVitals();
       }
 
+      // Fall back to platform-specific providers
       if (Platform.OS === "ios") {
         return await this.getIOSVitals();
       }
@@ -410,6 +420,135 @@ export const healthDataService = {
       return await this.getSimulatedVitals();
     } catch {
       return await this.getSimulatedVitals();
+    }
+  },
+
+  // Fitbit vitals data retrieval
+  async getFitbitVitals(): Promise<VitalSigns | null> {
+    try {
+      const { getProviderConnection } = await import("../health/healthSync");
+      const connection = await getProviderConnection("fitbit");
+      
+      if (!(connection && connection.connected)) {
+        return this.getSimulatedVitals();
+      }
+
+      // Import fitbitService dynamically
+      const { fitbitService } = await import("./fitbitService");
+
+      // Get health metrics using fitbitService
+      try {
+        const today = new Date();
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000); // 1 day ago
+
+        const metrics = await fitbitService.fetchMetrics(
+          connection.selectedMetrics.length > 0
+            ? connection.selectedMetrics
+            : ["heart_rate", "steps", "active_energy", "sleep_analysis", "weight"],
+          yesterday,
+          today
+        );
+
+        // Helper to get latest value from samples
+        const getLatestValue = (metricKey: string): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === metricKey);
+          if (!metric || metric.samples.length === 0) return;
+          // Get the most recent sample value
+          const latestSample = metric.samples[metric.samples.length - 1];
+          if (typeof latestSample.value !== "number") return;
+          return latestSample.value;
+        };
+
+        // Helper to get sum for metrics like steps (daily total)
+        const getSumValue = (metricKey: string): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === metricKey);
+          if (!metric || metric.samples.length === 0) return;
+          const sum = metric.samples.reduce((acc, sample) => {
+            const value = typeof sample.value === "number" ? sample.value : 0;
+            return acc + value;
+          }, 0);
+          return sum;
+        };
+
+        // Helper to get average heart rate
+        const getAverageHeartRate = (): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === "heart_rate");
+          if (!metric || metric.samples.length === 0) return;
+          const sum = metric.samples.reduce((acc, sample) => {
+            const value = typeof sample.value === "number" ? sample.value : 0;
+            return acc + value;
+          }, 0);
+          return sum / metric.samples.length;
+        };
+
+        // Helper to get sleep hours from sleep analysis
+        const getSleepHours = (): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === "sleep_analysis");
+          if (!metric || metric.samples.length === 0) return;
+          // Sum all sleep durations (in minutes) and convert to hours
+          const totalMinutes = metric.samples.reduce((acc, sample) => {
+            const value = typeof sample.value === "number" ? sample.value : 0;
+            return acc + value;
+          }, 0);
+          return totalMinutes / 60;
+        };
+
+        const vitals: VitalSigns = {
+          // Heart & Cardiovascular
+          heartRate: getAverageHeartRate() || getLatestValue("heart_rate"),
+          restingHeartRate: getLatestValue("resting_heart_rate"),
+          heartRateVariability: getLatestValue("heart_rate_variability"),
+          walkingHeartRateAverage: getLatestValue("walking_heart_rate_average"),
+
+          // Blood Pressure (not available from Fitbit)
+          // bloodPressure: undefined,
+
+          // Respiratory
+          respiratoryRate: getLatestValue("respiratory_rate"),
+          oxygenSaturation: getLatestValue("blood_oxygen"),
+
+          // Temperature
+          bodyTemperature: getLatestValue("body_temperature"),
+
+          // Body Measurements
+          weight: getLatestValue("weight"),
+          // height: undefined, // Not available from Fitbit
+          bodyMassIndex: getLatestValue("body_mass_index"),
+          bodyFatPercentage: getLatestValue("body_fat_percentage"),
+
+          // Activity & Fitness
+          steps: getSumValue("steps"),
+          activeEnergy: getSumValue("active_energy"),
+          basalEnergy: getLatestValue("basal_energy"),
+          distanceWalkingRunning: getSumValue("distance_walking_running"),
+          flightsClimbed: getSumValue("flights_climbed"),
+
+          // Sleep
+          sleepHours: getSleepHours(),
+
+          // Nutrition
+          waterIntake: getSumValue("water_intake"),
+
+          // Glucose (not available from Fitbit)
+          // bloodGlucose: undefined,
+
+          timestamp: new Date(),
+        };
+
+        return vitals;
+      } catch (error: any) {
+        console.error(
+          "[Health Data Service] Error fetching Fitbit data:",
+          error?.message || String(error)
+        );
+        return this.getSimulatedVitals();
+      }
+    } catch (error: any) {
+      console.error(
+        "[Health Data Service] Error in getFitbitVitals:",
+        error?.message || String(error)
+      );
+      return this.getSimulatedVitals();
     }
   },
 

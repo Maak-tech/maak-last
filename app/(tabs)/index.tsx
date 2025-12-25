@@ -27,9 +27,6 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import FamilyDataFilter, {
-  type FilterOption,
-} from "@/app/components/FamilyDataFilter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { alertService } from "@/lib/services/alertService";
@@ -58,11 +55,6 @@ export default function DashboardScreen() {
     medicationCompliance: 0,
   });
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
-    id: "personal",
-    type: "personal",
-    label: "",
-  });
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -359,24 +351,6 @@ export default function DashboardScreen() {
     },
   }))(theme);
 
-  const getMemberName = (userId: string): string => {
-    if (userId === user?.id) {
-      return isRTL ? "أنت" : "You";
-    }
-    const member = familyMembers.find((m) => m.id === userId);
-    if (!member) {
-      return isRTL ? "عضو غير معروف" : "Unknown Member";
-    }
-    // User type has firstName and lastName, not name
-    if (member.firstName && member.lastName) {
-      return `${member.firstName} ${member.lastName}`;
-    }
-    if (member.firstName) {
-      return member.firstName;
-    }
-    return isRTL ? "عضو غير معروف" : "Unknown Member";
-  };
-
   const loadDashboardData = async () => {
     if (!user) return;
 
@@ -394,125 +368,49 @@ export default function DashboardScreen() {
       // Reset daily reminders first
       await medicationService.resetDailyReminders(user.id);
 
-      // Load data based on selected filter
-      if (selectedFilter.type === "family" && user.familyId) {
-        // Load family data (both admins and members can view)
-        const [
-          familySymptoms,
-          familyMedications,
-          alertsCountData,
-          familySymptomStats,
-        ] = await Promise.all([
-          symptomService.getFamilySymptoms(user.familyId, 5),
-          medicationService.getFamilyTodaysMedications(user.familyId),
-          alertService.getActiveAlertsCount(user.id), // Keep personal alerts for now
-          symptomService.getFamilySymptomStats(user.familyId, 7),
+      // Load personal data
+      const [symptoms, medications, alertsCountData, symptomStats] =
+        await Promise.all([
+          symptomService.getUserSymptoms(user.id, 5),
+          medicationService.getTodaysMedications(user.id),
+          alertService.getActiveAlertsCount(user.id),
+          symptomService.getSymptomStats(user.id, 7),
         ]);
 
-        setRecentSymptoms(familySymptoms);
-        setTodaysMedications(familyMedications);
-        setAlertsCount(alertsCountData);
+      setRecentSymptoms(symptoms);
+      setTodaysMedications(medications);
+      setAlertsCount(alertsCountData);
 
-        // Calculate family medication compliance
-        const today = new Date().toDateString();
-        const totalReminders = familyMedications.reduce((sum, med) => {
-          const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-          return sum + reminders.length;
-        }, 0);
+      // Calculate personal medication compliance
+      const today = new Date().toDateString();
+      const totalReminders = medications.reduce((sum, med) => {
+        const reminders = Array.isArray(med.reminders) ? med.reminders : [];
+        return sum + reminders.length;
+      }, 0);
 
-        const takenReminders = familyMedications.reduce((sum, med) => {
-          const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-          return (
-            sum +
-            reminders.filter((r) => {
-              if (!(r.taken && r.takenAt)) return false;
-              const takenDate = (r.takenAt as any).toDate
-                ? (r.takenAt as any).toDate()
-                : new Date(r.takenAt);
-              const takenToday = takenDate.toDateString() === today;
-              return takenToday;
-            }).length
-          );
-        }, 0);
+      const takenReminders = medications.reduce((sum, med) => {
+        const reminders = Array.isArray(med.reminders) ? med.reminders : [];
+        return (
+          sum +
+          reminders.filter((r) => {
+            if (!(r.taken && r.takenAt)) return false;
+            const takenDate = (r.takenAt as any).toDate
+              ? (r.takenAt as any).toDate()
+              : new Date(r.takenAt);
+            const takenToday = takenDate.toDateString() === today;
+            return takenToday;
+          }).length
+        );
+      }, 0);
 
-        const compliance =
-          totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
+      const compliance =
+        totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
 
-        setStats({
-          symptomsThisWeek: familySymptomStats.totalSymptoms,
-          avgSeverity: familySymptomStats.avgSeverity,
-          medicationCompliance: Math.round(compliance),
-        });
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
-        // Load specific member data (both admins and members can view)
-        const [
-          memberSymptoms,
-          memberMedications,
-          alertsCountData,
-          memberSymptomStats,
-          memberMedicationStats,
-        ] = await Promise.all([
-          symptomService.getMemberSymptoms(selectedFilter.memberId, 5),
-          medicationService.getMemberTodaysMedications(selectedFilter.memberId),
-          alertService.getActiveAlertsCount(user.id), // Keep personal alerts for now
-          symptomService.getMemberSymptomStats(selectedFilter.memberId, 7),
-          medicationService.getMemberMedicationStats(selectedFilter.memberId),
-        ]);
-
-        setRecentSymptoms(memberSymptoms);
-        setTodaysMedications(memberMedications);
-        setAlertsCount(alertsCountData);
-
-        setStats({
-          symptomsThisWeek: memberSymptomStats.totalSymptoms,
-          avgSeverity: memberSymptomStats.avgSeverity,
-          medicationCompliance: memberMedicationStats.todaysCompliance,
-        });
-      } else {
-        // Load personal data (default)
-        const [symptoms, medications, alertsCountData, symptomStats] =
-          await Promise.all([
-            symptomService.getUserSymptoms(user.id, 5),
-            medicationService.getTodaysMedications(user.id),
-            alertService.getActiveAlertsCount(user.id),
-            symptomService.getSymptomStats(user.id, 7),
-          ]);
-
-        setRecentSymptoms(symptoms);
-        setTodaysMedications(medications);
-        setAlertsCount(alertsCountData);
-
-        // Calculate personal medication compliance
-        const today = new Date().toDateString();
-        const totalReminders = medications.reduce((sum, med) => {
-          const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-          return sum + reminders.length;
-        }, 0);
-
-        const takenReminders = medications.reduce((sum, med) => {
-          const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-          return (
-            sum +
-            reminders.filter((r) => {
-              if (!(r.taken && r.takenAt)) return false;
-              const takenDate = (r.takenAt as any).toDate
-                ? (r.takenAt as any).toDate()
-                : new Date(r.takenAt);
-              const takenToday = takenDate.toDateString() === today;
-              return takenToday;
-            }).length
-          );
-        }, 0);
-
-        const compliance =
-          totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
-
-        setStats({
-          symptomsThisWeek: symptomStats.totalSymptoms,
-          avgSeverity: symptomStats.avgSeverity,
-          medicationCompliance: Math.round(compliance),
-        });
-      }
+      setStats({
+        symptomsThisWeek: symptomStats.totalSymptoms,
+        avgSeverity: symptomStats.avgSeverity,
+        medicationCompliance: Math.round(compliance),
+      });
     } catch (error) {
       // Silently handle dashboard data load error
     } finally {
@@ -523,22 +421,18 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     loadDashboardData();
-  }, [user, selectedFilter]);
+  }, [user]);
 
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
-    }, [user, selectedFilter])
+    }, [user])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
     loadDashboardData();
-  };
-
-  const handleFilterChange = (filter: FilterOption) => {
-    setSelectedFilter(filter);
   };
 
   const formatTime = (date: Date) =>
@@ -548,17 +442,6 @@ export default function DashboardScreen() {
     theme.colors.severity[severity as keyof typeof theme.colors.severity] ||
     theme.colors.neutral[500];
 
-  const getDataSourceLabel = () => {
-    if (selectedFilter.type === "family") {
-      return isRTL ? "بيانات العائلة" : "Family Data";
-    }
-    if (selectedFilter.type === "member") {
-      return isRTL
-        ? `بيانات ${selectedFilter.memberName}`
-        : `${selectedFilter.memberName}'s Data`;
-    }
-    return isRTL ? "بياناتي الشخصية" : "My Personal Data";
-  };
 
   const handleSOS = () => {
     try {
@@ -720,16 +603,6 @@ export default function DashboardScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Enhanced Data Filter */}
-        <FamilyDataFilter
-          currentUserId={user.id}
-          familyMembers={familyMembers}
-          hasFamily={hasFamily}
-          isAdmin={isAdmin}
-          onFilterChange={handleFilterChange}
-          selectedFilter={selectedFilter}
-        />
 
         {/* Quick Stats */}
         <View style={styles.statsContainer as ViewStyle}>
@@ -1185,22 +1058,6 @@ export default function DashboardScreen() {
                   >
                     {medication.dosage} • {medication.frequency}
                   </Text>
-                  {/* Show member name for family/member views */}
-                  {(selectedFilter.type === "family" ||
-                    selectedFilter.type === "member") && (
-                    <Text
-                      style={
-                        [
-                          styles.memberIndicator,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL
-                        ? `للـ ${getMemberName(medication.userId)}`
-                        : `for ${getMemberName(medication.userId)}`}
-                    </Text>
-                  )}
                 </View>
                 <View style={styles.medicationStatus as ViewStyle}>
                   {Array.isArray(medication.reminders) &&
@@ -1322,22 +1179,6 @@ export default function DashboardScreen() {
                   >
                     {formatTime(symptom.timestamp)}
                   </Text>
-                  {/* Show member name for family/member views */}
-                  {(selectedFilter.type === "family" ||
-                    selectedFilter.type === "member") && (
-                    <Text
-                      style={
-                        [
-                          styles.memberIndicator,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL
-                        ? `للـ ${getMemberName(symptom.userId)}`
-                        : `for ${getMemberName(symptom.userId)}`}
-                    </Text>
-                  )}
                 </View>
                 <View style={styles.severityDisplay as ViewStyle}>
                   {[...Array(5)].map((_, i) => (

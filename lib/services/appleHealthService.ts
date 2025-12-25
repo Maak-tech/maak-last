@@ -121,6 +121,48 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
 };
 
 /**
+ * Check if an error is an authorization-denied error (HealthKit error code 5)
+ */
+const isAuthorizationDeniedError = (error: any): boolean => {
+  if (!error) return false;
+  
+  // Check for HealthKit error code 5 (Authorization Denied)
+  const errorString = String(error);
+  const errorMessage = error?.message || errorString;
+  const errorCode = error?.code;
+  const errorDomain = error?.domain;
+  
+  // HealthKit error code 5 means authorization denied
+  if (errorCode === 5) return true;
+  
+  // Check if domain is HealthKit and code is 5
+  if (errorDomain === "com.apple.healthkit" && errorCode === 5) {
+    return true;
+  }
+  
+  // Check error domain and code in error message/string (handles formats like "error domain=com.apple.healthkit code=5")
+  if (
+    (errorString.includes("com.apple.healthkit") || errorMessage.includes("com.apple.healthkit")) &&
+    (errorString.includes("code=5") || errorString.includes("code 5") || errorMessage.includes("code=5") || errorMessage.includes("code 5"))
+  ) {
+    return true;
+  }
+  
+  // Check error message for authorization denied patterns
+  if (
+    errorMessage.includes("authorization denied") ||
+    errorMessage.includes("Authorization Denied") ||
+    errorMessage.includes("not authorized") ||
+    errorString.includes("authorization denied") ||
+    errorString.includes("Authorization Denied")
+  ) {
+    return true;
+  }
+  
+  return false;
+};
+
+/**
  * Fetch samples for a single metric
  */
 const fetchMetricSamples = async (
@@ -207,6 +249,16 @@ const fetchMetricSamples = async (
       metadata: sample.metadata,
     }));
   } catch (error: any) {
+    // Check if this is an authorization-denied error
+    if (isAuthorizationDeniedError(error)) {
+      // Throw a custom error so it can be caught and tracked in fetchMetrics
+      // This allows us to track which metrics failed due to authorization
+      const authError = new Error(`Authorization denied for ${healthKitType}`);
+      (authError as any).isAuthorizationDenied = true;
+      (authError as any).healthKitType = healthKitType;
+      throw authError;
+    }
+    
     console.error(
       `[HealthKit Service] Error fetching ${healthKitType}:`,
       error?.message || String(error)
@@ -256,6 +308,9 @@ const fetchMetrics = async (
       `[HealthKit Service] Fetching ${metricsToFetch.length} metrics for ${selectedMetricKeys.length} selected keys`
     );
 
+    // Track metrics that failed due to authorization
+    const authorizationDeniedMetrics: string[] = [];
+
     // Fetch samples for each metric
     for (const metric of metricsToFetch) {
       try {
@@ -286,6 +341,16 @@ const fetchMetrics = async (
           });
         }
       } catch (error: any) {
+        // Check if this is an authorization-denied error
+        if (isAuthorizationDeniedError(error) || (error as any).isAuthorizationDenied) {
+          authorizationDeniedMetrics.push(metric.displayName || metric.key);
+          console.warn(
+            `[HealthKit Service] Authorization denied for ${metric.key} (${metric.displayName}). User needs to grant permission in Settings > Privacy & Security > Health.`
+          );
+          // Continue with other metrics - authorization denied is handled gracefully
+          continue;
+        }
+        
         console.error(
           `[HealthKit Service] Error fetching metric ${metric.key}:`,
           error?.message || String(error)
@@ -294,9 +359,17 @@ const fetchMetrics = async (
       }
     }
 
+    // Log summary
+    const totalSamples = results.reduce((sum, m) => sum + m.samples.length, 0);
     console.log(
-      `[HealthKit Service] Total metrics fetched: ${results.length}, total samples: ${results.reduce((sum, m) => sum + m.samples.length, 0)}`
+      `[HealthKit Service] Total metrics fetched: ${results.length}, total samples: ${totalSamples}`
     );
+    
+    if (authorizationDeniedMetrics.length > 0) {
+      console.warn(
+        `[HealthKit Service] ${authorizationDeniedMetrics.length} metric(s) skipped due to authorization denial: ${authorizationDeniedMetrics.join(", ")}. Grant permissions in Settings > Privacy & Security > Health.`
+      );
+    }
 
     return results;
   } catch (error: any) {

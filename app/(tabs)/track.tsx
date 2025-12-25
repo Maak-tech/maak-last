@@ -22,16 +22,12 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import FamilyDataFilter, {
-  type FilterOption,
-} from "@/app/components/FamilyDataFilter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
 import { symptomService } from "@/lib/services/symptomService";
-import { userService } from "@/lib/services/userService";
 import type {
   MedicalHistory,
   Medication,
@@ -53,12 +49,6 @@ export default function TrackScreen() {
     MedicalHistory[]
   >([]);
   const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
-  const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
-    id: "personal",
-    type: "personal",
-    label: "",
-  });
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -71,8 +61,6 @@ export default function TrackScreen() {
   });
 
   const isRTL = i18n.language === "ar";
-  const isAdmin = user?.role === "admin";
-  const hasFamily = Boolean(user?.familyId);
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -278,13 +266,6 @@ export default function TrackScreen() {
         setLoading(true);
       }
 
-      // Load family members if user has family
-      let members: UserType[] = [];
-      if (user.familyId) {
-        members = await userService.getFamilyMembers(user.familyId);
-        setFamilyMembers(members);
-      }
-
       // Load recent data for overview
       const [symptoms, medications, medicalHistory, moods, moodStats] =
         await Promise.all([
@@ -344,17 +325,13 @@ export default function TrackScreen() {
 
   useEffect(() => {
     loadTrackingData();
-  }, [user, selectedFilter]);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
       loadTrackingData();
-    }, [user, selectedFilter])
+    }, [user])
   );
-
-  const handleFilterChange = (filter: FilterOption) => {
-    setSelectedFilter(filter);
-  };
 
   const formatTime = (date: Date) =>
     date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -421,16 +398,6 @@ export default function TrackScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
       >
-        {/* Family Data Filter */}
-        <FamilyDataFilter
-          currentUserId={user.id}
-          familyMembers={familyMembers}
-          hasFamily={hasFamily}
-          isAdmin={isAdmin}
-          onFilterChange={handleFilterChange}
-          selectedFilter={selectedFilter}
-        />
-
         {/* Summary Stats */}
         {loading ? (
           <View style={styles.loadingContainer as ViewStyle}>

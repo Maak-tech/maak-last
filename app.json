@@ -18,6 +18,7 @@
       "bundleIdentifier": "com.maak.health",
       "buildNumber": "27",
       "jsEngine": "hermes",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "splash": {
         "image": "./assets/images/generated_image.png",
         "resizeMode": "contain",
@@ -47,6 +48,7 @@
       "package": "com.maak.health",
       "versionCode": 1,
       "jsEngine": "hermes",
+      "googleServicesFile": "./google-services.json",
       "splash": {
         "image": "./assets/images/generated_image.png",
         "resizeMode": "contain",
@@ -105,7 +107,10 @@
       "router": {},
       "eas": {
         "projectId": "4ee7df2f-34c7-4be6-aaa0-f6bfca8f98c0"
-      }
+      },
+      "fitbitClientId": "YOUR_FITBIT_CLIENT_ID",
+      "fitbitClientSecret": "YOUR_FITBIT_CLIENT_SECRET",
+      "openaiApiKey": "YOUR_OPENAI_API_KEY_HERE"
     }
   }
 }

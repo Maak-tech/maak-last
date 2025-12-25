@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -42,6 +42,9 @@ import {
   View,
 } from "react-native";
 import AlertsCard from "@/app/components/AlertsCard";
+import FamilyDataFilter, {
+  type FilterOption,
+} from "@/app/components/FamilyDataFilter";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
@@ -79,6 +82,7 @@ export default function FamilyScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const router = useRouter();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showJoinFamilyModal, setShowJoinFamilyModal] = useState(false);
@@ -114,6 +118,13 @@ export default function FamilyScreen() {
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
   const isRTL = i18n.language === "ar";
+  const isAdmin = user?.role === "admin";
+  const hasFamily = Boolean(user?.familyId);
+  const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
+    id: "personal",
+    type: "personal",
+    label: "",
+  });
 
   useEffect(() => {
     loadFamilyMembers();
@@ -896,7 +907,7 @@ export default function FamilyScreen() {
       // Check for critical health score
       if (metric.healthScore < 60) {
         attentionItems.push({
-          memberId: metric.id,
+          memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
             ? `نقاط الصحة منخفضة (${metric.healthScore})`
@@ -907,7 +918,7 @@ export default function FamilyScreen() {
         });
       } else if (metric.healthScore < 80) {
         attentionItems.push({
-          memberId: metric.id,
+          memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
             ? `نقاط الصحة تحتاج انتباه (${metric.healthScore})`
@@ -921,7 +932,7 @@ export default function FamilyScreen() {
       // Check for active alerts
       if (metric.alertsCount > 0) {
         attentionItems.push({
-          memberId: metric.id,
+          memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
             ? `${metric.alertsCount} ${metric.alertsCount === 1 ? "تنبيه نشط" : "تنبيهات نشطة"}`
@@ -935,7 +946,7 @@ export default function FamilyScreen() {
       // Check for high symptom count
       if (metric.symptomsThisWeek > 3) {
         attentionItems.push({
-          memberId: metric.id,
+          memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
             ? `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "عرض هذا الأسبوع" : "أعراض هذا الأسبوع"}`
@@ -949,7 +960,7 @@ export default function FamilyScreen() {
       // Check for abnormal vitals
       if (hasAbnormalVitals(metric.vitals)) {
         attentionItems.push({
-          memberId: metric.id,
+          memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL ? "علامات حيوية غير طبيعية" : "Abnormal vital signs",
           severity: "high",
@@ -967,6 +978,10 @@ export default function FamilyScreen() {
   };
 
   const attentionItems = getItemsNeedingAttention();
+
+  const handleFilterChange = (filter: FilterOption) => {
+    setSelectedFilter(filter);
+  };
 
   if (loading) {
     return (
@@ -1025,6 +1040,16 @@ export default function FamilyScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content}
       >
+        {/* View Data Filter */}
+        <FamilyDataFilter
+          currentUserId={user?.id || ""}
+          familyMembers={familyMembers}
+          hasFamily={hasFamily}
+          isAdmin={isAdmin}
+          onFilterChange={handleFilterChange}
+          selectedFilter={selectedFilter}
+        />
+
         {/* Family Overview */}
         <View style={styles.overviewCard}>
           <Text style={[styles.overviewTitle, isRTL && styles.rtlText]}>
@@ -1086,15 +1111,10 @@ export default function FamilyScreen() {
                 const colors = severityColors[item.severity];
 
                 return (
-                  <TouchableOpacity
-                    key={`${item.memberId}-${index}`}
+                    <TouchableOpacity
+                      key={`${item.memberId}-${index}`}
                     onPress={() => {
-                      const member = familyMembers.find(
-                        (m) => m.id === item.memberId
-                      );
-                      if (member) {
-                        handleEditMember(member);
-                      }
+                      router.push(`/family/${item.memberId}`);
                     }}
                     style={[
                       styles.attentionItem,
@@ -1234,7 +1254,7 @@ export default function FamilyScreen() {
                   return (
                     <TouchableOpacity
                       key={metric.id}
-                      onPress={() => handleEditMember(metric.user)}
+                      onPress={() => router.push(`/family/${metric.user.id}`)}
                       style={styles.dashboardCard}
                     >
                       <View style={styles.dashboardCardHeader}>
@@ -1515,7 +1535,11 @@ export default function FamilyScreen() {
             <View style={styles.membersList}>
               {familyMembers.map((member) => (
                 <View key={member.id} style={styles.memberItem}>
-                  <View style={styles.memberLeft}>
+                  <TouchableOpacity
+                    onPress={() => router.push(`/family/${member.id}`)}
+                    style={styles.memberLeft}
+                    activeOpacity={0.7}
+                  >
                     <View style={styles.avatarContainer}>
                       <Avatar
                         avatarType={member.avatarType}
@@ -1553,7 +1577,7 @@ export default function FamilyScreen() {
                             : "Member"}
                       </Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
 
                   <View style={styles.memberRight}>
                     <View style={styles.memberStats}>

@@ -1,13 +1,20 @@
 /**
  * Metrics Export Service
  * Handles exporting health metrics to CSV or PDF format
+ * Includes: Vitals, Symptoms, Medical History, Medications, and Moods
  */
 
 import * as FileSystem from "expo-file-system";
 import { Platform, Share } from "react-native";
+import { auth } from "../firebase";
 import type { HealthProvider } from "../health/healthMetricsCatalog";
 import { getProviderConnection } from "../health/healthSync";
 import type { NormalizedMetricPayload } from "../health/healthTypes";
+import { medicalHistoryService } from "./medicalHistoryService";
+import { medicationService } from "./medicationService";
+import { moodService } from "./moodService";
+import { symptomService } from "./symptomService";
+import type { MedicalHistory, Medication, Mood, Symptom } from "@/types";
 
 export type ExportFormat = "csv" | "pdf";
 
@@ -16,6 +23,15 @@ export interface ExportOptions {
   startDate?: Date;
   endDate?: Date;
   provider?: HealthProvider; // If not specified, exports from all connected providers
+  userId?: string; // User ID for fetching symptoms, medications, medical history, and moods
+}
+
+export interface HealthReportData {
+  vitals: NormalizedMetricPayload[];
+  symptoms: Symptom[];
+  medications: Medication[];
+  medicalHistory: MedicalHistory[];
+  moods: Mood[];
 }
 
 /**
@@ -147,29 +163,166 @@ const fetchMetricsForExport = async (
 };
 
 /**
- * Convert metrics to CSV format
+ * Fetch all health data (vitals, symptoms, medications, medical history, moods)
  */
-const convertToCSV = (metrics: NormalizedMetricPayload[]): string => {
-  if (metrics.length === 0) {
-    return "Metric,Display Name,Unit,Value,Start Date,End Date,Source\n";
+const fetchAllHealthData = async (
+  options: ExportOptions
+): Promise<HealthReportData> => {
+  const endDate = options.endDate || new Date();
+  const startDate =
+    options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const userId = options.userId || auth.currentUser?.uid;
+
+  // Fetch vitals metrics
+  const vitals = await fetchMetricsForExport(options);
+
+  // Fetch other health data if userId is available
+  let symptoms: Symptom[] = [];
+  let medications: Medication[] = [];
+  let medicalHistory: MedicalHistory[] = [];
+  let moods: Mood[] = [];
+
+  if (userId) {
+    try {
+      // Fetch symptoms within date range
+      const allSymptoms = await symptomService.getUserSymptoms(userId, 1000);
+      symptoms = allSymptoms.filter(
+        (s) =>
+          new Date(s.timestamp).getTime() >= startDate.getTime() &&
+          new Date(s.timestamp).getTime() <= endDate.getTime()
+      );
+
+      // Fetch all medications (not filtered by date as they're ongoing)
+      medications = await medicationService.getUserMedications(userId);
+
+      // Fetch medical history (not filtered by date)
+      medicalHistory = await medicalHistoryService.getUserMedicalHistory(userId);
+
+      // Fetch moods within date range
+      const allMoods = await moodService.getUserMoods(userId, 1000);
+      moods = allMoods.filter(
+        (m) =>
+          new Date(m.timestamp).getTime() >= startDate.getTime() &&
+          new Date(m.timestamp).getTime() <= endDate.getTime()
+      );
+    } catch (error) {
+      console.error("[Health Report] Error fetching health data:", error);
+      // Continue with vitals only if other data fails
+    }
   }
 
+  return {
+    vitals,
+    symptoms,
+    medications,
+    medicalHistory,
+    moods,
+  };
+};
+
+/**
+ * Convert health data to CSV format
+ */
+const convertToCSV = (data: HealthReportData): string => {
   const rows: string[] = [];
 
-  // CSV Header
-  rows.push("Metric,Display Name,Unit,Value,Start Date,End Date,Source");
+  // Vitals Section
+  rows.push("=== VITALS METRICS ===");
+  if (data.vitals.length === 0) {
+    rows.push("Metric,Display Name,Unit,Value,Start Date,End Date,Source");
+    rows.push("No vitals data available");
+  } else {
+    rows.push("Metric,Display Name,Unit,Value,Start Date,End Date,Source");
+    for (const metric of data.vitals) {
+      for (const sample of metric.samples) {
+        const row = [
+          metric.metricKey,
+          `"${metric.displayName.replace(/"/g, '""')}"`,
+          metric.unit || "",
+          sample.value.toString(),
+          sample.startDate,
+          sample.endDate || "",
+          sample.source || metric.provider,
+        ];
+        rows.push(row.join(","));
+      }
+    }
+  }
 
-  // CSV Rows
-  for (const metric of metrics) {
-    for (const sample of metric.samples) {
+  rows.push("\n=== SYMPTOMS ===");
+  if (data.symptoms.length === 0) {
+    rows.push("Type,Severity,Description,Date,Location,Duration");
+    rows.push("No symptoms recorded");
+  } else {
+    rows.push("Type,Severity,Description,Date,Location,Duration");
+    for (const symptom of data.symptoms) {
       const row = [
-        metric.metricKey,
-        `"${metric.displayName.replace(/"/g, '""')}"`,
-        metric.unit || "",
-        sample.value.toString(),
-        sample.startDate,
-        sample.endDate || "",
-        sample.source || metric.provider,
+        `"${symptom.type.replace(/"/g, '""')}"`,
+        symptom.severity.toString(),
+        `"${(symptom.description || "").replace(/"/g, '""')}"`,
+        new Date(symptom.timestamp).toLocaleDateString(),
+        `"${(symptom.location || "").replace(/"/g, '""')}"`,
+        `"${(symptom.triggers?.join(", ") || "").replace(/"/g, '""')}"`,
+      ];
+      rows.push(row.join(","));
+    }
+  }
+
+  rows.push("\n=== MEDICATIONS ===");
+  if (data.medications.length === 0) {
+    rows.push("Name,Dosage,Frequency,Start Date,End Date,Status,Notes");
+    rows.push("No medications recorded");
+  } else {
+    rows.push("Name,Dosage,Frequency,Start Date,End Date,Status,Notes");
+    for (const med of data.medications) {
+      const row = [
+        `"${med.name.replace(/"/g, '""')}"`,
+        `"${med.dosage.replace(/"/g, '""')}"`,
+        `"${med.frequency.replace(/"/g, '""')}"`,
+        new Date(med.startDate).toLocaleDateString(),
+        med.endDate ? new Date(med.endDate).toLocaleDateString() : "Ongoing",
+        med.isActive ? "Active" : "Inactive",
+        `"${(med.notes || "").replace(/"/g, '""')}"`,
+      ];
+      rows.push(row.join(","));
+    }
+  }
+
+  rows.push("\n=== MEDICAL HISTORY ===");
+  if (data.medicalHistory.length === 0) {
+    rows.push("Condition,Diagnosed Date,Severity,Status,Notes,Is Family");
+    rows.push("No medical history recorded");
+  } else {
+    rows.push("Condition,Diagnosed Date,Severity,Status,Notes,Is Family,Relation");
+    for (const history of data.medicalHistory) {
+      const row = [
+        `"${history.condition.replace(/"/g, '""')}"`,
+        history.diagnosedDate
+          ? new Date(history.diagnosedDate).toLocaleDateString()
+          : "Unknown",
+        history.severity || "Not specified",
+        "Ongoing",
+        `"${(history.notes || "").replace(/"/g, '""')}"`,
+        history.isFamily ? "Yes" : "No",
+        history.relation || "",
+      ];
+      rows.push(row.join(","));
+    }
+  }
+
+  rows.push("\n=== MOODS ===");
+  if (data.moods.length === 0) {
+    rows.push("Mood,Intensity,Notes,Date");
+    rows.push("No moods recorded");
+  } else {
+    rows.push("Mood,Intensity,Notes,Date");
+    for (const mood of data.moods) {
+      const row = [
+        mood.mood,
+        mood.intensity.toString(),
+        `"${(mood.notes || "").replace(/"/g, '""')}"`,
+        new Date(mood.timestamp).toLocaleString(),
       ];
       rows.push(row.join(","));
     }
@@ -179,18 +332,21 @@ const convertToCSV = (metrics: NormalizedMetricPayload[]): string => {
 };
 
 /**
- * Convert metrics to PDF format (HTML that will be converted to PDF)
+ * Convert health data to PDF format (HTML that will be converted to PDF)
  */
 const convertToPDFHTML = (
-  metrics: NormalizedMetricPayload[],
+  data: HealthReportData,
   startDate: Date,
   endDate: Date
 ): string => {
   const exportDate = new Date().toLocaleDateString();
   const dateRange = `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
 
-  const totalSamples = metrics.reduce((sum, m) => sum + m.samples.length, 0);
-  const providers = [...new Set(metrics.map((m) => m.provider))];
+  const totalVitalSamples = data.vitals.reduce(
+    (sum, m) => sum + m.samples.length,
+    0
+  );
+  const providers = [...new Set(data.vitals.map((m) => m.provider))];
 
   let html = `
     <!DOCTYPE html>
@@ -336,10 +492,11 @@ const convertToPDFHTML = (
     </head>
     <body>
       <div class="header">
-        <h1>Health Metrics Report</h1>
+        <h1>Comprehensive Health Report</h1>
         <div class="header-info">
           <div>Exported: ${exportDate}</div>
           <div>Date Range: ${dateRange}</div>
+          <div>Includes: Vitals, Symptoms, Medications, Medical History, and Moods</div>
         </div>
       </div>
 
@@ -347,12 +504,28 @@ const convertToPDFHTML = (
         <h2>Summary</h2>
         <div class="summary-grid">
           <div class="summary-item">
-            <div class="summary-label">Total Metrics</div>
-            <div class="summary-value">${metrics.length}</div>
+            <div class="summary-label">Vital Metrics</div>
+            <div class="summary-value">${data.vitals.length}</div>
           </div>
           <div class="summary-item">
-            <div class="summary-label">Total Samples</div>
-            <div class="summary-value">${totalSamples}</div>
+            <div class="summary-label">Vital Samples</div>
+            <div class="summary-value">${totalVitalSamples}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Symptoms</div>
+            <div class="summary-value">${data.symptoms.length}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Medications</div>
+            <div class="summary-value">${data.medications.length}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Medical Conditions</div>
+            <div class="summary-value">${data.medicalHistory.length}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">Mood Entries</div>
+            <div class="summary-value">${data.moods.length}</div>
           </div>
           <div class="summary-item">
             <div class="summary-label">Data Sources</div>
@@ -360,14 +533,14 @@ const convertToPDFHTML = (
           </div>
           <div class="summary-item">
             <div class="summary-label">Sources</div>
-            <div class="summary-value">${providers.join(", ")}</div>
+            <div class="summary-value">${providers.join(", ") || "N/A"}</div>
           </div>
         </div>
       </div>
   `;
 
-  // Add each metric section
-  for (const metric of metrics) {
+  // Add vitals metrics sections
+  for (const metric of data.vitals) {
     html += `
       <div class="metric-section">
         <div class="metric-header">${metric.displayName}</div>
@@ -452,6 +625,210 @@ const convertToPDFHTML = (
     `;
   }
 
+  // Add Symptoms Section
+  html += `
+      <div class="metric-section">
+        <div class="metric-header" style="background: #EF4444;">Symptoms</div>
+        <div class="metric-content">
+  `;
+  if (data.symptoms.length === 0) {
+    html += `<div class="no-data">No symptoms recorded in this period</div>`;
+  } else {
+    html += `
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Date</th>
+                <th>Location</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    const symptomsToShow = data.symptoms.slice(0, 100);
+    for (const symptom of symptomsToShow) {
+      html += `
+              <tr>
+                <td>${symptom.type}</td>
+                <td>${symptom.severity}/5</td>
+                <td>${new Date(symptom.timestamp).toLocaleDateString()}</td>
+                <td>${symptom.location || "N/A"}</td>
+                <td>${(symptom.description || "").substring(0, 50)}${(symptom.description || "").length > 50 ? "..." : ""}</td>
+              </tr>
+      `;
+    }
+    if (data.symptoms.length > 100) {
+      html += `
+              <tr>
+                <td colspan="5" style="text-align: center; color: #999; font-style: italic;">
+                  ... and ${data.symptoms.length - 100} more symptoms
+                </td>
+              </tr>
+      `;
+    }
+    html += `
+            </tbody>
+          </table>
+    `;
+  }
+  html += `
+        </div>
+      </div>
+  `;
+
+  // Add Medications Section
+  html += `
+      <div class="metric-section">
+        <div class="metric-header" style="background: #3B82F6;">Medications</div>
+        <div class="metric-content">
+  `;
+  if (data.medications.length === 0) {
+    html += `<div class="no-data">No medications recorded</div>`;
+  } else {
+    html += `
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Dosage</th>
+                <th>Frequency</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    for (const med of data.medications) {
+      html += `
+              <tr>
+                <td>${med.name}</td>
+                <td>${med.dosage}</td>
+                <td>${med.frequency}</td>
+                <td>${new Date(med.startDate).toLocaleDateString()}</td>
+                <td>${med.endDate ? new Date(med.endDate).toLocaleDateString() : "Ongoing"}</td>
+                <td>${med.isActive ? "Active" : "Inactive"}</td>
+              </tr>
+      `;
+    }
+    html += `
+            </tbody>
+          </table>
+    `;
+  }
+  html += `
+        </div>
+      </div>
+  `;
+
+  // Add Medical History Section
+  html += `
+      <div class="metric-section">
+        <div class="metric-header" style="background: #8B5CF6;">Medical History</div>
+        <div class="metric-content">
+  `;
+  if (data.medicalHistory.length === 0) {
+    html += `<div class="no-data">No medical history recorded</div>`;
+  } else {
+    html += `
+          <table>
+            <thead>
+              <tr>
+                <th>Condition</th>
+                <th>Diagnosed Date</th>
+                <th>Severity</th>
+                <th>Type</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    for (const history of data.medicalHistory) {
+      html += `
+              <tr>
+                <td>${history.condition}</td>
+                <td>${history.diagnosedDate ? new Date(history.diagnosedDate).toLocaleDateString() : "Unknown"}</td>
+                <td>${history.severity || "Not specified"}</td>
+                <td>${history.isFamily ? `Family (${history.relation || "N/A"})` : "Personal"}</td>
+                <td>${(history.notes || "").substring(0, 50)}${(history.notes || "").length > 50 ? "..." : ""}</td>
+              </tr>
+      `;
+    }
+    html += `
+            </tbody>
+          </table>
+    `;
+  }
+  html += `
+        </div>
+      </div>
+  `;
+
+  // Add Moods Section
+  html += `
+      <div class="metric-section">
+        <div class="metric-header" style="background: #10B981;">Mood Tracking</div>
+        <div class="metric-content">
+  `;
+  if (data.moods.length === 0) {
+    html += `<div class="no-data">No moods recorded in this period</div>`;
+  } else {
+    // Calculate mood statistics
+    const moodCounts: { [key: string]: number } = {};
+    let totalIntensity = 0;
+    data.moods.forEach((mood) => {
+      moodCounts[mood.mood] = (moodCounts[mood.mood] || 0) + 1;
+      totalIntensity += mood.intensity;
+    });
+    const avgIntensity = data.moods.length > 0 ? (totalIntensity / data.moods.length).toFixed(1) : "0";
+
+    html += `
+          <div style="margin-bottom: 15px; padding: 10px; background: #f8f8f8; border-radius: 6px;">
+            <strong>Summary:</strong> ${data.moods.length} entries | Average Intensity: ${avgIntensity}/5
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Mood</th>
+                <th>Intensity</th>
+                <th>Date</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    const moodsToShow = data.moods.slice(0, 100);
+    for (const mood of moodsToShow) {
+      html += `
+              <tr>
+                <td>${mood.mood}</td>
+                <td>${mood.intensity}/5</td>
+                <td>${new Date(mood.timestamp).toLocaleString()}</td>
+                <td>${(mood.notes || "").substring(0, 50)}${(mood.notes || "").length > 50 ? "..." : ""}</td>
+              </tr>
+      `;
+    }
+    if (data.moods.length > 100) {
+      html += `
+              <tr>
+                <td colspan="4" style="text-align: center; color: #999; font-style: italic;">
+                  ... and ${data.moods.length - 100} more mood entries
+                </td>
+              </tr>
+      `;
+    }
+    html += `
+            </tbody>
+          </table>
+    `;
+  }
+  html += `
+        </div>
+      </div>
+  `;
+
   html += `
       <div class="footer">
         Generated by Maak Health App • ${exportDate}
@@ -471,13 +848,21 @@ export const exportMetrics = async (
   onProgress?: (message: string) => void
 ): Promise<void> => {
   try {
-    onProgress?.("Fetching metrics...");
+    onProgress?.("Fetching health data...");
 
-    // Fetch metrics from providers
-    const metrics = await fetchMetricsForExport(options);
+    // Fetch all health data (vitals, symptoms, medications, medical history, moods)
+    const healthData = await fetchAllHealthData(options);
 
-    if (metrics.length === 0) {
-      throw new Error("No metrics data available to export");
+    // Check if we have any data to export
+    const hasData =
+      healthData.vitals.length > 0 ||
+      healthData.symptoms.length > 0 ||
+      healthData.medications.length > 0 ||
+      healthData.medicalHistory.length > 0 ||
+      healthData.moods.length > 0;
+
+    if (!hasData) {
+      throw new Error("No health data available to export");
     }
 
     onProgress?.("Preparing export file...");
@@ -492,8 +877,8 @@ export const exportMetrics = async (
     const endDate = options.endDate || new Date();
 
     if (options.format === "csv") {
-      const content = convertToCSV(metrics);
-      fileName = `health-metrics-${new Date().toISOString().split("T")[0]}.csv`;
+      const content = convertToCSV(healthData);
+      fileName = `health-report-${new Date().toISOString().split("T")[0]}.csv`;
       mimeType = "text/csv";
 
       // Save CSV to document directory for sharing
@@ -501,13 +886,13 @@ export const exportMetrics = async (
       await FileSystem.writeAsStringAsync(fileUri, content);
     } else {
       // PDF format
-      fileName = `health-metrics-${new Date().toISOString().split("T")[0]}.pdf`;
+      fileName = `health-report-${new Date().toISOString().split("T")[0]}.pdf`;
       mimeType = "application/pdf";
 
       onProgress?.("Generating PDF...");
 
       // Generate HTML for PDF
-      const html = convertToPDFHTML(metrics, startDate, endDate);
+      const html = convertToPDFHTML(healthData, startDate, endDate);
 
       // Generate PDF using expo-print (dynamic import to handle missing native module)
       try {
@@ -574,7 +959,7 @@ export const exportMetrics = async (
         // Use expo-sharing for better cross-platform file sharing
         await Sharing.shareAsync(fileUri, {
           mimeType,
-          dialogTitle: "Export Health Metrics",
+          dialogTitle: "Export Health Report",
         });
         onProgress?.("Export completed successfully");
         return;
@@ -590,7 +975,7 @@ export const exportMetrics = async (
     if (Platform.OS === "ios") {
       const shareResult = await Share.share({
         url: fileUri,
-        title: "Export Health Metrics",
+        title: "Export Health Report",
       });
 
       if (shareResult.action === Share.sharedAction) {
@@ -602,10 +987,10 @@ export const exportMetrics = async (
       // Android: For CSV, share as text content
       // For PDF, expo-sharing should have been used above, but if it failed, show error
       if (options.format === "csv") {
-        const content = convertToCSV(metrics);
+        const content = convertToCSV(healthData);
         const shareResult = await Share.share({
-          message: `Health Metrics Export\n\nFile: ${fileName}\n\n${content.substring(0, 1000)}${content.length > 1000 ? "\n\n... (truncated, use export to get full file)" : ""}`,
-          title: "Export Health Metrics",
+          message: `Health Report Export\n\nFile: ${fileName}\n\n${content.substring(0, 1000)}${content.length > 1000 ? "\n\n... (truncated, use export to get full file)" : ""}`,
+          title: "Export Health Report",
         });
 
         if (shareResult.action === Share.sharedAction) {
@@ -636,26 +1021,36 @@ export const exportMetrics = async (
 export const getExportStats = async (
   options: Omit<ExportOptions, "format">
 ): Promise<{
-  metricsCount: number;
-  samplesCount: number;
+  vitalsMetricsCount: number;
+  vitalsSamplesCount: number;
+  symptomsCount: number;
+  medicationsCount: number;
+  medicalHistoryCount: number;
+  moodsCount: number;
   dateRange: { startDate: string; endDate: string };
   providers: string[];
 }> => {
-  const endDate = options.endDate || new Date();
-  const startDate =
-    options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  const metrics = await fetchMetricsForExport({
+  const healthData = await fetchAllHealthData({
     ...options,
     format: "csv", // Format doesn't matter for stats
   });
 
-  const samplesCount = metrics.reduce((sum, m) => sum + m.samples.length, 0);
-  const providers = [...new Set(metrics.map((m) => m.provider))];
+  const vitalsSamplesCount = healthData.vitals.reduce(
+    (sum, m) => sum + m.samples.length,
+    0
+  );
+  const providers = [...new Set(healthData.vitals.map((m) => m.provider))];
+  const endDate = options.endDate || new Date();
+  const startDate =
+    options.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   return {
-    metricsCount: metrics.length,
-    samplesCount,
+    vitalsMetricsCount: healthData.vitals.length,
+    vitalsSamplesCount,
+    symptomsCount: healthData.symptoms.length,
+    medicationsCount: healthData.medications.length,
+    medicalHistoryCount: healthData.medicalHistory.length,
+    moodsCount: healthData.moods.length,
     dateRange: {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),

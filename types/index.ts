@@ -17,6 +17,7 @@ export interface User {
   role: "admin" | "member";
   createdAt: Date;
   onboardingCompleted: boolean;
+  isPremium?: boolean;
   preferences: {
     language: "en" | "ar";
     notifications: boolean;
@@ -35,10 +36,44 @@ export interface Symptom {
   triggers?: string[];
 }
 
+export type MoodType =
+  // Positive emotions
+  | "veryHappy"
+  | "happy"
+  | "excited"
+  | "content"
+  | "grateful"
+  | "hopeful"
+  | "proud"
+  | "calm"
+  | "peaceful"
+  // Negative emotions
+  | "sad"
+  | "verySad"
+  | "anxious"
+  | "angry"
+  | "frustrated"
+  | "overwhelmed"
+  | "hopeless"
+  | "guilty"
+  | "ashamed"
+  | "lonely"
+  | "irritable"
+  | "restless"
+  // Neutral/Other mental states
+  | "neutral"
+  | "confused"
+  | "numb"
+  | "detached"
+  | "empty"
+  | "apathetic"
+  | "tired"
+  | "stressed";
+
 export interface Mood {
   id: string;
   userId: string;
-  mood: "veryHappy" | "happy" | "neutral" | "sad" | "verySad";
+  mood: MoodType;
   intensity: 1 | 2 | 3 | 4 | 5;
   notes?: string;
   timestamp: Date;

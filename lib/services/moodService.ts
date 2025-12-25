@@ -114,7 +114,7 @@ export const moodService = {
 
       return moods;
     } catch (error) {
-      // Silently handle error getting moods
+      console.error("Error getting user moods:", error);
       throw error;
     }
   },
@@ -134,29 +134,40 @@ export const moodService = {
         return [];
       }
 
-      // Get moods for all family members
-      const moodsQuery = query(
-        collection(db, "moods"),
-        where("userId", "in", memberIds),
-        orderBy("timestamp", "desc"),
-        limit(limitCount)
-      );
+      // Firestore 'in' operator has a limit of 10 items, so we need to chunk
+      const chunkSize = 10;
+      const chunks: string[][] = [];
+      for (let i = 0; i < memberIds.length; i += chunkSize) {
+        chunks.push(memberIds.slice(i, i + chunkSize));
+      }
 
-      const querySnapshot = await getDocs(moodsQuery);
-      const moods: Mood[] = [];
+      // Get moods for all family members (query each chunk)
+      // Note: We don't limit individual chunks since we need to combine and sort all results
+      const allMoods: Mood[] = [];
+      for (const chunk of chunks) {
+        const moodsQuery = query(
+          collection(db, "moods"),
+          where("userId", "in", chunk),
+          orderBy("timestamp", "desc")
+        );
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        moods.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Mood);
-      });
+        const querySnapshot = await getDocs(moodsQuery);
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          allMoods.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp.toDate(),
+          } as Mood);
+        });
+      }
 
-      return moods;
+      // Sort by timestamp descending and limit results
+      return allMoods
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, limitCount);
     } catch (error) {
-      // Silently handle error getting family moods
+      console.error("Error getting family moods:", error);
       throw error;
     }
   },
@@ -171,8 +182,11 @@ export const moodService = {
     moodDistribution: {
       mood: string;
       count: number;
-      userId?: string;
-      userName?: string;
+      affectedMembers: number;
+      users: {
+        userId: string;
+        userName: string;
+      }[];
     }[];
   }> {
     try {
@@ -186,33 +200,45 @@ export const moodService = {
       );
       const familyMembersSnapshot = await getDocs(familyMembersQuery);
       const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
-      const membersMap = new Map();
+      const membersMap = new Map<string, string>();
       familyMembersSnapshot.docs.forEach((doc) => {
-        membersMap.set(doc.id, doc.data().name);
+        const userData = doc.data();
+        const userName = userData.firstName && userData.lastName
+          ? `${userData.firstName} ${userData.lastName}`
+          : userData.firstName || userData.lastName || "Unknown";
+        membersMap.set(doc.id, userName);
       });
 
       if (memberIds.length === 0) {
         return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
       }
 
-      // Get moods for all family members
-      const moodsQuery = query(
-        collection(db, "moods"),
-        where("userId", "in", memberIds),
-        where("timestamp", ">=", Timestamp.fromDate(startDate))
-      );
+      // Firestore 'in' operator has a limit of 10 items, so we need to chunk
+      const chunkSize = 10;
+      const chunks: string[][] = [];
+      for (let i = 0; i < memberIds.length; i += chunkSize) {
+        chunks.push(memberIds.slice(i, i + chunkSize));
+      }
 
-      const querySnapshot = await getDocs(moodsQuery);
+      // Get moods for all family members (query each chunk)
       const moods: Mood[] = [];
+      for (const chunk of chunks) {
+        const moodsQuery = query(
+          collection(db, "moods"),
+          where("userId", "in", chunk),
+          where("timestamp", ">=", Timestamp.fromDate(startDate))
+        );
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        moods.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Mood);
-      });
+        const querySnapshot = await getDocs(moodsQuery);
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          moods.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp.toDate(),
+          } as Mood);
+        });
+      }
 
       // Calculate stats
       const totalMoods = moods.length;
@@ -255,7 +281,8 @@ export const moodService = {
         moodDistribution,
       };
     } catch (error) {
-      // Silently handle error getting family mood stats
+      console.error("Error getting family mood stats:", error);
+      // Return default values but log the error
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },
@@ -269,7 +296,7 @@ export const moodService = {
       }
       await updateDoc(doc(db, "moods", moodId), updateData);
     } catch (error) {
-      // Silently handle error updating mood
+      console.error("Error updating mood:", error);
       throw error;
     }
   },
@@ -279,7 +306,7 @@ export const moodService = {
     try {
       await deleteDoc(doc(db, "moods", moodId));
     } catch (error) {
-      // Silently handle error deleting mood
+      console.error("Error deleting mood:", error);
       throw error;
     }
   },
@@ -337,7 +364,7 @@ export const moodService = {
         moodDistribution,
       };
     } catch (error) {
-      // Silently handle error getting mood stats
+      console.error("Error getting mood stats:", error);
       throw error;
     }
   },
@@ -366,7 +393,7 @@ export const moodService = {
 
       return moods;
     } catch (error) {
-      // Silently handle error getting member moods
+      console.error("Error getting member moods:", error);
       throw error;
     }
   },
@@ -427,7 +454,8 @@ export const moodService = {
         moodDistribution,
       };
     } catch (error) {
-      // Silently handle error getting member mood stats
+      console.error("Error getting member mood stats:", error);
+      // Return default values but log the error
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },

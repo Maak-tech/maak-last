@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
 export interface ChatMessage {
   id: string;
@@ -36,38 +36,26 @@ class OpenAIService {
 
   async initialize() {
     try {
-      this.apiKey = await AsyncStorage.getItem("openai_api_key");
-      const savedModel = await AsyncStorage.getItem("openai_model");
-      if (savedModel) {
-        this.model = savedModel;
+      // Get API key from app config (server-side, not user-provided)
+      const config = Constants.expoConfig?.extra;
+      this.apiKey = config?.openaiApiKey || null;
+      
+      if (!this.apiKey) {
+        console.warn("OpenAI API key not configured in app.json");
       }
     } catch (error) {
       // Silently handle error
     }
   }
 
-  async setApiKey(key: string) {
-    this.apiKey = key;
-    await AsyncStorage.setItem("openai_api_key", key);
-  }
-
   async getApiKey(): Promise<string | null> {
     if (!this.apiKey) {
-      this.apiKey = await AsyncStorage.getItem("openai_api_key");
+      await this.initialize();
     }
     return this.apiKey;
   }
 
-  async setModel(model: string) {
-    this.model = model;
-    await AsyncStorage.setItem("openai_model", model);
-  }
-
   async getModel(): Promise<string> {
-    if (!this.model) {
-      const savedModel = await AsyncStorage.getItem("openai_model");
-      this.model = savedModel || "gpt-3.5-turbo";
-    }
     return this.model;
   }
 
@@ -102,7 +90,11 @@ class OpenAIService {
 
   async createChatCompletion(messages: ChatMessage[]): Promise<string> {
     if (!this.apiKey) {
-      throw new Error("OpenAI API key not configured");
+      await this.initialize();
+    }
+    
+    if (!this.apiKey) {
+      throw new Error("OpenAI API key not configured. Please contact support.");
     }
 
     try {

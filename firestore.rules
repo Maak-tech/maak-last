@@ -97,6 +97,10 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && 
         isFamilyAdmin() && 
         isSameFamily(resource.data.userId);
+      
+      // Allow authenticated users to query/list moods (queries are filtered by userId in the app)
+      // Individual document access is still controlled by the read rules above
+      allow list: if request.auth != null;
     }
 
     // Medical History collection

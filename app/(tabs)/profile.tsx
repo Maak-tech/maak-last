@@ -207,6 +207,7 @@ export default function ProfileScreen() {
           format,
           startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
           endDate: new Date(),
+          userId: user?.id, // Pass user ID to include symptoms, medications, medical history, and moods
         },
         (message) => {
           // Progress callback - silently handle progress updates
