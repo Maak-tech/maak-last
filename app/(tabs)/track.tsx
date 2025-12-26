@@ -22,7 +22,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import PPGVitalMonitor from "@/components/PPGVitalMonitor";
+import PPGVitalMonitor from "@/components/PPGVitalMonitorVisionCamera";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";

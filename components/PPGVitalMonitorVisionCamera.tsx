@@ -47,6 +47,7 @@ import {
 } from "react-native-vision-camera";
 import { runOnJS } from "react-native-reanimated";
 import type { PPGFrameData } from "@/lib/utils/PPGFrameProcessor";
+import { extractRedChannelAverage } from "@/lib/utils/PPGPixelExtractor";
 
 interface PPGVitalMonitorProps {
   visible: boolean;
@@ -93,6 +94,7 @@ export default function PPGVitalMonitorVisionCamera({
   } | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [fingerDetectionFailed, setFingerDetectionFailed] = useState(false);
+  const [frameProcessingErrors, setFrameProcessingErrors] = useState(0);
 
   const frameCountRef = useRef(0);
   const ppgSignalRef = useRef<number[]>([]);
@@ -101,6 +103,7 @@ export default function PPGVitalMonitorVisionCamera({
   const isCapturingRef = useRef(false);
   const fingerDetectedRef = useRef(false);
   const lastFrameTimeRef = useRef<number>(0);
+  const consecutiveNoFingerFrames = useRef(0);
   
   const TARGET_FPS = 14; // 14 fps as per research
   const FRAME_INTERVAL_MS = 1000 / TARGET_FPS; // ~71.4ms per frame
@@ -501,6 +504,8 @@ export default function PPGVitalMonitorVisionCamera({
     setCurrentMilestone(null);
     setRecordingTime(0);
     setFingerDetectionFailed(false);
+    setFrameProcessingErrors(0);
+    consecutiveNoFingerFrames.current = 0;
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
@@ -604,30 +609,30 @@ export default function PPGVitalMonitorVisionCamera({
     lastFrameTimeRef.current = now;
 
     try {
-      // Extract red channel average from center of frame
-      // This is where blood volume changes are detected
-      const width = frame.width;
-      const height = frame.height;
+      // Validate frame dimensions
+      if (!frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) {
+        throw new Error('Invalid frame dimensions');
+      }
       
-      // Sample center region (10% of frame)
-      const centerX = Math.floor(width / 2);
-      const centerY = Math.floor(height / 2);
-      const sampleRadius = Math.floor(Math.min(width, height) * 0.1);
+      // Extract red channel average from center of frame using pixel extractor
+      // The extractRedChannelAverage function is marked as 'worklet' so it can run here
+      const redAverage = extractRedChannelAverage(frame);
       
-      // For now, we'll use a simplified approach
-      // In production, you'd use frame.toArrayBuffer() or similar to get actual pixel data
-      // This is a placeholder that will work with the frame processor
-      
-      // Calculate a simple brightness metric as proxy for red channel
-      // Real implementation would extract actual red channel values
-      const brightness = 128; // Placeholder - will be replaced with actual pixel analysis
+      // Validate extracted value
+      if (isNaN(redAverage) || redAverage < 0 || redAverage > 255) {
+        throw new Error(`Invalid red average: ${redAverage}`);
+      }
       
       // Call JS function to process the frame data
-      runOnJS(processPPGFrameData)(brightness, frameCountRef.current);
+      runOnJS(processPPGFrameData)(redAverage, frameCountRef.current);
       
       frameCountRef.current++;
     } catch (error) {
-      // Handle frame processing errors silently
+      // Handle frame processing errors
+      // Increment error counter and use fallback value
+      runOnJS(handleFrameProcessingError)(frameCountRef.current);
+      runOnJS(processPPGFrameData)(128, frameCountRef.current);
+      frameCountRef.current++;
     }
   }, [isCapturingRef]);
 
@@ -636,12 +641,39 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
 
+    // Validate red average value (should be 0-255)
+    if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
+      console.warn(`Invalid red average value: ${redAverage}, using fallback`);
+      redAverage = 128; // Use neutral fallback
+    }
+
     // Add to PPG signal
     ppgSignalRef.current.push(redAverage);
 
     // Update progress
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
     setProgress(elapsed / MEASUREMENT_DURATION);
+
+    // Real-time signal quality validation (every 30 frames)
+    if (ppgSignalRef.current.length >= 30 && ppgSignalRef.current.length % 30 === 0) {
+      const recentSignal = ppgSignalRef.current.slice(-30);
+      const mean = recentSignal.reduce((a, b) => a + b, 0) / recentSignal.length;
+      const variance = recentSignal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentSignal.length;
+      const stdDev = Math.sqrt(variance);
+      
+      // Check for signal quality issues
+      if (stdDev < 2) {
+        // Signal too uniform - might indicate finger not properly placed
+        consecutiveNoFingerFrames.current += 30;
+        if (consecutiveNoFingerFrames.current > 180) {
+          setFingerDetectionFailed(true);
+          stopPPGCapture();
+          return;
+        }
+      } else {
+        consecutiveNoFingerFrames.current = 0;
+      }
+    }
 
     // Estimate beats from signal
     if (ppgSignalRef.current.length > 30) {
@@ -697,7 +729,7 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
 
-    // Validate signal quality
+    // Validate signal quality with enhanced checks
     const signalMean =
       ppgSignalRef.current.reduce((a, b) => a + b, 0) / ppgSignalRef.current.length;
     const signalVariance =
@@ -706,7 +738,18 @@ export default function PPGVitalMonitorVisionCamera({
         0
       ) / ppgSignalRef.current.length;
     const signalStdDev = Math.sqrt(signalVariance);
+    
+    // Check for NaN or invalid values in signal
+    const invalidValues = ppgSignalRef.current.filter(val => isNaN(val) || val < 0 || val > 255);
+    if (invalidValues.length > ppgSignalRef.current.length * 0.1) {
+      setError(
+        "Signal contains too many invalid values. Please try again."
+      );
+      setStatus("error");
+      return;
+    }
 
+    // Check signal quality
     if (signalStdDev < 3) {
       setError(
         "Signal quality too low. Please ensure:\n" +
@@ -714,6 +757,26 @@ export default function PPGVitalMonitorVisionCamera({
           "• There are no gaps or light leaks\n" +
           "• Your finger is warm and making good contact\n" +
           "• You hold still during the measurement"
+      );
+      setStatus("error");
+      return;
+    }
+    
+    // Check for excessive frame processing errors
+    if (frameProcessingErrors > ppgSignalRef.current.length * 0.2) {
+      setError(
+        "Too many frame processing errors detected. This may indicate camera access issues. Please restart the app and try again."
+      );
+      setStatus("error");
+      return;
+    }
+    
+    // Check signal range (should be reasonable for PPG)
+    const signalMin = Math.min(...ppgSignalRef.current);
+    const signalMax = Math.max(...ppgSignalRef.current);
+    if (signalMax - signalMin < 10) {
+      setError(
+        "Signal variation too low. Please ensure your finger is properly placed and the camera lens is clean."
       );
       setStatus("error");
       return;

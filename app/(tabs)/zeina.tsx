@@ -73,6 +73,15 @@ export default function ZeinaScreen() {
   }, [messages]);
 
   const initializeChat = async () => {
+    // Add welcome message immediately so it's always visible
+    const welcomeMessage: AIMessage = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content:
+        "Hello! I'm Zeina, your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?",
+      timestamp: new Date(),
+    };
+
     try {
       // Initialize OpenAI service with premium key for Zeina
       await openaiService.initialize(true);
@@ -83,6 +92,8 @@ export default function ZeinaScreen() {
           "Service Unavailable",
           "Zeina is temporarily unavailable. Please contact support."
         );
+        // Still show welcome message even if service is unavailable
+        setMessages([welcomeMessage]);
         setIsLoading(false);
         return;
       }
@@ -100,15 +111,6 @@ export default function ZeinaScreen() {
         timestamp: new Date(),
       };
 
-      // Add welcome message
-      const welcomeMessage: AIMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content:
-          "Hello! I'm Zeina, your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?",
-        timestamp: new Date(),
-      };
-
       setMessages([systemMessage, welcomeMessage]);
 
       // Create new chat session
@@ -116,7 +118,8 @@ export default function ZeinaScreen() {
 
       setIsLoading(false);
     } catch (error) {
-      // Silently handle chat initialization error
+      // Silently handle chat initialization error, but still show welcome message
+      setMessages([welcomeMessage]);
       setIsLoading(false);
     }
   };
@@ -394,7 +397,7 @@ export default function ZeinaScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>Zeina</Text>
@@ -445,20 +448,22 @@ export default function ZeinaScreen() {
               </Text>
             </View>
           ) : (
-            messages
-              .filter((m) => m.role !== "system")
-              .map((message) => (
-                <ChatMessage
-                  content={message.content}
-                  isStreaming={
-                    isStreaming &&
-                    message.id === messages[messages.length - 1].id
-                  }
-                  key={message.id}
-                  role={message.role as "user" | "assistant"}
-                  timestamp={message.timestamp}
-                />
-              ))
+            <>
+              {messages
+                .filter((m) => m.role !== "system")
+                .map((message) => (
+                  <ChatMessage
+                    content={message.content}
+                    isStreaming={
+                      isStreaming &&
+                      message.id === messages[messages.length - 1].id
+                    }
+                    key={message.id}
+                    role={message.role as "user" | "assistant"}
+                    timestamp={message.timestamp}
+                  />
+                ))}
+            </>
           )}
         </ScrollView>
 
