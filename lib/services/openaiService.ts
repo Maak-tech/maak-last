@@ -81,6 +81,14 @@ class OpenAIService {
     return this.model;
   }
 
+  async setApiKey(apiKey: string): Promise<void> {
+    this.apiKey = apiKey;
+  }
+
+  async setModel(model: string): Promise<void> {
+    this.model = model;
+  }
+
   async createChatCompletionStream(
     messages: ChatMessage[],
     onChunk: (text: string) => void,

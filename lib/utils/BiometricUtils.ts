@@ -79,7 +79,7 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
     }
 
     const types = await LocalAuth.supportedAuthenticationTypesAsync();
-    const typeNames = types.map((type) => {
+    const typeNames = types.map((type: number) => {
       switch (type) {
         case LocalAuth.AuthenticationType.FACIAL_RECOGNITION:
           return "Face ID";

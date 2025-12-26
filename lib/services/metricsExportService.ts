@@ -882,7 +882,7 @@ export const exportMetrics = async (
       mimeType = "text/csv";
 
       // Save CSV to document directory for sharing
-      fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      fileUri = `${FileSystem.documentDirectory || ''}${fileName}`;
       await FileSystem.writeAsStringAsync(fileUri, content);
     } else {
       // PDF format

@@ -33,7 +33,7 @@ export default function Index() {
     lastNavigationTarget.current = targetRoute;
 
     try {
-      router.replace(targetRoute);
+      router.replace(targetRoute as any);
     } catch (error) {
       lastNavigationTarget.current = null;
       // Fallback to login on navigation error

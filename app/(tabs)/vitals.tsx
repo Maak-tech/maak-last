@@ -575,10 +575,10 @@ export default function VitalsScreen() {
     if (Platform.OS === "ios") {
       // Navigate to Apple Health intro screen immediately
       // Don't check availability here to prevent crashes - let the permission screen handle it
-      router.push("/health/apple");
+      router.push("/(settings)/health/apple" as any);
     } else if (Platform.OS === "android") {
       // Navigate to Health Connect intro screen
-      router.push("/health/healthconnect");
+      router.push("/(settings)/health/healthconnect" as any);
     } else {
       // For other platforms, use the old flow
       handleEnableHealthDataLegacy();
@@ -793,10 +793,7 @@ export default function VitalsScreen() {
             return;
           }
 
-          // Request Health Connect permissions
-          const { healthConnectService } = await import(
-            "@/lib/services/healthConnectService"
-          );
+          // Request Health Connect permissions (reuse healthConnectService from above)
           const { getHealthConnectPermissionsForMetrics } = await import(
             "@/lib/health/healthMetricsCatalog"
           );

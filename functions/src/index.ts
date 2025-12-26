@@ -761,7 +761,7 @@ export const generateBiometricToken = functions.https.onCall(
       // Check if there's a recent successful biometric auth log
       if (authLogId) {
         const authLogDoc = await db.collection("auth_logs").doc(authLogId).get();
-        if (!authLogDoc.exists()) {
+        if (!authLogDoc.exists) {
           throw new functions.https.HttpsError(
             "failed-precondition",
             "Biometric authentication verification failed"
@@ -815,7 +815,7 @@ export const generateBiometricToken = functions.https.onCall(
 
       // Verify user exists
       const userDoc = await db.collection("users").doc(userId).get();
-      if (!userDoc.exists()) {
+      if (!userDoc.exists) {
         throw new functions.https.HttpsError(
           "not-found",
           "User not found"

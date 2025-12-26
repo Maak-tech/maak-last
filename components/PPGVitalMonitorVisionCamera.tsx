@@ -1089,9 +1089,7 @@ export default function PPGVitalMonitorVisionCamera({
                       measurement.
                     </Text>
                     <TouchableOpacity
-                      style={
-                        [styles.button as ViewStyle, { marginTop: 30 }] as ViewStyle
-                      }
+                      style={[styles.button as ViewStyle, { marginTop: 30 }]}
                       onPress={handleFingerPlacement}
                     >
                       <Text style={styles.buttonText as StyleProp<TextStyle>}>
@@ -1103,12 +1101,10 @@ export default function PPGVitalMonitorVisionCamera({
                   <>
                     <View style={styles.progressBar as ViewStyle}>
                       <View
-                        style={
-                          [
-                            styles.progressFill as ViewStyle,
-                            { width: `${progress * 100}%` },
-                          ] as ViewStyle
-                        }
+                        style={[
+                          styles.progressFill as ViewStyle,
+                          { width: `${progress * 100}%` },
+                        ]}
                       />
                     </View>
 

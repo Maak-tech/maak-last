@@ -62,8 +62,6 @@ export default function ZeinaScreen() {
   const [systemPrompt, setSystemPrompt] = useState<string>("");
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<SavedSession[]>([]);
-  
-  const isPremium = user?.isPremium || false;
 
   useEffect(() => {
     initializeChat();
@@ -75,11 +73,6 @@ export default function ZeinaScreen() {
   }, [messages]);
 
   const initializeChat = async () => {
-    if (!isPremium) {
-      setIsLoading(false);
-      return;
-    }
-
     try {
       // Initialize OpenAI service with premium key for Zeina
       await openaiService.initialize(true);
@@ -216,17 +209,6 @@ export default function ZeinaScreen() {
 
   const handleSend = async () => {
     if (!inputText.trim() || isStreaming) return;
-
-    if (!isPremium) {
-      Alert.alert(
-        "Premium Feature",
-        "Zeina is a premium feature. Please upgrade to access your personal health AI assistant.",
-        [
-          { text: "OK", style: "default" },
-        ]
-      );
-      return;
-    }
 
     const userMessage: AIMessage = {
       id: Date.now().toString(),
@@ -455,29 +437,7 @@ export default function ZeinaScreen() {
           showsVerticalScrollIndicator={false}
           style={styles.messagesContainer}
         >
-          {!isPremium ? (
-            <View style={styles.premiumContainer}>
-              <Ionicons color="#007AFF" name="lock-closed" size={64} />
-              <Text style={styles.premiumTitle}>Premium Feature</Text>
-              <Text style={styles.premiumText}>
-                Zeina is your personal health AI assistant, available exclusively for premium subscribers.
-              </Text>
-              <Text style={styles.premiumSubtext}>
-                Upgrade to premium to access Zeina and get personalized health insights powered by AI.
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  Alert.alert(
-                    "Upgrade to Premium",
-                    "Please upgrade to premium to access Zeina. Contact support for more information."
-                  );
-                }}
-                style={styles.upgradeButton}
-              >
-                <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
-              </TouchableOpacity>
-            </View>
-          ) : isLoading ? (
+          {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#007AFF" size="large" />
               <Text style={styles.loadingText}>
@@ -502,35 +462,33 @@ export default function ZeinaScreen() {
           )}
         </ScrollView>
 
-        {isPremium && (
-          <View style={styles.inputContainer}>
-            <TextInput
-              editable={!isStreaming}
-              multiline
-              onChangeText={setInputText}
-              placeholder="Ask Zeina about your health, medications, symptoms..."
-              placeholderTextColor="#999"
-              scrollEnabled
-              style={styles.textInput}
-              textAlignVertical="top"
-              value={inputText}
-            />
-            <TouchableOpacity
-              disabled={!inputText.trim() || isStreaming}
-              onPress={handleSend}
-              style={[
-                styles.sendButton,
-                (!inputText.trim() || isStreaming) && styles.sendButtonDisabled,
-              ]}
-            >
-              {isStreaming ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <Ionicons color="white" name="send" size={20} />
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.inputContainer}>
+          <TextInput
+            editable={!isStreaming}
+            multiline
+            onChangeText={setInputText}
+            placeholder="Ask Zeina about your health, medications, symptoms..."
+            placeholderTextColor="#999"
+            scrollEnabled
+            style={styles.textInput}
+            textAlignVertical="top"
+            value={inputText}
+          />
+          <TouchableOpacity
+            disabled={!inputText.trim() || isStreaming}
+            onPress={handleSend}
+            style={[
+              styles.sendButton,
+              (!inputText.trim() || isStreaming) && styles.sendButtonDisabled,
+            ]}
+          >
+            {isStreaming ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Ionicons color="white" name="send" size={20} />
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
 
 
