@@ -43,9 +43,7 @@ class OpenAIService {
       this.apiKey = config?.openaiApiKey || null;
       this.zeinaApiKey = config?.zeinaApiKey || config?.openaiApiKey || null; // Fallback to openaiApiKey if zeinaApiKey not set
       
-      if (!this.apiKey) {
-        console.warn("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
-      }
+      // API key validation handled in getApiKey method
     } catch (error) {
       // Silently handle error
     }

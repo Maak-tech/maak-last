@@ -492,6 +492,8 @@ export default function PPGVitalMonitorVisionCamera({
     setStatus("idle");
     setError(null);
     setHeartRate(null);
+    setHeartRateVariability(null);
+    setRespiratoryRate(null);
     setProgress(0);
     setSignalQuality(null);
     setFingerDetected(false);
@@ -643,7 +645,6 @@ export default function PPGVitalMonitorVisionCamera({
 
     // Validate red average value (should be 0-255)
     if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
-      console.warn(`Invalid red average value: ${redAverage}, using fallback`);
       redAverage = 128; // Use neutral fallback
     }
 
@@ -897,14 +898,19 @@ export default function PPGVitalMonitorVisionCamera({
         onRequestClose={onClose}
       >
         <SafeAreaView style={styles.modal as ViewStyle}>
-          <TouchableOpacity
-            style={styles.closeButton as ViewStyle}
-            onPress={onClose}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.7}
-          >
-            <X color={theme.colors.text.primary} size={20} />
-          </TouchableOpacity>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' }}>
+            <TouchableOpacity
+              style={styles.closeButton as ViewStyle}
+              onPress={() => {
+                resetState();
+                onClose();
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
+              <X color={theme.colors.text.primary} size={20} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.container as ViewStyle}>
             <View style={styles.content as ViewStyle}>
               <Text style={styles.title as StyleProp<TextStyle>}>
@@ -929,14 +935,19 @@ export default function PPGVitalMonitorVisionCamera({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.modal as ViewStyle}>
-        <TouchableOpacity
-          style={styles.closeButton as ViewStyle}
-          onPress={onClose}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          activeOpacity={0.7}
-        >
-          <X color={theme.colors.text.primary} size={20} />
-        </TouchableOpacity>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' }}>
+          <TouchableOpacity
+            style={styles.closeButton as ViewStyle}
+            onPress={() => {
+              resetState();
+              onClose();
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <X color={theme.colors.text.primary} size={20} />
+          </TouchableOpacity>
+        </View>
 
         <ScrollView
           style={styles.container as ViewStyle}

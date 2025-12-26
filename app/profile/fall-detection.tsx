@@ -67,43 +67,11 @@ export default function FallDetectionScreen() {
   const checkMotionPermission = async () => {
     setCheckingPermission(true);
     try {
-      console.log("[FallDetectionScreen] 🔍 Checking motion permissions...");
       const hasPermission = await motionPermissionService.hasMotionPermission();
-      console.log(
-        "[FallDetectionScreen] 📋 Stored permission status:",
-        hasPermission
-      );
-
       const status = await motionPermissionService.checkMotionAvailability();
-      console.log("[FallDetectionScreen] 📋 Motion availability status:", {
-        available: status.available,
-        granted: status.granted,
-        reason: status.reason,
-      });
-
       const isGranted = hasPermission && status.available;
-      console.log(
-        "[FallDetectionScreen] ✅ Motion permission granted:",
-        isGranted
-      );
       setMotionPermissionGranted(isGranted);
-
-      if (!isGranted) {
-        console.warn(
-          "[FallDetectionScreen] ⚠️ Motion permissions not granted. Fall detection may not work."
-        );
-        if (!status.available) {
-          console.error(
-            "[FallDetectionScreen] ❌ Motion sensors not available:",
-            status.reason
-          );
-        }
-      }
     } catch (error) {
-      console.error(
-        "[FallDetectionScreen] ❌ Error checking motion permissions:",
-        error
-      );
       setMotionPermissionGranted(false);
     } finally {
       setCheckingPermission(false);

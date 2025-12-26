@@ -156,8 +156,6 @@ export default function FitbitPermissionsScreen() {
       // Navigate to connected screen
       router.replace("/profile/health/fitbit-connected" as any);
     } catch (error: any) {
-      console.error("[Fitbit Permissions] Auth error:", error);
-      
       let errorMessage = isRTL
         ? "فشل طلب إذن Fitbit. يرجى المحاولة مرة أخرى."
         : "Failed to request Fitbit permissions. Please try again.";

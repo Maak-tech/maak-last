@@ -140,7 +140,6 @@ export default function ReadyPlayerMeCreator({
         onLoadEnd={() => setLoading(false)}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
-          console.warn("WebView error: ", nativeEvent);
           setLoading(false);
           Alert.alert(
             "Error",

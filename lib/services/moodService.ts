@@ -43,7 +43,6 @@ export const moodService = {
       const docRef = await addDoc(collection(db, "moods"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error("Error adding mood:", error);
       throw error;
     }
   },
@@ -85,7 +84,6 @@ export const moodService = {
       const docRef = await addDoc(collection(db, "moods"), cleanedData);
       return docRef.id;
     } catch (error) {
-      console.error("Error adding mood for user:", error);
       throw error;
     }
   },
@@ -114,7 +112,6 @@ export const moodService = {
 
       return moods;
     } catch (error) {
-      console.error("Error getting user moods:", error);
       throw error;
     }
   },
@@ -167,7 +164,6 @@ export const moodService = {
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, limitCount);
     } catch (error) {
-      console.error("Error getting family moods:", error);
       throw error;
     }
   },
@@ -281,8 +277,7 @@ export const moodService = {
         moodDistribution,
       };
     } catch (error) {
-      console.error("Error getting family mood stats:", error);
-      // Return default values but log the error
+      // Return default values on error
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },
@@ -296,7 +291,6 @@ export const moodService = {
       }
       await updateDoc(doc(db, "moods", moodId), updateData);
     } catch (error) {
-      console.error("Error updating mood:", error);
       throw error;
     }
   },
@@ -306,7 +300,6 @@ export const moodService = {
     try {
       await deleteDoc(doc(db, "moods", moodId));
     } catch (error) {
-      console.error("Error deleting mood:", error);
       throw error;
     }
   },
@@ -364,7 +357,6 @@ export const moodService = {
         moodDistribution,
       };
     } catch (error) {
-      console.error("Error getting mood stats:", error);
       throw error;
     }
   },
@@ -393,7 +385,6 @@ export const moodService = {
 
       return moods;
     } catch (error) {
-      console.error("Error getting member moods:", error);
       throw error;
     }
   },
@@ -454,8 +445,7 @@ export const moodService = {
         moodDistribution,
       };
     } catch (error) {
-      console.error("Error getting member mood stats:", error);
-      // Return default values but log the error
+      // Return default values on error
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },

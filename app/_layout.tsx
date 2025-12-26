@@ -1,6 +1,9 @@
 // Polyfill to prevent PushNotificationIOS errors
 import "@/lib/polyfills/pushNotificationIOS";
 
+// Initialize reanimated compatibility early to prevent createAnimatedComponent errors
+import "@/lib/utils/reanimatedSetup";
+
 import { useFonts } from "expo-font";
 import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";

@@ -131,7 +131,7 @@ export default function FamilyMemberHealthView() {
         setVitals(null);
       }
     } catch (error) {
-      console.error("Error loading member health data:", error);
+      // Silently handle error
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -65,9 +65,6 @@ export default function HealthConnectPermissionsScreen() {
 
       // Request authorization for all metrics
       // Health Connect will show a permission screen where users can select permissions
-      console.log(
-        "[Settings Health Connect Permissions] Requesting Health Connect authorization for all metrics..."
-      );
       const granted = await healthConnectService.authorize(allMetricKeys);
 
       // Save connection
@@ -104,8 +101,6 @@ export default function HealthConnectPermissionsScreen() {
         );
       }
     } catch (error: any) {
-      console.error("Health Connect permission request error:", error);
-
       let errorMessage =
         "Failed to request Health Connect permissions. Please try again.";
 

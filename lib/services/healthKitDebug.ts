@@ -13,8 +13,7 @@ export const logHealthKitLoadAttempt = (source: string) => {
     stack,
     source,
   });
-  console.log(`[HealthKit Debug] Load attempt from: ${source}`);
-  console.log("[HealthKit Debug] Stack:", stack);
+  // Debug logging disabled for production
 };
 
 export const getLoadAttempts = () => loadAttempts;

@@ -123,7 +123,7 @@ export const sendPushNotificationHttp = functions.https.onRequest(
       senderId,
     } = req.body.data || req.body;
 
-    console.log("HTTP Push notification requested by:", senderId || "unknown");
+    // HTTP Push notification requested
 
     try {
       // Re-use the same logic from sendPushNotification
@@ -196,21 +196,7 @@ export const sendPushNotification = functions.https.onCall(
 
     // Temporarily bypass authentication for testing
     // TODO: Fix authentication issue and re-enable this check
-    console.log(
-      "Auth context:",
-      context.auth ? "Authenticated" : "Not authenticated"
-    );
-    console.log("SenderId provided:", senderId || "None");
-
-    // For now, just log and continue
-    if (!(context.auth || senderId)) {
-      console.warn(
-        "Warning: No authentication or senderId - allowing for testing"
-      );
-    }
-
     const authenticatedUserId = context.auth?.uid || senderId || "testing-user";
-    console.log("Push notification requested by:", authenticatedUserId);
 
     if (!(userIds && notification)) {
       throw new functions.https.HttpsError(
@@ -239,10 +225,7 @@ export const sendPushNotification = functions.https.onCall(
       }
 
       if (tokens.length === 0) {
-        console.log("No FCM tokens found or all users opted out", {
-          userIds,
-          skippedUsers,
-        });
+        // No FCM tokens found or all users opted out
         return {
           success: true,
           message: "No tokens to send to",
@@ -312,12 +295,7 @@ export const sendPushNotification = functions.https.onCall(
         await cleanupInvalidTokens(failedTokens);
       }
 
-      console.log("Push notifications sent", {
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-        skippedCount: skippedUsers.length,
-        totalTokens: tokens.length,
-      });
+      // Push notifications sent successfully
 
       return {
         success: true,
@@ -358,7 +336,7 @@ async function cleanupInvalidTokens(invalidTokens: string[]): Promise<void> {
   });
 
   await batch.commit();
-  console.log(`Cleaned up ${invalidTokens.length} invalid tokens`);
+  // Invalid tokens cleaned up
 }
 
 // Enhanced FCM token management with device tracking
@@ -372,8 +350,7 @@ export const saveFCMToken = functions.https.onCall(
     // Temporarily allow unauthenticated calls for testing
     // TODO: Re-enable authentication in production
     if (!targetUserId) {
-      console.warn("Warning: No user ID for saveFCMToken");
-      // For now, just log warning instead of throwing error
+      // For now, continue without throwing error
       if (!userId) {
         throw new functions.https.HttpsError(
           "invalid-argument",
@@ -414,11 +391,6 @@ export const saveFCMToken = functions.https.onCall(
         fcmTokenUpdatedAt: FieldValue.serverTimestamp(),
       });
 
-      console.log("FCM token saved", {
-        userId: targetUserId,
-        deviceId,
-      });
-
       return { success: true, message: "FCM token saved successfully" };
     } catch (error) {
       console.error("Error saving FCM token", error);
@@ -447,7 +419,6 @@ export const sendFallAlert = functions.https.onCall(
       const familyMemberIds = await getFamilyMemberIds(userId);
 
       if (familyMemberIds.length === 0) {
-        console.log("No family members to notify");
         return { success: true, message: "No family members to notify" };
       }
 
@@ -678,7 +649,7 @@ export const scheduledMedicationReminders = onSchedule(
         }
       }
 
-      console.log(`Sent ${remindersToSend.length} medication reminders`);
+      // Medication reminders sent
     } catch (error) {
       console.error("Error in scheduled medication reminders:", error);
     }
@@ -724,11 +695,6 @@ export const updateNotificationPreferences = functions.https.onCall(
       await db.collection("users").doc(context.auth.uid).update({
         "preferences.notifications": preferences,
         "preferences.notificationsUpdatedAt": FieldValue.serverTimestamp(),
-      });
-
-      console.log("Notification preferences updated", {
-        userId: context.auth.uid,
-        preferences,
       });
 
       return { success: true, message: "Preferences updated successfully" };
@@ -824,11 +790,6 @@ export const generateBiometricToken = functions.https.onCall(
 
       // Generate custom token
       const customToken = await admin.auth().createCustomToken(userId);
-
-      console.log("Custom token generated for biometric auth", {
-        userId,
-        timestamp: new Date().toISOString(),
-      });
 
       return { customToken };
     } catch (error: any) {

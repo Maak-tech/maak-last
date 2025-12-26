@@ -38,7 +38,6 @@ export default function AppleHealthPermissionsScreen() {
       try {
         availability = await appleHealthService.checkAvailability();
       } catch (availError: any) {
-        console.error("Error checking HealthKit availability:", availError);
         setAuthorizing(false);
         Alert.alert(
           "HealthKit Error",
@@ -71,17 +70,11 @@ export default function AppleHealthPermissionsScreen() {
 
       // CRITICAL: Wait for bridge to stabilize after isAvailable() before requesting authorization
       // This prevents RCTModuleMethod invokeWithBridge errors
-      console.log(
-        "[Settings Apple Permissions] Waiting for bridge to stabilize before requesting authorization..."
-      );
       await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
 
       // Request authorization for ALL HealthKit types
       // This will immediately show the iOS permission screen with all available metrics
       // The iOS screen itself allows users to select all or individual metrics
-      console.log(
-        "[Settings Apple Permissions] Requesting HealthKit authorization for all metrics..."
-      );
       const granted = await appleHealthService.authorize();
 
       // Get all metrics from catalog for saving connection info
@@ -122,8 +115,6 @@ export default function AppleHealthPermissionsScreen() {
         );
       }
     } catch (error: any) {
-      console.error("HealthKit permission request error:", error);
-
       let errorMessage =
         "Failed to request HealthKit permissions. Please try again.";
 

@@ -104,16 +104,7 @@ const missingVars = Object.entries(requiredEnvVars)
 
 if (missingVars.length > 0) {
   const errorMessage = `Missing required Firebase environment variables: ${missingVars.join(", ")}. Please ensure your .env file contains all required EXPO_PUBLIC_FIREBASE_* variables.`;
-
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.error(`❌ ${errorMessage}`);
-  }
-
-  // In production, still initialize but log the error
-  // This prevents the app from crashing but Firebase operations will fail
-  if (typeof __DEV__ === "undefined" || !__DEV__) {
-    console.error(`Firebase Configuration Error: ${errorMessage}`);
-  }
+  // Silently handle missing vars - Firebase operations will fail gracefully
 }
 
 // Check if Firebase app already exists (prevents duplicate initialization during HMR)
@@ -132,7 +123,6 @@ try {
         })
       : getApp();
 } catch (error) {
-  console.error("Failed to initialize Firebase:", error);
   throw new Error(
     "Firebase initialization failed. Please check your environment variables."
   );
@@ -151,15 +141,15 @@ try {
   if (error.code === "auth/already-initialized") {
     auth = getAuth(app);
     // Set persistence explicitly for existing auth instance
-    setPersistence(auth, browserLocalPersistence).catch((persistError: unknown) => {
-      console.warn("Failed to set auth persistence:", persistError);
+    setPersistence(auth, browserLocalPersistence).catch(() => {
+      // Silently handle persistence errors
     });
   } else {
     // Fallback to getAuth if initialization fails
     auth = getAuth(app);
     // Set persistence explicitly
-    setPersistence(auth, browserLocalPersistence).catch((persistError: unknown) => {
-      console.warn("Failed to set auth persistence:", persistError);
+    setPersistence(auth, browserLocalPersistence).catch(() => {
+      // Silently handle persistence errors
     });
   }
 }
@@ -174,9 +164,9 @@ let analytics;
 if (Platform.OS === "web" && typeof window !== "undefined") {
   try {
     analytics = getAnalytics(app);
-  } catch (error) {
+  } catch {
     // Analytics may already be initialized or window may not be available
-    console.warn("Failed to initialize Firebase Analytics:", error);
+    // Silently handle initialization errors
   }
 }
 

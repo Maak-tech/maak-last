@@ -13,8 +13,7 @@ async function getLocalAuthentication() {
   if (!LocalAuthentication) {
     try {
       LocalAuthentication = await import("expo-local-authentication");
-    } catch (error) {
-      console.warn("expo-local-authentication not available:", error);
+    } catch {
       return null;
     }
   }

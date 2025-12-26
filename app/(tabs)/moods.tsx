@@ -116,7 +116,6 @@ export default function MoodsScreen() {
           const familyMoods = await moodService.getFamilyMoods(user.familyId, 50);
           setMoods(familyMoods);
         } catch (error: any) {
-          console.error("Error loading family moods:", error);
           moodsError = error;
           setMoods([]);
         }
@@ -125,7 +124,6 @@ export default function MoodsScreen() {
           const familyStats = await moodService.getFamilyMoodStats(user.familyId, 7);
           setStats(familyStats);
         } catch (error: any) {
-          console.error("Error loading family mood stats:", error);
           statsError = error;
           // Keep default stats if stats fail, but track the error
           setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
@@ -136,7 +134,6 @@ export default function MoodsScreen() {
           const memberMoods = await moodService.getMemberMoods(selectedFilter.memberId, 50);
           setMoods(memberMoods);
         } catch (error: any) {
-          console.error("Error loading member moods:", error);
           moodsError = error;
           setMoods([]);
         }
@@ -145,7 +142,6 @@ export default function MoodsScreen() {
           const memberStats = await moodService.getMemberMoodStats(selectedFilter.memberId, 7);
           setStats(memberStats);
         } catch (error: any) {
-          console.error("Error loading member mood stats:", error);
           statsError = error;
           // Keep default stats if stats fail, but track the error
           setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
@@ -156,7 +152,6 @@ export default function MoodsScreen() {
           const userMoods = await moodService.getUserMoods(user.id, 50);
           setMoods(userMoods);
         } catch (error: any) {
-          console.error("Error loading user moods:", error);
           moodsError = error;
           setMoods([]);
         }
@@ -165,7 +160,6 @@ export default function MoodsScreen() {
           const moodStats = await moodService.getMoodStats(user.id, 7);
           setStats(moodStats);
         } catch (error: any) {
-          console.error("Error loading mood stats:", error);
           statsError = error;
           // Keep default stats if stats fail, but track the error
           setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
@@ -190,7 +184,6 @@ export default function MoodsScreen() {
         );
       }
     } catch (error: any) {
-      console.error("Error loading moods:", error);
       // Provide more specific error messages
       let errorMessage = isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
       
@@ -354,8 +347,6 @@ export default function MoodsScreen() {
             : "Mood logged successfully"
       );
     } catch (error: any) {
-      console.error("Error saving mood:", error);
-
       // Provide more specific error messages
       let errorMessage = isRTL ? "حدث خطأ في حفظ المزاج" : "Error saving mood";
 

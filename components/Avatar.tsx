@@ -46,10 +46,10 @@ export const Avatar: React.FC<AvatarProps> = ({
   const effectiveBorderRadius = Math.min(effectiveWidth, effectiveHeight) / 2;
 
   const getAvatarUrl = (type?: AvatarType): string => {
-    // Use DiceBear Adventurer API for professional-looking 2D avatars
-    // Adventurer style provides detailed, professional avatars suitable for business contexts
-    // Using PNG format for better React Native compatibility
-    const baseUrl = "https://api.dicebear.com/7.x/adventurer/png";
+    // Use DiceBear Notionists API for premium vector avatars
+    // Notionists style provides high-quality, scalable vector avatars with modern, professional appearance
+    // Using PNG format for React Native Image component compatibility (Image component doesn't support SVG URLs)
+    const baseUrl = "https://api.dicebear.com/7.x/notionists/png";
     
     // Create consistent seeds for each avatar type
     // The seed parameter ensures the same avatar is generated each time
@@ -67,8 +67,9 @@ export const Avatar: React.FC<AvatarProps> = ({
     }
 
     const seed = avatarSeeds[type];
-    // Use neutral, professional background colors
-    return `${baseUrl}?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+    // Premium vector avatars with enhanced styling options
+    // Using neutral, professional background colors and enhanced features
+    return `${baseUrl}?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50`;
   };
 
   const getInitials = (name?: string): string => {

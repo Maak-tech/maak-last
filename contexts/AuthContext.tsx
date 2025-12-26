@@ -416,8 +416,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           avatarType
         );
       } catch (docError: any) {
-        console.error("Failed to create user document:", docError);
-
         // Provide more specific error messages
         let docErrorMessage =
           "Failed to create user profile. Please try again.";
