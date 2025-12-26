@@ -9,16 +9,20 @@ export default function Index() {
   const lastNavigationTarget = useRef<string | null>(null);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) {
+      return;
+    }
 
     // Determine target route based on user state
     let targetRoute: string | null = null;
     if (!user) {
       targetRoute = "/(auth)/login";
-    } else if (user.onboardingCompleted) {
-      targetRoute = "/(tabs)";
-    } else {
+    } else if (user.onboardingCompleted !== true) {
+      // Route to onboarding if explicitly false, undefined, or null
+      // Only route to tabs if onboardingCompleted is explicitly true
       targetRoute = "/onboarding";
+    } else {
+      targetRoute = "/(tabs)";
     }
 
     // Only navigate if target has changed
@@ -31,8 +35,13 @@ export default function Index() {
     try {
       router.replace(targetRoute);
     } catch (error) {
-      // Silently handle error
       lastNavigationTarget.current = null;
+      // Fallback to login on navigation error
+      try {
+        router.replace("/(auth)/login");
+      } catch (fallbackError) {
+        // Last resort - do nothing and let user see loading screen
+      }
     }
   }, [loading, user?.id, user?.onboardingCompleted]);
 

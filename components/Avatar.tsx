@@ -38,23 +38,37 @@ export const Avatar: React.FC<AvatarProps> = ({
 
   const currentSize = sizes[size];
 
-  const getAvatarEmoji = (type?: AvatarType): string => {
-    switch (type) {
-      case "man":
-        return "👨🏻"; // Man with light skin tone
-      case "woman":
-        return "👩🏻"; // Woman with light skin tone
-      case "boy":
-        return "👦🏻"; // Boy with light skin tone
-      case "girl":
-        return "👧🏻"; // Girl with light skin tone
-      case "grandma":
-        return "👵🏻"; // Grandma with light skin tone
-      case "grandpa":
-        return "👴🏻"; // Grandpa with light skin tone
-      default:
-        return "";
+  // Extract width/height from style prop if provided, otherwise use size-based dimensions
+  const styleWidth = (style as any)?.width;
+  const styleHeight = (style as any)?.height;
+  const effectiveWidth = styleWidth ?? currentSize.width;
+  const effectiveHeight = styleHeight ?? currentSize.height;
+  const effectiveBorderRadius = Math.min(effectiveWidth, effectiveHeight) / 2;
+
+  const getAvatarUrl = (type?: AvatarType): string => {
+    // Use DiceBear Adventurer API for professional-looking 2D avatars
+    // Adventurer style provides detailed, professional avatars suitable for business contexts
+    // Using PNG format for better React Native compatibility
+    const baseUrl = "https://api.dicebear.com/7.x/adventurer/png";
+    
+    // Create consistent seeds for each avatar type
+    // The seed parameter ensures the same avatar is generated each time
+    const avatarSeeds: Record<string, string> = {
+      man: "professional-male-adult-business",
+      woman: "professional-female-adult-business",
+      boy: "young-male-student",
+      girl: "young-female-student",
+      grandma: "elderly-female-grandmother",
+      grandpa: "elderly-male-grandfather"
+    };
+
+    if (!type || !avatarSeeds[type]) {
+      return "";
     }
+
+    const seed = avatarSeeds[type];
+    // Use neutral, professional background colors
+    return `${baseUrl}?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
   };
 
   const getInitials = (name?: string): string => {
@@ -65,9 +79,9 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   const avatarStyle = {
-    width: currentSize.width,
-    height: currentSize.height,
-    borderRadius: currentSize.width / 2,
+    width: effectiveWidth,
+    height: effectiveHeight,
+    borderRadius: effectiveBorderRadius,
     backgroundColor: avatarType ? "transparent" : theme.colors.primary.main,
     justifyContent: "center" as const,
     alignItems: "center" as const,
@@ -81,27 +95,27 @@ export const Avatar: React.FC<AvatarProps> = ({
           resizeMode="cover"
           source={typeof source === "string" ? { uri: source } : source}
           style={{
-            width: currentSize.width,
-            height: currentSize.height,
-            borderRadius: currentSize.width / 2,
+            width: effectiveWidth,
+            height: effectiveHeight,
+            borderRadius: effectiveBorderRadius,
           }}
         />
       );
     }
 
     if (avatarType) {
-      const emoji = getAvatarEmoji(avatarType);
-      if (emoji) {
+      const avatarUrl = getAvatarUrl(avatarType);
+      if (avatarUrl) {
         return (
-          <Text
+          <Image
+            resizeMode="cover"
+            source={{ uri: avatarUrl }}
             style={{
-              fontSize: currentSize.width * 0.8,
-              textAlign: "center",
-              includeFontPadding: false,
+              width: effectiveWidth,
+              height: effectiveHeight,
+              borderRadius: effectiveBorderRadius,
             }}
-          >
-            {emoji}
-          </Text>
+          />
         );
       }
     }
@@ -133,9 +147,9 @@ export const Avatar: React.FC<AvatarProps> = ({
             styles.badge,
             {
               backgroundColor: badgeColor || theme.colors.accent.success,
-              width: currentSize.width * 0.3,
-              height: currentSize.width * 0.3,
-              borderRadius: (currentSize.width * 0.3) / 2,
+              width: effectiveWidth * 0.3,
+              height: effectiveWidth * 0.3,
+              borderRadius: (effectiveWidth * 0.3) / 2,
               borderWidth: 2,
               borderColor: theme.colors.background.primary,
             },

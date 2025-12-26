@@ -40,41 +40,7 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // DEBUG: Check if HealthKit module is registered at startup
-  useEffect(() => {
-    if (Platform.OS === "ios" && __DEV__) {
-      console.log(
-        "[App Startup Debug] Checking for HealthKit module registration..."
-      );
-      try {
-        const moduleNames = Object.keys(NativeModules || {});
-        console.log(
-          `[App Startup Debug] Native modules registered at startup: ${moduleNames.length} modules`
-        );
-        const healthModules = moduleNames.filter(
-          (name) =>
-            name.toLowerCase().includes("health") ||
-            name.toLowerCase().includes("fitness") ||
-            name.toLowerCase().includes("apple")
-        );
-        if (healthModules.length > 0) {
-          console.log(
-            "[App Startup Debug] ⚠️ HealthKit-related modules found at startup:",
-            healthModules
-          );
-          console.log(
-            `[App Startup Debug] This may cause RCTModuleMethod errors if bridge isn't ready!`
-          );
-        } else {
-          console.log(
-            "[App Startup Debug] ✓ No HealthKit modules registered at startup (good)"
-          );
-        }
-      } catch (e) {
-        console.error("[App Startup Debug] Error checking native modules:", e);
-      }
-    }
-  }, []);
+  // HealthKit module check removed for production
 
   useEffect(() => {
     // Request notification permissions on app start

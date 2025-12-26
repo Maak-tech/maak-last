@@ -35,6 +35,7 @@ import {
   View,
 } from "react-native";
 import Avatar from "@/components/Avatar";
+import type { AvatarType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -45,7 +46,7 @@ import {
 } from "@/lib/services/metricsExportService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
-import type { AvatarType, Medication, Symptom } from "@/types";
+import type { Medication, Symptom } from "@/types";
 
 interface ProfileSectionItem {
   icon: any;
@@ -72,7 +73,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
-  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
+  const [avatarCreatorVisible, setAvatarCreatorVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [healthData, setHealthData] = useState({
@@ -386,14 +387,10 @@ export default function ProfileScreen() {
           <View style={styles.avatarContainer}>
             <Avatar
               avatarType={user?.avatarType}
-              name={
-                user?.firstName && user?.lastName
-                  ? `${user.firstName} ${user.lastName}`
-                  : user?.firstName || "User"
-              }
-              onPress={() => setAvatarPickerVisible(true)}
+              name={user?.firstName}
               size="xl"
-              source={user?.avatar ? { uri: user.avatar } : undefined}
+              onPress={() => setAvatarCreatorVisible(true)}
+              style={{ width: 120, height: 120 }}
             />
           </View>
 
@@ -654,120 +651,76 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Avatar Picker Modal */}
+      {/* Avatar Type Selector Modal */}
       <Modal
         animationType="slide"
-        onRequestClose={() => setAvatarPickerVisible(false)}
+        onRequestClose={() => setAvatarCreatorVisible(false)}
+        visible={avatarCreatorVisible}
         transparent={true}
-        visible={avatarPickerVisible}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxWidth: 400 }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "اختر صورة العائلة" : "Choose Family Avatar"}
+                {isRTL ? "اختر الصورة الرمزية" : "Choose Your Avatar"}
               </Text>
-              <TouchableOpacity onPress={() => setAvatarPickerVisible(false)}>
+              <TouchableOpacity
+                onPress={() => setAvatarCreatorVisible(false)}
+                style={styles.modalCloseButton}
+              >
                 <X color="#64748B" size={24} />
               </TouchableOpacity>
             </View>
-
-            <View style={styles.avatarGrid}>
-              {[
-                {
-                  type: "man" as AvatarType,
-                  emoji: "👨🏻",
-                  labelEn: "Man",
-                  labelAr: "رجل",
-                },
-                {
-                  type: "woman" as AvatarType,
-                  emoji: "👩🏻",
-                  labelEn: "Woman",
-                  labelAr: "امرأة",
-                },
-                {
-                  type: "boy" as AvatarType,
-                  emoji: "👦🏻",
-                  labelEn: "Boy",
-                  labelAr: "صبي",
-                },
-                {
-                  type: "girl" as AvatarType,
-                  emoji: "👧🏻",
-                  labelEn: "Girl",
-                  labelAr: "فتاة",
-                },
-                {
-                  type: "grandma" as AvatarType,
-                  emoji: "👵🏻",
-                  labelEn: "Grandma",
-                  labelAr: "جدة",
-                },
-                {
-                  type: "grandpa" as AvatarType,
-                  emoji: "👴🏻",
-                  labelEn: "Grandpa",
-                  labelAr: "جد",
-                },
-              ].map((avatar) => (
+            <ScrollView contentContainerStyle={styles.avatarGrid}>
+              {(["man", "woman", "boy", "girl", "grandpa", "grandma"] as AvatarType[]).map((type) => (
                 <TouchableOpacity
-                  key={avatar.type}
+                  key={type}
+                  style={[
+                    styles.avatarOption,
+                    user?.avatarType === type && styles.avatarOptionSelected,
+                  ]}
                   onPress={async () => {
                     try {
                       setLoading(true);
                       if (user?.id) {
                         await userService.updateUser(user.id, {
-                          avatarType: avatar.type,
+                          avatarType: type,
                         });
-                        // Update user context immediately for instant UI update
                         if (updateUser) {
-                          await updateUser({ avatarType: avatar.type });
+                          await updateUser({ avatarType: type });
                         }
+                        setAvatarCreatorVisible(false);
+                        Alert.alert(
+                          isRTL ? "تم الحفظ" : "Success",
+                          isRTL
+                            ? "تم حفظ الصورة الرمزية بنجاح"
+                            : "Avatar saved successfully"
+                        );
                       }
-                      setAvatarPickerVisible(false);
-                      Alert.alert(
-                        isRTL ? "تم التحديث" : "Updated",
-                        isRTL
-                          ? "تم تحديث الصورة الرمزية بنجاح"
-                          : "Avatar updated successfully"
-                      );
                     } catch (error) {
                       Alert.alert(
                         isRTL ? "خطأ" : "Error",
                         isRTL
-                          ? "فشل تحديث الصورة الرمزية"
-                          : "Failed to update avatar"
+                          ? "فشل حفظ الصورة الرمزية"
+                          : "Failed to save avatar"
                       );
                     } finally {
                       setLoading(false);
                     }
                   }}
-                  style={[
-                    styles.avatarOption,
-                    user?.avatarType === avatar.type &&
-                      styles.avatarOptionSelected,
-                  ]}
                 >
-                  <Text style={styles.avatarEmoji}>{avatar.emoji}</Text>
-                  <Text
-                    style={[
-                      styles.avatarLabel,
-                      user?.avatarType === avatar.type &&
-                        styles.avatarLabelSelected,
-                      isRTL && styles.rtlText,
-                    ]}
-                  >
-                    {isRTL ? avatar.labelAr : avatar.labelEn}
+                  <Avatar avatarType={type} size="xl" style={{ width: 80, height: 80 }} />
+                  <Text style={[styles.avatarLabel, isRTL && styles.rtlText]}>
+                    {type === "man" && (isRTL ? "رجل" : "Man")}
+                    {type === "woman" && (isRTL ? "امرأة" : "Woman")}
+                    {type === "boy" && (isRTL ? "صبي" : "Boy")}
+                    {type === "girl" && (isRTL ? "فتاة" : "Girl")}
+                    {type === "grandpa" && (isRTL ? "جد" : "Grandpa")}
+                    {type === "grandma" && (isRTL ? "جدة" : "Grandma")}
                   </Text>
-                  {user?.avatarType === avatar.type && (
-                    <View style={styles.avatarCheck}>
-                      <Check color="#FFFFFF" size={16} />
-                    </View>
-                  )}
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1024,7 +977,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     width: "100%",
-    maxWidth: 300,
+    maxWidth: 400,
+    maxHeight: "80%",
   },
   modalHeader: {
     flexDirection: "row",
@@ -1036,8 +990,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
-    textAlign: "center",
-    marginBottom: 20,
+    flex: 1,
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
   },
   languageOption: {
     flexDirection: "row",
@@ -1076,12 +1037,11 @@ const styles = StyleSheet.create({
   avatarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    justifyContent: "space-between",
     marginTop: 16,
   },
   avatarOption: {
     width: "30%",
-    aspectRatio: 1,
     backgroundColor: "#F8FAFC",
     borderRadius: 12,
     justifyContent: "center",
@@ -1089,6 +1049,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#E2E8F0",
     position: "relative",
+    paddingVertical: 16,
+    marginBottom: 12,
   },
   avatarOptionSelected: {
     backgroundColor: "#EBF4FF",
@@ -1102,6 +1064,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Geist-Medium",
     color: "#64748B",
+    marginTop: 8,
+    textAlign: "center",
   },
   avatarLabelSelected: {
     color: "#2563EB",
@@ -1115,6 +1079,33 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: 24,
     height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  creatorModalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  creatorModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+  },
+  creatorModalTitle: {
+    fontSize: 20,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+  },
+  creatorCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
   },

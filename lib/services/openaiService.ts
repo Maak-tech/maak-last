@@ -34,7 +34,6 @@ class OpenAIService {
   private zeinaApiKey: string | null = null;
   private baseURL = "https://api.openai.com/v1";
   private model = "gpt-3.5-turbo"; // Default to cheaper model
-  private useZeinaKey = false; // Flag to use Zeina API key for premium users
 
   async initialize(usePremiumKey = false) {
     try {
@@ -43,7 +42,6 @@ class OpenAIService {
       const config = Constants.expoConfig?.extra;
       this.apiKey = config?.openaiApiKey || null;
       this.zeinaApiKey = config?.zeinaApiKey || config?.openaiApiKey || null; // Fallback to openaiApiKey if zeinaApiKey not set
-      this.useZeinaKey = usePremiumKey;
       
       if (!this.apiKey) {
         console.warn("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
@@ -54,8 +52,9 @@ class OpenAIService {
   }
 
   async getApiKey(usePremiumKey = false): Promise<string | null> {
-    // Use the provided parameter instead of instance state to ensure context-specific behavior
-    const shouldUseZeinaKey = usePremiumKey || this.useZeinaKey;
+    // Use only the provided parameter to ensure context-specific behavior
+    // Do not rely on instance state from previous calls
+    const shouldUseZeinaKey = usePremiumKey;
     
     if (!this.apiKey && !shouldUseZeinaKey) {
       await this.initialize(false);
@@ -64,8 +63,18 @@ class OpenAIService {
       await this.initialize(true);
     }
     
-    // Return Zeina API key for premium users, otherwise regular API key
-    return shouldUseZeinaKey ? (this.zeinaApiKey || this.apiKey) : (this.apiKey || this.zeinaApiKey);
+    // Return the requested key type, fail explicitly if not available
+    if (shouldUseZeinaKey) {
+      if (!this.zeinaApiKey) {
+        throw new Error("Zeina API key not configured. Premium features require zeinaApiKey to be set.");
+      }
+      return this.zeinaApiKey;
+    } else {
+      if (!this.apiKey) {
+        throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
+      }
+      return this.apiKey;
+    }
   }
 
   async getModel(): Promise<string> {
@@ -103,22 +112,8 @@ class OpenAIService {
   }
 
   async createChatCompletion(messages: ChatMessage[], usePremiumKey = false): Promise<string> {
-    // Initialize with the appropriate key based on premium status
-    // Reset useZeinaKey flag based on the current call context to prevent state inconsistency
-    this.useZeinaKey = usePremiumKey;
-    
-    if (usePremiumKey) {
-      if (!this.zeinaApiKey) {
-        await this.initialize(true);
-      }
-    } else {
-      if (!this.apiKey) {
-        await this.initialize(false);
-      }
-    }
-    
-    // Both regular and premium users use the same API key
-    const activeApiKey = usePremiumKey ? (this.zeinaApiKey || this.apiKey) : (this.apiKey || this.zeinaApiKey);
+    // Get the appropriate API key (will fail explicitly if wrong type requested)
+    const activeApiKey = await this.getApiKey(usePremiumKey);
     
     if (!activeApiKey) {
       throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");

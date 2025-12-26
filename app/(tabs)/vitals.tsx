@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   RefreshControl,
   SafeAreaView,
@@ -555,10 +556,10 @@ export default function VitalsScreen() {
     if (Platform.OS === "android") {
       try {
         // Lazy import to prevent early native module loading
-        const { googleHealthService } = await import(
-          "@/lib/services/googleHealthService"
+        const { healthConnectService } = await import(
+          "@/lib/services/healthConnectService"
         );
-        const availability = await googleHealthService.isAvailable();
+        const availability = await healthConnectService.checkAvailability();
         setHealthConnectAvailable(availability.available);
         setAvailabilityReason(availability.reason);
       } catch (error: any) {
@@ -576,14 +577,8 @@ export default function VitalsScreen() {
       // Don't check availability here to prevent crashes - let the permission screen handle it
       router.push("/health/apple");
     } else if (Platform.OS === "android") {
-      // For Android, show metric selection directly (Health Connect flow)
-      loadAvailableMetrics();
-      try {
-        await checkHealthConnectAvailability();
-      } catch (error) {
-        // Silently handle error
-      }
-      setShowMetricSelection(true);
+      // Navigate to Health Connect intro screen
+      router.push("/health/healthconnect");
     } else {
       // For other platforms, use the old flow
       handleEnableHealthDataLegacy();
@@ -762,10 +757,10 @@ export default function VitalsScreen() {
         // Check availability before proceeding - wrap in try-catch
         try {
           // Lazy import to prevent early native module loading
-          const { googleHealthService } = await import(
-            "@/lib/services/googleHealthService"
+          const { healthConnectService } = await import(
+            "@/lib/services/healthConnectService"
           );
-          const availability = await googleHealthService.isAvailable();
+          const availability = await healthConnectService.checkAvailability();
           if (!availability.available) {
             Alert.alert(
               isRTL
@@ -787,7 +782,10 @@ export default function VitalsScreen() {
                   { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
                   {
                     text: isRTL ? "فتح" : "Open",
-                    onPress: () => googleHealthService.openHealthConnect(),
+                    onPress: () => {
+                      const installUrl = availability.installUrl || "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata";
+                      Linking.openURL(installUrl);
+                    },
                   },
                 ]
               );
@@ -796,11 +794,27 @@ export default function VitalsScreen() {
           }
 
           // Request Health Connect permissions
-          const result = await googleHealthService.requestAuthorization(
-            Array.from(selectedMetrics)
+          const { healthConnectService } = await import(
+            "@/lib/services/healthConnectService"
           );
-          granted = result.granted;
-          denied = result.denied;
+          const { getHealthConnectPermissionsForMetrics } = await import(
+            "@/lib/health/healthMetricsCatalog"
+          );
+          
+          // Expand "all" to actual metric keys
+          const allAvailableMetrics = getAvailableMetricsForProvider("health_connect").map((m) => m.key);
+          const expandedSelected = selectedMetrics.has("all")
+            ? allAvailableMetrics
+            : Array.from(selectedMetrics);
+          
+          const permissions = getHealthConnectPermissionsForMetrics(expandedSelected);
+          const authorized = await healthConnectService.authorize(expandedSelected);
+          
+          // Health Connect returns boolean, but we need to map back to permissions
+          // For now, if authorized is true, assume all requested permissions were granted
+          // In a real implementation, you'd check each permission individually
+          granted = authorized ? expandedSelected : [];
+          denied = authorized ? [] : expandedSelected;
           provider = "health_connect";
         } catch (healthConnectError: any) {
           Alert.alert(

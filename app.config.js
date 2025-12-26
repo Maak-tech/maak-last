@@ -28,13 +28,14 @@ export default {
         backgroundColor: "#F8FAFC"
       },
       infoPlist: {
-        NSCameraUsageDescription: "Maak Health uses the camera to allow you to take profile photos and scan medication barcodes for easy tracking.",
+        NSCameraUsageDescription: "Maak Health uses the camera to allow you to take profile photos, scan medication barcodes, and measure heart rate using PPG (photoplethysmography) for vital signs monitoring.",
         NSPhotoLibraryUsageDescription: "Maak Health needs access to your photo library to select profile pictures and save health-related images.",
         NSMotionUsageDescription: "Maak Health uses motion sensors to detect falls and automatically alert your emergency contacts for your safety.",
         NSLocationWhenInUseUsageDescription: "Maak Health uses your location to share with emergency contacts during fall detection alerts, ensuring help can reach you quickly.",
         NSHealthShareUsageDescription: "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
         NSHealthUpdateUsageDescription: "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
         NSUserTrackingUsageDescription: "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure.",
+        NSFaceIDUsageDescription: "Maak Health uses Face ID or Touch ID to securely authenticate your identity for biometric authentication.",
         ITSAppUsesNonExemptEncryption: false,
         UIBackgroundModes: ["location", "processing"],
         UITextInputContextIdentifier: ""
@@ -67,7 +68,29 @@ export default {
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
         "com.google.android.c2dm.permission.RECEIVE",
-        "android.permission.activity_recognition"
+        "android.permission.activity_recognition",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_BODY_TEMPERATURE",
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.health.READ_RESPIRATORY_RATE",
+        "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.READ_HEIGHT",
+        "android.permission.health.READ_BODY_MASS_INDEX",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_DISTANCE",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_HYDRATION",
+        "android.permission.health.READ_BLOOD_GLUCOSE",
+        "android.permission.health.READ_HEART_RATE_VARIABILITY",
+        "android.permission.health.READ_BODY_FAT",
+        "android.permission.health.READ_BASAL_METABOLIC_RATE",
+        "android.permission.health.READ_FLOORS_CLIMBED"
       ]
     },
     web: {
@@ -86,6 +109,20 @@ export default {
         }
       ],
       [
+        "expo-camera",
+        {
+          cameraPermission: "Required for PPG heart rate measurement and vital signs monitoring"
+        }
+      ],
+      [
+        "react-native-vision-camera",
+        {
+          cameraPermissionText: "$(PRODUCT_NAME) needs access to your camera for real-time PPG heart rate measurement and vital signs monitoring using photoplethysmography.",
+          enableMicrophonePermission: false,
+          disableFrameProcessors: true // Disabled until frame processor implementation is complete
+        }
+      ],
+      [
         "expo-sensors",
         {
           motionPermission: "Allow $(PRODUCT_NAME) to access motion and fitness data for fall detection."
@@ -99,6 +136,7 @@ export default {
         }
       ],
       "expo-localization",
+      "expo-local-authentication",
       "expo-secure-store",
       "expo-web-browser",
       "./plugins/withFollyFix.js"

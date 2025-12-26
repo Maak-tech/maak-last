@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
-import { Users } from "lucide-react-native";
-import { useState } from "react";
+import { Fingerprint, Users } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -16,6 +16,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
+import AdaptiveBiometricAuth from "@/components/AdaptiveBiometricAuth";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { auth, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { signInWithCustomToken } from "firebase/auth";
 
 export default function LoginScreen() {
   const { t, i18n } = useTranslation();
@@ -26,8 +31,77 @@ export default function LoginScreen() {
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showBiometric, setShowBiometric] = useState(false);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
+  const [biometricUserId, setBiometricUserId] = useState<string | null>(null);
 
   const isRTL = i18n.language === "ar";
+  const db = getFirestore();
+
+  // Check if user has biometric enrollment (check persisted session or stored userId)
+  useEffect(() => {
+    const checkBiometricEnrollment = async () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          const profileDoc = await getDoc(doc(db, 'biometric_profiles', currentUser.uid));
+          const isEnrolled = profileDoc.exists();
+          setIsBiometricEnrolled(isEnrolled);
+          // Store userId if enrolled for future checks
+          if (isEnrolled) {
+            try {
+              const AsyncStorage = await import("@react-native-async-storage/async-storage");
+              await AsyncStorage.default.setItem("biometric_enrolled_user_id", currentUser.uid);
+            } catch (error) {
+              // Silently handle error
+            }
+          }
+        } catch (error) {
+          // Silently handle error
+        }
+      } else {
+        // Check for stored enrolled userId from AsyncStorage
+        try {
+          const AsyncStorage = await import("@react-native-async-storage/async-storage");
+          const storedUserId = await AsyncStorage.default.getItem("biometric_enrolled_user_id");
+          if (storedUserId) {
+            try {
+              const profileDoc = await getDoc(doc(db, 'biometric_profiles', storedUserId));
+              const isEnrolled = profileDoc.exists();
+              setIsBiometricEnrolled(isEnrolled);
+              // Store userId in state so it's available for biometric login
+              if (isEnrolled) {
+                setBiometricUserId(storedUserId);
+              }
+            } catch (error) {
+              // Silently handle error
+              setIsBiometricEnrolled(false);
+              setBiometricUserId(null);
+            }
+          } else {
+            setIsBiometricEnrolled(false);
+            setBiometricUserId(null);
+          }
+        } catch (error) {
+          setIsBiometricEnrolled(false);
+          setBiometricUserId(null);
+        }
+      }
+    };
+    checkBiometricEnrollment();
+    
+    // Listen for auth state changes
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        checkBiometricEnrollment();
+      } else {
+        // Re-check with stored userId when user logs out
+        checkBiometricEnrollment();
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   const handleLogin = async () => {
     setErrors({});
@@ -85,6 +159,166 @@ export default function LoginScreen() {
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === "en" ? "ar" : "en");
+  };
+
+  const handleBiometricSuccess = async (result: any) => {
+    setShowBiometric(false);
+    
+    // Handle enrollment mode completion
+    if (result.mode === 'enroll') {
+      Alert.alert(
+        isRTL ? 'تم التسجيل بنجاح' : 'Enrollment Successful',
+        isRTL
+          ? 'تم تسجيل المصادقة الحيوية بنجاح. يمكنك الآن استخدامها لتسجيل الدخول.'
+          : 'Biometric authentication has been enrolled successfully. You can now use it to log in.',
+        [{ text: isRTL ? 'حسناً' : 'OK' }]
+      );
+      // Refresh enrollment status
+      try {
+        // Get userId from currentUser, state, or stored value
+        let userId: string | null = null;
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          userId = currentUser.uid;
+        } else if (biometricUserId) {
+          userId = biometricUserId;
+        } else {
+          // Fallback: Try to get stored userId from AsyncStorage
+          try {
+            const AsyncStorage = await import("@react-native-async-storage/async-storage");
+            userId = await AsyncStorage.default.getItem("biometric_enrolled_user_id");
+          } catch (storageError) {
+            // Silently handle error
+          }
+        }
+
+        // Only query Firestore if we have a valid userId
+        if (userId) {
+          const profileDoc = await getDoc(doc(db, 'biometric_profiles', userId));
+          setIsBiometricEnrolled(profileDoc.exists());
+        } else {
+          // If no userId available, we can't verify enrollment status
+          // This shouldn't happen after enrollment, but handle gracefully
+          setIsBiometricEnrolled(false);
+        }
+      } catch (error) {
+        // Silently handle error
+        setIsBiometricEnrolled(false);
+      }
+      return;
+    }
+    
+    // Handle authentication mode
+    if (result.authenticated === true && biometricUserId) {
+      try {
+        // Get custom token from Cloud Function
+        const generateToken = httpsCallable(functions, "generateBiometricToken");
+        
+        const tokenResult = await generateToken({
+          userId: biometricUserId,
+          authLogId: result.authLogId,
+        });
+        
+        const { customToken } = (tokenResult.data as any);
+        
+        if (!customToken) {
+          throw new Error("Failed to get authentication token");
+        }
+        
+        // Sign in with custom token
+        await signInWithCustomToken(auth, customToken);
+        
+        // Wait a moment for auth state to propagate to AuthContext
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Navigate to index - let it handle routing based on user state
+        // (Same as regular login flow)
+        router.replace("/");
+      } catch (error: any) {
+        Alert.alert(
+          isRTL ? 'خطأ في المصادقة' : 'Authentication Error',
+          isRTL
+            ? 'فشل تسجيل الدخول. يرجى المحاولة مرة أخرى أو استخدام تسجيل الدخول بكلمة المرور.'
+            : error.message || 'Failed to complete login. Please try again or use password login.'
+        );
+      }
+      return;
+    }
+    
+    // Handle failed authentication (authenticated === false)
+    if (result.authenticated === false) {
+      Alert.alert(
+        isRTL ? 'فشل المصادقة' : 'Authentication Failed',
+        isRTL
+          ? 'فشلت المصادقة الحيوية. يرجى المحاولة مرة أخرى أو استخدام تسجيل الدخول بكلمة المرور.'
+          : 'Biometric authentication failed. Please try again or use password login.'
+      );
+      return;
+    }
+    
+    // Handle unexpected result structure
+    if (!result.authenticated && result.mode !== 'enroll') {
+      Alert.alert(
+        isRTL ? 'خطأ غير متوقع' : 'Unexpected Error',
+        isRTL
+          ? 'حدث خطأ غير متوقع أثناء المصادقة. يرجى المحاولة مرة أخرى.'
+          : 'An unexpected error occurred during authentication. Please try again.'
+      );
+    }
+  };
+
+  const handleBiometricFailure = (error: any) => {
+    setShowBiometric(false);
+    Alert.alert(
+      isRTL ? 'فشل المصادقة' : 'Authentication Failed',
+      isRTL 
+        ? 'فشلت المصادقة الحيوية. يرجى المحاولة مرة أخرى أو استخدام تسجيل الدخول بكلمة المرور.'
+        : 'Biometric authentication failed. Please try again or use password login.'
+    );
+  };
+
+  const handleBiometricLogin = async () => {
+    // Get userId from currentUser, state, or stored value
+    let userId: string | null = null;
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      userId = currentUser.uid;
+    } else if (biometricUserId) {
+      // Use stored userId from state (set by useEffect when enrollment detected)
+      userId = biometricUserId;
+    } else {
+      // Fallback: Try to get stored userId from AsyncStorage
+      try {
+        const AsyncStorage = await import("@react-native-async-storage/async-storage");
+        userId = await AsyncStorage.default.getItem("biometric_enrolled_user_id");
+      } catch (error) {
+        // Silently handle error
+      }
+    }
+
+    if (!userId) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL 
+          ? 'لم يتم العثور على بيانات المصادقة الحيوية. يرجى تسجيل الدخول أولاً.'
+          : 'Biometric authentication data not found. Please log in first.'
+      );
+      return;
+    }
+    
+    // Verify enrollment before proceeding
+    if (!isBiometricEnrolled) {
+      Alert.alert(
+        isRTL ? 'خطأ' : 'Error',
+        isRTL 
+          ? 'لم يتم تسجيل المصادقة الحيوية. يرجى تسجيل الدخول أولاً.'
+          : 'Biometric authentication is not enrolled. Please log in first.'
+      );
+      return;
+    }
+    
+    setBiometricUserId(userId);
+    setShowBiometric(true);
   };
 
   return (
@@ -224,6 +458,29 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Biometric Login Button - Show if user is enrolled */}
+            {isBiometricEnrolled && (
+              <>
+                <TouchableOpacity
+                  onPress={handleBiometricLogin}
+                  style={styles.biometricButton}
+                >
+                  <Fingerprint size={20} color="#2563EB" />
+                  <Text style={styles.biometricButtonText}>
+                    {isRTL ? "تسجيل الدخول بالمصادقة الحيوية" : "Login with Biometrics"}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>
+                    {isRTL ? "أو" : "OR"}
+                  </Text>
+                  <View style={styles.dividerLine} />
+                </View>
+              </>
+            )}
+
             <TouchableOpacity
               disabled={loading}
               onPress={handleLogin}
@@ -252,6 +509,21 @@ export default function LoginScreen() {
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
+
+      {/* Biometric Authentication Modal */}
+      {showBiometric && biometricUserId && (
+        <AdaptiveBiometricAuth
+          visible={showBiometric}
+          mode="authenticate"
+          userId={biometricUserId}
+          onAuthSuccess={handleBiometricSuccess}
+          onAuthFailure={handleBiometricFailure}
+          onClose={() => {
+            setShowBiometric(false);
+            setBiometricUserId(null);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -435,5 +707,39 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 4,
     lineHeight: 16,
+  },
+  biometricButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0F9FF",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: "#2563EB",
+    marginBottom: 16,
+    gap: 8,
+  },
+  biometricButtonText: {
+    color: "#2563EB",
+    fontSize: 16,
+    fontFamily: "Geist-SemiBold",
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
   },
 });

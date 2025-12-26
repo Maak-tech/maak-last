@@ -300,7 +300,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             );
           }, 2000);
         } catch (error: any) {
-          console.warn("Family code processing error:", error);
           await AsyncStorage.default
             .removeItem("pendingFamilyCode")
             .catch(() => {
@@ -317,7 +316,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return false;
     } catch (error: any) {
-      console.warn("Failed to process pending family code:", error);
       return false;
     }
   };
@@ -327,7 +325,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const currentUser = await userService.getUser(userId);
 
       if (!currentUser) {
-        console.warn("Cannot ensure family: user not found");
         return;
       }
 
@@ -349,8 +346,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     } catch (error: any) {
-      console.warn("Failed to ensure user has family:", error);
-      // Don't throw - this is not critical for user creation
+      // Failed to ensure user has family - not critical
     }
   };
 
@@ -439,10 +435,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         try {
           await signOut(auth);
         } catch (signOutError) {
-          console.error(
-            "Failed to sign out after document creation error:",
-            signOutError
-          );
+          // Failed to sign out after document creation error
         }
 
         setLoading(false);

@@ -125,10 +125,29 @@ export const healthDataService = {
           return false;
         }
       } else if (Platform.OS === "android") {
-        // For Android, use simulated data for now
-        // In production build, you'd implement Google Fit integration
-        await this.savePermissionStatus(true);
-        return true;
+        // For Android, use Health Connect
+        try {
+          const { healthConnectService } = await import("./healthConnectService");
+          
+          // Check if Health Connect is available
+          const availability = await healthConnectService.checkAvailability();
+          if (!availability.available) {
+            await this.savePermissionStatus(false);
+            return false;
+          }
+
+          // Request authorization (will be done with specific metrics in settings)
+          // For now, just check availability
+          await this.savePermissionStatus(true);
+          return true;
+        } catch (error: any) {
+          console.error(
+            "[Health Data Service] Health Connect error:",
+            error?.message || String(error)
+          );
+          await this.savePermissionStatus(false);
+          return false;
+        }
       } else {
         return false;
       }
@@ -412,14 +431,145 @@ export const healthDataService = {
     };
   },
 
-  // Android Google Fit data retrieval (with fallback to simulated data)
+  // Android Health Connect data retrieval (with fallback to simulated data)
   async getAndroidVitals(): Promise<VitalSigns | null> {
     try {
-      // For Android, we'll use simulated data that looks realistic
-      // In a production build, you'd integrate with Google Fit APIs
-      return await this.getSimulatedVitals();
-    } catch {
-      return await this.getSimulatedVitals();
+      // Check if Health Connect connection exists
+      const { getProviderConnection } = await import("../health/healthSync");
+      const connection = await getProviderConnection("health_connect");
+      
+      if (!(connection && connection.connected)) {
+        // If not connected, return simulated data
+        return this.getSimulatedVitals();
+      }
+
+      // Import healthConnectService dynamically
+      const { healthConnectService } = await import("./healthConnectService");
+
+      // Get health metrics using healthConnectService
+      try {
+        const today = new Date();
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000); // 1 day ago
+
+        const metrics = await healthConnectService.fetchMetrics(
+          connection.selectedMetrics.length > 0
+            ? connection.selectedMetrics
+            : ["heart_rate", "steps", "active_energy", "sleep_analysis", "weight"],
+          yesterday,
+          today
+        );
+
+        // Helper to get latest value from samples
+        const getLatestValue = (metricKey: string): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === metricKey);
+          if (!metric || metric.samples.length === 0) return;
+          // Get the most recent sample value
+          const latestSample = metric.samples[metric.samples.length - 1];
+          if (typeof latestSample.value !== "number") return;
+          return latestSample.value;
+        };
+
+        // Helper to get sum for metrics like steps (daily total)
+        const getSumValue = (metricKey: string): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === metricKey);
+          if (!metric || metric.samples.length === 0) return;
+          const sum = metric.samples.reduce((acc, sample) => {
+            const value = typeof sample.value === "number" ? sample.value : 0;
+            return acc + value;
+          }, 0);
+          return sum;
+        };
+
+        // Helper to get average heart rate
+        const getAverageHeartRate = (): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === "heart_rate");
+          if (!metric || metric.samples.length === 0) return;
+          const sum = metric.samples.reduce((acc, sample) => {
+            const value = typeof sample.value === "number" ? sample.value : 0;
+            return acc + value;
+          }, 0);
+          return sum / metric.samples.length;
+        };
+
+        // Helper to get sleep hours from sleep analysis
+        const getSleepHours = (): number | undefined => {
+          const metric = metrics.find((m) => m.metricKey === "sleep_analysis");
+          if (!metric || metric.samples.length === 0) return;
+          // Sum all sleep durations (in hours) and convert to hours
+          const totalHours = metric.samples.reduce((acc, sample) => {
+            const value = typeof sample.value === "number" ? sample.value : 0;
+            return acc + value;
+          }, 0);
+          return totalHours;
+        };
+
+        const vitals: VitalSigns = {
+          // Heart & Cardiovascular
+          heartRate: getAverageHeartRate() || getLatestValue("heart_rate"),
+          restingHeartRate: getLatestValue("resting_heart_rate"),
+          heartRateVariability: getLatestValue("heart_rate_variability"),
+          walkingHeartRateAverage: getLatestValue("walking_heart_rate_average"),
+          bloodPressure: (() => {
+            const systolic = getLatestValue("blood_pressure_systolic");
+            const diastolic = getLatestValue("blood_pressure_diastolic");
+            if (systolic && diastolic) {
+              return { systolic, diastolic };
+            }
+            return;
+          })(),
+
+          // Respiratory
+          respiratoryRate: getLatestValue("respiratory_rate"),
+          oxygenSaturation: getLatestValue("blood_oxygen"),
+
+          // Temperature
+          bodyTemperature: getLatestValue("body_temperature"),
+
+          // Body Measurements
+          weight: getLatestValue("weight"),
+          height: getLatestValue("height"),
+          bodyMassIndex: getLatestValue("body_mass_index"),
+          bodyFatPercentage: getLatestValue("body_fat_percentage"),
+
+          // Activity & Fitness
+          steps: getSumValue("steps"),
+          activeEnergy: getSumValue("active_energy"),
+          basalEnergy: getLatestValue("basal_energy"),
+          distanceWalkingRunning: getSumValue("distance_walking_running"),
+          flightsClimbed: getSumValue("flights_climbed"),
+          exerciseMinutes: getSumValue("exercise_minutes"),
+          workouts: (() => {
+            const metric = metrics.find((m) => m.metricKey === "workouts");
+            if (!metric || metric.samples.length === 0) return;
+            return metric.samples.length;
+          })(),
+
+          // Sleep
+          sleepHours: getSleepHours(),
+
+          // Nutrition
+          waterIntake: getSumValue("water_intake"),
+
+          // Glucose
+          bloodGlucose: getLatestValue("blood_glucose"),
+
+          timestamp: new Date(),
+        };
+
+        return vitals;
+      } catch (error: any) {
+        console.error(
+          "[Health Data Service] Error fetching Health Connect data:",
+          error?.message || String(error)
+        );
+        return this.getSimulatedVitals();
+      }
+    } catch (error: any) {
+      console.error(
+        "[Health Data Service] Error in getAndroidVitals:",
+        error?.message || String(error)
+      );
+      return this.getSimulatedVitals();
     }
   },
 

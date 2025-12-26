@@ -31,7 +31,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t("home") || "Home",
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Home color={color} size={size || 24} />
           ),
         }}
@@ -40,7 +40,7 @@ export default function TabLayout() {
         name="track"
         options={{
           title: t("track") || "Track",
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Activity color={color} size={size || 24} />
           ),
         }}
@@ -61,7 +61,7 @@ export default function TabLayout() {
         name="zeina"
         options={{
           title: "Zeina",
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Sparkles color={color} size={size || 24} />
           ),
         }}
@@ -70,7 +70,7 @@ export default function TabLayout() {
         name="family"
         options={{
           title: t("family"),
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Users color={color} size={size || 24} />
           ),
         }}
@@ -79,7 +79,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: t("profile"),
-          tabBarIcon: ({ size, color }) => (
+          tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <User color={color} size={size || 24} />
           ),
         }}

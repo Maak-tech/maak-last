@@ -69,6 +69,9 @@ export const userService = {
     try {
       const existingUser = await this.getUser(userId);
       if (existingUser) {
+        let needsUpdate = false;
+        const updates: Partial<User> = {};
+
         // Migrate old name field if needed
         if (
           !(existingUser.firstName || existingUser.lastName) &&
@@ -77,17 +80,64 @@ export const userService = {
           const nameParts = ((existingUser as any).name as string).split(" ");
           const migratedFirstName = nameParts[0] || "User";
           const migratedLastName = nameParts.slice(1).join(" ") || "";
-          await this.updateUser(userId, {
-            firstName: migratedFirstName,
-            lastName: migratedLastName,
-          });
+          updates.firstName = migratedFirstName;
+          updates.lastName = migratedLastName;
+          needsUpdate = true;
+        } else {
+          // Update firstName if it's missing, set to default "User", or if we have a better value
+          const currentFirstName = existingUser.firstName || "";
+          const shouldUpdateFirstName = 
+            !currentFirstName || 
+            currentFirstName === "User" ||
+            (firstName && firstName !== "User" && firstName !== currentFirstName);
+          
+          if (shouldUpdateFirstName && firstName && firstName !== "User") {
+            updates.firstName = firstName;
+            needsUpdate = true;
+          }
+          
+          // Update lastName if it's missing or if we have a better value
+          // Don't overwrite existing lastName with empty string unless it's currently empty
+          const currentLastName = existingUser.lastName || "";
+          const shouldUpdateLastName = 
+            !currentLastName ||
+            (lastName && lastName !== currentLastName);
+          
+          if (shouldUpdateLastName && lastName) {
+            updates.lastName = lastName;
+            needsUpdate = true;
+          }
+        }
+
+        // Update avatarType if provided and different
+        if (avatarType && existingUser.avatarType !== avatarType) {
+          updates.avatarType = avatarType;
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          await this.updateUser(userId, updates);
           return {
             ...existingUser,
-            firstName: migratedFirstName,
-            lastName: migratedLastName,
+            ...updates,
           };
         }
+
         return existingUser;
+      }
+
+      // Before creating a new user, check again to handle race conditions
+      // (e.g., if signUp just created the user but it wasn't visible yet)
+      // Only do this if we're about to create with defaults - real names should create immediately
+      if (firstName === "User" || !firstName) {
+        // Wait a bit and check again - user might have been created by signUp
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const retryUser = await this.getUser(userId);
+        if (retryUser) {
+          // User exists now - return it (don't call ensureUserDocument again to avoid recursion)
+          // The existing user should have the correct name from signUp
+          return retryUser;
+        }
       }
 
       // Create new user document with default values

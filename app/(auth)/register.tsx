@@ -1,5 +1,5 @@
 import { Link, useRouter } from "expo-router";
-import { Check, X } from "lucide-react-native";
+import { Check, Users, X } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -28,6 +28,8 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [familyCode, setFamilyCode] = useState("");
+  const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedAvatarType, setSelectedAvatarType] = useState<AvatarType | undefined>();
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
@@ -70,6 +72,15 @@ export default function RegisterScreen() {
     }
 
     try {
+      // Store family code in AsyncStorage if provided (will be processed after signup)
+      if (familyCode.trim()) {
+        const AsyncStorage = await import("@react-native-async-storage/async-storage");
+        await AsyncStorage.default.setItem(
+          "pendingFamilyCode",
+          familyCode.trim()
+        );
+      }
+
       await signUp(email, password, firstName, lastName, selectedAvatarType);
       router.replace("/");
     } catch (error: any) {
@@ -250,6 +261,50 @@ export default function RegisterScreen() {
                 <Text style={styles.fieldErrorText}>
                   {errors.confirmPassword}
                 </Text>
+              )}
+            </View>
+
+            {/* Family Code Section */}
+            <View style={styles.familySection}>
+              <TouchableOpacity
+                onPress={() => setShowFamilyCode(!showFamilyCode)}
+                style={styles.familyToggle}
+              >
+                <Users color="#2563EB" size={20} />
+                <Text
+                  style={[styles.familyToggleText, isRTL && styles.rtlText]}
+                >
+                  {isRTL ? "الانضمام إلى عائلة موجودة" : "Join existing family"}
+                </Text>
+                <Text style={styles.optionalText}>
+                  {isRTL ? "(اختياري)" : "(Optional)"}
+                </Text>
+              </TouchableOpacity>
+
+              {showFamilyCode && (
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isRTL && styles.rtlText]}>
+                    {isRTL ? "رمز العائلة" : "Family Code"}
+                  </Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    maxLength={6}
+                    onChangeText={setFamilyCode}
+                    placeholder={
+                      isRTL
+                        ? "أدخل رمز الدعوة (6 أرقام)"
+                        : "Enter invitation code (6 digits)"
+                    }
+                    style={[styles.input, isRTL && styles.rtlInput]}
+                    textAlign={isRTL ? "right" : "left"}
+                    value={familyCode}
+                  />
+                  <Text style={[styles.helperText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? "أدخل رمز الدعوة المرسل إليك من أحد أفراد العائلة"
+                      : "Enter the invitation code sent to you by a family member"}
+                  </Text>
+                </View>
               )}
             </View>
 
@@ -612,5 +667,36 @@ const styles = StyleSheet.create({
     height: 24,
     justifyContent: "center",
     alignItems: "center",
+  },
+  familySection: {
+    marginVertical: 16,
+  },
+  familyToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  familyToggleText: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#2563EB",
+    marginLeft: 8,
+    flex: 1,
+  },
+  optionalText: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+  },
+  helperText: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginTop: 4,
+    lineHeight: 16,
   },
 });

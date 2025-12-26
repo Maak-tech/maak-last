@@ -121,6 +121,30 @@ service cloud.firestore {
       allow list, read: if request.auth != null;
     }
 
+    // Vitals collection (heart rate, blood pressure, etc.)
+    match /vitals/{vitalId} {
+      // Allow users to create their own vitals OR admins to create vitals for family members
+      allow create: if request.auth != null && (
+        request.resource.data.userId == request.auth.uid ||
+        (isFamilyAdmin() && isSameFamily(request.resource.data.userId))
+      );
+      
+      // Allow users to read and write their own vitals
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Allow family members to read each other's vitals (for viewing family data)
+      allow read: if request.auth != null && isSameFamily(resource.data.userId);
+      
+      // Allow admins to update/delete vitals for family members
+      allow update, delete: if request.auth != null && 
+        isFamilyAdmin() && 
+        isSameFamily(resource.data.userId);
+      
+      // Allow authenticated users to query/list vitals (queries are filtered by userId in the app)
+      // Individual document access is still controlled by the read rules above
+      allow list: if request.auth != null;
+    }
+
     // Family invitation codes
     match /familyInvitations/{invitationId} {
       allow create: if request.auth != null && request.auth.uid == request.resource.data.invitedBy;
@@ -147,6 +171,32 @@ service cloud.firestore {
       
       // Allow family creation by authenticated users
       allow create: if request.auth != null;
+    }
+
+    // Biometric profiles - user can only read/write their own
+    match /biometric_profiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Auth logs - user can only read/write their own logs
+    // Allow unauthenticated writes during biometric login (before user is authenticated)
+    // but validate that the userId exists in the users collection
+    match /auth_logs/{logId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Allow authenticated users to write their own logs
+      allow write: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Allow unauthenticated writes during biometric login (validate userId exists and timestamp is valid)
+      allow create: if request.auth == null && 
+        request.resource.data.userId != null &&
+        exists(/databases/$(database)/documents/users/$(request.resource.data.userId)) &&
+        // Validate timestamp exists, is a timestamp type, and is not in the future
+        request.resource.data.timestamp != null &&
+        request.resource.data.timestamp is timestamp &&
+        request.resource.data.timestamp <= request.time &&
+        // Ensure timestamp is recent (after 2024-01-01 to prevent very old logs)
+        request.resource.data.timestamp > timestamp.date(2024, 1, 1);
+      // Note: Actual rate limiting (e.g., max 1 log per 5 minutes) should be implemented
+      // in Cloud Functions or application code, as Firestore rules don't support duration arithmetic
     }
   }
 } 

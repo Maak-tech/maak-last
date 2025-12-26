@@ -1,0 +1,173 @@
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Linking, Platform, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
+import { healthConnectService } from "@/lib/services/healthConnectService";
+import { saveProviderConnection } from "@/lib/health/healthSync";
+import type { ProviderConnection } from "@/lib/health/healthTypes";
+
+export default function HealthConnectPermissionsScreen() {
+  const [authorizing, setAuthorizing] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(true);
+
+  useEffect(() => {
+    // Check availability and request permissions when this screen loads
+    checkAvailabilityAndRequestPermissions();
+  }, []);
+
+  const checkAvailabilityAndRequestPermissions = async () => {
+    if (Platform.OS !== "android") {
+      Alert.alert(
+        "Not Available",
+        "Health Connect is only available on Android devices."
+      );
+      router.back();
+      return;
+    }
+
+    setCheckingAvailability(true);
+    try {
+      // Check availability first
+      const availability = await healthConnectService.checkAvailability();
+
+      if (!availability.available) {
+        setCheckingAvailability(false);
+        const installUrl = availability.installUrl || "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata";
+        
+        Alert.alert(
+          "Health Connect Not Available",
+          availability.reason || "Health Connect is not installed on your device. Please install it from the Play Store.",
+          [
+            {
+              text: "Install",
+              onPress: () => {
+                Linking.openURL(installUrl);
+                router.back();
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+        return;
+      }
+
+      setCheckingAvailability(false);
+      setAuthorizing(true);
+
+      // Get all metrics from catalog for saving connection info
+      const allMetrics = getAvailableMetricsForProvider("health_connect");
+      const allMetricKeys = allMetrics.map((m) => m.key);
+
+      // Request authorization for all metrics
+      // Health Connect will show a permission screen where users can select permissions
+      console.log(
+        "[Settings Health Connect Permissions] Requesting Health Connect authorization for all metrics..."
+      );
+      const granted = await healthConnectService.authorize(allMetricKeys);
+
+      // Save connection
+      const connection: ProviderConnection = {
+        provider: "health_connect",
+        connected: granted,
+        connectedAt: new Date().toISOString(),
+        selectedMetrics: allMetricKeys,
+      };
+
+      await saveProviderConnection(connection);
+
+      if (granted) {
+        Alert.alert(
+          "Success",
+          "Health data integration enabled successfully.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Permission Denied",
+          "Please allow access to health data in Health Connect settings.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      }
+    } catch (error: any) {
+      console.error("Health Connect permission request error:", error);
+
+      let errorMessage =
+        "Failed to request Health Connect permissions. Please try again.";
+
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert("Permission Error", errorMessage, [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
+    } finally {
+      setCheckingAvailability(false);
+      setAuthorizing(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      <View
+        style={{
+          flex: 1,
+          padding: 20,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        {(checkingAvailability || authorizing) && (
+          <ActivityIndicator color="#000000" size="large" />
+        )}
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: "600",
+            marginTop: 20,
+            textAlign: "center",
+          }}
+        >
+          {checkingAvailability
+            ? "Checking Health Connect availability..."
+            : authorizing
+            ? "Opening Health Connect Permission Screen..."
+            : "Processing..."}
+        </Text>
+        <Text
+          style={{
+            fontSize: 14,
+            opacity: 0.7,
+            marginTop: 8,
+            textAlign: "center",
+          }}
+        >
+          {checkingAvailability
+            ? "Please wait while we check if Health Connect is installed."
+            : authorizing
+            ? "The Health Connect permission screen will appear where you can select health data permissions."
+            : ""}
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+

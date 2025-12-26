@@ -741,3 +741,105 @@ export const updateNotificationPreferences = functions.https.onCall(
     }
   }
 );
+
+// Function to generate custom token for biometric authentication
+export const generateBiometricToken = functions.https.onCall(
+  async (data: any, context: any) => {
+    const { userId, authLogId } = data;
+
+    if (!userId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "User ID is required"
+      );
+    }
+
+    try {
+      // Verify that biometric authentication was successful by checking auth_logs
+      const db = admin.firestore();
+      
+      // Check if there's a recent successful biometric auth log
+      if (authLogId) {
+        const authLogDoc = await db.collection("auth_logs").doc(authLogId).get();
+        if (!authLogDoc.exists()) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "Biometric authentication verification failed"
+          );
+        }
+        
+        const authLogData = authLogDoc.data();
+        if (!authLogData?.success || authLogData?.userId !== userId) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "Biometric authentication verification failed"
+          );
+        }
+        
+        // Check that the auth log is recent (within last 5 minutes)
+        const logTime = authLogData.timestamp?.toMillis() || 0;
+        const now = Date.now();
+        if (now - logTime > 5 * 60 * 1000) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "Biometric authentication expired"
+          );
+        }
+      } else {
+        // Fallback: check for most recent successful auth log
+        const recentLogs = await db
+          .collection("auth_logs")
+          .where("userId", "==", userId)
+          .where("success", "==", true)
+          .orderBy("timestamp", "desc")
+          .limit(1)
+          .get();
+
+        if (recentLogs.empty) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "No recent biometric authentication found"
+          );
+        }
+
+        const recentLog = recentLogs.docs[0].data();
+        const logTime = recentLog.timestamp?.toMillis() || 0;
+        const now = Date.now();
+        if (now - logTime > 5 * 60 * 1000) {
+          throw new functions.https.HttpsError(
+            "failed-precondition",
+            "Biometric authentication expired"
+          );
+        }
+      }
+
+      // Verify user exists
+      const userDoc = await db.collection("users").doc(userId).get();
+      if (!userDoc.exists()) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "User not found"
+        );
+      }
+
+      // Generate custom token
+      const customToken = await admin.auth().createCustomToken(userId);
+
+      console.log("Custom token generated for biometric auth", {
+        userId,
+        timestamp: new Date().toISOString(),
+      });
+
+      return { customToken };
+    } catch (error: any) {
+      console.error("Error generating biometric token:", error);
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to generate authentication token"
+      );
+    }
+  }
+);

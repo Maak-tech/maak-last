@@ -151,14 +151,14 @@ try {
   if (error.code === "auth/already-initialized") {
     auth = getAuth(app);
     // Set persistence explicitly for existing auth instance
-    setPersistence(auth, browserLocalPersistence).catch((persistError) => {
+    setPersistence(auth, browserLocalPersistence).catch((persistError: unknown) => {
       console.warn("Failed to set auth persistence:", persistError);
     });
   } else {
     // Fallback to getAuth if initialization fails
     auth = getAuth(app);
     // Set persistence explicitly
-    setPersistence(auth, browserLocalPersistence).catch((persistError) => {
+    setPersistence(auth, browserLocalPersistence).catch((persistError: unknown) => {
       console.warn("Failed to set auth persistence:", persistError);
     });
   }

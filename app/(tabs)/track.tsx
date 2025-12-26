@@ -22,6 +22,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import PPGVitalMonitor from "@/components/PPGVitalMonitor";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
@@ -49,6 +50,7 @@ export default function TrackScreen() {
     MedicalHistory[]
   >([]);
   const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
+  const [showPPGMonitor, setShowPPGMonitor] = useState(false);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -787,6 +789,88 @@ export default function TrackScreen() {
                   </TouchableOpacity>
                 </TouchableOpacity>
               </View>
+
+              {/* PPG Heart Rate Monitor */}
+              <View
+                style={
+                  [
+                    styles.trackingOptions,
+                    { marginTop: theme.spacing.md },
+                  ] as StyleProp<ViewStyle>
+                }
+              >
+                <TouchableOpacity
+                  onPress={() => setShowPPGMonitor(true)}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.error + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Heart color={theme.colors.accent.error} size={28} />
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
+                    <Text
+                      style={
+                        [
+                          styles.trackingCardTitle,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "مراقب العلامات الحيوية" : "Vital Signs Monitor"}
+                    </Text>
+                    <View style={{
+                      backgroundColor: theme.colors.secondary.main,
+                      paddingHorizontal: theme.spacing.sm,
+                      paddingVertical: 2,
+                      borderRadius: theme.borderRadius.md,
+                    }}>
+                      <Text style={{
+                        ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      }}>
+                        BETA
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "قياس معدل ضربات القلب وHRV ومعدل التنفس باستخدام الكاميرا"
+                      : "Measure heart rate, HRV & respiratory rate using camera"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowPPGMonitor(true)}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.error },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Heart color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "قياس" : "Measure"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Recent Activity - Symptoms */}
@@ -1122,6 +1206,18 @@ export default function TrackScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* PPG Heart Rate Monitor Modal */}
+      {user && (
+        <PPGVitalMonitor
+          visible={showPPGMonitor}
+          userId={user.id}
+          onMeasurementComplete={(result) => {
+            // Optionally refresh vitals data or show success message
+          }}
+          onClose={() => setShowPPGMonitor(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }

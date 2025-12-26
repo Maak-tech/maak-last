@@ -27,6 +27,7 @@ import {
   View,
 } from "react-native";
 import Avatar from "@/components/Avatar";
+import type { AvatarType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
 
@@ -43,6 +44,7 @@ export default function PersonalInfoScreen() {
     });
   }, [navigation]);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [avatarCreatorVisible, setAvatarCreatorVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editForm, setEditForm] = useState({
     firstName: user?.firstName || "",
@@ -158,16 +160,17 @@ export default function PersonalInfoScreen() {
         {/* Profile Avatar Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
-            <Avatar
-              avatarType={user?.avatarType}
-              name={
-                user?.firstName && user?.lastName
-                  ? `${user.firstName} ${user.lastName}`
-                  : user?.firstName || "User"
-              }
-              size="xl"
-              source={user?.avatar ? { uri: user.avatar } : undefined}
-            />
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setAvatarCreatorVisible(true)}
+            >
+              <Avatar
+                avatarType={user?.avatarType}
+                name={user?.firstName}
+                size="xl"
+                style={{ width: 120, height: 120 }}
+              />
+            </TouchableOpacity>
             <View style={styles.statusBadge}>
               <View style={styles.statusDot} />
             </View>
@@ -442,6 +445,80 @@ export default function PersonalInfoScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Avatar Type Selector Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setAvatarCreatorVisible(false)}
+        visible={avatarCreatorVisible}
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+                {isRTL ? "اختر الصورة الرمزية" : "Choose Your Avatar"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setAvatarCreatorVisible(false)}
+                style={styles.modalCloseButton}
+              >
+                <X color="#64748B" size={24} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.avatarGrid}>
+              {(["man", "woman", "boy", "girl", "grandpa", "grandma"] as AvatarType[]).map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.avatarOption,
+                    user?.avatarType === type && styles.avatarOptionSelected,
+                  ]}
+                  onPress={async () => {
+                    try {
+                      setLoading(true);
+                      if (user?.id) {
+                        await userService.updateUser(user.id, {
+                          avatarType: type,
+                        });
+                        if (updateUser) {
+                          await updateUser({ avatarType: type });
+                        }
+                        setAvatarCreatorVisible(false);
+                        Alert.alert(
+                          isRTL ? "تم الحفظ" : "Success",
+                          isRTL
+                            ? "تم حفظ الصورة الرمزية بنجاح"
+                            : "Avatar saved successfully"
+                        );
+                      }
+                    } catch (error) {
+                      Alert.alert(
+                        isRTL ? "خطأ" : "Error",
+                        isRTL
+                          ? "فشل حفظ الصورة الرمزية"
+                          : "Failed to save avatar"
+                      );
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                >
+                  <Avatar avatarType={type} size="xl" style={{ width: 80, height: 80 }} />
+                  <Text style={[styles.avatarLabel, isRTL && styles.rtlText]}>
+                    {type === "man" && (isRTL ? "رجل" : "Man")}
+                    {type === "woman" && (isRTL ? "امرأة" : "Woman")}
+                    {type === "boy" && (isRTL ? "صبي" : "Boy")}
+                    {type === "girl" && (isRTL ? "فتاة" : "Girl")}
+                    {type === "grandpa" && (isRTL ? "جد" : "Grandpa")}
+                    {type === "grandma" && (isRTL ? "جدة" : "Grandma")}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -677,8 +754,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    flex: 1,
-    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    maxHeight: "80%",
   },
   fieldContainer: {
     marginBottom: 20,
@@ -726,5 +807,76 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-SemiBold",
     color: "#FFFFFF",
+  },
+  creatorModalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  creatorModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+  },
+  creatorModalTitle: {
+    fontSize: 20,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+  },
+  creatorCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  avatarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+  avatarOption: {
+    width: "30%",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    position: "relative",
+    paddingVertical: 16,
+    marginBottom: 12,
+  },
+  avatarOptionSelected: {
+    backgroundColor: "#EBF4FF",
+    borderColor: "#2563EB",
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarLabel: {
+    fontSize: 12,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    marginTop: 8,
+    textAlign: "center",
   },
 });

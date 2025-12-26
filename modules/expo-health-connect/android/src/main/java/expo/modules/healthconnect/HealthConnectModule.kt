@@ -5,6 +5,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.units.*
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import expo.modules.kotlin.modules.Module
@@ -97,6 +98,14 @@ class HealthConnectModule : Module() {
         HealthPermission.getReadPermission(HydrationRecord::class)
       "android.permission.health.READ_BLOOD_GLUCOSE" -> 
         HealthPermission.getReadPermission(BloodGlucoseRecord::class)
+      "android.permission.health.READ_HEART_RATE_VARIABILITY" -> 
+        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class)
+      "android.permission.health.READ_BODY_FAT" -> 
+        HealthPermission.getReadPermission(BodyFatRecord::class)
+      "android.permission.health.READ_BASAL_METABOLIC_RATE" -> 
+        HealthPermission.getReadPermission(BasalMetabolicRateRecord::class)
+      "android.permission.health.READ_FLOORS_CLIMBED" -> 
+        HealthPermission.getReadPermission(FloorsClimbedRecord::class)
       else -> null
     }
   }
@@ -302,6 +311,217 @@ class HealthConnectModule : Module() {
                 mapOf(
                   "value" to "${record.systolic.inMillimetersOfMercury}/${record.diastolic.inMillimetersOfMercury}",
                   "unit" to "mmHg",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "RestingHeartRateRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = RestingHeartRateRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.beatsPerMinute,
+                  "unit" to "bpm",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "HeartRateVariabilityRmssdRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = HeartRateVariabilityRmssdRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.heartRateVariabilityMillis,
+                  "unit" to "ms",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "RespiratoryRateRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = RespiratoryRateRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.rate,
+                  "unit" to "breaths/min",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "OxygenSaturationRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = OxygenSaturationRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.percentage.value,
+                  "unit" to "%",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "HeightRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = HeightRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.height.inMeters * 100, // Convert to cm
+                  "unit" to "cm",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "BodyMassIndexRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = BodyMassIndexRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.bmi,
+                  "unit" to "kg/m²",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "BodyFatRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = BodyFatRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.percentage.value,
+                  "unit" to "%",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "ActiveCaloriesBurnedRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = ActiveCaloriesBurnedRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.energy.inKilocalories,
+                  "unit" to "kcal",
+                  "startDate" to record.startTime.toString(),
+                  "endDate" to record.endTime.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "BasalMetabolicRateRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = BasalMetabolicRateRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.basalMetabolicRate.inKilocaloriesPerDay,
+                  "unit" to "kcal/day",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "DistanceRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = DistanceRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.length.inMeters / 1000.0, // Convert to km
+                  "unit" to "km",
+                  "startDate" to record.startTime.toString(),
+                  "endDate" to record.endTime.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "FloorsClimbedRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = FloorsClimbedRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.floors,
+                  "unit" to "count",
+                  "startDate" to record.startTime.toString(),
+                  "endDate" to record.endTime.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "ExerciseSessionRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = ExerciseSessionRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                val duration = java.time.Duration.between(record.startTime, record.endTime)
+                mapOf(
+                  "value" to duration.toMinutes(),
+                  "unit" to "min",
+                  "startDate" to record.startTime.toString(),
+                  "endDate" to record.endTime.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "HydrationRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = HydrationRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.volume.inMilliliters,
+                  "unit" to "ml",
+                  "startDate" to record.time.toString(),
+                  "endDate" to record.time.toString(),
+                  "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")
+                )
+              }
+            }
+            "BloodGlucoseRecord" -> {
+              val request = ReadRecordsRequest(
+                recordType = BloodGlucoseRecord::class,
+                timeRangeFilter = timeRangeFilter
+              )
+              client.readRecords(request).records.map { record ->
+                mapOf(
+                  "value" to record.level.inMilligramsPerDeciliter,
+                  "unit" to "mg/dL",
                   "startDate" to record.time.toString(),
                   "endDate" to record.time.toString(),
                   "source" to (record.metadata.dataOrigin.packageName ?: "Health Connect")

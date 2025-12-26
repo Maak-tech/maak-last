@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { Alert } from "react-native";
@@ -95,122 +96,91 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   // Initialize fall detection hook
   const fallDetection = useFallDetection(user?.id || null, handleFallDetected);
 
-  // Load fall detection setting from storage
+  // Extract stable functions from fallDetection to avoid dependency issues with object identity
+  // These functions are memoized with useCallback in the hook, so they're stable
+  const { startFallDetection, stopFallDetection } = useMemo(
+    () => ({
+      startFallDetection: fallDetection.startFallDetection,
+      stopFallDetection: fallDetection.stopFallDetection,
+    }),
+    [fallDetection.startFallDetection, fallDetection.stopFallDetection]
+  );
+
+  // Extract isActive into state to avoid dependency issues with object identity
+  const [isActive, setIsActive] = useState(false);
+  
+  // Update isActive state when fallDetection.isActive changes
+  useEffect(() => {
+    setIsActive(fallDetection.isActive);
+  }, [fallDetection.isActive]);
+
+  // Load fall detection setting from storage (only on mount or when user changes)
   useEffect(() => {
     const loadFallDetectionSetting = async () => {
       try {
-        console.log(
-          "[FallDetectionContext] 📂 Loading fall detection setting from storage..."
-        );
         const enabled = await AsyncStorage.getItem("fall_detection_enabled");
         if (enabled !== null) {
           const isEnabledValue = JSON.parse(enabled);
-          console.log(
-            "[FallDetectionContext] 📂 Loaded setting: enabled =",
-            isEnabledValue
-          );
           setIsEnabled(isEnabledValue);
-
-          // Auto-start fall detection if enabled
-          if (isEnabledValue && user?.id) {
-            console.log(
-              "[FallDetectionContext] ▶️ Auto-starting fall detection (was previously enabled)"
-            );
-            fallDetection.startFallDetection();
-          } else if (isEnabledValue && !user?.id) {
-            console.log(
-              "[FallDetectionContext] ⚠️ Fall detection enabled but no user ID. Waiting for user..."
-            );
-          }
-        } else {
-          console.log(
-            "[FallDetectionContext] 📂 No saved setting found. Fall detection will be disabled by default."
-          );
         }
         setIsInitialized(true);
       } catch (error) {
-        console.error(
-          "[FallDetectionContext] ❌ Error loading fall detection setting:",
-          error
-        );
         setIsInitialized(true);
       }
     };
 
     loadFallDetectionSetting();
-  }, [user?.id, fallDetection]);
+  }, []); // Only run on mount
+
+  // Auto-start fall detection when user becomes available and setting is enabled
+  useEffect(() => {
+    if (isInitialized && isEnabled && user?.id && !isActive) {
+      startFallDetection();
+    }
+  }, [isInitialized, isEnabled, user?.id, isActive, startFallDetection]);
 
   // Toggle fall detection setting
   const toggleFallDetection = useCallback(
     async (enabled: boolean) => {
       try {
-        console.log(
-          "[FallDetectionContext] 🔄 Toggling fall detection:",
-          enabled ? "ON" : "OFF"
-        );
         setIsEnabled(enabled);
         await AsyncStorage.setItem(
           "fall_detection_enabled",
           JSON.stringify(enabled)
         );
-        console.log("[FallDetectionContext] 💾 Setting saved to storage");
 
         if (enabled && user?.id) {
-          console.log("[FallDetectionContext] ▶️ Starting fall detection...");
-          fallDetection.startFallDetection();
-        } else if (enabled && !user?.id) {
-          console.log(
-            "[FallDetectionContext] ⚠️ Cannot start: user not logged in"
-          );
+          startFallDetection();
         } else {
-          console.log("[FallDetectionContext] ⏹️ Stopping fall detection...");
-          fallDetection.stopFallDetection();
+          stopFallDetection();
         }
       } catch (error) {
-        console.error(
-          "[FallDetectionContext] ❌ Error toggling fall detection:",
-          error
-        );
+        // Silently handle error
       }
     },
-    [user?.id, fallDetection]
+    [user?.id, startFallDetection, stopFallDetection]
   );
 
   // Test fall detection
   const testFallDetection = useCallback(async () => {
     try {
-      console.log("[FallDetectionContext] 🧪 Testing fall detection...");
       if (!user?.id) {
-        console.error(
-          "[FallDetectionContext] ❌ Test failed: User not logged in"
-        );
         Alert.alert("Error", "User not logged in");
         return;
       }
 
       // Create a test alert
-      console.log("[FallDetectionContext] 📝 Creating test alert...");
       const alertId = await alertService.createFallAlert(user.id);
-      console.log("[FallDetectionContext] ✅ Test alert created:", alertId);
 
       // Simulate fall detection
-      console.log(
-        "[FallDetectionContext] 🚨 Simulating fall detection event..."
-      );
       await handleFallDetected(alertId);
-      console.log("[FallDetectionContext] ✅ Test fall detection completed");
     } catch (error) {
-      console.error(
-        "[FallDetectionContext] ❌ Test fall detection failed:",
-        error
-      );
       Alert.alert("Error", "Failed to test fall detection");
     }
   }, [user?.id, handleFallDetected]);
 
   // Run diagnostics
   const runDiagnostics = useCallback(async () => {
-    console.log("[FallDetectionContext] 🔍 Running diagnostics...");
     await logFallDetectionDiagnostics(
       isEnabled,
       fallDetection.isActive,
@@ -221,11 +191,11 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value: FallDetectionContextType = {
     isEnabled,
-    isActive: fallDetection.isActive,
+    isActive: isActive,
     isInitialized,
     toggleFallDetection,
-    startFallDetection: fallDetection.startFallDetection,
-    stopFallDetection: fallDetection.stopFallDetection,
+    startFallDetection,
+    stopFallDetection,
     testFallDetection,
     runDiagnostics,
     lastAlert,
