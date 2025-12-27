@@ -100,7 +100,7 @@ const Input = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   label: {
     fontSize: typography.bodySmall,

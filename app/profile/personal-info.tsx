@@ -12,7 +12,7 @@ import {
   User,
   X,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -31,14 +31,18 @@ import type { AvatarType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
 
+export const options = {
+  headerShown: false,
+};
+
 export default function PersonalInfoScreen() {
   const { i18n } = useTranslation();
   const { user, updateUser } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
 
-  // Hide the default header to prevent duplicate back buttons
-  useEffect(() => {
+  // Hide the default header to prevent duplicate headers
+  useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });

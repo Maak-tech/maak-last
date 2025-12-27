@@ -218,6 +218,7 @@ export default function BloodPressureEntry({
       const {
         saveCorrelationSample,
         isHealthDataAvailable,
+        requestAuthorization,
       } = await import("@kingstinct/react-native-healthkit");
 
       if (!isHealthDataAvailable()) {
@@ -229,6 +230,7 @@ export default function BloodPressureEntry({
 
       // Blood pressure in HealthKit is stored as a correlation sample
       // with systolic and diastolic as separate quantity samples
+      // Write permissions are requested automatically when saving
       await saveCorrelationSample(
         "HKCorrelationTypeIdentifierBloodPressure",
         [
@@ -236,11 +238,15 @@ export default function BloodPressureEntry({
             quantityType: "HKQuantityTypeIdentifierBloodPressureSystolic",
             quantity: sys,
             unit: "mmHg",
+            startDate: now,
+            endDate: now,
           },
           {
             quantityType: "HKQuantityTypeIdentifierBloodPressureDiastolic",
             quantity: dia,
             unit: "mmHg",
+            startDate: now,
+            endDate: now,
           },
         ],
         now,
@@ -250,7 +256,26 @@ export default function BloodPressureEntry({
       return true;
     } catch (error: any) {
       console.error("Failed to save to HealthKit:", error);
-      // Don't throw - just log and continue
+      const errorMessage = error?.message || String(error);
+      
+      // Check if it's a permission error
+      if (
+        errorMessage.includes("authorization denied") ||
+        errorMessage.includes("not authorized") ||
+        errorMessage.includes("insufficient permissions") ||
+        errorMessage.includes("missing or insufficient permissions") ||
+        error?.code === 5
+      ) {
+        Alert.alert(
+          "Permission Denied",
+          "Please grant write permissions for blood pressure in Settings > Privacy & Security > Health > [App Name] > Blood Pressure."
+        );
+      } else {
+        Alert.alert(
+          "Export Failed",
+          "Failed to export blood pressure to HealthKit. Please try again or check your settings."
+        );
+      }
       return false;
     }
   };
@@ -262,7 +287,9 @@ export default function BloodPressureEntry({
 
     const sys = parseInt(systolic, 10);
     const dia = parseInt(diastolic, 10);
-    const currentUserId = auth.currentUser?.uid;
+    
+    // Use user from useAuth hook for more reliable auth state
+    const currentUserId = user?.id || auth.currentUser?.uid;
 
     if (!currentUserId) {
       Alert.alert("Error", "Please log in to save blood pressure readings.");
@@ -353,11 +380,11 @@ export default function BloodPressureEntry({
 
           <View style={styles.content as ViewStyle}>
             <View style={styles.formGroup as ViewStyle}>
-              <Text style={styles.label as StyleProp<TextStyle}>Blood Pressure</Text>
+              <Text style={styles.label as (StyleProp<TextStyle>)}>Blood Pressure</Text>
               <View style={styles.inputContainer as ViewStyle}>
-                <View style={styles.inputWrapper}>
+                <View style={styles.inputWrapper as ViewStyle}>
                   <TextInput
-                    style={styles.input as ViewStyle}
+                    style={styles.input as StyleProp<TextStyle>}
                     value={systolic}
                     onChangeText={setSystolic}
                     placeholder="120"
@@ -365,7 +392,7 @@ export default function BloodPressureEntry({
                     maxLength={3}
                     editable={!saving}
                   />
-                  <Text style={styles.inputLabel as StyleProp<TextStyle}>Systolic</Text>
+                  <Text style={styles.inputLabel as (StyleProp<TextStyle>)}>Systolic</Text>
                 </View>
                 <View
                   style={{
@@ -383,9 +410,9 @@ export default function BloodPressureEntry({
                     /
                   </Text>
                 </View>
-                <View style={styles.inputWrapper}>
+                <View style={styles.inputWrapper as ViewStyle}>
                   <TextInput
-                    style={styles.input as ViewStyle}
+                    style={styles.input as StyleProp<TextStyle>}
                     value={diastolic}
                     onChangeText={setDiastolic}
                     placeholder="80"
@@ -393,13 +420,13 @@ export default function BloodPressureEntry({
                     maxLength={3}
                     editable={!saving}
                   />
-                  <Text style={styles.inputLabel as StyleProp<TextStyle}>Diastolic</Text>
+                  <Text style={styles.inputLabel as (StyleProp<TextStyle>)}>Diastolic</Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.infoCard as ViewStyle}>
-              <Text style={styles.infoText as StyleProp<TextStyle}>
+              <Text style={styles.infoText as (StyleProp<TextStyle>)}>
                 Normal blood pressure is typically below 120/80 mmHg. High blood pressure
                 (hypertension) is 130/80 mmHg or higher.
               </Text>
@@ -421,7 +448,7 @@ export default function BloodPressureEntry({
                     <Text style={{ color: theme.colors.neutral.white, fontSize: 16 }}>✓</Text>
                   )}
                 </View>
-                <Text style={styles.checkboxLabel as StyleProp<TextStyle}>
+                <Text style={styles.checkboxLabel as (StyleProp<TextStyle>)}>
                   Export to HealthKit
                 </Text>
               </TouchableOpacity>
@@ -438,12 +465,12 @@ export default function BloodPressureEntry({
               {saving ? (
                 <>
                   <ActivityIndicator color={theme.colors.neutral.white} size="small" />
-                  <Text style={styles.buttonText as StyleProp<TextStyle}>Saving...</Text>
+                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>Saving...</Text>
                 </>
               ) : (
                 <>
                   <Droplet color={theme.colors.neutral.white} size={20} />
-                  <Text style={styles.buttonText as StyleProp<TextStyle}>Save</Text>
+                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>Save</Text>
                 </>
               )}
             </TouchableOpacity>

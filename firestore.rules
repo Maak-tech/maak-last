@@ -1,19 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to get user data
+    // Helper function to get user data (only call if document exists)
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    // Helper function to get target user data
+    // Helper function to get target user data (only call if document exists)
     function getTargetUserData(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
     // Helper function to check if user is in the same family
     function isSameFamily(userId) {
-      return request.auth != null && 
+      return request.auth != null && (
         request.auth.uid == userId || // Allow access to own data
         (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -21,7 +21,8 @@ service cloud.firestore {
           getUserData().familyId != null &&
           getTargetUserData(userId).familyId != null &&
           getUserData().familyId == getTargetUserData(userId).familyId
-        );
+        )
+      );
     }
 
     // Helper function to check if user is a family admin
@@ -123,11 +124,14 @@ service cloud.firestore {
 
     // Vitals collection (heart rate, blood pressure, etc.)
     match /vitals/{vitalId} {
-      // Allow users to create their own vitals OR admins to create vitals for family members
-      allow create: if request.auth != null && (
-        request.resource.data.userId == request.auth.uid ||
-        (isFamilyAdmin() && isSameFamily(request.resource.data.userId))
-      );
+      // Allow users to create their own vitals (primary rule - no document reads required)
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Allow admins to create vitals for family members (secondary rule - requires user document)
+      allow create: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        isFamilyAdmin() && 
+        isSameFamily(request.resource.data.userId);
       
       // Allow users to read and write their own vitals
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;

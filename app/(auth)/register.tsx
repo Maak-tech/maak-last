@@ -2,7 +2,6 @@ import { Link, useRouter } from "expo-router";
 import { Check, Users, X } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Image,
   KeyboardAvoidingView,
@@ -19,52 +18,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import type { AvatarType } from "@/types";
-
-// Avatar options - moved outside component to prevent recreation on every render
-const AVATAR_OPTIONS = [
-  {
-    type: "man" as AvatarType,
-    emoji: "👨🏻",
-    labelEn: "Man",
-    labelAr: "رجل",
-  },
-  {
-    type: "woman" as AvatarType,
-    emoji: "👩🏻",
-    labelEn: "Woman",
-    labelAr: "امرأة",
-  },
-  {
-    type: "boy" as AvatarType,
-    emoji: "👦🏻",
-    labelEn: "Boy",
-    labelAr: "صبي",
-  },
-  {
-    type: "girl" as AvatarType,
-    emoji: "👧🏻",
-    labelEn: "Girl",
-    labelAr: "فتاة",
-  },
-  {
-    type: "grandma" as AvatarType,
-    emoji: "👵🏻",
-    labelEn: "Grandma",
-    labelAr: "جدة",
-  },
-  {
-    type: "grandpa" as AvatarType,
-    emoji: "👴🏻",
-    labelEn: "Grandpa",
-    labelAr: "جد",
-  },
-];
-
-// Email validation helper
-const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
 
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
@@ -104,30 +57,16 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Validate email format
-    if (!isValidEmail(email)) {
-      setErrors({
-        email: isRTL
-          ? "يرجى إدخال بريد إلكتروني صحيح"
-          : "Please enter a valid email address",
-      });
-      return;
-    }
-
     if (password !== confirmPassword) {
       setErrors({
-        confirmPassword: isRTL
-          ? "كلمات المرور غير متطابقة"
-          : "Passwords do not match",
+        confirmPassword: "Passwords do not match",
       });
       return;
     }
 
     if (password.length < 6) {
       setErrors({
-        password: isRTL
-          ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل"
-          : "Password must be at least 6 characters",
+        password: "Password must be at least 6 characters",
       });
       return;
     }
@@ -135,7 +74,8 @@ export default function RegisterScreen() {
     try {
       // Store family code in AsyncStorage if provided (will be processed after signup)
       if (familyCode.trim()) {
-        await AsyncStorage.setItem(
+        const AsyncStorage = await import("@react-native-async-storage/async-storage");
+        await AsyncStorage.default.setItem(
           "pendingFamilyCode",
           familyCode.trim()
         );
@@ -145,9 +85,7 @@ export default function RegisterScreen() {
       router.replace("/");
     } catch (error: any) {
       setErrors({
-        general: error.message || (isRTL
-          ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
-          : "Registration failed. Please try again."),
+        general: error.message || "Registration failed. Please try again.",
       });
     }
   };
@@ -238,8 +176,7 @@ export default function RegisterScreen() {
                 }
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={firstName}
-                accessibilityLabel={isRTL ? "الاسم الأول" : "First Name"}
+                value={firstName ?? ""}
               />
             </View>
 
@@ -252,8 +189,7 @@ export default function RegisterScreen() {
                 placeholder={isRTL ? "ادخل اسم عائلتك" : "Enter your last name"}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
-                value={lastName}
-                accessibilityLabel={isRTL ? "اسم العائلة" : "Last Name"}
+                value={lastName ?? ""}
               />
             </View>
 
@@ -269,19 +205,11 @@ export default function RegisterScreen() {
                 placeholder={
                   isRTL ? "ادخل بريدك الإلكتروني" : "Enter your email"
                 }
-                style={[
-                  styles.input,
-                  isRTL && styles.rtlInput,
-                  errors?.email && styles.inputError,
-                ]}
+                style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 textContentType="username"
-                value={email}
-                accessibilityLabel={isRTL ? "البريد الإلكتروني" : "Email"}
+                value={email ?? ""}
               />
-              {errors?.email && (
-                <Text style={styles.fieldErrorText}>{errors.email}</Text>
-              )}
             </View>
 
             <View style={styles.inputContainer}>
@@ -291,6 +219,7 @@ export default function RegisterScreen() {
               <TextInput
                 autoComplete="off"
                 onChangeText={setPassword}
+                passwordRules=""
                 placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
                 secureTextEntry
                 style={[
@@ -300,8 +229,7 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 textContentType="none"
-                value={password}
-                accessibilityLabel={isRTL ? "كلمة المرور" : "Password"}
+                value={password ?? ""}
               />
               {errors?.password && (
                 <Text style={styles.fieldErrorText}>{errors.password}</Text>
@@ -315,6 +243,7 @@ export default function RegisterScreen() {
               <TextInput
                 autoComplete="off"
                 onChangeText={setConfirmPassword}
+                passwordRules=""
                 placeholder={
                   isRTL ? "أعد إدخال كلمة المرور" : "Confirm your password"
                 }
@@ -326,10 +255,7 @@ export default function RegisterScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 textContentType="none"
-                value={confirmPassword}
-                accessibilityLabel={
-                  isRTL ? "تأكيد كلمة المرور" : "Confirm Password"
-                }
+                value={confirmPassword ?? ""}
               />
               {errors?.confirmPassword && (
                 <Text style={styles.fieldErrorText}>
@@ -419,7 +345,7 @@ export default function RegisterScreen() {
         visible={avatarPickerVisible}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { maxWidth: 400 }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "اختر الصورة الرمزية" : "Choose Avatar"}
@@ -430,7 +356,44 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.avatarGrid}>
-              {AVATAR_OPTIONS.map((avatar) => (
+              {[
+                {
+                  type: "man" as AvatarType,
+                  emoji: "👨🏻",
+                  labelEn: "Man",
+                  labelAr: "رجل",
+                },
+                {
+                  type: "woman" as AvatarType,
+                  emoji: "👩🏻",
+                  labelEn: "Woman",
+                  labelAr: "امرأة",
+                },
+                {
+                  type: "boy" as AvatarType,
+                  emoji: "👦🏻",
+                  labelEn: "Boy",
+                  labelAr: "صبي",
+                },
+                {
+                  type: "girl" as AvatarType,
+                  emoji: "👧🏻",
+                  labelEn: "Girl",
+                  labelAr: "فتاة",
+                },
+                {
+                  type: "grandma" as AvatarType,
+                  emoji: "👵🏻",
+                  labelEn: "Grandma",
+                  labelAr: "جدة",
+                },
+                {
+                  type: "grandpa" as AvatarType,
+                  emoji: "👴🏻",
+                  labelEn: "Grandpa",
+                  labelAr: "جد",
+                },
+              ].map((avatar) => (
                 <TouchableOpacity
                   key={avatar.type}
                   onPress={() => {
@@ -658,6 +621,7 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
     textAlign: "center",
+    marginBottom: 20,
   },
   avatarGrid: {
     flexDirection: "row",

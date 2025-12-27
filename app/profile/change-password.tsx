@@ -5,7 +5,7 @@
 
 import { useNavigation, useRouter } from "expo-router";
 import { ArrowLeft, Eye, EyeOff, Lock, Save } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -23,6 +23,10 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
+export const options = {
+  headerShown: false,
+};
+
 export default function ChangePasswordScreen() {
   const { t, i18n } = useTranslation();
   const { user, changePassword, resetPassword } = useAuth();
@@ -30,8 +34,8 @@ export default function ChangePasswordScreen() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  // Hide the default header to prevent duplicate back buttons
-  useEffect(() => {
+  // Hide the default header to prevent duplicate headers
+  useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });

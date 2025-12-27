@@ -11,7 +11,6 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
@@ -26,6 +25,10 @@ import { medicationService } from "@/lib/services/medicationService";
 import { userService } from "@/lib/services/userService";
 import { convertTo12Hour, convertTo24Hour } from "@/lib/utils/timeFormat";
 import type { Medication, MedicationReminder, User as UserType } from "@/types";
+// Design System Components
+import { Button, Card, Input } from "@/components/design-system";
+import { Heading, Text, Caption } from "@/components/design-system/Typography";
+import { Badge } from "@/components/design-system/AdditionalComponents";
 
 const FREQUENCY_OPTIONS = [
   { key: "once", labelEn: "Once daily", labelAr: "مرة واحدة يومياً" },
@@ -740,7 +743,7 @@ export default function MedicationsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>
+          <Text color="#EF4444">
             Please log in to track medications
           </Text>
         </View>
@@ -751,9 +754,9 @@ export default function MedicationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>
+        <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
           {t("medications")}
-        </Text>
+        </Heading>
         <TouchableOpacity
           onPress={() => {
             setNewMedication({
@@ -796,8 +799,8 @@ export default function MedicationsScreen() {
         />
 
         {/* Today's Progress */}
-        <View style={styles.progressCard}>
-          <Text style={[styles.progressTitle, isRTL && styles.rtlText]}>
+        <Card variant="elevated" style={styles.progressCard}>
+          <Heading level={5} style={[styles.progressTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "family"
               ? isRTL
                 ? "تقدم العائلة اليوم"
@@ -809,9 +812,9 @@ export default function MedicationsScreen() {
                 : isRTL
                   ? "تقدم اليوم"
                   : "Today's Progress"}
-          </Text>
+          </Heading>
           <View style={styles.progressInfo}>
-            <Text style={[styles.progressText, isRTL && styles.rtlText]}>
+            <Text weight="bold" size="large" style={[styles.progressText, isRTL && styles.rtlText]}>
               {takenMeds}/{totalMeds} {isRTL ? "مأخوذة" : "taken"}
             </Text>
             <View style={styles.progressBar}>
@@ -827,11 +830,11 @@ export default function MedicationsScreen() {
               />
             </View>
           </View>
-        </View>
+        </Card>
 
         {/* Today's Medications */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "family"
               ? isRTL
                 ? "أدوية العائلة"
@@ -843,10 +846,10 @@ export default function MedicationsScreen() {
                 : isRTL
                   ? "أدوية اليوم"
                   : "Today's Medications"}
-          </Text>
+          </Heading>
 
           {medications.length > 0 ? (
-            <View style={styles.medicationsList}>
+            <Card variant="elevated" style={styles.medicationsList}>
               {medications.map((medication) => (
                 <View key={medication.id} style={styles.medicationItem}>
                   <View style={styles.medicationLeft}>
@@ -857,6 +860,8 @@ export default function MedicationsScreen() {
                     <View style={styles.medicationInfo}>
                       <View style={styles.medicationHeader}>
                         <Text
+                          weight="semibold"
+                          size="large"
                           style={[
                             styles.medicationName,
                             isRTL && styles.rtlText,
@@ -867,36 +872,29 @@ export default function MedicationsScreen() {
                         {/* Show member name for family/admin views */}
                         {(selectedFilter.type === "family" ||
                           selectedFilter.type === "member") && (
-                          <View style={styles.memberBadge}>
-                            <Text
-                              style={[
-                                styles.memberBadgeText,
-                                isRTL && styles.rtlText,
-                              ]}
-                            >
-                              {getMemberName(medication.userId)}
-                            </Text>
-                          </View>
+                          <Badge variant="info" size="small" style={styles.memberBadge}>
+                            {getMemberName(medication.userId)}
+                          </Badge>
                         )}
                       </View>
-                      <Text
+                      <Caption
                         style={[
                           styles.medicationDosage,
                           isRTL && styles.rtlText,
                         ]}
                       >
                         {medication.dosage} • {medication.frequency}
-                      </Text>
+                      </Caption>
                       <View style={styles.medicationTime}>
                         <Clock color="#64748B" size={12} />
-                        <Text
+                        <Caption
                           style={[
                             styles.medicationTimeText,
                             isRTL && styles.rtlText,
                           ]}
                         >
                           {getNextDoseText(medication)}
-                        </Text>
+                        </Caption>
                       </View>
                     </View>
                   </View>
@@ -949,7 +947,7 @@ export default function MedicationsScreen() {
                   </View>
                 </View>
               ))}
-            </View>
+            </Card>
           ) : (
             <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
               {isRTL ? "لا توجد أدوية مضافة" : "No medications added yet"}
@@ -966,7 +964,7 @@ export default function MedicationsScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            <Heading level={5} style={[styles.modalTitle, isRTL && styles.rtlText]}>
               {editingMedication
                 ? isRTL
                   ? "تحديث الدواء"
@@ -974,7 +972,7 @@ export default function MedicationsScreen() {
                 : isRTL
                   ? "إضافة دواء"
                   : "Add Medication"}
-            </Text>
+            </Heading>
             <TouchableOpacity
               onPress={() => {
                 setShowAddModal(false);
@@ -1055,10 +1053,8 @@ export default function MedicationsScreen() {
 
             {/* Medication Name */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t("medicationName")} *
-              </Text>
-              <TextInput
+              <Input
+                label={`${t("medicationName")} *`}
                 onBlur={() => {
                   // Clear any existing timeout
                   if (blurTimeoutRef.current) {
@@ -1166,17 +1162,15 @@ export default function MedicationsScreen() {
 
             {/* Dosage */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t("dosage")} *
-              </Text>
-              <TextInput
+              <Input
+                label={`${t("dosage")} *`}
                 onChangeText={(text) =>
                   setNewMedication({ ...newMedication, dosage: text })
                 }
                 placeholder={
                   isRTL ? "مثال: 500mg, 1 كبسولة" : "e.g., 500mg, 1 tablet"
                 }
-                style={[styles.input, isRTL && styles.rtlInput]}
+                style={isRTL && styles.rtlInput}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.dosage}
               />
@@ -1184,7 +1178,7 @@ export default function MedicationsScreen() {
 
             {/* Frequency */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+              <Text weight="semibold" style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {t("frequency")} *
               </Text>
               <View style={styles.frequencyGrid}>
@@ -1220,14 +1214,14 @@ export default function MedicationsScreen() {
 
             {/* Reminders */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+              <Text weight="semibold" style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? "التذكيرات" : "Reminders"} *
               </Text>
-              <Text style={[styles.helperText, isRTL && styles.rtlText]}>
+              <Caption style={[styles.helperText, isRTL && styles.rtlText]}>
                 {isRTL
                   ? "أدخل الوقت واختر AM أو PM - مثال: 08:34 AM، 02:30 PM"
                   : "Enter time and select AM or PM - Examples: 08:34 AM, 02:30 PM"}
-              </Text>
+              </Caption>
               <View style={styles.remindersList}>
                 {newMedication.reminders.map((reminder, index) => {
                   // Use the stored time and period values directly
@@ -1372,10 +1366,8 @@ export default function MedicationsScreen() {
 
             {/* Notes */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "ملاحظات" : "Notes"} ({isRTL ? "اختياري" : "Optional"})
-              </Text>
-              <TextInput
+              <Input
+                label={`${isRTL ? "ملاحظات" : "Notes"} (${isRTL ? "اختياري" : "Optional"})`}
                 multiline
                 numberOfLines={3}
                 onChangeText={(text) =>
@@ -1389,18 +1381,16 @@ export default function MedicationsScreen() {
             </View>
 
             {/* Submit Button */}
-            <TouchableOpacity
+            <Button
               disabled={loading}
+              loading={loading}
               onPress={handleAddMedication}
-              style={[
-                styles.submitButton,
-                loading && styles.submitButtonDisabled,
-              ]}
-            >
-              <Text style={styles.submitButtonText}>
-                {loading ? (isRTL ? "جاري الإضافة..." : "Adding...") : t("add")}
-              </Text>
-            </TouchableOpacity>
+              fullWidth
+              style={styles.submitButton}
+              title={
+                loading ? (isRTL ? "جاري الإضافة..." : "Adding...") : t("add")
+              }
+            />
           </ScrollView>
         </SafeAreaView>
       </Modal>

@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   ArrowLeft,
   FileText,
@@ -8,7 +8,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -38,6 +38,15 @@ export default function MedicalHistoryScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Hide the default header to prevent duplicate headers
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
+
   const [loading, setLoading] = useState(true);
   const [medicalHistory, setMedicalHistory] = useState<MedicalHistory[]>([]);
   const [summary, setSummary] = useState<any>(null);

@@ -64,7 +64,7 @@ xcuserdata/
 
 # Firebase
 google-services.json
-# GoogleService-Info.plist
+GoogleService-Info.plist
 
 # Logs
 *.log

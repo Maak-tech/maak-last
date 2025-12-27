@@ -22,9 +22,9 @@ import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import type { Symptom, User as UserType } from "@/types";
 // Design System Components
-import { Button, Card, Container, Input } from "@/components/design-system";
+import { Button, Card, Input } from "@/components/design-system";
 import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { Badge, Avatar, Divider } from "@/components/design-system/AdditionalComponents";
+import { Badge } from "@/components/design-system/AdditionalComponents";
 
 const COMMON_SYMPTOMS = [
   "headache",
@@ -438,11 +438,11 @@ export default function TrackScreen() {
 
   if (!user) {
     return (
-      <Container>
+      <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
           <Text color="#EF4444">Please log in to track symptoms</Text>
         </View>
-      </Container>
+      </SafeAreaView>
     );
   }
 

@@ -82,10 +82,11 @@ export const Text = ({
 };
 
 // Caption Text
-export const Caption = ({ children, color = colors.textSecondary, style, ...props }) => {
+export const Caption = ({ children, color = colors.textSecondary, style, numberOfLines, ...props }) => {
   return (
     <RNText
       style={[styles.caption, { color }, style]}
+      numberOfLines={numberOfLines}
       {...props}
     >
       {children}
@@ -106,7 +107,6 @@ export const Label = ({ children, required = false, style, ...props }) => {
 const styles = StyleSheet.create({
   heading: {
     lineHeight: typography.lineHeightTight * typography.h1,
-    marginBottom: spacing.sm,
   },
   text: {
     lineHeight: typography.lineHeightNormal * typography.body,

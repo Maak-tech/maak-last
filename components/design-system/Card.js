@@ -13,6 +13,7 @@ const Card = ({
   variant = 'elevated', // elevated, outlined, filled
   style,
   pressable = true,
+  contentStyle,
 }) => {
   const scaleAnim = new Animated.Value(1);
 
@@ -43,7 +44,7 @@ const Card = ({
     style,
   ];
 
-  const content = <View style={styles.content}>{children}</View>;
+  const content = <View style={[styles.content, contentStyle]}>{children}</View>;
 
   if (onPress && pressable) {
     return (
@@ -87,7 +88,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: spacing.md,
+    padding: spacing.lg,
   },
 });
 

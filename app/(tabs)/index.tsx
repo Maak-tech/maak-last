@@ -21,11 +21,11 @@ import {
   SafeAreaView,
   ScrollView,
   type StyleProp,
-  Text,
   type TextStyle,
   TouchableOpacity,
   View,
   type ViewStyle,
+  Dimensions,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -35,6 +35,10 @@ import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import type { Medication, Symptom, User as UserType } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
+// Design System Components
+import { Button, Card } from "@/components/design-system";
+import { Heading, Text, Caption } from "@/components/design-system/Typography";
+import { Badge } from "@/components/design-system/AdditionalComponents";
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
@@ -87,25 +91,46 @@ export default function DashboardScreen() {
     },
     statsContainer: {
       flexDirection: "row" as const,
+      paddingHorizontal: theme.spacing.base,
+      paddingVertical: theme.spacing.sm,
       marginBottom: theme.spacing.xl,
-      gap: theme.spacing.md,
     },
     statCard: {
-      flex: 1,
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.base,
+      width: Dimensions.get("window").width * 0.6,
       alignItems: "center" as const,
-      ...theme.shadows.md,
+      justifyContent: "center" as const,
+      minHeight: 160,
+      marginRight: theme.spacing.md,
+    },
+    statCardContent: {
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      padding: theme.spacing.lg,
+      paddingTop: theme.spacing.xl,
+      paddingHorizontal: theme.spacing.md,
+      width: "100%",
+      flexWrap: "nowrap" as const,
     },
     statValue: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.secondary.main),
-      marginTop: theme.spacing.sm,
-      marginBottom: 4,
+      fontSize: 32,
+      marginTop: 0,
+      marginBottom: theme.spacing.sm,
+      textAlign: "center" as const,
+      includeFontPadding: false,
+      flexShrink: 1,
+      minHeight: 40,
+      paddingHorizontal: theme.spacing.xs,
+      paddingTop: theme.spacing.xs,
+    },
+    statIcon: {
+      marginBottom: theme.spacing.xl,
     },
     statLabel: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
+      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+      fontSize: 14,
       textAlign: "center" as const,
+      paddingHorizontal: theme.spacing.xs,
     },
     alertCard: {
       backgroundColor: theme.colors.accent.error + "10",
@@ -549,7 +574,7 @@ export default function DashboardScreen() {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
         <View style={styles.centerContainer as ViewStyle}>
-          <Text style={styles.errorText as StyleProp<TextStyle>}>
+          <Text color={theme.colors.accent.error}>
             Please log in to view your dashboard
           </Text>
         </View>
@@ -569,19 +594,20 @@ export default function DashboardScreen() {
         {/* Header with SOS Button */}
         <View style={styles.headerWithSOS as ViewStyle}>
           <View style={styles.headerContent as ViewStyle}>
-            <Text
-              style={
-                [
-                  styles.welcomeText,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
+            <Heading
+              level={4}
+              color={theme.colors.primary.main}
+              style={[
+                styles.welcomeText,
+                isRTL && styles.rtlText,
+              ] as StyleProp<TextStyle>}
             >
               {isRTL
                 ? `مرحباً، ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`
                 : `Welcome, ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`}
-            </Text>
-            <Text
+            </Heading>
+            <Caption
+              color={theme.colors.text.secondary}
               style={
                 [
                   styles.dateText,
@@ -595,7 +621,7 @@ export default function DashboardScreen() {
                 month: "long",
                 day: "numeric",
               })}
-            </Text>
+            </Caption>
           </View>
           <TouchableOpacity
             activeOpacity={0.7}
@@ -604,93 +630,147 @@ export default function DashboardScreen() {
             style={styles.sosHeaderButton as ViewStyle}
           >
             <Phone color={theme.colors.neutral.white} size={20} />
-            <Text style={styles.sosHeaderText as StyleProp<TextStyle>}>
+            <Text weight="bold" color={theme.colors.neutral.white} style={styles.sosHeaderText as StyleProp<TextStyle>}>
               {isRTL ? "SOS" : "SOS"}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Stats */}
-        <View style={styles.statsContainer as ViewStyle}>
-          <View style={styles.statCard as ViewStyle}>
-            <Activity color={theme.colors.primary.main} size={24} />
-            <Text
-              style={
-                [
-                  styles.statValue,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {stats.symptomsThisWeek}
-            </Text>
-            <Text
-              style={
-                [
-                  styles.statLabel,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {isRTL ? "الأعراض هذا الأسبوع" : "Symptoms This Week"}
-            </Text>
-          </View>
-
-          <View style={styles.statCard as ViewStyle}>
-            <Pill color={theme.colors.accent.success} size={24} />
-            <Text
-              style={
-                [
-                  styles.statValue,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {stats.medicationCompliance}%
-            </Text>
-            <Text
-              style={
-                [
-                  styles.statLabel,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            onPress={() => router.push("/(tabs)/family")}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statsContainer as ViewStyle}
+          style={{ marginHorizontal: -theme.spacing.base }}
+        >
+          <Card 
+            variant="elevated" 
+            onPress={() => router.push("/(tabs)/symptoms")}
+            pressable={true}
             style={styles.statCard as ViewStyle}
+            contentStyle={{ padding: 0 }}
           >
-            <Users color={theme.colors.secondary.main} size={24} />
-            <Text
-              style={
-                [
-                  styles.statValue,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {familyMembersCount}
-            </Text>
-            <Text
-              style={
-                [
-                  styles.statLabel,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {isRTL ? "أفراد العائلة" : "Family Members"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.statCardContent as ViewStyle}>
+              <View style={styles.statIcon as ViewStyle}>
+                <Activity color={theme.colors.primary.main} size={32} />
+              </View>
+              <Text
+                weight="bold"
+                size="large"
+                color={theme.colors.secondary.main}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.6}
+                style={
+                  [
+                    styles.statValue,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {stats.symptomsThisWeek}
+              </Text>
+              <Text
+                weight="medium"
+                style={
+                  [
+                    styles.statLabel,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {isRTL ? "الأعراض هذا الأسبوع" : "Symptoms This Week"}
+              </Text>
+            </View>
+          </Card>
+
+          <Card 
+            variant="elevated" 
+            onPress={() => router.push("/(tabs)/medications")}
+            pressable={true}
+            style={styles.statCard as ViewStyle}
+            contentStyle={{ padding: 0 }}
+          >
+            <View style={styles.statCardContent as ViewStyle}>
+              <View style={styles.statIcon as ViewStyle}>
+                <Pill color={theme.colors.accent.success} size={32} />
+              </View>
+              <Text
+                weight="bold"
+                size="large"
+                color={theme.colors.secondary.main}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.7}
+                style={
+                  [
+                    styles.statValue,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {stats.medicationCompliance}%
+              </Text>
+              <Text
+                weight="medium"
+                style={
+                  [
+                    styles.statLabel,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
+              </Text>
+            </View>
+          </Card>
+
+          <Card 
+            variant="elevated" 
+            onPress={() => router.push("/(tabs)/family")}
+            pressable={true}
+            style={styles.statCard as ViewStyle}
+            contentStyle={{ padding: 0 }}
+          >
+            <View style={styles.statCardContent as ViewStyle}>
+              <View style={styles.statIcon as ViewStyle}>
+                <Users color={theme.colors.secondary.main} size={32} />
+              </View>
+              <Text
+                weight="bold"
+                size="large"
+                color={theme.colors.secondary.main}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.7}
+                style={
+                  [
+                    styles.statValue,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {familyMembersCount || 1}
+              </Text>
+              <Text
+                weight="medium"
+                style={
+                  [
+                    styles.statLabel,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {isRTL ? "أفراد العائلة" : "Family Members"}
+              </Text>
+            </View>
+          </Card>
+        </ScrollView>
 
         {/* Alerts */}
         {alertsCount > 0 && (
-          <TouchableOpacity
+          <Card
+            variant="elevated"
             onPress={async () => {
               setShowAlertsModal(true);
               setLoadingAlerts(true);
@@ -706,6 +786,8 @@ export default function DashboardScreen() {
             <AlertTriangle color={theme.colors.accent.error} size={24} />
             <View style={styles.alertContent as ViewStyle}>
               <Text
+                weight="bold"
+                color={theme.colors.accent.error}
                 style={
                   [
                     styles.alertTitle,
@@ -716,6 +798,7 @@ export default function DashboardScreen() {
                 {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
               </Text>
               <Text
+                color={theme.colors.accent.error}
                 style={
                   [
                     styles.alertText,
@@ -733,7 +816,7 @@ export default function DashboardScreen() {
               </Text>
             </View>
             <ChevronRight color={theme.colors.accent.error} size={20} />
-          </TouchableOpacity>
+          </Card>
         )}
 
         {/* Alerts Modal */}

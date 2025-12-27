@@ -705,7 +705,129 @@ export default function TrackScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Medical History and Vitals - Side by Side */}
+              {/* Blood Pressure and Vitals */}
+              <View
+                style={
+                  [
+                    styles.trackingOptions,
+                    { marginTop: theme.spacing.md },
+                  ] as StyleProp<ViewStyle>
+                }
+              >
+                <TouchableOpacity
+                  onPress={() => setShowBloodPressureEntry(true)}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.error + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Droplet color={theme.colors.accent.error} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                      }
+                    >
+                    {isRTL ? "ضغط الدم" : "Blood Pressure"}
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "تسجيل ضغط الدم يدوياً"
+                      : "Manual entry"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowBloodPressureEntry(true)}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.error },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Droplet color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "إدخال" : "Enter"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/vitals")}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.secondary.main + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Zap color={theme.colors.secondary.main} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "مراقبة النبض، الخطوات، النوم"
+                      : "Monitor heart rate, steps, sleep"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/vitals")}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.secondary.main },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Heart color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "عرض" : "View"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
+
+              {/* Medical History and PPG Heart Rate Monitor */}
               <View
                 style={
                   [
@@ -770,75 +892,26 @@ export default function TrackScreen() {
                   </TouchableOpacity>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/vitals")}
-                  style={styles.trackingCard as ViewStyle}
-                >
-                  <View
-                    style={
-                      [
-                        styles.trackingCardIcon,
-                        { backgroundColor: theme.colors.secondary.main + "20" },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Zap color={theme.colors.secondary.main} size={28} />
-                  </View>
-                  <Text
-                    style={
-                      [
-                        styles.trackingCardTitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
-                  </Text>
-                  <Text
-                    style={
-                      [
-                        styles.trackingCardSubtitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL
-                      ? "مراقبة النبض، الخطوات، النوم"
-                      : "Monitor heart rate, steps, sleep"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/vitals")}
-                    style={
-                      [
-                        styles.trackingCardButton,
-                        { backgroundColor: theme.colors.secondary.main },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Heart color={theme.colors.neutral.white} size={16} />
-                    <Text
-                      style={
-                        styles.trackingCardButtonText as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "عرض" : "View"}
-                    </Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </View>
-
-              {/* PPG Heart Rate Monitor and Blood Pressure Entry */}
-              <View
-                style={
-                  [
-                    styles.trackingOptions,
-                    { marginTop: theme.spacing.md },
-                  ] as StyleProp<ViewStyle>
-                }
-              >
                 <View
-                  style={styles.trackingCard as ViewStyle}
+                  style={[styles.trackingCard as ViewStyle, { position: "relative" as const }]}
                 >
+                  <View style={{
+                    position: "absolute" as const,
+                    top: theme.spacing.lg,
+                    right: theme.spacing.lg,
+                    backgroundColor: theme.colors.secondary.main,
+                    paddingHorizontal: theme.spacing.sm,
+                    paddingVertical: 2,
+                    borderRadius: theme.borderRadius.md,
+                  }}>
+                    <Text style={{
+                      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    }}>
+                      BETA
+                    </Text>
+                  </View>
                   <View
                     style={
                       [
@@ -849,32 +922,16 @@ export default function TrackScreen() {
                   >
                     <Heart color={theme.colors.accent.error} size={28} />
                   </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
-                    <Text
-                      style={
-                        [
-                          styles.trackingCardTitle,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "مراقب العلامات الحيوية" : "Vital Signs Monitor"}
-                    </Text>
-                    <View style={{
-                      backgroundColor: theme.colors.secondary.main,
-                      paddingHorizontal: theme.spacing.sm,
-                      paddingVertical: 2,
-                      borderRadius: theme.borderRadius.md,
-                    }}>
-                      <Text style={{
-                        ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
-                        fontSize: 10,
-                        letterSpacing: 0.5,
-                      }}>
-                        BETA
-                      </Text>
-                    </View>
-                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "مراقب العلامات الحيوية" : "Vitals Monitor"}
+                  </Text>
                   <Text
                     style={
                       [
@@ -884,8 +941,8 @@ export default function TrackScreen() {
                     }
                   >
                     {isRTL
-                      ? "قياس معدل ضربات القلب وHRV ومعدل التنفس باستخدام الكاميرا"
-                      : "Measure heart rate, HRV & respiratory rate using camera"}
+                      ? "معدل ضربات القلب وHRV ومعدل التنفس"
+                      : "Heart Rate, HRV & Respiratory Rate"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
@@ -910,62 +967,6 @@ export default function TrackScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                  onPress={() => setShowBloodPressureEntry(true)}
-                  style={styles.trackingCard as ViewStyle}
-                >
-                  <View
-                    style={
-                      [
-                        styles.trackingCardIcon,
-                        { backgroundColor: theme.colors.accent.error + "20" },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Droplet color={theme.colors.accent.error} size={28} />
-                  </View>
-                  <Text
-                    style={
-                      [
-                        styles.trackingCardTitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                      }
-                    >
-                    {isRTL ? "ضغط الدم" : "Blood Pressure"}
-                  </Text>
-                  <Text
-                    style={
-                      [
-                        styles.trackingCardSubtitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL
-                      ? "تسجيل ضغط الدم يدوياً وتصديره إلى HealthKit"
-                      : "Manual entry & export to HealthKit"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowBloodPressureEntry(true)}
-                    style={
-                      [
-                        styles.trackingCardButton,
-                        { backgroundColor: theme.colors.accent.error },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Droplet color={theme.colors.neutral.white} size={16} />
-                    <Text
-                      style={
-                        styles.trackingCardButtonText as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "إدخال" : "Enter"}
-                    </Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
               </View>
             </View>
 

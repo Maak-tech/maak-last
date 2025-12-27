@@ -98,10 +98,12 @@ export const Avatar: React.FC<AvatarProps> = ({
     if (avatarType) {
       const emoji = getAvatarEmoji(avatarType);
       if (emoji) {
+        // Scale emoji based on effective size, not just the size prop
+        const emojiSize = Math.min(effectiveWidth, effectiveHeight) * 0.6;
         return (
           <Text
             style={{
-              fontSize: currentSize.fontSize * 2.5, // Make emoji larger
+              fontSize: emojiSize, // Scale emoji based on actual avatar size
             }}
           >
             {emoji}

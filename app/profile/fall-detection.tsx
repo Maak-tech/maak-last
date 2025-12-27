@@ -12,7 +12,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -36,8 +36,8 @@ export default function FallDetectionScreen() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  // Hide the default header to prevent duplicate back buttons
-  useEffect(() => {
+  // Hide the default header to prevent duplicate headers
+  useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: false,
     });
