@@ -489,11 +489,13 @@ export default function PPGVitalMonitorVisionCamera({
   }, [visible]);
 
   const resetState = () => {
+    // Reset all state variables to initial values
+    // This ensures no stale data persists when the modal is closed and reopened
     setStatus("idle");
     setError(null);
     setHeartRate(null);
-    setHeartRateVariability(null);
-    setRespiratoryRate(null);
+    setHeartRateVariability(null); // Reset HRV state
+    setRespiratoryRate(null); // Reset respiratory rate state
     setProgress(0);
     setSignalQuality(null);
     setFingerDetected(false);
@@ -591,6 +593,11 @@ export default function PPGVitalMonitorVisionCamera({
       }
     }, 1000);
   };
+
+  const handleFrameProcessingError = useCallback((frameIndex: number) => {
+    // Increment error counter for quality monitoring
+    setFrameProcessingErrors((prev) => prev + 1);
+  }, []);
 
   // Frame processor for real-time PPG signal extraction
   const frameProcessor = useFrameProcessor((frame) => {

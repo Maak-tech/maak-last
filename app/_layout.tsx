@@ -14,6 +14,7 @@ import { NativeModules, Platform } from "react-native";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { revenueCatService } from "@/lib/services/revenueCatService";
 import "@/lib/i18n";
 
 // Keep splash screen visible while fonts load
@@ -42,6 +43,20 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // Initialize RevenueCat SDK
+  useEffect(() => {
+    const initializeRevenueCat = async () => {
+      try {
+        await revenueCatService.initialize();
+      } catch (error) {
+        console.error("Failed to initialize RevenueCat:", error);
+        // Don't block app startup if RevenueCat fails to initialize
+      }
+    };
+
+    initializeRevenueCat();
+  }, []);
 
   // HealthKit module check removed for production
 

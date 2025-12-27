@@ -49,6 +49,7 @@ import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import { alertService } from "@/lib/services/alertService";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import healthContextService from "@/lib/services/healthContextService";
@@ -57,6 +58,8 @@ import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import type { User } from "@/types";
+import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
+import { revenueCatService, PLAN_LIMITS } from "@/lib/services/revenueCatService";
 
 const RELATIONS = [
   { key: "father", labelEn: "Father", labelAr: "الأب" },
@@ -83,10 +86,12 @@ export default function FamilyScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
+  const { isPremium, isFamilyPlan, maxTotalMembers, isLoading: subscriptionLoading } = useSubscription();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showJoinFamilyModal, setShowJoinFamilyModal] = useState(false);
   const [showEditMemberModal, setShowEditMemberModal] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [memberMetrics, setMemberMetrics] = useState<FamilyMemberMetrics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -327,6 +332,56 @@ export default function FamilyScreen() {
         isRTL ? "لا توجد عائلة مربوطة" : "No family found"
       );
       return;
+    }
+
+    // Check subscription limits before inviting
+    // Always enforce limits - if subscription is loading, use conservative defaults (assume no premium)
+    const currentMemberCount = familyMembers.length;
+    const maxMembers = subscriptionLoading ? 0 : (maxTotalMembers || 0);
+    const hasPremium = subscriptionLoading ? false : isPremium;
+
+    // If no premium subscription, limit to 1 member (just the admin)
+    if (!hasPremium) {
+      if (currentMemberCount >= 1) {
+        Alert.alert(
+          isRTL ? "خطأ" : "Premium Required",
+          isRTL
+            ? "يجب الاشتراك في الخطة المميزة لإضافة أعضاء إضافيين إلى العائلة"
+            : "A premium subscription is required to add additional family members",
+          [
+            {
+              text: isRTL ? "إلغاء" : "Cancel",
+              style: "cancel",
+            },
+            {
+              text: isRTL ? "عرض الخطط" : "View Plans",
+              onPress: () => setShowPaywall(true),
+            },
+          ]
+        );
+        return;
+      }
+    } else {
+      // Check if family has reached the limit
+      if (currentMemberCount >= maxMembers) {
+        Alert.alert(
+          isRTL ? "تم الوصول للحد الأقصى" : "Member Limit Reached",
+          isRTL
+            ? `لقد وصلت إلى الحد الأقصى لعدد الأعضاء في خطتك (${maxMembers} عضو). قم بالترقية إلى خطة العائلة لإضافة المزيد من الأعضاء.`
+            : `You've reached the maximum number of members for your plan (${maxMembers} members). Upgrade to Family Plan to add more members.`,
+          [
+            {
+              text: isRTL ? "إلغاء" : "Cancel",
+              style: "cancel",
+            },
+            {
+              text: isRTL ? "ترقية" : "Upgrade",
+              onPress: () => setShowPaywall(true),
+            },
+          ]
+        );
+        return;
+      }
     }
 
     setInviteLoading(true);
@@ -791,6 +846,91 @@ export default function FamilyScreen() {
         user.id
       );
       if (result.success && result.familyId) {
+        // Get target family members to check capacity and find admin
+        const targetFamilyMembers = await userService.getFamilyMembers(result.familyId);
+        const currentMemberCount = targetFamilyMembers.length;
+        
+        // Find the admin of the target family
+        const adminUser = targetFamilyMembers.find(member => member.role === "admin");
+        
+        if (!adminUser) {
+          Alert.alert(
+            isRTL ? "خطأ" : "Error",
+            isRTL ? "لم يتم العثور على مدير العائلة" : "Family admin not found"
+          );
+          setJoinLoading(false);
+          return;
+        }
+
+        // Check the ADMIN's subscription limits (not the joining user's)
+        // The family's capacity is determined by the ADMIN's subscription, not the joining user's
+        let adminMaxTotalMembers = 0;
+        const currentUserId = user.id;
+        try {
+          // Temporarily switch RevenueCat context to admin to check their subscription
+          await revenueCatService.setUserId(adminUser.id);
+          const adminPlanLimits = await revenueCatService.getPlanLimits();
+          adminMaxTotalMembers = adminPlanLimits?.totalMembers ?? 0;
+        } catch (error) {
+          // If we can't check admin's subscription, default to 0 (will be treated as 1 member limit)
+          // This is safe because admin's limits are already enforced when they invite members
+          console.warn("Failed to check admin subscription:", error);
+        } finally {
+          // Always switch back to current user, even if there was an error
+          try {
+            await revenueCatService.setUserId(currentUserId);
+          } catch (error) {
+            // Silently fail - RevenueCat context restoration is not critical
+            console.warn("Failed to restore RevenueCat context:", error);
+          }
+        }
+
+        // Check if the family has reached capacity based on ADMIN's subscription
+        // If admin has no premium subscription, they can only have 1 member (themselves)
+        const adminMaxMembers = adminMaxTotalMembers > 0 ? adminMaxTotalMembers : 1;
+        
+        if (currentMemberCount >= adminMaxMembers) {
+          Alert.alert(
+            isRTL ? "تم الوصول للحد الأقصى" : "Family at Capacity",
+            isRTL
+              ? `لقد وصلت هذه العائلة إلى الحد الأقصى لعدد الأعضاء في خطة المدير (${adminMaxMembers} عضو).`
+              : `This family has reached the maximum number of members allowed by the admin's plan (${adminMaxMembers} members).`,
+            [
+              {
+                text: isRTL ? "موافق" : "OK",
+                style: "cancel",
+              },
+            ]
+          );
+          setJoinLoading(false);
+          return;
+        }
+
+        // Check if joining user has premium subscription
+        // Non-premium users can only join empty families (just the admin)
+        const hasPremium = subscriptionLoading ? false : isPremium;
+        
+        if (!hasPremium && currentMemberCount >= 1) {
+          Alert.alert(
+            isRTL ? "خطأ" : "Premium Required",
+            isRTL
+              ? "يجب الاشتراك في الخطة المميزة للانضمام إلى عائلة تحتوي على أعضاء"
+              : "A premium subscription is required to join a family that already has members",
+            [
+              {
+                text: isRTL ? "إلغاء" : "Cancel",
+                style: "cancel",
+              },
+              {
+                text: isRTL ? "عرض الخطط" : "View Plans",
+                onPress: () => setShowPaywall(true),
+              },
+            ]
+          );
+          setJoinLoading(false);
+          return;
+        }
+
         // Join the family
         await userService.joinFamily(user.id, result.familyId);
 
@@ -2134,6 +2274,36 @@ export default function FamilyScreen() {
               </View>
             )}
           </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Premium Paywall Modal */}
+      <Modal
+        animationType="slide"
+        presentationStyle="pageSheet"
+        visible={showPaywall}
+        onRequestClose={() => setShowPaywall(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+              {isRTL ? "الترقية إلى المميز" : "Upgrade to Premium"}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowPaywall(false)}
+              style={styles.closeButton}
+            >
+              <X color="#64748B" size={24} />
+            </TouchableOpacity>
+          </View>
+          <RevenueCatPaywall
+            onPurchaseComplete={() => {
+              setShowPaywall(false);
+              // Reload family members to reflect new limits
+              loadFamilyMembers();
+            }}
+            onDismiss={() => setShowPaywall(false)}
+          />
         </SafeAreaView>
       </Modal>
     </SafeAreaView>

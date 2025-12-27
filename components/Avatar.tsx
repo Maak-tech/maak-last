@@ -48,7 +48,9 @@ export const Avatar: React.FC<AvatarProps> = ({
   const getAvatarUrl = (type?: AvatarType): string => {
     // Use DiceBear Notionists API for premium vector avatars
     // Notionists style provides high-quality, scalable vector avatars with modern, professional appearance
-    // Using PNG format for React Native Image component compatibility (Image component doesn't support SVG URLs)
+    // IMPORTANT: Using PNG format for React Native Image component compatibility
+    // React Native's Image component only supports: png, jpg, jpeg, bmp, gif, webp, psd
+    // SVG URLs are NOT supported natively by React Native Image component
     const baseUrl = "https://api.dicebear.com/7.x/notionists/png";
     
     // Create consistent seeds for each avatar type

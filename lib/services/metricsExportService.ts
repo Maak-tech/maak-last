@@ -881,8 +881,10 @@ export const exportMetrics = async (
       fileName = `health-report-${new Date().toISOString().split("T")[0]}.csv`;
       mimeType = "text/csv";
 
-      // Save CSV to document directory for sharing
-      fileUri = `${FileSystem.documentDirectory || ''}${fileName}`;
+      // Save CSV to cache directory for sharing
+      // Use cacheDirectory as documentDirectory may not be available in all SDK versions
+      const directory = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+      fileUri = `${directory}${fileName}`;
       await FileSystem.writeAsStringAsync(fileUri, content);
     } else {
       // PDF format

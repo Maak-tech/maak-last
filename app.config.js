@@ -119,7 +119,7 @@ export default {
         {
           cameraPermissionText: "$(PRODUCT_NAME) needs access to your camera for real-time PPG heart rate measurement and vital signs monitoring using photoplethysmography.",
           enableMicrophonePermission: false,
-          disableFrameProcessors: true // Disabled until frame processor implementation is complete
+          disableFrameProcessors: false // Enabled for real PPG pixel extraction
         }
       ],
       [

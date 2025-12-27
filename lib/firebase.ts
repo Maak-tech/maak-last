@@ -128,30 +128,41 @@ try {
   );
 }
 
-// Initialize Auth with persistence for React Native
-// This ensures authentication state persists across app restarts
+// Initialize Auth with platform-appropriate persistence
+// For web: use browserLocalPersistence
+// For React Native (iOS/Android): Firebase Auth persists automatically using AsyncStorage
 let auth: Auth;
 try {
-  // Try to initialize with local persistence (uses AsyncStorage in React Native)
-  auth = initializeAuth(app, {
-    persistence: browserLocalPersistence,
-  });
-} catch (error: any) {
-  // If auth is already initialized (e.g., during hot reload), use getAuth instead
-  if (error.code === "auth/already-initialized") {
-    auth = getAuth(app);
-    // Set persistence explicitly for existing auth instance
-    setPersistence(auth, browserLocalPersistence).catch(() => {
-      // Silently handle persistence errors
-    });
+  if (Platform.OS === "web") {
+    // For web, use browserLocalPersistence
+    try {
+      auth = initializeAuth(app, {
+        persistence: browserLocalPersistence,
+      });
+    } catch (error: any) {
+      // If auth is already initialized (e.g., during hot reload), use getAuth instead
+      if (error.code === "auth/already-initialized") {
+        auth = getAuth(app);
+        // Set persistence explicitly for existing auth instance
+        setPersistence(auth, browserLocalPersistence).catch(() => {
+          // Silently handle persistence errors
+        });
+      } else {
+        // Fallback to getAuth if initialization fails
+        auth = getAuth(app);
+        setPersistence(auth, browserLocalPersistence).catch(() => {
+          // Silently handle persistence errors
+        });
+      }
+    }
   } else {
-    // Fallback to getAuth if initialization fails
+    // For React Native (iOS/Android), Firebase Auth persists automatically using AsyncStorage
+    // Use getAuth() directly - it handles persistence automatically without needing initializeAuth
     auth = getAuth(app);
-    // Set persistence explicitly
-    setPersistence(auth, browserLocalPersistence).catch(() => {
-      // Silently handle persistence errors
-    });
   }
+} catch (error) {
+  // Final fallback: use getAuth
+  auth = getAuth(app);
 }
 
 export { auth };

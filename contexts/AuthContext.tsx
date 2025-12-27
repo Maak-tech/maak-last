@@ -16,6 +16,7 @@ import { Alert } from "react-native";
 import { auth, db } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
+import { revenueCatService } from "@/lib/services/revenueCatService";
 import { userService } from "@/lib/services/userService";
 import type { AvatarType, User } from "@/types";
 
@@ -193,6 +194,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setUser(userData);
           }
 
+          // Sync RevenueCat user ID with Firebase auth user
+          // setUserId will wait for initialization to complete if it's in progress
+          try {
+            await revenueCatService.setUserId(firebaseUser.uid);
+          } catch (error) {
+            // Silently fail - RevenueCat sync is not critical for app functionality
+            console.error("Failed to sync RevenueCat user ID:", error);
+          }
+
           // Initialize FCM in background (don't block on this)
           setTimeout(() => {
             if (isMounted) {
@@ -232,6 +242,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         } else if (isMounted) {
           setUser(null);
+          // Log out from RevenueCat when user signs out
+          // logOut will wait for initialization if it's in progress to ensure proper cleanup
+          try {
+            await revenueCatService.logOut();
+          } catch (error) {
+            // Silently fail - RevenueCat logout is not critical
+            console.error("Failed to log out from RevenueCat:", error);
+          }
         }
       } catch (error: any) {
         // Silently handle auth state change errors
@@ -471,6 +489,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await AsyncStorage.default.removeItem("pendingFamilyCode");
       } catch (error) {
         // Silently fail
+      }
+
+      // Log out from RevenueCat
+      // logOut will wait for initialization if it's in progress to ensure proper cleanup
+      try {
+        await revenueCatService.logOut();
+      } catch (error) {
+        // Silently fail - RevenueCat logout is not critical
+        console.error("Failed to log out from RevenueCat:", error);
       }
 
       await signOut(auth);

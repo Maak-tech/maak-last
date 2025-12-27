@@ -68,12 +68,13 @@ export function extractRedChannelAverage(frame: Frame): number {
     const data = new Uint8Array(buffer);
     
     // Extract based on pixel format
-    if (pixelFormat === 'yuv' || pixelFormat === 'yuv420') {
+    // PixelFormat type from react-native-vision-camera is 'yuv' | 'rgb' | 'unknown'
+    if (pixelFormat === 'yuv') {
       return extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
-    } else if (pixelFormat === 'rgb' || pixelFormat === 'rgba') {
+    } else if (pixelFormat === 'rgb') {
       return extractRedFromBuffer(data, width, height, centerX, centerY, sampleRadius);
     } else {
-      // Unknown format - try YUV as default (most common)
+      // Unknown format - try YUV as default (most common for camera frames)
       return extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
     }
     

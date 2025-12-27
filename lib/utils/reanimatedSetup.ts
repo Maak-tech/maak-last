@@ -12,7 +12,7 @@
  * reanimated compatibility is set up before any animated components are created.
  */
 
-import { Text } from 'react-native';
+import { Text, TextProps } from 'react-native';
 import React from 'react';
 
 /**
@@ -22,7 +22,7 @@ import React from 'react';
  * The issue occurs when reanimated tries to create an animated version of Text
  * internally. By ensuring Text is wrapped with forwardRef, we make it compatible.
  */
-export const ReanimatedText = React.forwardRef<any, React.ComponentProps<typeof Text>>(
+export const ReanimatedText = React.forwardRef<Text, TextProps>(
   (props, ref) => {
     return <Text {...props} ref={ref} />;
   }
@@ -37,20 +37,16 @@ export { Text };
  * Patch React Native's Text component to ensure it works with reanimated
  * This ensures that if reanimated tries to create an animated Text component,
  * it will work correctly.
+ * 
+ * Note: React Native's Text component already supports refs natively,
+ * so this is mainly for documentation and ensuring compatibility.
  */
 try {
-  // Ensure Text component has forwardRef support
-  // React Native's Text should already support this, but we ensure it's set up correctly
-  if (Text && typeof Text === 'function' && !Text.forwardRef) {
-    // If Text doesn't have forwardRef, wrap it
-    const OriginalText = Text;
-    const ForwardedText = React.forwardRef<any, React.ComponentProps<typeof Text>>(
-      (props, ref) => {
-        return <OriginalText {...props} ref={ref} />;
-      }
-    );
-    ForwardedText.displayName = 'Text';
-    // Note: We can't replace Text directly, but this ensures compatibility
+  // React Native's Text component already supports refs natively
+  // This block is kept for potential future compatibility fixes
+  if (Text && typeof Text === 'function') {
+    // Text component is already compatible with reanimated
+    // No patching needed
   }
 } catch {
   // Silently handle any errors during setup
