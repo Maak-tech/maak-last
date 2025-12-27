@@ -39,6 +39,7 @@ import type {
   User as UserType,
 } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
+import BloodPressureEntry from "@/components/BloodPressureEntry";
 
 // Lazy load PPG component to prevent tab from failing if component has issues
 // Use the real vision camera version for actual PPG measurements
@@ -83,6 +84,7 @@ export default function TrackScreen() {
   const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
   const [latestVitals, setLatestVitals] = useState<VitalSigns | null>(null);
   const [showPPGMonitor, setShowPPGMonitor] = useState(false);
+  const [showBloodPressureEntry, setShowBloodPressureEntry] = useState(false);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -825,7 +827,7 @@ export default function TrackScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* PPG Heart Rate Monitor */}
+              {/* PPG Heart Rate Monitor and Blood Pressure Entry */}
               <View
                 style={
                   [
@@ -908,6 +910,62 @@ export default function TrackScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                  onPress={() => setShowBloodPressureEntry(true)}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.error + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Droplet color={theme.colors.accent.error} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                      }
+                    >
+                    {isRTL ? "ضغط الدم" : "Blood Pressure"}
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "تسجيل ضغط الدم يدوياً وتصديره إلى HealthKit"
+                      : "Manual entry & export to HealthKit"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setShowBloodPressureEntry(true)}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.error },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Droplet color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "إدخال" : "Enter"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -1463,10 +1521,20 @@ export default function TrackScreen() {
           userId={user.id}
           onMeasurementComplete={(result) => {
             // Optionally refresh vitals data or show success message
+            loadTrackingData();
           }}
           onClose={() => setShowPPGMonitor(false)}
         />
       )}
+
+      {/* Blood Pressure Entry Modal */}
+      <BloodPressureEntry
+        visible={showBloodPressureEntry}
+        onClose={() => setShowBloodPressureEntry(false)}
+        onSave={() => {
+          loadTrackingData();
+        }}
+      />
       
       {/* Show error modal if component failed to load */}
       {user && !PPGVitalMonitor && showPPGMonitor && (

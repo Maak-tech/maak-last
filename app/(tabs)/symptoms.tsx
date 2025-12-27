@@ -447,20 +447,20 @@ export default function TrackScreen() {
   }
 
   return (
-    <Container>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
           {t("symptoms")}
         </Heading>
-        <Button
+        <TouchableOpacity
           onPress={() => {
             setSelectedTargetUser(user.id);
             setShowAddModal(true);
           }}
-          size="small"
           style={styles.addButton}
-          icon={<Plus color="#FFFFFF" size={20} />}
-        />
+        >
+          <Plus color="#FFFFFF" size={24} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -486,15 +486,15 @@ export default function TrackScreen() {
 
         {/* Stats Section */}
         <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
             {t("thisWeek")}
-          </Text>
+          </Heading>
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+            <Card variant="elevated" style={styles.statCard}>
+              <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
                 {stats.totalSymptoms}
               </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+              <Caption style={[styles.statLabel, isRTL && styles.rtlText]}>
                 {selectedFilter.type === "family"
                   ? isRTL
                     ? "أعراض العائلة"
@@ -506,22 +506,22 @@ export default function TrackScreen() {
                     : isRTL
                       ? "إجمالي الأعراض"
                       : "Total Symptoms"}
-              </Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+              </Caption>
+            </Card>
+            <Card variant="elevated" style={styles.statCard}>
+              <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
                 {stats.avgSeverity.toFixed(1)}
               </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+              <Caption style={[styles.statLabel, isRTL && styles.rtlText]}>
                 {isRTL ? "متوسط الشدة" : "Avg Severity"}
-              </Text>
-            </View>
+              </Caption>
+            </Card>
           </View>
         </View>
 
         {/* Symptoms List */}
         <View style={styles.symptomsSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "family"
               ? isRTL
                 ? "أعراض العائلة الأخيرة"
@@ -533,7 +533,7 @@ export default function TrackScreen() {
                 : isRTL
                   ? "أعراضي الأخيرة"
                   : "My Recent Symptoms"}
-          </Text>
+          </Heading>
 
           {loading ? (
             <View style={styles.centerContainer}>
@@ -549,45 +549,38 @@ export default function TrackScreen() {
             </View>
           ) : (
             symptoms.map((symptom) => (
-              <View key={symptom.id} style={styles.symptomCard}>
+              <Card key={symptom.id} variant="elevated" style={styles.symptomCard}>
                 <View style={styles.symptomHeader}>
                   <View style={styles.symptomInfo}>
-                    <Text style={[styles.symptomType, isRTL && styles.rtlText]}>
+                    <Text weight="semibold" size="large" style={[styles.symptomType, isRTL && styles.rtlText]}>
                       {t(symptom.type)}
                     </Text>
                     <View style={styles.symptomMeta}>
-                      <Text
+                      <Caption
                         style={[styles.symptomDate, isRTL && styles.rtlText]}
                       >
                         {formatDate(symptom.timestamp)}
-                      </Text>
+                      </Caption>
                       {/* Show member name for family/admin views */}
                       {(selectedFilter.type === "family" ||
                         selectedFilter.type === "member") && (
-                        <View style={styles.memberBadge}>
-                          <Text
-                            style={[
-                              styles.memberBadgeText,
-                              isRTL && styles.rtlText,
-                            ]}
-                          >
-                            {getMemberName(symptom.userId)}
-                          </Text>
-                        </View>
+                        <Badge variant="info" size="small" style={styles.memberBadge}>
+                          {getMemberName(symptom.userId)}
+                        </Badge>
                       )}
                     </View>
                   </View>
                   <View style={styles.symptomActions}>
-                    <View
+                    <Badge
+                      variant={symptom.severity <= 2 ? "success" : symptom.severity <= 3 ? "warning" : "error"}
+                      size="small"
                       style={[
                         styles.severityBadge,
                         { backgroundColor: getSeverityColor(symptom.severity) },
                       ]}
                     >
-                      <Text style={styles.severityText}>
-                        {symptom.severity}
-                      </Text>
-                    </View>
+                      {symptom.severity}
+                    </Badge>
                     {/* Show action menu only for symptoms user can manage */}
                     {(symptom.userId === user.id ||
                       (isAdmin &&
@@ -646,7 +639,7 @@ export default function TrackScreen() {
                     </TouchableOpacity>
                   </View>
                 )}
-              </View>
+              </Card>
             ))
           )}
         </View>
@@ -668,7 +661,7 @@ export default function TrackScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            <Heading level={5} style={[styles.modalTitle, isRTL && styles.rtlText]}>
               {editingSymptom
                 ? isRTL
                   ? "تعديل العرض"
@@ -676,7 +669,7 @@ export default function TrackScreen() {
                 : isRTL
                   ? "إضافة عرض جديد"
                   : "Add New Symptom"}
-            </Text>
+            </Heading>
             <TouchableOpacity
               onPress={() => {
                 setShowAddModal(false);
@@ -784,10 +777,8 @@ export default function TrackScreen() {
 
             {/* Custom Symptom */}
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "عرض مخصص" : "Custom Symptom"}
-              </Text>
-              <TextInput
+              <Input
+                label={isRTL ? "عرض مخصص" : "Custom Symptom"}
                 onChangeText={(text) => {
                   setCustomSymptom(text);
                   if (text) setSelectedSymptom("");
@@ -795,7 +786,7 @@ export default function TrackScreen() {
                 placeholder={
                   isRTL ? "أدخل نوع العرض..." : "Enter symptom type..."
                 }
-                style={[styles.textInput, isRTL && styles.rtlTextInput]}
+                style={isRTL && styles.rtlTextInput}
                 textAlign={isRTL ? "right" : "left"}
                 value={customSymptom}
               />
@@ -806,10 +797,8 @@ export default function TrackScreen() {
 
             {/* Description */}
             <View style={styles.fieldGroup}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {t("description")} ({isRTL ? "اختياري" : "Optional"})
-              </Text>
-              <TextInput
+              <Input
+                label={`${t("description")} (${isRTL ? "اختياري" : "Optional"})`}
                 multiline
                 numberOfLines={3}
                 onChangeText={setDescription}
@@ -819,7 +808,6 @@ export default function TrackScreen() {
                     : "Add a description of the symptom..."
                 }
                 style={[
-                  styles.textInput,
                   styles.textArea,
                   isRTL && styles.rtlTextInput,
                 ]}
@@ -829,13 +817,14 @@ export default function TrackScreen() {
             </View>
 
             {/* Save Button */}
-            <TouchableOpacity
+            <Button
               disabled={loading}
+              loading={loading}
               onPress={handleAddSymptom}
-              style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-            >
-              <Text style={[styles.saveButtonText, isRTL && styles.rtlText]}>
-                {loading
+              fullWidth
+              style={styles.saveButton}
+              title={
+                loading
                   ? isRTL
                     ? "جاري الحفظ..."
                     : "Saving..."
@@ -845,9 +834,9 @@ export default function TrackScreen() {
                       : "Update Symptom"
                     : isRTL
                       ? "حفظ العرض"
-                      : "Save Symptom"}
-              </Text>
-            </TouchableOpacity>
+                      : "Save Symptom"
+              }
+            />
           </ScrollView>
         </SafeAreaView>
       </Modal>
