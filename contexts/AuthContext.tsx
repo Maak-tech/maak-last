@@ -253,9 +253,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
       } catch (error: any) {
-        // Silently handle auth state change errors
-        if (isMounted) {
-          setUser(null);
+        // Handle auth state change errors
+        // Don't log out the user unless it's a critical authentication error
+        // RevenueCat and other non-critical errors shouldn't cause logout
+        const isCriticalError = 
+          error?.code?.startsWith("auth/") || 
+          error?.message?.includes("auth") ||
+          error?.message?.includes("permission-denied") ||
+          error?.message?.includes("unauthenticated");
+        
+        if (isCriticalError) {
+          // Critical auth error - user should be logged out
+          logger.error("Critical auth error in onAuthStateChanged", error, "AuthContext");
+          if (isMounted) {
+            setUser(null);
+          }
+        } else {
+          // Non-critical error (e.g., RevenueCat, FCM, etc.) - log but don't logout
+          logger.error("Non-critical error in onAuthStateChanged", error, "AuthContext");
+          // User remains logged in even if RevenueCat or other services fail
         }
       } finally {
         if (isMounted) {

@@ -103,7 +103,76 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
       throw new Error("No HealthKit permissions to request");
     }
 
-    // Request authorization
+    // Check if we already have authorization by attempting a simple query
+    // This prevents showing the permission dialog if authorization was already granted
+    // Try common types first, then fall back to the first requested type
+    const commonQuantityTypes = [
+      "HKQuantityTypeIdentifierStepCount",
+      "HKQuantityTypeIdentifierHeartRate",
+      "HKQuantityTypeIdentifierBodyMass",
+      "HKQuantityTypeIdentifierHeight",
+    ];
+    
+    const commonCategoryTypes = [
+      "HKCategoryTypeIdentifierSleepAnalysis",
+    ];
+    
+    // Find a test type from the requested permissions
+    const testQuantityType = commonQuantityTypes.find((type) => readPermissions.includes(type));
+    const testCategoryType = commonCategoryTypes.find((type) => readPermissions.includes(type));
+    const testType = testQuantityType || testCategoryType || readPermissions[0];
+    
+    if (testType) {
+      try {
+        // Try to query a recent sample to check if we already have authorization
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        
+        if (testType.includes("Category")) {
+          // Test with category type
+          await queryCategorySamples(testType as CategoryTypeIdentifier, {
+            filter: {
+              date: {
+                startDate: yesterday,
+                endDate: now,
+              },
+            },
+            limit: 1,
+            ascending: false,
+          });
+        } else if (testType !== "HKWorkoutTypeIdentifier") {
+          // Test with quantity type
+          await queryQuantitySamples(testType as any, {
+            filter: {
+              date: {
+                startDate: yesterday,
+                endDate: now,
+              },
+            },
+            limit: 1,
+            ascending: false,
+          });
+        }
+        
+        // If query succeeds, we already have authorization
+        // No need to request again - this prevents showing the permission dialog unnecessarily
+        authorizationRequested = true;
+        return true;
+      } catch (queryError: any) {
+        // If query fails with authorization error, we need to request authorization
+        // Otherwise, it might be a different error (no data, etc.), so we'll still request
+        const isAuthError = isAuthorizationDeniedError(queryError);
+        if (!isAuthError) {
+          // Not an authorization error - might be no data available, which is fine
+          // We can assume we have authorization if it's not an auth error
+          authorizationRequested = true;
+          return true;
+        }
+        // Authorization denied - proceed to request authorization
+      }
+    }
+
+    // Request authorization (only if we don't already have it)
     const granted = await requestAuthorization({
       toRead: readPermissions as any,
     });

@@ -11,7 +11,8 @@ import {
   Hand, 
   Camera, 
   Clock, 
-  Zap
+  Zap,
+  ChevronLeft
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
@@ -360,6 +361,20 @@ export default function PPGVitalMonitor({
         ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
         marginLeft: theme.spacing.sm,
       },
+      backButton: {
+        backgroundColor: "transparent",
+        borderRadius: theme.borderRadius.lg,
+        paddingVertical: theme.spacing.base,
+        paddingHorizontal: theme.spacing.xl,
+        alignItems: "center" as const,
+        justifyContent: "center" as const,
+        flexDirection: "row" as const,
+        marginTop: theme.spacing.md,
+        gap: theme.spacing.xs,
+      },
+      backButtonText: {
+        ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+      },
       noteText: {
         ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
         fontStyle: "italic" as const,
@@ -425,6 +440,19 @@ export default function PPGVitalMonitor({
     }
   }, [visible]);
 
+  // Proactively check camera permission when modal opens
+  useEffect(() => {
+    if (visible && status === "instructions" && permission) {
+      // If permission is not granted, request it proactively
+      if (!permission.granted && permission.canAskAgain) {
+        requestPermission().catch((err) => {
+          // Silently handle permission request error
+          console.log("Camera permission request error:", err);
+        });
+      }
+    }
+  }, [visible, status, permission]);
+
   // Ensure camera initializes when modal becomes visible and we're measuring
   useEffect(() => {
     if (visible && status === "measuring" && permission?.granted && !cameraReady) {
@@ -478,7 +506,15 @@ export default function PPGVitalMonitor({
       if (!permission?.granted) {
         const result = await requestPermission();
         if (!result.granted) {
-          setError("Camera permission is required for heart rate measurement");
+          // Provide helpful error message with instructions
+          if (permission?.canAskAgain === false) {
+            setError(
+              "Camera permission was denied. Please enable camera access in your device settings to measure heart rate.\n\n" +
+              "Go to Settings > Maak Health > Camera and enable access."
+            );
+          } else {
+            setError("Camera permission is required for heart rate measurement. Please grant camera access when prompted.");
+          }
           setStatus("error");
           return;
         }
@@ -945,14 +981,19 @@ export default function PPGVitalMonitor({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.modal as ViewStyle}>
-        <TouchableOpacity 
-          style={styles.closeButton as ViewStyle} 
-          onPress={onClose}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          activeOpacity={0.7}
-        >
-          <X color={theme.colors.text.primary} size={20} />
-        </TouchableOpacity>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' }}>
+          <TouchableOpacity 
+            style={styles.closeButton as ViewStyle} 
+            onPress={() => {
+              resetState();
+              onClose();
+            }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <X color={theme.colors.text.primary} size={20} />
+          </TouchableOpacity>
+        </View>
 
         <ScrollView
           style={styles.container as ViewStyle}
@@ -1173,6 +1214,20 @@ export default function PPGVitalMonitor({
                   <CheckCircle color={theme.colors.neutral.white} size={20} />
                   <Text style={(styles.startButtonText as StyleProp<TextStyle>)}>
                     Start Measurement
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Back Button */}
+                <TouchableOpacity
+                  style={styles.backButton as ViewStyle}
+                  onPress={() => {
+                    resetState();
+                    onClose();
+                  }}
+                >
+                  <ChevronLeft color={theme.colors.text.secondary} size={20} />
+                  <Text style={styles.backButtonText as StyleProp<TextStyle>}>
+                    Back
                   </Text>
                 </TouchableOpacity>
               </View>

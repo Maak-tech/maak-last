@@ -9,7 +9,6 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
@@ -22,6 +21,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import type { Symptom, User as UserType } from "@/types";
+// Design System Components
+import { Button, Card, Container, Input } from "@/components/design-system";
+import { Heading, Text, Caption } from "@/components/design-system/Typography";
+import { Badge, Avatar, Divider } from "@/components/design-system/AdditionalComponents";
 
 const COMMON_SYMPTOMS = [
   "headache",
@@ -85,7 +88,7 @@ export default function TrackScreen() {
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
-  const loadSymptoms = async (isRefresh = false) => {
+  const loadSymptoms = useCallback(async (isRefresh = false) => {
     if (!user) return;
 
     try {
@@ -141,18 +144,18 @@ export default function TrackScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user, selectedFilter, isRTL]);
 
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
       loadSymptoms();
-    }, [user, selectedFilter])
+    }, [loadSymptoms])
   );
 
   useEffect(() => {
     loadSymptoms();
-  }, [user, selectedFilter]);
+  }, [loadSymptoms]);
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);
@@ -435,29 +438,29 @@ export default function TrackScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <Container>
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Please log in to track symptoms</Text>
+          <Text color="#EF4444">Please log in to track symptoms</Text>
         </View>
-      </SafeAreaView>
+      </Container>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Container>
       <View style={styles.header}>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>
+        <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
           {t("symptoms")}
-        </Text>
-        <TouchableOpacity
+        </Heading>
+        <Button
           onPress={() => {
             setSelectedTargetUser(user.id);
             setShowAddModal(true);
           }}
+          size="small"
           style={styles.addButton}
-        >
-          <Plus color="#FFFFFF" size={24} />
-        </TouchableOpacity>
+          icon={<Plus color="#FFFFFF" size={20} />}
+        />
       </View>
 
       <ScrollView

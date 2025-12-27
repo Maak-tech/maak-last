@@ -16,10 +16,15 @@ import {
   Hand,
   Clock,
   Zap,
+  ChevronLeft,
 } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  AppState,
+  AppStateStatus,
+  Linking,
   Modal,
   Platform,
   SafeAreaView,
@@ -76,6 +81,7 @@ export default function PPGVitalMonitorVisionCamera({
     "idle" | "instructions" | "measuring" | "processing" | "success" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [heartRate, setHeartRate] = useState<number | null>(null);
   const [heartRateVariability, setHeartRateVariability] = useState<
     number | null
@@ -427,6 +433,20 @@ export default function PPGVitalMonitorVisionCamera({
       ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
       marginLeft: theme.spacing.sm,
     },
+    backButton: {
+      backgroundColor: "transparent",
+      borderRadius: theme.borderRadius.lg,
+      paddingVertical: theme.spacing.base,
+      paddingHorizontal: theme.spacing.xl,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      flexDirection: "row" as const,
+      marginTop: theme.spacing.md,
+      gap: theme.spacing.xs,
+    },
+    backButtonText: {
+      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+    },
     noteText: {
       ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
       fontStyle: "italic" as const,
@@ -489,6 +509,43 @@ export default function PPGVitalMonitorVisionCamera({
     }
   }, [visible]);
 
+  // Proactively check camera permission when modal opens
+  useEffect(() => {
+    if (visible && status === "instructions" && hasPermission !== undefined) {
+      // Reset permission denied state when modal opens
+      setPermissionDenied(false);
+      
+      // Don't auto-request permission - let user do it explicitly
+      // Just track the state
+      if (!hasPermission) {
+        setPermissionDenied(true);
+      }
+    }
+  }, [visible, status, hasPermission, requestPermission]);
+
+  // Recheck permission when app comes back from settings
+  useEffect(() => {
+    if (!visible) return;
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === "active" && !hasPermission) {
+        // Recheck permission when app becomes active
+        requestPermission()
+          .then((granted) => {
+            if (granted) {
+              setPermissionDenied(false);
+            }
+          })
+          .catch(() => {
+            // Silently handle error
+          });
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => subscription.remove();
+  }, [visible, hasPermission, requestPermission]);
+
   const resetState = () => {
     // Reset all state variables to initial values
     // This ensures no stale data persists when the modal is closed and reopened
@@ -511,6 +568,7 @@ export default function PPGVitalMonitorVisionCamera({
     setFingerDetectionFailed(false);
     setFrameProcessingErrors(0);
     setSaveFailed(false);
+    setPermissionDenied(false);
     consecutiveNoFingerFrames.current = 0;
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -518,12 +576,106 @@ export default function PPGVitalMonitorVisionCamera({
     }
   };
 
+  const requestCameraPermission = async (showExplanation = false): Promise<boolean> => {
+    try {
+      // Show explanation dialog first if requested
+      if (showExplanation) {
+        return new Promise((resolve) => {
+          Alert.alert(
+            "Camera Permission Required",
+            "Maak Health needs access to your camera to measure your heart rate using PPG (photoplethysmography) technology. The camera will only be used to detect blood volume changes in your fingertip - no photos or videos will be saved.",
+            [
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
+              {
+                text: "Grant Permission",
+                onPress: async () => {
+                  const result = await requestPermission();
+                  if (result) {
+                    setPermissionDenied(false);
+                    resolve(true);
+                  } else {
+                    setPermissionDenied(true);
+                    resolve(false);
+                  }
+                },
+              },
+            ]
+          );
+        });
+      }
+
+      // Direct permission request
+      const result = await requestPermission();
+      if (result) {
+        setPermissionDenied(false);
+        return true;
+      } else {
+        setPermissionDenied(true);
+        return false;
+      }
+    } catch (err) {
+      console.error("Permission request error:", err);
+      setPermissionDenied(true);
+      return false;
+    }
+  };
+
+  const openSettings = async () => {
+    try {
+      if (Platform.OS === "ios") {
+        await Linking.openURL("app-settings:");
+      } else {
+        await Linking.openSettings();
+      }
+    } catch (err) {
+      console.error("Failed to open settings:", err);
+      Alert.alert(
+        "Open Settings",
+        "Please manually open Settings > Maak Health > Camera and enable camera access."
+      );
+    }
+  };
+
   const startMeasurement = async () => {
     try {
+      // Request permission if not granted
       if (!hasPermission) {
-        const result = await requestPermission();
-        if (!result) {
-          setError("Camera permission is required for heart rate measurement");
+        const granted = await requestCameraPermission(true);
+        if (!granted) {
+          // Permission denied - show error with option to try again or open settings
+          Alert.alert(
+            "Camera Permission Denied",
+            "Camera access is required to measure your heart rate. Would you like to grant permission now or open Settings?",
+            [
+              {
+                text: "Cancel",
+                style: "cancel",
+              },
+              {
+                text: "Try Again",
+                onPress: async () => {
+                  const result = await requestCameraPermission(false);
+                  if (result) {
+                    // Permission granted, continue with measurement
+                    startMeasurement();
+                  }
+                },
+              },
+              {
+                text: "Open Settings",
+                onPress: openSettings,
+              },
+            ]
+          );
+          setPermissionDenied(true);
+          setError(
+            "Camera permission is required for heart rate measurement.\n\n" +
+            "Please grant camera access to continue."
+          );
           setStatus("error");
           return;
         }
@@ -543,6 +695,7 @@ export default function PPGVitalMonitorVisionCamera({
       const errorMessage = err instanceof Error ? err.message : "Measurement failed";
       setError(errorMessage);
       setStatus("error");
+      setPermissionDenied(true);
     }
   };
 
@@ -1160,13 +1313,86 @@ export default function PPGVitalMonitorVisionCamera({
                   </View>
                 </View>
 
+                {permissionDenied && !hasPermission && (
+                  <View
+                    style={{
+                      backgroundColor: theme.colors.primary[50],
+                      borderRadius: theme.borderRadius.md,
+                      padding: theme.spacing.md,
+                      marginBottom: theme.spacing.lg,
+                      borderLeftWidth: 4,
+                      borderLeftColor: theme.colors.primary.main,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.instructionsTitle as StyleProp<TextStyle>,
+                        { marginBottom: theme.spacing.sm },
+                      ]}
+                    >
+                      Camera Permission Required
+                    </Text>
+                    <Text
+                      style={[
+                        styles.instructionText as StyleProp<TextStyle>,
+                        { fontSize: 13, marginBottom: theme.spacing.md },
+                      ]}
+                    >
+                      To measure your heart rate, Maak Health needs access to your camera. The camera will only be used to detect blood volume changes in your fingertip - no photos or videos will be saved.
+                    </Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.startButton as ViewStyle,
+                        {
+                          backgroundColor: theme.colors.primary.main,
+                          marginTop: theme.spacing.sm,
+                        },
+                      ]}
+                      onPress={async () => {
+                        const granted = await requestCameraPermission(true);
+                        if (!granted) {
+                          // Show option to open settings if permission still denied
+                          Alert.alert(
+                            "Permission Denied",
+                            "Camera permission is required. Would you like to open Settings to enable it?",
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              { text: "Open Settings", onPress: openSettings },
+                            ]
+                          );
+                        }
+                      }}
+                    >
+                      <CheckCircle color={theme.colors.neutral.white} size={20} />
+                      <Text style={styles.startButtonText as StyleProp<TextStyle>}>
+                        Grant Camera Permission
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
                 <TouchableOpacity
                   style={styles.startButton as ViewStyle}
                   onPress={startMeasurement}
+                  disabled={permissionDenied}
                 >
                   <CheckCircle color={theme.colors.neutral.white} size={20} />
                   <Text style={styles.startButtonText as StyleProp<TextStyle>}>
                     Start Measurement
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Back Button */}
+                <TouchableOpacity
+                  style={styles.backButton as ViewStyle}
+                  onPress={() => {
+                    resetState();
+                    onClose();
+                  }}
+                >
+                  <ChevronLeft color={theme.colors.text.secondary} size={20} />
+                  <Text style={styles.backButtonText as StyleProp<TextStyle>}>
+                    Back
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1423,8 +1649,60 @@ export default function PPGVitalMonitorVisionCamera({
                 <Text style={styles.errorText as StyleProp<TextStyle>}>
                   {error}
                 </Text>
+                {permissionDenied && (
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.button as ViewStyle,
+                        {
+                          backgroundColor: theme.colors.primary.main,
+                          marginTop: theme.spacing.md,
+                        },
+                      ]}
+                      onPress={async () => {
+                        const granted = await requestCameraPermission(true);
+                        if (!granted) {
+                          // Show option to open settings if permission still denied
+                          Alert.alert(
+                            "Permission Denied",
+                            "Camera permission is required. Would you like to open Settings to enable it?",
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              { text: "Open Settings", onPress: openSettings },
+                            ]
+                          );
+                        } else {
+                          // Permission granted, reset error state
+                          setError(null);
+                          setStatus("instructions");
+                        }
+                      }}
+                    >
+                      <Text style={styles.buttonText as StyleProp<TextStyle>}>
+                        Grant Camera Permission
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.button as ViewStyle,
+                        {
+                          backgroundColor: theme.colors.secondary.main,
+                          marginTop: theme.spacing.sm,
+                        },
+                      ]}
+                      onPress={openSettings}
+                    >
+                      <Text style={styles.buttonText as StyleProp<TextStyle>}>
+                        Open Settings
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
                 <TouchableOpacity
-                  style={styles.button as ViewStyle}
+                  style={[
+                    styles.button as ViewStyle,
+                    { marginTop: permissionDenied ? theme.spacing.sm : 0 },
+                  ]}
                   onPress={() => {
                     resetState();
                     onClose();

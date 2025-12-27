@@ -153,6 +153,35 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
     );
   }, [selectedFilter.id, onFilterChange, isRTL]);
 
+  const optionsToShow = useMemo(() => {
+    return isExpanded || !shouldShowExpansion
+      ? filterOptions
+      : filterOptions.slice(0, 15);
+  }, [filterOptions, isExpanded, shouldShowExpansion]);
+
+  const filterOptionsContent = useMemo(() => {
+    return (
+      <View style={styles.filtersGrid}>
+        {optionsToShow.map(renderFilterOption)}
+      </View>
+    );
+  }, [optionsToShow, renderFilterOption]);
+
+  const selectedIndicatorText = useMemo(() => {
+    switch (selectedFilter.type) {
+      case "family":
+        return isRTL
+          ? `عرض بيانات العائلة (${familyMembers.length} أعضاء)`
+          : `Viewing Family Data (${familyMembers.length} members)`;
+      case "member":
+        return isRTL
+          ? `عرض بيانات ${selectedFilter.memberName}`
+          : `Viewing ${selectedFilter.memberName}'s Data`;
+      default:
+        return isRTL ? "عرض بياناتي الشخصية" : "Viewing My Personal Data";
+    }
+  }, [selectedFilter.type, selectedFilter.memberName, familyMembers.length, isRTL]);
+
   // Don't render if no family or if there's only personal option available
   if (!hasFamily || filterOptions.length === 1) {
     return null;
@@ -190,17 +219,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
           showsHorizontalScrollIndicator={false}
           style={styles.filtersScroll}
         >
-          {useMemo(() => {
-            const optionsToShow = isExpanded || !shouldShowExpansion
-              ? filterOptions
-              : filterOptions.slice(0, 15);
-            
-            return (
-              <View style={styles.filtersGrid}>
-                {optionsToShow.map(renderFilterOption)}
-              </View>
-            );
-          }, [filterOptions, isExpanded, shouldShowExpansion, renderFilterOption])}
+          {filterOptionsContent}
         </ScrollView>
       </Animated.View>
 
@@ -213,20 +232,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
             isRTL && styles.selectedIndicatorTextRTL,
           ]}
         >
-          {useMemo(() => {
-            switch (selectedFilter.type) {
-              case "family":
-                return isRTL
-                  ? `عرض بيانات العائلة (${familyMembers.length} أعضاء)`
-                  : `Viewing Family Data (${familyMembers.length} members)`;
-              case "member":
-                return isRTL
-                  ? `عرض بيانات ${selectedFilter.memberName}`
-                  : `Viewing ${selectedFilter.memberName}'s Data`;
-              default:
-                return isRTL ? "عرض بياناتي الشخصية" : "Viewing My Personal Data";
-            }
-          }, [selectedFilter.type, selectedFilter.memberName, familyMembers.length, isRTL])}
+          {selectedIndicatorText}
         </Text>
       </View>
     </View>

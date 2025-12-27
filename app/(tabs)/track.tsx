@@ -2,6 +2,7 @@ import { router, useFocusEffect } from "expo-router";
 import {
   Activity,
   ChevronRight,
+  Droplet,
   FileText,
   Heart,
   Pill,
@@ -12,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Modal,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -22,7 +24,6 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import PPGVitalMonitor from "@/components/PPGVitalMonitorVisionCamera";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { healthDataService, type VitalSigns } from "@/lib/services/healthDataService";
@@ -38,6 +39,35 @@ import type {
   User as UserType,
 } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
+
+// Lazy load PPG component to prevent tab from failing if component has issues
+// Use the real vision camera version for actual PPG measurements
+let PPGVitalMonitor: any = null;
+let PPGVitalMonitorLoadError: Error | null = null;
+
+// Try to load the real vision camera version first
+try {
+  const { Platform } = require("react-native");
+  if (Platform.OS !== "web") {
+    PPGVitalMonitor = require("@/components/PPGVitalMonitorVisionCamera").default;
+    console.log("PPGVitalMonitorVisionCamera (real PPG) component loaded successfully");
+  } else {
+    // On web, use simulated version
+    PPGVitalMonitor = require("@/components/PPGVitalMonitor").default;
+    console.log("PPGVitalMonitor (simulated) component loaded for web platform");
+  }
+} catch (error) {
+  PPGVitalMonitorLoadError = error as Error;
+  console.error("PPGVitalMonitorVisionCamera component could not be loaded:", error);
+  
+  // Fallback to simulated version if vision camera fails
+  try {
+    PPGVitalMonitor = require("@/components/PPGVitalMonitor").default;
+    console.log("Fell back to simulated PPGVitalMonitor component");
+  } catch (fallbackError) {
+    console.error("Fallback PPGVitalMonitor also failed:", fallbackError);
+  }
+}
 
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
@@ -804,8 +834,7 @@ export default function TrackScreen() {
                   ] as StyleProp<ViewStyle>
                 }
               >
-                <TouchableOpacity
-                  onPress={() => setShowPPGMonitor(true)}
+                <View
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -857,13 +886,17 @@ export default function TrackScreen() {
                       : "Measure heart rate, HRV & respiratory rate using camera"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => setShowPPGMonitor(true)}
+                    onPress={() => {
+                      console.log("Measure button pressed");
+                      setShowPPGMonitor(true);
+                    }}
                     style={
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.accent.error },
                       ] as StyleProp<ViewStyle>
                     }
+                    activeOpacity={0.7}
                   >
                     <Heart color={theme.colors.neutral.white} size={16} />
                     <Text
@@ -874,7 +907,7 @@ export default function TrackScreen() {
                       {isRTL ? "قياس" : "Measure"}
                     </Text>
                   </TouchableOpacity>
-                </TouchableOpacity>
+                </View>
               </View>
             </View>
 
@@ -1424,7 +1457,7 @@ export default function TrackScreen() {
       </ScrollView>
 
       {/* PPG Heart Rate Monitor Modal */}
-      {user && (
+      {user && PPGVitalMonitor && (
         <PPGVitalMonitor
           visible={showPPGMonitor}
           userId={user.id}
@@ -1433,6 +1466,48 @@ export default function TrackScreen() {
           }}
           onClose={() => setShowPPGMonitor(false)}
         />
+      )}
+      
+      {/* Show error modal if component failed to load */}
+      {user && !PPGVitalMonitor && showPPGMonitor && (
+        <Modal
+          visible={showPPGMonitor}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setShowPPGMonitor(false)}
+        >
+          <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary, padding: theme.spacing.xl }}>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+              <Text style={{ ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary), marginBottom: theme.spacing.md, textAlign: "center" }}>
+                Component Not Available
+              </Text>
+              <Text style={{ ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary), textAlign: "center", marginBottom: theme.spacing.lg }}>
+                {PPGVitalMonitorLoadError 
+                  ? "The vital signs monitor component could not be loaded due to a compatibility issue. Please try restarting the app or updating to the latest version."
+                  : "The vital signs monitor is not available on this platform."}
+              </Text>
+              {PPGVitalMonitorLoadError && (
+                <Text style={{ ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary), textAlign: "center", marginBottom: theme.spacing.lg, fontFamily: "monospace" }}>
+                  {PPGVitalMonitorLoadError.message}
+                </Text>
+              )}
+              <TouchableOpacity
+                onPress={() => setShowPPGMonitor(false)}
+                style={{
+                  backgroundColor: theme.colors.primary.main,
+                  paddingHorizontal: theme.spacing.xl,
+                  paddingVertical: theme.spacing.base,
+                  borderRadius: theme.borderRadius.lg,
+                  marginTop: theme.spacing.lg,
+                }}
+              >
+                <Text style={{ ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white) }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </Modal>
       )}
     </SafeAreaView>
   );

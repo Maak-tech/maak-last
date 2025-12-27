@@ -1,0 +1,24 @@
+{
+  "name": "expo-revenuecat-directory",
+  "version": "1.0.0",
+  "description": "Expo module to ensure RevenueCat cache directory exists on iOS",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {},
+  "keywords": [
+    "expo",
+    "revenuecat",
+    "ios",
+    "directory",
+    "cache"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "expo-modules-core": "~3.0.29"
+  },
+  "devDependencies": {
+    "expo-module-scripts": "^3.0.0"
+  }
+}
+

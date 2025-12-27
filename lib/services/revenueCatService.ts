@@ -7,6 +7,7 @@ import Purchases, {
 } from "react-native-purchases";
 import { Platform } from "react-native";
 import { logger } from "@/lib/utils/logger";
+import { ensureRevenueCatDirectory } from "@/modules/expo-revenuecat-directory";
 
 // RevenueCat API Key
 const REVENUECAT_API_KEY = "test_vluBajsHEoAjMjzoArPVpklOCRc";
@@ -75,15 +76,54 @@ class RevenueCatService {
     // Create and store the initialization promise
     this.initializationPromise = (async () => {
       try {
+        // Ensure RevenueCat cache directory exists before initialization
+        // This prevents NSCocoaErrorDomain Code=4 errors on iOS
+        if (Platform.OS === "ios") {
+          try {
+            // Call the native module synchronously to ensure directory exists before configure
+            const directoryCreated = await ensureRevenueCatDirectory();
+            if (!directoryCreated) {
+              logger.warn(
+                "Failed to ensure RevenueCat directory exists before initialization. " +
+                "RevenueCat may attempt to create it automatically.",
+                undefined,
+                "RevenueCatService"
+              );
+            } else {
+              logger.info(
+                "RevenueCat cache directory ensured successfully",
+                undefined,
+                "RevenueCatService"
+              );
+            }
+            // Add a small delay to ensure directory is fully created and writable
+            // This prevents race conditions where RevenueCat tries to cache immediately after configure
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          } catch (dirError) {
+            // Log but don't fail initialization - RevenueCat SDK will handle retry
+            logger.warn(
+              "Error ensuring RevenueCat directory exists",
+              dirError,
+              "RevenueCatService"
+            );
+            // Add a delay before proceeding to allow any native operations to complete
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+        }
+
         // Configure RevenueCat with API key
         await Purchases.configure({
           apiKey: REVENUECAT_API_KEY,
         });
 
-        // Enable debug logs in development
-        if (__DEV__) {
-          Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG);
-        }
+        // Set log level to suppress non-critical cache errors
+        // The cache error (NSCocoaErrorDomain Code=4) is a known non-critical SDK issue
+        // where RevenueCat tries to cache data but the directory doesn't exist yet.
+        // The SDK handles this internally and will create the directory automatically.
+        // This error appears in native iOS logs but doesn't affect functionality.
+        // Using WARN level suppresses INFO/DEBUG noise while still showing important errors.
+        // Note: The native iOS SDK may still log this error directly, but it's harmless.
+        Purchases.setLogLevel(Purchases.LOG_LEVEL.WARN);
 
         this.isInitialized = true;
       } catch (error) {
@@ -103,16 +143,50 @@ class RevenueCatService {
    * Waits for initialization to complete if it's in progress
    */
   async setUserId(userId: string): Promise<void> {
-    // Wait for initialization to complete (either already done or in progress)
-    await this.initialize();
+    try {
+      // Wait for initialization to complete (either already done or in progress)
+      await this.initialize();
+    } catch (initError) {
+      // If initialization fails, log but don't throw - allow app to continue
+      logger.error("RevenueCat initialization failed in setUserId", initError, "RevenueCatService");
+      // Don't throw - allow the app to continue without RevenueCat
+      return;
+    }
 
     try {
+      // Check if the user is already logged in with the same ID to avoid redundant logIn calls
+      // This prevents the warning: "The appUserID passed to logIn is the same as the one already cached"
+      try {
+        // Only check if SDK is initialized
+        if (!this.isInitialized) {
+          // SDK not initialized, proceed with login attempt
+          await Purchases.logIn(userId);
+          await this.refreshCustomerInfo();
+          return;
+        }
+
+        const customerInfo = await Purchases.getCustomerInfo();
+        const currentAppUserId = customerInfo.originalAppUserId;
+        if (currentAppUserId === userId) {
+          // User is already logged in with this ID, just refresh customer info
+          await this.refreshCustomerInfo();
+          return;
+        }
+      } catch (checkError: any) {
+        // If we can't get customer info (e.g., first time user, network error, etc.), proceed with login
+        // This is not critical, so we continue with the login attempt
+        logger.error("Failed to check current RevenueCat user ID", checkError, "RevenueCatService");
+      }
+
+      // User ID is different or couldn't be determined, proceed with login
       await Purchases.logIn(userId);
       // Refresh customer info after setting user ID
       await this.refreshCustomerInfo();
     } catch (error) {
+      // Don't throw RevenueCat errors - they shouldn't block authentication
+      // Log the error but allow the app to continue
       logger.error("Failed to set RevenueCat user ID", error, "RevenueCatService");
-      throw error;
+      // Don't throw - RevenueCat errors shouldn't prevent user from signing in
     }
   }
 

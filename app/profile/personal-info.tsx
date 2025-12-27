@@ -168,7 +168,7 @@ export default function PersonalInfoScreen() {
                 avatarType={user?.avatarType}
                 name={user?.firstName}
                 size="xl"
-                style={{ width: 120, height: 120 }}
+                style={{ width: 200, height: 200 }}
               />
             </TouchableOpacity>
             <View style={styles.statusBadge}>

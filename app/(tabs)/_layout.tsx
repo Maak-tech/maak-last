@@ -39,22 +39,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="track"
         options={{
-          title: t("track") || "Track",
+          title: "Track",
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Activity color={color} size={size || 24} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="symptoms"
-        options={{
-          href: null, // Access via track tab
-        }}
-      />
-      <Tabs.Screen
-        name="moods"
-        options={{
-          href: null, // Access via track tab
         }}
       />
       <Tabs.Screen
@@ -82,6 +70,18 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <User color={color} size={size || 24} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="symptoms"
+        options={{
+          href: null, // Access via track tab
+        }}
+      />
+      <Tabs.Screen
+        name="moods"
+        options={{
+          href: null, // Access via track tab
         }}
       />
       <Tabs.Screen

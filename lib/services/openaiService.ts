@@ -40,8 +40,19 @@ class OpenAIService {
       // Get API keys from app config (server-side, not user-provided)
       // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
-      this.apiKey = config?.openaiApiKey || null;
-      this.zeinaApiKey = config?.zeinaApiKey || config?.openaiApiKey || null; // Fallback to openaiApiKey if zeinaApiKey not set
+      // Treat empty strings as null - normalize API keys
+      const normalizeKey = (key: any): string | null => {
+        if (!key || typeof key !== 'string') return null;
+        const trimmed = key.trim();
+        return trimmed === "" ? null : trimmed;
+      };
+      
+      const openaiKey = normalizeKey(config?.openaiApiKey);
+      const zeinaKey = normalizeKey(config?.zeinaApiKey);
+      
+      this.apiKey = openaiKey;
+      // Fallback to openaiApiKey if zeinaApiKey not set or empty
+      this.zeinaApiKey = zeinaKey || openaiKey;
       
       // API key validation handled in getApiKey method
     } catch (error) {
@@ -61,12 +72,12 @@ class OpenAIService {
     
     // Return the requested key type, fail explicitly if not available
     if (shouldUseZeinaKey) {
-      if (!this.zeinaApiKey) {
-        throw new Error("Zeina API key not configured. Premium features require zeinaApiKey to be set.");
+      if (!this.zeinaApiKey || (typeof this.zeinaApiKey === 'string' && this.zeinaApiKey.trim() === "")) {
+        throw new Error("Zeina API key not configured. Please set OPENAI_API_KEY in your .env file.");
       }
       return this.zeinaApiKey;
     } else {
-      if (!this.apiKey) {
+      if (!this.apiKey || (typeof this.apiKey === 'string' && this.apiKey.trim() === "")) {
         throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
       }
       return this.apiKey;

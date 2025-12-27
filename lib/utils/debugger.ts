@@ -4,6 +4,7 @@
  * Comprehensive debugging tools for React Native app
  */
 
+import React from 'react';
 import { Platform } from 'react-native';
 import { logger } from './logger';
 
@@ -329,7 +330,7 @@ export class DebugErrorBoundary extends React.Component<
     if (this.state.hasError) {
       const FallbackComponent = this.props.fallback;
       if (FallbackComponent) {
-        return <FallbackComponent error={this.state.error} />;
+        return React.createElement(FallbackComponent, { error: this.state.error });
       }
       
       return React.createElement('div', {

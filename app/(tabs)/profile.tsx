@@ -390,7 +390,7 @@ export default function ProfileScreen() {
               name={user?.firstName}
               size="xl"
               onPress={() => setAvatarCreatorVisible(true)}
-              style={{ width: 120, height: 120 }}
+              style={{ width: 200, height: 200 }}
             />
           </View>
 
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarContainer: {
-    marginBottom: 16,
+    marginBottom: 0,
   },
   avatar: {
     width: 80,
@@ -777,6 +777,7 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     alignItems: "center",
+    marginTop: -8,
   },
   userName: {
     fontSize: 24,

@@ -45,33 +45,22 @@ export const Avatar: React.FC<AvatarProps> = ({
   const effectiveHeight = styleHeight ?? currentSize.height;
   const effectiveBorderRadius = Math.min(effectiveWidth, effectiveHeight) / 2;
 
-  const getAvatarUrl = (type?: AvatarType): string => {
-    // Use DiceBear Notionists API for premium vector avatars
-    // Notionists style provides high-quality, scalable vector avatars with modern, professional appearance
-    // IMPORTANT: Using PNG format for React Native Image component compatibility
-    // React Native's Image component only supports: png, jpg, jpeg, bmp, gif, webp, psd
-    // SVG URLs are NOT supported natively by React Native Image component
-    const baseUrl = "https://api.dicebear.com/7.x/notionists/png";
-    
-    // Create consistent seeds for each avatar type
-    // The seed parameter ensures the same avatar is generated each time
-    const avatarSeeds: Record<string, string> = {
-      man: "professional-male-adult-business",
-      woman: "professional-female-adult-business",
-      boy: "young-male-student",
-      girl: "young-female-student",
-      grandma: "elderly-female-grandmother",
-      grandpa: "elderly-male-grandfather"
+  const getAvatarEmoji = (type?: AvatarType): string => {
+    // Emoji mapping for avatar types - matching the sign up page
+    const avatarEmojis: Record<string, string> = {
+      man: "👨🏻",
+      woman: "👩🏻",
+      boy: "👦🏻",
+      girl: "👧🏻",
+      grandma: "👵🏻",
+      grandpa: "👴🏻"
     };
 
-    if (!type || !avatarSeeds[type]) {
+    if (!type || !avatarEmojis[type]) {
       return "";
     }
 
-    const seed = avatarSeeds[type];
-    // Premium vector avatars with enhanced styling options
-    // Using neutral, professional background colors and enhanced features
-    return `${baseUrl}?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50`;
+    return avatarEmojis[type];
   };
 
   const getInitials = (name?: string): string => {
@@ -107,18 +96,16 @@ export const Avatar: React.FC<AvatarProps> = ({
     }
 
     if (avatarType) {
-      const avatarUrl = getAvatarUrl(avatarType);
-      if (avatarUrl) {
+      const emoji = getAvatarEmoji(avatarType);
+      if (emoji) {
         return (
-          <Image
-            resizeMode="cover"
-            source={{ uri: avatarUrl }}
+          <Text
             style={{
-              width: effectiveWidth,
-              height: effectiveHeight,
-              borderRadius: effectiveBorderRadius,
+              fontSize: currentSize.fontSize * 2.5, // Make emoji larger
             }}
-          />
+          >
+            {emoji}
+          </Text>
         );
       }
     }
