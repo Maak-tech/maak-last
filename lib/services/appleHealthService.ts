@@ -303,11 +303,6 @@ const fetchMetrics = async (
         );
     }
 
-    // Debug logging
-    console.log(
-      `[HealthKit Service] Fetching ${metricsToFetch.length} metrics for ${selectedMetricKeys.length} selected keys`
-    );
-
     // Track metrics that failed due to authorization
     const authorizationDeniedMetrics: string[] = [];
 
@@ -315,9 +310,6 @@ const fetchMetrics = async (
     for (const metric of metricsToFetch) {
       try {
         if (!metric.appleHealth?.type) {
-          console.log(
-            `[HealthKit Service] Skipping metric ${metric.key}: no HealthKit type`
-          );
           continue;
         }
 
@@ -325,10 +317,6 @@ const fetchMetrics = async (
           metric.appleHealth.type,
           startDate,
           endDate
-        );
-
-        console.log(
-          `[HealthKit Service] Fetched ${samples.length} samples for ${metric.key} (${metric.appleHealth.type})`
         );
 
         if (samples.length > 0) {
@@ -344,9 +332,6 @@ const fetchMetrics = async (
         // Check if this is an authorization-denied error
         if (isAuthorizationDeniedError(error) || (error as any).isAuthorizationDenied) {
           authorizationDeniedMetrics.push(metric.displayName || metric.key);
-          console.warn(
-            `[HealthKit Service] Authorization denied for ${metric.key} (${metric.displayName}). User needs to grant permission in Settings > Privacy & Security > Health.`
-          );
           // Continue with other metrics - authorization denied is handled gracefully
           continue;
         }
@@ -357,18 +342,6 @@ const fetchMetrics = async (
         );
         // Continue with other metrics even if one fails
       }
-    }
-
-    // Log summary
-    const totalSamples = results.reduce((sum, m) => sum + m.samples.length, 0);
-    console.log(
-      `[HealthKit Service] Total metrics fetched: ${results.length}, total samples: ${totalSamples}`
-    );
-    
-    if (authorizationDeniedMetrics.length > 0) {
-      console.warn(
-        `[HealthKit Service] ${authorizationDeniedMetrics.length} metric(s) skipped due to authorization denial: ${authorizationDeniedMetrics.join(", ")}. Grant permissions in Settings > Privacy & Security > Health.`
-      );
     }
 
     return results;

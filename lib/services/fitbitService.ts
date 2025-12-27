@@ -313,19 +313,12 @@ export const fitbitService = {
             });
 
             if (!response.ok) {
-              console.warn(
-                `[Fitbit Service] Failed to fetch ${metricKey} for ${dateStr}: ${response.statusText}`
-              );
               return null;
             }
 
             const data = await response.json();
             return { metricKey, metric, data, dateStr };
           } catch (error) {
-            console.warn(
-              `[Fitbit Service] Error fetching ${metricKey} for ${dateStr}:`,
-              error
-            );
             return null;
           }
         });
@@ -583,7 +576,8 @@ export const fitbitService = {
         }
 
         default:
-          console.warn(`[Fitbit Service] Unknown metric key: ${metricKey}`);
+          // Unknown metric key - skip
+          break;
       }
     } catch (error) {
       console.error(`[Fitbit Service] Error parsing ${metricKey}:`, error);
@@ -621,7 +615,6 @@ export const fitbitService = {
         }
       } catch (error) {
         // Ignore revocation errors
-        console.warn("[Fitbit Service] Token revocation failed:", error);
       }
 
       // Remove tokens

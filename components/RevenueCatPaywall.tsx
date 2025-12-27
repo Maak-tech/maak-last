@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
-import type { CustomerInfo } from "react-native-purchases";
-import PaywallView from "react-native-purchases-ui";
+import type { CustomerInfo, PurchasesError, PurchasesStoreTransaction } from "react-native-purchases";
+import RevenueCatUI from "react-native-purchases-ui";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 
 interface RevenueCatPaywallProps {
@@ -48,9 +48,9 @@ export function RevenueCatPaywall({
   }
 
   return (
-    <PaywallView
-      offering={offerings}
-      onPurchaseCompleted={(customerInfo: CustomerInfo) => {
+    <RevenueCatUI.Paywall
+      options={{ offering: offerings }}
+      onPurchaseCompleted={({ customerInfo, storeTransaction }: { customerInfo: CustomerInfo; storeTransaction: PurchasesStoreTransaction }) => {
         Alert.alert(
           t("subscription.purchaseSuccess"),
           t("subscription.purchaseSuccessMessage"),
@@ -64,15 +64,15 @@ export function RevenueCatPaywall({
           ]
         );
       }}
-      onRestoreCompleted={(customerInfo: CustomerInfo) => {
+      onRestoreCompleted={({ customerInfo }: { customerInfo: CustomerInfo }) => {
         Alert.alert(
           t("subscription.restoreSuccess"),
           t("subscription.restoreSuccessMessage")
         );
       }}
-      onError={(error: { code: string; message?: string }) => {
+      onPurchaseError={({ error }: { error: PurchasesError }) => {
         // Don't show error for user cancellation
-        if (error.code !== "USER_CANCELLED") {
+        if (!error.userCancelled) {
           Alert.alert(
             t("subscription.purchaseError"),
             error.message || t("subscription.purchaseErrorMessage")

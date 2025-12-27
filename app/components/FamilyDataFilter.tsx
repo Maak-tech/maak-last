@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, User, Users } from "lucide-react-native";
 import type React from "react";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -39,12 +39,11 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
 }) => {
   const { i18n } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [animatedHeight] = useState(new Animated.Value(60)); // Initial collapsed height
+  const [animatedHeight] = useState(new Animated.Value(60));
 
-  const isRTL = i18n.language === "ar";
+  const isRTL = useMemo(() => i18n.language === "ar", [i18n.language]);
 
-  // Generate filter options dynamically
-  const generateFilterOptions = (): FilterOption[] => {
+  const filterOptions = useMemo((): FilterOption[] => {
     const options: FilterOption[] = [
       {
         id: "personal",
@@ -53,42 +52,36 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
       },
     ];
 
-    // Allow both admins and members to view family data
     if (hasFamily && familyMembers.length > 1) {
-      // Add family overview option
       options.push({
         id: "family",
         type: "family",
         label: isRTL ? "بيانات العائلة" : "Family Overview",
       });
 
-      // Add individual member filters
       familyMembers
         .filter((member) => member.id !== currentUserId)
         .forEach((member) => {
+          const memberName = member.firstName && member.lastName
+            ? `${member.firstName} ${member.lastName}`
+            : member.firstName || "User";
+          
           options.push({
             id: member.id,
             type: "member",
-            label:
-              member.firstName && member.lastName
-                ? `${member.firstName} ${member.lastName}`
-                : member.firstName || "User",
+            label: memberName,
             memberId: member.id,
-            memberName:
-              member.firstName && member.lastName
-                ? `${member.firstName} ${member.lastName}`
-                : member.firstName || "User",
+            memberName,
           });
         });
     }
 
     return options;
-  };
+  }, [familyMembers, currentUserId, hasFamily, isRTL]);
 
-  const filterOptions = generateFilterOptions();
-  const shouldShowExpansion = filterOptions.length > 15; // Show expansion if more than 15 options
+  const shouldShowExpansion = filterOptions.length > 15;
 
-  const toggleExpansion = () => {
+  const toggleExpansion = useCallback(() => {
     const newHeight = isExpanded
       ? 60
       : Math.min(240, 60 + Math.ceil((filterOptions.length - 15) / 3) * 40);
@@ -100,10 +93,30 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
     }).start();
 
     setIsExpanded(!isExpanded);
-  };
+  }, [isExpanded, filterOptions.length, animatedHeight]);
 
-  const renderFilterOption = (option: FilterOption) => {
+  const renderFilterOption = useCallback((option: FilterOption) => {
     const isSelected = selectedFilter.id === option.id;
+    const iconColor = isSelected ? "#FFFFFF" : "#64748B";
+
+    const renderIcon = () => {
+      switch (option.type) {
+        case "personal":
+          return <User color={iconColor} size={16} style={styles.filterIcon} />;
+        case "family":
+          return <Users color={iconColor} size={16} style={styles.filterIcon} />;
+        case "member":
+          return (
+            <View style={[styles.memberAvatar, isSelected && styles.memberAvatarSelected]}>
+              <Text style={[styles.memberAvatarText, isSelected && styles.memberAvatarTextSelected]}>
+                {option.memberName?.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          );
+        default:
+          return null;
+      }
+    };
 
     return (
       <TouchableOpacity
@@ -116,37 +129,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
         ]}
       >
         <View style={styles.filterContent}>
-          {option.type === "personal" && (
-            <User
-              color={isSelected ? "#FFFFFF" : "#64748B"}
-              size={16}
-              style={styles.filterIcon}
-            />
-          )}
-          {option.type === "family" && (
-            <Users
-              color={isSelected ? "#FFFFFF" : "#64748B"}
-              size={16}
-              style={styles.filterIcon}
-            />
-          )}
-          {option.type === "member" && (
-            <View
-              style={[
-                styles.memberAvatar,
-                isSelected && styles.memberAvatarSelected,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.memberAvatarText,
-                  isSelected && styles.memberAvatarTextSelected,
-                ]}
-              >
-                {option.memberName?.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
+          {renderIcon()}
           <Text
             numberOfLines={1}
             style={[
@@ -160,25 +143,15 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
         </View>
 
         {option.type === "member" && (
-          <View
-            style={[
-              styles.memberBadge,
-              isSelected && styles.memberBadgeSelected,
-            ]}
-          >
-            <Text
-              style={[
-                styles.memberBadgeText,
-                isSelected && styles.memberBadgeTextSelected,
-              ]}
-            >
+          <View style={[styles.memberBadge, isSelected && styles.memberBadgeSelected]}>
+            <Text style={[styles.memberBadgeText, isSelected && styles.memberBadgeTextSelected]}>
               {isRTL ? "عضو" : "Member"}
             </Text>
           </View>
         )}
       </TouchableOpacity>
     );
-  };
+  }, [selectedFilter.id, onFilterChange, isRTL]);
 
   // Don't render if no family or if there's only personal option available
   if (!hasFamily || filterOptions.length === 1) {
@@ -217,17 +190,17 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
           showsHorizontalScrollIndicator={false}
           style={styles.filtersScroll}
         >
-          {isExpanded || !shouldShowExpansion ? (
-            // Show all filters when expanded or when expansion not needed
-            <View style={styles.filtersGrid}>
-              {filterOptions.map(renderFilterOption)}
-            </View>
-          ) : (
-            // Show limited filters when collapsed
-            filterOptions
-              .slice(0, 15)
-              .map(renderFilterOption)
-          )}
+          {useMemo(() => {
+            const optionsToShow = isExpanded || !shouldShowExpansion
+              ? filterOptions
+              : filterOptions.slice(0, 15);
+            
+            return (
+              <View style={styles.filtersGrid}>
+                {optionsToShow.map(renderFilterOption)}
+              </View>
+            );
+          }, [filterOptions, isExpanded, shouldShowExpansion, renderFilterOption])}
         </ScrollView>
       </Animated.View>
 
@@ -240,17 +213,20 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
             isRTL && styles.selectedIndicatorTextRTL,
           ]}
         >
-          {selectedFilter.type === "family"
-            ? isRTL
-              ? `عرض بيانات العائلة (${familyMembers.length} أعضاء)`
-              : `Viewing Family Data (${familyMembers.length} members)`
-            : selectedFilter.type === "member"
-              ? isRTL
-                ? `عرض بيانات ${selectedFilter.memberName}`
-                : `Viewing ${selectedFilter.memberName}'s Data`
-              : isRTL
-                ? "عرض بياناتي الشخصية"
-                : "Viewing My Personal Data"}
+          {useMemo(() => {
+            switch (selectedFilter.type) {
+              case "family":
+                return isRTL
+                  ? `عرض بيانات العائلة (${familyMembers.length} أعضاء)`
+                  : `Viewing Family Data (${familyMembers.length} members)`;
+              case "member":
+                return isRTL
+                  ? `عرض بيانات ${selectedFilter.memberName}`
+                  : `Viewing ${selectedFilter.memberName}'s Data`;
+              default:
+                return isRTL ? "عرض بياناتي الشخصية" : "Viewing My Personal Data";
+            }
+          }, [selectedFilter.type, selectedFilter.memberName, familyMembers.length, isRTL])}
         </Text>
       </View>
     </View>

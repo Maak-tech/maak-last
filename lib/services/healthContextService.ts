@@ -6,6 +6,7 @@ import {
   limit,
   orderBy,
   query,
+  type QuerySnapshot,
   where,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -64,6 +65,7 @@ export interface HealthContext {
     email?: string;
     phone?: string;
     healthStatus?: string;
+    recentSymptoms?: string[];
   }>;
   recentAlerts: Array<{
     type: string;
@@ -90,21 +92,73 @@ class HealthContextService {
     }
 
     try {
-      // Fetch user profile
+      // Fetch user profile first (needed for familyId)
       const userDoc = await getDoc(doc(db, "users", uid));
       const userData = userDoc.data() || {};
 
-      // Fetch ALL medications (both active and inactive for context)
+      // Prepare date for symptoms query
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      // Parallelize independent queries for better performance
+      const results = await Promise.allSettled([
+        // Medications query
+        getDocs(
+          query(
+            collection(db, "medications"),
+            where("userId", "==", uid)
+          )
+        ),
+        // Symptoms query
+        getDocs(
+          query(
+            collection(db, "symptoms"),
+            where("userId", "==", uid),
+            where("timestamp", ">=", ninetyDaysAgo),
+            orderBy("timestamp", "desc"),
+            limit(50)
+          )
+        ),
+        // Medical history query
+        getDocs(
+          query(
+            collection(db, "medicalHistory"),
+            where("userId", "==", uid),
+            orderBy("diagnosedDate", "desc")
+          )
+        ),
+        // Alerts query
+        getDocs(
+          query(
+            collection(db, "alerts"),
+            where("userId", "==", uid),
+            orderBy("timestamp", "desc"),
+            limit(20)
+          )
+        ),
+        // Family members query (only if familyId exists)
+        userData.familyId
+          ? getDocs(
+              query(
+                collection(db, "users"),
+                where("familyId", "==", userData.familyId)
+              )
+            )
+          : getDocs(query(collection(db, "users"), limit(0))),
+      ]);
+
+      const [
+        medicationsSnapshot,
+        symptomsSnapshot,
+        historySnapshot,
+        alertsSnapshot,
+        familySnapshot,
+      ] = results;
+
+      // Process medications
       let medications: HealthContext["medications"] = [];
-      try {
-        // Query without orderBy to avoid index requirement, then sort in memory
-        const medicationsQuery = query(
-          collection(db, "medications"),
-          where("userId", "==", uid)
-        );
-        const medicationsSnapshot = await getDocs(medicationsQuery);
-        // Use temporary type with _startDate for sorting
-        const medicationsWithSort = medicationsSnapshot.docs.map((doc) => {
+      if (medicationsSnapshot.status === "fulfilled") {
+        const medicationsWithSort = medicationsSnapshot.value.docs.map((doc) => {
           const data = doc.data();
           return {
             name: data.name || "Unknown medication",
@@ -113,37 +167,21 @@ class HealthContextService {
             startDate: data.startDate?.toDate?.()?.toLocaleDateString() || "",
             endDate: data.endDate?.toDate?.()?.toLocaleDateString() || "",
             notes: data.notes || "",
-            isActive: data.isActive !== false, // Default to true if not specified
+            isActive: data.isActive !== false,
             reminders: data.reminders || [],
-            // Keep raw date for sorting
             _startDate: data.startDate?.toDate?.() || new Date(0),
           };
         });
-        // Sort by startDate descending in memory
         medicationsWithSort.sort(
           (a, b) => b._startDate.getTime() - a._startDate.getTime()
         );
-        // Remove temporary sorting field
         medications = medicationsWithSort.map(({ _startDate, ...med }) => med);
-      } catch (error) {
-        // Silently handle error
       }
 
-      // Fetch ALL symptoms (extended time range)
+      // Process symptoms
       let symptoms: HealthContext["symptoms"] = [];
-      try {
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-        const symptomsQuery = query(
-          collection(db, "symptoms"),
-          where("userId", "==", uid),
-          where("timestamp", ">=", ninetyDaysAgo),
-          orderBy("timestamp", "desc"),
-          limit(50)
-        );
-        const symptomsSnapshot = await getDocs(symptomsQuery);
-        symptoms = symptomsSnapshot.docs.map((doc) => {
+      if (symptomsSnapshot.status === "fulfilled") {
+        symptoms = symptomsSnapshot.value.docs.map((doc) => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -158,24 +196,15 @@ class HealthContextService {
             notes: data.notes || data.description || "",
           };
         });
-      } catch (error) {
-        // Silently handle error
       }
 
-      // Fetch medical history
+      // Process medical history
       const medicalHistoryData: HealthContext["medicalHistory"]["conditions"] =
         [];
       const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] =
         [];
-      try {
-        const historyQuery = query(
-          collection(db, "medicalHistory"),
-          where("userId", "==", uid),
-          orderBy("diagnosedDate", "desc")
-        );
-        const historySnapshot = await getDocs(historyQuery);
-
-        historySnapshot.docs.forEach((doc) => {
+      if (historySnapshot.status === "fulfilled") {
+        historySnapshot.value.docs.forEach((doc) => {
           const data = doc.data();
           const entry = {
             condition: data.condition || data.name || "",
@@ -192,77 +221,12 @@ class HealthContextService {
             medicalHistoryData.push(entry);
           }
         });
-      } catch (error) {
-        // Silently handle error
       }
 
-      // Fetch family members
-      const familyMembers = [];
-      try {
-        if (userData.familyId) {
-          const familyQuery = query(
-            collection(db, "users"),
-            where("familyId", "==", userData.familyId)
-          );
-          const familySnapshot = await getDocs(familyQuery);
-
-          for (const familyDoc of familySnapshot.docs) {
-            if (familyDoc.id !== uid) {
-              const memberData = familyDoc.data();
-
-              // Fetch recent symptoms for family member
-              let memberSymptoms = [];
-              try {
-                const memberSymptomsQuery = query(
-                  collection(db, "symptoms"),
-                  where("userId", "==", familyDoc.id),
-                  orderBy("timestamp", "desc"),
-                  limit(5)
-                );
-                const memberSymptomsSnapshot =
-                  await getDocs(memberSymptomsQuery);
-                memberSymptoms = memberSymptomsSnapshot.docs.map(
-                  (doc) => doc.data().name || doc.data().symptom
-                );
-              } catch (e) {
-                // Silently fail for family member symptoms
-              }
-
-              familyMembers.push({
-                id: familyDoc.id,
-                name:
-                  memberData.name || memberData.displayName || "Family Member",
-                relationship:
-                  memberData.relationship ||
-                  memberData.relation ||
-                  memberData.role ||
-                  "Family Member",
-                age: memberData.age,
-                conditions: memberData.conditions || [],
-                email: memberData.email,
-                phone: memberData.phone || memberData.emergencyPhone,
-                healthStatus:
-                  memberSymptoms.length > 0 ? "Has recent symptoms" : "Good",
-                recentSymptoms: memberSymptoms,
-              });
-            }
-          }
-        }
-      } catch (error) {
-        // Silently handle error
-      }
-
-      // Fetch recent alerts
+      // Process alerts
       let recentAlerts: HealthContext["recentAlerts"] = [];
-      try {
-        const alertsQuery = query(
-          collection(db, "alerts"),
-          where("userId", "==", uid),
-          orderBy("timestamp", "desc"),
-          limit(20)
-        );
-        const alertsSnapshot = await getDocs(alertsQuery);
-        recentAlerts = alertsSnapshot.docs.map((doc) => {
+      if (alertsSnapshot.status === "fulfilled") {
+        recentAlerts = alertsSnapshot.value.docs.map((doc) => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -272,8 +236,63 @@ class HealthContextService {
             severity: data.severity || "info",
           };
         });
-      } catch (error) {
-        // Silently handle error
+      }
+
+      // Process family members (optimize N+1 query problem)
+      const familyMembers: HealthContext["familyMembers"] = [];
+      if (
+        familySnapshot.status === "fulfilled" &&
+        familySnapshot.value.docs.length > 0
+      ) {
+        const familyDocs = familySnapshot.value.docs.filter(
+          (doc) => doc.id !== uid
+        );
+
+        // Batch fetch symptoms for all family members at once
+        const familyMemberIds = familyDocs.map((doc) => doc.id);
+        const familySymptomsPromises = familyMemberIds.map((memberId) =>
+          getDocs(
+            query(
+              collection(db, "symptoms"),
+              where("userId", "==", memberId),
+              orderBy("timestamp", "desc"),
+              limit(5)
+            )
+          ).catch(() => getDocs(query(collection(db, "symptoms"), limit(0))))
+        );
+
+        const familySymptomsResults = await Promise.allSettled(
+          familySymptomsPromises
+        );
+
+        familyDocs.forEach((familyDoc, index) => {
+          const memberData = familyDoc.data();
+          const symptomsResult = familySymptomsResults[index];
+          const memberSymptoms =
+            symptomsResult.status === "fulfilled"
+              ? symptomsResult.value.docs.map(
+                  (doc) => doc.data().name || doc.data().symptom
+                )
+              : [];
+
+          familyMembers.push({
+            id: familyDoc.id,
+            name:
+              memberData.name || memberData.displayName || "Family Member",
+            relationship:
+              memberData.relationship ||
+              memberData.relation ||
+              memberData.role ||
+              "Family Member",
+            age: memberData.age,
+            conditions: memberData.conditions || [],
+            email: memberData.email,
+            phone: memberData.phone || memberData.emergencyPhone,
+            healthStatus:
+              memberSymptoms.length > 0 ? "Has recent symptoms" : "Good",
+            recentSymptoms: memberSymptoms,
+          });
+        });
       }
 
       // Construct comprehensive health context

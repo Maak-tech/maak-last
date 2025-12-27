@@ -95,6 +95,7 @@ export default function PPGVitalMonitorVisionCamera({
   const [recordingTime, setRecordingTime] = useState(0);
   const [fingerDetectionFailed, setFingerDetectionFailed] = useState(false);
   const [frameProcessingErrors, setFrameProcessingErrors] = useState(0);
+  const [saveFailed, setSaveFailed] = useState(false);
 
   const frameCountRef = useRef(0);
   const ppgSignalRef = useRef<number[]>([]);
@@ -509,6 +510,7 @@ export default function PPGVitalMonitorVisionCamera({
     setRecordingTime(0);
     setFingerDetectionFailed(false);
     setFrameProcessingErrors(0);
+    setSaveFailed(false);
     consecutiveNoFingerFrames.current = 0;
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -537,8 +539,9 @@ export default function PPGVitalMonitorVisionCamera({
       fingerDetectedRef.current = false;
       setFingerDetectionFailed(false);
       setStatus("measuring");
-    } catch (err: any) {
-      setError(err.message || "Measurement failed");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Measurement failed";
+      setError(errorMessage);
       setStatus("error");
     }
   };
@@ -624,7 +627,6 @@ export default function PPGVitalMonitorVisionCamera({
       }
       
       // Extract red channel average from center of frame using pixel extractor
-      // The extractRedChannelAverage function is marked as 'worklet' so it can run here
       const redAverage = extractRedChannelAverage(frame);
       
       // Validate extracted value
@@ -637,30 +639,27 @@ export default function PPGVitalMonitorVisionCamera({
       
       frameCountRef.current++;
     } catch (error) {
-      // Handle frame processing errors
-      // Increment error counter and use fallback value
+      // Handle frame processing errors with fallback
       runOnJS(handleFrameProcessingError)(frameCountRef.current);
       runOnJS(processPPGFrameData)(128, frameCountRef.current);
       frameCountRef.current++;
     }
-  }, [isCapturingRef]);
+  }, []);
 
   const processPPGFrameData = useCallback((redAverage: number, frameIndex: number) => {
     if (!isCapturingRef.current) {
       return;
     }
 
-    // Validate red average value (should be 0-255)
-    if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
-      redAverage = 128; // Use neutral fallback
-    }
-
+    // Validate and clamp red average value
+    const clampedValue = Math.max(0, Math.min(255, isNaN(redAverage) ? 128 : redAverage));
+    
     // Add to PPG signal
-    ppgSignalRef.current.push(redAverage);
+    ppgSignalRef.current.push(clampedValue);
 
     // Update progress
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
-    setProgress(elapsed / MEASUREMENT_DURATION);
+    setProgress(Math.min(1, elapsed / MEASUREMENT_DURATION));
 
     // Real-time signal quality validation (every 30 frames)
     if (ppgSignalRef.current.length >= 30 && ppgSignalRef.current.length % 30 === 0) {
@@ -671,7 +670,6 @@ export default function PPGVitalMonitorVisionCamera({
       
       // Check for signal quality issues
       if (stdDev < 2) {
-        // Signal too uniform - might indicate finger not properly placed
         consecutiveNoFingerFrames.current += 30;
         if (consecutiveNoFingerFrames.current > 180) {
           setFingerDetectionFailed(true);
@@ -683,20 +681,29 @@ export default function PPGVitalMonitorVisionCamera({
       }
     }
 
-    // Estimate beats from signal
-    if (ppgSignalRef.current.length > 30) {
+  // Optimized beat detection with time-based calculation
+  if (ppgSignalRef.current.length > 30) {
+    const signal = ppgSignalRef.current;
+    const timeElapsed = (Date.now() - startTimeRef.current) / 1000;
+    
+    // Use time-based beat rate calculation instead of scaling peaks
+    if (timeElapsed > 10) { // Only calculate after 10 seconds for stability
+      const recentSignal = signal.slice(-Math.min(signal.length, TARGET_FPS * 10)); // Last 10 seconds
       let peaks = 0;
-      for (let i = 1; i < ppgSignalRef.current.length - 1; i++) {
-        if (
-          ppgSignalRef.current[i] > ppgSignalRef.current[i - 1] &&
-          ppgSignalRef.current[i] > ppgSignalRef.current[i + 1]
-        ) {
+      
+      for (let i = 1; i < recentSignal.length - 1; i++) {
+        if (recentSignal[i] > recentSignal[i - 1] && recentSignal[i] > recentSignal[i + 1]) {
           peaks++;
         }
       }
-      const estimatedBeats = Math.min(peaks, Math.floor((elapsed / 60) * 90));
-      setBeatsDetected(estimatedBeats);
+      
+      // Calculate beats per minute from actual time window
+      const timeWindow = Math.min(10, timeElapsed);
+      const beatsPerMinute = (peaks / timeWindow) * 60;
+      const estimatedBeats = Math.floor((timeElapsed / 60) * Math.min(beatsPerMinute, 120));
+      setBeatsDetected(Math.min(estimatedBeats, Math.floor(timeElapsed * 1.5)));
     }
+  }
   }, []);
 
   const stopPPGCapture = async () => {
@@ -799,12 +806,22 @@ export default function PPGVitalMonitorVisionCamera({
       setRespiratoryRate(ppgResult.respiratoryRate || null);
       setSignalQuality(ppgResult.signalQuality);
 
-      await saveVitalToFirestore(
+      const saveSuccess = await saveVitalToFirestore(
         ppgResult.heartRate,
         ppgResult.signalQuality,
         ppgResult.heartRateVariability,
         ppgResult.respiratoryRate
       );
+
+      if (!saveSuccess) {
+        // Measurement succeeded but save failed - show warning but still show success
+        setSaveFailed(true);
+        setError(
+          'Measurement completed successfully, but failed to save data to your health records. ' +
+          'Please try again or check your internet connection.'
+        );
+        // Still show success status since measurement itself was successful
+      }
 
       setStatus("success");
       onMeasurementComplete?.({
@@ -822,11 +839,11 @@ export default function PPGVitalMonitorVisionCamera({
     signalQuality: number,
     hrv?: number,
     respiratoryRate?: number
-  ) => {
+  ): Promise<boolean> => {
     try {
       const currentUserId = auth.currentUser?.uid;
       if (!currentUserId) {
-        return;
+        return false;
       }
 
       const heartRateData = {
@@ -871,9 +888,15 @@ export default function PPGVitalMonitorVisionCamera({
         };
         await addDoc(collection(db, "vitals"), respiratoryData);
       }
-    } catch (err: any) {
-      // Failed to save vital to Firestore
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save vital signs data';
+      console.error('Failed to save vital to Firestore:', err);
+      
+      // Return false to indicate save failure - caller will handle user notification
+      return false;
     }
+    
+    return true;
   };
 
   const getStatusMessage = () => {
@@ -1349,16 +1372,41 @@ export default function PPGVitalMonitorVisionCamera({
                   )}
                 </View>
 
-                <Text
-                  style={
-                    [
-                      styles.instructionText as StyleProp<TextStyle>,
-                      { paddingHorizontal: theme.spacing.md },
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  Your vital signs have been saved to your health records.
-                </Text>
+                {saveFailed && error && (
+                  <View
+                    style={{
+                      backgroundColor: theme.colors.accent.warning + '20',
+                      borderRadius: theme.borderRadius.md,
+                      padding: theme.spacing.md,
+                      marginTop: theme.spacing.lg,
+                      marginHorizontal: theme.spacing.md,
+                      borderLeftWidth: 4,
+                      borderLeftColor: theme.colors.accent.warning,
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.errorText as StyleProp<TextStyle>,
+                        { color: theme.colors.accent.warning },
+                      ]}
+                    >
+                      {error}
+                    </Text>
+                  </View>
+                )}
+
+                {!saveFailed && (
+                  <Text
+                    style={
+                      [
+                        styles.instructionText as StyleProp<TextStyle>,
+                        { paddingHorizontal: theme.spacing.md },
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    Your vital signs have been saved to your health records.
+                  </Text>
+                )}
                 <TouchableOpacity
                   style={styles.button as ViewStyle}
                   onPress={onClose}

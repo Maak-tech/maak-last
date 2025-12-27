@@ -170,35 +170,39 @@ export function processPPGSignalEnhanced(
   }
 
   try {
+    // Validate signal values
+    const validSignal = signal.filter(val => !isNaN(val) && val >= 0 && val <= 255);
+    if (validSignal.length < signal.length * 0.8) {
+      return {
+        success: false,
+        signalQuality: 0,
+        error: "Too many invalid signal values",
+      };
+    }
+
     // Normalize signal to 0-1 range
-    const min = Math.min(...signal);
-    const max = Math.max(...signal);
-    const normalized = signal.map((val) => (val - min) / (max - min || 1));
-
-    // Apply multi-order filtering (2nd to 6th order Butterworth filters)
-    const filteredSignals: number[][] = [];
-    const orders = [2, 3, 4, 5, 6];
-
-    for (const order of orders) {
-      const filtered = applyButterworthFilter(normalized, order, frameRate);
-      filteredSignals.push(filtered);
+    const min = Math.min(...validSignal);
+    const max = Math.max(...validSignal);
+    const range = max - min;
+    
+    if (range < 5) {
+      return {
+        success: false,
+        signalQuality: 0,
+        error: "Signal variation too low",
+      };
     }
+    
+    const normalized = validSignal.map((val) => (val - min) / range);
 
-    // Average all filtered signals
-    const averaged = new Array(normalized.length).fill(0);
-    for (let i = 0; i < normalized.length; i++) {
-      let sum = 0;
-      for (const filtered of filteredSignals) {
-        sum += filtered[i] || 0;
-      }
-      averaged[i] = sum / filteredSignals.length;
-    }
+    // Apply optimized filtering
+    const filtered = applyOptimizedFilter(normalized, frameRate);
 
-    // Calculate heart rate using FFT
-    const heartRate = calculateHeartRateFromFFT(averaged, frameRate);
+    // Calculate heart rate using improved peak detection
+    const heartRate = calculateHeartRateOptimized(filtered, frameRate);
 
-    // Calculate signal quality (skewness check from research)
-    const signalQuality = calculateSignalQuality(averaged);
+    // Calculate signal quality
+    const signalQuality = calculateSignalQualityOptimized(filtered);
 
     // Validate heart rate (normal range: 40-200 BPM)
     if (heartRate < 40 || heartRate > 200) {
@@ -209,11 +213,9 @@ export function processPPGSignalEnhanced(
       };
     }
 
-    // Calculate Heart Rate Variability (HRV) from peak intervals
-    const hrv = calculateHRV(averaged, frameRate);
-
-    // Calculate Respiratory Rate from PPG signal envelope
-    const respiratoryRate = calculateRespiratoryRate(averaged, frameRate);
+    // Calculate additional metrics
+    const hrv = calculateHRVOptimized(filtered, frameRate);
+    const respiratoryRate = calculateRespiratoryRateOptimized(filtered, frameRate);
 
     return {
       success: true,
@@ -232,27 +234,23 @@ export function processPPGSignalEnhanced(
 }
 
 /**
- * Apply Butterworth filter to signal
- * Simplified implementation for low-order filters
+ * Apply optimized filter to signal (simplified but effective)
  */
-function applyButterworthFilter(
+function applyOptimizedFilter(
   signal: number[],
-  order: number,
   frameRate: number
 ): number[] {
-  // Simplified Butterworth filter implementation
-  // Cutoff frequency: 0.5-4 Hz (30-240 BPM range)
-  const cutoffLow = 0.5 / (frameRate / 2); // Normalized frequency
-  const cutoffHigh = 4.0 / (frameRate / 2);
-
-  // Simple moving average as approximation for low-order filters
+  // Use a simple but effective moving average filter
   const windowSize = Math.max(3, Math.floor(frameRate / 4));
   const filtered: number[] = [];
 
   for (let i = 0; i < signal.length; i++) {
     let sum = 0;
     let count = 0;
-    for (let j = Math.max(0, i - windowSize); j <= Math.min(signal.length - 1, i + windowSize); j++) {
+    const start = Math.max(0, i - windowSize);
+    const end = Math.min(signal.length - 1, i + windowSize);
+    
+    for (let j = start; j <= end; j++) {
       sum += signal[j];
       count++;
     }
@@ -263,25 +261,30 @@ function applyButterworthFilter(
 }
 
 /**
- * Calculate heart rate using FFT (Fast Fourier Transform)
+ * Optimized heart rate calculation using peak detection
  */
-function calculateHeartRateFromFFT(signal: number[], frameRate: number): number {
-  // Simplified FFT-based heart rate calculation
-  // Find dominant frequency in the 0.67-3.33 Hz range (40-200 BPM)
-
-  const n = signal.length;
-  const dt = 1 / frameRate;
-
-  // Find peaks in the signal (simplified approach)
+function calculateHeartRateOptimized(signal: number[], frameRate: number): number {
+  // Find peaks with minimum distance constraint
+  const minPeakDistance = Math.floor(frameRate * 0.4); // Minimum 0.4s between peaks (150 BPM max)
   const peaks: number[] = [];
-  for (let i = 1; i < n - 1; i++) {
-    if (signal[i] > signal[i - 1] && signal[i] > signal[i + 1]) {
-      peaks.push(i);
+  
+  // Calculate threshold as percentage of signal range
+  const min = Math.min(...signal);
+  const max = Math.max(...signal);
+  const threshold = min + (max - min) * 0.3; // 30% above minimum
+  
+  for (let i = 1; i < signal.length - 1; i++) {
+    if (signal[i] > signal[i - 1] && 
+        signal[i] > signal[i + 1] && 
+        signal[i] > threshold) {
+      // Check minimum distance from last peak
+      if (peaks.length === 0 || i - peaks[peaks.length - 1] >= minPeakDistance) {
+        peaks.push(i);
+      }
     }
   }
 
   if (peaks.length < 2) {
-    // Fallback: estimate from signal period
     return estimateHeartRateFromPeriod(signal, frameRate);
   }
 
@@ -291,11 +294,157 @@ function calculateHeartRateFromFFT(signal: number[], frameRate: number): number 
     intervals.push(peaks[i] - peaks[i - 1]);
   }
 
-  const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-  const period = avgInterval * dt; // seconds
+  // Remove outliers (values more than 50% different from median)
+  intervals.sort((a, b) => a - b);
+  const median = intervals[Math.floor(intervals.length / 2)];
+  
+  // Guard against division by zero - if median is 0, skip filtering
+  const filteredIntervals = median > 0
+    ? intervals.filter(interval => 
+        Math.abs(interval - median) / median < 0.5
+      )
+    : intervals;
+
+  if (filteredIntervals.length === 0) {
+    return estimateHeartRateFromPeriod(signal, frameRate);
+  }
+
+  const avgInterval = filteredIntervals.reduce((a, b) => a + b, 0) / filteredIntervals.length;
+  const period = avgInterval / frameRate; // seconds
   const heartRate = 60 / period; // BPM
 
   return heartRate;
+}
+
+/**
+ * Optimized signal quality calculation
+ */
+function calculateSignalQualityOptimized(signal: number[]): number {
+  const n = signal.length;
+  if (n === 0) return 0;
+
+  // Calculate basic statistics
+  const mean = signal.reduce((a, b) => a + b, 0) / n;
+  const variance = signal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / n;
+  const stdDev = Math.sqrt(variance);
+
+  // Quality based on signal-to-noise ratio
+  let quality = 1.0;
+
+  // Penalize low variation (too uniform)
+  if (stdDev < 0.05) {
+    quality *= stdDev / 0.05;
+  }
+
+  // Penalize excessive variation (too noisy)
+  if (stdDev > 0.3) {
+    quality *= Math.max(0, 1 - (stdDev - 0.3) / 0.5);
+  }
+
+  return Math.max(0, Math.min(1, quality));
+}
+
+/**
+ * Optimized HRV calculation
+ */
+function calculateHRVOptimized(signal: number[], frameRate: number): number | undefined {
+  try {
+    const peaks: number[] = [];
+    const threshold = 0.3; // 30% of signal range
+    
+    for (let i = 1; i < signal.length - 1; i++) {
+      if (signal[i] > signal[i - 1] && 
+          signal[i] > signal[i + 1] && 
+          signal[i] > threshold) {
+        peaks.push(i);
+      }
+    }
+
+    if (peaks.length < 3) return undefined;
+
+    // Calculate R-R intervals in milliseconds
+    const rrIntervals: number[] = [];
+    for (let i = 1; i < peaks.length; i++) {
+      const interval = (peaks[i] - peaks[i - 1]) * (1000 / frameRate);
+      if (interval > 300 && interval < 2000) { // Valid R-R interval range
+        rrIntervals.push(interval);
+      }
+    }
+
+    if (rrIntervals.length < 2) return undefined;
+
+    // Calculate RMSSD
+    let sumSquaredDiffs = 0;
+    for (let i = 1; i < rrIntervals.length; i++) {
+      const diff = rrIntervals[i] - rrIntervals[i - 1];
+      sumSquaredDiffs += diff * diff;
+    }
+
+    const rmssd = Math.sqrt(sumSquaredDiffs / (rrIntervals.length - 1));
+    return rmssd;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Optimized respiratory rate calculation
+ */
+function calculateRespiratoryRateOptimized(
+  signal: number[],
+  frameRate: number
+): number | undefined {
+  try {
+    // Extract envelope using larger window for respiratory component
+    const windowSize = Math.floor(frameRate * 3); // 3-second window
+    const envelope: number[] = [];
+
+    for (let i = 0; i < signal.length; i++) {
+      let sum = 0;
+      let count = 0;
+      const start = Math.max(0, i - windowSize);
+      const end = Math.min(signal.length - 1, i + windowSize);
+      
+      for (let j = start; j <= end; j++) {
+        sum += signal[j];
+        count++;
+      }
+      envelope.push(sum / count);
+    }
+
+    // Find breathing peaks with appropriate spacing
+    const minBreathDistance = Math.floor(frameRate * 2); // Minimum 2s between breaths (30 breaths/min max)
+    const breathingPeaks: number[] = [];
+    
+    for (let i = 1; i < envelope.length - 1; i++) {
+      if (envelope[i] > envelope[i - 1] && envelope[i] > envelope[i + 1]) {
+        if (breathingPeaks.length === 0 || i - breathingPeaks[breathingPeaks.length - 1] >= minBreathDistance) {
+          breathingPeaks.push(i);
+        }
+      }
+    }
+
+    if (breathingPeaks.length < 2) return undefined;
+
+    // Calculate average breathing interval
+    const intervals: number[] = [];
+    for (let i = 1; i < breathingPeaks.length; i++) {
+      intervals.push(breathingPeaks[i] - breathingPeaks[i - 1]);
+    }
+
+    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const period = avgInterval / frameRate; // seconds per breath
+    const respiratoryRate = 60 / period; // breaths per minute
+
+    // Validate respiratory rate (normal range: 6-30 breaths/min)
+    if (respiratoryRate < 6 || respiratoryRate > 30) {
+      return undefined;
+    }
+
+    return respiratoryRate;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -327,142 +476,7 @@ function estimateHeartRateFromPeriod(signal: number[], frameRate: number): numbe
   return heartRate;
 }
 
-/**
- * Calculate Heart Rate Variability (HRV) from PPG signal
- * HRV is the variation in time between consecutive heartbeats
- * Measured as RMSSD (Root Mean Square of Successive Differences)
- */
-function calculateHRV(signal: number[], frameRate: number): number | undefined {
-  try {
-    // Find peaks (R-R intervals)
-    const peaks: number[] = [];
-    for (let i = 1; i < signal.length - 1; i++) {
-      if (signal[i] > signal[i - 1] && signal[i] > signal[i + 1]) {
-        peaks.push(i);
-      }
-    }
 
-    if (peaks.length < 3) return undefined;
-
-    // Calculate R-R intervals in milliseconds
-    const rrIntervals: number[] = [];
-    for (let i = 1; i < peaks.length; i++) {
-      const interval = (peaks[i] - peaks[i - 1]) * (1000 / frameRate);
-      rrIntervals.push(interval);
-    }
-
-    // Calculate RMSSD (Root Mean Square of Successive Differences)
-    let sumSquaredDiffs = 0;
-    for (let i = 1; i < rrIntervals.length; i++) {
-      const diff = rrIntervals[i] - rrIntervals[i - 1];
-      sumSquaredDiffs += diff * diff;
-    }
-
-    const rmssd = Math.sqrt(sumSquaredDiffs / (rrIntervals.length - 1));
-    return rmssd;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Calculate Respiratory Rate from PPG signal
- * Respiratory rate can be derived from low-frequency variations in PPG envelope
- * Typically 0.1-0.5 Hz (6-30 breaths per minute)
- */
-function calculateRespiratoryRate(
-  signal: number[],
-  frameRate: number
-): number | undefined {
-  try {
-    // Extract envelope of PPG signal (low-frequency component)
-    // Use moving average to smooth signal and extract envelope
-    const windowSize = Math.floor(frameRate * 2); // 2-second window
-    const envelope: number[] = [];
-
-    for (let i = 0; i < signal.length; i++) {
-      let sum = 0;
-      let count = 0;
-      for (
-        let j = Math.max(0, i - windowSize);
-        j <= Math.min(signal.length - 1, i + windowSize);
-        j++
-      ) {
-        sum += signal[j];
-        count++;
-      }
-      envelope.push(sum / count);
-    }
-
-    // Find peaks in envelope (breathing cycles)
-    const breathingPeaks: number[] = [];
-    for (let i = 1; i < envelope.length - 1; i++) {
-      if (envelope[i] > envelope[i - 1] && envelope[i] > envelope[i + 1]) {
-        breathingPeaks.push(i);
-      }
-    }
-
-    if (breathingPeaks.length < 2) return undefined;
-
-    // Calculate average breathing interval
-    const intervals: number[] = [];
-    for (let i = 1; i < breathingPeaks.length; i++) {
-      intervals.push(breathingPeaks[i] - breathingPeaks[i - 1]);
-    }
-
-    const avgInterval =
-      intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const period = avgInterval / frameRate; // seconds per breath
-    const respiratoryRate = 60 / period; // breaths per minute
-
-    // Validate respiratory rate (normal range: 12-20 breaths/min, but can be 6-30)
-    if (respiratoryRate < 6 || respiratoryRate > 30) {
-      return undefined;
-    }
-
-    return respiratoryRate;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Calculate signal quality based on skewness and variance
- * Research shows skewness < 13% indicates good quality
- */
-function calculateSignalQuality(signal: number[]): number {
-  const n = signal.length;
-  if (n === 0) return 0;
-
-  // Calculate mean
-  const mean = signal.reduce((a, b) => a + b, 0) / n;
-
-  // Calculate variance
-  const variance =
-    signal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / n;
-
-  // Calculate skewness
-  const skewness =
-    signal.reduce((sum, val) => sum + Math.pow(val - mean, 3), 0) /
-    (n * Math.pow(variance, 1.5));
-
-  // Normalize skewness to percentage
-  const skewnessPercent = Math.abs(skewness) * 100;
-
-  // Quality score: 1.0 if skewness < 13%, decreasing linearly to 0 at 50%
-  let quality = 1.0;
-  if (skewnessPercent > 13) {
-    quality = Math.max(0, 1.0 - (skewnessPercent - 13) / 37);
-  }
-
-  // Also consider variance (too low = poor signal)
-  const stdDev = Math.sqrt(variance);
-  if (stdDev < 0.01) {
-    quality *= 0.5; // Penalize low variance signals
-  }
-
-  return Math.max(0, Math.min(1, quality));
-}
 
 /**
  * Multimodal fusion: Combine fingerprint and PPG scores

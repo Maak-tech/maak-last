@@ -13,7 +13,7 @@ import {
   Clock, 
   Zap
 } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -35,6 +35,7 @@ import {
 } from "@/lib/utils/BiometricUtils";
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
+import { createPPGStyles } from "./PPGVitalMonitor/styles";
 
 interface PPGVitalMonitorProps {
   visible: boolean;
@@ -177,394 +178,242 @@ export default function PPGVitalMonitor({
     return progressMilestones[0];
   };
 
-  const styles = createThemedStyles((theme) => ({
-    modal: {
-      flex: 1,
-      backgroundColor: theme.colors.background.primary,
-    },
-    container: {
-      flex: 1,
-    },
-    scrollContent: {
-      flexGrow: 1,
-      padding: theme.spacing.lg,
-      paddingTop: theme.spacing.xl + 40, // Add extra top padding to avoid overlap with close button
-      paddingBottom: theme.spacing.xl, // Add bottom padding to prevent content cutoff
-    },
-    cameraContainer: {
-      width: "100%",
-      height: 280,
-      borderRadius: theme.borderRadius.lg,
-      overflow: "hidden",
-      marginBottom: theme.spacing.xl,
-      backgroundColor: theme.colors.background.secondary,
-      ...theme.shadows.md,
-    },
-    camera: {
-      flex: 1,
-    },
-    content: {
-      alignItems: "center",
-      width: "100%",
-    },
-    header: {
-      width: "100%",
-      alignItems: "center",
-      marginBottom: theme.spacing.xl,
-    },
-    title: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
-      fontSize: 28,
-      marginBottom: theme.spacing.sm,
-      textAlign: "center",
-    },
-    subtitle: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      textAlign: "center",
-      marginBottom: theme.spacing.lg,
-      flexWrap: "wrap",
-      paddingHorizontal: theme.spacing.sm,
-    },
-    statusText: {
-      ...getTextStyle(theme, "subheading", "semibold", theme.colors.primary.main),
-      marginTop: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
-    },
-    progressBar: {
-      width: "100%",
-      height: 8,
-      backgroundColor: theme.colors.border.light,
-      borderRadius: theme.borderRadius.md,
-      overflow: "hidden",
-      marginVertical: theme.spacing.lg,
-    },
-    progressFill: {
-      height: "100%",
-      backgroundColor: theme.colors.primary.main,
-      borderRadius: theme.borderRadius.md,
-    },
-    heartRateText: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.accent.error),
-      fontSize: 56,
-      marginVertical: theme.spacing.lg,
-      letterSpacing: -1,
-    },
-    heartRateContainer: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.xl,
-      padding: theme.spacing.xl,
-      marginVertical: theme.spacing.lg,
-      alignItems: "center",
-      width: "100%",
-      ...theme.shadows.md,
-    },
-    qualityText: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
-      marginTop: 10,
-    },
-    button: {
-      backgroundColor: theme.colors.primary.main,
-      paddingHorizontal: theme.spacing.xl,
-      paddingVertical: theme.spacing.base,
-      borderRadius: theme.borderRadius.lg,
-      marginTop: theme.spacing.lg,
-      minWidth: 200,
-      alignItems: "center",
-      ...theme.shadows.md,
-    },
-    buttonText: {
-      ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
-    },
-    closeButton: {
-      position: "absolute",
-      top: theme.spacing.lg,
-      right: theme.spacing.lg,
-      zIndex: 1000,
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.full,
-      padding: theme.spacing.sm,
-      width: 40,
-      height: 40,
-      justifyContent: "center",
-      alignItems: "center",
-      ...theme.shadows.md,
-      elevation: 10, // Android elevation to ensure button is above ScrollView (set after spread to override)
-    },
-    errorText: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.accent.error),
-      textAlign: "center",
-      marginTop: theme.spacing.md,
-      paddingHorizontal: theme.spacing.lg,
-    },
-    instructionText: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      textAlign: "center",
-      marginTop: theme.spacing.md,
-      paddingHorizontal: theme.spacing.lg,
-      lineHeight: 22,
-      flexWrap: "wrap",
-    },
-    successContainer: {
-      alignItems: "center",
-      marginTop: theme.spacing.xl,
-      width: "100%",
-    },
-    successCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.xl,
-      padding: theme.spacing.xl,
-      width: "100%",
-      alignItems: "center",
-      marginBottom: theme.spacing.lg,
-      ...theme.shadows.md,
-    },
-    instructionsContainer: {
-      width: "100%",
-    },
-    instructionsCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginBottom: theme.spacing.lg,
-      ...theme.shadows.md,
-    },
-    instructionsHeader: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.lg,
-    },
-    instructionsHeaderIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.primary[50],
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginRight: theme.spacing.md,
-    },
-    instructionsTitle: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
-      flex: 1,
-    },
-    instructionItem: {
-      flexDirection: "row" as const,
-      alignItems: "flex-start" as const,
-      marginBottom: theme.spacing.md,
-    },
-    instructionNumber: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: theme.colors.primary.main,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginRight: theme.spacing.md,
-      marginTop: 2,
-    },
-    instructionNumberText: {
-      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
-      fontSize: 12,
-    },
-    instructionItemText: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-      flex: 1,
-      lineHeight: 22,
-      flexWrap: "wrap",
-    },
-    tipsCard: {
-      backgroundColor: theme.colors.secondary[50],
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginBottom: theme.spacing.lg,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
-    },
-    tipsHeader: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.md,
-    },
-    tipsHeaderIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.colors.secondary.main + "20",
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginRight: theme.spacing.sm,
-    },
-    tipsTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.secondary.dark),
-    },
-    tipItem: {
-      flexDirection: "row" as const,
-      alignItems: "flex-start" as const,
-      marginBottom: theme.spacing.sm,
-    },
-    tipBullet: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.colors.secondary.main,
-      marginTop: 8,
-      marginRight: theme.spacing.sm,
-    },
-    tipText: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-      flex: 1,
-      lineHeight: 20,
-      flexWrap: "wrap",
-    },
-    startButton: {
-      backgroundColor: theme.colors.primary.main,
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing.base,
-      paddingHorizontal: theme.spacing.xl,
-      alignItems: "center" as const,
-      justifyContent: "center" as const,
-      flexDirection: "row" as const,
-      ...theme.shadows.md,
-    },
-    startButtonText: {
-      ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
-      marginLeft: theme.spacing.sm,
-    },
-    noteText: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-      fontStyle: "italic" as const,
-      marginTop: theme.spacing.md,
-      paddingHorizontal: theme.spacing.md,
-      textAlign: "center",
-    },
-    warningCard: {
-      backgroundColor: theme.colors.accent.warning + "15",
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginBottom: theme.spacing.lg,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.accent.warning,
-    },
-    warningHeader: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.md,
-    },
-    warningHeaderIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.colors.accent.warning + "30",
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginRight: theme.spacing.sm,
-    },
-    warningTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.accent.warning),
-    },
-    warningText: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.primary),
-      lineHeight: 20,
-      flexWrap: "wrap",
-    },
-    measuringCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      width: "100%",
-      marginTop: theme.spacing.lg,
-      ...theme.shadows.md,
-    },
-    processingContainer: {
-      alignItems: "center",
-      marginTop: theme.spacing.xl,
-      padding: theme.spacing.xl,
-    },
-    qualityBadge: {
-      backgroundColor: theme.colors.accent.success + "20",
-      borderRadius: theme.borderRadius.md,
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.sm,
-      marginTop: theme.spacing.md,
-    },
-    qualityBadgeText: {
-      ...getTextStyle(theme, "caption", "semibold", theme.colors.accent.success),
-    },
-    milestoneCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginTop: theme.spacing.md,
-      marginBottom: theme.spacing.md,
-      ...theme.shadows.sm,
-    },
-    milestoneHeader: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.sm,
-    },
-    milestoneIcon: {
-      fontSize: 24,
-      marginRight: theme.spacing.sm,
-    },
-    milestoneTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
-      flex: 1,
-    },
-    milestoneDetail: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-      marginTop: theme.spacing.xs,
-      flexWrap: "wrap",
-    },
-    milestoneProgress: {
-      ...getTextStyle(theme, "caption", "bold", theme.colors.primary.main),
-      marginTop: theme.spacing.xs,
-    },
-    beatCounterCard: {
-      backgroundColor: theme.colors.primary[50],
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
-      marginTop: theme.spacing.md,
-      flexDirection: "row" as const,
-      justifyContent: "space-between" as const,
-      alignItems: "center" as const,
-    },
-    beatCounterLabel: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
-    },
-    beatCounterValue: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
-      fontSize: 20,
-    },
-    accuracyBadge: {
-      backgroundColor: theme.colors.accent.success + "20",
-      borderRadius: theme.borderRadius.md,
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.sm,
-      marginTop: theme.spacing.md,
-      borderWidth: 1,
-      borderColor: theme.colors.accent.success + "40",
-    },
-    accuracyText: {
-      ...getTextStyle(theme, "caption", "bold", theme.colors.accent.success),
-      textAlign: "center" as const,
-    },
-    educationPanel: {
-      backgroundColor: theme.colors.secondary[50],
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginTop: theme.spacing.lg,
-      marginBottom: theme.spacing.md,
-    },
-    educationTitle: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.secondary.dark),
-      marginBottom: theme.spacing.sm,
-    },
-    educationText: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-      lineHeight: 20,
-      flexWrap: "wrap",
-    },
-  }))(theme);
+  // Memoized styles for performance
+  const styles = useMemo(() => {
+    const baseStyles = createPPGStyles(theme);
+    return {
+      ...baseStyles,
+      // Additional inline styles that need theme access
+      statusText: {
+        ...getTextStyle(theme, "subheading", "semibold", theme.colors.primary.main),
+        marginTop: theme.spacing.lg,
+        marginBottom: theme.spacing.md,
+      },
+      progressBar: {
+        width: "100%",
+        height: 8,
+        backgroundColor: theme.colors.border.light,
+        borderRadius: theme.borderRadius.md,
+        overflow: "hidden",
+        marginVertical: theme.spacing.lg,
+      },
+      progressFill: {
+        height: "100%",
+        backgroundColor: theme.colors.primary.main,
+        borderRadius: theme.borderRadius.md,
+      },
+      heartRateText: {
+        ...getTextStyle(theme, "heading", "bold", theme.colors.accent.error),
+        fontSize: 56,
+        marginVertical: theme.spacing.lg,
+        letterSpacing: -1,
+      },
+      heartRateContainer: {
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.borderRadius.xl,
+        padding: theme.spacing.xl,
+        marginVertical: theme.spacing.lg,
+        alignItems: "center",
+        width: "100%",
+        ...theme.shadows.md,
+      },
+      qualityText: {
+        ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+        marginTop: 10,
+      },
+      errorText: {
+        ...getTextStyle(theme, "body", "medium", theme.colors.accent.error),
+        textAlign: "center",
+        marginTop: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+      },
+      instructionText: {
+        ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+        textAlign: "center",
+        marginTop: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+        lineHeight: 22,
+        flexWrap: "wrap",
+      },
+      successContainer: {
+        alignItems: "center",
+        marginTop: theme.spacing.xl,
+        width: "100%",
+      },
+      successCard: {
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.borderRadius.xl,
+        padding: theme.spacing.xl,
+        width: "100%",
+        alignItems: "center",
+        marginBottom: theme.spacing.lg,
+        ...theme.shadows.md,
+      },
+      instructionsContainer: {
+        width: "100%",
+      },
+      instructionsCard: {
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.lg,
+        ...theme.shadows.md,
+      },
+      instructionsHeader: {
+        flexDirection: "row" as const,
+        alignItems: "center" as const,
+        marginBottom: theme.spacing.lg,
+      },
+      instructionsHeaderIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: theme.colors.primary[50],
+        justifyContent: "center" as const,
+        alignItems: "center" as const,
+        marginRight: theme.spacing.md,
+      },
+      instructionsTitle: {
+        ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
+        flex: 1,
+      },
+      instructionItem: {
+        flexDirection: "row" as const,
+        alignItems: "flex-start" as const,
+        marginBottom: theme.spacing.md,
+      },
+      instructionNumber: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: theme.colors.primary.main,
+        justifyContent: "center" as const,
+        alignItems: "center" as const,
+        marginRight: theme.spacing.md,
+        marginTop: 2,
+      },
+      instructionNumberText: {
+        ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
+        fontSize: 12,
+      },
+      instructionItemText: {
+        ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+        flex: 1,
+        lineHeight: 22,
+        flexWrap: "wrap",
+      },
+      tipsCard: {
+        backgroundColor: theme.colors.secondary[50],
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.lg,
+        marginBottom: theme.spacing.lg,
+        borderLeftWidth: 4,
+        borderLeftColor: theme.colors.secondary.main,
+      },
+      tipsHeader: {
+        flexDirection: "row" as const,
+        alignItems: "center" as const,
+        marginBottom: theme.spacing.md,
+      },
+      tipsHeaderIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: theme.colors.secondary.main + "20",
+        justifyContent: "center" as const,
+        alignItems: "center" as const,
+        marginRight: theme.spacing.sm,
+      },
+      tipsTitle: {
+        ...getTextStyle(theme, "body", "semibold", theme.colors.secondary.dark),
+      },
+      tipItem: {
+        flexDirection: "row" as const,
+        alignItems: "flex-start" as const,
+        marginBottom: theme.spacing.sm,
+      },
+      tipBullet: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: theme.colors.secondary.main,
+        marginTop: 8,
+        marginRight: theme.spacing.sm,
+      },
+      tipText: {
+        ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+        flex: 1,
+        lineHeight: 20,
+        flexWrap: "wrap",
+      },
+      startButton: {
+        backgroundColor: theme.colors.primary.main,
+        borderRadius: theme.borderRadius.lg,
+        paddingVertical: theme.spacing.base,
+        paddingHorizontal: theme.spacing.xl,
+        alignItems: "center" as const,
+        justifyContent: "center" as const,
+        flexDirection: "row" as const,
+        ...theme.shadows.md,
+      },
+      startButtonText: {
+        ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
+        marginLeft: theme.spacing.sm,
+      },
+      noteText: {
+        ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+        fontStyle: "italic" as const,
+        marginTop: theme.spacing.md,
+        paddingHorizontal: theme.spacing.md,
+        textAlign: "center",
+      },
+      measuringCard: {
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.lg,
+        width: "100%",
+        marginTop: theme.spacing.lg,
+        ...theme.shadows.md,
+      },
+      processingContainer: {
+        alignItems: "center",
+        marginTop: theme.spacing.xl,
+        padding: theme.spacing.xl,
+      },
+      beatCounterCard: {
+        backgroundColor: theme.colors.primary[50],
+        borderRadius: theme.borderRadius.md,
+        padding: theme.spacing.md,
+        marginTop: theme.spacing.md,
+        flexDirection: "row" as const,
+        justifyContent: "space-between" as const,
+        alignItems: "center" as const,
+      },
+      beatCounterLabel: {
+        ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+      },
+      beatCounterValue: {
+        ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
+        fontSize: 20,
+      },
+      educationPanel: {
+        backgroundColor: theme.colors.secondary[50],
+        borderRadius: theme.borderRadius.lg,
+        padding: theme.spacing.lg,
+        marginTop: theme.spacing.lg,
+        marginBottom: theme.spacing.md,
+      },
+      educationTitle: {
+        ...getTextStyle(theme, "subheading", "bold", theme.colors.secondary.dark),
+        marginBottom: theme.spacing.sm,
+      },
+      educationText: {
+        ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+        lineHeight: 20,
+        flexWrap: "wrap",
+      },
+    };
+  }, [theme]);
 
   useEffect(() => {
     if (visible && status === "idle") {
@@ -762,19 +611,20 @@ export default function PPGVitalMonitor({
         // Update progress
         setProgress(elapsed / MEASUREMENT_DURATION);
         
-        // Estimate beats from signal if we have enough data
-        // Since user confirmed finger placement, we can estimate directly from signal
-        if (ppgSignalRef.current.length > 30) {
-          // Simple peak detection to estimate beats
+        // Estimate beats from signal periodically (every 30 frames for performance)
+        if (ppgSignalRef.current.length > 30 && frameCountRef.current % 30 === 0) {
+          const recentSignal = ppgSignalRef.current.slice(-60); // Only analyze last 60 frames
           let peaks = 0;
-          for (let i = 1; i < ppgSignalRef.current.length - 1; i++) {
-            if (ppgSignalRef.current[i] > ppgSignalRef.current[i - 1] && 
-                ppgSignalRef.current[i] > ppgSignalRef.current[i + 1]) {
+          const threshold = Math.max(...recentSignal) * 0.7; // Dynamic threshold
+          
+          for (let i = 1; i < recentSignal.length - 1; i++) {
+            if (recentSignal[i] > recentSignal[i - 1] && 
+                recentSignal[i] > recentSignal[i + 1] &&
+                recentSignal[i] > threshold) {
               peaks++;
             }
           }
-          // Adjust based on elapsed time (estimate ~60-90 BPM range)
-          const estimatedBeats = Math.min(peaks, Math.floor((elapsed / 60) * 90));
+          const estimatedBeats = Math.min(peaks * 2, Math.floor((elapsed / 60) * 90));
           setBeatsDetected(estimatedBeats);
         }
 
@@ -871,19 +721,22 @@ export default function PPGVitalMonitor({
     // 3. Signal should not be too uniform (no finger = uniform signal)
     const hasVariation = stdDev > 5 && range > 15;
 
-    // Check for periodic pattern (autocorrelation)
-    // If finger is present, signal should have periodic peaks (heartbeat pattern)
+    // Optimized periodic pattern detection
     let periodicScore = 0;
-    const sampleSize = Math.min(50, signal.length);
-    for (let lag = 10; lag < sampleSize; lag++) {
-      let correlation = 0;
-      for (let i = 0; i < sampleSize - lag; i++) {
-        correlation += (signal[i] - mean) * (signal[i + lag] - mean);
-      }
-      // Avoid division by zero
-      if (variance > 0) {
-        correlation /= (sampleSize - lag) * variance;
-        if (Math.abs(correlation) > 0.3) { // Require stronger correlation
+    if (variance > 0.01) { // Early exit if variance too low
+      const sampleSize = Math.min(30, signal.length); // Reduced sample size
+      const step = Math.max(1, Math.floor(sampleSize / 10)); // Skip some lags for performance
+      
+      for (let lag = 10; lag < sampleSize; lag += step) {
+        let correlation = 0;
+        const denominator = (sampleSize - lag) * variance;
+        
+        for (let i = 0; i < sampleSize - lag; i++) {
+          correlation += (signal[i] - mean) * (signal[i + lag] - mean);
+        }
+        
+        correlation /= denominator;
+        if (Math.abs(correlation) > 0.3) {
           periodicScore++;
         }
       }
@@ -1060,7 +913,8 @@ export default function PPGVitalMonitor({
         await addDoc(collection(db, "vitals"), respiratoryData);
       }
     } catch (err: any) {
-      // Failed to save vital to Firestore
+      console.error('Failed to save vital to Firestore:', err);
+      // Could show user notification here if needed
     }
   };
 

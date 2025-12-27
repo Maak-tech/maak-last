@@ -15,6 +15,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { revenueCatService } from "@/lib/services/revenueCatService";
+import { logger } from "@/lib/utils/logger";
 import "@/lib/i18n";
 
 // Keep splash screen visible while fonts load
@@ -50,7 +51,7 @@ export default function RootLayout() {
       try {
         await revenueCatService.initialize();
       } catch (error) {
-        console.error("Failed to initialize RevenueCat:", error);
+        logger.error("Failed to initialize RevenueCat", error, "RootLayout");
         // Don't block app startup if RevenueCat fails to initialize
       }
     };

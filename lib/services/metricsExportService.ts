@@ -14,6 +14,7 @@ import { medicalHistoryService } from "./medicalHistoryService";
 import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
 import { symptomService } from "./symptomService";
+import { logger } from "@/lib/utils/logger";
 import type { MedicalHistory, Medication, Mood, Symptom } from "@/types";
 
 export type ExportFormat = "csv" | "pdf";
@@ -129,10 +130,11 @@ const fetchMetricsForExport = async (
       }
 
       allMetrics.push(...metrics);
-    } catch (error: any) {
-      console.error(
-        `[Metrics Export] Error fetching metrics from ${provider}:`,
-        error?.message || String(error)
+    } catch (error: unknown) {
+      logger.error(
+        `Error fetching metrics from ${provider}`,
+        error,
+        "MetricsExportService"
       );
       // Continue with other providers even if one fails
     }
@@ -207,7 +209,7 @@ const fetchAllHealthData = async (
           new Date(m.timestamp).getTime() <= endDate.getTime()
       );
     } catch (error) {
-      console.error("[Health Report] Error fetching health data:", error);
+      logger.error("Error fetching health data", error, "MetricsExportService");
       // Continue with vitals only if other data fails
     }
   }
@@ -926,15 +928,16 @@ export const exportMetrics = async (
         });
 
         fileUri = uri;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Check if it's a native module error or function not found
-        const errorMessage = error?.message || String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorCode = (error as { code?: string })?.code;
         const isNativeModuleError =
           errorMessage.includes("native module") ||
           errorMessage.includes("ExpoPrint") ||
           errorMessage.includes("expo-print") ||
           errorMessage.includes("is not a function") ||
-          error?.code === "ERR_MODULE_NOT_FOUND";
+          errorCode === "ERR_MODULE_NOT_FOUND";
 
         if (isNativeModuleError) {
           throw new Error(
@@ -1008,10 +1011,11 @@ export const exportMetrics = async (
         );
       }
     }
-  } catch (error: any) {
-    console.error(
-      "[Metrics Export] Export error:",
-      error?.message || String(error)
+  } catch (error: unknown) {
+    logger.error(
+      "Export error",
+      error,
+      "MetricsExportService"
     );
     throw error;
   }

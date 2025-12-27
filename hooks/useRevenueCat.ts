@@ -61,7 +61,6 @@ export function useRevenueCat(): UseRevenueCatReturn {
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Unknown error");
       setError(error);
-      console.error("Failed to load RevenueCat data:", error);
     } finally {
       setIsLoading(false);
     }

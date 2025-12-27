@@ -54,11 +54,9 @@ class OpenAIService {
     // Do not rely on instance state from previous calls
     const shouldUseZeinaKey = usePremiumKey;
     
-    if (!this.apiKey && !shouldUseZeinaKey) {
-      await this.initialize(false);
-    }
-    if (!this.zeinaApiKey && shouldUseZeinaKey) {
-      await this.initialize(true);
+    // Initialize only once if keys are not already loaded
+    if ((!this.apiKey && !shouldUseZeinaKey) || (!this.zeinaApiKey && shouldUseZeinaKey)) {
+      await this.initialize(shouldUseZeinaKey);
     }
     
     // Return the requested key type, fail explicitly if not available
@@ -99,16 +97,19 @@ class OpenAIService {
     try {
       const response = await this.createChatCompletion(messages, usePremiumKey);
 
-      // Simulate streaming by gradually revealing the response
+      // Optimized streaming: batch words together for better performance
       const words = response.split(" ");
+      const BATCH_SIZE = 3; // Process 3 words at a time
       let currentText = "";
 
-      for (let i = 0; i < words.length; i++) {
-        currentText += (i > 0 ? " " : "") + words[i];
-        onChunk((i > 0 ? " " : "") + words[i]);
+      for (let i = 0; i < words.length; i += BATCH_SIZE) {
+        const batch = words.slice(i, i + BATCH_SIZE);
+        const batchText = (i > 0 ? " " : "") + batch.join(" ");
+        currentText += batchText;
+        onChunk(batchText);
 
-        // Small delay to simulate streaming
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        // Reduced delay for better responsiveness while maintaining smooth UX
+        await new Promise((resolve) => setTimeout(resolve, 20));
       }
 
       onComplete?.();

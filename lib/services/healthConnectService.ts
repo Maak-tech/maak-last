@@ -236,18 +236,10 @@ const fetchMetrics = async (
         );
     }
 
-    // Debug logging
-    console.log(
-      `[Health Connect Service] Fetching ${metricsToFetch.length} metrics for ${selectedMetricKeys.length} selected keys`
-    );
-
     // Fetch samples for each metric
     for (const metric of metricsToFetch) {
       try {
         if (!metric.healthConnect?.recordType) {
-          console.log(
-            `[Health Connect Service] Skipping metric ${metric.key}: no Health Connect record type`
-          );
           continue;
         }
 
@@ -289,10 +281,6 @@ const fetchMetrics = async (
           // Regular metric fetching
           const samples = await fetchMetricSamples(recordType, startDate, endDate);
 
-          console.log(
-            `[Health Connect Service] Fetched ${samples.length} samples for ${metric.key} (${recordType})`
-          );
-
           if (samples.length > 0) {
             results.push({
               metricKey: metric.key,
@@ -311,12 +299,6 @@ const fetchMetrics = async (
         // Continue with other metrics even if one fails
       }
     }
-
-    // Log summary
-    const totalSamples = results.reduce((sum, m) => sum + m.samples.length, 0);
-    console.log(
-      `[Health Connect Service] Total metrics fetched: ${results.length}, total samples: ${totalSamples}`
-    );
 
     return results;
   } catch (error: any) {

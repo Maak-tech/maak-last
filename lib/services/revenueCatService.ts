@@ -1,10 +1,12 @@
 import Purchases, {
   CustomerInfo,
+  PurchasesError,
   PurchasesOffering,
   PurchasesPackage,
   PurchasesStoreProduct,
 } from "react-native-purchases";
 import { Platform } from "react-native";
+import { logger } from "@/lib/utils/logger";
 
 // RevenueCat API Key
 const REVENUECAT_API_KEY = "test_vluBajsHEoAjMjzoArPVpklOCRc";
@@ -85,7 +87,7 @@ class RevenueCatService {
 
         this.isInitialized = true;
       } catch (error) {
-        console.error("RevenueCat initialization failed:", error);
+        logger.error("RevenueCat initialization failed", error, "RevenueCatService");
         // Clear the promise on error so it can be retried
         this.initializationPromise = null;
         throw new Error("Failed to initialize RevenueCat SDK");
@@ -109,7 +111,7 @@ class RevenueCatService {
       // Refresh customer info after setting user ID
       await this.refreshCustomerInfo();
     } catch (error) {
-      console.error("Failed to set RevenueCat user ID:", error);
+      logger.error("Failed to set RevenueCat user ID", error, "RevenueCatService");
       throw error;
     }
   }
@@ -141,7 +143,7 @@ class RevenueCatService {
       await Purchases.logOut();
       this.currentCustomerInfo = null;
     } catch (error) {
-      console.error("Failed to log out from RevenueCat:", error);
+      logger.error("Failed to log out from RevenueCat", error, "RevenueCatService");
       throw error;
     }
   }
@@ -159,7 +161,7 @@ class RevenueCatService {
       this.currentCustomerInfo = customerInfo;
       return customerInfo;
     } catch (error) {
-      console.error("Failed to get customer info:", error);
+      logger.error("Failed to get customer info", error, "RevenueCatService");
       throw error;
     }
   }
@@ -177,7 +179,7 @@ class RevenueCatService {
       this.currentCustomerInfo = customerInfo;
       return customerInfo;
     } catch (error) {
-      console.error("Failed to refresh customer info:", error);
+      logger.error("Failed to refresh customer info", error, "RevenueCatService");
       throw error;
     }
   }
@@ -194,7 +196,7 @@ class RevenueCatService {
       const offerings = await Purchases.getOfferings();
       return offerings.current;
     } catch (error) {
-      console.error("Failed to get offerings:", error);
+      logger.error("Failed to get offerings", error, "RevenueCatService");
       throw error;
     }
   }
@@ -215,14 +217,17 @@ class RevenueCatService {
       );
       this.currentCustomerInfo = customerInfo;
       return customerInfo;
-    } catch (error: any) {
-      // Handle user cancellation
-      if (error.userCancelled) {
-        throw new Error("Purchase was cancelled");
+    } catch (error: unknown) {
+      // Safe type checking before accessing PurchasesError properties
+      if (error && typeof error === 'object' && 'userCancelled' in error) {
+        const purchasesError = error as PurchasesError;
+        if (purchasesError.userCancelled) {
+          throw new Error("Purchase was cancelled");
+        }
       }
 
       // Handle other errors
-      console.error("Purchase failed:", error);
+      logger.error("Purchase failed", error, "RevenueCatService");
       throw error;
     }
   }
@@ -240,7 +245,7 @@ class RevenueCatService {
       this.currentCustomerInfo = customerInfo;
       return customerInfo;
     } catch (error) {
-      console.error("Failed to restore purchases:", error);
+      logger.error("Failed to restore purchases", error, "RevenueCatService");
       throw error;
     }
   }
@@ -257,7 +262,7 @@ class RevenueCatService {
         activeEntitlements[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN] !== undefined
       );
     } catch (error) {
-      console.error("Failed to check subscription status:", error);
+      logger.error("Failed to check subscription status", error, "RevenueCatService");
       return false;
     }
   }
@@ -272,7 +277,7 @@ class RevenueCatService {
         customerInfo.entitlements.active[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN];
       return entitlement !== undefined;
     } catch (error) {
-      console.error("Failed to check Family Plan entitlement:", error);
+      logger.error("Failed to check Family Plan entitlement", error, "RevenueCatService");
       return false;
     }
   }
@@ -287,7 +292,7 @@ class RevenueCatService {
         customerInfo.entitlements.active[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN];
       return entitlement !== undefined;
     } catch (error) {
-      console.error("Failed to check Individual Plan entitlement:", error);
+      logger.error("Failed to check Individual Plan entitlement", error, "RevenueCatService");
       return false;
     }
   }
@@ -339,7 +344,7 @@ class RevenueCatService {
         productIdentifier,
       };
     } catch (error) {
-      console.error("Failed to get subscription status:", error);
+      logger.error("Failed to get subscription status", error, "RevenueCatService");
       return {
         isActive: false,
         isFamilyPlan: false,
@@ -372,7 +377,7 @@ class RevenueCatService {
 
       return null;
     } catch (error) {
-      console.error("Failed to get product:", error);
+      logger.error("Failed to get product", error, "RevenueCatService");
       return null;
     }
   }
@@ -398,7 +403,7 @@ class RevenueCatService {
 
       return null;
     } catch (error) {
-      console.error("Failed to get package:", error);
+      logger.error("Failed to get package", error, "RevenueCatService");
       return null;
     }
   }
@@ -428,7 +433,7 @@ class RevenueCatService {
       }
       return status.isFamilyPlan ? PLAN_LIMITS.FAMILY : PLAN_LIMITS.INDIVIDUAL;
     } catch (error) {
-      console.error("Failed to get plan limits:", error);
+      logger.error("Failed to get plan limits", error, "RevenueCatService");
       return null;
     }
   }
@@ -441,7 +446,7 @@ class RevenueCatService {
       const limits = await this.getPlanLimits();
       return limits?.familyMembers ?? 0;
     } catch (error) {
-      console.error("Failed to get max family members:", error);
+      logger.error("Failed to get max family members", error, "RevenueCatService");
       return 0;
     }
   }
@@ -454,7 +459,7 @@ class RevenueCatService {
       const limits = await this.getPlanLimits();
       return limits?.totalMembers ?? 0;
     } catch (error) {
-      console.error("Failed to get max total members:", error);
+      logger.error("Failed to get max total members", error, "RevenueCatService");
       return 0;
     }
   }

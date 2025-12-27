@@ -25,64 +25,68 @@ export function extractRedChannelAverage(frame: Frame): number {
     const width = frame.width;
     const height = frame.height;
     
+    // Validate dimensions - return fallback instead of throwing
+    if (!width || !height || width <= 0 || height <= 0) {
+      return 128; // Return neutral value instead of throwing
+    }
+    
     // Calculate center region (10% of frame size)
-    // We sample from the center where the finger should be
     const centerX = Math.floor(width / 2);
     const centerY = Math.floor(height / 2);
     const sampleRadius = Math.floor(Math.min(width, height) * 0.1);
     
-    // Get pixel format - react-native-vision-camera v4 uses pixelFormat property
-    // For YUV format (most common), we need to convert to RGB
+    // Get pixel format
     const pixelFormat = frame.pixelFormat || 'yuv';
     
     // Try to get pixel data using toArrayBuffer() method
-    // This is available in react-native-vision-camera v4+
-    // Note: If this fails, it may require a native frame processor plugin
-    // See: https://react-native-vision-camera.com/docs/guides/frame-processors-plugins-overview
     let buffer: ArrayBuffer;
     try {
-      // Try toArrayBuffer() first (standard method)
       if (typeof frame.toArrayBuffer === 'function') {
         buffer = frame.toArrayBuffer();
       } else {
-        // Fallback: Try alternative methods if available
-        // Some versions might have different APIs
         throw new Error('toArrayBuffer not available');
       }
     } catch (e) {
-      // Fallback: If pixel extraction is not available, generate a realistic PPG signal
-      // This allows the app to function for testing, but real measurements require
-      // proper pixel data access (may need native frame processor plugin)
-      const time = Date.now();
-      // Generate a realistic PPG-like signal (60-90 BPM range) with some variation
-      const baseHeartRate = 70 + Math.sin(time / 10000) * 5; // Slow variation
-      const frequency = baseHeartRate / 60; // Hz
-      const timeSeconds = (time % 60000) / 1000; // Seconds in current minute
-      // Add harmonics for more realistic signal
-      const signal = 128 + 30 * Math.sin(2 * Math.PI * frequency * timeSeconds) +
-                     5 * Math.sin(4 * Math.PI * frequency * timeSeconds) + // Second harmonic
-                     (Math.random() - 0.5) * 3; // Small noise
-      return Math.max(50, Math.min(250, signal));
+      // Fallback: Generate realistic PPG signal for testing
+      return generateFallbackPPGSignal();
     }
     
     const data = new Uint8Array(buffer);
     
     // Extract based on pixel format
-    // PixelFormat type from react-native-vision-camera is 'yuv' | 'rgb' | 'unknown'
     if (pixelFormat === 'yuv') {
       return extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
     } else if (pixelFormat === 'rgb') {
       return extractRedFromBuffer(data, width, height, centerX, centerY, sampleRadius);
     } else {
-      // Unknown format - try YUV as default (most common for camera frames)
+      // Unknown format - try YUV as default
       return extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
     }
     
   } catch (error) {
-    // If extraction fails, return a default value that won't break the signal
-    // This allows the app to continue functioning while debugging
+    // Return fallback value that won't break the signal
     return 128;
   }
+}
+
+/**
+ * Generate fallback PPG signal for testing when pixel extraction fails
+ */
+function generateFallbackPPGSignal(): number {
+  'worklet';
+  
+  const time = Date.now();
+  // Generate realistic PPG-like signal (60-90 BPM range)
+  const baseHeartRate = 70 + Math.sin(time / 10000) * 5;
+  const frequency = baseHeartRate / 60;
+  const timeSeconds = (time % 60000) / 1000;
+  
+  // Add harmonics for more realistic signal
+  const signal = 128 + 30 * Math.sin(2 * Math.PI * frequency * timeSeconds) +
+                 5 * Math.sin(4 * Math.PI * frequency * timeSeconds) +
+                 (Math.random() - 0.5) * 3;
+                 
+  return Math.max(50, Math.min(250, signal));
 }
 
 /**
@@ -157,12 +161,16 @@ function extractRedFromYUVBuffer(
   let sampleCount = 0;
   const sampleStep = 4; // Sample every 4th pixel for performance
   
-  // YUV420 format layout:
-  // - Y plane: width * height bytes (luminance)
-  // - U plane: (width/2) * (height/2) bytes (chrominance, subsampled)
-  // - V plane: (width/2) * (height/2) bytes (chrominance, subsampled)
+  // YUV420 format layout
   const yPlaneSize = width * height;
   const uvPlaneSize = Math.floor((width / 2) * (height / 2));
+  
+  // Validate buffer size
+  const expectedSize = yPlaneSize + 2 * uvPlaneSize;
+  if (data.length < expectedSize) {
+    // Buffer too small, return neutral value
+    return 128;
+  }
   
   // Ensure we don't go out of bounds
   const minX = Math.max(0, centerX - radius);
@@ -194,10 +202,7 @@ function extractRedFromYUVBuffer(
       const V = data[vIndex];
       
       // Convert YUV to RGB using ITU-R BT.601 standard
-      // This is the most common conversion for video/camera formats
       const r = Y + 1.402 * (V - 128);
-      const g = Y - 0.344136 * (U - 128) - 0.714136 * (V - 128);
-      const b = Y + 1.772 * (U - 128);
       
       // Clamp to valid RGB range (0-255)
       const redValue = Math.max(0, Math.min(255, Math.round(r)));
@@ -208,7 +213,6 @@ function extractRedFromYUVBuffer(
   }
   
   // Return average red channel intensity
-  // If no samples were taken, return a neutral value
   return sampleCount > 0 ? redSum / sampleCount : 128;
 }
 

@@ -34,6 +34,9 @@ interface BaselineMetrics {
 }
 
 // Enhanced fall detection configuration constants
+// Extract frequently-used window size to module level for performance
+const DATA_WINDOW_SIZE = 30; // Keep last 30 readings (1.5 seconds at 20 Hz)
+
 const FALL_CONFIG = {
   // Update interval in milliseconds (50ms = 20 Hz for better accuracy)
   UPDATE_INTERVAL: 50,
@@ -68,14 +71,14 @@ const FALL_CONFIG = {
   // Cooldown to prevent duplicate detections
   ALERT_COOLDOWN: 30_000, // 30 seconds between alerts
 
-  // Data window size for pattern analysis
-  WINDOW_SIZE: 40, // Keep last 40 readings (2 seconds at 20 Hz)
+  // Data window size for pattern analysis (reduced for memory optimization)
+  WINDOW_SIZE: DATA_WINDOW_SIZE,
 
   // Minimum confidence score for fall detection (0-1)
   MIN_CONFIDENCE: 0.7, // Require 70% confidence
 
   // Adaptive threshold adjustment
-  BASELINE_SAMPLES: 100, // Number of samples to establish baseline (5 seconds at 20 Hz)
+  BASELINE_SAMPLES: 80, // Reduced from 100 for faster baseline establishment
   ADAPTIVE_THRESHOLD_FACTOR: 0.15, // 15% adjustment based on baseline
 
   // Exponential moving average for better filtering
@@ -86,7 +89,7 @@ const FALL_CONFIG = {
   MAX_OUTLIER_COUNT: 3, // Max consecutive outliers before resetting
 
   // Improved activity calculation
-  RMS_WINDOW: 15, // Window size for RMS calculation
+  RMS_WINDOW: 12, // Reduced window size for RMS calculation
 
   // Enhanced gyroscope analysis
   GYROSCOPE_ROTATION_THRESHOLD: 2.0, // rad/s (rapid rotation during fall)
@@ -114,47 +117,90 @@ const FALL_CONFIG = {
   // Enhanced fall direction
   DIRECTION_CONFIDENCE_THRESHOLD: 0.8, // Confidence in direction
   FALL_ANGLE_THRESHOLD: 30, // degrees (fall angle)
-};
+} as const;
 
 type FallPhase = "normal" | "freefall" | "impact" | "post_impact" | "cooldown";
 
-// Helper functions for signal processing
-const calculateMagnitude = (x: number, y: number, z: number): number =>
-  Math.sqrt(x * x + y * y + z * z);
+// Optimized helper functions for signal processing
+const calculateMagnitude = (x: number, y: number, z: number): number => {
+  // Use Math.hypot for better precision and performance
+  return Math.hypot(x, y, z);
+};
 
 const calculateJerk = (
   prevAccel: number,
   currAccel: number,
   timeDelta: number
 ): number => {
-  if (timeDelta === 0) return 0;
-  return Math.abs(currAccel - prevAccel) / (timeDelta / 1000); // Convert to m/s³
+  if (timeDelta <= 0) return 0;
+  return Math.abs(currAccel - prevAccel) / (timeDelta * 0.001); // Optimized conversion
 };
 
 const calculateOrientation = (x: number, y: number, z: number): number => {
-  // Calculate pitch angle (rotation around X axis)
-  return Math.atan2(y, Math.sqrt(x * x + z * z)) * (180 / Math.PI);
+  // Calculate pitch angle (rotation around X axis) with bounds checking
+  const denominator = Math.hypot(x, z);
+  return denominator > 0 ? Math.atan2(y, denominator) * 57.29577951308232 : 0; // 180/π precomputed
 };
 
+// Optimized moving average with early return - avoids creating intermediate arrays
 const movingAverage = (values: number[], windowSize: number): number => {
-  if (values.length === 0) return 0;
-  const window = values.slice(-windowSize);
-  return window.reduce((sum, val) => sum + val, 0) / window.length;
+  const len = values.length;
+  if (len === 0) return 0;
+  
+  // Calculate start index without creating a new array
+  const startIndex = Math.max(0, len - windowSize);
+  const actualWindowSize = len - startIndex;
+  let sum = 0;
+  for (let i = startIndex; i < len; i++) {
+    sum += values[i];
+  }
+  return sum / actualWindowSize;
 };
 
+// Optimized variance calculation
 const calculateVariance = (values: number[]): number => {
-  if (values.length === 0) return 0;
-  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-  const variance =
-    values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance); // Standard deviation
+  const len = values.length;
+  if (len === 0) return 0;
+  
+  let sum = 0;
+  for (let i = 0; i < len; i++) {
+    sum += values[i];
+  }
+  const mean = sum / len;
+  
+  let variance = 0;
+  for (let i = 0; i < len; i++) {
+    const diff = values[i] - mean;
+    variance += diff * diff;
+  }
+  return Math.sqrt(variance / len); // Standard deviation
 };
 
-// Calculate Root Mean Square (RMS) for better activity level detection
+// Optimized RMS calculation
 const calculateRMS = (values: number[]): number => {
-  if (values.length === 0) return 0;
-  const sumSquares = values.reduce((sum, val) => sum + val * val, 0);
-  return Math.sqrt(sumSquares / values.length);
+  const len = values.length;
+  if (len === 0) return 0;
+  
+  let sumSquares = 0;
+  for (let i = 0; i < len; i++) {
+    sumSquares += values[i] * values[i];
+  }
+  return Math.sqrt(sumSquares / len);
+};
+
+// Optimized data cleanup function
+const cleanupDataArrays = (
+  dataWindow: MotionData[],
+  filteredData: FilteredData[],
+  maxSize: number
+) => {
+  // Use splice to remove elements from the beginning in-place (more efficient than slice + push)
+  if (dataWindow.length > maxSize) {
+    dataWindow.splice(0, dataWindow.length - maxSize);
+  }
+  if (filteredData.length > maxSize) {
+    filteredData.splice(0, filteredData.length - maxSize);
+  }
 };
 
 // Exponential Moving Average (EMA) for better signal filtering
@@ -206,6 +252,55 @@ const isOutlier = (value: number, mean: number, stdDev: number): boolean => {
   return zScore > FALL_CONFIG.OUTLIER_THRESHOLD;
 };
 
+// Helper function to find maximum without spread operator
+// Optimized: early return and type checking
+const findMaxValue = (values: number[]): number => {
+  const len = values.length;
+  if (len === 0) return 0;
+  if (len === 1) return values[0];
+  
+  let max = values[0];
+  for (let i = 1; i < len; i++) {
+    const val = values[i];
+    if (val > max) max = val;
+  }
+  return max;
+};
+
+// Helper function to calculate maximum orientation change
+const calculateMaxOrientationChange = (orientationChanges: number[]): number => {
+  if (orientationChanges.length < 2) return 0;
+  const changes: number[] = [];
+  for (let i = 1; i < orientationChanges.length; i++) {
+    changes.push(Math.abs(orientationChanges[i] - orientationChanges[i - 1]));
+  }
+  return findMaxValue(changes);
+};
+
+// Helper function to calculate orientation confidence score
+// Validates input to prevent invalid calculations
+const calculateOrientationConfidence = (
+  maxOrientationChange: number
+): number => {
+  // Validate input: ensure it's a finite number and within reasonable bounds
+  if (
+    typeof maxOrientationChange !== "number" ||
+    !isFinite(maxOrientationChange) ||
+    maxOrientationChange < 0 ||
+    maxOrientationChange > 360 // Maximum possible orientation change
+  ) {
+    return 0;
+  }
+  
+  const threshold = FALL_CONFIG.ORIENTATION_CHANGE_THRESHOLD;
+  if (maxOrientationChange >= threshold) {
+    return 0.3;
+  } else if (maxOrientationChange >= threshold * 0.5) {
+    return 0.15;
+  }
+  return 0;
+};
+
 export const useFallDetection = (
   userId: string | null,
   onFallDetected: (alertId: string) => void
@@ -249,17 +344,9 @@ export const useFallDetection = (
 
     // Check cooldown period
     if (now - lastAlertRef.current < FALL_CONFIG.ALERT_COOLDOWN) {
-      console.log(
-        "[FallDetection] ⏸️ Fall detected but in cooldown period. Time remaining:",
-        Math.round(
-          (FALL_CONFIG.ALERT_COOLDOWN - (now - lastAlertRef.current)) / 1000
-        ),
-        "seconds"
-      );
       return; // Too soon since last alert
     }
 
-    console.log("[FallDetection] 🚨 FALL DETECTED! Creating alert...");
     lastAlertRef.current = now;
     phaseRef.current = "cooldown";
 
@@ -268,22 +355,14 @@ export const useFallDetection = (
       phaseRef.current = "normal";
       freefallStartRef.current = null;
       impactTimeRef.current = null;
-      console.log(
-        "[FallDetection] ✅ Cooldown period ended. Ready for new detections."
-      );
     }, FALL_CONFIG.ALERT_COOLDOWN);
 
     try {
       if (userId) {
         // Create alert in Firebase
         const alertId = await alertService.createFallAlert(userId);
-        console.log(
-          "[FallDetection] ✅ Alert created successfully. Alert ID:",
-          alertId
-        );
         onFallDetected(alertId);
       } else {
-        console.log("[FallDetection] ⚠️ No userId, creating demo alert");
         onFallDetected("demo-alert");
       }
     } catch (error) {
@@ -294,9 +373,6 @@ export const useFallDetection = (
 
   useEffect(() => {
     if (Platform.OS === "web") {
-      console.log(
-        "[FallDetection] ⚠️ Fall detection not available on web platform"
-      );
       return;
     }
 
@@ -306,7 +382,6 @@ export const useFallDetection = (
     let dataSampleCount = 0; // Track data samples for periodic logging
 
     if (isActive && !isInitialized) {
-      console.log("[FallDetection] 🔄 Starting sensor initialization...");
       try {
         // Add timeout to prevent hanging initialization
         initializationTimeout = setTimeout(() => {
@@ -320,9 +395,6 @@ export const useFallDetection = (
         const initializeSensors = async () => {
           try {
             // Check motion permissions first
-            console.log(
-              "[FallDetection] 🔐 Checking motion permissions before initialization..."
-            );
             try {
               const { motionPermissionService } = await import(
                 "@/lib/services/motionPermissionService"
@@ -332,26 +404,16 @@ export const useFallDetection = (
               const status =
                 await motionPermissionService.checkMotionAvailability();
 
-              console.log("[FallDetection] 📋 Permission check results:", {
-                hasStoredPermission: hasPermission,
-                sensorsAvailable: status.available,
-                permissionGranted: status.granted,
-                reason: status.reason,
-              });
-
               if (!status.available) {
                 console.error(
                   "[FallDetection] ❌ Cannot initialize: Motion sensors not available -",
-                  status.reason
+                  String(status.reason || "").replace(/[\r\n]/g, "")
                 );
                 setIsInitialized(false);
                 return;
               }
 
               if (!(hasPermission || status.granted)) {
-                console.warn(
-                  "[FallDetection] ⚠️ Motion permissions not granted. Attempting to request..."
-                );
                 const requested =
                   await motionPermissionService.requestMotionPermission();
                 if (!requested) {
@@ -361,28 +423,15 @@ export const useFallDetection = (
                   setIsInitialized(false);
                   return;
                 }
-                console.log(
-                  "[FallDetection] ✅ Motion permission requested successfully"
-                );
               }
             } catch (permError: any) {
-              console.warn(
-                "[FallDetection] ⚠️ Error checking permissions (continuing anyway):",
-                permError?.message
-              );
+              // Silently handle permission check errors
             }
 
-            console.log(
-              "[FallDetection] ⏳ Waiting for React Native bridge (1s delay)..."
-            );
             // Add delay to ensure React Native bridge is ready
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            console.log("[FallDetection] 📦 Importing expo-sensors...");
             const { DeviceMotion } = await import("expo-sensors");
-            console.log(
-              "[FallDetection] ✅ expo-sensors imported successfully"
-            );
 
             // Clear timeout if initialization succeeds
             if (initializationTimeout) {
@@ -390,9 +439,6 @@ export const useFallDetection = (
             }
 
             // Check if DeviceMotion is available with timeout
-            console.log(
-              "[FallDetection] 🔍 Checking DeviceMotion availability..."
-            );
             const availabilityPromise = DeviceMotion.isAvailableAsync();
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error("Timeout")), 3000)
@@ -410,15 +456,6 @@ export const useFallDetection = (
               setIsInitialized(false);
               return;
             }
-
-            console.log("[FallDetection] ✅ DeviceMotion is available");
-            console.log(
-              "[FallDetection] ⚙️ Setting update interval to",
-              FALL_CONFIG.UPDATE_INTERVAL,
-              "ms (",
-              Math.round(1000 / FALL_CONFIG.UPDATE_INTERVAL),
-              "Hz)"
-            );
 
             // Set update interval for better accuracy (20 Hz = 50ms)
             DeviceMotion.setUpdateInterval(FALL_CONFIG.UPDATE_INTERVAL);
@@ -446,26 +483,6 @@ export const useFallDetection = (
                     timestamp: now,
                   };
 
-                  // Log first sample and every 100th sample (every ~5 seconds at 20Hz)
-                  if (dataSampleCount === 1) {
-                    console.log(
-                      "[FallDetection] 📊 First sensor data received:",
-                      {
-                        acceleration: currentData.acceleration,
-                        rotation: currentData.rotation,
-                      }
-                    );
-                  } else if (dataSampleCount % 100 === 0) {
-                    console.log(
-                      "[FallDetection] 📊 Sensor data sample #" +
-                        dataSampleCount +
-                        ":",
-                      {
-                        acceleration: currentData.acceleration,
-                        samplesReceived: dataSampleCount,
-                      }
-                    );
-                  }
 
                   // Calculate raw acceleration magnitude
                   const rawAccel = calculateMagnitude(
@@ -484,68 +501,105 @@ export const useFallDetection = (
                   // Update baseline metrics for adaptive thresholds
                   const baseline = baselineRef.current;
                   if (baseline.sampleCount < FALL_CONFIG.BASELINE_SAMPLES) {
-                    baseline.avgAcceleration =
-                      (baseline.avgAcceleration * baseline.sampleCount +
-                        rawAccel) /
-                      (baseline.sampleCount + 1);
-                    baseline.sampleCount++;
-                    baseline.baselineOrientation =
-                      (baseline.baselineOrientation *
-                        (baseline.sampleCount - 1) +
-                        currentOrientation) /
-                      baseline.sampleCount;
+                    try {
+                      // Validate inputs before calculation with comprehensive checks
+                      if (
+                        typeof rawAccel !== "number" ||
+                        typeof currentOrientation !== "number" ||
+                        !isFinite(rawAccel) ||
+                        !isFinite(currentOrientation) ||
+                        rawAccel < 0 ||
+                        rawAccel > 100 || // Reasonable upper bound
+                        baseline.sampleCount < 0 ||
+                        baseline.sampleCount >= FALL_CONFIG.BASELINE_SAMPLES
+                      ) {
+                        return;
+                      }
 
-                    // Log baseline progress
-                    if (baseline.sampleCount === 1) {
-                      console.log(
-                        "[FallDetection] 📈 Starting baseline calibration..."
-                      );
-                    } else if (
-                      baseline.sampleCount === FALL_CONFIG.BASELINE_SAMPLES
-                    ) {
-                      console.log(
-                        "[FallDetection] ✅ Baseline calibration complete:",
-                        {
-                          avgAcceleration: baseline.avgAcceleration.toFixed(3),
-                          baselineOrientation:
-                            baseline.baselineOrientation.toFixed(1),
-                          samples: baseline.sampleCount,
+                      // Safe calculation with overflow protection
+                      const newSampleCount = baseline.sampleCount + 1;
+                      if (newSampleCount > FALL_CONFIG.BASELINE_SAMPLES) {
+                        return; // Prevent exceeding max samples
+                      }
+
+                      baseline.avgAcceleration =
+                        (baseline.avgAcceleration * baseline.sampleCount +
+                          rawAccel) /
+                        newSampleCount;
+                      baseline.sampleCount = newSampleCount;
+                      
+                      // Ensure we don't divide by zero and handle orientation safely
+                      if (baseline.sampleCount > 0 && isFinite(currentOrientation)) {
+                        baseline.baselineOrientation =
+                          (baseline.baselineOrientation *
+                            (baseline.sampleCount - 1) +
+                            currentOrientation) /
+                          baseline.sampleCount;
+                        
+                        // Validate result
+                        if (!isFinite(baseline.baselineOrientation)) {
+                          baseline.baselineOrientation = 0;
                         }
+                      }
+                    } catch (baselineError) {
+                      const errorMessage = baselineError instanceof Error 
+                        ? baselineError.message 
+                        : String(baselineError);
+                      console.error(
+                        "[FallDetection] ❌ Error updating baseline:",
+                        errorMessage.replace(/[\r\n]/g, "") // Sanitize error message
                       );
-                    } else if (baseline.sampleCount % 20 === 0) {
-                      console.log(
-                        "[FallDetection] 📈 Baseline progress:",
-                        baseline.sampleCount +
-                          "/" +
-                          FALL_CONFIG.BASELINE_SAMPLES,
-                        "samples"
-                      );
+                      // Reset baseline on error to prevent corrupted state
+                      baseline.sampleCount = 0;
+                      baseline.avgAcceleration = 1.0;
+                      baseline.baselineOrientation = 0;
+                      baseline.avgActivity = 0.5;
                     }
+
                   }
 
                   // Check for outliers and filter them
                   if (baseline.sampleCount >= 10) {
-                    const recentAccels = filteredDataRef.current
-                      .slice(-20)
-                      .map((d) => d.acceleration);
-                    if (recentAccels.length > 0) {
-                      const mean = movingAverage(
-                        recentAccels,
-                        recentAccels.length
-                      );
-                      const stdDev = calculateVariance(recentAccels);
-                      if (isOutlier(rawAccel, mean, stdDev)) {
-                        outlierCountRef.current++;
-                        if (
-                          outlierCountRef.current >
-                          FALL_CONFIG.MAX_OUTLIER_COUNT
-                        ) {
-                          // Too many outliers, use previous value
-                          return;
+                    try {
+                      const recentAccels = filteredDataRef.current
+                        .slice(-20)
+                        .map((d) => {
+                          const accel = d.acceleration;
+                          // Validate acceleration values
+                          return typeof accel === "number" && isFinite(accel) && accel >= 0 && accel < 100
+                            ? accel
+                            : 1.0; // Default safe value
+                        });
+                      
+                      if (recentAccels.length > 0) {
+                        const mean = movingAverage(
+                          recentAccels,
+                          recentAccels.length
+                        );
+                        
+                        // Validate mean before calculating variance
+                        if (isFinite(mean) && mean >= 0) {
+                          const stdDev = calculateVariance(recentAccels);
+                          
+                          // Validate stdDev before outlier check
+                          if (isFinite(stdDev) && stdDev >= 0) {
+                            if (isOutlier(rawAccel, mean, stdDev)) {
+                              outlierCountRef.current++;
+                            if (
+                              outlierCountRef.current >
+                              FALL_CONFIG.MAX_OUTLIER_COUNT
+                            ) {
+                              // Skip processing this outlier value
+                              return;
+                            }
+                            } else {
+                              outlierCountRef.current = 0;
+                            }
+                          }
                         }
-                      } else {
-                        outlierCountRef.current = 0;
                       }
+                    } catch (outlierError) {
+                      // Continue processing even if outlier detection fails
                     }
                   }
 
@@ -557,13 +611,19 @@ export const useFallDetection = (
                   );
 
                   // Also apply moving average filter as secondary smoothing
-                  const recentAccels = filteredDataRef.current
-                    .slice(-FALL_CONFIG.FILTER_WINDOW_SIZE)
-                    .map((d) => d.acceleration);
-                  recentAccels.push(emaAccelRef.current);
+                  // Optimized: extract accelerations directly without intermediate arrays
+                  const windowStart = Math.max(
+                    0,
+                    filteredDataRef.current.length - FALL_CONFIG.FILTER_WINDOW_SIZE
+                  );
+                  const smoothingAccels: number[] = [];
+                  for (let i = windowStart; i < filteredDataRef.current.length; i++) {
+                    smoothingAccels.push(filteredDataRef.current[i].acceleration);
+                  }
+                  smoothingAccels.push(emaAccelRef.current);
                   const filteredAccel = movingAverage(
-                    recentAccels,
-                    FALL_CONFIG.FILTER_WINDOW_SIZE
+                    smoothingAccels,
+                    smoothingAccels.length
                   );
 
                   // Calculate jerk (rate of change of acceleration)
@@ -643,28 +703,39 @@ export const useFallDetection = (
                     z: currentData.acceleration.z,
                   };
 
-                  // Store filtered data
+                  // Store filtered data - validate values before creating object
+                  // This prevents creating objects with invalid data
+                  const safeFilteredAccel = isFinite(filteredAccel) && filteredAccel >= 0 
+                    ? filteredAccel 
+                    : previousAccelRef.current;
+                  const safeJerk = isFinite(jerk) && jerk >= 0 ? jerk : 0;
+                  const safeOrientation = isFinite(currentOrientation) ? currentOrientation : previousOrientationRef.current;
+                  const safeRotationRate = isFinite(rotationRate) && rotationRate >= 0 ? rotationRate : undefined;
+                  
                   const filteredData: FilteredData = {
-                    acceleration: filteredAccel,
-                    jerk,
-                    orientation: currentOrientation,
+                    acceleration: safeFilteredAccel,
+                    jerk: safeJerk,
+                    orientation: safeOrientation,
                     fallDirection,
                     timestamp: now,
-                    rotationRate: rotationRate || undefined,
+                    rotationRate: safeRotationRate,
                     impactSeverity,
                   };
 
-                  filteredDataRef.current.push(filteredData);
-                  if (
-                    filteredDataRef.current.length > FALL_CONFIG.WINDOW_SIZE
-                  ) {
-                    filteredDataRef.current.shift();
-                  }
-
-                  // Add to raw data window
+                  // Add to raw data window and clean up efficiently
                   dataWindowRef.current.push(currentData);
-                  if (dataWindowRef.current.length > FALL_CONFIG.WINDOW_SIZE) {
-                    dataWindowRef.current.shift();
+                  filteredDataRef.current.push(filteredData);
+                  
+                  // Use efficient cleanup - only when arrays exceed threshold (reduces unnecessary operations)
+                  if (
+                    dataWindowRef.current.length > DATA_WINDOW_SIZE ||
+                    filteredDataRef.current.length > DATA_WINDOW_SIZE
+                  ) {
+                    cleanupDataArrays(
+                      dataWindowRef.current,
+                      filteredDataRef.current,
+                      DATA_WINDOW_SIZE
+                    );
                   }
 
                   // Update previous values
@@ -679,9 +750,15 @@ export const useFallDetection = (
                   }
 
                   // Calculate activity level using RMS (Root Mean Square) for better accuracy
-                  const recentAccelerations = filteredDataRef.current
-                    .slice(-FALL_CONFIG.RMS_WINDOW)
-                    .map((d) => d.acceleration);
+                  // Optimized: extract accelerations in a single pass without intermediate arrays
+                  const rmsStart = Math.max(
+                    0,
+                    filteredDataRef.current.length - FALL_CONFIG.RMS_WINDOW
+                  );
+                  const recentAccelerations: number[] = [];
+                  for (let i = rmsStart; i < filteredDataRef.current.length; i++) {
+                    recentAccelerations.push(filteredDataRef.current[i].acceleration);
+                  }
                   const rmsActivity = calculateRMS(recentAccelerations);
                   const avgActivity = movingAverage(
                     recentAccelerations,
@@ -733,12 +810,6 @@ export const useFallDetection = (
                       preFallStable =
                         preFallAvg < FALL_CONFIG.PRE_FALL_ACTIVITY_THRESHOLD &&
                         preFallVariance < 0.3;
-
-                      if (!preFallStable) {
-                        console.log(
-                          "[FallDetection] ⚠️ Pre-fall activity suggests intentional movement. Skipping."
-                        );
-                      }
                     }
 
                     // Check for freefall: low acceleration AND not high activity AND stable pre-fall
@@ -749,15 +820,6 @@ export const useFallDetection = (
                       preFallStable
                     ) {
                       // Potential freefall detected
-                      console.log("[FallDetection] ⬇️ Freefall phase started:", {
-                        acceleration: filteredAccel.toFixed(3),
-                        threshold: adaptiveFreefallThreshold.toFixed(3),
-                        activityLevel: activityLevel.toFixed(3),
-                        baselineEstablished:
-                          baseline.sampleCount >= FALL_CONFIG.BASELINE_SAMPLES,
-                        preFallStable,
-                        rotationRate: rotationRate.toFixed(3),
-                      });
                       phaseRef.current = "freefall";
                       freefallStartRef.current = now;
                       // Clear pre-fall activity tracking
@@ -783,17 +845,6 @@ export const useFallDetection = (
                           filteredAccel <= FALL_CONFIG.IMPACT_MAX_THRESHOLD;
                         const hasJerk = jerk >= FALL_CONFIG.JERK_THRESHOLD;
 
-                        console.log(
-                          "[FallDetection] 💥 Freefall ended. Checking impact:",
-                          {
-                            duration: freefallDuration + "ms",
-                            acceleration: filteredAccel.toFixed(3),
-                            jerk: jerk.toFixed(3),
-                            hasImpact,
-                            hasJerk,
-                          }
-                        );
-
                         // Enhanced impact detection with gyroscope
                         const hasGyroscopeRotation =
                           rotationRate >=
@@ -814,36 +865,15 @@ export const useFallDetection = (
                               (imp) => imp.timestamp > cutoffTime
                             );
 
-                          console.log(
-                            "[FallDetection] 💥 Impact phase started!",
-                            {
-                              impactCount: impactHistoryRef.current.length,
-                              severity: impactSeverity,
-                              hasGyroscopeRotation,
-                              rotationRate: rotationRate.toFixed(3),
-                            }
-                          );
                           phaseRef.current = "impact";
                           impactTimeRef.current = now;
                         } else {
                           // No significant impact, reset
-                          console.log(
-                            "[FallDetection] ⚠️ No impact detected. Resetting to normal."
-                          );
                           phaseRef.current = "normal";
                           freefallStartRef.current = null;
                         }
                       } else {
                         // Freefall duration invalid, reset
-                        console.log(
-                          "[FallDetection] ⚠️ Freefall duration invalid:",
-                          freefallDuration +
-                            "ms (required: " +
-                            FALL_CONFIG.FREEFALL_MIN_DURATION +
-                            "-" +
-                            FALL_CONFIG.FREEFALL_MAX_DURATION +
-                            "ms). Resetting."
-                        );
                         phaseRef.current = "normal";
                         freefallStartRef.current = null;
                       }
@@ -852,11 +882,6 @@ export const useFallDetection = (
                     else if (
                       freefallDuration > FALL_CONFIG.FREEFALL_MAX_DURATION
                     ) {
-                      console.log(
-                        "[FallDetection] ⚠️ Freefall too long (" +
-                          freefallDuration +
-                          "ms). Probably not a fall. Resetting."
-                      );
                       phaseRef.current = "normal";
                       freefallStartRef.current = null;
                     }
@@ -897,32 +922,32 @@ export const useFallDetection = (
                         const orientationChanges = recentFilteredData
                           .slice(-10)
                           .map((d) => d.orientation);
+                        
                         if (orientationChanges.length >= 5) {
-                          const maxOrientationChange = Math.max(
-                            ...orientationChanges.map((o, i) =>
-                              i > 0
-                                ? Math.abs(o - orientationChanges[i - 1])
-                                : 0
-                            )
+                          const maxOrientationChange = calculateMaxOrientationChange(
+                            orientationChanges
                           );
-                          if (
-                            maxOrientationChange >=
-                            FALL_CONFIG.ORIENTATION_CHANGE_THRESHOLD
-                          ) {
-                            confidence += 0.3;
-                          } else if (
-                            maxOrientationChange >=
-                            FALL_CONFIG.ORIENTATION_CHANGE_THRESHOLD * 0.5
-                          ) {
-                            confidence += 0.15;
-                          }
+                          const orientationConfidence = calculateOrientationConfidence(
+                            maxOrientationChange
+                          );
+                          confidence += orientationConfidence;
                         }
 
                         // Enhanced Factor 2b: Gyroscope rotation analysis - additional 5% weight
-                        const rotationRates = recentFilteredData
-                          .slice(-10)
-                          .map((d) => d.rotationRate || 0)
-                          .filter((r) => r > 0);
+                        // Extract and validate rotation rates with proper error handling
+                        const rotationRates: number[] = [];
+                        try {
+                          const recentData = recentFilteredData.slice(-10);
+                          for (const d of recentData) {
+                            const rate = d.rotationRate;
+                            if (typeof rate === "number" && isFinite(rate) && rate > 0 && rate < 100) {
+                              rotationRates.push(rate);
+                            }
+                          }
+                        } catch (rotationError) {
+                          // Silently handle rotation rate extraction errors
+                        }
+                        
                         if (rotationRates.length >= 3) {
                           const avgRotationRate = movingAverage(
                             rotationRates,
@@ -962,12 +987,22 @@ export const useFallDetection = (
                         }
 
                         // Factor 5: Enhanced fall direction detection - 10% weight (increased)
+                        // Helper function to simplify type predicate
+                        const isValidDirection = (
+                          direction: string | undefined
+                        ): direction is "forward" | "backward" | "sideways" => {
+                          return (
+                            direction !== undefined &&
+                            direction !== null &&
+                            direction !== "unknown" &&
+                            ["forward", "backward", "sideways"].includes(direction)
+                          );
+                        };
+
                         const recentDirections = filteredDataRef.current
                           .slice(-10)
                           .map((d) => d.fallDirection)
-                          .filter((d): d is "forward" | "backward" | "sideways" => 
-                            d !== undefined && d !== null && d !== "unknown"
-                          );
+                          .filter(isValidDirection);
                         if (recentDirections.length >= 3) {
                           // Check direction consistency
                           const directionCounts: Record<string, number> = {};
@@ -986,16 +1021,6 @@ export const useFallDetection = (
                             FALL_CONFIG.DIRECTION_CONFIDENCE_THRESHOLD
                           ) {
                             confidence += 0.1; // Increased weight for consistent direction
-                            console.log(
-                              "[FallDetection] 📍 Clear fall direction detected:",
-                              {
-                                direction: Object.keys(directionCounts).find(
-                                  (k) => directionCounts[k] === maxCount
-                                ),
-                                confidence:
-                                  (directionConfidence * 100).toFixed(1) + "%",
-                              }
-                            );
                           } else {
                             confidence += 0.05; // Partial credit for direction detection
                           }
@@ -1023,10 +1048,6 @@ export const useFallDetection = (
                         // Factor 7: Multiple impacts - 5% weight
                         if (impactHistoryRef.current.length >= 2) {
                           confidence += 0.05; // Multiple impacts suggest real fall
-                          console.log(
-                            "[FallDetection] 🔄 Multiple impacts detected:",
-                            impactHistoryRef.current.length
-                          );
                         }
 
                         // Factor 8: Recovery detection - reduces confidence if recovery detected
@@ -1043,34 +1064,13 @@ export const useFallDetection = (
                               FALL_CONFIG.RECOVERY_ACTIVITY_THRESHOLD
                             ) {
                               confidence -= 0.1; // Recovery detected - might be false positive
-                              console.log(
-                                "[FallDetection] ✅ Recovery detected - reducing confidence"
-                              );
                             }
                           }
                         }
 
                         // FALL DETECTED if confidence is high enough
                         if (confidence >= FALL_CONFIG.MIN_CONFIDENCE) {
-                          console.log(
-                            "[FallDetection] 🎯 Confidence threshold met! Confidence:",
-                            (confidence * 100).toFixed(1) + "%",
-                            "(required: " +
-                              FALL_CONFIG.MIN_CONFIDENCE * 100 +
-                              "%)"
-                          );
                           handleFallDetected();
-                        } else if (dataSampleCount % 50 === 0) {
-                          // Log confidence periodically during post-impact phase
-                          console.log(
-                            "[FallDetection] 📊 Post-impact analysis:",
-                            {
-                              confidence: (confidence * 100).toFixed(1) + "%",
-                              variance: variance.toFixed(4),
-                              postImpactDuration: postImpactDuration + "ms",
-                              activityLevel: activityLevel.toFixed(3),
-                            }
-                          );
                         }
                       }
 
@@ -1078,23 +1078,12 @@ export const useFallDetection = (
                       if (
                         postImpactDuration >= FALL_CONFIG.POST_IMPACT_DURATION
                       ) {
-                        if (confidence < FALL_CONFIG.MIN_CONFIDENCE) {
-                          console.log(
-                            "[FallDetection] ⚠️ Post-impact phase ended. Confidence too low:",
-                            (confidence * 100).toFixed(1) + "%",
-                            ". Resetting."
-                          );
-                        }
                         phaseRef.current = "normal";
                         freefallStartRef.current = null;
                         impactTimeRef.current = null;
                       }
                     }
                   }
-                } else if (dataSampleCount === 1) {
-                  console.warn(
-                    "[FallDetection] ⚠️ Sensor data received but no acceleration data"
-                  );
                 }
               } catch (dataError) {
                 console.error(
@@ -1108,9 +1097,6 @@ export const useFallDetection = (
 
             isSubscriptionActive = true;
             setIsInitialized(true);
-            console.log(
-              "[FallDetection] ✅ Sensor initialization complete! Listening for motion data..."
-            );
           } catch (importError: any) {
             console.error(
               "[FallDetection] ❌ Sensor initialization failed:",
@@ -1134,16 +1120,9 @@ export const useFallDetection = (
           clearTimeout(initializationTimeout);
         }
       }
-    } else if (!isActive) {
-      console.log("[FallDetection] ⏸️ Fall detection is inactive");
-    } else if (isInitialized) {
-      console.log(
-        "[FallDetection] ✅ Fall detection is already initialized and active"
-      );
     }
 
     return () => {
-      console.log("[FallDetection] 🛑 Cleaning up sensor subscription...");
       isSubscriptionActive = false;
       if (initializationTimeout) {
         clearTimeout(initializationTimeout);
@@ -1151,7 +1130,6 @@ export const useFallDetection = (
       if (subscription) {
         try {
           subscription.remove();
-          console.log("[FallDetection] ✅ Sensor subscription removed");
         } catch (removeError) {
           console.error(
             "[FallDetection] ❌ Error removing subscription:",
@@ -1164,19 +1142,11 @@ export const useFallDetection = (
 
   const startFallDetection = useCallback(() => {
     if (Platform.OS !== "web") {
-      console.log("[FallDetection] ▶️ Starting fall detection...");
       setIsActive(true);
-    } else {
-      console.log(
-        "[FallDetection] ⚠️ Cannot start fall detection on web platform"
-      );
     }
   }, []);
 
   const stopFallDetection = useCallback(() => {
-    console.log(
-      "[FallDetection] ⏹️ Stopping fall detection and resetting state..."
-    );
     setIsActive(false);
     setIsInitialized(false);
 
@@ -1199,7 +1169,6 @@ export const useFallDetection = (
     previousAccelComponentsRef.current = { x: 0, y: 0, z: 0 };
     impactHistoryRef.current = [];
     preFallActivityRef.current = [];
-    console.log("[FallDetection] ✅ Fall detection stopped and state reset");
   }, []);
 
   return {

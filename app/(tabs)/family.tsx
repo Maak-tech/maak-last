@@ -874,14 +874,12 @@ export default function FamilyScreen() {
         } catch (error) {
           // If we can't check admin's subscription, default to 0 (will be treated as 1 member limit)
           // This is safe because admin's limits are already enforced when they invite members
-          console.warn("Failed to check admin subscription:", error);
         } finally {
           // Always switch back to current user, even if there was an error
           try {
             await revenueCatService.setUserId(currentUserId);
           } catch (error) {
             // Silently fail - RevenueCat context restoration is not critical
-            console.warn("Failed to restore RevenueCat context:", error);
           }
         }
 
@@ -967,8 +965,14 @@ export default function FamilyScreen() {
   const getFamilyStats = () => {
     const totalMembers = familyMembers.length;
     const activeMembers = familyMembers.length; // All loaded members are active
-    const totalAlerts = 0; // TODO: Get from alert service
-    const avgHealthScore = 85; // TODO: Calculate from health data
+    
+    // Calculate total alerts from member metrics
+    const totalAlerts = memberMetrics.reduce((sum, member) => sum + member.alertsCount, 0);
+    
+    // Calculate average health score from member metrics
+    const avgHealthScore = memberMetrics.length > 0
+      ? Math.round(memberMetrics.reduce((sum, member) => sum + member.healthScore, 0) / memberMetrics.length)
+      : 100; // Default to 100 if no members
 
     return { totalMembers, activeMembers, totalAlerts, avgHealthScore };
   };

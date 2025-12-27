@@ -381,27 +381,26 @@ export default function DashboardScreen() {
       setTodaysMedications(medications);
       setAlertsCount(alertsCountData);
 
-      // Calculate personal medication compliance
+      // Calculate personal medication compliance (optimized single pass)
       const today = new Date().toDateString();
-      const totalReminders = medications.reduce((sum, med) => {
-        const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-        return sum + reminders.length;
-      }, 0);
+      let totalReminders = 0;
+      let takenReminders = 0;
 
-      const takenReminders = medications.reduce((sum, med) => {
+      medications.forEach((med) => {
         const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-        return (
-          sum +
-          reminders.filter((r) => {
-            if (!(r.taken && r.takenAt)) return false;
+        totalReminders += reminders.length;
+        
+        reminders.forEach((r) => {
+          if (r.taken && r.takenAt) {
             const takenDate = (r.takenAt as any).toDate
               ? (r.takenAt as any).toDate()
               : new Date(r.takenAt);
-            const takenToday = takenDate.toDateString() === today;
-            return takenToday;
-          }).length
-        );
-      }, 0);
+            if (takenDate.toDateString() === today) {
+              takenReminders++;
+            }
+          }
+        });
+      });
 
       const compliance =
         totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
@@ -419,15 +418,22 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [user]);
+  // Memoize loadDashboardData to prevent unnecessary recreations
+  const loadDashboardDataMemoized = useCallback(async () => {
+    await loadDashboardData();
+  }, [user?.id, user?.familyId]);
 
-  // Refresh data when tab is focused
+  useEffect(() => {
+    loadDashboardDataMemoized();
+  }, [loadDashboardDataMemoized]);
+
+  // Refresh data when tab is focused (only if not already loading)
   useFocusEffect(
     useCallback(() => {
-      loadDashboardData();
-    }, [user])
+      if (!loading && !refreshing) {
+        loadDashboardDataMemoized();
+      }
+    }, [loadDashboardDataMemoized, loading, refreshing])
   );
 
   const onRefresh = () => {

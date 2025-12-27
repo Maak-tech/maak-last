@@ -215,9 +215,10 @@ export default function AIAssistant() {
   };
 
   const scrollToBottom = () => {
-    setTimeout(() => {
+    // Use requestAnimationFrame for smoother scrolling
+    requestAnimationFrame(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    });
   };
 
   const handleSend = async () => {
@@ -261,14 +262,21 @@ export default function AIAssistant() {
       messages.concat(userMessage),
       (chunk) => {
         fullResponse += chunk;
+        // Batch state updates using functional update to avoid stale closures
         setMessages((prev) => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = {
-            ...assistantMessage,
-            content: fullResponse,
-          };
-          return newMessages;
+          const lastIndex = prev.length - 1;
+          if (lastIndex >= 0 && prev[lastIndex].id === assistantMessage.id) {
+            // Update existing message
+            const newMessages = [...prev];
+            newMessages[lastIndex] = {
+              ...prev[lastIndex],
+              content: fullResponse,
+            };
+            return newMessages;
+          }
+          return prev;
         });
+        // Throttle scroll updates for better performance
         scrollToBottom();
       },
       async () => {

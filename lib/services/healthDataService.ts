@@ -271,12 +271,6 @@ export const healthDataService = {
           // Convert weight from pounds to kilograms if needed
           if (convertToKg && latestSample.unit) {
             const unit = latestSample.unit.toLowerCase();
-            // Debug logging for weight unit conversion
-            if (metricKey === "weight") {
-              console.log(
-                `[Health Data Service] Weight sample: value=${value}, unit="${latestSample.unit}"`
-              );
-            }
             // Check if unit is in pounds (lb, lbs, pound, pounds, or imperial units)
             if (
               unit.includes("lb") ||
@@ -284,11 +278,7 @@ export const healthDataService = {
               unit === "lb" ||
               unit === "lbs"
             ) {
-              const originalValue = value;
               value = value / 2.204_62; // Convert pounds to kg
-              console.log(
-                `[Health Data Service] Converted weight from ${originalValue} ${latestSample.unit} to ${value.toFixed(2)} kg`
-              );
             }
             // If already in kg, use as-is
           }

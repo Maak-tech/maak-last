@@ -351,9 +351,6 @@ export const useNotifications = () => {
         return { success: true, notificationId };
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-
-        const errorMessage =
           error instanceof Error ? error.message : String(error);
 
         // Provide more helpful error messages

@@ -18,6 +18,7 @@ import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
 import type { AvatarType, User } from "@/types";
 
 interface AuthContextType {
@@ -200,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await revenueCatService.setUserId(firebaseUser.uid);
           } catch (error) {
             // Silently fail - RevenueCat sync is not critical for app functionality
-            console.error("Failed to sync RevenueCat user ID:", error);
+            logger.error("Failed to sync RevenueCat user ID", error, "AuthContext");
           }
 
           // Initialize FCM in background (don't block on this)
@@ -248,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await revenueCatService.logOut();
           } catch (error) {
             // Silently fail - RevenueCat logout is not critical
-            console.error("Failed to log out from RevenueCat:", error);
+            logger.error("Failed to log out from RevenueCat", error, "AuthContext");
           }
         }
       } catch (error: any) {
@@ -351,10 +352,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           currentUser.firstName && currentUser.lastName
             ? `${currentUser.firstName} ${currentUser.lastName}`
             : currentUser.firstName || "User";
-        await userService.createFamily(
-          userId,
-          `${fullName}'s Family` || "My Family"
-        );
+        const familyName = fullName ? `${fullName}'s Family` : "My Family";
+        await userService.createFamily(userId, familyName);
 
         if (!isMounted) return;
 
@@ -497,7 +496,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await revenueCatService.logOut();
       } catch (error) {
         // Silently fail - RevenueCat logout is not critical
-        console.error("Failed to log out from RevenueCat:", error);
+        logger.error("Failed to log out from RevenueCat", error, "AuthContext");
       }
 
       await signOut(auth);

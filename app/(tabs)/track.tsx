@@ -287,23 +287,24 @@ export default function TrackScreen() {
       setRecentMoods(moods);
       setLatestVitals(vitals);
 
-      // Calculate stats
+      // Calculate stats (optimized single pass)
       const totalSymptoms = symptoms.length;
       const totalMedications = medications.length;
+      
+      // Optimize date calculation for symptomsThisWeek
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
       const symptomsThisWeek = symptoms.filter(
-        (s) =>
-          new Date(s.timestamp).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
+        (s) => new Date(s.timestamp).getTime() > sevenDaysAgo
       ).length;
 
-      const totalReminders = medications.reduce((sum, med) => {
+      // Single pass for medication reminders calculation
+      let totalReminders = 0;
+      let takenReminders = 0;
+      medications.forEach((med) => {
         const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-        return sum + reminders.length;
-      }, 0);
-
-      const takenReminders = medications.reduce((sum, med) => {
-        const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-        return sum + reminders.filter((r) => r.taken).length;
-      }, 0);
+        totalReminders += reminders.length;
+        takenReminders += reminders.filter((r) => r.taken).length;
+      });
 
       const compliance =
         totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
