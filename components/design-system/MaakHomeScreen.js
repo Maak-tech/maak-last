@@ -1,0 +1,357 @@
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Card from './Card';
+import Button from './Button';
+import { Heading, Text, Caption } from './Typography';
+import { Avatar, Badge, Divider } from './AdditionalComponents';
+import FAB from './FAB';
+import { colors, spacing, borderRadius } from './theme';
+
+const MaakHomeScreen = () => {
+  const [activeTab, setActiveTab] = useState('community');
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.logoSmall}>
+            <Text style={styles.logoTextSmall}>M</Text>
+          </View>
+          <View>
+            <Heading level={4} style={styles.headerTitle}>Maak</Heading>
+            <Caption>Welcome back!</Caption>
+          </View>
+        </View>
+        <View style={styles.headerRight}>
+          <Avatar name="User" size={40} />
+        </View>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabs}>
+        <Button
+          title="Community"
+          onPress={() => setActiveTab('community')}
+          variant={activeTab === 'community' ? 'primary' : 'ghost'}
+          size="small"
+          style={styles.tab}
+        />
+        <Button
+          title="Projects"
+          onPress={() => setActiveTab('projects')}
+          variant={activeTab === 'projects' ? 'primary' : 'ghost'}
+          size="small"
+          style={styles.tab}
+        />
+        <Button
+          title="Events"
+          onPress={() => setActiveTab('events')}
+          variant={activeTab === 'events' ? 'primary' : 'ghost'}
+          size="small"
+          style={styles.tab}
+        />
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Stats Card */}
+        <Card variant="elevated" style={styles.statsCard}>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text weight="bold" size="large" style={styles.statNumber}>
+                342
+              </Text>
+              <Caption>Members</Caption>
+            </View>
+            <Divider vertical />
+            <View style={styles.statItem}>
+              <Text weight="bold" size="large" style={styles.statNumber}>
+                28
+              </Text>
+              <Caption>Projects</Caption>
+            </View>
+            <Divider vertical />
+            <View style={styles.statItem}>
+              <Text weight="bold" size="large" style={styles.statNumber}>
+                12
+              </Text>
+              <Caption>Events</Caption>
+            </View>
+          </View>
+        </Card>
+
+        {/* Featured Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Heading level={5}>Featured Projects</Heading>
+            <Text size="small" style={styles.seeAll}>See all</Text>
+          </View>
+
+          <Card onPress={() => console.log('Project 1')} style={styles.projectCard}>
+            <View style={styles.projectHeader}>
+              <Avatar name="Project Alpha" size={48} />
+              <View style={styles.projectInfo}>
+                <Text weight="semibold" size="large">Project Alpha</Text>
+                <Caption>Mobile App Development</Caption>
+              </View>
+              <Badge variant="success" size="small">Active</Badge>
+            </View>
+            <Divider spacing="small" />
+            <Text style={styles.projectDescription}>
+              Building a community-driven mobile application focused on local collaboration
+            </Text>
+            <View style={styles.projectFooter}>
+              <View style={styles.avatarGroup}>
+                <Avatar name="User 1" size={28} style={styles.avatarOverlap} />
+                <Avatar name="User 2" size={28} style={styles.avatarOverlap} />
+                <Avatar name="User 3" size={28} style={styles.avatarOverlap} />
+                <View style={[styles.avatarOverlap, styles.moreAvatar]}>
+                  <Text size="small" weight="semibold">+5</Text>
+                </View>
+              </View>
+              <Text size="small" style={styles.dueDate}>Due in 5 days</Text>
+            </View>
+          </Card>
+
+          <Card onPress={() => console.log('Project 2')} style={styles.projectCard}>
+            <View style={styles.projectHeader}>
+              <Avatar name="Design Sprint" size={48} />
+              <View style={styles.projectInfo}>
+                <Text weight="semibold" size="large">Design Sprint</Text>
+                <Caption>UI/UX Workshop</Caption>
+              </View>
+              <Badge variant="warning" size="small">Planning</Badge>
+            </View>
+            <Divider spacing="small" />
+            <Text style={styles.projectDescription}>
+              Collaborative design workshop to create innovative solutions for community challenges
+            </Text>
+            <View style={styles.projectFooter}>
+              <View style={styles.avatarGroup}>
+                <Avatar name="User 4" size={28} style={styles.avatarOverlap} />
+                <Avatar name="User 5" size={28} style={styles.avatarOverlap} />
+                <View style={[styles.avatarOverlap, styles.moreAvatar]}>
+                  <Text size="small" weight="semibold">+3</Text>
+                </View>
+              </View>
+              <Text size="small" style={styles.dueDate}>Starts tomorrow</Text>
+            </View>
+          </Card>
+        </View>
+
+        {/* Upcoming Events */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Heading level={5}>Upcoming Events</Heading>
+            <Text size="small" style={styles.seeAll}>See all</Text>
+          </View>
+
+          <Card style={styles.eventCard}>
+            <View style={styles.eventDate}>
+              <Text weight="bold" size="large" style={styles.eventDay}>15</Text>
+              <Caption>Jan</Caption>
+            </View>
+            <View style={styles.eventInfo}>
+              <Text weight="semibold">Monthly Meetup</Text>
+              <Caption>Community Center • 6:00 PM</Caption>
+            </View>
+            <Button
+              title="RSVP"
+              variant="secondary"
+              size="small"
+              style={styles.rsvpButton}
+              onPress={() => console.log('RSVP')}
+            />
+          </Card>
+
+          <Card style={styles.eventCard}>
+            <View style={styles.eventDate}>
+              <Text weight="bold" size="large" style={styles.eventDay}>22</Text>
+              <Caption>Jan</Caption>
+            </View>
+            <View style={styles.eventInfo}>
+              <Text weight="semibold">Workshop: React Native</Text>
+              <Caption>Online • 2:00 PM</Caption>
+            </View>
+            <Button
+              title="Join"
+              variant="outline"
+              size="small"
+              style={styles.rsvpButton}
+              onPress={() => console.log('Join')}
+            />
+          </Card>
+        </View>
+
+        <View style={styles.bottomPadding} />
+      </ScrollView>
+
+      {/* Floating Action Button */}
+      <FAB
+        icon={<Text style={styles.fabIcon}>+</Text>}
+        onPress={() => console.log('Create new')}
+        backgroundColor={colors.secondary}
+      />
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  logoTextSmall: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  headerTitle: {
+    marginBottom: 0,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tabs: {
+    flexDirection: 'row',
+    padding: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  tab: {
+    marginRight: spacing.xs,
+  },
+  content: {
+    flex: 1,
+    padding: spacing.md,
+  },
+  statsCard: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.primary,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    color: colors.secondary,
+    marginBottom: spacing.xs,
+  },
+  section: {
+    marginBottom: spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  seeAll: {
+    color: colors.secondary,
+  },
+  projectCard: {
+    marginBottom: spacing.md,
+  },
+  projectHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  projectInfo: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  projectDescription: {
+    marginVertical: spacing.sm,
+    color: colors.textSecondary,
+  },
+  projectFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  avatarGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarOverlap: {
+    marginLeft: -8,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  moreAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dueDate: {
+    color: colors.textSecondary,
+  },
+  eventCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+  },
+  eventDate: {
+    width: 50,
+    alignItems: 'center',
+    marginRight: spacing.md,
+    padding: spacing.sm,
+    backgroundColor: colors.secondaryLight,
+    borderRadius: borderRadius.md,
+  },
+  eventDay: {
+    color: colors.primary,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  rsvpButton: {
+    minWidth: 80,
+  },
+  fabIcon: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.surface,
+  },
+  bottomPadding: {
+    height: spacing.xxl,
+  },
+});
+
+export default MaakHomeScreen;
