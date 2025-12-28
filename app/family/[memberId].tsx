@@ -144,7 +144,7 @@ export default function FamilyMemberHealthView() {
 
   const formatDate = (date: Date | string) => {
     const d = typeof date === "string" ? new Date(date) : date;
-    return new Intl.DateTimeFormat(isRTL ? "ar-SA" : "en-US", {
+    return new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -153,7 +153,7 @@ export default function FamilyMemberHealthView() {
 
   const formatTime = (date: Date | string) => {
     const d = typeof date === "string" ? new Date(date) : date;
-    return new Intl.DateTimeFormat(isRTL ? "ar-SA" : "en-US", {
+    return new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
     }).format(d);
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
   severityIndicator: {
     width: 4,
     borderRadius: 2,
-    marginRight: 12,
+    marginEnd: 12,
   },
   symptomContent: {
     flex: 1,
@@ -922,7 +922,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   medicationStatus: {
-    marginLeft: 8,
+    marginStart: 8,
   },
   medicationDosage: {
     fontSize: 14,

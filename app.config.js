@@ -1,6 +1,27 @@
 // Load environment variables from .env file
 require("dotenv").config();
 
+// Restore Google Services files from EAS environment variables during build
+const fs = require('fs');
+if (process.env.GOOGLE_SERVICES_JSON) {
+  try {
+    const decoded = Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64');
+    fs.writeFileSync('./google-services.json', decoded);
+    console.log('✅ Restored google-services.json');
+  } catch (error) {
+    console.log('⚠️ Failed to restore google-services.json:', error.message);
+  }
+}
+if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
+  try {
+    const decoded = Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST, 'base64');
+    fs.writeFileSync('./GoogleService-Info.plist', decoded);
+    console.log('✅ Restored GoogleService-Info.plist');
+  } catch (error) {
+    console.log('⚠️ Failed to restore GoogleService-Info.plist:', error.message);
+  }
+}
+
 export default {
   expo: {
     name: "Maak Health",

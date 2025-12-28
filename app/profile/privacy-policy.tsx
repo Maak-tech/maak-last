@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   subsectionCard: {
-    marginLeft: 16,
+    marginStart: 16,
     backgroundColor: "#F8FAFC",
   },
   sectionTitle: {
@@ -349,6 +349,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
 });

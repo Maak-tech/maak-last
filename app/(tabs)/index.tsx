@@ -100,7 +100,7 @@ export default function DashboardScreen() {
       alignItems: "center" as const,
       justifyContent: "center" as const,
       minHeight: 160,
-      marginRight: theme.spacing.md,
+      marginEnd: theme.spacing.md,
     },
     statCardContent: {
       alignItems: "center" as const,
@@ -139,11 +139,11 @@ export default function DashboardScreen() {
       marginBottom: theme.spacing.xl,
       flexDirection: "row" as const,
       alignItems: "center" as const,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.accent.error,
+      borderStartWidth: 4,
+      borderStartColor: theme.colors.accent.error,
     },
     alertContent: {
-      marginLeft: theme.spacing.md,
+      marginStart: theme.spacing.md,
       flex: 1,
     },
     alertTitle: {
@@ -192,7 +192,7 @@ export default function DashboardScreen() {
       borderRadius: 20,
       justifyContent: "center" as const,
       alignItems: "center" as const,
-      marginRight: theme.spacing.md,
+      marginEnd: theme.spacing.md,
     },
     medicationInfo: {
       flex: 1,
@@ -252,7 +252,7 @@ export default function DashboardScreen() {
       ...theme.shadows.md,
     },
     healthScoreInfo: {
-      marginLeft: theme.spacing.base,
+      marginStart: theme.spacing.base,
       flex: 1,
     },
     healthScoreTitle: {
@@ -330,23 +330,23 @@ export default function DashboardScreen() {
       ...getTextStyle(theme, "body", "bold", theme.colors.neutral.white),
     },
     onelineCard: {
-      backgroundColor: theme.colors.secondary[50],
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.xl,
+      padding: theme.spacing.xl,
       marginBottom: theme.spacing.xl,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
+      borderWidth: 1,
+      borderColor: theme.colors.border.light,
       ...theme.shadows.sm,
+      alignItems: "center" as const,
     },
     onelineText: {
       ...getTextStyle(
         theme,
         "subheading",
-        "semibold",
-        theme.colors.primary.main
+        "medium",
+        theme.colors.text.secondary
       ),
       fontStyle: "italic" as const,
-      marginBottom: theme.spacing.sm,
       textAlign: "center" as const,
     },
     onelineSource: {
@@ -574,7 +574,7 @@ export default function DashboardScreen() {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
         <View style={styles.centerContainer as ViewStyle}>
-          <Text color={theme.colors.accent.error}>
+          <Text color={theme.colors.accent.error} style={styles.errorText}>
             Please log in to view your dashboard
           </Text>
         </View>
@@ -593,7 +593,7 @@ export default function DashboardScreen() {
       >
         {/* Header with SOS Button */}
         <View style={styles.headerWithSOS as ViewStyle}>
-          <View style={styles.headerContent as ViewStyle}>
+          <View style={[styles.headerContent as ViewStyle, isRTL && { marginEnd: theme.spacing.md }]}>
             <Heading
               level={4}
               color={theme.colors.primary.main}
@@ -614,8 +614,9 @@ export default function DashboardScreen() {
                   isRTL && styles.rtlText,
                 ] as StyleProp<TextStyle>
               }
+              numberOfLines={undefined}
             >
-              {new Date().toLocaleDateString(isRTL ? "ar-SA" : "en-US", {
+              {new Date().toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
                 weekday: "long",
                 year: "numeric",
                 month: "long",
@@ -627,7 +628,10 @@ export default function DashboardScreen() {
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             onPress={handleSOS}
-            style={styles.sosHeaderButton as ViewStyle}
+            style={[
+              styles.sosHeaderButton as ViewStyle,
+              isRTL && { marginStart: theme.spacing.md }
+            ]}
           >
             <Phone color={theme.colors.neutral.white} size={20} />
             <Text weight="bold" color={theme.colors.neutral.white} style={styles.sosHeaderText as StyleProp<TextStyle>}>
@@ -679,7 +683,7 @@ export default function DashboardScreen() {
                   ] as StyleProp<TextStyle>
                 }
               >
-                {isRTL ? "الأعراض هذا الأسبوع" : "Symptoms This Week"}
+                {isRTL ? "الأعراض المرضية هذا الأسبوع" : "Symptoms This Week"}
               </Text>
             </View>
           </Card>
@@ -782,6 +786,7 @@ export default function DashboardScreen() {
               }
             }}
             style={styles.alertCard as ViewStyle}
+            contentStyle={undefined}
           >
             <AlertTriangle color={theme.colors.accent.error} size={24} />
             <View style={styles.alertContent as ViewStyle}>
@@ -795,7 +800,7 @@ export default function DashboardScreen() {
                   ] as StyleProp<TextStyle>
                 }
               >
-                {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
+                {isRTL ? "تنبيهات طوارئ مرضية نشطة" : "Active Emergency Alerts"}
               </Text>
               <Text
                 color={theme.colors.accent.error}
@@ -863,7 +868,7 @@ export default function DashboardScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
+                  {isRTL ? "التنبيهات الطوارئ المرضية النشطة" : "Active Emergency Alerts"}
                 </Text>
                 <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
                   <Text
@@ -913,7 +918,7 @@ export default function DashboardScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "لا توجد تنبيهات نشطة" : "No active alerts"}
+                    {isRTL ? "لا توجد تنبيهات طوارئ مرضية نشطة" : "No active emergency alerts"}
                   </Text>
                 </View>
               ) : (
@@ -926,8 +931,8 @@ export default function DashboardScreen() {
                         borderRadius: theme.borderRadius.lg,
                         padding: theme.spacing.base,
                         marginBottom: theme.spacing.md,
-                        borderLeftWidth: 4,
-                        borderLeftColor: theme.colors.accent.error,
+                        borderStartWidth: 4,
+                        borderStartColor: theme.colors.accent.error,
                       }}
                     >
                       <View
@@ -1016,7 +1021,7 @@ export default function DashboardScreen() {
                                 Alert.alert(
                                   isRTL ? "نجح" : "Success",
                                   isRTL
-                                    ? "تم حل جميع التنبيهات"
+                                    ? "تم حل جميع التنبيهات الطوارئ المرضية النشطة"
                                     : "All alerts resolved"
                                 );
                               } else {
@@ -1220,7 +1225,7 @@ export default function DashboardScreen() {
                 ] as StyleProp<TextStyle>
               }
             >
-              {isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}
+              {isRTL ? "الأعراض المرضية الأخيرة" : "Recent Symptoms"}
             </Text>
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/symptoms")}
@@ -1303,7 +1308,7 @@ export default function DashboardScreen() {
                 }
               >
                 {isRTL
-                  ? "لا توجد أعراض مسجلة - اضغط لإضافة عرض"
+                  ? "لا توجد أعراض مرضية مسجلة - اضغط لإضافة أعراض مرضية"
                   : "No symptoms recorded - tap to add"}
               </Text>
             </TouchableOpacity>

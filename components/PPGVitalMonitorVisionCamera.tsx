@@ -1075,7 +1075,7 @@ export default function PPGVitalMonitorVisionCamera({
   if (Platform.OS === 'web') {
     return (
       <Modal
-        visible={visible}
+        visible={visible === true}
         animationType="slide"
         transparent={false}
         onRequestClose={onClose}
@@ -1112,7 +1112,7 @@ export default function PPGVitalMonitorVisionCamera({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible === true}
       animationType="slide"
       transparent={false}
       onRequestClose={onClose}

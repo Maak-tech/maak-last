@@ -10,13 +10,13 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { NativeModules, Platform } from "react-native";
+import { I18nManager, NativeModules, Platform } from "react-native";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
-import "@/lib/i18n";
+import i18n from "@/lib/i18n";
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -38,6 +38,15 @@ export default function RootLayout() {
     "Geist-SemiBold": require("@/assets/fonts/Geist-SemiBold.ttf"),
     "Geist-Bold": require("@/assets/fonts/Geist-Bold.ttf"),
   });
+
+  // Set RTL direction based on current language
+  useEffect(() => {
+    const isRTL = i18n.language === "ar";
+    if (Platform.OS === "android" || Platform.OS === "ios") {
+      I18nManager.forceRTL(isRTL);
+      I18nManager.allowRTL(isRTL);
+    }
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

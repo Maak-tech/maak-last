@@ -164,7 +164,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       <View
         style={[
           styles.alertCard,
-          { borderLeftColor: getAlertColor(item.severity) },
+          { borderStartColor: getAlertColor(item.severity) },
         ]}
       >
         <View style={styles.alertHeader}>
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
-    borderLeftWidth: 4,
+    borderStartWidth: 4,
   },
   alertHeader: {
     flexDirection: "row",
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   alertIcon: {
-    marginRight: 12,
+    marginEnd: 12,
   },
   alertInfo: {
     flex: 1,

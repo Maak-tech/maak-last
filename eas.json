@@ -10,12 +10,10 @@
       "ios": {
         "resourceClass": "m-medium",
         "simulator": false,
-        "buildConfiguration": "Debug",
-        "prebuildCommand": "bash scripts/eas-restore-google-services.sh && npx expo prebuild"
+        "buildConfiguration": "Debug"
       },
       "android": {
-        "resourceClass": "medium",
-        "prebuildCommand": "bash scripts/eas-restore-google-services.sh && npx expo prebuild"
+        "resourceClass": "medium"
       }
     },
     "preview": {
@@ -23,27 +21,23 @@
       "ios": {
         "resourceClass": "m-medium",
         "simulator": false,
-        "buildConfiguration": "Release",
-        "prebuildCommand": "bash scripts/eas-restore-google-services.sh && npx expo prebuild"
+        "buildConfiguration": "Release"
       },
       "android": {
         "resourceClass": "medium",
-        "buildType": "apk",
-        "prebuildCommand": "bash scripts/eas-restore-google-services.sh && npx expo prebuild"
+        "buildType": "apk"
       }
     },
     "production": {
       "ios": {
         "resourceClass": "m-medium",
         "buildConfiguration": "Release",
-        "autoIncrement": true,
-        "prebuildCommand": "bash scripts/eas-restore-google-services.sh && npx expo prebuild"
+        "autoIncrement": true
       },
       "android": {
         "resourceClass": "medium",
         "buildType": "app-bundle",
-        "autoIncrement": true,
-        "prebuildCommand": "bash scripts/eas-restore-google-services.sh && npx expo prebuild"
+        "autoIncrement": true
       }
     }
   },

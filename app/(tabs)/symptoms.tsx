@@ -186,7 +186,7 @@ export default function TrackScreen() {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
-          ? "يرجى اختيار أو إدخال نوع العرض"
+          ? "يرجى اختيار أو إدخال نوع الأعراض المرضية"
           : "Please select or enter a symptom type"
       );
       return;
@@ -206,7 +206,7 @@ export default function TrackScreen() {
           Alert.alert(
             isRTL ? "غير مسموح" : "Not Permitted",
             isRTL
-              ? "ليس لديك صلاحية لتعديل هذا العرض"
+              ? "ليس لديك صلاحية لتعديل هذه الأعراض المرضية"
               : "You do not have permission to edit this symptom"
           );
           return;
@@ -257,8 +257,8 @@ export default function TrackScreen() {
         isRTL ? "تم الحفظ" : "Saved",
         isRTL
           ? editingSymptom
-            ? "تم تحديث العرض بنجاح"
-            : "تم تسجيل العرض بنجاح"
+            ? "تم تحديث الأعراض المرضية بنجاح"
+            : "تم تسجيل الأعراض المرضية بنجاح"
           : editingSymptom
             ? "Symptom updated successfully"
             : "Symptom logged successfully"
@@ -267,7 +267,7 @@ export default function TrackScreen() {
       // Silently handle symptom save error
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في حفظ العرض" : "Error saving symptom"
+        isRTL ? "حدث خطأ في حفظ الأعراض المرضية" : "Error saving symptom"
       );
     } finally {
       setLoading(false);
@@ -284,7 +284,7 @@ export default function TrackScreen() {
       Alert.alert(
         isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لتعديل هذا العرض"
+          ? "ليس لديك صلاحية لتعديل هذه الأعراض المرضية"
           : "You do not have permission to edit this symptom"
       );
       return;
@@ -319,16 +319,16 @@ export default function TrackScreen() {
       Alert.alert(
         isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لحذف هذا العرض"
+          ? "ليس لديك صلاحية لحذف هذه الأعراض المرضية"
           : "You do not have permission to delete this symptom"
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? "حذف العرض" : "Delete Symptom",
+      isRTL ? "حذف الأعراض المرضية" : "Delete Symptom",
       isRTL
-        ? `هل أنت متأكد من رغبتك في حذف هذا العرض: ${t(symptom.type)}؟`
+        ? `هل أنت متأكد من رغبتك في حذف هذه الأعراض المرضية: ${t(symptom.type)}؟`
         : `Are you sure you want to delete this symptom: ${t(symptom.type)}?`,
       [
         {
@@ -346,13 +346,13 @@ export default function TrackScreen() {
               setShowActionsMenu(null);
               Alert.alert(
                 isRTL ? "تم الحذف" : "Deleted",
-                isRTL ? "تم حذف العرض بنجاح" : "Symptom deleted successfully"
+                isRTL ? "تم حذف الأعراض المرضية بنجاح" : "Symptom deleted successfully"
               );
             } catch (error) {
               // Silently handle symptom delete error
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
-                isRTL ? "حدث خطأ في حذف العرض" : "Error deleting symptom"
+                isRTL ? "حدث خطأ في حذف الأعراض المرضية" : "Error deleting symptom"
               );
             } finally {
               setLoading(false);
@@ -440,7 +440,7 @@ export default function TrackScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
-          <Text color="#EF4444">Please log in to track symptoms</Text>
+          <Text color="#EF4444" style={styles.errorText}>Please log in to track symptoms</Text>
         </View>
       </SafeAreaView>
     );
@@ -490,29 +490,29 @@ export default function TrackScreen() {
             {t("thisWeek")}
           </Heading>
           <View style={styles.statsGrid}>
-            <Card variant="elevated" style={styles.statCard}>
+            <Card variant="elevated" style={styles.statCard} onPress={undefined} contentStyle={undefined}>
               <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
                 {stats.totalSymptoms}
               </Text>
-              <Caption style={[styles.statLabel, isRTL && styles.rtlText]}>
+              <Caption style={[styles.statLabel, isRTL && styles.rtlText]} numberOfLines={undefined}>
                 {selectedFilter.type === "family"
                   ? isRTL
-                    ? "أعراض العائلة"
+                    ? "أعراض العائلة المرضية"
                     : "Family Symptoms"
                   : selectedFilter.type === "member"
                     ? isRTL
-                      ? `أعراض ${selectedFilter.memberName}`
+                      ? `أعراض ${selectedFilter.memberName} المرضية`
                       : `${selectedFilter.memberName}'s Symptoms`
                     : isRTL
-                      ? "إجمالي الأعراض"
+                      ? "إجمالي الأعراض المرضية"
                       : "Total Symptoms"}
               </Caption>
             </Card>
-            <Card variant="elevated" style={styles.statCard}>
+            <Card variant="elevated" style={styles.statCard} onPress={undefined} contentStyle={undefined}>
               <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
                 {stats.avgSeverity.toFixed(1)}
               </Text>
-              <Caption style={[styles.statLabel, isRTL && styles.rtlText]}>
+              <Caption style={[styles.statLabel, isRTL && styles.rtlText]} numberOfLines={undefined}>
                 {isRTL ? "متوسط الشدة" : "Avg Severity"}
               </Caption>
             </Card>
@@ -524,14 +524,14 @@ export default function TrackScreen() {
           <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "family"
               ? isRTL
-                ? "أعراض العائلة الأخيرة"
+                ? "أعراض العائلة المرضية الأخيرة"
                 : "Recent Family Symptoms"
               : selectedFilter.type === "member"
                 ? isRTL
-                  ? `أعراض ${selectedFilter.memberName} الأخيرة`
+                  ? `أعراض ${selectedFilter.memberName} المرضية الأخيرة`
                   : `${selectedFilter.memberName}'s Recent Symptoms`
                 : isRTL
-                  ? "أعراضي الأخيرة"
+                  ? "أعراضي المرضية الأخيرة"
                   : "My Recent Symptoms"}
           </Heading>
 
@@ -544,12 +544,12 @@ export default function TrackScreen() {
           ) : symptoms.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL ? "لا توجد أعراض مسجلة" : "No symptoms recorded"}
+                {isRTL ? "لا توجد أعراض مرضية مسجلة" : "No symptoms recorded"}
               </Text>
             </View>
           ) : (
             symptoms.map((symptom) => (
-              <Card key={symptom.id} variant="elevated" style={styles.symptomCard}>
+              <Card key={symptom.id} variant="elevated" style={styles.symptomCard} onPress={undefined} contentStyle={undefined}>
                 <View style={styles.symptomHeader}>
                   <View style={styles.symptomInfo}>
                     <Text weight="semibold" size="large" style={[styles.symptomType, isRTL && styles.rtlText]}>
@@ -558,6 +558,7 @@ export default function TrackScreen() {
                     <View style={styles.symptomMeta}>
                       <Caption
                         style={[styles.symptomDate, isRTL && styles.rtlText]}
+                        numberOfLines={undefined}
                       >
                         {formatDate(symptom.timestamp)}
                       </Caption>
@@ -667,7 +668,7 @@ export default function TrackScreen() {
                   ? "تعديل العرض"
                   : "Edit Symptom"
                 : isRTL
-                  ? "إضافة عرض جديد"
+                  ? "إضافة أعراض مرضية جديدة"
                   : "Add New Symptom"}
             </Heading>
             <TouchableOpacity
@@ -690,7 +691,7 @@ export default function TrackScreen() {
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "إضافة العرض لـ" : "Add symptom for"}
+                  {isRTL ? "إضافة الأعراض المرضية لـ" : "Add symptom for"}
                 </Text>
                 <View style={styles.memberSelectionContainer}>
                   {familyMembers.map((member) => (
@@ -742,7 +743,7 @@ export default function TrackScreen() {
             {/* Common Symptoms */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الأعراض الشائعة" : "Common Symptoms"}
+                {isRTL ? "الأعراض المرضية الشائعة" : "Common Symptoms"}
               </Text>
               <View style={styles.symptomsGrid}>
                 {COMMON_SYMPTOMS.map((symptomType) => (
@@ -778,17 +779,21 @@ export default function TrackScreen() {
             {/* Custom Symptom */}
             <View style={styles.fieldGroup}>
               <Input
-                label={isRTL ? "عرض مخصص" : "Custom Symptom"}
-                onChangeText={(text) => {
+                label={isRTL ? "أعراض مخصصة مرضية" : "Custom Symptom"}
+                onChangeText={(text: string) => {
                   setCustomSymptom(text);
                   if (text) setSelectedSymptom("");
                 }}
                 placeholder={
-                  isRTL ? "أدخل نوع العرض..." : "Enter symptom type..."
+                  isRTL ? "أدخل نوع الأعراض المرضية..." : "Enter symptom type..."
                 }
                 style={isRTL && styles.rtlTextInput}
                 textAlign={isRTL ? "right" : "left"}
                 value={customSymptom}
+                error={undefined}
+                helperText={undefined}
+                leftIcon={undefined}
+                rightIcon={undefined}
               />
             </View>
 
@@ -804,7 +809,7 @@ export default function TrackScreen() {
                 onChangeText={setDescription}
                 placeholder={
                   isRTL
-                    ? "أضف وصفاً للعرض..."
+                    ? "أضف وصفاً للأعراض المرضية..."
                     : "Add a description of the symptom..."
                 }
                 style={[
@@ -813,6 +818,10 @@ export default function TrackScreen() {
                 ]}
                 textAlign={isRTL ? "right" : "left"}
                 value={description}
+                error={undefined}
+                helperText={undefined}
+                leftIcon={undefined}
+                rightIcon={undefined}
               />
             </View>
 
@@ -823,6 +832,7 @@ export default function TrackScreen() {
               onPress={handleAddSymptom}
               fullWidth
               style={styles.saveButton}
+              textStyle={undefined}
               title={
                 loading
                   ? isRTL
@@ -830,10 +840,10 @@ export default function TrackScreen() {
                     : "Saving..."
                   : editingSymptom
                     ? isRTL
-                      ? "تحديث العرض"
+                      ? "تحديث الأعراض المرضية"
                       : "Update Symptom"
                     : isRTL
-                      ? "حفظ العرض"
+                      ? "حفظ الأعراض المرضية"
                       : "Save Symptom"
               }
             />

@@ -30,7 +30,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t("home") || "Home",
+          title: t("home"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Home color={color} size={size || 24} />
           ),
@@ -39,7 +39,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="track"
         options={{
-          title: "Track",
+          title: t("track"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Activity color={color} size={size || 24} />
           ),
@@ -48,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="zeina"
         options={{
-          title: "Zeina",
+          title: t("zeina"),
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Sparkles color={color} size={size || 24} />
           ),
@@ -80,6 +80,12 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="moods"
+        options={{
+          href: null, // Access via track tab
+        }}
+      />
+      <Tabs.Screen
+        name="allergies"
         options={{
           href: null, // Access via track tab
         }}

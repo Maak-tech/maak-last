@@ -358,7 +358,7 @@ export default function BloodPressureEntry({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible === true}
       animationType="slide"
       transparent={false}
       onRequestClose={handleClose}

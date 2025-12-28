@@ -128,7 +128,7 @@ export default function PersonalInfoScreen() {
 
   const memberSinceDate = new Date(user?.createdAt || new Date());
   const formattedDate = memberSinceDate.toLocaleDateString(
-    isRTL ? "ar-SA" : "en-US",
+    isRTL ? "ar-u-ca-gregory" : "en-US",
     {
       year: "numeric",
       month: "long",
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#EBF4FF",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   infoCardContent: {
     flex: 1,
@@ -730,6 +730,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   modalContainer: {

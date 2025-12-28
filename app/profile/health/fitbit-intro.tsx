@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginEnd: 16,
   },
   benefitContent: {
     flex: 1,
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   privacyContent: {
     flex: 1,
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontFamily: "Geist-SemiBold",
-    marginRight: 8,
+    marginEnd: 8,
   },
   rtlText: {
     textAlign: "right",

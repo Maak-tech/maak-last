@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   sectionTitle: {
     fontSize: 16,
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Regular",
     color: "#374151",
-    marginRight: 8,
+    marginEnd: 8,
     marginTop: 2,
   },
   bulletText: {
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subsectionCard: {
-    marginLeft: 16,
+    marginStart: 16,
     backgroundColor: "#F8FAFC",
   },
   subsectionTitle: {
@@ -521,6 +521,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
 });

@@ -33,6 +33,7 @@ import openaiService, {
   type ChatMessage as AIMessage,
 } from "@/lib/services/openaiService";
 import ChatMessage from "../components/ChatMessage";
+import { useTranslation } from "react-i18next";
 
 interface ChatSession {
   id: string;
@@ -53,6 +54,7 @@ interface SavedSession {
 
 export default function ZeinaScreen() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -77,8 +79,7 @@ export default function ZeinaScreen() {
     const welcomeMessage: AIMessage = {
       id: (Date.now() + 1).toString(),
       role: "assistant",
-      content:
-        "Hello! I'm Zeina, your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?",
+      content: t("zeinaWelcome"),
       timestamp: new Date(),
     };
 
@@ -89,8 +90,8 @@ export default function ZeinaScreen() {
 
       if (!key) {
         Alert.alert(
-          "Service Unavailable",
-          "Zeina is temporarily unavailable. Please contact support."
+          t("serviceUnavailable"),
+          t("zeinaUnavailable")
         );
         // Still show welcome message even if service is unavailable
         setMessages([welcomeMessage]);
@@ -130,14 +131,14 @@ export default function ZeinaScreen() {
     try {
       // Generate a title based on the conversation topic
       const firstUserMessage = initialMessages.find((m) => m.role === "user");
-      let title = "Chat with Zeina";
+      let title = t("chatWithZeina");
 
       if (firstUserMessage) {
         // Create a short title from the first user message
         const words = firstUserMessage.content.split(" ").slice(0, 5);
         title = words.join(" ") + (words.length >= 5 ? "..." : "");
       } else {
-        title = "Chat with Zeina " + new Date().toLocaleDateString();
+        title = t("chatWithZeina") + " " + new Date().toLocaleDateString();
       }
 
       const sessionData = {
@@ -266,8 +267,8 @@ export default function ZeinaScreen() {
 
         // More user-friendly error messages
         Alert.alert(
-          "Error",
-          error.message || "Failed to get response. Please try again."
+          t("error"),
+          error.message || t("failedToGetResponse")
         );
       },
       true // Use premium key for Zeina
@@ -299,12 +300,12 @@ export default function ZeinaScreen() {
 
         sessions.push({
           id: doc.id,
-          title: data.title || "Chat Session",
+          title: data.title || t("chatSession"),
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           messageCount: messages.length,
           preview:
-            lastUserMessage?.content?.substring(0, 50) + "..." || "No messages",
+            lastUserMessage?.content?.substring(0, 50) + "..." || t("noMessages"),
         });
       });
 
@@ -345,7 +346,7 @@ export default function ZeinaScreen() {
       }
     } catch (error) {
       // Silently handle session load error
-      Alert.alert("Error", "Failed to load chat session");
+      Alert.alert(t("error"), t("failedToLoadSession"));
     } finally {
       setIsLoading(false);
     }
@@ -355,19 +356,19 @@ export default function ZeinaScreen() {
     if (!auth.currentUser) return;
 
     Alert.alert(
-      "Delete Chat",
-      "Are you sure you want to delete this chat session?",
+      t("deleteChat"),
+      t("confirmDeleteChat"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("cancel"), style: "cancel" },
         {
-          text: "Delete",
+          text: t("delete"),
           style: "destructive",
           onPress: async () => {
             try {
               if (!auth.currentUser) {
                 Alert.alert(
-                  "Error",
-                  "You must be logged in to delete chat sessions"
+                  t("error"),
+                  t("mustBeLoggedIn")
                 );
                 return;
               }
@@ -388,7 +389,7 @@ export default function ZeinaScreen() {
               }
             } catch (error) {
               // Silently handle session delete error
-              Alert.alert("Error", "Failed to delete chat session");
+              Alert.alert(t("error"), t("failedToDeleteSession"));
             }
           },
         },
@@ -400,7 +401,7 @@ export default function ZeinaScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
-        <Text style={styles.headerTitle}>Zeina</Text>
+        <Text style={styles.headerTitle}>{t("zeina")}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={handleNewChat}
@@ -444,7 +445,7 @@ export default function ZeinaScreen() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#007AFF" size="large" />
               <Text style={styles.loadingText}>
-                Loading your health context...
+                {t("loadingHealthContext")}
               </Text>
             </View>
           ) : (
@@ -472,7 +473,7 @@ export default function ZeinaScreen() {
             editable={!isStreaming}
             multiline
             onChangeText={setInputText}
-            placeholder="Ask Zeina about your health, medications, symptoms..."
+            placeholder={t("askZeina")}
             placeholderTextColor="#999"
             scrollEnabled
             style={styles.textInput}
@@ -507,7 +508,7 @@ export default function ZeinaScreen() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { maxHeight: "80%" }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chat History</Text>
+              <Text style={styles.modalTitle}>{t("chatHistory")}</Text>
               <TouchableOpacity onPress={() => setShowHistory(false)}>
                 <Ionicons color="#333" name="close" size={24} />
               </TouchableOpacity>
@@ -521,10 +522,10 @@ export default function ZeinaScreen() {
                 <View style={styles.emptyHistory}>
                   <Ionicons color="#999" name="chatbubbles-outline" size={48} />
                   <Text style={styles.emptyHistoryText}>
-                    No chat history yet
+                    {t("noChatHistory")}
                   </Text>
                   <Text style={styles.emptyHistorySubtext}>
-                    Your conversations will appear here
+                    {t("conversationsWillAppear")}
                   </Text>
                 </View>
               ) : (
@@ -546,7 +547,7 @@ export default function ZeinaScreen() {
                           {session.updatedAt.toLocaleDateString()}
                         </Text>
                         <Text style={styles.historyItemMessages}>
-                          {session.messageCount} messages
+                          {session.messageCount} {t("messages")}
                         </Text>
                       </View>
                     </View>
@@ -579,9 +580,9 @@ export default function ZeinaScreen() {
                 color="white"
                 name="add-circle-outline"
                 size={20}
-                style={{ marginRight: 8 }}
+                style={{ marginEnd: 8 }}
               />
-              <Text style={styles.newChatButtonText}>Start New Chat</Text>
+              <Text style={styles.newChatButtonText}>{t("startNewChat")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -620,10 +621,10 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 4,
-    marginLeft: 8,
+    marginStart: 8,
   },
   newChatHeaderButton: {
-    marginLeft: 0,
+    marginStart: 0,
   },
   historyHeaderButton: {
     position: "relative",
@@ -720,7 +721,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginRight: 8,
+    marginEnd: 8,
     fontSize: 16,
     maxHeight: 100,
     color: "#333",
@@ -784,7 +785,7 @@ const styles = StyleSheet.create({
   },
   historyItemContent: {
     flex: 1,
-    marginRight: 12,
+    marginEnd: 12,
   },
   historyItemTitle: {
     fontSize: 16,

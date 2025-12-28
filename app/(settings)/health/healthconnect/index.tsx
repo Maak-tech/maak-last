@@ -78,8 +78,8 @@ export default function HealthConnectIntroScreen() {
       backgroundColor: theme.colors.secondary[50],
       padding: theme.spacing.base,
       borderRadius: theme.borderRadius.lg,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
+      borderStartWidth: 4,
+      borderStartColor: theme.colors.secondary.main,
       marginBottom: theme.spacing.lg,
     },
     notDoTitle: {

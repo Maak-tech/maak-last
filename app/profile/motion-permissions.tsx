@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusInfo: {
-    marginLeft: 16,
+    marginStart: 16,
     flex: 1,
   },
   statusTitle: {
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 17,
     fontWeight: "600",
-    marginLeft: 12,
+    marginStart: 12,
   },
   infoText: {
     fontSize: 14,

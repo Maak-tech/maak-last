@@ -1,6 +1,7 @@
 import { router, useFocusEffect } from "expo-router";
 import {
   Activity,
+  AlertTriangle,
   ChevronRight,
   Droplet,
   FileText,
@@ -9,7 +10,7 @@ import {
   Smile,
   Zap,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -26,12 +27,14 @@ import {
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { allergyService } from "@/lib/services/allergyService";
 import { healthDataService, type VitalSigns } from "@/lib/services/healthDataService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
 import { symptomService } from "@/lib/services/symptomService";
 import type {
+  Allergy,
   MedicalHistory,
   Medication,
   Mood,
@@ -46,29 +49,81 @@ import BloodPressureEntry from "@/components/BloodPressureEntry";
 let PPGVitalMonitor: any = null;
 let PPGVitalMonitorLoadError: Error | null = null;
 
-// Try to load the real vision camera version first
-try {
-  const { Platform } = require("react-native");
-  if (Platform.OS !== "web") {
-    PPGVitalMonitor = require("@/components/PPGVitalMonitorVisionCamera").default;
-    console.log("PPGVitalMonitorVisionCamera (real PPG) component loaded successfully");
-  } else {
-    // On web, use simulated version
-    PPGVitalMonitor = require("@/components/PPGVitalMonitor").default;
-    console.log("PPGVitalMonitor (simulated) component loaded for web platform");
+// Function to load PPG component dynamically when needed
+const loadPPGComponent = () => {
+  if (PPGVitalMonitor !== null) {
+    return PPGVitalMonitor; // Already loaded
   }
-} catch (error) {
-  PPGVitalMonitorLoadError = error as Error;
-  console.error("PPGVitalMonitorVisionCamera component could not be loaded:", error);
-  
-  // Fallback to simulated version if vision camera fails
+
   try {
-    PPGVitalMonitor = require("@/components/PPGVitalMonitor").default;
-    console.log("Fell back to simulated PPGVitalMonitor component");
-  } catch (fallbackError) {
-    console.error("Fallback PPGVitalMonitor also failed:", fallbackError);
+    const { Platform } = require("react-native");
+    if (Platform.OS !== "web") {
+      // Use dynamic import to defer loading until actually needed
+      // This helps avoid reanimated processing issues during module evaluation
+      // Wrap in additional try-catch to handle reanimated errors gracefully
+      try {
+        const componentModule = require("@/components/PPGVitalMonitorVisionCamera");
+        // Handle both default export and named export cases
+        if (componentModule && (componentModule.default || componentModule)) {
+          PPGVitalMonitor = componentModule.default || componentModule;
+          // Validate that it's actually a component
+          if (typeof PPGVitalMonitor !== 'function') {
+            throw new Error("Loaded component is not a function");
+          }
+          console.log("PPGVitalMonitorVisionCamera (real PPG) component loaded successfully");
+        } else {
+          throw new Error("Component module is undefined or has no default export");
+        }
+      } catch (reanimatedError: any) {
+        // Check if it's a reanimated-related error
+        if (reanimatedError?.message?.includes('TextImpl') || 
+            reanimatedError?.message?.includes('createAnimatedComponent') ||
+            reanimatedError?.message?.includes('forwardRef')) {
+          console.warn("Reanimated compatibility issue detected, falling back to simulated component:", reanimatedError.message);
+          // Fall through to fallback
+          throw reanimatedError;
+        } else {
+          throw reanimatedError;
+        }
+      }
+    } else {
+      // On web, use simulated version
+      const componentModule = require("@/components/PPGVitalMonitor");
+      if (componentModule && (componentModule.default || componentModule)) {
+        PPGVitalMonitor = componentModule.default || componentModule;
+        if (typeof PPGVitalMonitor !== 'function') {
+          throw new Error("Loaded component is not a function");
+        }
+        console.log("PPGVitalMonitor (simulated) component loaded for web platform");
+      } else {
+        throw new Error("Component module is undefined or has no default export");
+      }
+    }
+  } catch (error) {
+    PPGVitalMonitorLoadError = error as Error;
+    console.error("PPGVitalMonitorVisionCamera component could not be loaded:", error);
+    
+    // Fallback to simulated version if vision camera fails
+    try {
+      const componentModule = require("@/components/PPGVitalMonitor");
+      if (componentModule && (componentModule.default || componentModule)) {
+        PPGVitalMonitor = componentModule.default || componentModule;
+        if (typeof PPGVitalMonitor !== 'function') {
+          throw new Error("Fallback component is not a function");
+        }
+        console.log("Fell back to simulated PPGVitalMonitor component");
+        PPGVitalMonitorLoadError = null; // Clear error since fallback worked
+      } else {
+        throw new Error("Fallback component module is undefined");
+      }
+    } catch (fallbackError) {
+      console.error("Fallback PPGVitalMonitor also failed:", fallbackError);
+      PPGVitalMonitor = null; // Ensure it's null if both fail
+    }
   }
-}
+
+  return PPGVitalMonitor;
+};
 
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
@@ -82,9 +137,11 @@ export default function TrackScreen() {
     MedicalHistory[]
   >([]);
   const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
+  const [recentAllergies, setRecentAllergies] = useState<Allergy[]>([]);
   const [latestVitals, setLatestVitals] = useState<VitalSigns | null>(null);
   const [showPPGMonitor, setShowPPGMonitor] = useState(false);
   const [showBloodPressureEntry, setShowBloodPressureEntry] = useState(false);
+  const [loadedPPGComponent, setLoadedPPGComponent] = useState<any>(null);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -233,7 +290,7 @@ export default function TrackScreen() {
       borderRadius: 20,
       justifyContent: "center" as const,
       alignItems: "center" as const,
-      marginRight: theme.spacing.md,
+      marginEnd: theme.spacing.md,
     },
     recentInfo: {
       flex: 1,
@@ -258,8 +315,8 @@ export default function TrackScreen() {
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
       marginBottom: theme.spacing.xl,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
+      borderStartWidth: 4,
+      borderStartColor: theme.colors.secondary.main,
       alignItems: "center" as const,
       ...theme.shadows.sm,
     },
@@ -303,7 +360,7 @@ export default function TrackScreen() {
       }
 
       // Load recent data for overview
-      const [symptoms, medications, medicalHistory, moods, moodStats, vitals] =
+      const [symptoms, medications, medicalHistory, moods, moodStats, vitals, allergies] =
         await Promise.all([
           symptomService.getUserSymptoms(user.id, 3),
           medicationService.getTodaysMedications(user.id),
@@ -311,12 +368,14 @@ export default function TrackScreen() {
           moodService.getUserMoods(user.id, 3),
           moodService.getMoodStats(user.id, 7),
           healthDataService.getLatestVitals(),
+          allergyService.getUserAllergies(user.id, 3),
         ]);
 
       setRecentSymptoms(symptoms);
       setTodaysMedications(medications);
       setRecentMedicalHistory(medicalHistory.slice(0, 3)); // Get 3 most recent
       setRecentMoods(moods);
+      setRecentAllergies(allergies);
       setLatestVitals(vitals);
 
       // Calculate stats (optimized single pass)
@@ -421,7 +480,7 @@ export default function TrackScreen() {
           }
         >
           {isRTL
-            ? "راقب أعراضك وأدويتك"
+            ? "راقب أعراضك المرضية وأدويتك"
             : "Monitor your symptoms and medications"}
         </Text>
       </View>
@@ -703,6 +762,61 @@ export default function TrackScreen() {
                     </Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
+
+                {/* Allergies Tracking */}
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/allergies")}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.error + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <AlertTriangle color={theme.colors.accent.error} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الحساسية" : "Allergies"}
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "تسجيل ومراقبة الحساسية" : "Track your allergies"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/allergies")}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.error },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <AlertTriangle color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "تتبع" : "Track"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
               </View>
 
               {/* Blood Pressure and Vitals */}
@@ -947,7 +1061,20 @@ export default function TrackScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       console.log("Measure button pressed");
-                      setShowPPGMonitor(true);
+                      // Load component when button is pressed
+                      if (!loadedPPGComponent) {
+                        const Component = loadPPGComponent();
+                        // Only set showPPGMonitor if component loaded successfully
+                        if (Component && typeof Component === 'function') {
+                          setLoadedPPGComponent(Component);
+                          setShowPPGMonitor(true);
+                        } else {
+                          // Component failed to load, show error modal
+                          setShowPPGMonitor(true);
+                        }
+                      } else {
+                        setShowPPGMonitor(true);
+                      }
                     }}
                     style={
                       [
@@ -1119,6 +1246,84 @@ export default function TrackScreen() {
                       >
                         {formatTime(mood.timestamp)} •{" "}
                         {isRTL ? "شدة" : "Intensity"} {mood.intensity}/5
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Recent Activity - Allergies */}
+            {recentAllergies.length > 0 && (
+              <View style={styles.recentSection as ViewStyle}>
+                <View style={styles.sectionHeader as ViewStyle}>
+                  <Text
+                    style={
+                      [
+                        styles.sectionTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الحساسية الفترة الأخيرة" : "Recent Allergies"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/allergies")}
+                    style={styles.viewAllButton as ViewStyle}
+                  >
+                    <Text
+                      style={
+                        [
+                          styles.viewAllText,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "عرض الكل" : "View All"}
+                    </Text>
+                    <ChevronRight color={theme.colors.primary.main} size={16} />
+                  </TouchableOpacity>
+                </View>
+
+                {recentAllergies.slice(0, 3).map((allergy) => (
+                  <TouchableOpacity
+                    key={allergy.id}
+                    onPress={() => router.push("/(tabs)/allergies")}
+                    style={styles.recentItem as ViewStyle}
+                  >
+                    <View
+                      style={
+                        [
+                          styles.recentIcon,
+                          {
+                            backgroundColor: theme.colors.accent.error + "20",
+                          },
+                        ] as StyleProp<ViewStyle>
+                      }
+                    >
+                      <AlertTriangle color={theme.colors.accent.error} size={20} />
+                    </View>
+                    <View style={styles.recentInfo as ViewStyle}>
+                      <Text
+                        style={
+                          [
+                            styles.recentTitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
+                        {allergy.name}
+                      </Text>
+                      <Text
+                        style={
+                          [
+                            styles.recentSubtitle,
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
+                        {allergy.severity.charAt(0).toUpperCase() + allergy.severity.slice(1)}
+                        {allergy.reaction ? ` • ${allergy.reaction}` : ""}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -1516,16 +1721,16 @@ export default function TrackScreen() {
       </ScrollView>
 
       {/* PPG Heart Rate Monitor Modal */}
-      {user && PPGVitalMonitor && (
-        <PPGVitalMonitor
-          visible={showPPGMonitor}
-          userId={user.id}
-          onMeasurementComplete={(result) => {
+      {user && loadedPPGComponent && typeof loadedPPGComponent === 'function' && showPPGMonitor && (
+        React.createElement(loadedPPGComponent, {
+          visible: showPPGMonitor === true,
+          userId: user.id,
+          onMeasurementComplete: (result: any) => {
             // Optionally refresh vitals data or show success message
             loadTrackingData();
-          }}
-          onClose={() => setShowPPGMonitor(false)}
-        />
+          },
+          onClose: () => setShowPPGMonitor(false),
+        })
       )}
 
       {/* Blood Pressure Entry Modal */}
@@ -1538,12 +1743,14 @@ export default function TrackScreen() {
       />
       
       {/* Show error modal if component failed to load */}
-      {user && !PPGVitalMonitor && showPPGMonitor && (
+      {user && showPPGMonitor && (!loadedPPGComponent || typeof loadedPPGComponent !== 'function') && (
         <Modal
-          visible={showPPGMonitor}
+          visible={showPPGMonitor === true}
           animationType="slide"
           transparent={false}
-          onRequestClose={() => setShowPPGMonitor(false)}
+          onRequestClose={() => {
+            setShowPPGMonitor(false);
+          }}
         >
           <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary, padding: theme.spacing.xl }}>
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>

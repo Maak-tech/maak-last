@@ -517,6 +517,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   iconContainer: {
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
-    marginLeft: 6,
+    marginStart: 6,
   },
   syncResult: {
     marginTop: 12,
@@ -604,7 +605,7 @@ const styles = StyleSheet.create({
   },
   metricText: {
     fontSize: 15,
-    marginLeft: 10,
+    marginStart: 10,
   },
   deniedHint: {
     fontSize: 12,
@@ -625,7 +626,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 16,
     fontWeight: "500",
-    marginLeft: 12,
+    marginStart: 12,
     flex: 1,
   },
   primaryButton: {

@@ -24,7 +24,7 @@ import { signInWithCustomToken } from "firebase/auth";
 
 export default function LoginScreen() {
   const { t, i18n } = useTranslation();
-  const { signIn, loading } = useAuth();
+  const { signIn, loading, user } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -103,6 +103,14 @@ export default function LoginScreen() {
     return () => unsubscribe();
   }, []);
 
+  // Navigate away when user becomes available (after successful login)
+  useEffect(() => {
+    if (!loading && user) {
+      // User is authenticated, let index.tsx handle routing
+      router.replace("/");
+    }
+  }, [user, loading, router]);
+
   const handleLogin = async () => {
     setErrors({});
 
@@ -143,8 +151,8 @@ export default function LoginScreen() {
         );
       }
 
-      // Navigate back to index so it can handle the authenticated user
-      router.replace("/");
+      // Don't navigate here - let the useEffect above handle navigation
+      // once the auth state has fully updated
     } catch (error: any) {
       // Silently handle error
       setErrors({
@@ -228,12 +236,8 @@ export default function LoginScreen() {
         // Sign in with custom token
         await signInWithCustomToken(auth, customToken);
         
-        // Wait a moment for auth state to propagate to AuthContext
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Navigate to index - let it handle routing based on user state
-        // (Same as regular login flow)
-        router.replace("/");
+        // Don't navigate here - let the useEffect above handle navigation
+        // once the auth state has fully updated
       } catch (error: any) {
         Alert.alert(
           isRTL ? 'خطأ في المصادقة' : 'Authentication Error',
@@ -667,7 +671,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Regular",
     color: "#64748B",
-    marginRight: 4,
+    marginEnd: 4,
   },
   registerLink: {
     fontSize: 14,
@@ -675,6 +679,7 @@ const styles = StyleSheet.create({
     color: "#2563EB",
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   familySection: {
@@ -693,7 +698,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Medium",
     color: "#2563EB",
-    marginLeft: 8,
+    marginStart: 8,
     flex: 1,
   },
   optionalText: {

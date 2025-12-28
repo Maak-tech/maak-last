@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 8,
+    marginEnd: 8,
     marginBottom: 8,
     minHeight: 36,
   },
@@ -307,8 +307,8 @@ const styles = StyleSheet.create({
     borderColor: "#2563EB",
   },
   filterOptionRTL: {
-    marginRight: 0,
-    marginLeft: 8,
+    marginEnd: 0,
+    marginStart: 8,
   },
   filterContent: {
     flexDirection: "row",
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   filterIcon: {
-    marginRight: 4,
+    marginEnd: 4,
   },
   filterText: {
     fontSize: 14,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    marginLeft: 6,
+    marginStart: 6,
   },
   memberBadgeSelected: {
     backgroundColor: "#FFFFFF",
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: "#2563EB",
-    marginRight: 8,
+    marginEnd: 8,
   },
   selectedIndicatorText: {
     fontSize: 12,

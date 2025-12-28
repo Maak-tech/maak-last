@@ -743,7 +743,7 @@ export default function MedicationsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
-          <Text color="#EF4444">
+          <Text color="#EF4444" style={styles.errorText}>
             Please log in to track medications
           </Text>
         </View>
@@ -799,7 +799,7 @@ export default function MedicationsScreen() {
         />
 
         {/* Today's Progress */}
-        <Card variant="elevated" style={styles.progressCard}>
+        <Card variant="elevated" style={styles.progressCard} onPress={undefined} contentStyle={undefined}>
           <Heading level={5} style={[styles.progressTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "family"
               ? isRTL
@@ -849,7 +849,7 @@ export default function MedicationsScreen() {
           </Heading>
 
           {medications.length > 0 ? (
-            <Card variant="elevated" style={styles.medicationsList}>
+            <Card variant="elevated" style={styles.medicationsList} onPress={undefined} contentStyle={undefined}>
               {medications.map((medication) => (
                 <View key={medication.id} style={styles.medicationItem}>
                   <View style={styles.medicationLeft}>
@@ -882,6 +882,7 @@ export default function MedicationsScreen() {
                           styles.medicationDosage,
                           isRTL && styles.rtlText,
                         ]}
+                        numberOfLines={undefined}
                       >
                         {medication.dosage} • {medication.frequency}
                       </Caption>
@@ -892,6 +893,7 @@ export default function MedicationsScreen() {
                             styles.medicationTimeText,
                             isRTL && styles.rtlText,
                           ]}
+                          numberOfLines={undefined}
                         >
                           {getNextDoseText(medication)}
                         </Caption>
@@ -1066,7 +1068,7 @@ export default function MedicationsScreen() {
                     blurTimeoutRef.current = null;
                   }, 300);
                 }}
-                onChangeText={(text) => {
+                onChangeText={(text: string) => {
                   setNewMedication({ ...newMedication, name: text });
                   // Filter suggestions based on input
                   if (text.trim().length > 0) {
@@ -1103,6 +1105,10 @@ export default function MedicationsScreen() {
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.name}
+                error={undefined}
+                helperText={undefined}
+                leftIcon={undefined}
+                rightIcon={undefined}
               />
               {showSuggestions && medicationSuggestions.length > 0 && (
                 <View style={styles.suggestionsContainer}>
@@ -1164,7 +1170,7 @@ export default function MedicationsScreen() {
             <View style={styles.fieldContainer}>
               <Input
                 label={`${t("dosage")} *`}
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setNewMedication({ ...newMedication, dosage: text })
                 }
                 placeholder={
@@ -1173,6 +1179,10 @@ export default function MedicationsScreen() {
                 style={isRTL && styles.rtlInput}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.dosage}
+                error={undefined}
+                helperText={undefined}
+                leftIcon={undefined}
+                rightIcon={undefined}
               />
             </View>
 
@@ -1217,7 +1227,7 @@ export default function MedicationsScreen() {
               <Text weight="semibold" style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? "التذكيرات" : "Reminders"} *
               </Text>
-              <Caption style={[styles.helperText, isRTL && styles.rtlText]}>
+              <Caption style={[styles.helperText, isRTL && styles.rtlText]} numberOfLines={undefined}>
                 {isRTL
                   ? "أدخل الوقت واختر AM أو PM - مثال: 08:34 AM، 02:30 PM"
                   : "Enter time and select AM or PM - Examples: 08:34 AM, 02:30 PM"}
@@ -1370,13 +1380,17 @@ export default function MedicationsScreen() {
                 label={`${isRTL ? "ملاحظات" : "Notes"} (${isRTL ? "اختياري" : "Optional"})`}
                 multiline
                 numberOfLines={3}
-                onChangeText={(text) =>
+                onChangeText={(text: string) =>
                   setNewMedication({ ...newMedication, notes: text })
                 }
                 placeholder={isRTL ? "أضف ملاحظات..." : "Add notes..."}
                 style={[styles.textArea, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.notes}
+                error={undefined}
+                helperText={undefined}
+                leftIcon={undefined}
+                rightIcon={undefined}
               />
             </View>
 
@@ -1387,6 +1401,7 @@ export default function MedicationsScreen() {
               onPress={handleAddMedication}
               fullWidth
               style={styles.submitButton}
+              textStyle={undefined}
               title={
                 loading ? (isRTL ? "جاري الإضافة..." : "Adding...") : t("add")
               }
@@ -1507,7 +1522,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   medicationInfo: {
     flex: 1,
@@ -1653,6 +1668,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   centerContainer: {
@@ -1762,7 +1778,7 @@ const styles = StyleSheet.create({
   remindersDisplay: {
     flexDirection: "column",
     gap: 4,
-    marginRight: 8,
+    marginEnd: 8,
   },
   reminderTimeText: {
     fontSize: 10,

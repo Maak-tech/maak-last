@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   masterToggleInfo: {
-    marginLeft: 16,
+    marginStart: 16,
     flex: 1,
   },
   masterToggleTitle: {
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   settingInfo: {
     flex: 1,
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#92400E",
     lineHeight: 20,
-    marginLeft: 12,
+    marginStart: 12,
     flex: 1,
   },
   rtlText: {

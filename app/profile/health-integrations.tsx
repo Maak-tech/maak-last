@@ -64,8 +64,8 @@ export default function HealthIntegrationsScreen() {
   const providers: ProviderOption[] = [
     {
       id: "apple_health",
-      name: "Apple Health",
-      description: "Sync data from Apple's Health app",
+      name: t("appleHealth"),
+      description: t("appleHealthDescription"),
       icon: Heart,
       available: Platform.OS === "ios",
       recommended: Platform.OS === "ios",
@@ -73,8 +73,8 @@ export default function HealthIntegrationsScreen() {
     },
     {
       id: "fitbit",
-      name: "Fitbit",
-      description: "Sync data from your Fitbit account",
+      name: t("fitbit"),
+      description: t("fitbitDescription"),
       icon: Heart,
       available: true,
       route: "/profile/health/fitbit-intro",
@@ -108,8 +108,8 @@ export default function HealthIntegrationsScreen() {
   const handleProviderPress = (provider: ProviderOption) => {
     if (!provider.available) {
       Alert.alert(
-        "Not Available",
-        `${provider.name} is not available on ${Platform.OS === "ios" ? "iOS" : "Android"}.`
+        t("notAvailable"),
+        `${provider.name} ${isRTL ? "غير متاح على" : "is not available on"} ${Platform.OS === "ios" ? "iOS" : "Android"}.`
       );
       return;
     }
@@ -228,9 +228,9 @@ export default function HealthIntegrationsScreen() {
         {/* Providers List */}
         <View style={styles.providersSection}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }]}
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
           >
-            Available Providers
+            {t("availableProviders")}
           </Text>
 
           {providers.map((provider) => {
@@ -283,9 +283,10 @@ export default function HealthIntegrationsScreen() {
                           style={[
                             styles.badgeText,
                             { color: theme.colors.primary.main },
+                            isRTL && styles.rtlText,
                           ]}
                         >
-                          Recommended
+                          {t("recommended")}
                         </Text>
                       </View>
                     )}
@@ -295,6 +296,7 @@ export default function HealthIntegrationsScreen() {
                     style={[
                       styles.providerDesc,
                       { color: theme.colors.text.secondary },
+                      isRTL && styles.rtlText,
                     ]}
                   >
                     {provider.description}
@@ -307,9 +309,10 @@ export default function HealthIntegrationsScreen() {
                         style={[
                           styles.statusText,
                           { color: theme.colors.accent.success },
+                          isRTL && styles.rtlText,
                         ]}
                       >
-                        Connected • {connection.selectedMetrics.length} metrics
+                        {t("connected")} • {connection.selectedMetrics.length} {t("metrics")}
                       </Text>
                     </View>
                   )}
@@ -324,9 +327,10 @@ export default function HealthIntegrationsScreen() {
                         style={[
                           styles.statusText,
                           { color: theme.colors.text.secondary },
+                          isRTL && styles.rtlText,
                         ]}
                       >
-                        Not available on this platform
+                        {t("notAvailableOnPlatform")}
                       </Text>
                     </View>
                   )}
@@ -343,16 +347,14 @@ export default function HealthIntegrationsScreen() {
         {/* Info Section */}
         <View style={styles.infoSection}>
           <Text
-            style={[styles.infoTitle, { color: theme.colors.text.primary }]}
+            style={[styles.infoTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
           >
-            About Health Integrations
+            {t("aboutHealthIntegrations")}
           </Text>
           <Text
-            style={[styles.infoText, { color: theme.colors.text.secondary }]}
+            style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}
           >
-            • Health data is read-only and fully under your control{"\n"}• You
-            choose exactly which metrics to share{"\n"}• Data is encrypted and
-            securely synced{"\n"}• You can disconnect anytime
+            {t("healthDataReadOnly")}{"\n"}{t("chooseMetricsToShare")}{"\n"}{t("dataEncrypted")}{"\n"}{t("disconnectAnytime")}
           </Text>
         </View>
       </ScrollView>
@@ -431,6 +433,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   providersSection: {
@@ -457,7 +460,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginEnd: 16,
   },
   providerContent: {
     flex: 1,
@@ -470,7 +473,7 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 17,
     fontWeight: "600",
-    marginRight: 8,
+    marginEnd: 8,
   },
   badge: {
     paddingHorizontal: 8,
@@ -493,7 +496,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    marginLeft: 6,
+    marginStart: 6,
     fontWeight: "500",
   },
   infoSection: {

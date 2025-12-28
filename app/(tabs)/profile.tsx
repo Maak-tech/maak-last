@@ -25,6 +25,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -162,6 +163,11 @@ export default function ProfileScreen() {
     await i18n.changeLanguage(languageCode);
     await AsyncStorage.setItem("app_language", languageCode);
     setLanguagePickerVisible(false);
+    // Reload app to apply RTL changes (required on Android)
+    if (Platform.OS === "android") {
+      // On Android, RTL changes require app restart
+      // You may want to show a message to the user
+    }
   };
 
   const handlePersonalInfo = () => {
@@ -176,10 +182,8 @@ export default function ProfileScreen() {
     // Prevent concurrent exports
     if (exporting) {
       Alert.alert(
-        isRTL ? "جاري التصدير" : "Export in Progress",
-        isRTL
-          ? "يتم تصدير المقاييس الصحية حالياً. يرجى الانتظار حتى يكتمل التصدير."
-          : "An export is already in progress. Please wait for it to complete."
+        t("exportInProgress"),
+        t("exportInProgressMessage")
       );
       return;
     }
@@ -193,8 +197,8 @@ export default function ProfileScreen() {
     } catch (error: any) {
       setExporting(false);
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في التصدير" : "Error exporting metrics"
+        t("error"),
+        t("errorExportingMetrics")
       );
     }
   };
@@ -216,18 +220,13 @@ export default function ProfileScreen() {
       );
 
       Alert.alert(
-        isRTL ? "نجح التصدير" : "Export Successful",
-        isRTL
-          ? "تم تصدير المقاييس الصحية بنجاح. استخدم خيار المشاركة لحفظ الملف."
-          : "Health metrics exported successfully. Use the share option to save the file."
+        t("exportSuccessful"),
+        t("exportSuccessfulMessage")
       );
     } catch (error: any) {
       Alert.alert(
-        isRTL ? "خطأ في التصدير" : "Export Error",
-        error?.message ||
-          (isRTL
-            ? "حدث خطأ أثناء تصدير المقاييس الصحية"
-            : "An error occurred while exporting health metrics")
+        t("exportError"),
+        error?.message || t("exportErrorMessage")
       );
     } finally {
       setExporting(false);
@@ -248,17 +247,15 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      isRTL ? "تسجيل الخروج" : "Sign Out",
-      isRTL
-        ? "هل أنت متأكد من تسجيل الخروج؟"
-        : "Are you sure you want to sign out?",
+      t("signOut"),
+      t("confirmSignOut"),
       [
         {
-          text: isRTL ? "إلغاء" : "Cancel",
+          text: t("cancel"),
           style: "cancel",
         },
         {
-          text: isRTL ? "تسجيل الخروج" : "Sign Out",
+          text: t("signOut"),
           style: "destructive",
           onPress: async () => {
             try {
@@ -267,10 +264,8 @@ export default function ProfileScreen() {
             } catch (error) {
               // Silently handle logout error
               Alert.alert(
-                isRTL ? "خطأ" : "Error",
-                isRTL
-                  ? "فشل في تسجيل الخروج"
-                  : "Failed to sign out. Please try again."
+                t("error"),
+                t("failedToSignOut")
               );
             }
           },
@@ -281,52 +276,52 @@ export default function ProfileScreen() {
 
   const profileSections: ProfileSection[] = [
     {
-      title: isRTL ? "الحساب" : "Account",
+      title: t("account"),
       items: [
         {
           icon: User,
-          label: isRTL ? "المعلومات الشخصية" : "Personal Information",
+          label: t("personalInformation"),
           onPress: handlePersonalInfo,
         },
         {
           icon: Lock,
-          label: isRTL ? "تغيير كلمة المرور" : "Change Password",
+          label: t("changePassword"),
           onPress: handleChangePassword,
         },
         {
           icon: FileText,
-          label: isRTL ? "التقارير الصحية" : "Health Reports",
+          label: t("healthReports"),
           onPress: handleHealthReports,
         },
         {
           icon: BookOpen,
-          label: isRTL ? "المصادر التعليمية" : "Health Resources",
+          label: t("healthResources"),
           onPress: () => router.push("/(tabs)/resources"),
           comingSoon: true,
         },
       ],
     },
     {
-      title: isRTL ? "الإعدادات" : "Settings",
+      title: t("settings"),
       items: [
         {
           icon: Bell,
-          label: isRTL ? "الإشعارات" : "Notifications",
+          label: t("notifications"),
           onPress: () => router.push("/profile/notification-settings"),
         },
         {
           icon: Shield,
-          label: isRTL ? "كشف السقوط" : "Fall Detection",
+          label: t("fallDetection"),
           onPress: () => router.push("/profile/fall-detection"),
         },
         {
           icon: Activity,
-          label: isRTL ? "تكاملات الصحة" : "Health Integrations",
+          label: t("healthIntegrations"),
           onPress: () => router.push("/profile/health-integrations" as any),
         },
         {
           icon: isDark ? Sun : Moon,
-          label: isRTL ? "المظهر الداكن" : "Dark Mode",
+          label: t("darkMode"),
           hasSwitch: true,
           switchValue: isDark,
           onSwitchChange: (value: boolean) => {
@@ -335,28 +330,28 @@ export default function ProfileScreen() {
         },
         {
           icon: Globe,
-          label: isRTL ? "اللغة" : "Language",
-          value: isRTL ? "العربية" : "English",
+          label: t("language"),
+          value: isRTL ? t("arabic") : t("english"),
           onPress: () => setLanguagePickerVisible(true),
         },
       ],
     },
     {
-      title: isRTL ? "الدعم" : "Support",
+      title: t("support"),
       items: [
         {
           icon: HelpCircle,
-          label: isRTL ? "المساعدة والدعم" : "Help & Support",
+          label: t("helpSupport"),
           onPress: handleHelpSupport,
         },
         {
           icon: FileText,
-          label: isRTL ? "الشروط والأحكام" : "Terms & Conditions",
+          label: t("termsConditions"),
           onPress: handleTermsConditions,
         },
         {
           icon: Shield,
-          label: isRTL ? "سياسة الخصوصية" : "Privacy Policy",
+          label: t("privacyPolicy"),
           onPress: handlePrivacyPolicy,
         },
       ],
@@ -405,7 +400,7 @@ export default function ProfileScreen() {
             </Text>
             <View style={styles.memberSince}>
               <Text style={[styles.memberSinceText, isRTL && styles.rtlText]}>
-                {isRTL ? "عضو منذ" : "Member since"}{" "}
+                {t("memberSince")}{" "}
                 {new Date(user?.createdAt || new Date()).getFullYear()}
               </Text>
             </View>
@@ -415,7 +410,7 @@ export default function ProfileScreen() {
         {/* Improved Health Summary */}
         <View style={styles.healthSummary}>
           <Text style={[styles.healthTitle, isRTL && styles.rtlText]}>
-            {isRTL ? "ملخص الصحة" : "Health Summary"}
+            {t("healthSummary")}
           </Text>
 
           {loading ? (
@@ -431,11 +426,11 @@ export default function ProfileScreen() {
                 <Text style={[styles.healthCardValue, isRTL && styles.rtlText]}>
                   {healthData.healthScore}
                 </Text>
-                <Text
+                  <Text
                   numberOfLines={2}
                   style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? "نقاط الصحة" : "Health Score"}
+                  {t("healthScore")}
                 </Text>
               </View>
 
@@ -450,7 +445,7 @@ export default function ProfileScreen() {
                   numberOfLines={2}
                   style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? "أعراض هذا الشهر" : "Symptoms This Month"}
+                  {t("symptomsThisMonth")}
                 </Text>
               </View>
 
@@ -465,7 +460,7 @@ export default function ProfileScreen() {
                   numberOfLines={2}
                   style={[styles.healthCardLabel, isRTL && styles.rtlText]}
                 >
-                  {isRTL ? "أدوية نشطة" : "Active Medications"}
+                  {t("activeMedications")}
                 </Text>
               </View>
             </View>
@@ -518,7 +513,7 @@ export default function ProfileScreen() {
                         {item.comingSoon && (
                           <View style={styles.comingSoonBadge}>
                             <Text style={styles.comingSoonText}>
-                              {isRTL ? "قريباً" : "Coming Soon"}
+                              {t("comingSoon")}
                             </Text>
                           </View>
                         )}
@@ -536,8 +531,7 @@ export default function ProfileScreen() {
                       ) : (
                         <>
                           {exporting &&
-                          item.label ===
-                            (isRTL ? "التقارير الصحية" : "Health Reports") ? (
+                          item.label === t("healthReports") ? (
                             <ActivityIndicator color="#2563EB" size="small" />
                           ) : (
                             <>
@@ -599,7 +593,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "اختر اللغة" : "Select Language"}
+              {t("selectLanguage")}
             </Text>
 
             <TouchableOpacity
@@ -615,7 +609,7 @@ export default function ProfileScreen() {
                   i18n.language === "en" && styles.selectedLanguageText,
                 ]}
               >
-                English
+                {t("english")}
               </Text>
               {i18n.language === "en" && <Check color="#2563EB" size={20} />}
             </TouchableOpacity>
@@ -634,7 +628,7 @@ export default function ProfileScreen() {
                   i18n.language === "ar" && styles.selectedLanguageText,
                 ]}
               >
-                العربية
+                {t("arabic")}
               </Text>
               {i18n.language === "ar" && <Check color="#2563EB" size={20} />}
             </TouchableOpacity>
@@ -644,7 +638,7 @@ export default function ProfileScreen() {
               style={styles.cancelButton}
             >
               <Text style={[styles.cancelButtonText, isRTL && styles.rtlText]}>
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("cancel")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -662,7 +656,7 @@ export default function ProfileScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "اختر الصورة الرمزية" : "Choose Your Avatar"}
+                {t("chooseYourAvatar")}
               </Text>
               <TouchableOpacity
                 onPress={() => setAvatarCreatorVisible(false)}
@@ -691,18 +685,14 @@ export default function ProfileScreen() {
                         }
                         setAvatarCreatorVisible(false);
                         Alert.alert(
-                          isRTL ? "تم الحفظ" : "Success",
-                          isRTL
-                            ? "تم حفظ الصورة الرمزية بنجاح"
-                            : "Avatar saved successfully"
+                          t("success"),
+                          t("avatarSavedSuccessfully")
                         );
                       }
                     } catch (error) {
                       Alert.alert(
-                        isRTL ? "خطأ" : "Error",
-                        isRTL
-                          ? "فشل حفظ الصورة الرمزية"
-                          : "Failed to save avatar"
+                        t("error"),
+                        t("failedToSaveAvatar")
                       );
                     } finally {
                       setLoading(false);
@@ -711,12 +701,12 @@ export default function ProfileScreen() {
                 >
                   <Avatar avatarType={type} size="xl" style={{ width: 80, height: 80 }} />
                   <Text style={[styles.avatarLabel, isRTL && styles.rtlText]}>
-                    {type === "man" && (isRTL ? "رجل" : "Man")}
-                    {type === "woman" && (isRTL ? "امرأة" : "Woman")}
-                    {type === "boy" && (isRTL ? "صبي" : "Boy")}
-                    {type === "girl" && (isRTL ? "فتاة" : "Girl")}
-                    {type === "grandpa" && (isRTL ? "جد" : "Grandpa")}
-                    {type === "grandma" && (isRTL ? "جدة" : "Grandma")}
+                    {type === "man" && t("man")}
+                    {type === "woman" && t("woman")}
+                    {type === "boy" && t("boy")}
+                    {type === "girl" && t("girl")}
+                    {type === "grandpa" && t("grandpa")}
+                    {type === "grandma" && t("grandma")}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -868,7 +858,7 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
     marginBottom: 8,
-    marginLeft: 4,
+    marginStart: 4,
   },
   sectionItems: {
     backgroundColor: "#FFFFFF",
@@ -896,7 +886,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    marginRight: 12,
+    marginEnd: 12,
   },
   sectionItemIcon: {
     width: 32,
@@ -905,7 +895,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   sectionItemLabel: {
     fontSize: 16,
@@ -966,6 +956,7 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   modalOverlay: {

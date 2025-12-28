@@ -50,9 +50,9 @@ export default function AppleHealthIntroScreen() {
       >
         <View style={styles.errorContainer}>
           <Text
-            style={[styles.errorText, { color: theme.colors.text.primary }]}
+            style={[styles.errorText, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
           >
-            Apple Health is only available on iOS devices.
+            {t("appleHealthOnlyIOS")}
           </Text>
         </View>
       </SafeAreaView>
@@ -80,7 +80,7 @@ export default function AppleHealthIntroScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? "ربط Apple Health" : "Connect Apple Health"}
+          {t("connectAppleHealth")}
         </Text>
 
         <View style={styles.headerSpacer} />
@@ -97,7 +97,7 @@ export default function AppleHealthIntroScreen() {
               isRTL && styles.rtlText,
             ]}
           >
-            {isRTL ? "ربط Apple Health" : "Connect Apple Health"}
+            {t("connectAppleHealth")}
           </Text>
           <Text
             style={[
@@ -106,18 +106,16 @@ export default function AppleHealthIntroScreen() {
               isRTL && styles.rtlText,
             ]}
           >
-            {isRTL
-              ? "قم بمزامنة بياناتك الصحية لتوفير رؤى رعاية أفضل"
-              : "Sync your health data to provide better care insights"}
+            {t("syncHealthDataBetterInsights")}
           </Text>
         </View>
 
         {/* Benefits Section */}
         <View style={styles.section}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }]}
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
           >
-            What You'll Get
+            {t("whatYoullGet")}
           </Text>
 
           <View style={styles.benefitCard}>
@@ -127,18 +125,19 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
+                  isRTL && styles.rtlText,
                 ]}
               >
-                Complete Health Picture
+                {t("completeHealthPicture")}
               </Text>
               <Text
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
+                  isRTL && styles.rtlText,
                 ]}
               >
-                View all your health metrics in one place for better care
-                coordination
+                {t("completeHealthPictureDesc")}
               </Text>
             </View>
           </View>
@@ -150,17 +149,19 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
+                  isRTL && styles.rtlText,
                 ]}
               >
-                Early Risk Detection
+                {t("earlyRiskDetection")}
               </Text>
               <Text
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
+                  isRTL && styles.rtlText,
                 ]}
               >
-                Track trends and identify potential health issues early
+                {t("earlyRiskDetectionDesc")}
               </Text>
             </View>
           </View>
@@ -172,17 +173,19 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
+                  isRTL && styles.rtlText,
                 ]}
               >
-                Your Data, Your Control
+                {t("yourDataYourControl")}
               </Text>
               <Text
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
+                  isRTL && styles.rtlText,
                 ]}
               >
-                You choose exactly which metrics to share. Read-only access.
+                {t("yourDataYourControlDesc")}
               </Text>
             </View>
           </View>
@@ -191,9 +194,9 @@ export default function AppleHealthIntroScreen() {
         {/* Privacy Promise Section */}
         <View style={styles.section}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }]}
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
           >
-            Your Privacy Promise
+            {t("yourPrivacyPromise")}
           </Text>
 
           <View
@@ -220,18 +223,19 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyTitle,
                     { color: theme.colors.text.primary },
+                    isRTL && styles.rtlText,
                   ]}
                 >
-                  We only read what you choose
+                  {t("weOnlyReadWhatYouChoose")}
                 </Text>
                 <Text
                   style={[
                     styles.privacyDesc,
                     { color: theme.colors.text.secondary },
+                    isRTL && styles.rtlText,
                   ]}
                 >
-                  You have complete control. Select exactly which metrics to
-                  share, and we&apos;ll only access those.
+                  {t("weOnlyReadWhatYouChooseDesc")}
                 </Text>
               </View>
             </View>
@@ -250,18 +254,19 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyTitle,
                     { color: theme.colors.text.primary },
+                    isRTL && styles.rtlText,
                   ]}
                 >
-                  We never sell or share health data
+                  {t("weNeverSellHealthData")}
                 </Text>
                 <Text
                   style={[
                     styles.privacyDesc,
                     { color: theme.colors.text.secondary },
+                    isRTL && styles.rtlText,
                   ]}
                 >
-                  Your health data is yours alone. We never sell it, share it
-                  with third parties, or use it for advertising.
+                  {t("weNeverSellHealthDataDesc")}
                 </Text>
               </View>
             </View>
@@ -280,18 +285,19 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyTitle,
                     { color: theme.colors.text.primary },
+                    isRTL && styles.rtlText,
                   ]}
                 >
-                  You can change permissions anytime
+                  {t("changePermissionsAnytime")}
                 </Text>
                 <Text
                   style={[
                     styles.privacyDesc,
                     { color: theme.colors.text.secondary },
+                    isRTL && styles.rtlText,
                   ]}
                 >
-                  Update your selections or disconnect completely at any time
-                  through the app or iOS Settings.
+                  {t("changePermissionsAnytimeDesc")}
                 </Text>
               </View>
             </View>
@@ -311,11 +317,10 @@ export default function AppleHealthIntroScreen() {
               style={[
                 styles.additionalPrivacyText,
                 { color: theme.colors.text.secondary },
+                isRTL && styles.rtlText,
               ]}
             >
-              • Read-only access - we never write to your health data{"\n"}•
-              Data is encrypted and securely synced{"\n"}• Used only for
-              caregiving insights and health tracking
+              {t("readOnlyAccess")}{"\n"}{t("dataEncryptedSynced")}{"\n"}{t("usedForCaregiving")}
             </Text>
           </View>
         </View>
@@ -331,8 +336,8 @@ export default function AppleHealthIntroScreen() {
               { backgroundColor: theme.colors.primary.main },
             ]}
           >
-            <Text style={styles.primaryButtonText}>Continue</Text>
-            <ChevronRight color="#FFFFFF" size={20} />
+            <Text style={styles.primaryButtonText}>{t("continue")}</Text>
+            <ChevronRight color="#FFFFFF" size={20} style={[isRTL && { transform: [{ rotate: "180deg" }] }]} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -343,9 +348,10 @@ export default function AppleHealthIntroScreen() {
               style={[
                 styles.secondaryButtonText,
                 { color: theme.colors.text.secondary },
+                isRTL && styles.rtlText,
               ]}
             >
-              Not Now
+              {t("notNow")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -421,6 +427,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   section: {
@@ -439,7 +446,7 @@ const styles = StyleSheet.create({
   },
   benefitContent: {
     flex: 1,
-    marginLeft: 16,
+    marginStart: 16,
   },
   benefitTitle: {
     fontSize: 17,
@@ -469,7 +476,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginEnd: 16,
   },
   privacyContent: {
     flex: 1,
@@ -509,7 +516,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "600",
-    marginRight: 8,
+    marginEnd: 8,
   },
   secondaryButton: {
     padding: 16,

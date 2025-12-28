@@ -113,6 +113,17 @@ export interface MedicalHistory {
   familyMemberName?: string; // Name of the family member for display
 }
 
+export interface Allergy {
+  id: string;
+  userId: string;
+  name: string;
+  severity: "mild" | "moderate" | "severe" | "severe-life-threatening";
+  reaction?: string;
+  notes?: string;
+  discoveredDate?: Date;
+  timestamp: Date;
+}
+
 export interface FamilyMember {
   id: string;
   name: string;

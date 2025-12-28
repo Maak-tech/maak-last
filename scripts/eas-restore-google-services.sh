@@ -1,24 +1,23 @@
 #!/bin/bash
-set -euo pipefail
+# Wrapper script to restore Google Services files
+# EAS Build may append --platform flag, so we filter it out and call the Node.js script
 
-# Script to restore Google Services files from EAS environment variables during build
-# These files are gitignored but required for builds
+set -e
 
-echo "🔧 Restoring Google Services files from EAS environment variables..."
+# Filter out --platform flag and its value
+ARGS=()
+SKIP_NEXT=false
+for arg in "$@"; do
+  if [ "$SKIP_NEXT" = true ]; then
+    SKIP_NEXT=false
+    continue
+  fi
+  if [ "$arg" = "--platform" ]; then
+    SKIP_NEXT=true
+    continue
+  fi
+  ARGS+=("$arg")
+done
 
-# Restore google-services.json for Android
-if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
-  echo "$GOOGLE_SERVICES_JSON" | base64 -d > google-services.json
-  echo "✅ Restored google-services.json"
-else
-  echo "⚠️  Warning: GOOGLE_SERVICES_JSON environment variable is not set"
-fi
-
-# Restore GoogleService-Info.plist for iOS
-if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
-  echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 -d > GoogleService-Info.plist
-  echo "✅ Restored GoogleService-Info.plist"
-else
-  echo "⚠️  Warning: GOOGLE_SERVICE_INFO_PLIST environment variable is not set"
-fi
-
+# Call the Node.js script (it will handle the environment variables)
+node scripts/eas-restore-google-services.js "${ARGS[@]}"

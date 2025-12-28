@@ -164,8 +164,8 @@ export default function AppleHealthPermissionsScreen() {
   const handleContinue = async () => {
     if (selectedMetrics.size === 0) {
       Alert.alert(
-        "No Metrics Selected",
-        "Please select at least one metric to continue."
+        t("noMetricsSelected"),
+        t("pleaseSelectAtLeastOneMetric")
       );
       return;
     }
@@ -336,7 +336,7 @@ export default function AppleHealthPermissionsScreen() {
           </TouchableOpacity>
 
           <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-            {isRTL ? "أذونات Apple Health" : "Apple Health Permissions"}
+            {t("appleHealthPermissions")}
           </Text>
 
           <View style={styles.headerSpacer} />
@@ -376,7 +376,7 @@ export default function AppleHealthPermissionsScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? "أذونات Apple Health" : "Apple Health Permissions"}
+          {t("appleHealthPermissions")}
         </Text>
 
         <View style={styles.headerSpacer} />
@@ -393,7 +393,7 @@ export default function AppleHealthPermissionsScreen() {
               isRTL && styles.rtlText,
             ]}
           >
-            {isRTL ? "اختر المقاييس" : "Select Metrics"}
+            {t("selectMetrics")}
           </Text>
           <Text
             style={[
@@ -402,9 +402,7 @@ export default function AppleHealthPermissionsScreen() {
               isRTL && styles.rtlText,
             ]}
           >
-            {isRTL
-              ? "اختر مقاييس الصحة التي تريد مزامنتها من Apple Health"
-              : "Choose which health metrics to sync from Apple Health"}
+            {t("chooseHealthMetricsToSync")}
           </Text>
         </View>
 
@@ -434,7 +432,7 @@ export default function AppleHealthPermissionsScreen() {
                 },
               ]}
             >
-              {allSelected ? "✓ All Selected" : "Select All"}
+              {allSelected ? t("allSelected") : t("selectAll")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -495,9 +493,10 @@ export default function AppleHealthPermissionsScreen() {
                       style={[
                         styles.groupTitle,
                         { color: theme.colors.text.primary },
+                        isRTL && styles.rtlText,
                       ]}
                     >
-                      {getGroupDisplayName(group)}
+                      {t(`healthMetrics.${group}`)}
                     </Text>
                     <Text
                       style={[
@@ -560,9 +559,10 @@ export default function AppleHealthPermissionsScreen() {
                                 style={[
                                   styles.metricName,
                                   { color: theme.colors.text.primary },
+                                  isRTL && styles.rtlText,
                                 ]}
                               >
-                                {metric.displayName}
+                                {t(`healthMetrics.${metric.key}`) || metric.displayName}
                               </Text>
                               {metric.unit && (
                                 <Text
@@ -591,10 +591,9 @@ export default function AppleHealthPermissionsScreen() {
           <View style={styles.infoRow}>
             <Info color={theme.colors.text.secondary} size={16} />
             <Text
-              style={[styles.infoText, { color: theme.colors.text.secondary }]}
+              style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}
             >
-              You can change these permissions later in iOS Settings → Privacy &
-              Security → Health
+              {t("changePermissionsLater")}
             </Text>
           </View>
         </View>
@@ -620,8 +619,7 @@ export default function AppleHealthPermissionsScreen() {
             ) : (
               <>
                 <Text style={styles.primaryButtonText}>
-                  Authorize {selectedMetrics.size} Metric
-                  {selectedMetrics.size !== 1 ? "s" : ""}
+                  {t("authorizeMetrics")} {selectedMetrics.size} {selectedMetrics.size !== 1 ? t("metrics") : t("metric")}
                 </Text>
                 <ChevronRight color="#FFFFFF" size={20} />
               </>
@@ -683,6 +681,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   introSection: {
@@ -737,11 +736,11 @@ const styles = StyleSheet.create({
   groupTitle: {
     fontSize: 17,
     fontWeight: "600",
-    marginLeft: 12,
+    marginStart: 12,
   },
   groupCount: {
     fontSize: 14,
-    marginLeft: 8,
+    marginStart: 8,
   },
   metricsList: {
     paddingHorizontal: 16,
@@ -767,7 +766,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   metricInfo: {
     flex: 1,
@@ -791,7 +790,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 13,
     lineHeight: 18,
-    marginLeft: 8,
+    marginStart: 8,
     flex: 1,
   },
   ctaSection: {
@@ -812,6 +811,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "600",
-    marginRight: 8,
+    marginEnd: 8,
   },
 });

@@ -34,6 +34,27 @@ const SEVERITY_OPTIONS = [
   { key: "severe", labelEn: "Severe", labelAr: "شديد" },
 ];
 
+const MEDICAL_HISTORY_EXAMPLES = [
+  { en: "Diabetes", ar: "داء السكري" },
+  { en: "Hypertension", ar: "ارتفاع ضغط الدم" },
+  { en: "Asthma", ar: "الربو" },
+  { en: "Heart Disease", ar: "أمراض القلب" },
+  { en: "High Cholesterol", ar: "ارتفاع الكوليسترول" },
+  { en: "Arthritis", ar: "التهاب المفاصل" },
+  { en: "Migraine", ar: "الصداع النصفي" },
+  { en: "Anemia", ar: "فقر الدم" },
+  { en: "Thyroid Disorder", ar: "اضطراب الغدة الدرقية" },
+  { en: "Kidney Disease", ar: "أمراض الكلى" },
+  { en: "Liver Disease", ar: "أمراض الكبد" },
+  { en: "Depression", ar: "الاكتئاب" },
+  { en: "Anxiety", ar: "القلق" },
+  { en: "Allergies", ar: "الحساسية" },
+  { en: "Epilepsy", ar: "الصرع" },
+  { en: "Osteoporosis", ar: "هشاشة العظام" },
+  { en: "Sleep Apnea", ar: "انقطاع النفس أثناء النوم" },
+  { en: "Chronic Pain", ar: "الألم المزمن" },
+];
+
 export default function MedicalHistoryScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -416,7 +437,7 @@ export default function MedicalHistoryScreen() {
                             >
                               {new Date(
                                 record.diagnosedDate
-                              ).toLocaleDateString(isRTL ? "ar-SA" : "en-US")}
+                              ).toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US")}
                             </Text>
                           )}
                         </View>
@@ -528,6 +549,31 @@ export default function MedicalHistoryScreen() {
                 textAlign={isRTL ? "right" : "left"}
                 value={newCondition.condition}
               />
+              
+              {/* Medical History Examples */}
+              <View style={styles.examplesContainer}>
+                <Text style={[styles.examplesLabel, isRTL && styles.rtlText]}>
+                  {isRTL ? "أمثلة شائعة:" : "Common Examples:"}
+                </Text>
+                <View style={styles.examplesGrid}>
+                  {MEDICAL_HISTORY_EXAMPLES.map((example, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() =>
+                        setNewCondition({
+                          ...newCondition,
+                          condition: isRTL ? example.ar : example.en,
+                        })
+                      }
+                      style={styles.exampleChip}
+                    >
+                      <Text style={[styles.exampleChipText, isRTL && styles.rtlText]}>
+                        {isRTL ? example.ar : example.en}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
 
             {/* Severity Field */}
@@ -830,6 +876,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   tabContainer: {
@@ -889,7 +936,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   recordInfo: {
     flex: 1,
@@ -1108,5 +1155,32 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Regular",
     color: "#64748B",
     fontStyle: "italic",
+  },
+  examplesContainer: {
+    marginTop: 12,
+  },
+  examplesLabel: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    marginBottom: 8,
+  },
+  examplesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  exampleChip: {
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  exampleChipText: {
+    fontSize: 13,
+    fontFamily: "Geist-Regular",
+    color: "#475569",
   },
 });

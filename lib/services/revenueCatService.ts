@@ -214,9 +214,41 @@ class RevenueCatService {
     }
 
     try {
+      // Check if the current user is anonymous before attempting logout
+      // RevenueCat throws an error if logOut is called on an anonymous user
+      try {
+        const customerInfo = await Purchases.getCustomerInfo();
+        const isAnonymous = customerInfo.originalAppUserId.startsWith("$RCAnonymousID:");
+        
+        if (isAnonymous) {
+          // User is already anonymous, no need to log out
+          this.currentCustomerInfo = null;
+          return;
+        }
+      } catch (checkError) {
+        // If we can't get customer info, proceed with logout attempt
+        // The logout call itself will handle the anonymous check
+      }
+
       await Purchases.logOut();
       this.currentCustomerInfo = null;
-    } catch (error) {
+    } catch (error: any) {
+      // Check if error is specifically about anonymous user
+      // RevenueCat throws this error when logOut is called on an anonymous user
+      const errorMessage = error?.message || String(error) || "";
+      const errorString = errorMessage.toLowerCase();
+      
+      if (
+        errorString.includes("anonymous") ||
+        errorString.includes("logout was called but the current user is anonymous")
+      ) {
+        // User is anonymous, which is fine - just clear the cached info silently
+        // This is not an error condition, just a no-op
+        this.currentCustomerInfo = null;
+        return;
+      }
+      
+      // Only log actual errors, not the anonymous user case
       logger.error("Failed to log out from RevenueCat", error, "RevenueCatService");
       throw error;
     }

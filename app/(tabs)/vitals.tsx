@@ -277,8 +277,8 @@ export default function VitalsScreen() {
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
       marginVertical: theme.spacing.lg,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
+      borderStartWidth: 4,
+      borderStartColor: theme.colors.secondary.main,
       alignItems: "center" as const,
       ...theme.shadows.sm,
     },
@@ -343,11 +343,11 @@ export default function VitalsScreen() {
     groupTitle: {
       fontSize: 17,
       fontWeight: "600",
-      marginLeft: theme.spacing.base,
+      marginStart: theme.spacing.base,
     },
     groupCount: {
       fontSize: 14,
-      marginLeft: theme.spacing.xs,
+      marginStart: theme.spacing.xs,
     },
     metricsList: {
       paddingHorizontal: theme.spacing.base,
@@ -373,7 +373,7 @@ export default function VitalsScreen() {
       borderWidth: 2,
       justifyContent: "center" as const,
       alignItems: "center" as const,
-      marginRight: theme.spacing.base,
+      marginEnd: theme.spacing.base,
     },
     metricInfo: {
       flex: 1,
@@ -397,7 +397,7 @@ export default function VitalsScreen() {
     infoText: {
       fontSize: 13,
       lineHeight: 18,
-      marginLeft: theme.spacing.sm,
+      marginStart: theme.spacing.sm,
       flex: 1,
     },
     ctaSection: {
@@ -418,7 +418,7 @@ export default function VitalsScreen() {
       color: "#FFFFFF",
       fontSize: 17,
       fontWeight: "600",
-      marginRight: theme.spacing.sm,
+      marginEnd: theme.spacing.sm,
     },
   }))(theme);
 
@@ -1574,10 +1574,11 @@ export default function VitalsScreen() {
                           [
                             styles.groupTitle,
                             { color: theme.colors.text.primary },
+                            isRTL && styles.rtlText,
                           ] as StyleProp<TextStyle>
                         }
                       >
-                        {getGroupDisplayName(group)}
+                        {t(`healthMetrics.${group}`)}
                       </Text>
                       <Text
                         style={
@@ -1657,10 +1658,11 @@ export default function VitalsScreen() {
                                     [
                                       styles.metricName,
                                       { color: theme.colors.text.primary },
+                                      isRTL && styles.rtlText,
                                     ] as StyleProp<TextStyle>
                                   }
                                 >
-                                  {metric.displayName}
+                                  {t(`healthMetrics.${metric.key}`) || metric.displayName}
                                 </Text>
                                 {metric.unit && (
                                   <Text

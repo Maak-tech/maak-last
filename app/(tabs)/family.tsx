@@ -1264,7 +1264,7 @@ export default function FamilyScreen() {
                       styles.attentionItem,
                       {
                         backgroundColor: colors.bg,
-                        borderLeftColor: colors.border,
+                        borderStartColor: colors.border,
                       },
                     ]}
                   >
@@ -2533,7 +2533,7 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     position: "relative",
-    marginRight: 12,
+    marginEnd: 12,
   },
   avatar: {
     width: 50,
@@ -2747,6 +2747,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   memberStats: {
@@ -2789,7 +2790,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Medium",
     color: "#2563EB",
-    marginLeft: 8,
+    marginStart: 8,
   },
   settingToggle: {
     flexDirection: "row",
@@ -2833,7 +2834,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-SemiBold",
     color: "#FFFFFF",
-    marginLeft: 8,
+    marginStart: 8,
   },
   roleOptions: {
     flexDirection: "row",
@@ -2928,7 +2929,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   attentionItem: {
-    borderLeftWidth: 4,
+    borderStartWidth: 4,
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
@@ -2965,7 +2966,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   trendContainer: {
-    marginLeft: 4,
+    marginStart: 4,
   },
   trendIcon: {
     marginTop: 1,

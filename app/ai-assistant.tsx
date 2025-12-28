@@ -726,7 +726,7 @@ export default function AIAssistant() {
                 color="white"
                 name="add-circle-outline"
                 size={20}
-                style={{ marginRight: 8 }}
+                style={{ marginEnd: 8 }}
               />
               <Text style={styles.newChatButtonText}>Start New Chat</Text>
             </TouchableOpacity>
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
     flex: 1,
-    marginLeft: 12,
+    marginStart: 12,
   },
   headerActions: {
     flexDirection: "row",
@@ -767,10 +767,10 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 4,
-    marginLeft: 8,
+    marginStart: 8,
   },
   newChatHeaderButton: {
-    marginLeft: 0,
+    marginStart: 0,
   },
   historyHeaderButton: {
     position: "relative",
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginRight: 8,
+    marginEnd: 8,
     fontSize: 16,
     maxHeight: 100,
     color: "#333",
@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
   },
   historyItemContent: {
     flex: 1,
-    marginRight: 12,
+    marginEnd: 12,
   },
   historyItemTitle: {
     fontSize: 16,

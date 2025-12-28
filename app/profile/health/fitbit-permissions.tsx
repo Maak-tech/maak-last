@@ -236,7 +236,7 @@ export default function FitbitPermissionsScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-          {isRTL ? "أذونات Fitbit" : "Fitbit Permissions"}
+          {t("fitbitPermissions")}
         </Text>
 
         <View style={styles.headerSpacer} />
@@ -253,7 +253,7 @@ export default function FitbitPermissionsScreen() {
               isRTL && styles.rtlText,
             ]}
           >
-            {isRTL ? "اختر المقاييس" : "Select Metrics"}
+            {t("selectMetrics")}
           </Text>
           <Text
             style={[
@@ -262,9 +262,7 @@ export default function FitbitPermissionsScreen() {
               isRTL && styles.rtlText,
             ]}
           >
-            {isRTL
-              ? "اختر مقاييس الصحة التي تريد مزامنتها من Fitbit"
-              : "Choose which health metrics to sync from Fitbit"}
+            {t("chooseHealthMetricsToSyncFitbit")}
           </Text>
         </View>
 
@@ -294,13 +292,7 @@ export default function FitbitPermissionsScreen() {
                 },
               ]}
             >
-              {allSelected
-                ? isRTL
-                  ? "✓ تم اختيار الكل"
-                  : "✓ All Selected"
-                : isRTL
-                  ? "اختر الكل"
-                  : "Select All"}
+              {allSelected ? t("allSelected") : t("selectAll")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -361,9 +353,10 @@ export default function FitbitPermissionsScreen() {
                       style={[
                         styles.groupTitle,
                         { color: theme.colors.text.primary },
+                        isRTL && styles.rtlText,
                       ]}
                     >
-                      {getGroupDisplayName(group)}
+                      {t(`healthMetrics.${group}`)}
                     </Text>
                     <Text
                       style={[
@@ -426,9 +419,10 @@ export default function FitbitPermissionsScreen() {
                                 style={[
                                   styles.metricName,
                                   { color: theme.colors.text.primary },
+                                  isRTL && styles.rtlText,
                                 ]}
                               >
-                                {metric.displayName}
+                                {t(`healthMetrics.${metric.key}`) || metric.displayName}
                               </Text>
                               {metric.unit && (
                                 <Text
@@ -555,6 +549,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   introSection: {
@@ -609,11 +604,11 @@ const styles = StyleSheet.create({
   groupTitle: {
     fontSize: 17,
     fontWeight: "600",
-    marginLeft: 12,
+    marginStart: 12,
   },
   groupCount: {
     fontSize: 14,
-    marginLeft: 8,
+    marginStart: 8,
   },
   metricsList: {
     paddingHorizontal: 16,
@@ -639,7 +634,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginEnd: 12,
   },
   metricInfo: {
     flex: 1,
@@ -663,7 +658,7 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 13,
     lineHeight: 18,
-    marginLeft: 8,
+    marginStart: 8,
     flex: 1,
   },
   ctaSection: {
@@ -684,7 +679,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "600",
-    marginRight: 8,
+    marginEnd: 8,
   },
 });
 

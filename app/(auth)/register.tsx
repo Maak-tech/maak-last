@@ -1,6 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import { Check, Users, X } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Image,
@@ -21,7 +21,7 @@ import type { AvatarType } from "@/types";
 
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
-  const { signUp, loading } = useAuth();
+  const { signUp, loading, user } = useAuth();
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -35,6 +35,14 @@ export default function RegisterScreen() {
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
   const isRTL = i18n.language === "ar";
+
+  // Navigate away when user becomes available (after successful registration)
+  useEffect(() => {
+    if (!loading && user) {
+      // User is authenticated, let index.tsx handle routing
+      router.replace("/");
+    }
+  }, [user, loading, router]);
 
   // Memoize the avatar name to prevent unnecessary re-renders
   const avatarName = useMemo(() => {
@@ -82,7 +90,8 @@ export default function RegisterScreen() {
       }
 
       await signUp(email, password, firstName, lastName, selectedAvatarType);
-      router.replace("/");
+      // Don't navigate here - let the useEffect above handle navigation
+      // once the auth state has fully updated
     } catch (error: any) {
       setErrors({
         general: error.message || "Registration failed. Please try again.",
@@ -572,7 +581,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Regular",
     color: "#64748B",
-    marginRight: 4,
+    marginEnd: 4,
   },
   loginLink: {
     fontSize: 14,
@@ -580,6 +589,7 @@ const styles = StyleSheet.create({
     color: "#2563EB",
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
   avatarContainer: {
@@ -684,7 +694,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Medium",
     color: "#2563EB",
-    marginLeft: 8,
+    marginStart: 8,
     flex: 1,
   },
   optionalText: {

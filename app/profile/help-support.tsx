@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginEnd: 16,
   },
   contactContent: {
     flex: 1,
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   hoursContent: {
-    marginLeft: 12,
+    marginStart: 12,
     flex: 1,
   },
   hoursTitle: {
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEE2E2",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginEnd: 8,
   },
   emergencyTitle: {
     fontSize: 18,
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   locationContent: {
-    marginLeft: 12,
+    marginStart: 12,
     flex: 1,
   },
   locationTitle: {
@@ -667,6 +667,7 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   rtlText: {
+    textAlign: "right",
     fontFamily: "Geist-Regular",
   },
 });

@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   masterToggleInfo: {
-    marginLeft: 16,
+    marginStart: 16,
     flex: 1,
   },
   masterToggleTitle: {
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statusIcon: {
-    marginRight: 12,
+    marginEnd: 12,
   },
   statusInfo: {
     flex: 1,
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#1F2937",
-    marginLeft: 12,
+    marginStart: 12,
   },
   infoText: {
     fontSize: 14,
@@ -586,19 +586,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#FFFFFF",
-    marginLeft: 12,
+    marginStart: 12,
   },
   testButtonTextSecondary: {
     fontSize: 16,
     fontWeight: "600",
     color: "#2563EB",
-    marginLeft: 12,
+    marginStart: 12,
   },
   testButtonTextDiagnostic: {
     fontSize: 16,
     fontWeight: "600",
     color: "#F59E0B",
-    marginLeft: 12,
+    marginStart: 12,
   },
   warningCard: {
     backgroundColor: "#FFFBEB",
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#92400E",
     lineHeight: 20,
-    marginLeft: 12,
+    marginStart: 12,
     flex: 1,
   },
   rtlText: {
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
   },
   permissionWarningContent: {
     flex: 1,
-    marginLeft: 12,
+    marginStart: 12,
   },
   permissionWarningTitle: {
     fontSize: 16,
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   },
   permissionInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginStart: 12,
   },
   permissionTitle: {
     fontSize: 16,
