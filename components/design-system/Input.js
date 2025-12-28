@@ -140,22 +140,22 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputWithLeftIcon: {
-    marginLeft: spacing.sm,
+    marginStart: spacing.sm,
   },
   inputWithRightIcon: {
-    marginRight: spacing.sm,
+    marginEnd: spacing.sm,
   },
   leftIcon: {
-    marginRight: spacing.xs,
+    marginEnd: spacing.xs,
   },
   rightIcon: {
-    marginLeft: spacing.xs,
+    marginStart: spacing.xs,
   },
   helperText: {
     fontSize: typography.caption,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-    marginLeft: spacing.xs,
+    marginStart: spacing.xs,
   },
   errorText: {
     color: colors.error,

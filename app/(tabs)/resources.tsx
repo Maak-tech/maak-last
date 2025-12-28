@@ -198,7 +198,7 @@ export default function ResourcesScreen() {
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content} contentContainerStyle={styles.contentInner}>
         {/* Coming Soon Badge */}
         <View style={styles.comingSoonCard}>
           <View style={styles.badge}>
@@ -268,7 +268,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
     paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   comingSoonCard: {
     backgroundColor: "#FEF3C7",

@@ -787,6 +787,7 @@ export default function MedicationsScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
+        contentContainerStyle={styles.contentInner}
       >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
@@ -1441,7 +1442,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
     paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   progressCard: {
     backgroundColor: "#FFFFFF",

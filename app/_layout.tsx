@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { I18nManager, NativeModules, Platform } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -41,11 +42,35 @@ export default function RootLayout() {
 
   // Set RTL direction based on current language
   useEffect(() => {
-    const isRTL = i18n.language === "ar";
-    if (Platform.OS === "android" || Platform.OS === "ios") {
-      I18nManager.forceRTL(isRTL);
-      I18nManager.allowRTL(isRTL);
-    }
+    const updateRTL = () => {
+      const isRTL = i18n.language === "ar";
+      if (Platform.OS === "android" || Platform.OS === "ios") {
+        // Only update if RTL state has changed
+        if (I18nManager.isRTL !== isRTL) {
+          I18nManager.forceRTL(isRTL);
+          I18nManager.allowRTL(isRTL);
+          
+          // On Android, RTL changes require a reload
+          if (Platform.OS === "android" && NativeModules.UIManager?.setLayoutAnimationEnabledExperimental) {
+            NativeModules.UIManager.setLayoutAnimationEnabledExperimental(true);
+          }
+        }
+      }
+    };
+
+    // Update on mount
+    updateRTL();
+
+    // Listen for language changes
+    const languageChangeHandler = () => {
+      updateRTL();
+    };
+
+    i18n.on("languageChanged", languageChangeHandler);
+
+    return () => {
+      i18n.off("languageChanged", languageChangeHandler);
+    };
   }, []);
 
   useEffect(() => {
@@ -105,21 +130,23 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <FallDetectionProvider>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="profile" options={{ headerShown: false }} />
-            <Stack.Screen name="family" options={{ headerShown: false }} />
-            <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-        </FallDetectionProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <FallDetectionProvider>
+            <StatusBar style="auto" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="profile" options={{ headerShown: false }} />
+              <Stack.Screen name="family" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+          </FallDetectionProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

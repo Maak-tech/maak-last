@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
+    marginEnd: spacing.sm,
   },
   logoTextSmall: {
     fontSize: 20,
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
   },
   tab: {
-    marginRight: spacing.xs,
+    marginEnd: spacing.xs,
   },
   content: {
     flex: 1,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
   projectInfo: {
     flex: 1,
-    marginLeft: spacing.sm,
+    marginStart: spacing.sm,
   },
   projectDescription: {
     marginVertical: spacing.sm,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarOverlap: {
-    marginLeft: -8,
+    marginStart: -8,
     borderWidth: 2,
     borderColor: colors.surface,
   },
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   eventDate: {
     width: 50,
     alignItems: 'center',
-    marginRight: spacing.md,
+    marginEnd: spacing.md,
     padding: spacing.sm,
     backgroundColor: colors.secondaryLight,
     borderRadius: borderRadius.md,

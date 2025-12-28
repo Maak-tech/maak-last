@@ -344,7 +344,7 @@ export default function PPGVitalMonitorVisionCamera({
       backgroundColor: theme.colors.primary[50],
       justifyContent: "center" as const,
       alignItems: "center" as const,
-      marginRight: theme.spacing.md,
+      marginEnd: theme.spacing.md,
     },
     instructionsTitle: {
       ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
@@ -362,7 +362,7 @@ export default function PPGVitalMonitorVisionCamera({
       backgroundColor: theme.colors.primary.main,
       justifyContent: "center" as const,
       alignItems: "center" as const,
-      marginRight: theme.spacing.md,
+      marginEnd: theme.spacing.md,
       marginTop: 2,
     },
     instructionNumberText: {
@@ -380,8 +380,8 @@ export default function PPGVitalMonitorVisionCamera({
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
       marginBottom: theme.spacing.lg,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
+      borderStartWidth: 4,
+      borderStartColor: theme.colors.secondary.main,
     },
     tipsHeader: {
       flexDirection: "row" as const,
@@ -395,7 +395,7 @@ export default function PPGVitalMonitorVisionCamera({
       backgroundColor: theme.colors.secondary.main + "20",
       justifyContent: "center" as const,
       alignItems: "center" as const,
-      marginRight: theme.spacing.sm,
+      marginEnd: theme.spacing.sm,
     },
     tipsTitle: {
       ...getTextStyle(theme, "body", "semibold", theme.colors.secondary.dark),
@@ -411,7 +411,7 @@ export default function PPGVitalMonitorVisionCamera({
       borderRadius: 3,
       backgroundColor: theme.colors.secondary.main,
       marginTop: 8,
-      marginRight: theme.spacing.sm,
+      marginEnd: theme.spacing.sm,
     },
     tipText: {
       ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
@@ -431,7 +431,7 @@ export default function PPGVitalMonitorVisionCamera({
     },
     startButtonText: {
       ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
-      marginLeft: theme.spacing.sm,
+      marginStart: theme.spacing.sm,
     },
     backButton: {
       backgroundColor: "transparent",

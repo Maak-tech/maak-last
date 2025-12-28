@@ -977,7 +977,7 @@ const initI18n = async () => {
   const isRTL = initialLang === "ar";
   setRTL(isRTL);
 
-  i18n
+  return i18n
     .use(initReactI18next) // Pass the i18n instance to react-i18next
     .init({
       compatibilityJSON: "v3", // Fix Intl.PluralRules compatibility
@@ -998,22 +998,32 @@ const initI18n = async () => {
       cache: {
         enabled: false, // Disable caching for now to avoid issues
       },
-    })
-    .catch((error) => {
-      // Silently handle error
     });
 };
 
-// Override changeLanguage to also update RTL direction
-const originalChangeLanguage = i18n.changeLanguage.bind(i18n);
-i18n.changeLanguage = async (lng?: string) => {
-  const newLang = lng || i18n.language;
-  const isRTL = newLang === "ar";
-  setRTL(isRTL);
-  return originalChangeLanguage(lng);
-};
-
 // Initialize i18n
-initI18n();
+initI18n().then(() => {
+  // Override changeLanguage to also update RTL direction after initialization
+  if (i18n.changeLanguage) {
+    const originalChangeLanguage = i18n.changeLanguage.bind(i18n);
+    i18n.changeLanguage = async (lng?: string) => {
+      const newLang = lng || i18n.language;
+      const isRTL = newLang === "ar";
+      setRTL(isRTL);
+      
+      // Save language preference
+      try {
+        const AsyncStorage = await import("@react-native-async-storage/async-storage");
+        await AsyncStorage.default.setItem("app_language", newLang);
+      } catch {
+        // Silently handle error
+      }
+      
+      return originalChangeLanguage(lng);
+    };
+  }
+}).catch(() => {
+  // Silently handle error
+});
 
 export default i18n;

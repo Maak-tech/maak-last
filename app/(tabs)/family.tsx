@@ -321,7 +321,7 @@ export default function FamilyScreen() {
     if (!(inviteForm.name && inviteForm.relation)) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى ملء الحقول المطلوبة" : "Please fill in required fields"
+        isRTL ? "يرجى ملء البيانات المطلوبة" : "Please fill in required fields"
       );
       return;
     }
@@ -329,7 +329,7 @@ export default function FamilyScreen() {
     if (!user?.familyId) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "لا توجد عائلة مربوطة" : "No family found"
+        isRTL ? "لا توجد عائلة متصلة" : "No family found"
       );
       return;
     }
@@ -346,7 +346,7 @@ export default function FamilyScreen() {
         Alert.alert(
           isRTL ? "خطأ" : "Premium Required",
           isRTL
-            ? "يجب الاشتراك في الخطة المميزة لإضافة أعضاء إضافيين إلى العائلة"
+            ? "يجب الاشتراك بالاشتراك العائلي لإضافة أعضاء إضافيين إلى العائلة"
             : "A premium subscription is required to add additional family members",
           [
             {
@@ -354,7 +354,7 @@ export default function FamilyScreen() {
               style: "cancel",
             },
             {
-              text: isRTL ? "عرض الخطط" : "View Plans",
+              text: isRTL ? "عرض الاشتراكات العائلية" : "View Family Plans",
               onPress: () => setShowPaywall(true),
             },
           ]
@@ -367,7 +367,7 @@ export default function FamilyScreen() {
         Alert.alert(
           isRTL ? "تم الوصول للحد الأقصى" : "Member Limit Reached",
           isRTL
-            ? `لقد وصلت إلى الحد الأقصى لعدد الأعضاء في خطتك (${maxMembers} عضو). قم بالترقية إلى خطة العائلة لإضافة المزيد من الأعضاء.`
+            ? `لقد وصلت إلى الحد الأقصى لعدد الأعضاء في الاشتراك العائلي الخاص بك (${maxMembers} عضو). قم بالترقية إلى الاشتراك العائلي لإضافة المزيد من الأعضاء.`
             : `You've reached the maximum number of members for your plan (${maxMembers} members). Upgrade to Family Plan to add more members.`,
           [
             {
@@ -375,7 +375,7 @@ export default function FamilyScreen() {
               style: "cancel",
             },
             {
-              text: isRTL ? "ترقية" : "Upgrade",
+              text: isRTL ? "ترقية إلى الاشتراك العائلي" : "Upgrade to Family Plan",
               onPress: () => setShowPaywall(true),
             },
           ]
@@ -645,7 +645,7 @@ export default function FamilyScreen() {
         setTimeout(() => {
           Alert.alert(
             isRTL ? "خطأ" : "Error",
-            isRTL ? "يرجى ملء جميع الحقول" : "Please fill in all fields",
+            isRTL ? "يرجى ملء جميع البيانات المطلوبة" : "Please fill in all fields",
             [{ text: isRTL ? "حسناً" : "OK" }],
             { cancelable: true }
           );
@@ -736,7 +736,7 @@ export default function FamilyScreen() {
     if (!user?.familyId) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "لا توجد عائلة مربوطة" : "No family found"
+        isRTL ? "لا توجد عائلة متصلة بك" : "No family found"
       );
       return;
     }
@@ -891,7 +891,7 @@ export default function FamilyScreen() {
           Alert.alert(
             isRTL ? "تم الوصول للحد الأقصى" : "Family at Capacity",
             isRTL
-              ? `لقد وصلت هذه العائلة إلى الحد الأقصى لعدد الأعضاء في خطة المدير (${adminMaxMembers} عضو).`
+              ? `لقد وصلت هذه العائلة إلى الحد الأقصى لعدد الأعضاء في الاشتراك العائلي الخاص بالمدير (${adminMaxMembers} عضو).`
               : `This family has reached the maximum number of members allowed by the admin's plan (${adminMaxMembers} members).`,
             [
               {
@@ -912,7 +912,7 @@ export default function FamilyScreen() {
           Alert.alert(
             isRTL ? "خطأ" : "Premium Required",
             isRTL
-              ? "يجب الاشتراك في الخطة المميزة للانضمام إلى عائلة تحتوي على أعضاء"
+              ? "يجب الاشتراك بالاشتراك العائلي للانضمام إلى عائلة تحتوي على أعضاء"
               : "A premium subscription is required to join a family that already has members",
             [
               {
@@ -1183,6 +1183,7 @@ export default function FamilyScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
+        contentContainerStyle={styles.contentInner}
       >
         {/* View Data Filter */}
         <FamilyDataFilter
@@ -2048,7 +2049,7 @@ export default function FamilyScreen() {
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "إرسال تنبيهات فوتت الأدوية"
+                    ? "إرسال تنبيهات الأدوية الفائتة"
                     : "Send missed medication alerts"}
                 </Text>
                 <Switch
@@ -2356,7 +2357,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
     paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   overviewCard: {
     backgroundColor: "#FFFFFF",

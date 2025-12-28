@@ -196,7 +196,7 @@ export default function FitbitPermissionsScreen() {
           </TouchableOpacity>
 
           <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-            {isRTL ? "أذونات Fitbit" : "Fitbit Permissions"}
+            {isRTL ? "أذن التواصل مع Fitbit" : "Fitbit Contact Permissions"}
           </Text>
 
           <View style={styles.headerSpacer} />
@@ -454,7 +454,7 @@ export default function FitbitPermissionsScreen() {
               style={[styles.infoText, { color: theme.colors.text.secondary }]}
             >
               {isRTL
-                ? "سيتم توجيهك إلى موقع Fitbit للمصادقة. يمكنك تغيير هذه الأذونات لاحقًا في إعدادات التطبيق."
+                ? "سيتم توجيهك إلى موقع Fitbit للمصادقة. يمكنك تغيير هذه الأذن لاحقًا في إعدادات التطبيق."
                 : "You will be redirected to Fitbit's website for authentication. You can change these permissions later in app settings."}
             </Text>
           </View>

@@ -258,7 +258,7 @@ export default function MoodsScreen() {
     if (!selectedMood) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى اختيار المزاج" : "Please select a mood"
+        isRTL ? "يرجى اختيار الحالة النفسية" : "Please select a mood"
       );
       return;
     }
@@ -285,7 +285,7 @@ export default function MoodsScreen() {
           Alert.alert(
             isRTL ? "غير مسموح" : "Not Permitted",
             isRTL
-              ? "ليس لديك صلاحية لتعديل هذا المزاج"
+              ? "ليس لديك صلاحية لتعديل هذه الحالةالنفسية"
               : "You do not have permission to edit this mood"
           );
           return;
@@ -340,15 +340,15 @@ export default function MoodsScreen() {
         isRTL ? "تم الحفظ" : "Saved",
         isRTL
           ? editingMood
-            ? "تم تحديث المزاج بنجاح"
-            : "تم تسجيل المزاج بنجاح"
+            ? "تم تحديث الحالة بنجاح"
+            : "تم تسجيل الحالة بنجاح"
           : editingMood
             ? "Mood updated successfully"
             : "Mood logged successfully"
       );
     } catch (error: any) {
       // Provide more specific error messages
-      let errorMessage = isRTL ? "حدث خطأ في حفظ المزاج" : "Error saving mood";
+      let errorMessage = isRTL ? "حدث خطأ في حفظ الحالة" : "Error saving mood";
 
       if (error?.message) {
         if (
@@ -356,7 +356,7 @@ export default function MoodsScreen() {
           error.message.includes("Permission")
         ) {
           errorMessage = isRTL
-            ? "ليس لديك صلاحية لحفظ المزاج. يرجى التحقق من إعدادات الحساب."
+            ? "ليس لديك صلاحية لحفظ الحالة النفسية. يرجى التحقق من إعدادات الحساب."
             : "You don't have permission to save mood. Please check your account settings.";
         } else if (
           error.message.includes("network") ||
@@ -371,7 +371,7 @@ export default function MoodsScreen() {
             : "Please fill in all required fields";
         } else {
           errorMessage = isRTL
-            ? `حدث خطأ في حفظ المزاج: ${error.message}`
+            ? `حدث خطأ في حفظ الحالة النفسية: ${error.message}`
             : `Error saving mood: ${error.message}`;
         }
       }
@@ -392,7 +392,7 @@ export default function MoodsScreen() {
       Alert.alert(
         isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لتعديل هذا المزاج"
+          ? "ليس لديك صلاحية لتعديل هذه الحالة النفسية"
           : "You do not have permission to edit this mood"
       );
       return;
@@ -417,16 +417,16 @@ export default function MoodsScreen() {
       Alert.alert(
         isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لحذف هذا المزاج"
+          ? "ليس لديك صلاحية لحذف هذه الحالة النفسية"
           : "You do not have permission to delete this mood"
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? "حذف المزاج" : "Delete Mood",
+      isRTL ? "حذف الحالة النفسية" : "Delete Mood",
       isRTL
-        ? "هل أنت متأكد من رغبتك في حذف هذا المزاج؟"
+        ? "هل أنت متأكد من رغبتك في حذف هذه الحالة النفسية؟"
         : "Are you sure you want to delete this mood?",
       [
         {
@@ -444,13 +444,13 @@ export default function MoodsScreen() {
               setShowActionsMenu(null);
               Alert.alert(
                 isRTL ? "تم الحذف" : "Deleted",
-                isRTL ? "تم حذف المزاج بنجاح" : "Mood deleted successfully"
+                isRTL ? "تم حذف الحالة النفسية بنجاح" : "Mood deleted successfully"
               );
             } catch (error) {
               // Silently handle mood delete error
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
-                isRTL ? "حدث خطأ في حذف المزاج" : "Error deleting mood"
+                isRTL ? "حدث خطأ في حذف الحالة النفسية" : "Error deleting mood"
               );
             } finally {
               setLoading(false);
@@ -604,7 +604,7 @@ export default function MoodsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {isRTL ? "تتبع المزاج" : "Mood Tracking"}
+          {isRTL ? "تتبع الحالة النفسية" : "Mood Tracking"}
         </Text>
         <TouchableOpacity
           onPress={() => {
@@ -627,6 +627,7 @@ export default function MoodsScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
+        contentContainerStyle={styles.contentInner}
       >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
@@ -651,14 +652,14 @@ export default function MoodsScreen() {
               <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
                 {selectedFilter.type === "family"
                   ? isRTL
-                    ? "مزاجات العائلة"
+                    ? "حالات النفسية العائلة"
                     : "Family Moods"
                   : selectedFilter.type === "member"
                     ? isRTL
-                      ? `مزاجات ${selectedFilter.memberName}`
+                      ? `حالات النفسية  ${selectedFilter.memberName}`
                       : `${selectedFilter.memberName}'s Moods`
                     : isRTL
-                      ? "إجمالي المزاجات"
+                      ? "إجمالي حالات النفسية"
                       : "Total Moods"}
               </Text>
             </View>
@@ -678,14 +679,14 @@ export default function MoodsScreen() {
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "family"
               ? isRTL
-                ? "مزاجات العائلة الأخيرة"
+                ? "حالات النفسية لعائلتك الفترة الأخيرة"
                 : "Recent Family Moods"
               : selectedFilter.type === "member"
                 ? isRTL
-                  ? `مزاجات ${selectedFilter.memberName} الأخيرة`
+                  ? `حالات النفسية ل ${selectedFilter.memberName} الفترة الأخيرة`
                   : `${selectedFilter.memberName}'s Recent Moods`
                 : isRTL
-                  ? "مزاجاتي الأخيرة"
+                  ? "حالات النفسية الخاصة بي الفترة الأخيرة"
                   : "My Recent Moods"}
           </Text>
 
@@ -698,7 +699,7 @@ export default function MoodsScreen() {
           ) : moods.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL ? "لا توجد مزاجات مسجلة" : "No moods recorded"}
+                {isRTL ? "لا توجد حالات نفسية مسجلة" : "No moods recorded"}
               </Text>
             </View>
           ) : (
@@ -823,10 +824,10 @@ export default function MoodsScreen() {
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
               {editingMood
                 ? isRTL
-                  ? "تعديل المزاج"
+                  ? "تعديل الحالة النفسية"
                   : "Edit Mood"
                 : isRTL
-                  ? "إضافة مزاج جديد"
+                  ? "إضافة حالة نفسية جديدة"
                   : "Add New Mood"}
             </Text>
             <TouchableOpacity
@@ -848,7 +849,7 @@ export default function MoodsScreen() {
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "إضافة المزاج لـ" : "Add mood for"}
+                  {isRTL ? "إضافة الحالة النفسية لـ" : "Add mood for"}
                 </Text>
                 <View style={styles.memberSelectionContainer}>
                   {familyMembers.map((member) => (
@@ -900,7 +901,7 @@ export default function MoodsScreen() {
             {/* Mood Selection */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "اختر المزاج" : "Select Mood"}
+                {isRTL ? "اختر الحالة النفسية" : "Select Mood"}
               </Text>
               
               {/* Positive Emotions */}
@@ -974,7 +975,7 @@ export default function MoodsScreen() {
               {/* Neutral/Other States */}
               <View style={styles.moodCategory}>
                 <Text style={[styles.categoryLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "حالات أخرى" : "Other States"}
+                  {isRTL ? "حالات نفسية أخرى" : "Other Moods"}
                 </Text>
                 <View style={styles.moodsGrid}>
                   {MOOD_OPTIONS.filter(m => m.category === "neutral").map((moodOption) => (
@@ -1020,7 +1021,7 @@ export default function MoodsScreen() {
                 onChangeText={setNotes}
                 placeholder={
                   isRTL
-                    ? "أضف ملاحظات حول مزاجك..."
+                    ? "أضف ملاحظات حول حالتك النفسية..."
                     : "Add notes about your mood..."
                 }
                 style={[
@@ -1046,10 +1047,10 @@ export default function MoodsScreen() {
                     : "Saving..."
                   : editingMood
                     ? isRTL
-                      ? "تحديث المزاج"
+                      ? "تحديث الحالة النفسية"
                       : "Update Mood"
                     : isRTL
-                      ? "حفظ المزاج"
+                      ? "حفظ الحالة النفسية"
                       : "Save Mood"}
               </Text>
             </TouchableOpacity>
@@ -1094,7 +1095,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+  },
+  contentInner: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   statsSection: {
     marginBottom: 24,

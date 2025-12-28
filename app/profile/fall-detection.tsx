@@ -261,7 +261,7 @@ export default function FallDetectionScreen() {
                   style={[styles.permissionWarning, isRTL && styles.rtlText]}
                 >
                   {isRTL
-                    ? "⚠️ أذونات الحركة مطلوبة"
+                    ? "⚠️ أذن الحركة واللياقة البدنية مطلوبة"
                     : "⚠️ Motion permissions required"}
                 </Text>
               )}
@@ -276,11 +276,11 @@ export default function FallDetectionScreen() {
               <AlertTriangle color="#F59E0B" size={24} />
               <View style={styles.permissionInfo}>
                 <Text style={[styles.permissionTitle, isRTL && styles.rtlText]}>
-                  {isRTL ? "أذونات الحركة" : "Motion Permissions"}
+                  {isRTL ? "أذن الحركة واللياقة البدنية" : "Motion & Fitness Permissions"}
                 </Text>
                 <Text style={[styles.permissionText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "يجب تفعيل أذونات الحركة واللياقة البدنية لكشف السقوط"
+                    ? "يجب تفعيل أذن الحركة واللياقة البدنية لكشف السقوط"
                     : "Motion & Fitness permissions are required for fall detection"}
                 </Text>
               </View>
@@ -291,7 +291,7 @@ export default function FallDetectionScreen() {
             >
               <Settings color="#FFFFFF" size={20} />
               <Text style={styles.permissionButtonText}>
-                {isRTL ? "فتح إعدادات الأذونات" : "Open Permission Settings"}
+                {isRTL ? "فتح إعدادات أذن الحركة واللياقة البدنية" : "Open Motion & Fitness Permissions Settings"}
               </Text>
             </TouchableOpacity>
           </View>

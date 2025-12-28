@@ -212,14 +212,9 @@ try {
 
 /**
  * Export the wrapped Text component for use in this module
+ * Note: The Text component is patched directly in React Native module above
+ * Components should import Text from 'react-native' to get the patched version
  */
-export const Text = TextWithForwardRef;
-
-/**
- * Export ReanimatedText as an alias for convenience
- * Components can use this if they specifically need the wrapped version
- */
-export const ReanimatedText = TextWithForwardRef;
 
 /**
  * Initialize reanimated compatibility

@@ -426,7 +426,7 @@ export default function FamilyMemberHealthView() {
           <View style={styles.sectionHeader}>
             <Activity color="#F59E0B" size={20} />
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "الأعراض" : "Symptoms"}
+              {isRTL ? "الأعراض الصحية المراقبة" : "Tracked Symptoms"}
             </Text>
             <Text style={[styles.sectionCount, isRTL && styles.rtlText]}>
               ({recentSymptoms.length})
@@ -486,7 +486,7 @@ export default function FamilyMemberHealthView() {
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                 {isRTL
-                  ? "لا توجد أعراض مسجلة مؤخراً"
+                  ? "لا توجد أعراض صحية مسجلة مؤخراً"
                   : "No recent symptoms recorded"}
               </Text>
             </View>
@@ -549,7 +549,7 @@ export default function FamilyMemberHealthView() {
                             isRTL && styles.rtlText,
                           ]}
                         >
-                          {isRTL ? "الجرعات اليوم" : "Today's Doses"}:
+                          {isRTL ? "جرعات اليوم" : "Today's Doses"}:
                         </Text>
                         {medication.reminders.map((reminder) => {
                           const isToday =
@@ -596,7 +596,7 @@ export default function FamilyMemberHealthView() {
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                 {isRTL
-                  ? "لا توجد أدوية نشطة"
+                  ? "لا توجد أدوية فعالة"
                   : "No active medications"}
               </Text>
             </View>

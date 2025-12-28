@@ -376,6 +376,7 @@ export default function ProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
+        contentContainerStyle={styles.contentInner}
       >
         {/* User Profile Card */}
         <View style={styles.profileCard}>
@@ -470,7 +471,7 @@ export default function ProfileScreen() {
         {/* Settings Sections */}
         {profileSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>
               {section.title}
             </Text>
 
@@ -735,7 +736,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
     paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   profileCard: {
     backgroundColor: "#FFFFFF",
@@ -859,6 +863,9 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     marginBottom: 8,
     marginStart: 4,
+  },
+  sectionTitleRTL: {
+    textAlign: "right",
   },
   sectionItems: {
     backgroundColor: "#FFFFFF",

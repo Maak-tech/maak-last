@@ -77,7 +77,10 @@ export default function DashboardScreen() {
     },
     content: {
       flex: 1,
-      padding: theme.spacing.base,
+    },
+    contentInner: {
+      paddingHorizontal: theme.spacing.base,
+      paddingVertical: theme.spacing.base,
     },
     header: {
       marginBottom: theme.spacing.xl,
@@ -159,6 +162,7 @@ export default function DashboardScreen() {
       padding: theme.spacing.base,
       marginBottom: theme.spacing.base,
       ...theme.shadows.md,
+      alignItems: "stretch" as const,
     },
     sectionTitle: {
       ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
@@ -297,9 +301,14 @@ export default function DashboardScreen() {
       alignItems: "center" as const,
       position: "absolute" as const,
       bottom: theme.spacing.xl,
-      right: theme.spacing.base,
       ...theme.shadows.lg,
       zIndex: 1000,
+    },
+    sosButtonLTR: {
+      right: theme.spacing.base,
+    },
+    sosButtonRTL: {
+      left: theme.spacing.base,
     },
     sosButtonText: {
       ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
@@ -357,6 +366,8 @@ export default function DashboardScreen() {
       flexDirection: "row" as const,
       flexWrap: "wrap" as const,
       gap: theme.spacing.md,
+      justifyContent: "flex-start" as const,
+      alignItems: "stretch" as const,
     },
     quickActionCard: {
       flex: 1,
@@ -590,6 +601,7 @@ export default function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
+        contentContainerStyle={styles.contentInner as ViewStyle}
       >
         {/* Header with SOS Button */}
         <View style={styles.headerWithSOS as ViewStyle}>
@@ -645,7 +657,7 @@ export default function DashboardScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.statsContainer as ViewStyle}
-          style={{ marginHorizontal: -theme.spacing.base }}
+          style={isRTL ? { marginStart: -theme.spacing.base, marginEnd: 0 } : { marginHorizontal: -theme.spacing.base }}
         >
           <Card 
             variant="elevated" 
@@ -683,7 +695,7 @@ export default function DashboardScreen() {
                   ] as StyleProp<TextStyle>
                 }
               >
-                {isRTL ? "الأعراض المرضية هذا الأسبوع" : "Symptoms This Week"}
+                {isRTL ? "الأعراض الصحية هذا الأسبوع" : "Symptoms This Week"}
               </Text>
             </View>
           </Card>
@@ -800,7 +812,7 @@ export default function DashboardScreen() {
                   ] as StyleProp<TextStyle>
                 }
               >
-                {isRTL ? "تنبيهات طوارئ مرضية نشطة" : "Active Emergency Alerts"}
+                {isRTL ? "تنبيهات طوارئ صحية نشطة" : "Active Emergency Alerts"}
               </Text>
               <Text
                 color={theme.colors.accent.error}
@@ -868,7 +880,7 @@ export default function DashboardScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "التنبيهات الطوارئ المرضية النشطة" : "Active Emergency Alerts"}
+                  {isRTL ? "التنبيهات الطوارئ الصحية النشطة" : "Active Emergency Alerts"}
                 </Text>
                 <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
                   <Text
@@ -918,7 +930,7 @@ export default function DashboardScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "لا توجد تنبيهات طوارئ مرضية نشطة" : "No active emergency alerts"}
+                    {isRTL ? "لا توجد تنبيهات طوارئ صحية نشطة" : "No active emergency alerts"}
                   </Text>
                 </View>
               ) : (
@@ -1225,7 +1237,7 @@ export default function DashboardScreen() {
                 ] as StyleProp<TextStyle>
               }
             >
-              {isRTL ? "الأعراض المرضية الأخيرة" : "Recent Symptoms"}
+              {isRTL ? "الأعراض الصحية الأخيرة" : "Recent Symptoms"}
             </Text>
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/symptoms")}
@@ -1250,7 +1262,10 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 key={symptom.id}
                 onPress={() => router.push("/(tabs)/symptoms")}
-                style={styles.symptomItem as ViewStyle}
+                style={[
+                  styles.symptomItem as ViewStyle,
+                  isRTL && { flexDirection: "row-reverse" as const },
+                ]}
               >
                 <View style={styles.symptomInfo as ViewStyle}>
                   <Text
@@ -1308,7 +1323,7 @@ export default function DashboardScreen() {
                 }
               >
                 {isRTL
-                  ? "لا توجد أعراض مرضية مسجلة - اضغط لإضافة أعراض مرضية"
+                  ? "لا توجد أعراض الصحية مسجلة - اضغط لإضافة أعراض صحية"
                   : "No symptoms recorded - tap to add"}
               </Text>
             </TouchableOpacity>

@@ -178,7 +178,10 @@ export default function TrackScreen() {
     },
     content: {
       flex: 1,
+    },
+    contentInner: {
       paddingHorizontal: theme.spacing.base,
+      paddingVertical: theme.spacing.base,
     },
     summaryGrid: {
       flexDirection: "row" as const,
@@ -480,7 +483,7 @@ export default function TrackScreen() {
           }
         >
           {isRTL
-            ? "راقب أعراضك المرضية وأدويتك"
+            ? "راقب أعراضك الصحية وأدويتك"
             : "Monitor your symptoms and medications"}
         </Text>
       </View>
@@ -495,6 +498,7 @@ export default function TrackScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
+        contentContainerStyle={styles.contentInner as ViewStyle}
       >
         {/* Summary Stats */}
         {loading ? (
@@ -543,7 +547,7 @@ export default function TrackScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "أعراض هذا الأسبوع" : "Symptoms This Week"}
+                  {isRTL ? "أعراض صحية هذا الأسبوع" : "Tracked Symptoms This Week"}
                 </Text>
               </View>
 
@@ -592,7 +596,7 @@ export default function TrackScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "خيارات التتبع" : "Tracking Options"}
+                  {isRTL ? "خيارات التتبع الصحي" : "Health Tracking Options"}
                 </Text>
               </View>
 
@@ -619,7 +623,7 @@ export default function TrackScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "الأعراض" : "Symptoms"}
+                    {isRTL ? "الأعراض الصحية " : "Tracked Symptoms"}
                   </Text>
                   <Text
                     style={
@@ -630,7 +634,7 @@ export default function TrackScreen() {
                     }
                   >
                     {isRTL
-                      ? "تسجيل ومراقبة الأعراض"
+                      ? "  تسجيل ومراقبة الأعراض الصحية"
                       : "Log and monitor symptoms"}
                   </Text>
                   <TouchableOpacity
@@ -731,7 +735,7 @@ export default function TrackScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "المزاج" : "Mood"}
+                    {isRTL ? "الحالة النفسية" : "Mood"}
                   </Text>
                   <Text
                     style={
@@ -741,7 +745,7 @@ export default function TrackScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "تسجيل ومراقبة المزاج" : "Track your mood"}
+                    {isRTL ? "تسجيل ومراقبة الحالة النفسية" : "Track your mood"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/moods")}
@@ -1109,7 +1113,7 @@ export default function TrackScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "الأعراض الأخيرة" : "Recent Symptoms"}
+                    {isRTL ? "الأعراض الصحيةالأخيرة" : "Recent Symptoms"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/symptoms")}
@@ -1185,7 +1189,7 @@ export default function TrackScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "المزاجات الأخيرة" : "Recent Moods"}
+                    {isRTL ? "الحالات النفسية الأخيرة" : "Recent Moods"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => router.push("/(tabs)/moods")}

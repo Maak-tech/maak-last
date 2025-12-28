@@ -249,7 +249,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
+            {isRTL ? "التنبيهات الفعالة" : "Active Alerts"}
           </Text>
         </View>
         <View style={styles.loadingContainer}>
@@ -264,13 +264,13 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
+            {isRTL ? "التنبيهات الفعالة" : "Active Alerts"}
           </Text>
         </View>
         <View style={styles.emptyContainer}>
           <CheckCircle color="#10B981" size={48} />
           <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-            {isRTL ? "لا توجد تنبيهات نشطة" : "No active alerts"}
+            {isRTL ? "لا توجد تنبيهات فعالة" : "No active alerts"}
           </Text>
         </View>
       </View>
@@ -281,7 +281,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
+          {isRTL ? "التنبيهات الفعالة" : "Active Alerts"}
         </Text>
         <View style={styles.alertBadge}>
           <Text style={styles.alertBadgeText}>{alerts.length}</Text>

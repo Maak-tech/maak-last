@@ -133,7 +133,7 @@ export default function BloodPressureEntry({
       borderRadius: 4,
       borderWidth: 2,
       borderColor: theme.colors.primary.main,
-      marginRight: theme.spacing.md,
+      marginEnd: theme.spacing.md,
       justifyContent: "center" as const,
       alignItems: "center" as const,
     },

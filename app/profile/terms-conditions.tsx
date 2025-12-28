@@ -231,7 +231,7 @@ export default function TermsConditionsScreen() {
               </Text>
               <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
                 {isRTL
-                  ? "يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق معاك. باستخدامك للتطبيق، فإنك توافق على الالتزام بهذه الشروط."
+                  ? "يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق معك. باستخدامك للتطبيق، فإنك توافق على الالتزام بهذه الشروط."
                   : "Please read these terms and conditions carefully before using the Maak app. By using the app, you agree to be bound by these terms."}
               </Text>
               {document.lastUpdated && (

@@ -155,7 +155,10 @@ export default function VitalsScreen() {
     },
     content: {
       flex: 1,
+    },
+    contentInner: {
       paddingHorizontal: theme.spacing.base,
+      paddingVertical: theme.spacing.base,
     },
     permissionCard: {
       backgroundColor: "#FFF4E6", // Light orange background
@@ -708,8 +711,8 @@ export default function VitalsScreen() {
               isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
               availability?.reason ||
                 (isRTL
-                  ? "HealthKit غير متاح. يرجى التأكد من أنك تستخدم تطبيقًا مطورًا وليس Expo Go."
-                  : "HealthKit is not available. Please ensure you're running a development build or standalone app.")
+                  ? "HealthKit غير متاح."
+                  : "HealthKit is not available.")
             );
             return;
           }
@@ -747,8 +750,8 @@ export default function VitalsScreen() {
                 : "React Native bridge is not ready. Please try again in a few seconds or rebuild the app."
               : healthKitError?.message ||
                   (isRTL
-                    ? "فشل الاتصال بـ HealthKit. يرجى إعادة بناء التطبيق بوحدات native."
-                    : "Failed to connect to HealthKit. Please rebuild the app with native modules.")
+                    ? "فشل الاتصال بـ HealthKit."
+                    : "Failed to connect to HealthKit.")
           );
           setAuthorizing(false);
           return;
@@ -877,12 +880,12 @@ export default function VitalsScreen() {
       }
     } catch (error: any) {
       Alert.alert(
-        isRTL ? "خطأ في الأذونات" : "Permission Error",
+        isRTL ? "خطأ في أذن البيانات الصحية" : "Permission Error",
         error.message ||
           (isRTL
             ? Platform.OS === "ios"
-              ? "فشل طلب أذونات HealthKit. يرجى المحاولة مرة أخرى."
-              : "فشل طلب أذونات Health Connect. يرجى المحاولة مرة أخرى."
+              ? "فشل طلب أذن HealthKit."
+              : "فشل طلب أذن Health Connect."
             : Platform.OS === "ios"
               ? "Failed to request HealthKit permissions. Please try again."
               : "Failed to request Health Connect permissions. Please try again.")
@@ -900,7 +903,7 @@ export default function VitalsScreen() {
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في مزامنة البيانات" : "Error syncing data"
+        isRTL ? "حدث خطأ في مزامنة البيانات الصحية" : "Error syncing health data"
       );
     }
   };
@@ -1419,6 +1422,7 @@ export default function VitalsScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           style={styles.content as ViewStyle}
+          contentContainerStyle={styles.contentInner as ViewStyle}
         >
           {/* Header */}
           <View
@@ -1723,8 +1727,8 @@ export default function VitalsScreen() {
               >
                 {isRTL
                   ? Platform.OS === "ios"
-                    ? 'بعد النقر على "تفويض"، ستظهر شاشة أذونات iOS حيث يمكنك اختيار المقاييس المحددة. يمكنك تغيير هذه الأذونات لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة'
-                    : "يمكنك تغيير هذه الأذونات لاحقًا في تطبيق Health Connect → الأذونات"
+                    ? 'بعد النقر على "تفويض"، ستظهر شاشة أذن البيانات الصحية على iOS حيث يمكنك اختيار المقاييس المحددة. يمكنك تغيير اذن البيانات الصحية لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة'
+                      : "يمكنك تغيير اذن البيانات الصحية لاحقًا في تطبيق Health Connect → الاذونات"
                   : Platform.OS === "ios"
                     ? 'After clicking "Authorize", the iOS permission screen will appear where you can grant access to the selected metrics. You can change these permissions later in iOS Settings → Privacy & Security → Health'
                     : "You can change these permissions later in the Health Connect app → Permissions"}
@@ -1931,6 +1935,7 @@ export default function VitalsScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
+        contentContainerStyle={styles.contentInner as ViewStyle}
       >
         {/* Vitals Grid */}
         <View style={styles.vitalsGrid as ViewStyle}>

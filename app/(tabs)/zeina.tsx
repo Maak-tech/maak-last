@@ -398,7 +398,7 @@ export default function ZeinaScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>{t("zeina")}</Text>

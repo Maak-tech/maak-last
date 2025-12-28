@@ -262,7 +262,10 @@ export default function AllergiesScreen() {
     },
     content: {
       flex: 1,
+    },
+    contentInner: {
       paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.lg,
     },
     statsSection: {
       marginTop: theme.spacing.lg,
@@ -511,6 +514,7 @@ export default function AllergiesScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
+        contentContainerStyle={styles.contentInner}
       >
         {/* Stats Section */}
         <View style={styles.statsSection}>

@@ -542,7 +542,7 @@ export default function MedicalHistoryScreen() {
                 }
                 placeholder={
                   isRTL
-                    ? "مثال: داء السكري، ضغط الدم"
+                    ? "مثال: السكري، الضغط"
                     : "e.g., Diabetes, Hypertension"
                 }
                 style={[styles.textInput, isRTL && styles.rtlInput]}

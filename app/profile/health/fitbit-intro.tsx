@@ -87,7 +87,7 @@ export default function FitbitIntroScreen() {
             ]}
           >
             {isRTL
-              ? "قم بمزامنة بياناتك الصحية من Fitbit إلى Maak Health"
+              ? "قم ربط بياناتك الصحية من Fitbit إلى Maak Health"
               : "Sync your health data from Fitbit to Maak Health"}
           </Text>
         </View>
@@ -340,7 +340,7 @@ export default function FitbitIntroScreen() {
                   ]}
                 >
                   {isRTL
-                    ? "يمكنك تغيير الأذونات في أي وقت"
+                    ? "يمكنك تغيير الأذن في أي وقت"
                     : "You can change permissions anytime"}
                 </Text>
                 <Text

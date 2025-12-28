@@ -2,6 +2,7 @@ import { Link, useRouter } from "expo-router";
 import { Check, Users, X } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18nInstance from "@/lib/i18n";
 import {
   Image,
   KeyboardAvoidingView,
@@ -67,14 +68,18 @@ export default function RegisterScreen() {
 
     if (password !== confirmPassword) {
       setErrors({
-        confirmPassword: "Passwords do not match",
+        confirmPassword: isRTL
+          ? "كلمات المرور غير متطابقة"
+          : "Passwords do not match",
       });
       return;
     }
 
     if (password.length < 6) {
       setErrors({
-        password: "Password must be at least 6 characters",
+        password: isRTL
+          ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل"
+          : "Password must be at least 6 characters",
       });
       return;
     }
@@ -94,29 +99,44 @@ export default function RegisterScreen() {
       // once the auth state has fully updated
     } catch (error: any) {
       setErrors({
-        general: error.message || "Registration failed. Please try again.",
+        general: error.message || (isRTL
+          ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
+          : "Registration failed. Please try again."),
       });
     }
   };
 
-  const toggleLanguage = () => {
-    i18n.changeLanguage(i18n.language === "en" ? "ar" : "en");
+  const toggleLanguage = async () => {
+    try {
+      const newLang = i18n.language === "en" ? "ar" : "en";
+      await i18nInstance.changeLanguage(newLang);
+    } catch (error) {
+      // Fallback to using hook's i18n if instance fails
+      try {
+        if (i18n && i18n.changeLanguage) {
+          await i18n.changeLanguage(i18n.language === "en" ? "ar" : "en");
+        }
+      } catch {
+        // Silently handle error
+      }
+    }
   };
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.container}>
+    <SafeAreaView edges={["top"]} style={styles.container}>
       <ScrollView
         bounces={false}
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           style={styles.keyboardContainer}
         >
-          <View style={styles.header}>
+          <View style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}>
             <TouchableOpacity
               onPress={toggleLanguage}
               style={styles.languageButton}
@@ -150,7 +170,7 @@ export default function RegisterScreen() {
 
             {errors?.general && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{errors.general}</Text>
+                <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errors.general}</Text>
               </View>
             )}
 
@@ -241,7 +261,7 @@ export default function RegisterScreen() {
                 value={password ?? ""}
               />
               {errors?.password && (
-                <Text style={styles.fieldErrorText}>{errors.password}</Text>
+                <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>{errors.password}</Text>
               )}
             </View>
 
@@ -267,7 +287,7 @@ export default function RegisterScreen() {
                 value={confirmPassword ?? ""}
               />
               {errors?.confirmPassword && (
-                <Text style={styles.fieldErrorText}>
+                <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
                   {errors.confirmPassword}
                 </Text>
               )}
@@ -277,15 +297,15 @@ export default function RegisterScreen() {
             <View style={styles.familySection}>
               <TouchableOpacity
                 onPress={() => setShowFamilyCode(!showFamilyCode)}
-                style={styles.familyToggle}
+                style={[styles.familyToggle, isRTL && styles.familyToggleRTL]}
               >
                 <Users color="#2563EB" size={20} />
                 <Text
-                  style={[styles.familyToggleText, isRTL && styles.rtlText]}
+                  style={[styles.familyToggleText, isRTL && styles.rtlText, isRTL ? { marginEnd: 8 } : { marginStart: 8 }]}
                 >
                   {isRTL ? "الانضمام إلى عائلة موجودة" : "Join existing family"}
                 </Text>
-                <Text style={styles.optionalText}>
+                <Text style={[styles.optionalText, isRTL && styles.rtlText]}>
                   {isRTL ? "(اختياري)" : "(Optional)"}
                 </Text>
               </TouchableOpacity>
@@ -330,8 +350,8 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.loginContainer}>
-              <Text style={[styles.loginText, isRTL && styles.rtlText]}>
+            <View style={[styles.loginContainer, isRTL && styles.loginContainerRTL]}>
+              <Text style={[styles.loginText, isRTL && styles.rtlText, isRTL && { marginStart: 4 }]}>
                 {t("alreadyHaveAccount")}
               </Text>
               <Link asChild href="/(auth)/login">
@@ -355,7 +375,7 @@ export default function RegisterScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxWidth: 400 }]}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
               <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "اختر الصورة الرمزية" : "Choose Avatar"}
               </Text>
@@ -427,7 +447,10 @@ export default function RegisterScreen() {
                     {isRTL ? avatar.labelAr : avatar.labelEn}
                   </Text>
                   {selectedAvatarType === avatar.type && (
-                    <View style={styles.avatarCheck}>
+                    <View style={[
+                      styles.avatarCheck,
+                      isRTL ? styles.avatarCheckRTL : styles.avatarCheckLTR
+                    ]}>
                       <Check color="#FFFFFF" size={16} />
                     </View>
                   )}
@@ -450,7 +473,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minHeight: "100%",
     justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
   },
   keyboardContainer: {
     width: "100%",
@@ -458,8 +482,13 @@ const styles = StyleSheet.create({
   header: {
     position: "absolute",
     top: 50,
-    right: 24,
     zIndex: 1,
+  },
+  headerLTR: {
+    right: 24,
+  },
+  headerRTL: {
+    left: 24,
   },
   languageButton: {
     paddingHorizontal: 16,
@@ -581,7 +610,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Regular",
     color: "#64748B",
-    marginEnd: 4,
   },
   loginLink: {
     fontSize: 14,
@@ -625,6 +653,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
+  },
+  modalHeaderRTL: {
+    flexDirection: "row-reverse",
+  },
+  loginContainerRTL: {
+    flexDirection: "row-reverse",
+  },
+  familyToggleRTL: {
+    flexDirection: "row-reverse",
   },
   modalTitle: {
     fontSize: 18,
@@ -670,13 +707,18 @@ const styles = StyleSheet.create({
   avatarCheck: {
     position: "absolute",
     top: 8,
-    right: 8,
     backgroundColor: "#2563EB",
     borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: "center",
     alignItems: "center",
+  },
+  avatarCheckLTR: {
+    right: 8,
+  },
+  avatarCheckRTL: {
+    left: 8,
   },
   familySection: {
     marginVertical: 16,
@@ -694,7 +736,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Geist-Medium",
     color: "#2563EB",
-    marginStart: 8,
     flex: 1,
   },
   optionalText: {

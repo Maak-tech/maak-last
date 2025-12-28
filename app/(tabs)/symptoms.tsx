@@ -186,7 +186,7 @@ export default function TrackScreen() {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
-          ? "يرجى اختيار أو إدخال نوع الأعراض المرضية"
+          ? "يرجى اختيار أو إدخال نوع الأعراض الصحية"
           : "Please select or enter a symptom type"
       );
       return;
@@ -206,7 +206,7 @@ export default function TrackScreen() {
           Alert.alert(
             isRTL ? "غير مسموح" : "Not Permitted",
             isRTL
-              ? "ليس لديك صلاحية لتعديل هذه الأعراض المرضية"
+              ? "ليس لديك صلاحية لتعديل هذه الأعراض الصحية"
               : "You do not have permission to edit this symptom"
           );
           return;
@@ -267,7 +267,7 @@ export default function TrackScreen() {
       // Silently handle symptom save error
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في حفظ الأعراض المرضية" : "Error saving symptom"
+        isRTL ? "حدث خطأ في حفظ الأعراض الصحية" : "Error saving symptom"
       );
     } finally {
       setLoading(false);
@@ -284,7 +284,7 @@ export default function TrackScreen() {
       Alert.alert(
         isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لتعديل هذه الأعراض المرضية"
+          ? "ليس لديك صلاحية لتعديل هذه الأعراض الصحية"
           : "You do not have permission to edit this symptom"
       );
       return;
@@ -319,16 +319,16 @@ export default function TrackScreen() {
       Alert.alert(
         isRTL ? "غير مسموح" : "Not Permitted",
         isRTL
-          ? "ليس لديك صلاحية لحذف هذه الأعراض المرضية"
+          ? "ليس لديك صلاحية لحذف هذه الأعراض الصحية"
           : "You do not have permission to delete this symptom"
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? "حذف الأعراض المرضية" : "Delete Symptom",
+      isRTL ? "حذف الأعراض الصحية" : "Delete Symptom",
       isRTL
-        ? `هل أنت متأكد من رغبتك في حذف هذه الأعراض المرضية: ${t(symptom.type)}؟`
+        ? `هل أنت متأكد من رغبتك في حذف هذه الأعراض الصحية: ${t(symptom.type)}؟`
         : `Are you sure you want to delete this symptom: ${t(symptom.type)}?`,
       [
         {
@@ -346,13 +346,13 @@ export default function TrackScreen() {
               setShowActionsMenu(null);
               Alert.alert(
                 isRTL ? "تم الحذف" : "Deleted",
-                isRTL ? "تم حذف الأعراض المرضية بنجاح" : "Symptom deleted successfully"
+                isRTL ? "تم حذف الأعراض الصحية بنجاح" : "Symptom deleted successfully"
               );
             } catch (error) {
               // Silently handle symptom delete error
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
-                isRTL ? "حدث خطأ في حذف الأعراض المرضية" : "Error deleting symptom"
+                isRTL ? "حدث خطأ في حذف الأعراض الصحية" : "Error deleting symptom"
               );
             } finally {
               setLoading(false);
@@ -473,6 +473,7 @@ export default function TrackScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
+        contentContainerStyle={styles.contentInner}
       >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
@@ -497,14 +498,14 @@ export default function TrackScreen() {
               <Caption style={[styles.statLabel, isRTL && styles.rtlText]} numberOfLines={undefined}>
                 {selectedFilter.type === "family"
                   ? isRTL
-                    ? "أعراض العائلة المرضية"
+                    ? "أعراض العائلة الصحية"
                     : "Family Symptoms"
                   : selectedFilter.type === "member"
                     ? isRTL
-                      ? `أعراض ${selectedFilter.memberName} المرضية`
+                      ? `أعراض ${selectedFilter.memberName} الصحية`
                       : `${selectedFilter.memberName}'s Symptoms`
                     : isRTL
-                      ? "إجمالي الأعراض المرضية"
+                      ? "إجمالي الأعراض الصحية"
                       : "Total Symptoms"}
               </Caption>
             </Card>
@@ -524,14 +525,14 @@ export default function TrackScreen() {
           <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "family"
               ? isRTL
-                ? "أعراض العائلة المرضية الأخيرة"
+                ? "أعراض العائلة الصحية الأخيرة"
                 : "Recent Family Symptoms"
               : selectedFilter.type === "member"
                 ? isRTL
-                  ? `أعراض ${selectedFilter.memberName} المرضية الأخيرة`
+                  ? `أعراض ${selectedFilter.memberName} الصحية الأخيرة`
                   : `${selectedFilter.memberName}'s Recent Symptoms`
                 : isRTL
-                  ? "أعراضي المرضية الأخيرة"
+                  ? "أعراضي الصحية الأخيرة"
                   : "My Recent Symptoms"}
           </Heading>
 
@@ -544,7 +545,7 @@ export default function TrackScreen() {
           ) : symptoms.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL ? "لا توجد أعراض مرضية مسجلة" : "No symptoms recorded"}
+                {isRTL ? "لا توجد أعراض صحية مسجلة" : "No symptoms recorded"}
               </Text>
             </View>
           ) : (
@@ -668,7 +669,7 @@ export default function TrackScreen() {
                   ? "تعديل العرض"
                   : "Edit Symptom"
                 : isRTL
-                  ? "إضافة أعراض مرضية جديدة"
+                  ? "إضافة أعراض صحية جديدة"
                   : "Add New Symptom"}
             </Heading>
             <TouchableOpacity
@@ -691,7 +692,7 @@ export default function TrackScreen() {
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "إضافة الأعراض المرضية لـ" : "Add symptom for"}
+                  {isRTL ? "إضافة الأعراض الصحية لـ" : "Add symptom for"}
                 </Text>
                 <View style={styles.memberSelectionContainer}>
                   {familyMembers.map((member) => (
@@ -743,7 +744,7 @@ export default function TrackScreen() {
             {/* Common Symptoms */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الأعراض المرضية الشائعة" : "Common Symptoms"}
+                {isRTL ? "الأعراض الصحية الشائعة" : "Common Symptoms"}
               </Text>
               <View style={styles.symptomsGrid}>
                 {COMMON_SYMPTOMS.map((symptomType) => (
@@ -779,13 +780,13 @@ export default function TrackScreen() {
             {/* Custom Symptom */}
             <View style={styles.fieldGroup}>
               <Input
-                label={isRTL ? "أعراض مخصصة مرضية" : "Custom Symptom"}
+                label={isRTL ? "أعراض مخصصة صحية" : "Custom Symptom"}
                 onChangeText={(text: string) => {
                   setCustomSymptom(text);
                   if (text) setSelectedSymptom("");
                 }}
                 placeholder={
-                  isRTL ? "أدخل نوع الأعراض المرضية..." : "Enter symptom type..."
+                  isRTL ? "أدخل نوع الأعراض الصحية..." : "Enter symptom type..."
                 }
                 style={isRTL && styles.rtlTextInput}
                 textAlign={isRTL ? "right" : "left"}
@@ -809,7 +810,7 @@ export default function TrackScreen() {
                 onChangeText={setDescription}
                 placeholder={
                   isRTL
-                    ? "أضف وصفاً للأعراض المرضية..."
+                    ? "أضف وصفاً للأعراض الصحية..."
                     : "Add a description of the symptom..."
                 }
                 style={[
@@ -840,10 +841,10 @@ export default function TrackScreen() {
                     : "Saving..."
                   : editingSymptom
                     ? isRTL
-                      ? "تحديث الأعراض المرضية"
+                      ? "تحديث الأعراض الصحية"
                       : "Update Symptom"
                     : isRTL
-                      ? "حفظ الأعراض المرضية"
+                      ? "حفظ الأعراض الصحية"
                       : "Save Symptom"
               }
             />
@@ -888,7 +889,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+  },
+  contentInner: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   statsSection: {
     marginBottom: 24,

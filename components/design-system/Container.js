@@ -45,7 +45,7 @@ const Container = ({
         backgroundColor={gradient ? gradientColors[0] : backgroundColor}
       />
       
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
