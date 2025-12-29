@@ -335,7 +335,7 @@ export default function AppleHealthPermissionsScreen() {
             />
           </TouchableOpacity>
 
-          <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
             {t("appleHealthPermissions")}
           </Text>
 
@@ -375,7 +375,7 @@ export default function AppleHealthPermissionsScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {t("appleHealthPermissions")}
         </Text>
 
@@ -390,7 +390,7 @@ export default function AppleHealthPermissionsScreen() {
             style={[
               styles.title,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {t("selectMetrics")}
@@ -399,7 +399,7 @@ export default function AppleHealthPermissionsScreen() {
             style={[
               styles.subtitle,
               { color: theme.colors.text.secondary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {t("chooseHealthMetricsToSync")}
@@ -493,7 +493,7 @@ export default function AppleHealthPermissionsScreen() {
                       style={[
                         styles.groupTitle,
                         { color: theme.colors.text.primary },
-                        isRTL && styles.rtlText,
+                        isRTL && { textAlign: "left" },
                       ]}
                     >
                       {t(`healthMetrics.${group}`)}
@@ -559,7 +559,7 @@ export default function AppleHealthPermissionsScreen() {
                                 style={[
                                   styles.metricName,
                                   { color: theme.colors.text.primary },
-                                  isRTL && styles.rtlText,
+                                  isRTL && { textAlign: "left" },
                                 ]}
                               >
                                 {t(`healthMetrics.${metric.key}`) || metric.displayName}
@@ -591,7 +591,7 @@ export default function AppleHealthPermissionsScreen() {
           <View style={styles.infoRow}>
             <Info color={theme.colors.text.secondary} size={16} />
             <Text
-              style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}
+              style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && { textAlign: "left" }]}
             >
               {t("changePermissionsLater")}
             </Text>

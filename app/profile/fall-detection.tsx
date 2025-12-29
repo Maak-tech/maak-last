@@ -190,7 +190,7 @@ export default function FallDetectionScreen() {
         >
           <ArrowLeft color="#333" size={24} />
         </TouchableOpacity>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>
+        <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
           {isRTL ? "كشف السقوط" : "Fall Detection"}
         </Text>
         <View style={styles.headerRight} />
@@ -209,14 +209,14 @@ export default function FallDetectionScreen() {
                 )}
                 <View style={styles.masterToggleInfo}>
                   <Text
-                    style={[styles.masterToggleTitle, isRTL && styles.rtlText]}
+                    style={[styles.masterToggleTitle, isRTL && { textAlign: "left" }]}
                   >
                     {isRTL ? "كشف السقوط" : "Fall Detection"}
                   </Text>
                   <Text
                     style={[
                       styles.masterToggleSubtitle,
-                      isRTL && styles.rtlText,
+                      isRTL && { textAlign: "left" },
                     ]}
                   >
                     {isEnabled
@@ -244,13 +244,13 @@ export default function FallDetectionScreen() {
           <View style={styles.statusHeader}>
             <View style={styles.statusIcon}>{getStatusIcon()}</View>
             <View style={styles.statusInfo}>
-              <Text style={[styles.statusTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.statusTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "حالة كشف السقوط" : "Fall Detection Status"}
               </Text>
               <Text
                 style={[
                   styles.statusValue,
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                   { color: getStatusColor() },
                 ]}
               >
@@ -258,7 +258,7 @@ export default function FallDetectionScreen() {
               </Text>
               {!motionPermissionGranted && (
                 <Text
-                  style={[styles.permissionWarning, isRTL && styles.rtlText]}
+                  style={[styles.permissionWarning, isRTL && { textAlign: "left" }]}
                 >
                   {isRTL
                     ? "⚠️ أذن الحركة واللياقة البدنية مطلوبة"
@@ -275,10 +275,10 @@ export default function FallDetectionScreen() {
             <View style={styles.permissionHeader}>
               <AlertTriangle color="#F59E0B" size={24} />
               <View style={styles.permissionInfo}>
-                <Text style={[styles.permissionTitle, isRTL && styles.rtlText]}>
+                <Text style={[styles.permissionTitle, isRTL && { textAlign: "left" }]}>
                   {isRTL ? "أذن الحركة واللياقة البدنية" : "Motion & Fitness Permissions"}
                 </Text>
-                <Text style={[styles.permissionText, isRTL && styles.rtlText]}>
+                <Text style={[styles.permissionText, isRTL && { textAlign: "left" }]}>
                   {isRTL
                     ? "يجب تفعيل أذن الحركة واللياقة البدنية لكشف السقوط"
                     : "Motion & Fitness permissions are required for fall detection"}
@@ -303,11 +303,11 @@ export default function FallDetectionScreen() {
           <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
               <Activity color="#2563EB" size={24} />
-              <Text style={[styles.infoTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.infoTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "كيف يعمل" : "How It Works"}
               </Text>
             </View>
-            <Text style={[styles.infoText, isRTL && styles.rtlText]}>
+            <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
               {isRTL
                 ? "يستخدم التطبيق أجهزة استشعار الحركة في هاتفك لرصد الحركة غير الطبيعية التي قد تشير إلى سقوط. عند اكتشاف سقوط محتمل، يتم إرسال تنبيه فوري إلى أفراد العائلة."
                 : "The app uses your phone's motion sensors to detect unusual movement patterns that may indicate a fall. When a potential fall is detected, immediate alerts are sent to family members."}
@@ -318,11 +318,11 @@ export default function FallDetectionScreen() {
           <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
               <Users color="#10B981" size={24} />
-              <Text style={[styles.infoTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.infoTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "تنبيهات العائلة" : "Family Notifications"}
               </Text>
             </View>
-            <Text style={[styles.infoText, isRTL && styles.rtlText]}>
+            <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
               {user?.familyId
                 ? isRTL
                   ? "عند اكتشاف سقوط، سيتم إرسال إشعارات فورية إلى جميع أفراد العائلة المسجلين."
@@ -337,11 +337,11 @@ export default function FallDetectionScreen() {
           <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
               <Bell color="#F59E0B" size={24} />
-              <Text style={[styles.infoTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.infoTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "آخر تنبيه" : "Last Alert"}
               </Text>
             </View>
-            <Text style={[styles.infoText, isRTL && styles.rtlText]}>
+            <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
               {formatLastAlert()}
             </Text>
           </View>
@@ -349,7 +349,7 @@ export default function FallDetectionScreen() {
 
         {/* Test Buttons */}
         <View style={styles.testSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "اختبار النظام" : "Test System"}
           </Text>
 
@@ -363,7 +363,7 @@ export default function FallDetectionScreen() {
             ) : (
               <TestTube color="#FFFFFF" size={24} />
             )}
-            <Text style={[styles.testButtonText, isRTL && styles.rtlText]}>
+            <Text style={[styles.testButtonText, isRTL && { textAlign: "left" }]}>
               {isRTL ? "اختبار كشف السقوط" : "Test Fall Detection"}
             </Text>
           </TouchableOpacity>
@@ -379,7 +379,7 @@ export default function FallDetectionScreen() {
               <Bell color="#2563EB" size={24} />
             )}
             <Text
-              style={[styles.testButtonTextSecondary, isRTL && styles.rtlText]}
+              style={[styles.testButtonTextSecondary, isRTL && { textAlign: "left" }]}
             >
               {isRTL ? "اختبار الإشعارات" : "Test Notifications"}
             </Text>
@@ -391,7 +391,7 @@ export default function FallDetectionScreen() {
           >
             <Bug color="#F59E0B" size={24} />
             <Text
-              style={[styles.testButtonTextDiagnostic, isRTL && styles.rtlText]}
+              style={[styles.testButtonTextDiagnostic, isRTL && { textAlign: "left" }]}
             >
               {isRTL ? "تشخيص النظام" : "Run Diagnostics"}
             </Text>
@@ -401,7 +401,7 @@ export default function FallDetectionScreen() {
         {/* Warning */}
         <View style={styles.warningCard}>
           <AlertTriangle color="#F59E0B" size={24} />
-          <Text style={[styles.warningText, isRTL && styles.rtlText]}>
+          <Text style={[styles.warningText, isRTL && { textAlign: "left" }]}>
             {isRTL
               ? "تذكر: كشف السقوط يستخدم أجهزة استشعار الهاتف وقد لا يكون دقيقاً في جميع الحالات. لا يُغني عن الرعاية الطبية المناسبة."
               : "Remember: Fall detection uses phone sensors and may not be accurate in all situations. It does not replace proper medical care."}

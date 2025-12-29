@@ -59,7 +59,7 @@ export default function FitbitIntroScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {isRTL ? "ربط Fitbit" : "Connect Fitbit"}
         </Text>
 
@@ -74,7 +74,7 @@ export default function FitbitIntroScreen() {
             style={[
               styles.title,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL ? "ربط Fitbit" : "Connect Fitbit"}
@@ -83,7 +83,7 @@ export default function FitbitIntroScreen() {
             style={[
               styles.subtitle,
               { color: theme.colors.text.secondary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL
@@ -98,7 +98,7 @@ export default function FitbitIntroScreen() {
             style={[
               styles.sectionTitle,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL ? "ما ستحصل عليه" : "What You'll Get"}
@@ -118,7 +118,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL ? "معدل ضربات القلب" : "Heart Rate"}
@@ -127,7 +127,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL
@@ -151,7 +151,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL ? "الخطوات والنشاط" : "Steps & Activity"}
@@ -160,7 +160,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL
@@ -184,7 +184,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL ? "النوم" : "Sleep"}
@@ -193,7 +193,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL
@@ -217,7 +217,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL ? "القياسات الحيوية" : "Vitals"}
@@ -226,7 +226,7 @@ export default function FitbitIntroScreen() {
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {isRTL
@@ -243,7 +243,7 @@ export default function FitbitIntroScreen() {
             style={[
               styles.sectionTitle,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL ? "خصوصيتك" : "Your Privacy"}

@@ -23,6 +23,7 @@ async function getLocalAuthentication() {
 export interface BiometricAvailability {
   available: boolean;
   supportedTypes: string[];
+  isBiometricEnrolled: boolean; // Always present for compatibility
   error?: string;
 }
 
@@ -52,11 +53,12 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
   try {
     const LocalAuth = await getLocalAuthentication();
     if (!LocalAuth) {
-      return {
-        available: false,
-        supportedTypes: [],
-        error: "Biometric authentication module not available",
-      };
+    return {
+      available: false,
+      supportedTypes: [],
+      isBiometricEnrolled: false,
+      error: "Biometric authentication module not available",
+    };
     }
 
     const compatible = await LocalAuth.hasHardwareAsync();
@@ -64,6 +66,7 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
       return {
         available: false,
         supportedTypes: [],
+        isBiometricEnrolled: false,
         error: "Biometric hardware not available",
       };
     }
@@ -73,6 +76,7 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
       return {
         available: false,
         supportedTypes: [],
+        isBiometricEnrolled: false,
         error: "No biometrics enrolled",
       };
     }
@@ -94,11 +98,13 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
     return {
       available: true,
       supportedTypes: typeNames,
+      isBiometricEnrolled: true,
     };
   } catch (error: any) {
     return {
       available: false,
       supportedTypes: [],
+      isBiometricEnrolled: false,
       error: error.message || "Unknown error",
     };
   }

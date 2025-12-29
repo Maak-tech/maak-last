@@ -58,6 +58,15 @@ const loadPPGComponent = () => {
   try {
     const { Platform } = require("react-native");
     if (Platform.OS !== "web") {
+      // CRITICAL: Ensure reanimated setup runs BEFORE loading the component
+      // This patches TextImpl before reanimated tries to use it
+      try {
+        require("@/lib/utils/reanimatedSetup");
+      } catch (setupError) {
+        // Setup might already be loaded, which is fine
+        console.warn("Reanimated setup already loaded or failed:", setupError);
+      }
+      
       // Use dynamic import to defer loading until actually needed
       // This helps avoid reanimated processing issues during module evaluation
       // Wrap in additional try-catch to handle reanimated errors gracefully
@@ -65,21 +74,24 @@ const loadPPGComponent = () => {
         const componentModule = require("@/components/PPGVitalMonitorVisionCamera");
         // Handle both default export and named export cases
         if (componentModule && (componentModule.default || componentModule)) {
-          PPGVitalMonitor = componentModule.default || componentModule;
+          const Component = componentModule.default || componentModule;
           // Validate that it's actually a component
-          if (typeof PPGVitalMonitor !== 'function') {
+          if (typeof Component !== 'function') {
             throw new Error("Loaded component is not a function");
           }
+          PPGVitalMonitor = Component;
           console.log("PPGVitalMonitorVisionCamera (real PPG) component loaded successfully");
         } else {
           throw new Error("Component module is undefined or has no default export");
         }
       } catch (reanimatedError: any) {
         // Check if it's a reanimated-related error
-        if (reanimatedError?.message?.includes('TextImpl') || 
-            reanimatedError?.message?.includes('createAnimatedComponent') ||
-            reanimatedError?.message?.includes('forwardRef')) {
-          console.warn("Reanimated compatibility issue detected, falling back to simulated component:", reanimatedError.message);
+        const errorMsg = reanimatedError?.message || String(reanimatedError);
+        if (errorMsg.includes('TextImpl') || 
+            errorMsg.includes('createAnimatedComponent') ||
+            errorMsg.includes('forwardRef') ||
+            errorMsg.includes('Cannot read property')) {
+          console.warn("Reanimated compatibility issue detected, falling back to simulated component:", errorMsg);
           // Fall through to fallback
           throw reanimatedError;
         } else {
@@ -90,10 +102,11 @@ const loadPPGComponent = () => {
       // On web, use simulated version
       const componentModule = require("@/components/PPGVitalMonitor");
       if (componentModule && (componentModule.default || componentModule)) {
-        PPGVitalMonitor = componentModule.default || componentModule;
-        if (typeof PPGVitalMonitor !== 'function') {
+        const Component = componentModule.default || componentModule;
+        if (typeof Component !== 'function') {
           throw new Error("Loaded component is not a function");
         }
+        PPGVitalMonitor = Component;
         console.log("PPGVitalMonitor (simulated) component loaded for web platform");
       } else {
         throw new Error("Component module is undefined or has no default export");
@@ -101,24 +114,28 @@ const loadPPGComponent = () => {
     }
   } catch (error) {
     PPGVitalMonitorLoadError = error as Error;
-    console.error("PPGVitalMonitorVisionCamera component could not be loaded:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("PPGVitalMonitorVisionCamera component could not be loaded:", errorMsg);
     
     // Fallback to simulated version if vision camera fails
     try {
       const componentModule = require("@/components/PPGVitalMonitor");
       if (componentModule && (componentModule.default || componentModule)) {
-        PPGVitalMonitor = componentModule.default || componentModule;
-        if (typeof PPGVitalMonitor !== 'function') {
+        const Component = componentModule.default || componentModule;
+        if (typeof Component !== 'function') {
           throw new Error("Fallback component is not a function");
         }
+        PPGVitalMonitor = Component;
         console.log("Fell back to simulated PPGVitalMonitor component");
         PPGVitalMonitorLoadError = null; // Clear error since fallback worked
       } else {
         throw new Error("Fallback component module is undefined");
       }
     } catch (fallbackError) {
-      console.error("Fallback PPGVitalMonitor also failed:", fallbackError);
+      const fallbackErrorMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      console.error("Fallback PPGVitalMonitor also failed:", fallbackErrorMsg);
       PPGVitalMonitor = null; // Ensure it's null if both fail
+      PPGVitalMonitorLoadError = fallbackError as Error;
     }
   }
 
@@ -142,6 +159,7 @@ export default function TrackScreen() {
   const [showPPGMonitor, setShowPPGMonitor] = useState(false);
   const [showBloodPressureEntry, setShowBloodPressureEntry] = useState(false);
   const [loadedPPGComponent, setLoadedPPGComponent] = useState<any>(null);
+  const [ppgComponentLoadError, setPpgComponentLoadError] = useState<Error | null>(null);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -314,25 +332,25 @@ export default function TrackScreen() {
       ...getTextStyle(theme, "body", "medium", theme.colors.primary.main),
     },
     onelineCard: {
-      backgroundColor: theme.colors.secondary[50],
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.xl,
+      padding: theme.spacing.xl,
       marginBottom: theme.spacing.xl,
-      borderStartWidth: 4,
-      borderStartColor: theme.colors.secondary.main,
       alignItems: "center" as const,
-      ...theme.shadows.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.border.light,
     },
     onelineText: {
       ...getTextStyle(
         theme,
         "subheading",
-        "semibold",
-        theme.colors.primary.main
+        "medium",
+        theme.colors.text.secondary
       ),
       fontStyle: "italic" as const,
       textAlign: "center" as const,
       marginBottom: theme.spacing.sm,
+      opacity: 0.8,
     },
     onelineSource: {
       ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
@@ -468,7 +486,7 @@ export default function TrackScreen() {
           style={
             [
               styles.headerTitle,
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" as const },
             ] as StyleProp<TextStyle>
           }
         >
@@ -478,7 +496,7 @@ export default function TrackScreen() {
           style={
             [
               styles.headerSubtitle,
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" as const },
             ] as StyleProp<TextStyle>
           }
         >
@@ -1067,13 +1085,23 @@ export default function TrackScreen() {
                       console.log("Measure button pressed");
                       // Load component when button is pressed
                       if (!loadedPPGComponent) {
-                        const Component = loadPPGComponent();
-                        // Only set showPPGMonitor if component loaded successfully
-                        if (Component && typeof Component === 'function') {
-                          setLoadedPPGComponent(Component);
-                          setShowPPGMonitor(true);
-                        } else {
-                          // Component failed to load, show error modal
+                        try {
+                          const Component = loadPPGComponent();
+                          // Only set showPPGMonitor if component loaded successfully
+                          if (Component && typeof Component === 'function') {
+                            setLoadedPPGComponent(Component);
+                            setPpgComponentLoadError(null);
+                            setShowPPGMonitor(true);
+                          } else {
+                            // Component failed to load, show error modal
+                            console.warn("PPG component failed to load, showing error modal");
+                            setPpgComponentLoadError(PPGVitalMonitorLoadError);
+                            setShowPPGMonitor(true);
+                          }
+                        } catch (loadError) {
+                          console.error("Error loading PPG component:", loadError);
+                          const error = loadError instanceof Error ? loadError : new Error(String(loadError));
+                          setPpgComponentLoadError(error);
                           setShowPPGMonitor(true);
                         }
                       } else {
@@ -1725,9 +1753,9 @@ export default function TrackScreen() {
       </ScrollView>
 
       {/* PPG Heart Rate Monitor Modal */}
-      {user && loadedPPGComponent && typeof loadedPPGComponent === 'function' && showPPGMonitor && (
+      {user && showPPGMonitor && loadedPPGComponent && typeof loadedPPGComponent === 'function' && (
         React.createElement(loadedPPGComponent, {
-          visible: showPPGMonitor === true,
+          visible: true,
           userId: user.id,
           onMeasurementComplete: (result: any) => {
             // Optionally refresh vitals data or show success message
@@ -1749,7 +1777,7 @@ export default function TrackScreen() {
       {/* Show error modal if component failed to load */}
       {user && showPPGMonitor && (!loadedPPGComponent || typeof loadedPPGComponent !== 'function') && (
         <Modal
-          visible={showPPGMonitor === true}
+          visible={true}
           animationType="slide"
           transparent={false}
           onRequestClose={() => {
@@ -1762,13 +1790,13 @@ export default function TrackScreen() {
                 Component Not Available
               </Text>
               <Text style={{ ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary), textAlign: "center", marginBottom: theme.spacing.lg }}>
-                {PPGVitalMonitorLoadError 
+                {ppgComponentLoadError || PPGVitalMonitorLoadError
                   ? "The vital signs monitor component could not be loaded due to a compatibility issue. Please try restarting the app or updating to the latest version."
                   : "The vital signs monitor is not available on this platform."}
               </Text>
-              {PPGVitalMonitorLoadError && (
+              {(ppgComponentLoadError || PPGVitalMonitorLoadError) && (
                 <Text style={{ ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary), textAlign: "center", marginBottom: theme.spacing.lg, fontFamily: "monospace" }}>
-                  {PPGVitalMonitorLoadError.message}
+                  {(ppgComponentLoadError || PPGVitalMonitorLoadError)?.message}
                 </Text>
               )}
               <TouchableOpacity

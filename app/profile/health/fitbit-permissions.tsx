@@ -195,7 +195,7 @@ export default function FitbitPermissionsScreen() {
             />
           </TouchableOpacity>
 
-          <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "أذن التواصل مع Fitbit" : "Fitbit Contact Permissions"}
           </Text>
 
@@ -235,7 +235,7 @@ export default function FitbitPermissionsScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {t("fitbitPermissions")}
         </Text>
 
@@ -250,7 +250,7 @@ export default function FitbitPermissionsScreen() {
             style={[
               styles.title,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {t("selectMetrics")}
@@ -259,7 +259,7 @@ export default function FitbitPermissionsScreen() {
             style={[
               styles.subtitle,
               { color: theme.colors.text.secondary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {t("chooseHealthMetricsToSyncFitbit")}
@@ -353,7 +353,7 @@ export default function FitbitPermissionsScreen() {
                       style={[
                         styles.groupTitle,
                         { color: theme.colors.text.primary },
-                        isRTL && styles.rtlText,
+                        isRTL && { textAlign: "left" },
                       ]}
                     >
                       {t(`healthMetrics.${group}`)}
@@ -419,7 +419,7 @@ export default function FitbitPermissionsScreen() {
                                 style={[
                                   styles.metricName,
                                   { color: theme.colors.text.primary },
-                                  isRTL && styles.rtlText,
+                                  isRTL && { textAlign: "left" },
                                 ]}
                               >
                                 {t(`healthMetrics.${metric.key}`) || metric.displayName}

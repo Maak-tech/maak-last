@@ -73,14 +73,14 @@ export default function PrivacyPolicyScreen() {
       <Text
         style={[
           styles.sectionTitle,
-          isRTL && styles.rtlText,
+          isRTL && { textAlign: "left" },
           level === 2 && styles.mainSectionTitle,
           level > 2 && styles.subsectionTitle,
         ]}
       >
         {title}
       </Text>
-      <Text style={[styles.sectionContent, isRTL && styles.rtlText]}>
+      <Text style={[styles.sectionContent, isRTL && { textAlign: "left" }]}>
         {content}
       </Text>
     </View>
@@ -101,7 +101,7 @@ export default function PrivacyPolicyScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {isRTL ? "سياسة الخصوصية" : "Privacy Policy"}
         </Text>
 
@@ -112,20 +112,20 @@ export default function PrivacyPolicyScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color="#2563EB" size="large" />
-            <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+            <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
               {isRTL ? "جاري التحميل..." : "Loading..."}
             </Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Text style={[styles.errorText, isRTL && styles.rtlText]}>
+            <Text style={[styles.errorText, isRTL && { textAlign: "left" }]}>
               {error}
             </Text>
             <TouchableOpacity
               onPress={loadPrivacyPolicy}
               style={styles.retryButton}
             >
-              <Text style={[styles.retryButtonText, isRTL && styles.rtlText]}>
+              <Text style={[styles.retryButtonText, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "إعادة المحاولة" : "Retry"}
               </Text>
             </TouchableOpacity>
@@ -137,10 +137,10 @@ export default function PrivacyPolicyScreen() {
               <View style={styles.introIcon}>
                 <Shield color="#2563EB" size={40} />
               </View>
-              <Text style={[styles.introTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.introTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "سياسة خصوصية تطبيق معاك" : document.title}
               </Text>
-              <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
+              <Text style={[styles.introDescription, isRTL && { textAlign: "left" }]}>
                 {isRTL
                   ? "نحن نحترم خصوصيتك ونلتزم بحماية معلوماتك الشخصية والصحية. تشرح هذه السياسة كيفية جمع واستخدام وحماية بياناتك."
                   : "We respect your privacy and are committed to protecting your personal and health information. This policy explains how we collect, use, and protect your data."}
@@ -149,7 +149,7 @@ export default function PrivacyPolicyScreen() {
                 <View style={styles.lastUpdated}>
                   <Calendar color="#64748B" size={16} />
                   <Text
-                    style={[styles.lastUpdatedText, isRTL && styles.rtlText]}
+                    style={[styles.lastUpdatedText, isRTL && { textAlign: "left" }]}
                   >
                     {isRTL
                       ? `آخر تحديث: ${document.lastUpdated}`
@@ -170,7 +170,7 @@ export default function PrivacyPolicyScreen() {
             ))}
           </>
         ) : (
-          <Text style={[styles.noContentText, isRTL && styles.rtlText]}>
+          <Text style={[styles.noContentText, isRTL && { textAlign: "left" }]}>
             {isRTL ? "لا يوجد محتوى متاح" : "No content available"}
           </Text>
         )}

@@ -162,7 +162,7 @@ export const healthDataService = {
   async hasHealthPermissions(): Promise<boolean> {
     try {
       // Check stored connection status (more reliable than AsyncStorage flag)
-      const { getProviderConnection } = await import("../health/healthSync");
+      const { getProviderConnection, disconnectProvider } = await import("../health/healthSync");
       
       // Check Fitbit connection first (works on both iOS and Android)
       const fitbitConnection = await getProviderConnection("fitbit");
@@ -173,6 +173,76 @@ export const healthDataService = {
       if (Platform.OS === "ios") {
         const connection = await getProviderConnection("apple_health");
         if (connection && connection.connected) {
+          // Validate that HealthKit permissions are still actually granted
+          // Only validate occasionally to avoid performance issues
+          // Check connection age - only validate if connection is older than 1 hour
+          const connectionAge = connection.connectedAt 
+            ? Date.now() - new Date(connection.connectedAt).getTime()
+            : Infinity;
+          
+          // Only validate if connection is older than 1 hour (to avoid frequent checks)
+          if (connectionAge > 60 * 60 * 1000) {
+            try {
+              const availability = await appleHealthService.checkAvailability();
+              if (!availability.available) {
+                // HealthKit not available, disconnect
+                await disconnectProvider("apple_health");
+                await this.savePermissionStatus(false);
+                return false;
+              }
+
+              // Try a simple query to validate permissions are still granted
+              // Use a common type that's likely to be authorized
+              const { queryQuantitySamples } = await import("@kingstinct/react-native-healthkit");
+              const now = new Date();
+              const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+              
+              // Try querying step count (most common metric)
+              // Even if no data exists, the query should succeed if permissions are granted
+              await queryQuantitySamples("HKQuantityTypeIdentifierStepCount", {
+                filter: {
+                  date: {
+                    startDate: yesterday,
+                    endDate: now,
+                  },
+                },
+                limit: 1,
+                ascending: false,
+              });
+              
+              // Query succeeded, permissions are still valid
+              return true;
+            } catch (error: any) {
+              // Check if this is specifically an authorization error
+              // HealthKit error code 5 = authorization denied or not determined
+              const errorCode = error?.code;
+              const errorDomain = error?.domain;
+              const errorMessage = String(error?.message || error).toLowerCase();
+              
+              const isAuthError = 
+                errorCode === 5 ||
+                (errorDomain === "com.apple.healthkit" && errorCode === 5) ||
+                errorMessage.includes("authorization denied") ||
+                errorMessage.includes("authorization status is not determined") ||
+                (errorMessage.includes("com.apple.healthkit") && errorMessage.includes("code=5")) ||
+                (errorMessage.includes("com.apple.healthkit") && errorMessage.includes("code 5"));
+              
+              if (isAuthError) {
+                // Permissions were revoked, disconnect
+                console.log("[Health Data Service] HealthKit permissions revoked, disconnecting");
+                await disconnectProvider("apple_health");
+                await this.savePermissionStatus(false);
+                return false;
+              }
+              
+              // Other error (no data, network issue, etc.) - permissions might still be valid
+              // Don't disconnect on non-auth errors - return true to keep connection active
+              console.log("[Health Data Service] HealthKit validation query failed (non-auth error), keeping connection active");
+              return true;
+            }
+          }
+          
+          // Connection is recent, trust stored status
           return true;
         }
       } else if (Platform.OS === "android") {

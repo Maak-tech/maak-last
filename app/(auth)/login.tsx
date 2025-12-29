@@ -157,7 +157,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.formContainer}>
-            <Text style={[styles.title, isRTL && styles.rtlText]}>
+            <Text style={[styles.title, isRTL && styles.titleRTL]}>
               {t("signIn")}
             </Text>
 
@@ -168,7 +168,7 @@ export default function LoginScreen() {
             )}
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, isRTL && styles.rtlText]}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>
                 {t("email")}
               </Text>
               <TextInput
@@ -187,7 +187,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, isRTL && styles.rtlText]}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>
                 {t("password")}
               </Text>
               <TextInput
@@ -222,7 +222,7 @@ export default function LoginScreen() {
 
               {showFamilyCode && (
                 <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isRTL && styles.rtlText]}>
+                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
                     {isRTL ? "رمز العائلة" : "Family Code"}
                   </Text>
                   <TextInput
@@ -361,6 +361,9 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     textAlign: "center",
   },
+  titleRTL: {
+    textAlign: "left",
+  },
   errorContainer: {
     backgroundColor: "#FEF2F2",
     borderColor: "#FECACA",
@@ -382,6 +385,9 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Medium",
     color: "#374151",
     marginBottom: 8,
+  },
+  labelRTL: {
+    textAlign: "left",
   },
   input: {
     borderWidth: 1,

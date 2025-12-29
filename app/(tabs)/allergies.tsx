@@ -159,7 +159,31 @@ export default function AllergiesScreen() {
     setSeverity(allergy.severity);
     setReaction(allergy.reaction || "");
     setNotes(allergy.notes || "");
-    setDiscoveredDate(allergy.discoveredDate || new Date());
+    // Safely convert discoveredDate to Date object
+    let discoveredDate: Date;
+    if (allergy.discoveredDate) {
+      if (allergy.discoveredDate instanceof Date) {
+        discoveredDate = allergy.discoveredDate;
+      } else {
+        // Handle potential Firestore Timestamp or other date formats
+        const dateValue = allergy.discoveredDate as any;
+        if (dateValue?.toDate && typeof dateValue.toDate === "function") {
+          discoveredDate = dateValue.toDate();
+        } else {
+          discoveredDate = new Date(dateValue);
+        }
+      }
+    } else {
+      const timestampValue = allergy.timestamp as any;
+      if (timestampValue instanceof Date) {
+        discoveredDate = timestampValue;
+      } else if (timestampValue?.toDate && typeof timestampValue.toDate === "function") {
+        discoveredDate = timestampValue.toDate();
+      } else {
+        discoveredDate = new Date(timestampValue);
+      }
+    }
+    setDiscoveredDate(discoveredDate);
     setShowActionsMenu(null);
     setShowAddModal(true);
   };
@@ -203,10 +227,18 @@ export default function AllergiesScreen() {
     setDiscoveredDate(new Date());
   };
 
-  const formatDate = (date: Date | undefined) => {
+  const formatDate = (date: Date | undefined | any) => {
     if (!date) return "";
     try {
-      const dateObj = date instanceof Date ? date : new Date(date);
+      // Handle Firestore Timestamp objects
+      let dateObj: Date;
+      if (date?.toDate && typeof date.toDate === "function") {
+        dateObj = date.toDate();
+      } else if (date instanceof Date) {
+        dateObj = date;
+      } else {
+        dateObj = new Date(date);
+      }
       if (isNaN(dateObj.getTime())) return "";
       return dateObj.toLocaleDateString([], {
         year: "numeric",
@@ -214,6 +246,7 @@ export default function AllergiesScreen() {
         day: "numeric",
       });
     } catch (error) {
+      console.error("Error formatting date:", error);
       return "";
     }
   };

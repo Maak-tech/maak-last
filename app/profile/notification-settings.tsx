@@ -158,10 +158,10 @@ export default function NotificationSettingsScreen() {
           {icon}
         </View>
         <View style={styles.settingInfo}>
-          <Text style={[styles.settingTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.settingTitle, isRTL && { textAlign: "left" }]}>
             {title}
           </Text>
-          <Text style={[styles.settingSubtitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.settingSubtitle, isRTL && { textAlign: "left" }]}>
             {subtitle}
           </Text>
         </View>
@@ -181,7 +181,7 @@ export default function NotificationSettingsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator color="#2563EB" size="large" />
-          <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+          <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
             {isRTL ? "جاري التحميل..." : "Loading..."}
           </Text>
         </View>
@@ -198,7 +198,7 @@ export default function NotificationSettingsScreen() {
         >
           <ArrowLeft color="#333" size={24} />
         </TouchableOpacity>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>
+        <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
           {isRTL ? "إعدادات الإشعارات" : "Notification Settings"}
         </Text>
         <TouchableOpacity
@@ -209,7 +209,7 @@ export default function NotificationSettingsScreen() {
           {saving ? (
             <ActivityIndicator color="#2563EB" size="small" />
           ) : (
-            <Text style={[styles.saveButtonText, isRTL && styles.rtlText]}>
+            <Text style={[styles.saveButtonText, isRTL && { textAlign: "left" }]}>
               {isRTL ? "حفظ" : "Save"}
             </Text>
           )}
@@ -228,12 +228,12 @@ export default function NotificationSettingsScreen() {
               )}
               <View style={styles.masterToggleInfo}>
                 <Text
-                  style={[styles.masterToggleTitle, isRTL && styles.rtlText]}
+                  style={[styles.masterToggleTitle, isRTL && { textAlign: "left" }]}
                 >
                   {isRTL ? "الإشعارات" : "Notifications"}
                 </Text>
                 <Text
-                  style={[styles.masterToggleSubtitle, isRTL && styles.rtlText]}
+                  style={[styles.masterToggleSubtitle, isRTL && { textAlign: "left" }]}
                 >
                   {settings.enabled
                     ? isRTL
@@ -256,7 +256,7 @@ export default function NotificationSettingsScreen() {
 
         {/* Notification Types */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "أنواع الإشعارات" : "Notification Types"}
           </Text>
 
@@ -303,7 +303,7 @@ export default function NotificationSettingsScreen() {
 
         {/* Alert Preferences */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "تفضيلات التنبيه" : "Alert Preferences"}
           </Text>
 
@@ -326,7 +326,7 @@ export default function NotificationSettingsScreen() {
 
         {/* Quiet Hours */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "ساعات الهدوء" : "Quiet Hours"}
           </Text>
 
@@ -343,7 +343,7 @@ export default function NotificationSettingsScreen() {
           {settings.quietHoursEnabled && (
             <View style={styles.quietHoursSettings}>
               <View style={styles.timeRow}>
-                <Text style={[styles.timeLabel, isRTL && styles.rtlText]}>
+                <Text style={[styles.timeLabel, isRTL && { textAlign: "left" }]}>
                   {isRTL ? "من" : "From"}
                 </Text>
                 <TouchableOpacity style={styles.timeButton}>
@@ -353,7 +353,7 @@ export default function NotificationSettingsScreen() {
                 </TouchableOpacity>
               </View>
               <View style={styles.timeRow}>
-                <Text style={[styles.timeLabel, isRTL && styles.rtlText]}>
+                <Text style={[styles.timeLabel, isRTL && { textAlign: "left" }]}>
                   {isRTL ? "إلى" : "To"}
                 </Text>
                 <TouchableOpacity style={styles.timeButton}>
@@ -367,7 +367,7 @@ export default function NotificationSettingsScreen() {
         {/* Info Card */}
         <View style={styles.infoCard}>
           <AlertTriangle color="#F59E0B" size={20} />
-          <Text style={[styles.infoText, isRTL && styles.rtlText]}>
+          <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
             {isRTL
               ? "تنبيهات الطوارئ مثل السقوط ستصلك دائماً حتى في ساعات الهدوء"
               : "Emergency alerts like fall detection will always notify you, even during quiet hours"}

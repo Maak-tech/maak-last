@@ -110,14 +110,14 @@ export default function PersonalInfoScreen() {
           <Icon color="#2563EB" size={20} />
         </View>
         <View style={styles.infoCardContent}>
-          <Text style={[styles.infoCardLabel, isRTL && styles.rtlText]}>
+          <Text style={[styles.infoCardLabel, isRTL && { textAlign: "left" }]}>
             {label}
           </Text>
-          <Text style={[styles.infoCardValue, isRTL && styles.rtlText]}>
+          <Text style={[styles.infoCardValue, isRTL && { textAlign: "left" }]}>
             {value}
           </Text>
           {description && (
-            <Text style={[styles.infoCardDescription, isRTL && styles.rtlText]}>
+            <Text style={[styles.infoCardDescription, isRTL && { textAlign: "left" }]}>
               {description}
             </Text>
           )}
@@ -151,7 +151,7 @@ export default function PersonalInfoScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {isRTL ? "المعلومات الشخصية" : "Personal Information"}
         </Text>
 
@@ -179,14 +179,14 @@ export default function PersonalInfoScreen() {
               <View style={styles.statusDot} />
             </View>
           </View>
-          <Text style={[styles.userName, isRTL && styles.rtlText]}>
+          <Text style={[styles.userName, isRTL && { textAlign: "left" }]}>
             {user?.firstName && user?.lastName
               ? `${user.firstName} ${user.lastName}`
               : user?.firstName || "User"}
           </Text>
           <View style={styles.roleContainer}>
             <Shield color="#10B981" size={14} />
-            <Text style={[styles.roleText, isRTL && styles.rtlText]}>
+            <Text style={[styles.roleText, isRTL && { textAlign: "left" }]}>
               {user?.role === "admin"
                 ? isRTL
                   ? "مدير العائلة"
@@ -200,7 +200,7 @@ export default function PersonalInfoScreen() {
 
         {/* Information Cards */}
         <View style={styles.infoSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "المعلومات الأساسية" : "Basic Information"}
           </Text>
 
@@ -261,7 +261,7 @@ export default function PersonalInfoScreen() {
 
         {/* Account Details */}
         <View style={styles.infoSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "تفاصيل الحساب" : "Account Details"}
           </Text>
 
@@ -296,35 +296,35 @@ export default function PersonalInfoScreen() {
 
         {/* Statistics */}
         <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "إحصائيات الحساب" : "Account Statistics"}
           </Text>
 
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+              <Text style={[styles.statValue, isRTL && { textAlign: "left" }]}>
                 {Math.floor(
                   (Date.now() -
                     new Date(user?.createdAt || new Date()).getTime()) /
                     (1000 * 60 * 60 * 24)
                 )}
               </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+              <Text style={[styles.statLabel, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "أيام العضوية" : "Days Active"}
               </Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+              <Text style={[styles.statValue, isRTL && { textAlign: "left" }]}>
                 100%
               </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+              <Text style={[styles.statLabel, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "اكتمال الملف" : "Profile Complete"}
               </Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={[styles.statValue, isRTL && styles.rtlText]}>
+              <Text style={[styles.statValue, isRTL && { textAlign: "left" }]}>
                 {user?.preferences?.notifications
                   ? isRTL
                     ? "مفعل"
@@ -333,7 +333,7 @@ export default function PersonalInfoScreen() {
                     ? "معطل"
                     : "Off"}
               </Text>
-              <Text style={[styles.statLabel, isRTL && styles.rtlText]}>
+              <Text style={[styles.statLabel, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "الإشعارات" : "Notifications"}
               </Text>
             </View>
@@ -343,7 +343,7 @@ export default function PersonalInfoScreen() {
         {/* Edit Profile Button */}
         <TouchableOpacity onPress={handleEdit} style={styles.editProfileButton}>
           <Edit3 color="#FFFFFF" size={20} />
-          <Text style={[styles.editProfileText, isRTL && styles.rtlText]}>
+          <Text style={[styles.editProfileText, isRTL && { textAlign: "left" }]}>
             {isRTL ? "تعديل الملف الشخصي" : "Edit Profile"}
           </Text>
         </TouchableOpacity>
@@ -357,7 +357,7 @@ export default function PersonalInfoScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
               {isRTL ? "تعديل الملف الشخصي" : "Edit Profile"}
             </Text>
             <TouchableOpacity
@@ -371,7 +371,7 @@ export default function PersonalInfoScreen() {
           <ScrollView style={styles.modalContent}>
             {/* First Name Field */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+              <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "الاسم الأول" : "First Name"} *
               </Text>
               <TextInput
@@ -389,7 +389,7 @@ export default function PersonalInfoScreen() {
 
             {/* Last Name Field */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+              <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "اسم العائلة" : "Last Name"}
               </Text>
               <TextInput
@@ -405,7 +405,7 @@ export default function PersonalInfoScreen() {
 
             {/* Phone Number Field */}
             <View style={styles.fieldContainer}>
-              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+              <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "رقم الهاتف" : "Phone Number"}
               </Text>
               <TextInput
@@ -418,7 +418,7 @@ export default function PersonalInfoScreen() {
                 textAlign={isRTL ? "right" : "left"}
                 value={editForm.phoneNumber}
               />
-              <Text style={[styles.fieldDescription, isRTL && styles.rtlText]}>
+              <Text style={[styles.fieldDescription, isRTL && { textAlign: "left" }]}>
                 {isRTL
                   ? "سيستخدم للطوارئ والإشعارات المهمة"
                   : "Used for emergencies and important notifications"}
@@ -460,7 +460,7 @@ export default function PersonalInfoScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "اختر الصورة الرمزية" : "Choose Your Avatar"}
               </Text>
               <TouchableOpacity
@@ -509,7 +509,7 @@ export default function PersonalInfoScreen() {
                   }}
                 >
                   <Avatar avatarType={type} size="xl" style={{ width: 80, height: 80 }} />
-                  <Text style={[styles.avatarLabel, isRTL && styles.rtlText]}>
+                  <Text style={[styles.avatarLabel, isRTL && { textAlign: "left" }]}>
                     {type === "man" && (isRTL ? "رجل" : "Man")}
                     {type === "woman" && (isRTL ? "امرأة" : "Woman")}
                     {type === "boy" && (isRTL ? "صبي" : "Boy")}

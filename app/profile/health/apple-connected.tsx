@@ -207,7 +207,7 @@ export default function AppleHealthConnectedScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {isRTL ? "Apple Health متصل" : "Apple Health Connected"}
         </Text>
 
@@ -229,7 +229,7 @@ export default function AppleHealthConnectedScreen() {
             style={[
               styles.title,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL ? "Apple Health متصل" : "Apple Health Connected"}
@@ -238,7 +238,7 @@ export default function AppleHealthConnectedScreen() {
             style={[
               styles.subtitle,
               { color: theme.colors.text.secondary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL

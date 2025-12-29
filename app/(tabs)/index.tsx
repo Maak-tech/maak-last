@@ -92,6 +92,10 @@ export default function DashboardScreen() {
     dateText: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
     },
+    dateTextRTL: {
+      alignSelf: "flex-start" as const,
+      textAlign: "left" as const,
+    },
     statsContainer: {
       flexDirection: "row" as const,
       paddingHorizontal: theme.spacing.base,
@@ -233,6 +237,10 @@ export default function DashboardScreen() {
       ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
       marginBottom: 4,
     },
+    symptomTypeRTL: {
+      alignSelf: "flex-start" as const,
+      textAlign: "left" as const,
+    },
     symptomTime: {
       ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
     },
@@ -263,13 +271,25 @@ export default function DashboardScreen() {
       ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
       marginBottom: 4,
     },
+    healthScoreTitleRTL: {
+      alignSelf: "flex-start" as const,
+      textAlign: "left" as const,
+    },
     healthScoreValue: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.accent.success),
       fontSize: 32,
       lineHeight: 40,
     },
+    healthScoreValueRTL: {
+      alignSelf: "flex-start" as const,
+      textAlign: "left" as const,
+    },
     healthScoreDesc: {
       ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+    },
+    healthScoreDescRTL: {
+      alignSelf: "flex-start" as const,
+      textAlign: "left" as const,
     },
     emptyText: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.tertiary),
@@ -624,6 +644,7 @@ export default function DashboardScreen() {
                 [
                   styles.dateText,
                   isRTL && styles.rtlText,
+                  isRTL && styles.dateTextRTL,
                 ] as StyleProp<TextStyle>
               }
               numberOfLines={undefined}
@@ -1273,6 +1294,7 @@ export default function DashboardScreen() {
                       [
                         styles.symptomType,
                         isRTL && styles.rtlText,
+                        isRTL && styles.symptomTypeRTL,
                       ] as StyleProp<TextStyle>
                     }
                   >
@@ -1339,6 +1361,7 @@ export default function DashboardScreen() {
                 [
                   styles.healthScoreTitle,
                   isRTL && styles.rtlText,
+                  isRTL && styles.healthScoreTitleRTL,
                 ] as StyleProp<TextStyle>
               }
             >
@@ -1349,6 +1372,7 @@ export default function DashboardScreen() {
                 [
                   styles.healthScoreValue,
                   isRTL && styles.rtlText,
+                  isRTL && styles.healthScoreValueRTL,
                 ] as StyleProp<TextStyle>
               }
             >
@@ -1364,6 +1388,7 @@ export default function DashboardScreen() {
                 [
                   styles.healthScoreDesc,
                   isRTL && styles.rtlText,
+                  isRTL && styles.healthScoreDescRTL,
                 ] as StyleProp<TextStyle>
               }
             >

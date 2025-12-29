@@ -8,6 +8,11 @@
  * - 60 second measurement for HRV and respiratory rate
  */
 
+// CRITICAL: Import reanimated setup FIRST to ensure TextImpl is patched before reanimated loads
+// This must happen before any react-native-reanimated or react-native-vision-camera imports
+import "@/lib/utils/reanimatedSetup";
+import { ensureReanimatedPatched } from "@/lib/utils/reanimatedSetup";
+
 import {
   Heart,
   X,
@@ -73,6 +78,11 @@ export default function PPGVitalMonitorVisionCamera({
   onMeasurementComplete,
   onClose,
 }: PPGVitalMonitorProps) {
+  // Ensure reanimated is patched before using frame processor
+  useEffect(() => {
+    ensureReanimatedPatched();
+  }, []);
+  
   const { theme } = useTheme();
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice("front");

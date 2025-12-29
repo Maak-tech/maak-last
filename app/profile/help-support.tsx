@@ -79,13 +79,13 @@ export default function HelpSupportScreen() {
         <Icon color={color} size={24} />
       </View>
       <View style={styles.contactContent}>
-        <Text style={[styles.contactTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.contactTitle, isRTL && { textAlign: "left" }]}>
           {title}
         </Text>
-        <Text style={[styles.contactSubtitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.contactSubtitle, isRTL && { textAlign: "left" }]}>
           {subtitle}
         </Text>
-        <Text style={[styles.contactValue, isRTL && styles.rtlText]}>
+        <Text style={[styles.contactValue, isRTL && { textAlign: "left" }]}>
           {value}
         </Text>
       </View>
@@ -105,10 +105,10 @@ export default function HelpSupportScreen() {
     answer: string;
   }) => (
     <View style={styles.faqItem}>
-      <Text style={[styles.faqQuestion, isRTL && styles.rtlText]}>
+      <Text style={[styles.faqQuestion, isRTL && { textAlign: "left" }]}>
         {question}
       </Text>
-      <Text style={[styles.faqAnswer, isRTL && styles.rtlText]}>{answer}</Text>
+      <Text style={[styles.faqAnswer, isRTL && { textAlign: "left" }]}>{answer}</Text>
     </View>
   );
 
@@ -135,8 +135,8 @@ export default function HelpSupportScreen() {
       <View style={[styles.helpIcon, { backgroundColor: color + "20" }]}>
         <Icon color={color} size={20} />
       </View>
-      <Text style={[styles.helpTitle, isRTL && styles.rtlText]}>{title}</Text>
-      <Text style={[styles.helpDescription, isRTL && styles.rtlText]}>
+      <Text style={[styles.helpTitle, isRTL && { textAlign: "left" }]}>{title}</Text>
+      <Text style={[styles.helpDescription, isRTL && { textAlign: "left" }]}>
         {description}
       </Text>
       {comingSoon && (
@@ -164,7 +164,7 @@ export default function HelpSupportScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {isRTL ? "المساعدة والدعم" : "Help & Support"}
         </Text>
 
@@ -177,10 +177,10 @@ export default function HelpSupportScreen() {
           <View style={styles.welcomeIcon}>
             <HelpCircle color="#2563EB" size={40} />
           </View>
-          <Text style={[styles.welcomeTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.welcomeTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "نحن هنا لمساعدتك" : "We're Here to Help"}
           </Text>
-          <Text style={[styles.welcomeDescription, isRTL && styles.rtlText]}>
+          <Text style={[styles.welcomeDescription, isRTL && { textAlign: "left" }]}>
             {isRTL
               ? "فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا."
               : "Maak support team is available to help you anytime. Choose the best way to contact us."}
@@ -189,7 +189,7 @@ export default function HelpSupportScreen() {
 
         {/* Contact Methods */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "طرق التواصل" : "Contact Methods"}
           </Text>
 
@@ -224,15 +224,15 @@ export default function HelpSupportScreen() {
         <View style={styles.businessHours}>
           <Clock color="#64748B" size={20} />
           <View style={styles.hoursContent}>
-            <Text style={[styles.hoursTitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.hoursTitle, isRTL && { textAlign: "left" }]}>
               {isRTL ? "ساعات العمل" : "Business Hours"}
             </Text>
-            <Text style={[styles.hoursText, isRTL && styles.rtlText]}>
+            <Text style={[styles.hoursText, isRTL && { textAlign: "left" }]}>
               {isRTL
                 ? "الأحد - الخميس: 9:00 صباحاً - 5:00 مساءً"
                 : "Sunday - Thursday: 9:00 AM - 5:00 PM"}
             </Text>
-            <Text style={[styles.hoursSubtext, isRTL && styles.rtlText]}>
+            <Text style={[styles.hoursSubtext, isRTL && { textAlign: "left" }]}>
               {isRTL ? "توقيت الرياض (GMT+3)" : "Riyadh Time (GMT+3)"}
             </Text>
           </View>
@@ -240,7 +240,7 @@ export default function HelpSupportScreen() {
 
         {/* Quick Help */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "مساعدة سريعة" : "Quick Help"}
           </Text>
 
@@ -271,7 +271,7 @@ export default function HelpSupportScreen() {
 
         {/* FAQ Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "الأسئلة الشائعة" : "Frequently Asked Questions"}
           </Text>
 
@@ -326,11 +326,11 @@ export default function HelpSupportScreen() {
             <View style={styles.emergencyIcon}>
               <Phone color="#EF4444" size={20} />
             </View>
-            <Text style={[styles.emergencyTitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.emergencyTitle, isRTL && { textAlign: "left" }]}>
               {isRTL ? "رقم الطوارئ" : "Emergency Contact"}
             </Text>
           </View>
-          <Text style={[styles.emergencyDescription, isRTL && styles.rtlText]}>
+          <Text style={[styles.emergencyDescription, isRTL && { textAlign: "left" }]}>
             {isRTL
               ? "في حالة الطوارئ الطبية، اتصل بالرقم التالي:"
               : "For medical emergencies, call:"}
@@ -339,7 +339,7 @@ export default function HelpSupportScreen() {
             onPress={() => handleContactMethod("phone", "+966911")}
             style={styles.emergencyButton}
           >
-            <Text style={[styles.emergencyNumber, isRTL && styles.rtlText]}>
+            <Text style={[styles.emergencyNumber, isRTL && { textAlign: "left" }]}>
               911
             </Text>
           </TouchableOpacity>
@@ -349,10 +349,10 @@ export default function HelpSupportScreen() {
         <View style={styles.locationSection}>
           <MapPin color="#64748B" size={20} />
           <View style={styles.locationContent}>
-            <Text style={[styles.locationTitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.locationTitle, isRTL && { textAlign: "left" }]}>
               {isRTL ? "موقعنا" : "Our Location"}
             </Text>
-            <Text style={[styles.locationText, isRTL && styles.rtlText]}>
+            <Text style={[styles.locationText, isRTL && { textAlign: "left" }]}>
               {isRTL ? "رام الله، فلسطين" : "Palestine, Ramallah"}
             </Text>
           </View>

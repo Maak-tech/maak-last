@@ -52,14 +52,39 @@ export const allergyService = {
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         try {
+          // Safely convert timestamp
+          let timestamp: Date;
+          if (data.timestamp?.toDate && typeof data.timestamp.toDate === "function") {
+            timestamp = data.timestamp.toDate();
+          } else if (data.timestamp instanceof Date) {
+            timestamp = data.timestamp;
+          } else if (data.timestamp) {
+            timestamp = new Date(data.timestamp);
+          } else {
+            timestamp = new Date();
+          }
+
+          // Safely convert discoveredDate
+          let discoveredDate: Date | undefined;
+          if (data.discoveredDate) {
+            if (data.discoveredDate?.toDate && typeof data.discoveredDate.toDate === "function") {
+              discoveredDate = data.discoveredDate.toDate();
+            } else if (data.discoveredDate instanceof Date) {
+              discoveredDate = data.discoveredDate;
+            } else {
+              const parsed = new Date(data.discoveredDate);
+              discoveredDate = isNaN(parsed.getTime()) ? undefined : parsed;
+            }
+          }
+
           allergies.push({
             id: doc.id,
             ...data,
-            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp),
-            discoveredDate: data.discoveredDate?.toDate ? data.discoveredDate.toDate() : data.discoveredDate ? new Date(data.discoveredDate) : undefined,
+            timestamp,
+            discoveredDate,
           } as Allergy);
         } catch (error) {
-          console.error("Error parsing allergy data:", error);
+          console.error("Error parsing allergy data:", error, doc.id);
         }
       });
 

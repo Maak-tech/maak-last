@@ -156,18 +156,18 @@ export default function TermsConditionsScreen() {
             >
               <Icon color={color} size={20} />
             </View>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
               {title}
             </Text>
           </View>
         )}
         {level > 2 && (
-          <Text style={[styles.subsectionTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.subsectionTitle, isRTL && { textAlign: "left" }]}>
             {title}
           </Text>
         )}
         <View style={level === 2 ? styles.sectionContent : undefined}>
-          <Text style={[styles.paragraph, isRTL && styles.rtlText]}>
+          <Text style={[styles.paragraph, isRTL && { textAlign: "left" }]}>
             {content}
           </Text>
         </View>
@@ -190,7 +190,7 @@ export default function TermsConditionsScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {isRTL ? "الشروط والأحكام" : "Terms & Conditions"}
         </Text>
 
@@ -201,20 +201,20 @@ export default function TermsConditionsScreen() {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color="#2563EB" size="large" />
-            <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+            <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
               {isRTL ? "جاري التحميل..." : "Loading..."}
             </Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Text style={[styles.errorText, isRTL && styles.rtlText]}>
+            <Text style={[styles.errorText, isRTL && { textAlign: "left" }]}>
               {error}
             </Text>
             <TouchableOpacity
               onPress={loadTermsAndConditions}
               style={styles.retryButton}
             >
-              <Text style={[styles.retryButtonText, isRTL && styles.rtlText]}>
+              <Text style={[styles.retryButtonText, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "إعادة المحاولة" : "Retry"}
               </Text>
             </TouchableOpacity>
@@ -226,10 +226,10 @@ export default function TermsConditionsScreen() {
               <View style={styles.introIcon}>
                 <FileText color="#2563EB" size={40} />
               </View>
-              <Text style={[styles.introTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.introTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "شروط وأحكام استخدام تطبيق معاك" : document.title}
               </Text>
-              <Text style={[styles.introDescription, isRTL && styles.rtlText]}>
+              <Text style={[styles.introDescription, isRTL && { textAlign: "left" }]}>
                 {isRTL
                   ? "يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق معك. باستخدامك للتطبيق، فإنك توافق على الالتزام بهذه الشروط."
                   : "Please read these terms and conditions carefully before using the Maak app. By using the app, you agree to be bound by these terms."}
@@ -238,7 +238,7 @@ export default function TermsConditionsScreen() {
                 <View style={styles.lastUpdated}>
                   <Calendar color="#64748B" size={16} />
                   <Text
-                    style={[styles.lastUpdatedText, isRTL && styles.rtlText]}
+                    style={[styles.lastUpdatedText, isRTL && { textAlign: "left" }]}
                   >
                     {isRTL
                       ? `آخر تحديث: ${document.lastUpdated}`
@@ -260,24 +260,24 @@ export default function TermsConditionsScreen() {
 
             {/* Contact Information */}
             <View style={styles.contactSection}>
-              <Text style={[styles.contactTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.contactTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "تواصل معنا" : "Contact Us"}
               </Text>
-              <Text style={[styles.contactText, isRTL && styles.rtlText]}>
+              <Text style={[styles.contactText, isRTL && { textAlign: "left" }]}>
                 {isRTL
                   ? "إذا كان لديك أي أسئلة حول هذه الشروط والأحكام، يرجى التواصل معنا:"
                   : "If you have any questions about these terms and conditions, please contact us:"}
               </Text>
-              <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
+              <Text style={[styles.contactDetails, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "البريد الإلكتروني: " : "Email: "}legal@maak.app
               </Text>
-              <Text style={[styles.contactDetails, isRTL && styles.rtlText]}>
+              <Text style={[styles.contactDetails, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "الهاتف: " : "Phone: "}+966 12 345 6789
               </Text>
             </View>
           </>
         ) : (
-          <Text style={[styles.noContentText, isRTL && styles.rtlText]}>
+          <Text style={[styles.noContentText, isRTL && { textAlign: "left" }]}>
             {isRTL ? "لا يوجد محتوى متاح" : "No content available"}
           </Text>
         )}

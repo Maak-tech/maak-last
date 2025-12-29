@@ -174,7 +174,7 @@ export default function HealthIntegrationsScreen() {
           style={[
             styles.headerTitle,
             { color: isDark ? theme.colors.text.primary : "#1E293B" },
-            isRTL && styles.rtlText,
+            isRTL && { textAlign: "left" },
           ]}
         >
           {isRTL ? "تكاملات الصحة" : "Health Integrations"}
@@ -207,7 +207,7 @@ export default function HealthIntegrationsScreen() {
             style={[
               styles.welcomeTitle,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL ? "تكاملات الصحة" : "Health Integrations"}
@@ -216,7 +216,7 @@ export default function HealthIntegrationsScreen() {
             style={[
               styles.welcomeDescription,
               { color: theme.colors.text.secondary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {isRTL
@@ -228,7 +228,7 @@ export default function HealthIntegrationsScreen() {
         {/* Providers List */}
         <View style={styles.providersSection}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
           >
             {t("availableProviders")}
           </Text>
@@ -283,7 +283,7 @@ export default function HealthIntegrationsScreen() {
                           style={[
                             styles.badgeText,
                             { color: theme.colors.primary.main },
-                            isRTL && styles.rtlText,
+                            isRTL && { textAlign: "left" },
                           ]}
                         >
                           {t("recommended")}
@@ -296,7 +296,7 @@ export default function HealthIntegrationsScreen() {
                     style={[
                       styles.providerDesc,
                       { color: theme.colors.text.secondary },
-                      isRTL && styles.rtlText,
+                      isRTL && { textAlign: "left" },
                     ]}
                   >
                     {provider.description}
@@ -309,7 +309,7 @@ export default function HealthIntegrationsScreen() {
                         style={[
                           styles.statusText,
                           { color: theme.colors.accent.success },
-                          isRTL && styles.rtlText,
+                          isRTL && { textAlign: "left" },
                         ]}
                       >
                         {t("connected")} • {connection.selectedMetrics.length} {t("metrics")}
@@ -327,7 +327,7 @@ export default function HealthIntegrationsScreen() {
                         style={[
                           styles.statusText,
                           { color: theme.colors.text.secondary },
-                          isRTL && styles.rtlText,
+                          isRTL && { textAlign: "left" },
                         ]}
                       >
                         {t("notAvailableOnPlatform")}
@@ -347,12 +347,12 @@ export default function HealthIntegrationsScreen() {
         {/* Info Section */}
         <View style={styles.infoSection}>
           <Text
-            style={[styles.infoTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
+            style={[styles.infoTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
           >
             {t("aboutHealthIntegrations")}
           </Text>
           <Text
-            style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && styles.rtlText]}
+            style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && { textAlign: "left" }]}
           >
             {t("healthDataReadOnly")}{"\n"}{t("chooseMetricsToShare")}{"\n"}{t("dataEncrypted")}{"\n"}{t("disconnectAnytime")}
           </Text>

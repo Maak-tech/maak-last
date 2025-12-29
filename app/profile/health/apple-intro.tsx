@@ -50,7 +50,7 @@ export default function AppleHealthIntroScreen() {
       >
         <View style={styles.errorContainer}>
           <Text
-            style={[styles.errorText, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
+            style={[styles.errorText, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
           >
             {t("appleHealthOnlyIOS")}
           </Text>
@@ -79,7 +79,7 @@ export default function AppleHealthIntroScreen() {
           />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Text style={[styles.headerTitle, isRTL && { textAlign: "left" }]}>
           {t("connectAppleHealth")}
         </Text>
 
@@ -94,7 +94,7 @@ export default function AppleHealthIntroScreen() {
             style={[
               styles.title,
               { color: theme.colors.text.primary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {t("connectAppleHealth")}
@@ -103,7 +103,7 @@ export default function AppleHealthIntroScreen() {
             style={[
               styles.subtitle,
               { color: theme.colors.text.secondary },
-              isRTL && styles.rtlText,
+              isRTL && { textAlign: "left" },
             ]}
           >
             {t("syncHealthDataBetterInsights")}
@@ -113,7 +113,7 @@ export default function AppleHealthIntroScreen() {
         {/* Benefits Section */}
         <View style={styles.section}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
           >
             {t("whatYoullGet")}
           </Text>
@@ -125,7 +125,7 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {t("completeHealthPicture")}
@@ -134,7 +134,7 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {t("completeHealthPictureDesc")}
@@ -149,7 +149,7 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {t("earlyRiskDetection")}
@@ -158,7 +158,7 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {t("earlyRiskDetectionDesc")}
@@ -173,7 +173,7 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitTitle,
                   { color: theme.colors.text.primary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {t("yourDataYourControl")}
@@ -182,7 +182,7 @@ export default function AppleHealthIntroScreen() {
                 style={[
                   styles.benefitDesc,
                   { color: theme.colors.text.secondary },
-                  isRTL && styles.rtlText,
+                  isRTL && { textAlign: "left" },
                 ]}
               >
                 {t("yourDataYourControlDesc")}
@@ -194,7 +194,7 @@ export default function AppleHealthIntroScreen() {
         {/* Privacy Promise Section */}
         <View style={styles.section}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && styles.rtlText]}
+            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
           >
             {t("yourPrivacyPromise")}
           </Text>
@@ -223,7 +223,7 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyTitle,
                     { color: theme.colors.text.primary },
-                    isRTL && styles.rtlText,
+                    isRTL && { textAlign: "left" },
                   ]}
                 >
                   {t("weOnlyReadWhatYouChoose")}
@@ -232,7 +232,7 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyDesc,
                     { color: theme.colors.text.secondary },
-                    isRTL && styles.rtlText,
+                    isRTL && { textAlign: "left" },
                   ]}
                 >
                   {t("weOnlyReadWhatYouChooseDesc")}
@@ -254,7 +254,7 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyTitle,
                     { color: theme.colors.text.primary },
-                    isRTL && styles.rtlText,
+                    isRTL && { textAlign: "left" },
                   ]}
                 >
                   {t("weNeverSellHealthData")}
@@ -263,7 +263,7 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyDesc,
                     { color: theme.colors.text.secondary },
-                    isRTL && styles.rtlText,
+                    isRTL && { textAlign: "left" },
                   ]}
                 >
                   {t("weNeverSellHealthDataDesc")}
@@ -285,7 +285,7 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyTitle,
                     { color: theme.colors.text.primary },
-                    isRTL && styles.rtlText,
+                    isRTL && { textAlign: "left" },
                   ]}
                 >
                   {t("changePermissionsAnytime")}
@@ -294,7 +294,7 @@ export default function AppleHealthIntroScreen() {
                   style={[
                     styles.privacyDesc,
                     { color: theme.colors.text.secondary },
-                    isRTL && styles.rtlText,
+                    isRTL && { textAlign: "left" },
                   ]}
                 >
                   {t("changePermissionsAnytimeDesc")}
@@ -317,7 +317,7 @@ export default function AppleHealthIntroScreen() {
               style={[
                 styles.additionalPrivacyText,
                 { color: theme.colors.text.secondary },
-                isRTL && styles.rtlText,
+                isRTL && { textAlign: "left" },
               ]}
             >
               {t("readOnlyAccess")}{"\n"}{t("dataEncryptedSynced")}{"\n"}{t("usedForCaregiving")}
@@ -348,7 +348,7 @@ export default function AppleHealthIntroScreen() {
               style={[
                 styles.secondaryButtonText,
                 { color: theme.colors.text.secondary },
-                isRTL && styles.rtlText,
+                isRTL && { textAlign: "left" },
               ]}
             >
               {t("notNow")}

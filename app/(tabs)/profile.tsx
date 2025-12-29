@@ -361,7 +361,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, isRTL && styles.rtlText]}>
+        <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
           {t("profile")}
         </Text>
       </View>
@@ -391,16 +391,16 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.userInfo}>
-            <Text style={[styles.userName, isRTL && styles.rtlText]}>
+            <Text style={[styles.userName, isRTL && { textAlign: "left" }]}>
               {user?.firstName && user?.lastName
                 ? `${user.firstName} ${user.lastName}`
                 : user?.firstName || "User"}
             </Text>
-            <Text style={[styles.userEmail, isRTL && styles.rtlText]}>
+            <Text style={[styles.userEmail, isRTL && { textAlign: "left" }]}>
               {user?.email}
             </Text>
             <View style={styles.memberSince}>
-              <Text style={[styles.memberSinceText, isRTL && styles.rtlText]}>
+              <Text style={[styles.memberSinceText, isRTL && { textAlign: "left" }]}>
                 {t("memberSince")}{" "}
                 {new Date(user?.createdAt || new Date()).getFullYear()}
               </Text>
@@ -410,7 +410,7 @@ export default function ProfileScreen() {
 
         {/* Improved Health Summary */}
         <View style={styles.healthSummary}>
-          <Text style={[styles.healthTitle, isRTL && styles.rtlText]}>
+          <Text style={[styles.healthTitle, isRTL && { textAlign: "left" }]}>
             {t("healthSummary")}
           </Text>
 
@@ -424,12 +424,12 @@ export default function ProfileScreen() {
                 <View style={styles.healthIconContainer}>
                   <Activity color="#10B981" size={24} />
                 </View>
-                <Text style={[styles.healthCardValue, isRTL && styles.rtlText]}>
+                <Text style={[styles.healthCardValue, isRTL && { textAlign: "left" }]}>
                   {healthData.healthScore}
                 </Text>
                   <Text
                   numberOfLines={2}
-                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
+                  style={[styles.healthCardLabel, isRTL && { textAlign: "left" }]}
                 >
                   {t("healthScore")}
                 </Text>
@@ -439,12 +439,12 @@ export default function ProfileScreen() {
                 <View style={styles.healthIconContainer}>
                   <Heart color="#EF4444" size={24} />
                 </View>
-                <Text style={[styles.healthCardValue, isRTL && styles.rtlText]}>
+                <Text style={[styles.healthCardValue, isRTL && { textAlign: "left" }]}>
                   {healthData.symptoms.length}
                 </Text>
                 <Text
                   numberOfLines={2}
-                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
+                  style={[styles.healthCardLabel, isRTL && { textAlign: "left" }]}
                 >
                   {t("symptomsThisMonth")}
                 </Text>
@@ -454,12 +454,12 @@ export default function ProfileScreen() {
                 <View style={styles.healthIconContainer}>
                   <Calendar color="#3B82F6" size={24} />
                 </View>
-                <Text style={[styles.healthCardValue, isRTL && styles.rtlText]}>
+                <Text style={[styles.healthCardValue, isRTL && { textAlign: "left" }]}>
                   {healthData.medications.length}
                 </Text>
                 <Text
                   numberOfLines={2}
-                  style={[styles.healthCardLabel, isRTL && styles.rtlText]}
+                  style={[styles.healthCardLabel, isRTL && { textAlign: "left" }]}
                 >
                   {t("activeMedications")}
                 </Text>
@@ -471,7 +471,7 @@ export default function ProfileScreen() {
         {/* Settings Sections */}
         {profileSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.sectionTitleRTL]}>
+            <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
               {section.title}
             </Text>
 
@@ -506,7 +506,7 @@ export default function ProfileScreen() {
                           numberOfLines={1}
                           style={[
                             styles.sectionItemLabel,
-                            isRTL && styles.rtlText,
+                            isRTL && { textAlign: "left" },
                           ]}
                         >
                           {item.label}
@@ -541,7 +541,7 @@ export default function ProfileScreen() {
                                   numberOfLines={1}
                                   style={[
                                     styles.sectionItemValue,
-                                    isRTL && styles.rtlText,
+                                    isRTL && { textAlign: "left" },
                                   ]}
                                 >
                                   {item.value}
@@ -571,14 +571,14 @@ export default function ProfileScreen() {
         {/* Sign Out Button */}
         <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>
           <LogOut color="#EF4444" size={20} />
-          <Text style={[styles.signOutText, isRTL && styles.rtlText]}>
+          <Text style={[styles.signOutText, isRTL && { textAlign: "left" }]}>
             {t("signOut")}
           </Text>
         </TouchableOpacity>
 
         {/* App Version */}
         <View style={styles.appVersion}>
-          <Text style={[styles.appVersionText, isRTL && styles.rtlText]}>
+          <Text style={[styles.appVersionText, isRTL && { textAlign: "left" }]}>
             Maak v1.0.0
           </Text>
         </View>
@@ -593,7 +593,7 @@ export default function ProfileScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
               {t("selectLanguage")}
             </Text>
 
@@ -638,7 +638,7 @@ export default function ProfileScreen() {
               onPress={() => setLanguagePickerVisible(false)}
               style={styles.cancelButton}
             >
-              <Text style={[styles.cancelButtonText, isRTL && styles.rtlText]}>
+              <Text style={[styles.cancelButtonText, isRTL && { textAlign: "left" }]}>
                 {t("cancel")}
               </Text>
             </TouchableOpacity>
@@ -656,7 +656,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+              <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
                 {t("chooseYourAvatar")}
               </Text>
               <TouchableOpacity
@@ -701,7 +701,7 @@ export default function ProfileScreen() {
                   }}
                 >
                   <Avatar avatarType={type} size="xl" style={{ width: 80, height: 80 }} />
-                  <Text style={[styles.avatarLabel, isRTL && styles.rtlText]}>
+                  <Text style={[styles.avatarLabel, isRTL && { textAlign: "left" }]}>
                     {type === "man" && t("man")}
                     {type === "woman" && t("woman")}
                     {type === "boy" && t("boy")}

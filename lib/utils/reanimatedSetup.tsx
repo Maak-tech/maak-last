@@ -10,223 +10,196 @@
  * 
  * IMPORTANT: Import this file early in your app (e.g., in _layout.tsx) to ensure
  * reanimated compatibility is set up before any animated components are created.
+ * 
+ * This module MUST be imported BEFORE react-native-reanimated or react-native-vision-camera
+ * to ensure TextImpl is patched before reanimated tries to use it.
  */
 
 import React from 'react';
 import { Text as RNText, TextProps, TextInput as RNTextInput, TextInputProps } from 'react-native';
 
 /**
+ * Helper function to check if a component is wrapped with forwardRef
+ */
+function isForwardRefComponent(component: any): boolean {
+  if (!component) return false;
+  
+  // Check for forwardRef markers
+  if (component.$$typeof === React.forwardRef.$$typeof) return true;
+  if (component.render?.$$typeof === React.forwardRef.$$typeof) return true;
+  if (component.__isForwardRef === true) return true;
+  
+  // Check if it's a class component (which doesn't need wrapping)
+  if (component.prototype && component.prototype.isReactComponent) return true;
+  
+  return false;
+}
+
+/**
+ * Wrap a component with forwardRef if it's not already wrapped
+ */
+function wrapWithForwardRef<T extends React.ComponentType<any>>(component: T, displayName?: string): T {
+  if (isForwardRefComponent(component)) {
+    return component;
+  }
+  
+  const WrappedComponent = React.forwardRef<any, any>((props, ref) => {
+    return React.createElement(component, { ...props, ref });
+  });
+  
+  WrappedComponent.displayName = displayName || component.displayName || component.name || 'WrappedComponent';
+  (WrappedComponent as any).__isForwardRef = true;
+  
+  // Preserve static properties
+  Object.keys(component).forEach((key) => {
+    try {
+      if (key !== 'displayName' && key !== 'prototype' && key !== '$$typeof' && key !== 'render' && key !== 'name') {
+        (WrappedComponent as any)[key] = (component as any)[key];
+      }
+    } catch {
+      // Ignore errors copying properties
+    }
+  });
+  
+  return WrappedComponent as T;
+}
+
+/**
  * Patch React Native components BEFORE reanimated is imported
- * This ensures reanimated sees the wrapped versions from the start
  */
 try {
   const ReactNativeModule = require('react-native');
   
-  // Patch Text component FIRST, before reanimated tries to use it
-  if (ReactNativeModule && ReactNativeModule.Text && typeof ReactNativeModule.Text === 'function') {
-    const OriginalText = ReactNativeModule.Text;
-    
-    // Check if already wrapped
-    const isAlreadyWrapped = OriginalText.$$typeof === React.forwardRef.$$typeof || 
-                              (OriginalText as any).render?.$$typeof === React.forwardRef.$$typeof;
-    
-    if (!isAlreadyWrapped) {
-      const WrappedText = React.forwardRef<React.ElementRef<typeof OriginalText>, TextProps>(
-        (props, ref) => {
-          return <OriginalText {...props} ref={ref} />;
-        }
+  // CRITICAL: Patch TextImpl FIRST if it exists
+  // TextImpl is what reanimated actually uses internally
+  if ((ReactNativeModule as any).TextImpl && typeof (ReactNativeModule as any).TextImpl === 'function') {
+    if (!isForwardRefComponent((ReactNativeModule as any).TextImpl)) {
+      (ReactNativeModule as any).TextImpl = wrapWithForwardRef(
+        (ReactNativeModule as any).TextImpl,
+        'TextImpl'
       );
-      
-      // Preserve static properties
-      Object.keys(OriginalText).forEach((key) => {
-        try {
-          if (key !== 'displayName' && key !== 'prototype' && key !== '$$typeof' && key !== 'render') {
-            (WrappedText as any)[key] = (OriginalText as any)[key];
-          }
-        } catch {
-          // Ignore errors
-        }
-      });
-      
-      WrappedText.displayName = 'Text';
-      ReactNativeModule.Text = WrappedText;
     }
-    
-    // Patch TextImpl if it exists (this is what reanimated might be trying to use)
-    if ((ReactNativeModule as any).TextImpl && typeof (ReactNativeModule as any).TextImpl === 'function') {
-      const OriginalTextImpl = (ReactNativeModule as any).TextImpl;
-      const isTextImplWrapped = OriginalTextImpl.$$typeof === React.forwardRef.$$typeof ||
-                                 (OriginalTextImpl as any).render?.$$typeof === React.forwardRef.$$typeof;
-      
-      if (!isTextImplWrapped) {
-        const WrappedTextImpl = React.forwardRef<any, any>(
-          (props, ref) => {
-            return React.createElement(OriginalTextImpl, { ...props, ref });
-          }
-        );
-        WrappedTextImpl.displayName = 'TextImpl';
-        (ReactNativeModule as any).TextImpl = WrappedTextImpl;
-      }
+  }
+  
+  // Patch Text component
+  if (ReactNativeModule && ReactNativeModule.Text && typeof ReactNativeModule.Text === 'function') {
+    if (!isForwardRefComponent(ReactNativeModule.Text)) {
+      ReactNativeModule.Text = wrapWithForwardRef(ReactNativeModule.Text, 'Text');
     }
   }
 
   // Patch TextInput component
   if (ReactNativeModule && ReactNativeModule.TextInput && typeof ReactNativeModule.TextInput === 'function') {
-    const OriginalTextInput = ReactNativeModule.TextInput;
-    const isTextInputWrapped = OriginalTextInput.$$typeof === React.forwardRef.$$typeof ||
-                               (OriginalTextInput as any).render?.$$typeof === React.forwardRef.$$typeof;
-    
-    if (!isTextInputWrapped) {
-      const WrappedTextInput = React.forwardRef<React.ElementRef<typeof OriginalTextInput>, TextInputProps>(
-        (props, ref) => {
-          return <OriginalTextInput {...props} ref={ref} />;
-        }
-      );
-      
-      Object.keys(OriginalTextInput).forEach((key) => {
-        try {
-          if (key !== 'displayName' && key !== 'prototype' && key !== '$$typeof') {
-            (WrappedTextInput as any)[key] = (OriginalTextInput as any)[key];
-          }
-        } catch {
-          // Ignore errors
-        }
-      });
-      
-      WrappedTextInput.displayName = 'TextInput';
-      ReactNativeModule.TextInput = WrappedTextInput;
+    if (!isForwardRefComponent(ReactNativeModule.TextInput)) {
+      ReactNativeModule.TextInput = wrapWithForwardRef(ReactNativeModule.TextInput, 'TextInput');
     }
   }
 } catch (error) {
   // Silently handle errors
+  console.warn('Error patching React Native components:', error);
 }
 
 /**
- * Patch react-native-reanimated's createAnimatedComponent to handle TextImpl gracefully
- * This is a fallback approach that intercepts the error if patching above didn't work
+ * Patch react-native-reanimated's createAnimatedComponent PROACTIVELY
+ * This intercepts ALL calls to createAnimatedComponent and wraps components automatically
  */
-try {
-  // Only try to patch if reanimated is already loaded
-  const reanimatedModule = require('react-native-reanimated');
+let reanimatedPatched = false;
+
+function patchReanimatedCreateAnimatedComponent() {
+  if (reanimatedPatched) return;
   
-  if (reanimatedModule && reanimatedModule.default && reanimatedModule.default.createAnimatedComponent) {
-    const originalCreateAnimatedComponent = reanimatedModule.default.createAnimatedComponent;
+  try {
+    const reanimatedModule = require('react-native-reanimated');
     
-    // Wrap createAnimatedComponent to handle TextImpl errors gracefully
-    reanimatedModule.default.createAnimatedComponent = function(component: any) {
-      try {
-        return originalCreateAnimatedComponent(component);
-      } catch (error: any) {
-        // If error mentions TextImpl or Text, try to wrap it
-        if (error?.message?.includes('TextImpl') || error?.message?.includes('Text')) {
+    // Try different possible export paths
+    const reanimated = reanimatedModule.default || reanimatedModule;
+    
+    if (reanimated && reanimated.createAnimatedComponent) {
+      const originalCreateAnimatedComponent = reanimated.createAnimatedComponent.bind(reanimated);
+      
+      // Wrap createAnimatedComponent to automatically wrap components
+      reanimated.createAnimatedComponent = function(component: any) {
+        if (!component) {
+          return originalCreateAnimatedComponent(component);
+        }
+        
+        // If component is already wrapped or is a class component, use it directly
+        if (isForwardRefComponent(component)) {
           try {
-            const WrappedComponent = React.forwardRef<any, any>((props, ref) => {
-              return React.createElement(component, { ...props, ref });
-            });
-            WrappedComponent.displayName = component.displayName || component.name || 'Text';
-            return originalCreateAnimatedComponent(WrappedComponent);
-          } catch {
-            // If wrapping fails, return original component (might cause issues but won't crash)
-            console.warn('Failed to wrap component for reanimated, using original:', component.displayName || component.name);
-            return component;
+            return originalCreateAnimatedComponent(component);
+          } catch (error: any) {
+            // If it still fails, try wrapping it
+            if (error?.message?.includes('TextImpl') || error?.message?.includes('Text') || error?.message?.includes('forwardRef')) {
+              const wrapped = wrapWithForwardRef(component);
+              return originalCreateAnimatedComponent(wrapped);
+            }
+            throw error;
           }
         }
-        throw error;
-      }
-    };
-  }
-} catch {
-  // Reanimated might not be available yet, which is fine
-  // The patching above should handle it before reanimated loads
-}
-
-/**
- * Patch React Native's Text component at the module level
- * This is a workaround for react-native-reanimated v3+ compatibility issues.
- */
-try {
-  const ReactNativeModule = require('react-native');
-  
-  if (ReactNativeModule && ReactNativeModule.Text && typeof ReactNativeModule.Text === 'function') {
-    const OriginalText = ReactNativeModule.Text;
-    
-    // Always wrap Text to ensure compatibility
-    const WrappedText = React.forwardRef<React.ElementRef<typeof OriginalText>, TextProps>(
-      (props, ref) => {
-        return <OriginalText {...props} ref={ref} />;
-      }
-    );
-    
-    // Preserve static properties
-    Object.keys(OriginalText).forEach((key) => {
-      try {
-        if (key !== 'displayName' && key !== 'prototype' && key !== '$$typeof' && key !== 'render') {
-          (WrappedText as any)[key] = (OriginalText as any)[key];
+        
+        // Component name check - if it's TextImpl or similar, wrap it
+        const componentName = component.displayName || component.name || '';
+        if (componentName.includes('Text') || componentName.includes('TextImpl') || componentName.includes('TextInput')) {
+          const wrapped = wrapWithForwardRef(component, componentName);
+          return originalCreateAnimatedComponent(wrapped);
         }
-      } catch {
-        // Ignore errors
-      }
-    });
-    
-    WrappedText.displayName = 'Text';
-    ReactNativeModule.Text = WrappedText;
-    
-    // Patch TextImpl if it exists
-    if ((ReactNativeModule as any).TextImpl) {
-      const OriginalTextImpl = (ReactNativeModule as any).TextImpl;
-      const WrappedTextImpl = React.forwardRef<any, any>(
-        (props, ref) => {
-          return React.createElement(OriginalTextImpl, { ...props, ref });
+        
+        // For other function components, try wrapping if they fail
+        try {
+          return originalCreateAnimatedComponent(component);
+        } catch (error: any) {
+          // If error mentions forwardRef or TextImpl, wrap and retry
+          if (error?.message?.includes('forwardRef') || 
+              error?.message?.includes('TextImpl') || 
+              error?.message?.includes('function component')) {
+            const wrapped = wrapWithForwardRef(component);
+            return originalCreateAnimatedComponent(wrapped);
+          }
+          throw error;
         }
-      );
-      WrappedTextImpl.displayName = 'TextImpl';
-      (ReactNativeModule as any).TextImpl = WrappedTextImpl;
+      };
+      
+      // Also patch the default export if it exists
+      if (reanimatedModule.default && reanimatedModule.default !== reanimated) {
+        reanimatedModule.default.createAnimatedComponent = reanimated.createAnimatedComponent;
+      }
+      
+      reanimatedPatched = true;
     }
+  } catch (error) {
+    // Reanimated might not be available yet, which is fine
+    // We'll try again when it loads
   }
+}
 
-  // Patch TextInput component
-  if (ReactNativeModule && ReactNativeModule.TextInput && typeof ReactNativeModule.TextInput === 'function') {
-    const OriginalTextInput = ReactNativeModule.TextInput;
-    const WrappedTextInput = React.forwardRef<React.ElementRef<typeof OriginalTextInput>, TextInputProps>(
-      (props, ref) => {
-        return <OriginalTextInput {...props} ref={ref} />;
-      }
-    );
-    
-    Object.keys(OriginalTextInput).forEach((key) => {
-      try {
-        if (key !== 'displayName' && key !== 'prototype' && key !== '$$typeof') {
-          (WrappedTextInput as any)[key] = (OriginalTextInput as any)[key];
-        }
-      } catch {
-        // Ignore errors
-      }
-    });
-    
-    WrappedTextInput.displayName = 'TextInput';
-    ReactNativeModule.TextInput = WrappedTextInput;
-  }
-} catch (error) {
-  // Silently handle errors
+// Try to patch immediately
+patchReanimatedCreateAnimatedComponent();
+
+// Also try patching after a short delay in case reanimated loads asynchronously
+if (typeof setTimeout !== 'undefined') {
+  setTimeout(() => {
+    patchReanimatedCreateAnimatedComponent();
+  }, 100);
+  
+  setTimeout(() => {
+    patchReanimatedCreateAnimatedComponent();
+  }, 500);
 }
 
 /**
- * Export the wrapped Text component for use in this module
- * Note: The Text component is patched directly in React Native module above
- * Components should import Text from 'react-native' to get the patched version
+ * Export function to manually trigger patching
+ * This can be called from components that use reanimated
  */
+export function ensureReanimatedPatched() {
+  patchReanimatedCreateAnimatedComponent();
+}
 
 /**
  * Initialize reanimated compatibility
- * This function ensures the module is loaded and Text is patched
- * before reanimated tries to create any animated components.
  */
 export function initializeReanimatedCompatibility() {
-  // The patching happens at module load time, so this function
-  // mainly serves as a way to ensure the module is imported early
-  // Additional setup can be added here if needed
+  patchReanimatedCreateAnimatedComponent();
 }
 
 // Auto-initialize when module is loaded
 initializeReanimatedCompatibility();
-
