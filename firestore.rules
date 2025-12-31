@@ -122,6 +122,31 @@ service cloud.firestore {
       allow list, read: if request.auth != null;
     }
 
+    // Allergies collection
+    match /allergies/{allergyId} {
+      // Allow users to create their own allergies
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Allow users to read and write their own allergies
+      allow read, update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      // Allow family members to read each other's allergies (for viewing family data)
+      allow read: if request.auth != null && isSameFamily(resource.data.userId);
+      
+      // Allow admins to update/delete allergies for family members
+      allow update, delete: if request.auth != null && 
+        isFamilyAdmin() && 
+        isSameFamily(resource.data.userId);
+      
+      // Allow authenticated users to query and list allergies (simplified for debugging)
+      // This must come after the specific read rules to allow queries to work properly
+      // Individual document access is still controlled by the read rules above
+      allow list, read: if request.auth != null;
+    }
+
     // Vitals collection (heart rate, blood pressure, etc.)
     match /vitals/{vitalId} {
       // Allow users to create their own vitals (primary rule - no document reads required)

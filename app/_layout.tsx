@@ -1,3 +1,7 @@
+// CRITICAL: Import TextImpl patch FIRST, before anything else
+// This must be a .js file to ensure it loads before TypeScript transpilation
+require("@/lib/polyfills/textImplPatch");
+
 // Polyfill to prevent PushNotificationIOS errors
 import "@/lib/polyfills/pushNotificationIOS";
 

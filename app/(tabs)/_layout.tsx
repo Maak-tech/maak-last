@@ -76,36 +76,42 @@ export default function TabLayout() {
         name="symptoms"
         options={{
           href: null, // Access via track tab
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="moods"
         options={{
           href: null, // Access via track tab
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="allergies"
         options={{
           href: null, // Access via track tab
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="medications"
         options={{
           href: null, // Access via symptoms/track tab
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="resources"
         options={{
           href: null, // Access via profile tab
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="vitals"
         options={{
           href: null, // Access via track tab
+          headerShown: false,
         }}
       />
     </Tabs>

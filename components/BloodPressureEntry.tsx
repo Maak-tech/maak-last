@@ -1,16 +1,15 @@
 /**
  * Blood Pressure Manual Entry Component
  * Allows users to manually enter blood pressure readings
- * and export to HealthKit
  */
 
 import { Droplet, X } from "lucide-react-native";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Modal,
-  Platform,
   SafeAreaView,
   StyleProp,
   Text,
@@ -37,12 +36,14 @@ export default function BloodPressureEntry({
   onClose,
   onSave,
 }: BloodPressureEntryProps) {
+  const { t, i18n } = useTranslation();
   const { theme } = useTheme();
   const { user } = useAuth();
   const [systolic, setSystolic] = useState("");
   const [diastolic, setDiastolic] = useState("");
   const [saving, setSaving] = useState(false);
-  const [exportToHealthKit, setExportToHealthKit] = useState(false);
+  
+  const isRTL = i18n.language === "ar";
 
   const styles = createThemedStyles((theme) => ({
     modal: {
@@ -114,35 +115,12 @@ export default function BloodPressureEntry({
       marginBottom: theme.spacing.lg,
       borderLeftWidth: 4,
       borderLeftColor: theme.colors.secondary.main,
+      borderRightWidth: 0,
+      borderRightColor: "transparent",
     },
     infoText: {
       ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
       lineHeight: 20,
-    },
-    checkboxContainer: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.lg,
-      padding: theme.spacing.md,
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.md,
-    },
-    checkbox: {
-      width: 24,
-      height: 24,
-      borderRadius: 4,
-      borderWidth: 2,
-      borderColor: theme.colors.primary.main,
-      marginEnd: theme.spacing.md,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-    },
-    checkboxChecked: {
-      backgroundColor: theme.colors.primary.main,
-    },
-    checkboxLabel: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-      flex: 1,
     },
     button: {
       backgroundColor: theme.colors.primary.main,
@@ -172,112 +150,31 @@ export default function BloodPressureEntry({
     const dia = parseInt(diastolic, 10);
 
     if (!systolic || !diastolic) {
-      Alert.alert("Invalid Input", "Please enter both systolic and diastolic values.");
+      Alert.alert(t("invalidInput"), t("pleaseEnterBothValues"));
       return false;
     }
 
     if (isNaN(sys) || isNaN(dia)) {
-      Alert.alert("Invalid Input", "Please enter valid numbers.");
+      Alert.alert(t("invalidInput"), t("pleaseEnterValidNumbers"));
       return false;
     }
 
     if (sys < 50 || sys > 250) {
-      Alert.alert(
-        "Invalid Input",
-        "Systolic pressure should be between 50 and 250 mmHg."
-      );
+      Alert.alert(t("invalidInput"), t("systolicRangeError"));
       return false;
     }
 
     if (dia < 30 || dia > 150) {
-      Alert.alert(
-        "Invalid Input",
-        "Diastolic pressure should be between 30 and 150 mmHg."
-      );
+      Alert.alert(t("invalidInput"), t("diastolicRangeError"));
       return false;
     }
 
     if (sys <= dia) {
-      Alert.alert(
-        "Invalid Input",
-        "Systolic pressure must be greater than diastolic pressure."
-      );
+      Alert.alert(t("invalidInput"), t("systolicMustBeGreater"));
       return false;
     }
 
     return true;
-  };
-
-  const saveToHealthKit = async (sys: number, dia: number): Promise<boolean> => {
-    if (!exportToHealthKit || Platform.OS !== "ios") {
-      return false;
-    }
-
-    try {
-      // Dynamic import to avoid issues if HealthKit is not available
-      const {
-        saveCorrelationSample,
-        isHealthDataAvailable,
-        requestAuthorization,
-      } = await import("@kingstinct/react-native-healthkit");
-
-      if (!isHealthDataAvailable()) {
-        console.log("HealthKit not available");
-        return false;
-      }
-
-      const now = new Date();
-
-      // Blood pressure in HealthKit is stored as a correlation sample
-      // with systolic and diastolic as separate quantity samples
-      // Write permissions are requested automatically when saving
-      await saveCorrelationSample(
-        "HKCorrelationTypeIdentifierBloodPressure",
-        [
-          {
-            quantityType: "HKQuantityTypeIdentifierBloodPressureSystolic",
-            quantity: sys,
-            unit: "mmHg",
-            startDate: now,
-            endDate: now,
-          },
-          {
-            quantityType: "HKQuantityTypeIdentifierBloodPressureDiastolic",
-            quantity: dia,
-            unit: "mmHg",
-            startDate: now,
-            endDate: now,
-          },
-        ],
-        now,
-        now
-      );
-
-      return true;
-    } catch (error: any) {
-      console.error("Failed to save to HealthKit:", error);
-      const errorMessage = error?.message || String(error);
-      
-      // Check if it's a permission error
-      if (
-        errorMessage.includes("authorization denied") ||
-        errorMessage.includes("not authorized") ||
-        errorMessage.includes("insufficient permissions") ||
-        errorMessage.includes("missing or insufficient permissions") ||
-        error?.code === 5
-      ) {
-        Alert.alert(
-          "Permission Denied",
-          "Please grant write permissions for blood pressure in Settings > Privacy & Security > Health > [App Name] > Blood Pressure."
-        );
-      } else {
-        Alert.alert(
-          "Export Failed",
-          "Failed to export blood pressure to HealthKit. Please try again or check your settings."
-        );
-      }
-      return false;
-    }
   };
 
   const handleSave = async () => {
@@ -292,7 +189,7 @@ export default function BloodPressureEntry({
     const currentUserId = user?.id || auth.currentUser?.uid;
 
     if (!currentUserId) {
-      Alert.alert("Error", "Please log in to save blood pressure readings.");
+      Alert.alert(t("error"), t("pleaseLogInToSave"));
       return;
     }
 
@@ -314,33 +211,19 @@ export default function BloodPressureEntry({
 
       await addDoc(collection(db, "vitals"), bloodPressureData);
 
-      // Export to HealthKit if requested
-      if (exportToHealthKit) {
-        const healthKitSuccess = await saveToHealthKit(sys, dia);
-        if (!healthKitSuccess) {
-          Alert.alert(
-            "Saved Locally",
-            "Blood pressure saved to your health records. HealthKit export failed or is not available."
-          );
-        } else {
-          Alert.alert("Success", "Blood pressure saved and exported to HealthKit!");
-        }
-      } else {
-        Alert.alert("Success", "Blood pressure saved to your health records!");
-      }
+      Alert.alert(t("bloodPressureSaved"), t("bloodPressureSavedLocallyMessage"));
 
       // Reset form
       setSystolic("");
       setDiastolic("");
-      setExportToHealthKit(false);
 
       onSave?.();
       onClose();
     } catch (error: any) {
       console.error("Failed to save blood pressure:", error);
       Alert.alert(
-        "Error",
-        error?.message || "Failed to save blood pressure. Please try again."
+        t("error"),
+        error?.message || t("failedToSaveBloodPressure")
       );
     } finally {
       setSaving(false);
@@ -351,7 +234,6 @@ export default function BloodPressureEntry({
     if (!saving) {
       setSystolic("");
       setDiastolic("");
-      setExportToHealthKit(false);
       onClose();
     }
   };
@@ -366,8 +248,8 @@ export default function BloodPressureEntry({
       <SafeAreaView style={styles.modal as ViewStyle}>
         <View style={styles.container as ViewStyle}>
           <View style={styles.header as ViewStyle}>
-            <Text style={styles.title as StyleProp<TextStyle>}>
-              Blood Pressure Entry
+            <Text style={[styles.title as StyleProp<TextStyle>, isRTL && { textAlign: "right" }]}>
+              {t("bloodPressureEntry")}
             </Text>
             <TouchableOpacity
               style={styles.closeButton as ViewStyle}
@@ -380,7 +262,7 @@ export default function BloodPressureEntry({
 
           <View style={styles.content as ViewStyle}>
             <View style={styles.formGroup as ViewStyle}>
-              <Text style={styles.label as (StyleProp<TextStyle>)}>Blood Pressure</Text>
+              <Text style={[styles.label as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>{t("bloodPressure")}</Text>
               <View style={styles.inputContainer as ViewStyle}>
                 <View style={styles.inputWrapper as ViewStyle}>
                   <TextInput
@@ -392,7 +274,7 @@ export default function BloodPressureEntry({
                     maxLength={3}
                     editable={!saving}
                   />
-                  <Text style={styles.inputLabel as (StyleProp<TextStyle>)}>Systolic</Text>
+                  <Text style={[styles.inputLabel as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>{t("systolic")}</Text>
                 </View>
                 <View
                   style={{
@@ -420,39 +302,23 @@ export default function BloodPressureEntry({
                     maxLength={3}
                     editable={!saving}
                   />
-                  <Text style={styles.inputLabel as (StyleProp<TextStyle>)}>Diastolic</Text>
+                  <Text style={[styles.inputLabel as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>{t("diastolic")}</Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.infoCard as ViewStyle}>
-              <Text style={styles.infoText as (StyleProp<TextStyle>)}>
-                Normal blood pressure is typically below 120/80 mmHg. High blood pressure
-                (hypertension) is 130/80 mmHg or higher.
+            <View style={[
+              styles.infoCard as ViewStyle,
+              isRTL && {
+                borderLeftWidth: 0,
+                borderRightWidth: 4,
+                borderRightColor: theme.colors.secondary.main,
+              }
+            ]}>
+              <Text style={[styles.infoText as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>
+                {t("normalBloodPressureInfo")}
               </Text>
             </View>
-
-            {Platform.OS === "ios" && (
-              <TouchableOpacity
-                style={styles.checkboxContainer as ViewStyle}
-                onPress={() => setExportToHealthKit(!exportToHealthKit)}
-                disabled={saving}
-              >
-                <View
-                  style={[
-                    styles.checkbox as ViewStyle,
-                    exportToHealthKit && (styles.checkboxChecked as ViewStyle),
-                  ]}
-                >
-                  {exportToHealthKit && (
-                    <Text style={{ color: theme.colors.neutral.white, fontSize: 16 }}>✓</Text>
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel as (StyleProp<TextStyle>)}>
-                  Export to HealthKit
-                </Text>
-              </TouchableOpacity>
-            )}
 
             <TouchableOpacity
               style={[
@@ -465,12 +331,12 @@ export default function BloodPressureEntry({
               {saving ? (
                 <>
                   <ActivityIndicator color={theme.colors.neutral.white} size="small" />
-                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>Saving...</Text>
+                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>{t("saving")}</Text>
                 </>
               ) : (
                 <>
                   <Droplet color={theme.colors.neutral.white} size={20} />
-                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>Save</Text>
+                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>{t("save")}</Text>
                 </>
               )}
             </TouchableOpacity>

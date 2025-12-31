@@ -22,32 +22,33 @@ import { Button, Card, Input } from "@/components/design-system";
 import { Heading, Text, Caption } from "@/components/design-system/Typography";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 
-const COMMON_ALLERGIES = [
-  "Peanuts",
-  "Tree Nuts",
-  "Milk",
-  "Eggs",
-  "Fish",
-  "Shellfish",
-  "Soy",
-  "Wheat",
-  "Pollen",
-  "Dust Mites",
-  "Pet Dander",
-  "Mold",
-  "Latex",
-  "Penicillin",
-  "Aspirin",
-  "Bee Stings",
-  "Sesame",
-  "Sulfites",
+// Allergy keys mapping to translation keys
+const ALLERGY_KEYS = [
+  "allergyPeanuts",
+  "allergyTreeNuts",
+  "allergyMilk",
+  "allergyEggs",
+  "allergyFish",
+  "allergyShellfish",
+  "allergySoy",
+  "allergyWheat",
+  "allergyPollen",
+  "allergyDustMites",
+  "allergyPetDander",
+  "allergyMold",
+  "allergyLatex",
+  "allergyPenicillin",
+  "allergyAspirin",
+  "allergyBeeStings",
+  "allergySesame",
+  "allergySulfites",
 ];
 
-const SEVERITY_OPTIONS = [
-  { value: "mild", label: "Mild" },
-  { value: "moderate", label: "Moderate" },
-  { value: "severe", label: "Severe" },
-  { value: "severe-life-threatening", label: "Severe (Life-threatening)" },
+const SEVERITY_OPTIONS_KEYS = [
+  { value: "mild", labelKey: "severityMild" },
+  { value: "moderate", labelKey: "severityModerate" },
+  { value: "severe", labelKey: "severitySevere" },
+  { value: "severe-life-threatening", labelKey: "severitySevereLifeThreatening" },
 ];
 
 export default function AllergiesScreen() {
@@ -82,6 +83,7 @@ export default function AllergiesScreen() {
       const userAllergies = await allergyService.getUserAllergies(user.id, 50);
       setAllergies(userAllergies);
     } catch (error) {
+      console.error("Error loading allergies:", error);
       Alert.alert(
         t("error"),
         t("errorLoadingData")
@@ -102,6 +104,40 @@ export default function AllergiesScreen() {
     loadAllergies();
   }, [loadAllergies]);
 
+  // Helper function to get translated allergy name
+  const getTranslatedAllergyName = (name: string): string => {
+    // Check if it's a translation key
+    if (ALLERGY_KEYS.includes(name)) {
+      return t(name);
+    }
+    // Handle backward compatibility: map old English names to translation keys
+    const englishToKeyMap: Record<string, string> = {
+      "Peanuts": "allergyPeanuts",
+      "Tree Nuts": "allergyTreeNuts",
+      "Milk": "allergyMilk",
+      "Eggs": "allergyEggs",
+      "Fish": "allergyFish",
+      "Shellfish": "allergyShellfish",
+      "Soy": "allergySoy",
+      "Wheat": "allergyWheat",
+      "Pollen": "allergyPollen",
+      "Dust Mites": "allergyDustMites",
+      "Pet Dander": "allergyPetDander",
+      "Mold": "allergyMold",
+      "Latex": "allergyLatex",
+      "Penicillin": "allergyPenicillin",
+      "Aspirin": "allergyAspirin",
+      "Bee Stings": "allergyBeeStings",
+      "Sesame": "allergySesame",
+      "Sulfites": "allergySulfites",
+    };
+    if (englishToKeyMap[name]) {
+      return t(englishToKeyMap[name]);
+    }
+    // Otherwise return as-is (custom allergy)
+    return name;
+  };
+
   const handleAddAllergy = async () => {
     if (!user) return;
 
@@ -119,7 +155,7 @@ export default function AllergiesScreen() {
 
       if (editingAllergy) {
         await allergyService.updateAllergy(editingAllergy.id, {
-          name: allergyName,
+          name: allergyName, // Save the key for common allergies, custom text for custom allergies
           severity,
           reaction: reaction.trim() || undefined,
           notes: notes.trim() || undefined,
@@ -130,7 +166,7 @@ export default function AllergiesScreen() {
       } else {
         await allergyService.addAllergy({
           userId: user.id,
-          name: allergyName,
+          name: allergyName, // Save the key for common allergies, custom text for custom allergies
           severity,
           reaction: reaction.trim() || undefined,
           notes: notes.trim() || undefined,
@@ -154,8 +190,39 @@ export default function AllergiesScreen() {
 
   const handleEditAllergy = (allergy: Allergy) => {
     setEditingAllergy(allergy);
-    setSelectedAllergy("");
-    setCustomAllergy(allergy.name);
+    // Check if it's a translation key (common allergy) or custom allergy
+    // Also handle backward compatibility with old English names
+    const englishToKeyMap: Record<string, string> = {
+      "Peanuts": "allergyPeanuts",
+      "Tree Nuts": "allergyTreeNuts",
+      "Milk": "allergyMilk",
+      "Eggs": "allergyEggs",
+      "Fish": "allergyFish",
+      "Shellfish": "allergyShellfish",
+      "Soy": "allergySoy",
+      "Wheat": "allergyWheat",
+      "Pollen": "allergyPollen",
+      "Dust Mites": "allergyDustMites",
+      "Pet Dander": "allergyPetDander",
+      "Mold": "allergyMold",
+      "Latex": "allergyLatex",
+      "Penicillin": "allergyPenicillin",
+      "Aspirin": "allergyAspirin",
+      "Bee Stings": "allergyBeeStings",
+      "Sesame": "allergySesame",
+      "Sulfites": "allergySulfites",
+    };
+    const allergyKey = ALLERGY_KEYS.includes(allergy.name) 
+      ? allergy.name 
+      : englishToKeyMap[allergy.name];
+    
+    if (allergyKey) {
+      setSelectedAllergy(allergyKey);
+      setCustomAllergy("");
+    } else {
+      setSelectedAllergy("");
+      setCustomAllergy(allergy.name);
+    }
     setSeverity(allergy.severity);
     setReaction(allergy.reaction || "");
     setNotes(allergy.notes || "");
@@ -598,7 +665,7 @@ export default function AllergiesScreen() {
                 <View style={styles.allergyHeader}>
                   <View style={styles.allergyInfo}>
                     <Text weight="semibold" size="large" style={[styles.allergyName, isRTL && styles.rtlText]}>
-                      {allergy.name}
+                      {getTranslatedAllergyName(allergy.name)}
                     </Text>
                     <View style={styles.allergyMeta}>
                       <Caption style={[styles.allergyDate, isRTL && styles.rtlText]} numberOfLines={undefined}>
@@ -612,7 +679,9 @@ export default function AllergiesScreen() {
                           { backgroundColor: getSeverityColor(allergy.severity) },
                         ]}
                       >
-                        {SEVERITY_OPTIONS.find((opt) => opt.value === allergy.severity)?.label || allergy.severity}
+                        {SEVERITY_OPTIONS_KEYS.find((opt) => opt.value === allergy.severity) 
+                          ? t(SEVERITY_OPTIONS_KEYS.find((opt) => opt.value === allergy.severity)!.labelKey)
+                          : allergy.severity}
                       </Badge>
                     </View>
                   </View>
@@ -705,28 +774,31 @@ export default function AllergiesScreen() {
                 {t("allergyName")}
               </Text>
               <View style={styles.allergyOptions}>
-                {COMMON_ALLERGIES.map((allergy) => (
-                  <TouchableOpacity
-                    key={allergy}
-                    onPress={() => {
-                      setSelectedAllergy(allergy);
-                      setCustomAllergy("");
-                    }}
-                    style={[
-                      styles.allergyOption,
-                      selectedAllergy === allergy && styles.allergyOptionSelected,
-                    ]}
-                  >
-                    <Text
+                {ALLERGY_KEYS.map((allergyKey) => {
+                  const allergyLabel = t(allergyKey);
+                  return (
+                    <TouchableOpacity
+                      key={allergyKey}
+                      onPress={() => {
+                        setSelectedAllergy(allergyKey);
+                        setCustomAllergy("");
+                      }}
                       style={[
-                        styles.allergyOptionText,
-                        selectedAllergy === allergy && styles.allergyOptionTextSelected,
+                        styles.allergyOption,
+                        selectedAllergy === allergyKey && styles.allergyOptionSelected,
                       ]}
                     >
-                      {allergy}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.allergyOptionText,
+                          selectedAllergy === allergyKey && styles.allergyOptionTextSelected,
+                        ]}
+                      >
+                        {allergyLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <View style={styles.fieldGroup}>
@@ -751,7 +823,7 @@ export default function AllergiesScreen() {
                 {t("severity")}
               </Text>
               <View style={styles.severityButtons}>
-                {SEVERITY_OPTIONS.map((option) => (
+                {SEVERITY_OPTIONS_KEYS.map((option) => (
                   <TouchableOpacity
                     key={option.value}
                     onPress={() => setSeverity(option.value as typeof severity)}
@@ -766,7 +838,7 @@ export default function AllergiesScreen() {
                         severity === option.value && styles.severityButtonTextActive,
                       ]}
                     >
-                      {option.label}
+                      {t(option.labelKey)}
                     </Text>
                   </TouchableOpacity>
                 ))}

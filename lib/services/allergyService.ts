@@ -4,8 +4,6 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  limit,
-  orderBy,
   query,
   Timestamp,
   updateDoc,
@@ -39,11 +37,10 @@ export const allergyService = {
   // Get user allergies
   async getUserAllergies(userId: string, limitCount = 50): Promise<Allergy[]> {
     try {
+      // Query without orderBy to avoid index requirement, then sort in memory
       const q = query(
         collection(db, "allergies"),
-        where("userId", "==", userId),
-        orderBy("timestamp", "desc"),
-        limit(limitCount)
+        where("userId", "==", userId)
       );
 
       const querySnapshot = await getDocs(q);
@@ -88,8 +85,16 @@ export const allergyService = {
         }
       });
 
-      return allergies;
+      // Sort by timestamp descending and limit results
+      allergies.sort((a, b) => {
+        const timeA = a.timestamp?.getTime() || 0;
+        const timeB = b.timestamp?.getTime() || 0;
+        return timeB - timeA;
+      });
+
+      return allergies.slice(0, limitCount);
     } catch (error) {
+      console.error("Error loading allergies:", error);
       throw error;
     }
   },

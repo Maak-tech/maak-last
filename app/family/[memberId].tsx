@@ -281,17 +281,17 @@ export default function FamilyMemberHealthView() {
         style={styles.content}
       >
         {/* Member Info Card */}
-        <View style={[styles.memberCard, isRTL && styles.memberCardRTL]}>
+        <View style={styles.memberCard}>
           <Avatar
             avatarType={member.avatarType}
             name={memberName}
             size="xl"
             source={member.avatar ? { uri: member.avatar } : undefined}
           />
-          <Text style={[styles.memberName, isRTL && styles.rtlText, styles.centerText]}>
+          <Text style={[styles.memberName, isRTL && styles.rtlText]}>
             {memberName}
           </Text>
-          <Text style={[styles.memberRelationship, isRTL && styles.rtlText, styles.centerText]}>
+          <Text style={[styles.memberRelationship, isRTL && styles.rtlText]}>
             {displayRelationship}
           </Text>
         </View>
@@ -738,9 +738,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  memberCardRTL: {
-    alignItems: "center",
-  },
   memberName: {
     fontSize: 22,
     fontFamily: "Geist-Bold",
@@ -1028,9 +1025,6 @@ const styles = StyleSheet.create({
   },
   rtlText: {
     fontFamily: "Geist-Regular",
-  },
-  centerText: {
-    textAlign: "center",
   },
 });
 

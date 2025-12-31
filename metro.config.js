@@ -12,6 +12,7 @@ config.resolver.unstable_enablePackageExports = false;
 config.transformer.unstable_allowRequireContext = true;
 
 // Replace PushNotificationIOS with our polyfill to prevent NativeEventEmitter errors
+// Also ensure TextImpl patch loads before react-native-reanimated
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Intercept PushNotificationIOS module from any import path and replace with polyfill
@@ -33,6 +34,17 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       filePath: path.resolve(__dirname, "lib/polyfills/pushNotificationIOS.js"),
       type: "sourceFile",
     };
+  }
+
+  // CRITICAL: Ensure TextImpl patch loads before react-native-reanimated
+  // Intercept react-native-reanimated to inject our patch first
+  if (moduleName === "react-native-reanimated") {
+    // First, ensure our TextImpl patch has run
+    try {
+      require(path.resolve(__dirname, "lib/polyfills/textImplPatch.js"));
+    } catch {
+      // Patch might already be loaded, that's okay
+    }
   }
 
   // Use default resolver for everything else

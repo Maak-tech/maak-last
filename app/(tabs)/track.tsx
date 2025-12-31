@@ -146,6 +146,16 @@ export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  
+  // Ensure track screen is properly focused when navigated to
+  useFocusEffect(
+    useCallback(() => {
+      // Track screen is focused - ensure it's the active route
+      return () => {
+        // Cleanup if needed
+      };
+    }, [])
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);

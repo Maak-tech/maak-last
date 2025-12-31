@@ -13,6 +13,9 @@
 import "@/lib/utils/reanimatedSetup";
 import { ensureReanimatedPatched } from "@/lib/utils/reanimatedSetup";
 
+// Ensure patching happens before importing reanimated
+ensureReanimatedPatched();
+
 import {
   Heart,
   X,
