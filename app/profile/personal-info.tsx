@@ -53,8 +53,19 @@ export default function PersonalInfoScreen() {
   const [editForm, setEditForm] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
-    phoneNumber: "",
+    phoneNumber: user?.phoneNumber || "",
   });
+
+  // Sync editForm when user data changes
+  useEffect(() => {
+    if (user && !showEditModal) {
+      setEditForm({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        phoneNumber: user.phoneNumber || "",
+      });
+    }
+  }, [user, showEditModal]);
 
   const isRTL = i18n.language === "ar";
 
@@ -62,7 +73,7 @@ export default function PersonalInfoScreen() {
     setEditForm({
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
-      phoneNumber: "",
+      phoneNumber: user?.phoneNumber || "",
     });
     setShowEditModal(true);
   };
@@ -83,6 +94,7 @@ export default function PersonalInfoScreen() {
       const updates = {
         firstName: editForm.firstName.trim(),
         lastName: editForm.lastName.trim(),
+        phoneNumber: editForm.phoneNumber.trim(),
       };
 
       await userService.updateUser(user.id, updates);
@@ -266,18 +278,6 @@ export default function PersonalInfoScreen() {
           </Text>
 
           <InfoCard
-            description={
-              isRTL ? "معرف فريد للحساب" : "Unique account identifier"
-            }
-            icon={Heart}
-            label={isRTL ? "معرف المستخدم" : "User ID"}
-            value={
-              user?.id?.substring(0, 8) + "..." ||
-              (isRTL ? "غير محدد" : "Not specified")
-            }
-          />
-
-          <InfoCard
             description={isRTL ? "لغة واجهة التطبيق" : "App interface language"}
             icon={MapPin}
             label={isRTL ? "اللغة المفضلة" : "Preferred Language"}
@@ -290,7 +290,7 @@ export default function PersonalInfoScreen() {
             }
             icon={Phone}
             label={isRTL ? "رقم الهاتف" : "Phone Number"}
-            value={isRTL ? "غير محدد" : "Not specified"}
+            value={user?.phoneNumber || (isRTL ? "غير محدد" : "Not specified")}
           />
         </View>
 

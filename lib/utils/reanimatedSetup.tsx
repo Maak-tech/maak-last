@@ -142,22 +142,45 @@ function wrapWithForwardRef<T extends React.ComponentType<any>>(component: T, di
     
     // Patch Text component - wrap it immediately
     if (ReactNativeModule && ReactNativeModule.Text && typeof ReactNativeModule.Text === 'function') {
-      if (!isForwardRefComponent(ReactNativeModule.Text)) {
-        const originalText = ReactNativeModule.Text;
+      const originalText = ReactNativeModule.Text;
+      // Always wrap Text, even if it appears to be wrapped (defensive approach)
+      if (!isForwardRefComponent(originalText)) {
         ReactNativeModule.Text = wrapWithForwardRef(originalText, 'Text');
-        
-        // Also try to patch TextImpl if it's accessed via Text
-        try {
-          if ((ReactNativeModule.Text as any).TextImpl && typeof (ReactNativeModule.Text as any).TextImpl === 'function') {
-            if (!isForwardRefComponent((ReactNativeModule.Text as any).TextImpl)) {
-              (ReactNativeModule.Text as any).TextImpl = wrapWithForwardRef(
-                (ReactNativeModule.Text as any).TextImpl,
-                'TextImpl'
-              );
-            }
+      }
+      
+      // CRITICAL: Also create a wrapped TextImpl immediately
+      // This ensures TextImpl is always available and wrapped
+      const wrappedTextImpl = wrapWithForwardRef(originalText, 'TextImpl');
+      
+      // Also try to patch TextImpl if it's accessed via Text
+      try {
+        if ((ReactNativeModule.Text as any).TextImpl) {
+          const existingTextImpl = (ReactNativeModule.Text as any).TextImpl;
+          if (typeof existingTextImpl === 'function' && !isForwardRefComponent(existingTextImpl)) {
+            (ReactNativeModule.Text as any).TextImpl = wrapWithForwardRef(existingTextImpl, 'TextImpl');
+          } else {
+            // Set our wrapped version as fallback
+            (ReactNativeModule.Text as any).TextImpl = wrappedTextImpl;
           }
+        } else {
+          // TextImpl doesn't exist yet, set up a getter that returns wrapped version
+          try {
+            Object.defineProperty(ReactNativeModule.Text, 'TextImpl', {
+              get: () => wrappedTextImpl,
+              configurable: true,
+              enumerable: true,
+            });
+          } catch {
+            // Can't define property, try direct assignment
+            (ReactNativeModule.Text as any).TextImpl = wrappedTextImpl;
+          }
+        }
+      } catch {
+        // Ignore errors accessing TextImpl, but try to set it anyway
+        try {
+          (ReactNativeModule.Text as any).TextImpl = wrappedTextImpl;
         } catch {
-          // Ignore errors accessing TextImpl
+          // Ignore
         }
       }
     }
@@ -232,61 +255,70 @@ function patchReanimatedCreateAnimatedComponent() {
     // Patch TextImpl aggressively BEFORE reanimated loads
     if (ReactNativeModule && ReactNativeModule.Text) {
       const TextComponent = ReactNativeModule.Text;
+      // Always ensure Text is wrapped
       if (TextComponent && typeof TextComponent === 'function' && !isForwardRefComponent(TextComponent)) {
         ReactNativeModule.Text = wrapWithForwardRef(TextComponent, 'Text');
       }
       
+      // CRITICAL: Create wrapped TextImpl immediately as fallback
+      const wrappedTextImplFallback = wrapWithForwardRef(ReactNativeModule.Text, 'TextImpl');
+      
       // Try to patch TextImpl if it exists - check multiple locations
       try {
         // Check Text.TextImpl first
-        if ((ReactNativeModule.Text as any).TextImpl && typeof (ReactNativeModule.Text as any).TextImpl === 'function') {
-          if (!isForwardRefComponent((ReactNativeModule.Text as any).TextImpl)) {
-            (ReactNativeModule.Text as any).TextImpl = wrapWithForwardRef(
-              (ReactNativeModule.Text as any).TextImpl,
-              'TextImpl'
-            );
+        if ((ReactNativeModule.Text as any).TextImpl) {
+          const existingTextImpl = (ReactNativeModule.Text as any).TextImpl;
+          if (typeof existingTextImpl === 'function') {
+            if (!isForwardRefComponent(existingTextImpl)) {
+              (ReactNativeModule.Text as any).TextImpl = wrapWithForwardRef(existingTextImpl, 'TextImpl');
+            }
+          } else {
+            // Not a function or already wrapped, use our fallback
+            (ReactNativeModule.Text as any).TextImpl = wrappedTextImplFallback;
+          }
+        } else {
+          // TextImpl doesn't exist, set up getter/property
+          try {
+            Object.defineProperty(ReactNativeModule.Text, 'TextImpl', {
+              get: () => wrappedTextImplFallback,
+              configurable: true,
+              enumerable: true,
+              writable: true,
+            });
+          } catch {
+            // Can't define property, try direct assignment
+            (ReactNativeModule.Text as any).TextImpl = wrappedTextImplFallback;
           }
         }
         
         // Check root-level TextImpl
-        if ((ReactNativeModule as any).TextImpl && typeof (ReactNativeModule as any).TextImpl === 'function') {
-          if (!isForwardRefComponent((ReactNativeModule as any).TextImpl)) {
-            (ReactNativeModule as any).TextImpl = wrapWithForwardRef(
-              (ReactNativeModule as any).TextImpl,
-              'TextImpl'
-            );
+        if ((ReactNativeModule as any).TextImpl) {
+          const rootTextImpl = (ReactNativeModule as any).TextImpl;
+          if (typeof rootTextImpl === 'function' && !isForwardRefComponent(rootTextImpl)) {
+            (ReactNativeModule as any).TextImpl = wrapWithForwardRef(rootTextImpl, 'TextImpl');
           }
-        }
-        
-        // Use Proxy to intercept TextImpl access if it doesn't exist yet
-        // This catches cases where TextImpl is accessed dynamically
-        if (!(ReactNativeModule.Text as any).TextImpl && !(ReactNativeModule as any).TextImpl) {
-          // Create a wrapped TextImpl that will be used if accessed
-          const wrappedTextImpl = wrapWithForwardRef(ReactNativeModule.Text, 'TextImpl');
-          
-          // Set up getter interceptors
-          try {
-            Object.defineProperty(ReactNativeModule.Text, 'TextImpl', {
-              get: () => wrappedTextImpl,
-              configurable: true,
-              enumerable: true,
-            });
-          } catch {
-            // Can't define property, that's okay
-          }
-          
+        } else {
+          // Set up root-level TextImpl getter/property
           try {
             Object.defineProperty(ReactNativeModule, 'TextImpl', {
-              get: () => wrappedTextImpl,
+              get: () => wrappedTextImplFallback,
               configurable: true,
               enumerable: true,
+              writable: true,
             });
           } catch {
-            // Can't define property, that's okay
+            // Can't define property, try direct assignment
+            (ReactNativeModule as any).TextImpl = wrappedTextImplFallback;
           }
         }
-      } catch {
-        // TextImpl might not exist, that's okay
+      } catch (error) {
+        // TextImpl might not exist, but set up fallbacks anyway
+        try {
+          (ReactNativeModule.Text as any).TextImpl = wrappedTextImplFallback;
+          (ReactNativeModule as any).TextImpl = wrappedTextImplFallback;
+        } catch {
+          // Ignore errors
+        }
       }
     }
     
@@ -340,19 +372,6 @@ function patchReanimatedCreateAnimatedComponent() {
             isTextImpl = typeof component === 'function';
           }
           
-          // PROACTIVE: If it's TextImpl or any Text component, wrap it BEFORE calling createAnimatedComponent
-          if (isTextImpl && !isForwardRefComponent(component)) {
-            const wrapped = wrapWithForwardRef(component, 'TextImpl');
-            try {
-              return originalCreateAnimatedComponent(wrapped);
-            } catch (error: any) {
-              // If wrapping still fails, return the wrapped component anyway
-              // This prevents the error from propagating
-              console.warn('Failed to create animated component with wrapped TextImpl:', error?.message || error);
-              return wrapped;
-            }
-          }
-          
           // PROACTIVE: Check component name for Text-related components
           const componentName = component.displayName || component.name || component.constructor?.name || '';
           const isTextComponent = componentName.includes('Text') || 
@@ -360,15 +379,31 @@ function patchReanimatedCreateAnimatedComponent() {
                                   component === ReactNativeModule?.Text ||
                                   component === ReactNativeModule?.TextInput;
           
-          // If it's a Text component, wrap it proactively BEFORE calling createAnimatedComponent
-          if (isTextComponent && !isForwardRefComponent(component)) {
-            const wrapped = wrapWithForwardRef(component, componentName || 'TextComponent');
-            try {
-              return originalCreateAnimatedComponent(wrapped);
-            } catch (error: any) {
-              // If wrapping still fails, return the wrapped component anyway
-              console.warn('Failed to create animated component with wrapped Text:', error?.message || error);
-              return wrapped;
+          // ULTRA-AGGRESSIVE: Check if component is a function component (not a class)
+          // In React Native 0.81+, TextImpl and other components are function components that MUST be wrapped
+          const isFunctionComponent = typeof component === 'function' && 
+                                     !(component.prototype && component.prototype.isReactComponent);
+          
+          // CRITICAL: ALWAYS wrap function components, even if they appear to be wrapped
+          // The isForwardRefComponent check can be unreliable, so we wrap defensively
+          // This prevents TextImpl errors completely
+          if (isFunctionComponent) {
+            // Double-check if it's actually wrapped - if not, wrap it
+            const isActuallyWrapped = isForwardRefComponent(component);
+            if (!isActuallyWrapped || isTextImpl || isTextComponent) {
+              const wrapped = wrapWithForwardRef(component, componentName || 'FunctionComponent');
+              try {
+                return originalCreateAnimatedComponent(wrapped);
+              } catch (error: any) {
+                // If wrapping still fails, try the original component first
+                // If that also fails, return wrapped component to prevent crash
+                try {
+                  return originalCreateAnimatedComponent(component);
+                } catch {
+                  console.warn('Failed to create animated component with wrapped function component:', componentName || 'Unknown', error?.message || error);
+                  return wrapped;
+                }
+              }
             }
           }
           
@@ -397,38 +432,51 @@ function patchReanimatedCreateAnimatedComponent() {
             return originalCreateAnimatedComponent(component);
           } catch (error: any) {
             // If error mentions forwardRef or TextImpl, wrap and retry
-            const errorMessage = error?.message || '';
+            const errorMessage = error?.message || String(error || '');
             if (errorMessage.includes('forwardRef') || 
                 errorMessage.includes('TextImpl') || 
                 errorMessage.includes('function component') ||
-                errorMessage.includes('Text')) {
-              const wrapped = wrapWithForwardRef(component);
+                errorMessage.includes('Text') ||
+                errorMessage.includes('class components')) {
+              // Always wrap and retry for these errors
+              const wrapped = wrapWithForwardRef(component, componentName || 'Component');
               try {
                 return originalCreateAnimatedComponent(wrapped);
-              } catch {
+              } catch (retryError: any) {
                 // If that also fails, return wrapped component to prevent crash
+                console.warn('Failed to create animated component even after wrapping:', componentName || 'Unknown', retryError?.message || retryError);
                 return wrapped;
               }
             }
             throw error;
           }
         } catch (error: any) {
-          // Catch-all: if ANY error occurs, try wrapping the component
+          // Catch-all: if ANY error occurs, check if it's a TextImpl/forwardRef error
           const errorMessage = error?.message || String(error || '');
-          if (errorMessage.includes('TextImpl') || 
-              errorMessage.includes('forwardRef') || 
-              errorMessage.includes('function component') ||
-              errorMessage.includes('Text')) {
+          const errorString = String(error || '');
+          const fullErrorText = errorMessage + ' ' + errorString;
+          
+          // Check for any TextImpl-related error patterns
+          if (fullErrorText.includes('TextImpl') || 
+              fullErrorText.includes('forwardRef') || 
+              fullErrorText.includes('function component') ||
+              fullErrorText.includes('class components') ||
+              fullErrorText.includes('Text') ||
+              fullErrorText.includes('Invariant Violation')) {
             try {
-              const wrapped = wrapWithForwardRef(component);
+              // Always wrap and retry for these errors
+              const componentName = component?.displayName || component?.name || component?.constructor?.name || 'Component';
+              const wrapped = wrapWithForwardRef(component, componentName);
               try {
                 return originalCreateAnimatedComponent(wrapped);
-              } catch {
+              } catch (retryError: any) {
                 // Return wrapped component to prevent crash
+                console.warn('Failed to create animated component after error catch-all wrap:', componentName, retryError?.message || retryError);
                 return wrapped;
               }
-            } catch {
-              // If wrapping fails, return a safe fallback
+            } catch (wrapError) {
+              // If wrapping fails, return component as-is to prevent infinite loop
+              console.warn('Failed to wrap component in error handler:', wrapError);
               return component;
             }
           }

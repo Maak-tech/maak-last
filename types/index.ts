@@ -18,6 +18,7 @@ export interface User {
   createdAt: Date;
   onboardingCompleted: boolean;
   isPremium?: boolean;
+  phoneNumber?: string;
   preferences: {
     language: "en" | "ar";
     notifications: boolean;
