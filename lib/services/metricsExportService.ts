@@ -5,6 +5,7 @@
  */
 
 import * as FileSystem from "expo-file-system";
+import { Paths } from "expo-file-system";
 import { Platform, Share } from "react-native";
 import { auth } from "../firebase";
 import type { HealthProvider } from "../health/healthMetricsCatalog";
@@ -884,9 +885,9 @@ export const exportMetrics = async (
       mimeType = "text/csv";
 
       // Save CSV to cache directory for sharing
-      // Use cacheDirectory as documentDirectory may not be available in all SDK versions
-      const directory = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
-      fileUri = `${directory}${fileName}`;
+      // Use the new Paths API for expo-file-system
+      const cacheDir = Paths.cache.uri;
+      fileUri = `${cacheDir}${fileName}`;
       await FileSystem.writeAsStringAsync(fileUri, content);
     } else {
       // PDF format

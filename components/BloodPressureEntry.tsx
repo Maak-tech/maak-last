@@ -220,7 +220,6 @@ export default function BloodPressureEntry({
       onSave?.();
       onClose();
     } catch (error: any) {
-      console.error("Failed to save blood pressure:", error);
       Alert.alert(
         t("error"),
         error?.message || t("failedToSaveBloodPressure")

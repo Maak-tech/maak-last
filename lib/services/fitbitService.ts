@@ -99,7 +99,6 @@ export const fitbitService = {
         throw new Error("Authentication cancelled or failed");
       }
     } catch (error: any) {
-      console.error("[Fitbit Service] Auth error:", error);
       throw new Error(`Fitbit authentication failed: ${error.message}`);
     }
   },
@@ -192,7 +191,6 @@ export const fitbitService = {
         grantedMetrics: selectedMetricKeys,
       });
     } catch (error: any) {
-      console.error("[Fitbit Service] Redirect handling error:", error);
       throw new Error(`Failed to complete Fitbit authentication: ${error.message}`);
     }
   },
@@ -253,7 +251,6 @@ export const fitbitService = {
         JSON.stringify(updatedTokens)
       );
     } catch (error: any) {
-      console.error("[Fitbit Service] Token refresh error:", error);
       throw error;
     }
   },
@@ -359,7 +356,6 @@ export const fitbitService = {
 
       return results;
     } catch (error: any) {
-      console.error("[Fitbit Service] Fetch metrics error:", error);
       throw new Error(`Failed to fetch Fitbit metrics: ${error.message}`);
     }
   },
@@ -580,7 +576,7 @@ export const fitbitService = {
           break;
       }
     } catch (error) {
-      console.error(`[Fitbit Service] Error parsing ${metricKey}:`, error);
+      // Silently handle parsing error
     }
 
     return samples;
@@ -620,7 +616,6 @@ export const fitbitService = {
       // Remove tokens
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
     } catch (error) {
-      console.error("[Fitbit Service] Disconnect error:", error);
       throw error;
     }
   },

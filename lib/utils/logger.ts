@@ -141,7 +141,7 @@ class Logger {
         name: error.name,
         message: error.message,
         stack: error.stack,
-        ...(error as Record<string, unknown>),
+        ...(error as unknown as Record<string, unknown>),
       };
     } else if (typeof error === "object" && error !== null) {
       errorData = error;

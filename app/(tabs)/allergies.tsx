@@ -83,7 +83,6 @@ export default function AllergiesScreen() {
       const userAllergies = await allergyService.getUserAllergies(user.id, 50);
       setAllergies(userAllergies);
     } catch (error) {
-      console.error("Error loading allergies:", error);
       Alert.alert(
         t("error"),
         t("errorLoadingData")
@@ -313,7 +312,6 @@ export default function AllergiesScreen() {
         day: "numeric",
       });
     } catch (error) {
-      console.error("Error formatting date:", error);
       return "";
     }
   };

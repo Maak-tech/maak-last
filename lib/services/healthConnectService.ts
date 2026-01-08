@@ -47,10 +47,6 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
       available: true,
     };
   } catch (error: any) {
-    console.error(
-      "[Health Connect Service] Error checking availability:",
-      error?.message || String(error)
-    );
     return {
       available: false,
       reason: error?.message || "Unknown error",
@@ -103,10 +99,6 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
     // Return true if at least one permission was granted
     return result.granted.length > 0;
   } catch (error: any) {
-    console.error(
-      "[Health Connect Service] Authorization error:",
-      error?.message || String(error)
-    );
     throw error;
   }
 };
@@ -196,10 +188,6 @@ const fetchMetricSamples = async (
       };
     });
   } catch (error: any) {
-    console.error(
-      `[Health Connect Service] Error fetching ${recordType}:`,
-      error?.message || String(error)
-    );
     throw error;
   }
 };
@@ -292,20 +280,12 @@ const fetchMetrics = async (
           }
         }
       } catch (error: any) {
-        console.error(
-          `[Health Connect Service] Error fetching metric ${metric.key}:`,
-          error?.message || String(error)
-        );
         // Continue with other metrics even if one fails
       }
     }
 
     return results;
   } catch (error: any) {
-    console.error(
-      "[Health Connect Service] Error fetching data:",
-      error?.message || String(error)
-    );
     throw error;
   }
 };

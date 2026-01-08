@@ -64,7 +64,6 @@ const loadPPGComponent = () => {
         require("@/lib/utils/reanimatedSetup");
       } catch (setupError) {
         // Setup might already be loaded, which is fine
-        console.warn("Reanimated setup already loaded or failed:", setupError);
       }
       
       // Use dynamic import to defer loading until actually needed
@@ -80,7 +79,6 @@ const loadPPGComponent = () => {
             throw new Error("Loaded component is not a function");
           }
           PPGVitalMonitor = Component;
-          console.log("PPGVitalMonitorVisionCamera (real PPG) component loaded successfully");
         } else {
           throw new Error("Component module is undefined or has no default export");
         }
@@ -91,7 +89,6 @@ const loadPPGComponent = () => {
             errorMsg.includes('createAnimatedComponent') ||
             errorMsg.includes('forwardRef') ||
             errorMsg.includes('Cannot read property')) {
-          console.warn("Reanimated compatibility issue detected, falling back to simulated component:", errorMsg);
           // Fall through to fallback
           throw reanimatedError;
         } else {
@@ -107,15 +104,12 @@ const loadPPGComponent = () => {
           throw new Error("Loaded component is not a function");
         }
         PPGVitalMonitor = Component;
-        console.log("PPGVitalMonitor (simulated) component loaded for web platform");
       } else {
         throw new Error("Component module is undefined or has no default export");
       }
     }
   } catch (error) {
     PPGVitalMonitorLoadError = error as Error;
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("PPGVitalMonitorVisionCamera component could not be loaded:", errorMsg);
     
     // Fallback to simulated version if vision camera fails
     try {
@@ -126,14 +120,11 @@ const loadPPGComponent = () => {
           throw new Error("Fallback component is not a function");
         }
         PPGVitalMonitor = Component;
-        console.log("Fell back to simulated PPGVitalMonitor component");
         PPGVitalMonitorLoadError = null; // Clear error since fallback worked
       } else {
         throw new Error("Fallback component module is undefined");
       }
     } catch (fallbackError) {
-      const fallbackErrorMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-      console.error("Fallback PPGVitalMonitor also failed:", fallbackErrorMsg);
       PPGVitalMonitor = null; // Ensure it's null if both fail
       PPGVitalMonitorLoadError = fallbackError as Error;
     }
@@ -1092,7 +1083,6 @@ export default function TrackScreen() {
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
-                      console.log("Measure button pressed");
                       // Load component when button is pressed
                       if (!loadedPPGComponent) {
                         try {
@@ -1104,12 +1094,10 @@ export default function TrackScreen() {
                             setShowPPGMonitor(true);
                           } else {
                             // Component failed to load, show error modal
-                            console.warn("PPG component failed to load, showing error modal");
                             setPpgComponentLoadError(PPGVitalMonitorLoadError);
                             setShowPPGMonitor(true);
                           }
                         } catch (loadError) {
-                          console.error("Error loading PPG component:", loadError);
                           const error = loadError instanceof Error ? loadError : new Error(String(loadError));
                           setPpgComponentLoadError(error);
                           setShowPPGMonitor(true);

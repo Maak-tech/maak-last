@@ -21,6 +21,7 @@
     "firebase:create-collections": "bunx tsx scripts/create-user-collections.ts",
     "firebase:fix-medications": "node scripts/fix-medications.js",
     "validate:env": "bunx tsx scripts/validate-env.ts",
+    "validate:production": "bunx tsx scripts/validate-production.ts",
     "test:ppg": "bunx tsx scripts/test-ppg.ts",
     "android": "expo run:android",
     "ios": "expo run:ios",

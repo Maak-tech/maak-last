@@ -4,7 +4,7 @@
  * Collection of utilities to optimize React Native app performance
  */
 
-import { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 
 /**
  * Debounce hook for expensive operations
@@ -13,7 +13,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
   callback: T,
   delay: number
 ): T {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   return useCallback(
     ((...args: Parameters<T>) => {
@@ -23,7 +23,7 @@ export function useDebounce<T extends (...args: any[]) => any>(
       
       timeoutRef.current = setTimeout(() => {
         callback(...args);
-      }, delay);
+      }, delay) as ReturnType<typeof setTimeout>;
     }) as T,
     [callback, delay]
   );
@@ -37,7 +37,7 @@ export function useThrottle<T extends (...args: any[]) => any>(
   delay: number
 ): T {
   const lastCallRef = useRef<number>(0);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   return useCallback(
     ((...args: Parameters<T>) => {
@@ -54,7 +54,7 @@ export function useThrottle<T extends (...args: any[]) => any>(
         timeoutRef.current = setTimeout(() => {
           lastCallRef.current = Date.now();
           callback(...args);
-        }, delay - (now - lastCallRef.current));
+        }, delay - (now - lastCallRef.current)) as ReturnType<typeof setTimeout>;
       }
     }) as T,
     [callback, delay]

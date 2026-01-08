@@ -164,7 +164,7 @@ After running the scripts:
 
 1. **Update Security Rules**: Follow the guide in `FIREBASE_SETUP.md`
 2. **Test Your App**: Try adding symptoms and medications
-3. **Validate Setup**: Use the Firebase test page in your app (`/firebase-test`)
+3. **Validate Setup**: Use the validation script: `npm run firebase:check`
 4. **Check Console**: Look at Firebase Console to see your data
 
 ## Common Issues
@@ -191,4 +191,4 @@ If you encounter issues:
 1. Check the console output for detailed error messages
 2. Use the validation script: `npm run firebase:check`
 3. Review the setup guide: `FIREBASE_SETUP.md`
-4. Use the in-app Firebase test page: `/firebase-test`
+4. Check Firebase Console to verify your data and permissions

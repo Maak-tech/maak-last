@@ -366,7 +366,6 @@ export const useFallDetection = (
         onFallDetected("demo-alert");
       }
     } catch (error) {
-      console.error("[FallDetection] ❌ Error creating fall alert:", error);
       onFallDetected("error-alert");
     }
   }, [userId, onFallDetected]);
@@ -385,9 +384,6 @@ export const useFallDetection = (
       try {
         // Add timeout to prevent hanging initialization
         initializationTimeout = setTimeout(() => {
-          console.error(
-            "[FallDetection] ❌ Initialization timeout after 5 seconds"
-          );
           setIsInitialized(false);
         }, 5000);
 
@@ -405,10 +401,6 @@ export const useFallDetection = (
                 await motionPermissionService.checkMotionAvailability();
 
               if (!status.available) {
-                console.error(
-                  "[FallDetection] ❌ Cannot initialize: Motion sensors not available -",
-                  String(status.reason || "").replace(/[\r\n]/g, "")
-                );
                 setIsInitialized(false);
                 return;
               }
@@ -417,9 +409,6 @@ export const useFallDetection = (
                 const requested =
                   await motionPermissionService.requestMotionPermission();
                 if (!requested) {
-                  console.error(
-                    "[FallDetection] ❌ Failed to request motion permission"
-                  );
                   setIsInitialized(false);
                   return;
                 }
@@ -450,9 +439,6 @@ export const useFallDetection = (
             ])) as boolean;
 
             if (!isAvailable) {
-              console.error(
-                "[FallDetection] ❌ DeviceMotion is not available on this device"
-              );
               setIsInitialized(false);
               return;
             }
@@ -542,13 +528,6 @@ export const useFallDetection = (
                         }
                       }
                     } catch (baselineError) {
-                      const errorMessage = baselineError instanceof Error 
-                        ? baselineError.message 
-                        : String(baselineError);
-                      console.error(
-                        "[FallDetection] ❌ Error updating baseline:",
-                        errorMessage.replace(/[\r\n]/g, "") // Sanitize error message
-                      );
                       // Reset baseline on error to prevent corrupted state
                       baseline.sampleCount = 0;
                       baseline.avgAcceleration = 1.0;
@@ -1086,10 +1065,6 @@ export const useFallDetection = (
                   }
                 }
               } catch (dataError) {
-                console.error(
-                  "[FallDetection] ❌ Error processing sensor data:",
-                  dataError
-                );
                 // Stop subscription on repeated errors to prevent crashes
                 isSubscriptionActive = false;
               }
@@ -1098,10 +1073,6 @@ export const useFallDetection = (
             isSubscriptionActive = true;
             setIsInitialized(true);
           } catch (importError: any) {
-            console.error(
-              "[FallDetection] ❌ Sensor initialization failed:",
-              importError?.message || importError
-            );
             setIsInitialized(false);
             if (initializationTimeout) {
               clearTimeout(initializationTimeout);
@@ -1111,10 +1082,6 @@ export const useFallDetection = (
 
         initializeSensors();
       } catch (error: any) {
-        console.error(
-          "[FallDetection] ❌ Error starting sensor initialization:",
-          error?.message || error
-        );
         setIsInitialized(false);
         if (initializationTimeout) {
           clearTimeout(initializationTimeout);
@@ -1131,10 +1098,7 @@ export const useFallDetection = (
         try {
           subscription.remove();
         } catch (removeError) {
-          console.error(
-            "[FallDetection] ❌ Error removing subscription:",
-            removeError
-          );
+          // Silently handle subscription removal error
         }
       }
     };

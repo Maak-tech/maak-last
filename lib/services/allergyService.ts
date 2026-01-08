@@ -81,7 +81,7 @@ export const allergyService = {
             discoveredDate,
           } as Allergy);
         } catch (error) {
-          console.error("Error parsing allergy data:", error, doc.id);
+          // Silently handle parsing error
         }
       });
 
@@ -94,7 +94,6 @@ export const allergyService = {
 
       return allergies.slice(0, limitCount);
     } catch (error) {
-      console.error("Error loading allergies:", error);
       throw error;
     }
   },

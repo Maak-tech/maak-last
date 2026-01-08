@@ -88,7 +88,7 @@ const MaakHomeScreen = () => {
             <Text size="small" style={styles.seeAll}>See all</Text>
           </View>
 
-          <Card onPress={() => console.log('Project 1')} style={styles.projectCard}>
+          <Card onPress={() => {}} style={styles.projectCard}>
             <View style={styles.projectHeader}>
               <Avatar name="Project Alpha" size={48} />
               <View style={styles.projectInfo}>
@@ -114,7 +114,7 @@ const MaakHomeScreen = () => {
             </View>
           </Card>
 
-          <Card onPress={() => console.log('Project 2')} style={styles.projectCard}>
+          <Card onPress={() => {}} style={styles.projectCard}>
             <View style={styles.projectHeader}>
               <Avatar name="Design Sprint" size={48} />
               <View style={styles.projectInfo}>
@@ -161,7 +161,7 @@ const MaakHomeScreen = () => {
               variant="secondary"
               size="small"
               style={styles.rsvpButton}
-              onPress={() => console.log('RSVP')}
+              onPress={() => {}}
             />
           </Card>
 
@@ -179,7 +179,7 @@ const MaakHomeScreen = () => {
               variant="outline"
               size="small"
               style={styles.rsvpButton}
-              onPress={() => console.log('Join')}
+              onPress={() => {}}
             />
           </Card>
         </View>
@@ -190,7 +190,7 @@ const MaakHomeScreen = () => {
       {/* Floating Action Button */}
       <FAB
         icon={<Text style={styles.fabIcon}>+</Text>}
-        onPress={() => console.log('Create new')}
+        onPress={() => {}}
         backgroundColor={colors.secondary}
       />
     </SafeAreaView>

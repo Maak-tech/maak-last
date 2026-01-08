@@ -59,7 +59,6 @@ import {
   useFrameProcessor,
 } from "react-native-vision-camera";
 import { runOnJS } from "react-native-reanimated";
-import type { PPGFrameData } from "@/lib/utils/PPGFrameProcessor";
 import { extractRedChannelAverage } from "@/lib/utils/PPGPixelExtractor";
 
 interface PPGVitalMonitorProps {
@@ -631,7 +630,6 @@ export default function PPGVitalMonitorVisionCamera({
         return false;
       }
     } catch (err) {
-      console.error("Permission request error:", err);
       setPermissionDenied(true);
       return false;
     }
@@ -645,7 +643,6 @@ export default function PPGVitalMonitorVisionCamera({
         await Linking.openSettings();
       }
     } catch (err) {
-      console.error("Failed to open settings:", err);
       Alert.alert(
         "Open Settings",
         "Please manually open Settings > Maak Health > Camera and enable camera access."
@@ -789,7 +786,10 @@ export default function PPGVitalMonitorVisionCamera({
     try {
       // Validate frame dimensions
       if (!frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) {
-        throw new Error('Invalid frame dimensions');
+        // Invalid frame - use fallback value
+        runOnJS(processPPGFrameData)(128, frameCountRef.current);
+        frameCountRef.current++;
+        return;
       }
       
       // Extract red channel average from center of frame using pixel extractor
@@ -797,7 +797,10 @@ export default function PPGVitalMonitorVisionCamera({
       
       // Validate extracted value
       if (isNaN(redAverage) || redAverage < 0 || redAverage > 255) {
-        throw new Error(`Invalid red average: ${redAverage}`);
+        // Invalid value - use fallback
+        runOnJS(processPPGFrameData)(128, frameCountRef.current);
+        frameCountRef.current++;
+        return;
       }
       
       // Call JS function to process the frame data
@@ -806,6 +809,7 @@ export default function PPGVitalMonitorVisionCamera({
       frameCountRef.current++;
     } catch (error) {
       // Handle frame processing errors with fallback
+      // Use a neutral value that won't break signal processing
       runOnJS(handleFrameProcessingError)(frameCountRef.current);
       runOnJS(processPPGFrameData)(128, frameCountRef.current);
       frameCountRef.current++;
@@ -822,6 +826,12 @@ export default function PPGVitalMonitorVisionCamera({
     
     // Add to PPG signal
     ppgSignalRef.current.push(clampedValue);
+    
+    // Log first few frames for debugging (only in development)
+    if (process.env.NODE_ENV !== 'production' && frameIndex < 5) {
+      console.log(`[PPG] Frame ${frameIndex}: redAverage=${clampedValue.toFixed(2)}`);
+    }
+    
 
     // Update progress
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -1056,7 +1066,6 @@ export default function PPGVitalMonitorVisionCamera({
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save vital signs data';
-      console.error('Failed to save vital to Firestore:', err);
       
       // Return false to indicate save failure - caller will handle user notification
       return false;

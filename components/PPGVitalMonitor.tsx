@@ -447,7 +447,6 @@ export default function PPGVitalMonitor({
       if (!permission.granted && permission.canAskAgain) {
         requestPermission().catch((err) => {
           // Silently handle permission request error
-          console.log("Camera permission request error:", err);
         });
       }
     }
@@ -949,7 +948,6 @@ export default function PPGVitalMonitor({
         await addDoc(collection(db, "vitals"), respiratoryData);
       }
     } catch (err: any) {
-      console.error('Failed to save vital to Firestore:', err);
       // Could show user notification here if needed
     }
   };

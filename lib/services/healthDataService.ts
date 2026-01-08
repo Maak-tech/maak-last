@@ -141,10 +141,6 @@ export const healthDataService = {
           await this.savePermissionStatus(true);
           return true;
         } catch (error: any) {
-          console.error(
-            "[Health Data Service] Health Connect error:",
-            error?.message || String(error)
-          );
           await this.savePermissionStatus(false);
           return false;
         }
@@ -229,7 +225,6 @@ export const healthDataService = {
               
               if (isAuthError) {
                 // Permissions were revoked, disconnect
-                console.log("[Health Data Service] HealthKit permissions revoked, disconnecting");
                 await disconnectProvider("apple_health");
                 await this.savePermissionStatus(false);
                 return false;
@@ -237,7 +232,6 @@ export const healthDataService = {
               
               // Other error (no data, network issue, etc.) - permissions might still be valid
               // Don't disconnect on non-auth errors - return true to keep connection active
-              console.log("[Health Data Service] HealthKit validation query failed (non-auth error), keeping connection active");
               return true;
             }
           }
@@ -453,17 +447,9 @@ export const healthDataService = {
 
         return vitals;
       } catch (error: any) {
-        console.error(
-          "[Health Data Service] Error fetching HealthKit data:",
-          error?.message || String(error)
-        );
         return this.getSimulatedVitals();
       }
     } catch (error: any) {
-      console.error(
-        "[Health Data Service] Error in getIOSVitals:",
-        error?.message || String(error)
-      );
       return this.getSimulatedVitals();
     }
   },
@@ -618,17 +604,9 @@ export const healthDataService = {
 
         return vitals;
       } catch (error: any) {
-        console.error(
-          "[Health Data Service] Error fetching Health Connect data:",
-          error?.message || String(error)
-        );
         return this.getSimulatedVitals();
       }
     } catch (error: any) {
-      console.error(
-        "[Health Data Service] Error in getAndroidVitals:",
-        error?.message || String(error)
-      );
       return this.getSimulatedVitals();
     }
   },
@@ -747,17 +725,9 @@ export const healthDataService = {
 
         return vitals;
       } catch (error: any) {
-        console.error(
-          "[Health Data Service] Error fetching Fitbit data:",
-          error?.message || String(error)
-        );
         return this.getSimulatedVitals();
       }
     } catch (error: any) {
-      console.error(
-        "[Health Data Service] Error in getFitbitVitals:",
-        error?.message || String(error)
-      );
       return this.getSimulatedVitals();
     }
   },

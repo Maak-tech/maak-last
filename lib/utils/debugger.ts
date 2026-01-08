@@ -160,11 +160,13 @@ export class AppDebugger {
       // This is a placeholder for when memory APIs become available
       const memoryInfo = {
         timestamp: Date.now(),
-        label: label || 'Memory Snapshot',
-        // Add actual memory tracking when APIs are available
-        jsHeapSizeUsed: 0,
-        jsHeapSizeTotal: 0,
-        jsHeapSizeLimit: 0
+        usage: {
+          label: label || 'Memory Snapshot',
+          // Add actual memory tracking when APIs are available
+          jsHeapSizeUsed: 0,
+          jsHeapSizeTotal: 0,
+          jsHeapSizeLimit: 0
+        }
       };
 
       this.memorySnapshots.push(memoryInfo);

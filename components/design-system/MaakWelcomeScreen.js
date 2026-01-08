@@ -78,13 +78,13 @@ const MaakWelcomeScreen = () => {
       <View style={styles.buttonContainer}>
         <Button
           title="Get Started"
-          onPress={() => console.log('Get Started')}
+          onPress={() => {}}
           style={styles.primaryButton}
           fullWidth
         />
         <Button
           title="Sign In"
-          onPress={() => console.log('Sign In')}
+          onPress={() => {}}
           variant="outline"
           fullWidth
           style={styles.outlineButton}

@@ -54,10 +54,6 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
       available: true,
     };
   } catch (error: any) {
-    console.error(
-      "[HealthKit Service] Error checking availability:",
-      error?.message || String(error)
-    );
     return {
       available: false,
       reason: error?.message || "Unknown error",
@@ -181,10 +177,6 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
 
     return granted;
   } catch (error: any) {
-    console.error(
-      "[HealthKit Service] Authorization error:",
-      error?.message || String(error)
-    );
     throw error;
   }
 };
@@ -345,11 +337,6 @@ const fetchMetricSamples = async (
       throw authError;
     }
     
-    // Only log non-authorization errors
-    console.error(
-      `[HealthKit Service] Error fetching ${healthKitType}:`,
-      error?.message || String(error)
-    );
     throw error;
   }
 };
@@ -424,21 +411,12 @@ const fetchMetrics = async (
           continue;
         }
         
-        // Log other errors (data unavailable, network issues, etc.) but continue with other metrics
-        console.error(
-          `[HealthKit Service] Error fetching metric ${metric.key}:`,
-          error?.message || String(error)
-        );
         // Continue with other metrics even if one fails
       }
     }
 
     return results;
   } catch (error: any) {
-    console.error(
-      "[HealthKit Service] Error fetching data:",
-      error?.message || String(error)
-    );
     throw error;
   }
 };

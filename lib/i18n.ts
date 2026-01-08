@@ -44,7 +44,6 @@ const resources = {
       // Navigation
       home: "Home",
       dashboard: "Dashboard",
-      track: "Track",
       zeina: "Zeina",
       symptoms: "Symptoms",
       medications: "Medications",
@@ -179,7 +178,6 @@ const resources = {
 
       // Profile
       personalInformation: "Personal Information",
-      medicalHistory: "Medical History",
       healthReports: "Health Reports",
       helpSupport: "Help & Support",
       termsConditions: "Terms & Conditions",
@@ -430,7 +428,6 @@ const resources = {
       readOnlyAccess: "• Read-only access - we never write to your health data",
       dataEncryptedSynced: "• Data is encrypted and securely synced",
       usedForCaregiving: "• Used only for caregiving insights and health tracking",
-      continue: "Continue",
       notNow: "Not Now",
       appleHealthOnlyIOS: "Apple Health is only available on iOS devices.",
       // Apple Health Permissions
@@ -440,7 +437,6 @@ const resources = {
       allSelected: "✓ All Selected",
       authorizeMetrics: "Authorize",
       metric: "Metric",
-      metrics: "metrics",
       changePermissionsLater: "You can change these permissions later in iOS Settings → Privacy & Security → Health",
       appleHealthPermissions: "Apple Health Permissions",
       // Fitbit Intro
@@ -450,8 +446,7 @@ const resources = {
       // Fitbit Permissions
       fitbitPermissions: "Fitbit Permissions",
       chooseHealthMetricsToSyncFitbit: "Choose which health metrics to sync from Fitbit",
-      // Health Metrics
-      heartRate: "Heart Rate",
+      // Health Metrics (moved to nested healthMetrics object below)
       restingHeartRate: "Resting Heart Rate",
       heartRateVariability: "Heart Rate Variability",
       walkingHeartRateAverage: "Walking Heart Rate Average",
@@ -460,11 +455,8 @@ const resources = {
       respiratoryRate: "Respiratory Rate",
       bloodOxygen: "Blood Oxygen (SpO2)",
       bodyTemperature: "Body Temperature",
-      weight: "Weight",
-      height: "Height",
       bodyMassIndex: "Body Mass Index",
       bodyFatPercentage: "Body Fat Percentage",
-      steps: "Steps",
       activeEnergyBurned: "Active Energy Burned",
       basalEnergyBurned: "Basal Energy Burned",
       distanceWalkingRunning: "Distance Walking/Running",
@@ -481,7 +473,6 @@ const resources = {
       temperature: "Temperature",
       bodyMeasurements: "Body Measurements",
       activityFitness: "Activity & Fitness",
-      sleep: "Sleep",
       nutrition: "Nutrition",
       glucose: "Glucose",
       // Health Metrics (nested)
@@ -698,7 +689,6 @@ const resources = {
 
       // Profile
       personalInformation: "المعلومات الشخصية",
-      medicalHistory: "التاريخ الطبي",
       healthReports: "التقارير الصحية",
       helpSupport: "المساعدة والدعم",
       termsConditions: "الشروط والأحكام",
@@ -811,7 +801,6 @@ const resources = {
       symptomsThisWeek: "أعراض هذا الأسبوع",
       medCompliance: "الالتزام بالدواء",
       trackingOptions: "خيارات التتبع",
-      track: "تتبع",
       manage: "إدارة",
       mood: "الحالة النفسية",
       trackYourMood: "تسجيل ومراقبة الحالة النفسية",
@@ -949,7 +938,6 @@ const resources = {
       readOnlyAccess: "• وصول للقراءة فقط - لا نكتب أبداً في بياناتك الصحية",
       dataEncryptedSynced: "• البيانات مشفرة ومزامنة بشكل آمن",
       usedForCaregiving: "• تُستخدم فقط لرؤى الرعاية وتتبع الصحة",
-      continue: "متابعة",
       notNow: "ليس الآن",
       appleHealthOnlyIOS: "Apple Health متاح فقط على أجهزة iOS.",
       // Apple Health Permissions
@@ -959,7 +947,6 @@ const resources = {
       allSelected: "✓ تم تحديد الكل",
       authorizeMetrics: "تفويض",
       metric: "مقياس",
-      metrics: "مقاييس",
       changePermissionsLater: "يمكنك تغيير هذه الأذونات لاحقاً في إعدادات iOS → الخصوصية والأمان → الصحة",
       appleHealthPermissions: "أذونات Apple Health",
       // Fitbit Intro
@@ -969,8 +956,7 @@ const resources = {
       // Fitbit Permissions
       fitbitPermissions: "أذونات Fitbit",
       chooseHealthMetricsToSyncFitbit: "اختر مقاييس الصحة التي تريد مزامنتها من Fitbit",
-      // Health Metrics
-      heartRate: "معدل ضربات القلب",
+      // Health Metrics (moved to nested healthMetrics object below)
       restingHeartRate: "معدل ضربات القلب أثناء الراحة",
       heartRateVariability: "تغير معدل ضربات القلب",
       walkingHeartRateAverage: "متوسط معدل ضربات القلب أثناء المشي",
@@ -979,11 +965,8 @@ const resources = {
       respiratoryRate: "معدل التنفس",
       bloodOxygen: "الأكسجين في الدم (SpO2)",
       bodyTemperature: "درجة حرارة الجسم",
-      weight: "الوزن",
-      height: "الطول",
       bodyMassIndex: "مؤشر كتلة الجسم",
       bodyFatPercentage: "نسبة الدهون في الجسم",
-      steps: "الخطوات",
       activeEnergyBurned: "الطاقة النشطة المحروقة",
       basalEnergyBurned: "الطاقة الأساسية المحروقة",
       distanceWalkingRunning: "المسافة (مشي/جري)",
@@ -1000,7 +983,6 @@ const resources = {
       temperature: "درجة الحرارة",
       bodyMeasurements: "قياسات الجسم",
       activityFitness: "النشاط واللياقة",
-      sleep: "النوم",
       nutrition: "التغذية",
       glucose: "الجلوكوز",
       // Health Metrics (nested)
