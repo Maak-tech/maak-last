@@ -765,124 +765,8 @@ export default function PPGVitalMonitorVisionCamera({
     setFrameProcessingErrors((prev) => prev + 1);
   }, []);
 
-  // Frame processor for real-time PPG signal extraction
-  const frameProcessor = useFrameProcessor((frame) => {
-    'worklet';
-    
-    // Only process frames if we're capturing
-    if (!isCapturingRef.current) {
-      return;
-    }
-
-    const now = Date.now();
-    
-    // Throttle to 14 fps
-    if (now - lastFrameTimeRef.current < FRAME_INTERVAL_MS) {
-      return;
-    }
-    
-    lastFrameTimeRef.current = now;
-
-    try {
-      // Validate frame dimensions
-      if (!frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) {
-        // Invalid frame - use fallback value
-        runOnJS(processPPGFrameData)(128, frameCountRef.current);
-        frameCountRef.current++;
-        return;
-      }
-      
-      // Extract red channel average from center of frame using pixel extractor
-      const redAverage = extractRedChannelAverage(frame);
-      
-      // Validate extracted value
-      if (isNaN(redAverage) || redAverage < 0 || redAverage > 255) {
-        // Invalid value - use fallback
-        runOnJS(processPPGFrameData)(128, frameCountRef.current);
-        frameCountRef.current++;
-        return;
-      }
-      
-      // Call JS function to process the frame data
-      runOnJS(processPPGFrameData)(redAverage, frameCountRef.current);
-      
-      frameCountRef.current++;
-    } catch (error) {
-      // Handle frame processing errors with fallback
-      // Use a neutral value that won't break signal processing
-      runOnJS(handleFrameProcessingError)(frameCountRef.current);
-      runOnJS(processPPGFrameData)(128, frameCountRef.current);
-      frameCountRef.current++;
-    }
-  }, []);
-
-  const processPPGFrameData = useCallback((redAverage: number, frameIndex: number) => {
-    if (!isCapturingRef.current) {
-      return;
-    }
-
-    // Validate and clamp red average value
-    const clampedValue = Math.max(0, Math.min(255, isNaN(redAverage) ? 128 : redAverage));
-    
-    // Add to PPG signal
-    ppgSignalRef.current.push(clampedValue);
-    
-    // Log first few frames for debugging (only in development)
-    if (process.env.NODE_ENV !== 'production' && frameIndex < 5) {
-      console.log(`[PPG] Frame ${frameIndex}: redAverage=${clampedValue.toFixed(2)}`);
-    }
-    
-
-    // Update progress
-    const elapsed = (Date.now() - startTimeRef.current) / 1000;
-    setProgress(Math.min(1, elapsed / MEASUREMENT_DURATION));
-
-    // Real-time signal quality validation (every 30 frames)
-    if (ppgSignalRef.current.length >= 30 && ppgSignalRef.current.length % 30 === 0) {
-      const recentSignal = ppgSignalRef.current.slice(-30);
-      const mean = recentSignal.reduce((a, b) => a + b, 0) / recentSignal.length;
-      const variance = recentSignal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentSignal.length;
-      const stdDev = Math.sqrt(variance);
-      
-      // Check for signal quality issues
-      if (stdDev < 2) {
-        consecutiveNoFingerFrames.current += 30;
-        if (consecutiveNoFingerFrames.current > 180) {
-          setFingerDetectionFailed(true);
-          stopPPGCapture();
-          return;
-        }
-      } else {
-        consecutiveNoFingerFrames.current = 0;
-      }
-    }
-
-  // Optimized beat detection with time-based calculation
-  if (ppgSignalRef.current.length > 30) {
-    const signal = ppgSignalRef.current;
-    const timeElapsed = (Date.now() - startTimeRef.current) / 1000;
-    
-    // Use time-based beat rate calculation instead of scaling peaks
-    if (timeElapsed > 10) { // Only calculate after 10 seconds for stability
-      const recentSignal = signal.slice(-Math.min(signal.length, TARGET_FPS * 10)); // Last 10 seconds
-      let peaks = 0;
-      
-      for (let i = 1; i < recentSignal.length - 1; i++) {
-        if (recentSignal[i] > recentSignal[i - 1] && recentSignal[i] > recentSignal[i + 1]) {
-          peaks++;
-        }
-      }
-      
-      // Calculate beats per minute from actual time window
-      const timeWindow = Math.min(10, timeElapsed);
-      const beatsPerMinute = (peaks / timeWindow) * 60;
-      const estimatedBeats = Math.floor((timeElapsed / 60) * Math.min(beatsPerMinute, 120));
-      setBeatsDetected(Math.min(estimatedBeats, Math.floor(timeElapsed * 1.5)));
-    }
-  }
-  }, []);
-
-  const stopPPGCapture = async () => {
+  // Define stopPPGCapture before processPPGFrameData to avoid dependency issues
+  const stopPPGCapture = useCallback(async () => {
     setIsCapturing(false);
     isCapturingRef.current = false;
 
@@ -1008,7 +892,118 @@ export default function PPGVitalMonitorVisionCamera({
       setError(ppgResult.error || "Failed to process PPG signal");
       setStatus("error");
     }
-  };
+  }, [fingerDetectionFailed, frameProcessingErrors, onMeasurementComplete]);
+
+  // Frame processor for real-time PPG signal extraction
+  const frameProcessor = useFrameProcessor((frame) => {
+    'worklet';
+    
+    // Only process frames if we're capturing
+    if (!isCapturingRef.current) {
+      return;
+    }
+
+    const now = Date.now();
+    
+    // Throttle to 14 fps
+    if (now - lastFrameTimeRef.current < FRAME_INTERVAL_MS) {
+      return;
+    }
+    
+    lastFrameTimeRef.current = now;
+
+    try {
+      // Validate frame dimensions
+      if (!frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) {
+        // Invalid frame - use fallback value
+        runOnJS(processPPGFrameData)(128, frameCountRef.current);
+        frameCountRef.current++;
+        return;
+      }
+      
+      // Extract red channel average from center of frame using pixel extractor
+      const redAverage = extractRedChannelAverage(frame);
+      
+      // Validate extracted value
+      if (isNaN(redAverage) || redAverage < 0 || redAverage > 255) {
+        // Invalid value - use fallback
+        runOnJS(processPPGFrameData)(128, frameCountRef.current);
+        frameCountRef.current++;
+        return;
+      }
+      
+      // Call JS function to process the frame data
+      runOnJS(processPPGFrameData)(redAverage, frameCountRef.current);
+      
+      frameCountRef.current++;
+    } catch (error) {
+      // Handle frame processing errors with fallback
+      // Use a neutral value that won't break signal processing
+      runOnJS(handleFrameProcessingError)(frameCountRef.current);
+      runOnJS(processPPGFrameData)(128, frameCountRef.current);
+      frameCountRef.current++;
+    }
+  }, []);
+
+  const processPPGFrameData = useCallback((redAverage: number, frameIndex: number) => {
+    if (!isCapturingRef.current) {
+      return;
+    }
+
+    // Validate and clamp red average value
+    const clampedValue = Math.max(0, Math.min(255, isNaN(redAverage) ? 128 : redAverage));
+    
+    // Add to PPG signal
+    ppgSignalRef.current.push(clampedValue);
+
+    // Update progress
+    const elapsed = (Date.now() - startTimeRef.current) / 1000;
+    setProgress(Math.min(1, elapsed / MEASUREMENT_DURATION));
+
+    // Real-time signal quality validation (every 30 frames)
+    if (ppgSignalRef.current.length >= 30 && ppgSignalRef.current.length % 30 === 0) {
+      const recentSignal = ppgSignalRef.current.slice(-30);
+      const mean = recentSignal.reduce((a, b) => a + b, 0) / recentSignal.length;
+      const variance = recentSignal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentSignal.length;
+      const stdDev = Math.sqrt(variance);
+      
+      // Check for signal quality issues
+      if (stdDev < 2) {
+        consecutiveNoFingerFrames.current += 30;
+        if (consecutiveNoFingerFrames.current > 180) {
+          setFingerDetectionFailed(true);
+          stopPPGCapture();
+          return;
+        }
+      } else {
+        consecutiveNoFingerFrames.current = 0;
+      }
+    }
+
+    // Optimized beat detection with time-based calculation
+    if (ppgSignalRef.current.length > 30) {
+      const signal = ppgSignalRef.current;
+      const timeElapsed = (Date.now() - startTimeRef.current) / 1000;
+      
+      // Use time-based beat rate calculation instead of scaling peaks
+      if (timeElapsed > 10) { // Only calculate after 10 seconds for stability
+        const recentSignal = signal.slice(-Math.min(signal.length, TARGET_FPS * 10)); // Last 10 seconds
+        let peaks = 0;
+        
+        for (let i = 1; i < recentSignal.length - 1; i++) {
+          if (recentSignal[i] > recentSignal[i - 1] && recentSignal[i] > recentSignal[i + 1]) {
+            peaks++;
+          }
+        }
+        
+        // Calculate beats per minute from actual time window
+        const timeWindow = Math.min(10, timeElapsed);
+        const beatsPerMinute = (peaks / timeWindow) * 60;
+        const estimatedBeats = Math.floor((timeElapsed / 60) * Math.min(beatsPerMinute, 120));
+        setBeatsDetected(Math.min(estimatedBeats, Math.floor(timeElapsed * 1.5)));
+      }
+    }
+  }, [stopPPGCapture]);
 
   const saveVitalToFirestore = async (
     heartRate: number,
