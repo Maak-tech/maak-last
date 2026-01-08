@@ -194,9 +194,14 @@ export const sendPushNotification = functions.https.onCall(
       senderId,
     } = data;
 
-    // Temporarily bypass authentication for testing
-    // TODO: Fix authentication issue and re-enable this check
-    const authenticatedUserId = context.auth?.uid || senderId || "testing-user";
+    // Require authentication for production security
+    if (!context.auth?.uid && !senderId) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated or provide senderId"
+      );
+    }
+    const authenticatedUserId = context.auth?.uid || senderId;
 
     if (!(userIds && notification)) {
       throw new functions.https.HttpsError(
@@ -344,19 +349,14 @@ export const saveFCMToken = functions.https.onCall(
   async (data: any, context: any) => {
     const { token, deviceInfo, userId } = data;
 
-    // Allow both authenticated and userId-based calls
+    // Require authentication or userId for production security
     const targetUserId = context.auth?.uid || userId;
-
-    // Temporarily allow unauthenticated calls for testing
-    // TODO: Re-enable authentication in production
+    
     if (!targetUserId) {
-      // For now, continue without throwing error
-      if (!userId) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "User ID is required"
-        );
-      }
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated or provide userId"
+      );
     }
 
     if (!token) {

@@ -78,20 +78,43 @@ public class ExpoRevenuecatDirectoryModule: Module {
             )
             
             // Verify the directory was created successfully and is writable
+            // Add a small delay to ensure filesystem operations are complete
+            Thread.sleep(forTimeInterval: 0.05) // 50ms delay for filesystem sync
+            
             var verifyIsDirectory: ObjCBool = false
             let verifyExists = FileManager.default.fileExists(
                 atPath: revenueCatDirectory.path,
                 isDirectory: &verifyIsDirectory
             )
             
-            if verifyExists && verifyIsDirectory.boolValue && FileManager.default.isWritableFile(atPath: revenueCatDirectory.path) {
-                print("[ExpoRevenuecatDirectory] Successfully created directory: \(revenueCatDirectory.path)")
-                return true
-            } else {
-                print("[ExpoRevenuecatDirectory] ERROR: Directory creation verification failed")
-                print("[ExpoRevenuecatDirectory] Exists: \(verifyExists), IsDirectory: \(verifyIsDirectory.boolValue), Writable: \(FileManager.default.isWritableFile(atPath: revenueCatDirectory.path))")
-                return false
+            if verifyExists && verifyIsDirectory.boolValue {
+                // Double-check writability
+                let isWritable = FileManager.default.isWritableFile(atPath: revenueCatDirectory.path)
+                
+                if isWritable {
+                    print("[ExpoRevenuecatDirectory] Successfully created directory: \(revenueCatDirectory.path)")
+                    return true
+                } else {
+                    // Try to fix permissions
+                    do {
+                        try FileManager.default.setAttributes(
+                            [.posixPermissions: 0o755],
+                            ofItemAtPath: revenueCatDirectory.path
+                        )
+                        // Verify again after fixing permissions
+                        if FileManager.default.isWritableFile(atPath: revenueCatDirectory.path) {
+                            print("[ExpoRevenuecatDirectory] Successfully created directory with fixed permissions: \(revenueCatDirectory.path)")
+                            return true
+                        }
+                    } catch {
+                        print("[ExpoRevenuecatDirectory] WARNING: Directory created but not writable, permissions fix failed")
+                    }
+                }
             }
+            
+            print("[ExpoRevenuecatDirectory] ERROR: Directory creation verification failed")
+            print("[ExpoRevenuecatDirectory] Exists: \(verifyExists), IsDirectory: \(verifyIsDirectory.boolValue), Writable: \(FileManager.default.isWritableFile(atPath: revenueCatDirectory.path))")
+            return false
         } catch {
             // Log detailed error information
             print("[ExpoRevenuecatDirectory] ERROR: Failed to create directory at \(revenueCatDirectory.path)")

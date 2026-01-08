@@ -98,12 +98,11 @@ class Logger {
       }
     }
 
-    // In production, you could send errors to a logging service
-    // For example: Sentry, LogRocket, etc.
-    if (!__DEV__ && level === "error") {
-      // TODO: Send to error tracking service
-      // Example: Sentry.captureException(new Error(message), { extra: data });
-    }
+    // In production, errors are logged but not sent to external services
+    // To enable error tracking, integrate with a service like Sentry:
+    // if (!__DEV__ && level === "error") {
+    //   Sentry.captureException(new Error(message), { extra: data });
+    // }
   }
 
   /**

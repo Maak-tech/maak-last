@@ -294,7 +294,8 @@ export const healthDataService = {
       // Check if HealthKit is available
       const availability = await appleHealthService.checkAvailability();
       if (!availability.available) {
-        return this.getSimulatedVitals();
+        // In production, return null instead of simulated data
+        return __DEV__ ? this.getSimulatedVitals() : null;
       }
 
       // Check if a connection exists (authorization was granted)
@@ -303,9 +304,9 @@ export const healthDataService = {
       const { getProviderConnection } = await import("../health/healthSync");
       const connection = await getProviderConnection("apple_health");
       if (!(connection && connection.connected)) {
-        // If not connected, return simulated data
+        // In production, return null instead of simulated data
         // User needs to authorize in settings first
-        return this.getSimulatedVitals();
+        return __DEV__ ? this.getSimulatedVitals() : null;
       }
 
       // Get health metrics using appleHealthService
@@ -447,14 +448,16 @@ export const healthDataService = {
 
         return vitals;
       } catch (error: any) {
-        return this.getSimulatedVitals();
+        // In production, return null instead of simulated data
+        return __DEV__ ? this.getSimulatedVitals() : null;
       }
     } catch (error: any) {
-      return this.getSimulatedVitals();
+      // In production, return null instead of simulated data
+      return __DEV__ ? this.getSimulatedVitals() : null;
     }
   },
 
-  // Generate simulated vitals for demo/development
+  // Generate simulated vitals for demo/development (dev only)
   async getSimulatedVitals(): Promise<VitalSigns> {
     // Generate realistic health data for demonstration
     const baseHeartRate = 70;
@@ -485,8 +488,8 @@ export const healthDataService = {
       const connection = await getProviderConnection("health_connect");
       
       if (!(connection && connection.connected)) {
-        // If not connected, return simulated data
-        return this.getSimulatedVitals();
+        // In production, return null instead of simulated data
+        return __DEV__ ? this.getSimulatedVitals() : null;
       }
 
       // Import healthConnectService dynamically
@@ -618,7 +621,8 @@ export const healthDataService = {
       const connection = await getProviderConnection("fitbit");
       
       if (!(connection && connection.connected)) {
-        return this.getSimulatedVitals();
+        // In production, return null instead of simulated data
+        return __DEV__ ? this.getSimulatedVitals() : null;
       }
 
       // Import fitbitService dynamically
@@ -725,10 +729,12 @@ export const healthDataService = {
 
         return vitals;
       } catch (error: any) {
-        return this.getSimulatedVitals();
+        // In production, return null instead of simulated data
+        return __DEV__ ? this.getSimulatedVitals() : null;
       }
     } catch (error: any) {
-      return this.getSimulatedVitals();
+      // In production, return null instead of simulated data
+      return __DEV__ ? this.getSimulatedVitals() : null;
     }
   },
 

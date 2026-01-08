@@ -18,8 +18,9 @@ module.exports = (api) => {
     env: {
       production: {
         plugins: [
-          // Keep all console statements for debugging
-          // ['transform-remove-console', { exclude: ['error', 'warn'] }],
+          // Remove console.log, console.debug, console.info in production
+          // Keep console.error and console.warn for error tracking
+          ['transform-remove-console', { exclude: ['error', 'warn'] }],
         ],
       },
     },

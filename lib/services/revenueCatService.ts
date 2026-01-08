@@ -80,12 +80,31 @@ class RevenueCatService {
         // This prevents NSCocoaErrorDomain Code=4 errors on iOS
         if (Platform.OS === "ios") {
           try {
-            // Call the native module synchronously to ensure directory exists before configure
-            const directoryCreated = await ensureRevenueCatDirectory();
+            // Retry directory creation up to 3 times with delays
+            // This handles race conditions where RevenueCat tries to access the directory immediately
+            let directoryCreated = false;
+            const maxRetries = 3;
+            
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+              directoryCreated = await ensureRevenueCatDirectory();
+              
+              if (directoryCreated) {
+                // Verify directory is actually writable before proceeding
+                // Add a small delay to ensure filesystem operations are complete
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                break;
+              }
+              
+              // If failed, wait before retrying
+              if (attempt < maxRetries - 1) {
+                await new Promise((resolve) => setTimeout(resolve, 200));
+              }
+            }
+            
             if (!directoryCreated) {
               logger.warn(
-                "Failed to ensure RevenueCat directory exists before initialization. " +
-                "RevenueCat may attempt to create it automatically.",
+                "Failed to ensure RevenueCat directory exists after retries. " +
+                "RevenueCat may log cache errors but will create the directory automatically.",
                 undefined,
                 "RevenueCatService"
               );
@@ -96,9 +115,10 @@ class RevenueCatService {
                 "RevenueCatService"
               );
             }
-            // Add a small delay to ensure directory is fully created and writable
+            
+            // Add an additional delay after directory creation to ensure it's fully ready
             // This prevents race conditions where RevenueCat tries to cache immediately after configure
-            await new Promise((resolve) => setTimeout(resolve, 200));
+            await new Promise((resolve) => setTimeout(resolve, 300));
           } catch (dirError) {
             // Log but don't fail initialization - RevenueCat SDK will handle retry
             logger.warn(
@@ -107,7 +127,7 @@ class RevenueCatService {
               "RevenueCatService"
             );
             // Add a delay before proceeding to allow any native operations to complete
-            await new Promise((resolve) => setTimeout(resolve, 200));
+            await new Promise((resolve) => setTimeout(resolve, 300));
           }
         }
 
