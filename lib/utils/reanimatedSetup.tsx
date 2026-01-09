@@ -384,26 +384,27 @@ function patchReanimatedCreateAnimatedComponent() {
           const isFunctionComponent = typeof component === 'function' && 
                                      !(component.prototype && component.prototype.isReactComponent);
           
-          // CRITICAL: ALWAYS wrap function components, even if they appear to be wrapped
-          // The isForwardRefComponent check can be unreliable, so we wrap defensively
-          // This prevents TextImpl errors completely
+          // ULTRA-AGGRESSIVE: ALWAYS wrap function components, no exceptions
+          // This catches ALL possible cases including TextImpl
           if (isFunctionComponent) {
-            // Double-check if it's actually wrapped - if not, wrap it
-            const isActuallyWrapped = isForwardRefComponent(component);
-            if (!isActuallyWrapped || isTextImpl || isTextComponent) {
-              const wrapped = wrapWithForwardRef(component, componentName || 'FunctionComponent');
+            // Double wrap if it's Text-related to be absolutely sure
+            const wrapped = wrapWithForwardRef(component, componentName || 'FunctionComponent');
+            if (isTextComponent || isTextImpl) {
+              // For Text components, wrap twice to ensure forwardRef is applied
+              const doubleWrapped = wrapWithForwardRef(wrapped, componentName || 'TextComponent');
               try {
-                return originalCreateAnimatedComponent(wrapped);
+                return originalCreateAnimatedComponent(doubleWrapped);
               } catch (error: any) {
-                // If wrapping still fails, try the original component first
-                // If that also fails, return wrapped component to prevent crash
-                try {
-                  return originalCreateAnimatedComponent(component);
-                } catch {
-                  console.warn('Failed to create animated component with wrapped function component:', componentName || 'Unknown', error?.message || error);
-                  return wrapped;
-                }
+                // Even if double-wrapped fails, return the wrapped component
+                return doubleWrapped;
               }
+            }
+            try {
+              return originalCreateAnimatedComponent(wrapped);
+            } catch (error: any) {
+              // If wrapped version fails, return wrapped component anyway to prevent crash
+              console.warn('Failed to create animated component with wrapped function component:', componentName || 'Unknown', error?.message || error);
+              return wrapped;
             }
           }
           
@@ -517,19 +518,17 @@ function patchReanimatedCreateAnimatedComponent() {
 // Try to patch immediately
 patchReanimatedCreateAnimatedComponent();
 
-// Also try patching after delays in case reanimated loads asynchronously
+// Patch after delays to ensure TextImpl patch takes effect first
+// Start with longer delays to let IIFE complete
 if (typeof setTimeout !== 'undefined') {
-  setTimeout(() => {
-    patchReanimatedCreateAnimatedComponent();
-  }, 0);
-  
-  setTimeout(() => {
-    patchReanimatedCreateAnimatedComponent();
-  }, 50);
-  
+  // Give the IIFE time to complete before trying to load reanimated
   setTimeout(() => {
     patchReanimatedCreateAnimatedComponent();
   }, 100);
+  
+  setTimeout(() => {
+    patchReanimatedCreateAnimatedComponent();
+  }, 200);
   
   setTimeout(() => {
     patchReanimatedCreateAnimatedComponent();
@@ -556,5 +555,6 @@ export function initializeReanimatedCompatibility() {
   patchReanimatedCreateAnimatedComponent();
 }
 
-// Auto-initialize when module is loaded
-initializeReanimatedCompatibility();
+// DON'T auto-initialize immediately - let the IIFE complete first
+// Only use the setTimeout calls above to patch after the module is fully loaded
+// This prevents trying to load reanimated before TextImpl patch takes effect

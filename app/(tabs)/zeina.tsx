@@ -119,7 +119,22 @@ export default function ZeinaScreen() {
 
       setIsLoading(false);
     } catch (error) {
-      // Silently handle chat initialization error, but still show welcome message
+      // Show error message to user if API key is not configured
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("API key not configured") || errorMessage.includes("OPENAI_API_KEY")) {
+        Alert.alert(
+          t("serviceUnavailable") || "Service Unavailable",
+          errorMessage + "\n\nPlease set OPENAI_API_KEY in your .env file or environment variables.",
+          [{ text: t("ok") || "OK" }]
+        );
+      } else {
+        // For other errors, show a generic message
+        Alert.alert(
+          t("error") || "Error",
+          errorMessage || t("zeinaUnavailable") || "Zeina is currently unavailable. Please try again later."
+        );
+      }
+      // Still show welcome message even if service is unavailable
       setMessages([welcomeMessage]);
       setIsLoading(false);
     }
@@ -263,12 +278,26 @@ export default function ZeinaScreen() {
       },
       (error) => {
         setIsStreaming(false);
-        // Silently handle chat error
+        
+        // Remove the assistant message if there was an error
+        setMessages((prev) => prev.filter((m) => m.id !== assistantMessage.id));
 
         // More user-friendly error messages
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        let displayMessage = errorMessage || t("failedToGetResponse");
+        
+        // Provide specific guidance for API key errors
+        if (errorMessage.includes("API key not configured") || errorMessage.includes("OPENAI_API_KEY")) {
+          displayMessage = "OpenAI API key is not configured.\n\nPlease set OPENAI_API_KEY in your .env file:\n\nOPENAI_API_KEY=your-api-key-here\n\nYou can get an API key from platform.openai.com";
+        } else if (errorMessage.includes("Invalid API key") || errorMessage.includes("401")) {
+          displayMessage = "Invalid API key. Please check your OPENAI_API_KEY in your .env file.";
+        } else if (errorMessage.includes("quota") || errorMessage.includes("429")) {
+          displayMessage = "API quota exceeded. Please add billing to your OpenAI account or check your usage limits.";
+        }
+        
         Alert.alert(
-          t("error"),
-          error.message || t("failedToGetResponse")
+          t("error") || "Error",
+          displayMessage
         );
       },
       true // Use premium key for Zeina

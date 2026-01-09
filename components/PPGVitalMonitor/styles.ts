@@ -1,6 +1,6 @@
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-export const createPPGStyles = (theme: any) => createThemedStyles((theme) => ({
+export const createPPGStyles = createThemedStyles((theme) => ({
   modal: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,
@@ -15,32 +15,32 @@ export const createPPGStyles = (theme: any) => createThemedStyles((theme) => ({
     paddingBottom: theme.spacing.xl,
   },
   content: {
-    alignItems: "center",
+    alignItems: "center" as const,
     width: "100%",
   },
   header: {
     width: "100%",
-    alignItems: "center",
+    alignItems: "center" as const,
     marginBottom: theme.spacing.xl,
   },
   title: {
     ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
     fontSize: 28,
     marginBottom: theme.spacing.sm,
-    textAlign: "center",
+    textAlign: "center" as const,
   },
   subtitle: {
     ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-    textAlign: "center",
+    textAlign: "center" as const,
     marginBottom: theme.spacing.lg,
-    flexWrap: "wrap",
+    flexWrap: "wrap" as const,
     paddingHorizontal: theme.spacing.sm,
   },
   cameraContainer: {
     width: "100%",
     height: 280,
     borderRadius: theme.borderRadius.lg,
-    overflow: "hidden",
+    overflow: "hidden" as const,
     marginBottom: theme.spacing.xl,
     backgroundColor: theme.colors.background.secondary,
     ...theme.shadows.md,
@@ -55,7 +55,7 @@ export const createPPGStyles = (theme: any) => createThemedStyles((theme) => ({
     borderRadius: theme.borderRadius.lg,
     marginTop: theme.spacing.lg,
     minWidth: 200,
-    alignItems: "center",
+    alignItems: "center" as const,
     ...theme.shadows.md,
   },
   buttonText: {
@@ -76,4 +76,4 @@ export const createPPGStyles = (theme: any) => createThemedStyles((theme) => ({
     ...theme.shadows.md,
     elevation: 10,
   },
-}))(theme);
+}));

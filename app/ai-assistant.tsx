@@ -86,7 +86,9 @@ export default function AIAssistant() {
       const model = await openaiService.getModel();
 
       if (key) {
-        setApiKey(key);
+        // Mask API key for security - only store masked version in state
+        const maskedKey = key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : "";
+        setApiKey(maskedKey);
         setSelectedModel(model);
         setTempModel(model);
       } else {
@@ -224,7 +226,18 @@ export default function AIAssistant() {
   const handleSend = async () => {
     if (!inputText.trim() || isStreaming) return;
 
-    if (!apiKey) {
+    // Check if API key is configured in the service (not state, for security)
+    try {
+      const serviceKey = await openaiService.getApiKey();
+      if (!serviceKey) {
+        Alert.alert(
+          "API Key Required",
+          "Please configure your OpenAI API key first."
+        );
+        setShowSettings(true);
+        return;
+      }
+    } catch {
       Alert.alert(
         "API Key Required",
         "Please configure your OpenAI API key first."
@@ -328,8 +341,11 @@ export default function AIAssistant() {
 
     await openaiService.setApiKey(tempApiKey);
     await openaiService.setModel(tempModel);
-    setApiKey(tempApiKey);
+    // Mask API key for security - only store masked version in state
+    const maskedKey = `${tempApiKey.substring(0, 7)}...${tempApiKey.substring(tempApiKey.length - 4)}`;
+    setApiKey(maskedKey);
     setSelectedModel(tempModel);
+    setTempApiKey(""); // Clear the temp key after saving
     setShowSettings(false);
     Alert.alert("Success", "Settings saved successfully!");
   };
@@ -588,7 +604,7 @@ export default function AIAssistant() {
               placeholderTextColor="#999"
               secureTextEntry
               style={styles.modalInput}
-              value={tempApiKey || apiKey}
+              value={tempApiKey}
             />
 
             <Text style={styles.modalHint}>

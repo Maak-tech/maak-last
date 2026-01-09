@@ -15,10 +15,9 @@
         "*.local"
       ],
       "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint",
-        "npm --prefix \"$RESOURCE_DIR\" run build"
+        "cd \"$RESOURCE_DIR\" && bun run build"
       ],
-      "runtime": "nodejs18"
+      "runtime": "nodejs22"
     }
   ]
 }

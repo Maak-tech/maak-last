@@ -57,7 +57,8 @@ export default function PPGVitalMonitor({
   onMeasurementComplete,
   onClose,
 }: PPGVitalMonitorProps) {
-  const { theme } = useTheme();
+  const themeContext = useTheme();
+  const theme = themeContext?.theme;
   const [permission, requestPermission] = useCameraPermissions();
   const [status, setStatus] = useState<
     "idle" | "instructions" | "measuring" | "processing" | "success" | "error"
@@ -179,14 +180,71 @@ export default function PPGVitalMonitor({
     return progressMilestones[0];
   };
 
-  // Memoized styles for performance
+  // Memoized styles for performance - with comprehensive null safety
   const styles = useMemo(() => {
-    const baseStyles = createPPGStyles(theme);
-    return {
-      ...baseStyles,
-      // Additional inline styles that need theme access
-      statusText: {
-        ...getTextStyle(theme, "subheading", "semibold", theme.colors.primary.main),
+    if (!theme || !theme.colors || !theme.spacing) {
+      return {
+        modal: {},
+        container: {},
+        scrollContent: {},
+        content: {},
+        header: {},
+        title: {},
+        subtitle: {},
+        button: {},
+        buttonText: {},
+        closeButton: {},
+        camera: {},
+        cameraContainer: {},
+        statusText: {},
+        progressBar: {},
+        progressFill: {},
+        heartRateText: {},
+        heartRateContainer: {},
+        qualityText: {},
+        errorText: {},
+        instructionText: {},
+        successContainer: {},
+        successCard: {},
+        instructionsContainer: {},
+        instructionsCard: {},
+        instructionsHeader: {},
+        instructionsHeaderIcon: {},
+        instructionsTitle: {},
+        instructionItem: {},
+        instructionNumber: {},
+        instructionNumberText: {},
+        instructionItemText: {},
+        tipsCard: {},
+        tipsHeader: {},
+        tipsHeaderIcon: {},
+        tipsTitle: {},
+        tipItem: {},
+        tipBullet: {},
+        tipText: {},
+        startButton: {},
+        startButtonText: {},
+        backButton: {},
+        backButtonText: {},
+        noteText: {},
+        measuringCard: {},
+        processingContainer: {},
+        beatCounterCard: {},
+        beatCounterLabel: {},
+        beatCounterValue: {},
+        educationPanel: {},
+        educationTitle: {},
+        educationText: {},
+      } as any;
+    }
+    
+    try {
+      const baseStyles = createPPGStyles(theme);
+      return {
+        ...baseStyles,
+        // Additional inline styles that need theme access
+        statusText: {
+          ...getTextStyle(theme, "subheading", "semibold", theme.colors.primary.main),
         marginTop: theme.spacing.lg,
         marginBottom: theme.spacing.md,
       },
@@ -428,6 +486,10 @@ export default function PPGVitalMonitor({
         flexWrap: "wrap",
       },
     };
+    } catch (error) {
+      console.error('Error creating styles:', error);
+      return {} as any;
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -444,7 +506,7 @@ export default function PPGVitalMonitor({
   useEffect(() => {
     if (visible && status === "instructions" && permission) {
       // If permission is not granted, request it proactively
-      if (!permission.granted && permission.canAskAgain) {
+      if (!permission?.granted && permission?.canAskAgain) {
         requestPermission().catch((err) => {
           // Silently handle permission request error
         });
@@ -969,17 +1031,30 @@ export default function PPGVitalMonitor({
     }
   };
 
-  if (!visible) return null;
+  // Early return with null check to prevent Modal from accessing null
+  if (!visible) {
+    return null;
+  }
+  
+  // Guard against null theme
+  if (!theme || !theme.colors) {
+    console.warn('PPGVitalMonitor: theme or theme.colors is null');
+    return null;
+  }
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={false}
-      onRequestClose={onClose}
-    >
+  // Ensure visible is always a boolean to prevent null/undefined issues
+  const modalVisible = Boolean(visible);
+
+  try {
+    return (
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={onClose}
+      >
       <SafeAreaView style={styles.modal as ViewStyle}>
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' }}>
+        <View style={{ position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' as const }}>
           <TouchableOpacity 
             style={styles.closeButton as ViewStyle} 
             onPress={() => {
@@ -1434,6 +1509,10 @@ export default function PPGVitalMonitor({
         </ScrollView>
       </SafeAreaView>
     </Modal>
-  );
+    );
+  } catch (error) {
+    console.error('PPGVitalMonitor render error:', error);
+    return null;
+  }
 }
 

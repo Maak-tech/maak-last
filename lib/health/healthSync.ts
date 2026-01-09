@@ -19,6 +19,7 @@ import type {
   SyncResult,
 } from "./healthTypes";
 import { HEALTH_STORAGE_KEYS } from "./healthTypes";
+import { saveSyncVitalsToFirestore } from "../services/vitalSyncService";
 
 const BACKEND_HEALTH_SYNC_URL = "/health/sync"; // Unified endpoint
 
@@ -210,17 +211,35 @@ export const syncHealthData = async (
       metrics,
     };
 
-    // Send to backend
-    const response = await fetch(BACKEND_HEALTH_SYNC_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    // Send to backend (if endpoint exists)
+    try {
+      const response = await fetch(BACKEND_HEALTH_SYNC_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Backend sync failed: ${response.statusText}`);
+      if (!response.ok) {
+        console.warn(`Backend sync failed: ${response.statusText}`);
+        // Continue anyway to save to Firestore
+      }
+    } catch (error) {
+      console.warn("Backend sync endpoint not available, saving to Firestore only:", error);
+      // Continue to save to Firestore
+    }
+
+    // Save vitals to Firestore for benchmark checking and admin alerts
+    try {
+      const savedCount = await saveSyncVitalsToFirestore({
+        provider: provider,
+        metrics: metrics,
+      });
+      console.log(`[Health Sync] Saved ${savedCount} vital samples to Firestore`);
+    } catch (error) {
+      console.error("[Health Sync] Error saving vitals to Firestore:", error);
+      // Don't fail the sync if Firestore save fails
     }
 
     // Update last sync timestamp

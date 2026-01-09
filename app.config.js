@@ -175,7 +175,11 @@ export default {
       fitbitClientSecret: process.env.FITBIT_CLIENT_SECRET || "",
       // Both regular and premium users use the same OpenAI API key
       openaiApiKey: process.env.OPENAI_API_KEY || "",
-      zeinaApiKey: process.env.OPENAI_API_KEY || "" // Same as openaiApiKey
+      zeinaApiKey: process.env.OPENAI_API_KEY || "", // Same as openaiApiKey
+      // RevenueCat API Key - REQUIRED for production
+      // Use production key from RevenueCat dashboard for production builds
+      // Test key is only used in development if env var is not set
+      revenueCatApiKey: process.env.REVENUECAT_API_KEY || ""
     }
   }
 };

@@ -77,7 +77,7 @@ export const Avatar: React.FC<AvatarProps> = ({
     backgroundColor: avatarType ? "transparent" : theme.colors.primary.main,
     justifyContent: "center" as const,
     alignItems: "center" as const,
-    overflow: "visible" as const,
+    overflow: "hidden" as const,
   };
 
   const renderContent = () => {

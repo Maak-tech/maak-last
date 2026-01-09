@@ -44,95 +44,6 @@ import type {
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import BloodPressureEntry from "@/components/BloodPressureEntry";
 
-// Lazy load PPG component to prevent tab from failing if component has issues
-// Use the real vision camera version for actual PPG measurements
-let PPGVitalMonitor: any = null;
-let PPGVitalMonitorLoadError: Error | null = null;
-
-// Function to load PPG component dynamically when needed
-const loadPPGComponent = () => {
-  if (PPGVitalMonitor !== null) {
-    return PPGVitalMonitor; // Already loaded
-  }
-
-  try {
-    const { Platform } = require("react-native");
-    if (Platform.OS !== "web") {
-      // CRITICAL: Ensure reanimated setup runs BEFORE loading the component
-      // This patches TextImpl before reanimated tries to use it
-      try {
-        require("@/lib/utils/reanimatedSetup");
-      } catch (setupError) {
-        // Setup might already be loaded, which is fine
-      }
-      
-      // Use dynamic import to defer loading until actually needed
-      // This helps avoid reanimated processing issues during module evaluation
-      // Wrap in additional try-catch to handle reanimated errors gracefully
-      try {
-        const componentModule = require("@/components/PPGVitalMonitorVisionCamera");
-        // Handle both default export and named export cases
-        if (componentModule && (componentModule.default || componentModule)) {
-          const Component = componentModule.default || componentModule;
-          // Validate that it's actually a component
-          if (typeof Component !== 'function') {
-            throw new Error("Loaded component is not a function");
-          }
-          PPGVitalMonitor = Component;
-        } else {
-          throw new Error("Component module is undefined or has no default export");
-        }
-      } catch (reanimatedError: any) {
-        // Check if it's a reanimated-related error
-        const errorMsg = reanimatedError?.message || String(reanimatedError);
-        if (errorMsg.includes('TextImpl') || 
-            errorMsg.includes('createAnimatedComponent') ||
-            errorMsg.includes('forwardRef') ||
-            errorMsg.includes('Cannot read property')) {
-          // Fall through to fallback
-          throw reanimatedError;
-        } else {
-          throw reanimatedError;
-        }
-      }
-    } else {
-      // On web, use simulated version
-      const componentModule = require("@/components/PPGVitalMonitor");
-      if (componentModule && (componentModule.default || componentModule)) {
-        const Component = componentModule.default || componentModule;
-        if (typeof Component !== 'function') {
-          throw new Error("Loaded component is not a function");
-        }
-        PPGVitalMonitor = Component;
-      } else {
-        throw new Error("Component module is undefined or has no default export");
-      }
-    }
-  } catch (error) {
-    PPGVitalMonitorLoadError = error as Error;
-    
-    // Fallback to simulated version if vision camera fails
-    try {
-      const componentModule = require("@/components/PPGVitalMonitor");
-      if (componentModule && (componentModule.default || componentModule)) {
-        const Component = componentModule.default || componentModule;
-        if (typeof Component !== 'function') {
-          throw new Error("Fallback component is not a function");
-        }
-        PPGVitalMonitor = Component;
-        PPGVitalMonitorLoadError = null; // Clear error since fallback worked
-      } else {
-        throw new Error("Fallback component module is undefined");
-      }
-    } catch (fallbackError) {
-      PPGVitalMonitor = null; // Ensure it's null if both fail
-      PPGVitalMonitorLoadError = fallbackError as Error;
-    }
-  }
-
-  return PPGVitalMonitor;
-};
-
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -157,10 +68,8 @@ export default function TrackScreen() {
   const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
   const [recentAllergies, setRecentAllergies] = useState<Allergy[]>([]);
   const [latestVitals, setLatestVitals] = useState<VitalSigns | null>(null);
-  const [showPPGMonitor, setShowPPGMonitor] = useState(false);
+  // PPG monitor now accessed via /ppg-measure route instead of modal
   const [showBloodPressureEntry, setShowBloodPressureEntry] = useState(false);
-  const [loadedPPGComponent, setLoadedPPGComponent] = useState<any>(null);
-  const [ppgComponentLoadError, setPpgComponentLoadError] = useState<Error | null>(null);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -1082,30 +991,7 @@ export default function TrackScreen() {
                       : "Heart Rate, HRV & Respiratory Rate"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => {
-                      // Load component when button is pressed
-                      if (!loadedPPGComponent) {
-                        try {
-                          const Component = loadPPGComponent();
-                          // Only set showPPGMonitor if component loaded successfully
-                          if (Component && typeof Component === 'function') {
-                            setLoadedPPGComponent(Component);
-                            setPpgComponentLoadError(null);
-                            setShowPPGMonitor(true);
-                          } else {
-                            // Component failed to load, show error modal
-                            setPpgComponentLoadError(PPGVitalMonitorLoadError);
-                            setShowPPGMonitor(true);
-                          }
-                        } catch (loadError) {
-                          const error = loadError instanceof Error ? loadError : new Error(String(loadError));
-                          setPpgComponentLoadError(error);
-                          setShowPPGMonitor(true);
-                        }
-                      } else {
-                        setShowPPGMonitor(true);
-                      }
-                    }}
+                    onPress={() => router.push("/ppg-measure")}
                     style={
                       [
                         styles.trackingCardButton,
@@ -1750,18 +1636,7 @@ export default function TrackScreen() {
         )}
       </ScrollView>
 
-      {/* PPG Heart Rate Monitor Modal */}
-      {user && showPPGMonitor && loadedPPGComponent && typeof loadedPPGComponent === 'function' && (
-        React.createElement(loadedPPGComponent, {
-          visible: true,
-          userId: user.id,
-          onMeasurementComplete: (result: any) => {
-            // Optionally refresh vitals data or show success message
-            loadTrackingData();
-          },
-          onClose: () => setShowPPGMonitor(false),
-        })
-      )}
+      {/* PPG Heart Rate Monitor now accessed via /ppg-measure route */}
 
       {/* Blood Pressure Entry Modal */}
       <BloodPressureEntry
@@ -1771,50 +1646,6 @@ export default function TrackScreen() {
           loadTrackingData();
         }}
       />
-      
-      {/* Show error modal if component failed to load */}
-      {user && showPPGMonitor && (!loadedPPGComponent || typeof loadedPPGComponent !== 'function') && (
-        <Modal
-          visible={true}
-          animationType="slide"
-          transparent={false}
-          onRequestClose={() => {
-            setShowPPGMonitor(false);
-          }}
-        >
-          <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary, padding: theme.spacing.xl }}>
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-              <Text style={{ ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary), marginBottom: theme.spacing.md, textAlign: "center" }}>
-                Component Not Available
-              </Text>
-              <Text style={{ ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary), textAlign: "center", marginBottom: theme.spacing.lg }}>
-                {ppgComponentLoadError || PPGVitalMonitorLoadError
-                  ? "The vital signs monitor component could not be loaded due to a compatibility issue. Please try restarting the app or updating to the latest version."
-                  : "The vital signs monitor is not available on this platform."}
-              </Text>
-              {(ppgComponentLoadError || PPGVitalMonitorLoadError) && (
-                <Text style={{ ...getTextStyle(theme, "caption", "regular", theme.colors.text.tertiary), textAlign: "center", marginBottom: theme.spacing.lg, fontFamily: "monospace" }}>
-                  {(ppgComponentLoadError || PPGVitalMonitorLoadError)?.message}
-                </Text>
-              )}
-              <TouchableOpacity
-                onPress={() => setShowPPGMonitor(false)}
-                style={{
-                  backgroundColor: theme.colors.primary.main,
-                  paddingHorizontal: theme.spacing.xl,
-                  paddingVertical: theme.spacing.base,
-                  borderRadius: theme.borderRadius.lg,
-                  marginTop: theme.spacing.lg,
-                }}
-              >
-                <Text style={{ ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white) }}>
-                  Close
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </SafeAreaView>
-        </Modal>
-      )}
     </SafeAreaView>
   );
 }

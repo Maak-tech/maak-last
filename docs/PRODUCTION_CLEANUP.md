@@ -4,6 +4,27 @@ This document lists items that should be removed, fixed, or reviewed before depl
 
 ## 🔴 Critical Security Issues
 
+### 0. RevenueCat Test API Key in Production ⚠️ CRITICAL
+**Location:** `lib/services/revenueCatService.ts:13`
+**Issue:** Hardcoded test API key will cause App Store rejection
+**Status:** ✅ **FIXED** - Now uses environment variables
+**Changes Made:**
+- Updated to load API key from environment variables (`REVENUECAT_API_KEY`)
+- Added fallback to test key only in development (`__DEV__`)
+- Production builds will throw error if API key is not set
+- Added to `app.config.js` extra section for environment variable access
+
+**Action Required Before Production:**
+1. Get production API key from RevenueCat dashboard
+2. Set `REVENUECAT_API_KEY` in EAS secrets for production builds:
+   ```bash
+   eas secret:create --scope project --name REVENUECAT_API_KEY --value "your-production-api-key"
+   ```
+3. For local development, add to `.env` file:
+   ```env
+   REVENUECAT_API_KEY=your-production-api-key
+   ```
+
 ### 1. Firebase Functions - Authentication Bypass ✅ FIXED
 **Location:** `functions/src/index.ts:199`
 **Issue:** Authentication was bypassed with a test user fallback

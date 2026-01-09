@@ -404,8 +404,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         firstName,
         lastName
       );
+
+      // Don't set loading to false here - onAuthStateChanged will handle it
+      // This ensures the user state is fully set before navigation occurs
     } catch (error: any) {
-      // Silently handle error
+      // Only set loading to false on error - successful sign-in will be handled by onAuthStateChanged
+      setLoading(false);
+      
       let errorMessage = "Failed to sign in. Please try again.";
 
       if (error.code === "auth/user-not-found") {
@@ -419,8 +424,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 

@@ -6,11 +6,50 @@ import Purchases, {
   PurchasesStoreProduct,
 } from "react-native-purchases";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import { logger } from "@/lib/utils/logger";
 import { ensureRevenueCatDirectory } from "@/modules/expo-revenuecat-directory";
 
-// RevenueCat API Key
-const REVENUECAT_API_KEY = "test_vluBajsHEoAjMjzoArPVpklOCRc";
+// RevenueCat API Key - Load from environment variables
+// Use production key in production builds, test key in development
+const getRevenueCatApiKey = (): string => {
+  // Check app config first (from environment variables)
+  const config = Constants.expoConfig?.extra;
+  const envKey = config?.revenueCatApiKey;
+  
+  // If environment variable is set and not empty, use it
+  if (envKey && typeof envKey === 'string' && envKey.trim() !== '') {
+    const trimmedKey = envKey.trim();
+    // Warn if using test key in production build
+    if (!__DEV__ && trimmedKey.startsWith('test_')) {
+      logger.error(
+        "CRITICAL: Test RevenueCat API key detected in production build! " +
+        "This will cause App Store rejection. Please set REVENUECAT_API_KEY with production key.",
+        undefined,
+        "RevenueCatService"
+      );
+    }
+    return trimmedKey;
+  }
+  
+  // Fallback to test key only in development (__DEV__)
+  // In production, this should never be reached if env vars are set correctly
+  if (__DEV__) {
+    logger.warn(
+      "RevenueCat API key not found in environment variables. Using test key for development.",
+      undefined,
+      "RevenueCatService"
+    );
+    return "test_vluBajsHEoAjMjzoArPVpklOCRc";
+  }
+  
+  // Production builds MUST have the API key set
+  // Don't throw at module load - throw during initialization instead
+  // This allows the app to load but RevenueCat won't initialize
+  return ""; // Empty string will cause initialization to fail gracefully
+};
+
+const REVENUECAT_API_KEY = getRevenueCatApiKey();
 
 // Product identifiers
 export const PRODUCT_IDENTIFIERS = {
@@ -131,10 +170,29 @@ class RevenueCatService {
           }
         }
 
-        // Configure RevenueCat with API key
-        await Purchases.configure({
-          apiKey: REVENUECAT_API_KEY,
-        });
+        // Validate API key before configuring
+        if (!REVENUECAT_API_KEY || REVENUECAT_API_KEY.trim() === '') {
+          const errorMessage = __DEV__
+            ? "RevenueCat API key not configured. Using test key for development."
+            : "RevenueCat API key is required for production builds. " +
+              "Please set REVENUECAT_API_KEY in your environment variables or EAS secrets.";
+          
+          if (__DEV__) {
+            logger.warn(errorMessage, undefined, "RevenueCatService");
+            // Use test key in development
+            await Purchases.configure({
+              apiKey: "test_vluBajsHEoAjMjzoArPVpklOCRc",
+            });
+          } else {
+            // In production, throw error to prevent App Store rejection
+            throw new Error(errorMessage);
+          }
+        } else {
+          // Configure RevenueCat with API key from environment
+          await Purchases.configure({
+            apiKey: REVENUECAT_API_KEY,
+          });
+        }
 
         // Set log level to suppress non-critical cache errors
         // The cache error (NSCocoaErrorDomain Code=4) is a known non-critical SDK issue

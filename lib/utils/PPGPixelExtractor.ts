@@ -113,29 +113,20 @@ export function extractRedChannelAverage(frame: Frame): number {
 }
 
 /**
- * Generate fallback PPG signal for testing when pixel extraction fails
+ * Generate fallback PPG signal when pixel extraction fails
+ * NOTE: This should only be used as a last resort - if this is called frequently,
+ * it indicates a problem with camera frame access that should be addressed.
+ * Returns a neutral value (128) to avoid breaking signal processing, but the
+ * signal quality validation should catch that this is not real PPG data.
  */
 function generateFallbackPPGSignal(): number {
   'worklet';
   
-  // Use a deterministic approach instead of Math.random() for worklet compatibility
-  // Use timestamp-based seed for variation
-  const time = Date.now();
-  const seed = (time % 10000) / 10000; // Normalize to 0-1
-  
-  // Generate realistic PPG-like signal (60-90 BPM range)
-  const baseHeartRate = 70 + Math.sin(time / 10000) * 5;
-  const frequency = baseHeartRate / 60;
-  const timeSeconds = (time % 60000) / 1000;
-  
-  // Add harmonics for more realistic signal
-  // Use seed-based "random" value instead of Math.random()
-  const noise = (seed * 2 - 1) * 3; // Convert seed to -3 to 3 range
-  const signal = 128 + 30 * Math.sin(2 * Math.PI * frequency * timeSeconds) +
-                 5 * Math.sin(4 * Math.PI * frequency * timeSeconds) +
-                 noise;
-                 
-  return Math.max(50, Math.min(250, signal));
+  // Return a neutral value instead of generating simulated signal
+  // This ensures that if pixel extraction fails, the signal quality
+  // validation will detect poor quality and fail the measurement
+  // rather than silently using fake data
+  return 128; // Neutral gray value - signal quality check will catch this
 }
 
 /**

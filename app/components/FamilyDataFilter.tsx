@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, User, Users } from "lucide-react-native";
 import type React from "react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -40,8 +40,19 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
   const { i18n } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [animatedHeight] = useState(new Animated.Value(60));
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const isRTL = useMemo(() => i18n.language === "ar", [i18n.language]);
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.stop();
+        animationRef.current = null;
+      }
+    };
+  }, []);
 
   const filterOptions = useMemo((): FilterOption[] => {
     const options: FilterOption[] = [
@@ -82,16 +93,26 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
   const shouldShowExpansion = filterOptions.length > 15;
 
   const toggleExpansion = useCallback(() => {
+    // Stop any ongoing animation
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
+
     const newHeight = isExpanded
       ? 60
       : Math.min(240, 60 + Math.ceil((filterOptions.length - 15) / 3) * 40);
 
-    Animated.timing(animatedHeight, {
+    const animation = Animated.timing(animatedHeight, {
       toValue: newHeight,
       duration: 300,
       useNativeDriver: false,
-    }).start();
-
+    });
+    
+    animationRef.current = animation;
+    animation.start(() => {
+      animationRef.current = null;
+    });
+    
     setIsExpanded(!isExpanded);
   }, [isExpanded, filterOptions.length, animatedHeight]);
 

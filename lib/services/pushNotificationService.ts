@@ -147,6 +147,57 @@ export const pushNotificationService = {
     }
   },
 
+  // Send notification to family admins only
+  async sendToAdmins(
+    familyId: string,
+    notification: PushNotificationData,
+    excludeUserId?: string
+  ): Promise<void> {
+    try {
+      const familyMembers = await userService.getFamilyMembers(familyId);
+
+      // Filter to only admins
+      const adminsToNotify = familyMembers.filter(
+        (member) =>
+          member.role === "admin" &&
+          (!excludeUserId || member.id !== excludeUserId)
+      );
+
+      if (adminsToNotify.length === 0) {
+        return;
+      }
+
+      // Try FCM first for admins
+      const isFCMAvailable = await fcmService.isFCMAvailable();
+
+      if (isFCMAvailable) {
+        const userIds = adminsToNotify.map((member) => member.id);
+
+        // Use HTTP endpoint to bypass auth issues
+        const success = await fcmService.sendPushNotificationHTTP(userIds, {
+          title: notification.title,
+          body: notification.body,
+          data: notification.data,
+          sound: notification.sound || "default",
+          priority: notification.priority || "normal",
+        });
+
+        if (success) {
+          return;
+        }
+      }
+
+      // Fallback to local notifications (one per admin)
+      const notificationPromises = adminsToNotify.map((member) =>
+        this.sendToUser(member.id, notification)
+      );
+
+      await Promise.all(notificationPromises);
+    } catch (error) {
+      // Silently handle notification error
+    }
+  },
+
   // Enhanced fall alert notification with Cloud Function support
   async sendFallAlert(
     userId: string,
@@ -343,7 +394,7 @@ export const pushNotificationService = {
     }
   },
 
-  // Send symptom alert to family
+  // Send symptom alert to family admins
   async sendSymptomAlert(
     userId: string,
     userName: string,
@@ -355,43 +406,23 @@ export const pushNotificationService = {
     if (severity < 4 || !familyId) return;
 
     try {
-      // Try Cloud Function first
+      // Try Cloud Function first (which now sends to admins)
       const isFCMAvailable = await fcmService.isFCMAvailable();
 
       if (isFCMAvailable) {
-        // Use the configured functions instance with authenticated context
+        // Use the sendSymptomAlert Cloud Function which sends to admins
         const functions = await getAuthenticatedFunctions();
-        const sendPushFunc = httpsCallable(functions, "sendPushNotification");
-
-        // Get family members
-        const familyMembers = await userService.getFamilyMembers(familyId!);
-        const memberIds = familyMembers
-          .filter((m) => m.id !== userId)
-          .map((m) => m.id);
-
-        const severityText = severity === 5 ? "very severe" : "severe";
+        const sendSymptomAlertFunc = httpsCallable(functions, "sendSymptomAlert");
 
         // Get current user for senderId
         const { auth } = await import("@/lib/firebase");
         const currentUser = auth.currentUser;
 
-        await sendPushFunc({
-          userIds: memberIds,
-          notification: {
-            title: "⚠️ Health Alert",
-            body: `${userName} is experiencing ${severityText} ${symptomType}`,
-            data: {
-              type: "symptom_alert",
-              symptomType,
-              severity: severity === 5 ? "critical" : "high",
-              userId,
-              clickAction: "OPEN_SYMPTOMS",
-            },
-            priority: severity === 5 ? "high" : "normal",
-            color: severity === 5 ? "#EF4444" : "#F59E0B",
-          },
-          notificationType: "symptom",
-          senderId: currentUser?.uid || userId, // Include senderId as fallback
+        await sendSymptomAlertFunc({
+          userId,
+          userName,
+          symptomType,
+          severity,
         });
         return;
       }
@@ -399,10 +430,11 @@ export const pushNotificationService = {
       // Silently fallback to direct notification
     }
 
-    // Fallback to direct notification
+    // Fallback to direct notification to admins
     const severityText = severity === 5 ? "very severe" : "severe";
+    const severityEmoji = severity === 5 ? "🚨" : "⚠️";
     const notification: PushNotificationData = {
-      title: "⚠️ Health Alert",
+      title: `${severityEmoji} Symptom Alert`,
       body: `${userName} is experiencing ${severityText} ${symptomType}`,
       data: {
         type: "symptom_alert",
@@ -416,7 +448,7 @@ export const pushNotificationService = {
       notificationType: "symptom",
     };
 
-    await this.sendToFamily(familyId, notification, userId);
+    await this.sendToAdmins(familyId, notification, userId);
   },
 
   // Test notification functionality
