@@ -33,6 +33,7 @@ import { alertService } from "@/lib/services/alertService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { healthScoreService } from "@/lib/services/healthScoreService";
 import type { Medication, Symptom, User as UserType } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 // Design System Components
@@ -57,6 +58,7 @@ export default function DashboardScreen() {
     symptomsThisWeek: 0,
     avgSeverity: 0,
     medicationCompliance: 0,
+    healthScore: 75,
   });
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
 
@@ -461,10 +463,14 @@ export default function DashboardScreen() {
       const compliance =
         totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
 
+      // Calculate health score using the new centralized service
+      const healthScoreResult = await healthScoreService.calculateHealthScore(user.id);
+
       setStats({
         symptomsThisWeek: symptomStats.totalSymptoms,
         avgSeverity: symptomStats.avgSeverity,
         medicationCompliance: Math.round(compliance),
+        healthScore: healthScoreResult.score,
       });
     } catch (error) {
       // Silently handle dashboard data load error
@@ -1376,12 +1382,7 @@ export default function DashboardScreen() {
                 ] as StyleProp<TextStyle>
               }
             >
-              {Math.max(
-                60,
-                100 -
-                  stats.symptomsThisWeek * 5 -
-                  (100 - stats.medicationCompliance)
-              )}
+              {stats.healthScore}
             </Text>
             <Text
               style={

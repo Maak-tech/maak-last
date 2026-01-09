@@ -41,6 +41,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useTranslation } from "react-i18next";
 import { auth, db } from "@/lib/firebase";
 import {
   processPPGSignalEnhanced,
@@ -80,6 +81,7 @@ export default function PPGVitalMonitorVisionCamera({
   // No need to call it here
   
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice("front");
   
@@ -1155,17 +1157,17 @@ export default function PPGVitalMonitorVisionCamera({
   const getStatusMessage = () => {
     switch (status) {
       case "instructions":
-        return "How to measure your heart rate";
+        return t("howToMeasureHeartRate");
       case "measuring":
-        return `Keep your finger still for ${MEASUREMENT_DURATION} seconds...`;
+        return t("keepFingerStill", { seconds: MEASUREMENT_DURATION });
       case "processing":
-        return "Processing heart rate measurement...";
+        return t("processingHeartRate");
       case "success":
-        return "Measurement complete!";
+        return t("measurementComplete");
       case "error":
         return error || "An error occurred";
       default:
-        return "Ready to measure heart rate";
+        return t("readyToMeasureHeartRate");
     }
   };
 
@@ -1273,15 +1275,16 @@ export default function PPGVitalMonitorVisionCamera({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.modal as ViewStyle}>
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' }}>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000, pointerEvents: 'box-none' }}>
           <TouchableOpacity
-            style={styles.closeButton as ViewStyle}
+            style={[styles.closeButton as ViewStyle, { zIndex: 10001 }]}
             onPress={() => {
               resetState();
               onClose();
             }}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <X color={theme.colors.text.primary} size={20} />
           </TouchableOpacity>
@@ -1304,7 +1307,7 @@ export default function PPGVitalMonitorVisionCamera({
               }}
             >
               <Text style={styles.title as StyleProp<TextStyle>}>
-                Vital Signs Monitor
+                {t("vitalsMonitor")}
               </Text>
               <View
                 style={{
@@ -1326,13 +1329,12 @@ export default function PPGVitalMonitorVisionCamera({
                     letterSpacing: 0.5,
                   }}
                 >
-                  REAL PPG
+                  {t("realPPG")}
                 </Text>
               </View>
             </View>
             <Text style={[styles.subtitle as StyleProp<TextStyle>, { fontSize: 14 }]}>
-              Measures heart rate, HRV, and respiratory rate using real camera
-              data (PPG technology)
+              {t("vitalSignsMonitorDescription")}
             </Text>
           </View>
 
@@ -1371,7 +1373,7 @@ export default function PPGVitalMonitorVisionCamera({
                       <Hand color={theme.colors.primary.main} size={20} />
                     </View>
                     <Text style={styles.instructionsTitle as StyleProp<TextStyle>}>
-                      How to Measure
+                      {t("howToMeasure")}
                     </Text>
                   </View>
 
@@ -1386,7 +1388,7 @@ export default function PPGVitalMonitorVisionCamera({
                     <Text
                       style={styles.instructionItemText as StyleProp<TextStyle>}
                     >
-                      Find a comfortable place to sit
+                      {t("instructionFindComfortablePlace")}
                     </Text>
                   </View>
 
@@ -1401,8 +1403,7 @@ export default function PPGVitalMonitorVisionCamera({
                     <Text
                       style={styles.instructionItemText as StyleProp<TextStyle>}
                     >
-                      Position your index finger or thumb over the FRONT camera
-                      (selfie camera) lens
+                      {t("instructionPositionFinger")}
                     </Text>
                   </View>
 
@@ -1417,8 +1418,7 @@ export default function PPGVitalMonitorVisionCamera({
                     <Text
                       style={styles.instructionItemText as StyleProp<TextStyle>}
                     >
-                      Cover the front camera lens completely - no gaps or light
-                      leaks
+                      {t("instructionCoverCamera")}
                     </Text>
                   </View>
 
@@ -1429,19 +1429,17 @@ export default function PPGVitalMonitorVisionCamera({
                     <Text
                       style={styles.instructionItemText as StyleProp<TextStyle>}
                     >
-                      Hold still for 60 seconds without moving
+                      {t("instructionHoldStill")}
                     </Text>
                   </View>
                 </View>
 
                 <View style={styles.educationPanel as ViewStyle}>
                   <Text style={styles.educationTitle as StyleProp<TextStyle>}>
-                    Real PPG Technology
+                    {t("realPPGTechnology")}
                   </Text>
                   <Text style={styles.educationText as StyleProp<TextStyle>}>
-                    This version uses real camera data to measure your heart rate
-                    by detecting blood volume changes in your fingertip. Medical-grade
-                    accuracy with 60-second measurement.
+                    {t("realPPGTechnologyDesc")}
                   </Text>
                 </View>
 
@@ -1451,28 +1449,28 @@ export default function PPGVitalMonitorVisionCamera({
                       <Lightbulb color={theme.colors.secondary.main} size={18} />
                     </View>
                     <Text style={styles.tipsTitle as StyleProp<TextStyle>}>
-                      Tips for Best Results
+                      {t("tipsForBestResults")}
                     </Text>
                   </View>
 
                   <View style={styles.tipItem as ViewStyle}>
                     <View style={styles.tipBullet as ViewStyle} />
                     <Text style={styles.tipText as StyleProp<TextStyle>}>
-                      Keep your hand steady and relaxed
+                      {t("tipKeepHandSteady")}
                     </Text>
                   </View>
 
                   <View style={styles.tipItem as ViewStyle}>
                     <View style={styles.tipBullet as ViewStyle} />
                     <Text style={styles.tipText as StyleProp<TextStyle>}>
-                      Don't press too hard - gentle contact works best
+                      {t("tipDontPressHard")}
                     </Text>
                   </View>
 
                   <View style={styles.tipItem as ViewStyle}>
                     <View style={styles.tipBullet as ViewStyle} />
                     <Text style={styles.tipText as StyleProp<TextStyle>}>
-                      Make sure your finger is warm (not cold)
+                      {t("tipFingerWarm")}
                     </Text>
                   </View>
                 </View>
@@ -1494,7 +1492,7 @@ export default function PPGVitalMonitorVisionCamera({
                         { marginBottom: theme.spacing.sm },
                       ]}
                     >
-                      Camera Permission Required
+                      {t("cameraPermissionRequired")}
                     </Text>
                     <Text
                       style={[
@@ -1529,7 +1527,7 @@ export default function PPGVitalMonitorVisionCamera({
                     >
                       <CheckCircle color={theme.colors.neutral.white} size={20} />
                       <Text style={styles.startButtonText as StyleProp<TextStyle>}>
-                        Grant Camera Permission
+                        {t("grantCameraPermission")}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1542,7 +1540,7 @@ export default function PPGVitalMonitorVisionCamera({
                 >
                   <CheckCircle color={theme.colors.neutral.white} size={20} />
                   <Text style={styles.startButtonText as StyleProp<TextStyle>}>
-                    Start Measurement
+                    {t("startMeasurement")}
                   </Text>
                 </TouchableOpacity>
 
@@ -1556,7 +1554,7 @@ export default function PPGVitalMonitorVisionCamera({
                 >
                   <ChevronLeft color={theme.colors.text.secondary} size={20} />
                   <Text style={styles.backButtonText as StyleProp<TextStyle>}>
-                    Back
+                    {t("back")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1567,9 +1565,7 @@ export default function PPGVitalMonitorVisionCamera({
                 {!fingerDetected ? (
                   <>
                     <Text style={styles.instructionText as StyleProp<TextStyle>}>
-                      Position your index finger or thumb over the FRONT camera
-                      (selfie camera) lens. Cover it completely - no gaps or light
-                      leaks.
+                      {t("instructionPositionFinger")}. {t("instructionCoverCamera")}.
                     </Text>
                     <Text
                       style={
@@ -1579,15 +1575,15 @@ export default function PPGVitalMonitorVisionCamera({
                         ] as StyleProp<TextStyle>
                       }
                     >
-                      Once your finger is in place, tap the button below to start
-                      measurement.
+                      {t("onceFingerInPlace")}
                     </Text>
                     <TouchableOpacity
-                      style={[styles.button as ViewStyle, { marginTop: 30 }]}
-                      onPress={handleFingerPlacement}
+                      style={[styles.button as ViewStyle, { marginTop: 30, opacity: 0.5 }]}
+                      disabled={true}
+                      onPress={() => {}}
                     >
                       <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                        ✓ Finger in Place - Start Measurement
+                        {t("comingSoon")}
                       </Text>
                     </TouchableOpacity>
                   </>
@@ -1647,7 +1643,7 @@ export default function PPGVitalMonitorVisionCamera({
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    Processing your heart rate...
+                    {t("processingYourHeartRate")}
                   </Text>
                 </View>
               </View>
@@ -1665,7 +1661,7 @@ export default function PPGVitalMonitorVisionCamera({
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    Measurement Complete!
+                    {t("measurementComplete")}
                   </Text>
 
                   <View style={styles.heartRateContainer as ViewStyle}>
@@ -1794,7 +1790,7 @@ export default function PPGVitalMonitorVisionCamera({
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    Your vital signs have been saved to your health records.
+                    {t("vitalSignsSaved")}
                   </Text>
                 )}
                 <TouchableOpacity
@@ -1802,7 +1798,7 @@ export default function PPGVitalMonitorVisionCamera({
                   onPress={onClose}
                 >
                   <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                    Done
+                    {t("done")}
                   </Text>
                 </TouchableOpacity>
               </View>

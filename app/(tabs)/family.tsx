@@ -57,6 +57,7 @@ import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { healthScoreService } from "@/lib/services/healthScoreService";
 import type { User } from "@/types";
 import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
 import { revenueCatService, PLAN_LIMITS } from "@/lib/services/revenueCatService";
@@ -202,16 +203,13 @@ export default function FamilyScreen() {
                 .catch(() => null),
             ]);
 
-          // Calculate health score
-          const recentSymptoms = symptoms.filter(
-            (s: { timestamp: Date }) =>
-              new Date(s.timestamp).getTime() >
-              Date.now() - 30 * 24 * 60 * 60 * 1000
+          // Calculate health score using the centralized service
+          const healthScoreResult = healthScoreService.calculateHealthScoreFromData(
+            symptoms,
+            medications
           );
+          const healthScore = healthScoreResult.score;
           const activeMedications = medications.filter((m: { isActive: boolean }) => m.isActive);
-          let healthScore = 100;
-          healthScore -= recentSymptoms.length * 5;
-          healthScore = Math.max(healthScore, 0);
 
           // Count symptoms this week
           const symptomsThisWeek = symptoms.filter(

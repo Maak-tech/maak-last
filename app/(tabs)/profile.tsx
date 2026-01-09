@@ -47,6 +47,7 @@ import {
 } from "@/lib/services/metricsExportService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { healthScoreService } from "@/lib/services/healthScoreService";
 import type { Medication, Symptom } from "@/types";
 
 interface ProfileSectionItem {
@@ -120,12 +121,13 @@ export default function ProfileScreen() {
       } else {
         setLoading(true);
       }
-      const [symptoms, medications] = await Promise.all([
+      const [symptoms, medications, healthScoreResult] = await Promise.all([
         symptomService.getUserSymptoms(user.id),
         medicationService.getUserMedications(user.id),
+        healthScoreService.calculateHealthScore(user.id),
       ]);
 
-      // Calculate health score based on recent symptoms and medication compliance
+      // Filter recent symptoms for display
       const recentSymptoms = symptoms.filter(
         (s) =>
           new Date(s.timestamp).getTime() >
@@ -133,14 +135,10 @@ export default function ProfileScreen() {
       );
       const activeMedications = medications.filter((m) => m.isActive);
 
-      let score = 100;
-      score -= recentSymptoms.length * 5; // Reduce score for recent symptoms
-      score = Math.max(score, 0);
-
       setHealthData({
         symptoms: recentSymptoms,
         medications: activeMedications,
-        healthScore: score,
+        healthScore: healthScoreResult.score,
       });
     } catch (error) {
       // Silently handle error

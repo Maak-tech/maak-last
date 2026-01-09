@@ -1,12 +1,15 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Info, Sparkles } from "lucide-react-native";
 
 // This screen is isolated - TextImpl errors only affect this route
 export default function PPGMeasureScreen() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const isRTL = i18n.language === "ar";
   const [PPGComponent, setPPGComponent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +45,7 @@ export default function PPGMeasureScreen() {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Loading PPG Monitor...</Text>
+        <Text style={styles.loadingText}>{isRTL ? "جاري تحميل مراقب PPG..." : "Loading PPG Monitor..."}</Text>
       </View>
     );
   }
@@ -50,7 +53,7 @@ export default function PPGMeasureScreen() {
   if (!PPGComponent) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Unable to load PPG component</Text>
+        <Text style={styles.errorText}>{isRTL ? "تعذر تحميل مكون PPG" : "Unable to load PPG component"}</Text>
       </View>
     );
   }
@@ -63,9 +66,9 @@ export default function PPGMeasureScreen() {
           <Sparkles color="#F59E0B" size={20} />
         </View>
         <View style={styles.bannerTextContainer}>
-          <Text style={styles.bannerTitle}>Real Camera PPG Coming Soon!</Text>
+          <Text style={styles.bannerTitle}>{isRTL ? "PPG الكاميرا الحقيقية قريباً!" : "Real Camera PPG Coming Soon!"}</Text>
           <Text style={styles.bannerSubtitle}>
-            Waiting for React Native Reanimated 4.0 for full camera support
+            {isRTL ? "في انتظار React Native Reanimated 4.0 لدعم الكاميرا الكامل" : "Waiting for React Native Reanimated 4.0 for full camera support"}
           </Text>
         </View>
       </View>
