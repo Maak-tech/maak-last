@@ -35,6 +35,7 @@ export interface Symptom {
   timestamp: Date;
   location?: string;
   triggers?: string[];
+  tags?: string[]; // User-defined tags for organization
 }
 
 export type MoodType =
@@ -92,6 +93,12 @@ export interface Medication {
   reminders: MedicationReminder[];
   notes?: string;
   isActive: boolean;
+  // Refill tracking fields
+  quantity?: number; // Current quantity (e.g., number of pills)
+  quantityUnit?: string; // Unit of quantity (e.g., "pills", "tablets", "ml", "doses")
+  lastRefillDate?: Date; // Date when medication was last refilled
+  refillReminderDays?: number; // Days before running out to send reminder (default: 7)
+  tags?: string[]; // User-defined tags for organization
 }
 
 export interface MedicationReminder {
@@ -112,6 +119,7 @@ export interface MedicalHistory {
   relation?: string;
   familyMemberId?: string; // ID of the family member this record belongs to
   familyMemberName?: string; // Name of the family member for display
+  tags?: string[]; // User-defined tags for organization
 }
 
 export interface Allergy {
@@ -134,6 +142,29 @@ export interface FamilyMember {
   inviteStatus: "pending" | "accepted" | "none";
   lastActive?: Date;
   healthScore?: number;
+}
+
+export interface LabResult {
+  id: string;
+  userId: string;
+  testName: string;
+  testType: "blood" | "urine" | "imaging" | "other";
+  testDate: Date;
+  orderedBy?: string; // Doctor/clinic name
+  facility?: string; // Lab/hospital name
+  results: LabResultValue[];
+  notes?: string;
+  attachments?: string[]; // URLs to PDFs or images
+  tags?: string[];
+}
+
+export interface LabResultValue {
+  name: string; // e.g., "Glucose", "Cholesterol", "Hemoglobin"
+  value: number | string; // Can be numeric or text (e.g., "Negative", "Positive")
+  unit?: string; // e.g., "mg/dL", "mmol/L", "%"
+  referenceRange?: string; // e.g., "70-100 mg/dL"
+  status?: "normal" | "high" | "low" | "abnormal" | "critical";
+  flagged?: boolean; // Whether this result was flagged by the lab
 }
 
 export interface VitalSign {
@@ -178,4 +209,48 @@ export interface Family {
   members: string[]; // array of user IDs
   status: "active" | "inactive";
   createdAt: Date;
+}
+
+export type CalendarEventType =
+  | "appointment"
+  | "medication"
+  | "symptom"
+  | "lab_result"
+  | "vaccination"
+  | "reminder"
+  | "other";
+
+export type RecurrencePattern =
+  | "none"
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "yearly"
+  | "custom";
+
+export interface CalendarEvent {
+  id: string;
+  userId: string;
+  familyId?: string; // If set, event is shared with family
+  title: string;
+  description?: string;
+  type: CalendarEventType;
+  startDate: Date;
+  endDate?: Date;
+  allDay: boolean;
+  location?: string;
+  attendees?: string[]; // User IDs of attendees
+  recurrencePattern?: RecurrencePattern;
+  recurrenceEndDate?: Date;
+  recurrenceCount?: number; // Number of occurrences
+  relatedItemId?: string; // ID of related medication, symptom, etc.
+  relatedItemType?: "medication" | "symptom" | "labResult" | "appointment";
+  color?: string; // Hex color for calendar display
+  reminders?: Array<{
+    minutesBefore: number;
+    sent: boolean;
+  }>;
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
 }

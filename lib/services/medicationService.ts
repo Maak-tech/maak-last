@@ -542,4 +542,34 @@ export const medicationService = {
       };
     }
   },
+
+  // Bulk add medications
+  async bulkAddMedications(
+    medications: Array<Omit<Medication, "id">>,
+    userId: string
+  ): Promise<{ success: number; failed: number; errors: string[] }> {
+    const result = { success: 0, failed: 0, errors: [] as string[] };
+
+    for (const medication of medications) {
+      try {
+        // Ensure userId is set
+        const medicationWithUserId = {
+          ...medication,
+          userId,
+        };
+
+        await this.addMedication(medicationWithUserId);
+        result.success++;
+      } catch (error) {
+        result.failed++;
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : `Failed to add ${medication.name}`;
+        result.errors.push(errorMessage);
+      }
+    }
+
+    return result;
+  },
 };

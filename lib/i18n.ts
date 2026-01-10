@@ -73,6 +73,7 @@ const resources = {
 
       // Dashboard
       healthOverview: "Health Overview",
+      healthInsights: "Health Insights",
       recentSymptoms: "Recent Symptoms",
       upcomingMeds: "Upcoming Medications",
       familyAlerts: "Family Alerts",
@@ -357,7 +358,6 @@ const resources = {
       startMeasurement: "Start Measurement",
       fingerInPlaceStartMeasurement: "✓ Finger in Place - Start Measurement",
       grantCameraPermission: "Grant Camera Permission",
-      back: "Back",
       done: "Done",
       realPPG: "REAL PPG",
       beta: "BETA",
@@ -622,6 +622,7 @@ const resources = {
 
       // Dashboard
       healthOverview: "نظرة عامة على الصحة",
+      healthInsights: "تحليلات صحية",
       recentSymptoms: "الأعراض الأخيرة",
       upcomingMeds: "الأدوية القادمة",
       familyAlerts: "تنبيهات العائلة",
@@ -905,7 +906,6 @@ const resources = {
       startMeasurement: "بدء القياس",
       fingerInPlaceStartMeasurement: "✓ الإصبع في المكان - بدء القياس",
       grantCameraPermission: "منح إذن الكاميرا",
-      back: "رجوع",
       done: "تم",
       realPPG: "PPG حقيقي",
       beta: "تجريبي",

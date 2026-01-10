@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { Clock, Edit, Minus, Pill, Plus, Trash2, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,10 +19,15 @@ import {
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
+import BulkMedicationImport from "@/app/components/BulkMedicationImport";
+import MedicationRefillCard from "@/app/components/MedicationRefillCard";
+import MedicationInteractionWarning from "@/app/components/MedicationInteractionWarning";
+import TagInput from "@/app/components/TagInput";
 import AnimatedCheckButton from "@/components/AnimatedCheckButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { medicationService } from "@/lib/services/medicationService";
+import { medicationRefillService } from "@/lib/services/medicationRefillService";
 import { userService } from "@/lib/services/userService";
 import { convertTo12Hour, convertTo24Hour } from "@/lib/utils/timeFormat";
 import type { Medication, MedicationReminder, User as UserType } from "@/types";
@@ -196,6 +202,7 @@ export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -205,6 +212,11 @@ export default function MedicationsScreen() {
     frequency: "",
     reminders: [] as { id?: string; time: string; period: "AM" | "PM" }[],
     notes: "",
+    quantity: undefined as number | undefined,
+    quantityUnit: "pills" as string,
+    lastRefillDate: undefined as Date | undefined,
+    refillReminderDays: 7 as number,
+    tags: [] as string[],
   });
   const [editingMedication, setEditingMedication] = useState<Medication | null>(
     null
@@ -221,6 +233,9 @@ export default function MedicationsScreen() {
   );
   const [showSuggestions, setShowSuggestions] = useState(false);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [refillSummary, setRefillSummary] = useState(
+    medicationRefillService.getRefillPredictions([])
+  );
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -244,25 +259,48 @@ export default function MedicationsScreen() {
         setFamilyMembers(members);
       }
 
+      let loadedMedications: Medication[] = [];
+
       // Load data based on selected filter
       if (selectedFilter.type === "family" && user.familyId) {
         // Load family medications (both admins and members can view)
-        const familyMedications =
+        loadedMedications =
           await medicationService.getFamilyTodaysMedications(user.familyId);
-        setMedications(familyMedications);
+        setMedications(loadedMedications);
       } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
         // Load specific member medications (both admins and members can view)
-        const memberMedications = await medicationService.getMemberMedications(
+        loadedMedications = await medicationService.getMemberMedications(
           selectedFilter.memberId
         );
-        setMedications(memberMedications);
+        setMedications(loadedMedications);
       } else {
         // Load personal medications (default)
-        const userMedications = await medicationService.getUserMedications(
+        loadedMedications = await medicationService.getUserMedications(
           user.id
         );
-        setMedications(userMedications);
+        setMedications(loadedMedications);
       }
+
+      // Calculate refill predictions for loaded medications
+      // Use all medications (not just today's) for refill calculations
+      let allMedicationsForRefill: Medication[] = [];
+      if (selectedFilter.type === "family" && user.familyId) {
+        allMedicationsForRefill =
+          await medicationService.getFamilyMedications(user.familyId);
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+        allMedicationsForRefill = await medicationService.getMemberMedications(
+          selectedFilter.memberId
+        );
+      } else {
+        allMedicationsForRefill = await medicationService.getUserMedications(
+          user.id
+        );
+      }
+
+      const summary = medicationRefillService.getRefillPredictions(
+        allMedicationsForRefill
+      );
+      setRefillSummary(summary);
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
@@ -381,6 +419,19 @@ export default function MedicationsScreen() {
           ...(newMedication.notes.trim() && {
             notes: newMedication.notes.trim(),
           }),
+          ...(newMedication.quantity !== undefined && {
+            quantity: newMedication.quantity,
+          }),
+          ...(newMedication.quantityUnit && {
+            quantityUnit: newMedication.quantityUnit,
+          }),
+          ...(newMedication.lastRefillDate && {
+            lastRefillDate: newMedication.lastRefillDate,
+          }),
+          refillReminderDays: newMedication.refillReminderDays,
+          ...(newMedication.tags && newMedication.tags.length > 0 && {
+            tags: newMedication.tags,
+          }),
         };
 
         await medicationService.updateMedication(
@@ -460,6 +511,19 @@ export default function MedicationsScreen() {
           ...(newMedication.notes.trim() && {
             notes: newMedication.notes.trim(),
           }),
+          ...(newMedication.quantity !== undefined && {
+            quantity: newMedication.quantity,
+          }),
+          ...(newMedication.quantityUnit && {
+            quantityUnit: newMedication.quantityUnit,
+          }),
+          ...(newMedication.lastRefillDate && {
+            lastRefillDate: newMedication.lastRefillDate,
+          }),
+          refillReminderDays: newMedication.refillReminderDays,
+          ...(newMedication.tags && newMedication.tags.length > 0 && {
+            tags: newMedication.tags,
+          }),
           isActive: true,
         };
 
@@ -530,6 +594,11 @@ export default function MedicationsScreen() {
         frequency: "",
         reminders: [{ time: "", period: "AM" }],
         notes: "",
+        quantity: undefined,
+        quantityUnit: "pills",
+        lastRefillDate: undefined,
+        refillReminderDays: 7,
+        tags: [],
       });
       setSelectedTargetUser("");
       setMedicationSuggestions([]);
@@ -586,6 +655,10 @@ export default function MedicationsScreen() {
       name: medication.name,
       dosage: medication.dosage,
       frequency: medication.frequency,
+      quantity: medication.quantity,
+      quantityUnit: medication.quantityUnit || "pills",
+      lastRefillDate: medication.lastRefillDate,
+      refillReminderDays: medication.refillReminderDays || 7,
       reminders: medication.reminders.map((reminder) => {
         // Parse 24-hour time to get time and period
         const [hoursStr, minutesStr] = reminder.time.split(":");
@@ -616,6 +689,7 @@ export default function MedicationsScreen() {
         };
       }),
       notes: medication.notes || "",
+      tags: medication.tags || [],
     });
     setSelectedTargetUser(medication.userId);
     // Clear suggestions state when opening edit modal
@@ -757,24 +831,37 @@ export default function MedicationsScreen() {
         <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
           {t("medications")}
         </Heading>
-        <TouchableOpacity
-          onPress={() => {
-            setNewMedication({
-              name: "",
-              dosage: "",
-              frequency: "",
-              reminders: [{ time: "", period: "AM" }], // Start with one empty reminder
-              notes: "",
-            });
-            setSelectedTargetUser(user.id);
-            setMedicationSuggestions([]);
-            setShowSuggestions(false);
-            setShowAddModal(true);
-          }}
-          style={styles.headerAddButton}
-        >
-          <Plus color="#FFFFFF" size={24} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            onPress={() => setShowBulkImportModal(true)}
+            style={[styles.headerAddButton, styles.bulkImportButton]}
+          >
+            <Ionicons name="document-text" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setNewMedication({
+                name: "",
+                dosage: "",
+                frequency: "",
+                reminders: [{ time: "", period: "AM" }], // Start with one empty reminder
+                notes: "",
+                quantity: undefined,
+                quantityUnit: "pills",
+                lastRefillDate: undefined,
+                refillReminderDays: 7,
+                tags: [],
+              });
+              setSelectedTargetUser(user.id);
+              setMedicationSuggestions([]);
+              setShowSuggestions(false);
+              setShowAddModal(true);
+            }}
+            style={styles.headerAddButton}
+          >
+            <Plus color="#FFFFFF" size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -798,6 +885,18 @@ export default function MedicationsScreen() {
           onFilterChange={handleFilterChange}
           selectedFilter={selectedFilter}
         />
+
+        {/* Refill Alerts */}
+        {selectedFilter.type === "personal" && (
+          <MedicationRefillCard refillSummary={refillSummary} />
+        )}
+
+        {/* Medication Interaction Warnings */}
+        {selectedFilter.type === "personal" && user && medications.filter((m) => m.isActive).length > 1 && (
+          <MedicationInteractionWarning
+            medications={medications.filter((m) => m.isActive)}
+          />
+        )}
 
         {/* Today's Progress */}
         <Card variant="elevated" style={styles.progressCard} onPress={undefined} contentStyle={undefined}>
@@ -887,6 +986,25 @@ export default function MedicationsScreen() {
                       >
                         {medication.dosage} • {medication.frequency}
                       </Caption>
+                      {medication.tags && medication.tags.length > 0 && (
+                        <View style={styles.medicationTags}>
+                          {medication.tags.slice(0, 3).map((tag, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              size="small"
+                              style={styles.medicationTag}
+                            >
+                              <Text style={styles.medicationTagText}>{tag}</Text>
+                            </Badge>
+                          ))}
+                          {medication.tags.length > 3 && (
+                            <Caption style={styles.moreTagsText} numberOfLines={1}>
+                              +{medication.tags.length - 3}
+                            </Caption>
+                          )}
+                        </View>
+                      )}
                       <View style={styles.medicationTime}>
                         <Clock color="#64748B" size={12} />
                         <Caption
@@ -986,6 +1104,11 @@ export default function MedicationsScreen() {
                   frequency: "",
                   reminders: [{ time: "", period: "AM" }],
                   notes: "",
+                  quantity: undefined,
+                  quantityUnit: "pills",
+                  lastRefillDate: undefined,
+                  refillReminderDays: 7,
+                  tags: [],
                 });
                 setMedicationSuggestions([]);
                 setShowSuggestions(false);
@@ -1375,6 +1498,112 @@ export default function MedicationsScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Quantity Tracking (Optional) */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                {isRTL ? "تتبع الكمية" : "Quantity Tracking"} ({isRTL ? "اختياري" : "Optional"})
+              </Text>
+              <View style={styles.quantityRow}>
+                <View style={styles.quantityInputContainer}>
+                  <Input
+                    label={isRTL ? "الكمية" : "Quantity"}
+                    keyboardType="numeric"
+                    onChangeText={(text: string) => {
+                      const num = text ? Number.parseInt(text) : undefined;
+                      setNewMedication({
+                        ...newMedication,
+                        quantity: num && !isNaN(num) ? num : undefined,
+                      });
+                    }}
+                    placeholder={isRTL ? "30" : "30"}
+                    style={[styles.quantityInput, isRTL && styles.rtlInput]}
+                    textAlign={isRTL ? "right" : "left"}
+                    value={
+                      newMedication.quantity !== undefined
+                        ? newMedication.quantity.toString()
+                        : ""
+                    }
+                    error={undefined}
+                    helperText={undefined}
+                    leftIcon={undefined}
+                    rightIcon={undefined}
+                  />
+                </View>
+                <View style={styles.unitInputContainer}>
+                  <Input
+                    label={isRTL ? "الوحدة" : "Unit"}
+                    onChangeText={(text: string) =>
+                      setNewMedication({
+                        ...newMedication,
+                        quantityUnit: text || "pills",
+                      })
+                    }
+                    placeholder={isRTL ? "حبة" : "pills"}
+                    style={[styles.unitInput, isRTL && styles.rtlInput]}
+                    textAlign={isRTL ? "right" : "left"}
+                    value={newMedication.quantityUnit}
+                    error={undefined}
+                    helperText={undefined}
+                    leftIcon={undefined}
+                    rightIcon={undefined}
+                  />
+                </View>
+              </View>
+              <Caption style={[styles.helperText, isRTL && styles.rtlText]} numberOfLines={undefined}>
+                {isRTL
+                  ? "عدد الحبات/الكمية الحالية المتوفرة"
+                  : "Current quantity available (e.g., number of pills)"}
+              </Caption>
+            </View>
+
+            {/* Refill Reminder Settings */}
+            <View style={styles.fieldContainer}>
+              <Input
+                label={`${isRTL ? "تنبيه قبل" : "Remind me"} (${isRTL ? "أيام" : "days"})`}
+                keyboardType="numeric"
+                onChangeText={(text: string) => {
+                  const num = text ? Number.parseInt(text) : 7;
+                  setNewMedication({
+                    ...newMedication,
+                    refillReminderDays: num && !isNaN(num) ? num : 7,
+                  });
+                }}
+                placeholder="7"
+                style={[styles.input, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                value={newMedication.refillReminderDays.toString()}
+                error={undefined}
+                helperText={undefined}
+                leftIcon={undefined}
+                rightIcon={undefined}
+              />
+              <Caption style={[styles.helperText, isRTL && styles.rtlText]} numberOfLines={undefined}>
+                {isRTL
+                  ? "عدد الأيام قبل نفاد الدواء لإرسال تنبيه"
+                  : "Days before running out to send reminder"}
+              </Caption>
+            </View>
+
+            {/* Tags */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                {isRTL ? "العلامات" : "Tags"} ({isRTL ? "اختياري" : "Optional"})
+              </Text>
+              <TagInput
+                tags={newMedication.tags}
+                onChangeTags={(tags) =>
+                  setNewMedication({ ...newMedication, tags })
+                }
+                placeholder={
+                  isRTL
+                    ? "أضف علامات للتنظيم (مثل: صباحي، مزمن، طوارئ)"
+                    : "Add tags for organization (e.g., morning, chronic, emergency)"
+                }
+                maxTags={10}
+                showSuggestions={true}
+              />
+            </View>
+
             {/* Notes */}
             <View style={styles.fieldContainer}>
               <Input
@@ -1410,6 +1639,15 @@ export default function MedicationsScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Bulk Import Modal */}
+      <BulkMedicationImport
+        visible={showBulkImportModal}
+        onClose={() => setShowBulkImportModal(false)}
+        onImportComplete={() => {
+          loadMedications();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -1432,6 +1670,11 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Bold",
     color: "#1E293B",
   },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
   headerAddButton: {
     width: 44,
     height: 44,
@@ -1439,6 +1682,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
     justifyContent: "center",
     alignItems: "center",
+  },
+  bulkImportButton: {
+    backgroundColor: "#10B981",
   },
   content: {
     flex: 1,
@@ -1610,6 +1856,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-Regular",
     backgroundColor: "#FFFFFF",
+  },
+  quantityRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  quantityInputContainer: {
+    flex: 1,
+  },
+  quantityInput: {
+    flex: 1,
+  },
+  unitInputContainer: {
+    flex: 1,
+  },
+  unitInput: {
+    flex: 1,
   },
   textArea: {
     borderWidth: 1,
@@ -1883,5 +2146,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-Regular",
     color: "#1E293B",
+  },
+  medicationTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 4,
+    alignItems: "center",
+  },
+  medicationTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  medicationTagText: {
+    fontSize: 10,
+    fontFamily: "Geist-Medium",
+  },
+  moreTagsText: {
+    fontSize: 10,
+    color: "#64748B",
+    marginLeft: 4,
   },
 });

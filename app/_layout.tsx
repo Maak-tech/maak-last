@@ -19,6 +19,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import OfflineIndicator from "@/app/components/OfflineIndicator";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
 import i18n from "@/lib/i18n";
@@ -139,6 +140,7 @@ export default function RootLayout() {
         <AuthProvider>
           <FallDetectionProvider>
             <StatusBar style="auto" />
+            <OfflineIndicator />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

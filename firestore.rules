@@ -174,6 +174,33 @@ service cloud.firestore {
       allow list: if request.auth != null;
     }
 
+    // Lab Results collection
+    match /labResults/{labResultId} {
+      // Allow users to create their own lab results (primary rule - no document reads required)
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // Allow admins to create lab results for family members (secondary rule - requires user document)
+      allow create: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        isFamilyAdmin() && 
+        isSameFamily(request.resource.data.userId);
+      
+      // Allow users to read and write their own lab results
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Allow family members to read each other's lab results (for viewing family data)
+      allow read: if request.auth != null && isSameFamily(resource.data.userId);
+      
+      // Allow admins to update/delete lab results for family members
+      allow update, delete: if request.auth != null && 
+        isFamilyAdmin() && 
+        isSameFamily(resource.data.userId);
+      
+      // Allow authenticated users to query/list lab results (queries are filtered by userId in the app)
+      // Individual document access is still controlled by the read rules above
+      allow list: if request.auth != null;
+    }
+
     // Family invitation codes
     match /familyInvitations/{invitationId} {
       allow create: if request.auth != null && request.auth.uid == request.resource.data.invitedBy;

@@ -294,7 +294,7 @@ export default function PPGVitalMonitorVisionCamera({
       position: "absolute",
       top: theme.spacing.lg,
       right: theme.spacing.lg,
-      zIndex: 1000,
+      zIndex: 10001,
       backgroundColor: theme.colors.background.secondary,
       borderRadius: theme.borderRadius.full,
       padding: theme.spacing.sm,
@@ -1189,19 +1189,17 @@ export default function PPGVitalMonitorVisionCamera({
         onRequestClose={onClose}
       >
         <SafeAreaView style={styles.modal as ViewStyle}>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' }}>
-            <TouchableOpacity
-              style={styles.closeButton as ViewStyle}
-              onPress={() => {
-                resetState();
-                onClose();
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              activeOpacity={0.7}
-            >
-              <X color={theme.colors.text.primary} size={20} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.closeButton as ViewStyle, { zIndex: 10001, elevation: 20 }]}
+            onPress={() => {
+              resetState();
+              onClose();
+            }}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            activeOpacity={0.7}
+          >
+            <X color={theme.colors.text.primary} size={20} />
+          </TouchableOpacity>
           <View style={styles.container as ViewStyle}>
             <View style={styles.content as ViewStyle}>
               <Text style={styles.title as StyleProp<TextStyle>}>
@@ -1238,19 +1236,17 @@ export default function PPGVitalMonitorVisionCamera({
         onRequestClose={onClose}
       >
         <SafeAreaView style={styles.modal as ViewStyle}>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, pointerEvents: 'box-none' }}>
-            <TouchableOpacity
-              style={styles.closeButton as ViewStyle}
-              onPress={() => {
-                resetState();
-                onClose();
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              activeOpacity={0.7}
-            >
-              <X color={theme.colors.text.primary} size={20} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[styles.closeButton as ViewStyle, { zIndex: 10001, elevation: 20 }]}
+            onPress={() => {
+              resetState();
+              onClose();
+            }}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            activeOpacity={0.7}
+          >
+            <X color={theme.colors.text.primary} size={20} />
+          </TouchableOpacity>
           <View style={styles.container as ViewStyle}>
             <View style={styles.content as ViewStyle}>
               <Text style={styles.title as StyleProp<TextStyle>}>
@@ -1275,26 +1271,24 @@ export default function PPGVitalMonitorVisionCamera({
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.modal as ViewStyle}>
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000, pointerEvents: 'box-none' }}>
-          <TouchableOpacity
-            style={[styles.closeButton as ViewStyle, { zIndex: 10001 }]}
-            onPress={() => {
-              resetState();
-              onClose();
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.7}
-            pointerEvents="auto"
-          >
-            <X color={theme.colors.text.primary} size={20} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.closeButton as ViewStyle, { zIndex: 10001, elevation: 20 }]}
+          onPress={() => {
+            resetState();
+            onClose();
+          }}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          activeOpacity={0.7}
+        >
+          <X color={theme.colors.text.primary} size={20} />
+        </TouchableOpacity>
 
         <ScrollView
           style={styles.container as ViewStyle}
           contentContainerStyle={styles.scrollContent as ViewStyle}
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="automatic"
+          scrollEventThrottle={16}
         >
           <View style={styles.header as ViewStyle}>
             <View

@@ -4,22 +4,28 @@ import {
   Activity,
   Bell,
   BookOpen,
+  Calendar as CalendarIcon,
   Calendar,
   Check,
+  ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
   Globe,
   Heart,
   HelpCircle,
   Lock,
   LogOut,
+  MapPin,
   Moon,
+  Plus,
   Shield,
   Sun,
   User,
+  Users,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -32,6 +38,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -40,6 +47,7 @@ import type { AvatarType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import GlobalSearch from "@/app/components/GlobalSearch";
 import { medicationService } from "@/lib/services/medicationService";
 import {
   type ExportFormat,
@@ -47,8 +55,13 @@ import {
 } from "@/lib/services/metricsExportService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
-import { healthScoreService } from "@/lib/services/healthScoreService";
-import type { Medication, Symptom } from "@/types";
+import { healthScoreService, type HealthScoreResult } from "@/lib/services/healthScoreService";
+import { calendarService } from "@/lib/services/calendarService";
+import type { Medication, Symptom, CalendarEvent, RecurrencePattern } from "@/types";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Button, Card } from "@/components/design-system";
+import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
+import TagInput from "@/app/components/TagInput";
 
 interface ProfileSectionItem {
   icon: any;
@@ -71,19 +84,43 @@ export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
-  const { themeMode, setThemeMode, isDark } = useTheme();
+  const { themeMode, setThemeMode, isDark, theme } = useTheme();
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
   const [avatarCreatorVisible, setAvatarCreatorVisible] = useState(false);
+  const [healthScoreModalVisible, setHealthScoreModalVisible] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [healthData, setHealthData] = useState({
     symptoms: [] as Symptom[],
     medications: [] as Medication[],
     healthScore: 85,
+    healthScoreResult: null as HealthScoreResult | null,
   });
   const [exporting, setExporting] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState(new Date());
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarRefreshing, setCalendarRefreshing] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [includeFamily, setIncludeFamily] = useState(true);
+  const [showAddEventModal, setShowAddEventModal] = useState(false);
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDescription, setEventDescription] = useState("");
+  const [eventType, setEventType] = useState<CalendarEvent["type"]>("appointment");
+  const [eventStartDate, setEventStartDate] = useState(new Date());
+  const [eventEndDate, setEventEndDate] = useState<Date | undefined>(undefined);
+  const [eventAllDay, setEventAllDay] = useState(false);
+  const [eventLocation, setEventLocation] = useState("");
+  const [eventRecurrencePattern, setEventRecurrencePattern] = useState<RecurrencePattern>("none");
+  const [eventShareWithFamily, setEventShareWithFamily] = useState(false);
+  const [eventTags, setEventTags] = useState<string[]>([]);
+  const [savingEvent, setSavingEvent] = useState(false);
 
   const isRTL = i18n.language === "ar";
 
@@ -139,6 +176,7 @@ export default function ProfileScreen() {
         symptoms: recentSymptoms,
         medications: activeMedications,
         healthScore: healthScoreResult.score,
+        healthScoreResult,
       });
     } catch (error) {
       // Silently handle error
@@ -200,6 +238,236 @@ export default function ProfileScreen() {
       );
     }
   };
+
+  const loadCalendarEvents = useCallback(async (isRefresh = false) => {
+    if (!user) return;
+
+    try {
+      if (isRefresh) {
+        setCalendarRefreshing(true);
+      } else {
+        setCalendarLoading(true);
+      }
+
+      const startOfMonth = new Date(
+        calendarCurrentDate.getFullYear(),
+        calendarCurrentDate.getMonth(),
+        1
+      );
+      const endOfMonth = new Date(
+        calendarCurrentDate.getFullYear(),
+        calendarCurrentDate.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
+
+      const userEvents = await calendarService.getEventsForDateRange(
+        user.id,
+        startOfMonth,
+        endOfMonth,
+        includeFamily && user.familyId ? true : false,
+        user.familyId
+      );
+
+      setCalendarEvents(userEvents);
+    } catch (error) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل تحميل الأحداث" : "Failed to load events"
+      );
+    } finally {
+      setCalendarLoading(false);
+      setCalendarRefreshing(false);
+    }
+  }, [user, calendarCurrentDate, includeFamily, isRTL]);
+
+  const navigateMonth = (direction: "prev" | "next") => {
+    const newDate = new Date(calendarCurrentDate);
+    if (direction === "prev") {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setCalendarCurrentDate(newDate);
+  };
+
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const formatMonthYear = (date: Date) => {
+    return date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const getWeekDays = () => {
+    const days = isRTL
+      ? ["ح", "ن", "ث", "ر", "خ", "ج", "س"]
+      : ["S", "M", "T", "W", "T", "F", "S"];
+    return days;
+  };
+
+  const getEventsForDay = (day: number) => {
+    const date = new Date(
+      calendarCurrentDate.getFullYear(),
+      calendarCurrentDate.getMonth(),
+      day
+    );
+    return calendarEvents.filter((event) => {
+      const eventDate = new Date(event.startDate);
+      return (
+        eventDate.getDate() === date.getDate() &&
+        eventDate.getMonth() === date.getMonth() &&
+        eventDate.getFullYear() === date.getFullYear()
+      );
+    });
+  };
+
+  const getSelectedDateEvents = () => {
+    return calendarEvents.filter((event) => {
+      const eventDate = new Date(event.startDate);
+      return (
+        eventDate.getDate() === calendarSelectedDate.getDate() &&
+        eventDate.getMonth() === calendarSelectedDate.getMonth() &&
+        eventDate.getFullYear() === calendarSelectedDate.getFullYear()
+      );
+    });
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString(isRTL ? "ar" : "en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getEventTypeLabel = (type: CalendarEvent["type"]) => {
+    const labels: Record<CalendarEvent["type"], { en: string; ar: string }> = {
+      appointment: { en: "Appointment", ar: "موعد" },
+      medication: { en: "Medication", ar: "دواء" },
+      symptom: { en: "Symptom", ar: "عرض" },
+      lab_result: { en: "Lab Result", ar: "نتيجة مختبر" },
+      vaccination: { en: "Vaccination", ar: "تطعيم" },
+      reminder: { en: "Reminder", ar: "تذكير" },
+      other: { en: "Other", ar: "أخرى" },
+    };
+    return isRTL ? labels[type].ar : labels[type].en;
+  };
+
+  const getEventColor = (eventType: CalendarEvent["type"]): string => {
+    const colors: Record<CalendarEvent["type"], string> = {
+      appointment: "#10B981",
+      medication: "#3B82F6",
+      symptom: "#EF4444",
+      lab_result: "#8B5CF6",
+      vaccination: "#F59E0B",
+      reminder: "#6366F1",
+      other: "#64748B",
+    };
+    return colors[eventType];
+  };
+
+  const handleSaveEvent = async () => {
+    if (!user) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يجب تسجيل الدخول" : "You must be logged in"
+      );
+      return;
+    }
+
+    if (!eventTitle.trim()) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يرجى إدخال العنوان" : "Please enter a title"
+      );
+      return;
+    }
+
+    setSavingEvent(true);
+    try {
+      // Set endDate to startDate + 1 hour if not set and not allDay
+      let finalEndDate = eventEndDate;
+      if (!finalEndDate && !eventAllDay) {
+        finalEndDate = new Date(eventStartDate);
+        finalEndDate.setHours(finalEndDate.getHours() + 1);
+      } else if (eventAllDay) {
+        // For all-day events, set endDate to end of the same day
+        finalEndDate = new Date(eventStartDate);
+        finalEndDate.setHours(23, 59, 59, 999);
+      }
+
+      await calendarService.addEvent(user.id, {
+        title: eventTitle.trim(),
+        description: eventDescription.trim() || undefined,
+        type: eventType,
+        startDate: eventStartDate,
+        endDate: finalEndDate,
+        allDay: eventAllDay,
+        location: eventLocation.trim() || undefined,
+        recurrencePattern: eventRecurrencePattern !== "none" ? eventRecurrencePattern : undefined,
+        familyId: eventShareWithFamily && user.familyId ? user.familyId : undefined,
+        tags: eventTags.length > 0 ? eventTags : undefined,
+        color: getEventColor(eventType),
+        reminders: eventType === "appointment" ? [
+          { minutesBefore: 60, sent: false },
+          { minutesBefore: 1440, sent: false },
+        ] : undefined,
+      });
+
+      Alert.alert(
+        isRTL ? "نجح" : "Success",
+        isRTL ? "تم إضافة الحدث بنجاح" : "Event added successfully",
+        [
+          {
+            text: isRTL ? "حسناً" : "OK",
+            onPress: () => {
+              setShowAddEventModal(false);
+              resetEventForm();
+              loadCalendarEvents();
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error("Error adding event:", error);
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL 
+          ? `فشل إضافة الحدث: ${error?.message || "خطأ غير معروف"}`
+          : `Failed to add event: ${error?.message || "Unknown error"}`
+      );
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  const resetEventForm = () => {
+    setEventTitle("");
+    setEventDescription("");
+    setEventType("appointment");
+    setEventStartDate(new Date());
+    setEventEndDate(undefined);
+    setEventAllDay(false);
+    setEventLocation("");
+    setEventRecurrencePattern("none");
+    setEventShareWithFamily(false);
+    setEventTags([]);
+  };
+
+  useEffect(() => {
+    if (showCalendarModal) {
+      loadCalendarEvents();
+    }
+  }, [calendarCurrentDate, showCalendarModal]);
 
   const performExport = async (format: ExportFormat) => {
     try {
@@ -292,6 +560,14 @@ export default function ProfileScreen() {
           onPress: handleHealthReports,
         },
         {
+          icon: Calendar,
+          label: t("calendar"),
+          onPress: () => {
+            setShowCalendarModal(true);
+            loadCalendarEvents();
+          },
+        },
+        {
           icon: BookOpen,
           label: t("healthResources"),
           onPress: () => router.push("/(tabs)/resources"),
@@ -358,10 +634,24 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, isRTL && { flexDirection: "row-reverse" }]}>
         <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
           {t("profile")}
         </Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => setShowSearch(true)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{
+            backgroundColor: isDark ? "#1E293B" : "#F1F5F9",
+            borderRadius: 20,
+            padding: 10,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: 20 }}>🔍</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -418,7 +708,11 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <View style={styles.healthGrid}>
-              <View style={styles.healthCard}>
+              <TouchableOpacity
+                style={styles.healthCard}
+                onPress={() => setHealthScoreModalVisible(true)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.healthIconContainer}>
                   <Activity color="#10B981" size={24} />
                 </View>
@@ -431,7 +725,7 @@ export default function ProfileScreen() {
                 >
                   {t("healthScore")}
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               <View style={styles.healthCard}>
                 <View style={styles.healthIconContainer}>
@@ -713,6 +1007,648 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Health Score Breakdown Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setHealthScoreModalVisible(false)}
+        visible={healthScoreModalVisible}
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
+                {isRTL ? "تفاصيل نقاط الصحة" : "Health Score Breakdown"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setHealthScoreModalVisible(false)}
+                style={styles.modalCloseButton}
+              >
+                <X color="#64748B" size={24} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.healthScoreBreakdownContent}>
+              {healthData.healthScoreResult ? (
+                <>
+                  {/* Overall Score */}
+                  <View style={styles.breakdownSection}>
+                    <View style={styles.scoreDisplay}>
+                      <Text style={[styles.scoreValue, isRTL && { textAlign: "left" }]}>
+                        {healthData.healthScoreResult.score}
+                      </Text>
+                      <Text style={[styles.scoreOutOf, isRTL && { textAlign: "left" }]}>
+                        {isRTL ? "من 100" : "out of 100"}
+                      </Text>
+                      <View style={styles.ratingBadge}>
+                        <Text style={[styles.ratingText, isRTL && { textAlign: "left" }]}>
+                          {healthData.healthScoreResult.rating === "excellent" && (isRTL ? "ممتاز" : "Excellent")}
+                          {healthData.healthScoreResult.rating === "good" && (isRTL ? "جيد" : "Good")}
+                          {healthData.healthScoreResult.rating === "fair" && (isRTL ? "مقبول" : "Fair")}
+                          {healthData.healthScoreResult.rating === "poor" && (isRTL ? "ضعيف" : "Poor")}
+                          {healthData.healthScoreResult.rating === "critical" && (isRTL ? "حرج" : "Critical")}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Calculation Breakdown */}
+                  <View style={styles.breakdownSection}>
+                    <Text style={[styles.breakdownTitle, isRTL && { textAlign: "left" }]}>
+                      {isRTL ? "كيف تم حساب النقاط" : "How Your Score Was Calculated"}
+                    </Text>
+                    
+                    {/* Base Score */}
+                    <View style={styles.breakdownRow}>
+                      <Text style={[styles.breakdownLabel, isRTL && { textAlign: "left" }]}>
+                        {isRTL ? "النقاط الأساسية" : "Base Score"}
+                      </Text>
+                      <Text style={[styles.breakdownValue, isRTL && { textAlign: "left" }]}>
+                        +{healthData.healthScoreResult.breakdown.baseScore}
+                      </Text>
+                    </View>
+
+                    {/* Symptom Penalty */}
+                    {healthData.healthScoreResult.breakdown.symptomPenalty > 0 && (
+                      <View style={styles.breakdownRow}>
+                        <Text style={[styles.breakdownLabel, isRTL && { textAlign: "left" }]}>
+                          {isRTL ? "خصم الأعراض" : "Symptom Penalty"}
+                        </Text>
+                        <Text style={[styles.breakdownValueNegative, isRTL && { textAlign: "left" }]}>
+                          -{healthData.healthScoreResult.breakdown.symptomPenalty.toFixed(1)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Medication Bonus */}
+                    {healthData.healthScoreResult.breakdown.medicationBonus !== 0 && (
+                      <View style={styles.breakdownRow}>
+                        <Text style={[styles.breakdownLabel, isRTL && { textAlign: "left" }]}>
+                          {isRTL ? "مكافأة الأدوية" : "Medication Bonus"}
+                        </Text>
+                        <Text style={[
+                          healthData.healthScoreResult.breakdown.medicationBonus > 0 
+                            ? styles.breakdownValuePositive 
+                            : styles.breakdownValueNegative,
+                          isRTL && { textAlign: "left" }
+                        ]}>
+                          {healthData.healthScoreResult.breakdown.medicationBonus > 0 ? "+" : ""}
+                          {healthData.healthScoreResult.breakdown.medicationBonus.toFixed(1)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Final Score */}
+                    <View style={[styles.breakdownRow, styles.finalScoreRow]}>
+                      <Text style={[styles.breakdownLabel, styles.finalScoreLabel, isRTL && { textAlign: "left" }]}>
+                        {isRTL ? "النقاط النهائية" : "Final Score"}
+                      </Text>
+                      <Text style={[styles.breakdownValue, styles.finalScoreValue, isRTL && { textAlign: "left" }]}>
+                        {healthData.healthScoreResult.score}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Factors */}
+                  <View style={styles.breakdownSection}>
+                    <Text style={[styles.breakdownTitle, isRTL && { textAlign: "left" }]}>
+                      {isRTL ? "العوامل المؤثرة" : "Contributing Factors"}
+                    </Text>
+                    
+                    <View style={styles.factorRow}>
+                      <Text style={[styles.factorLabel, isRTL && { textAlign: "left" }]}>
+                        {isRTL ? "الأعراض الأخيرة (7 أيام)" : "Recent Symptoms (7 days)"}
+                      </Text>
+                      <Text style={[styles.factorValue, isRTL && { textAlign: "left" }]}>
+                        {healthData.healthScoreResult.factors.recentSymptoms}
+                      </Text>
+                    </View>
+
+                    {healthData.healthScoreResult.factors.recentSymptoms > 0 && (
+                      <View style={styles.factorRow}>
+                        <Text style={[styles.factorLabel, isRTL && { textAlign: "left" }]}>
+                          {isRTL ? "متوسط شدة الأعراض" : "Average Symptom Severity"}
+                        </Text>
+                        <Text style={[styles.factorValue, isRTL && { textAlign: "left" }]}>
+                          {healthData.healthScoreResult.factors.symptomSeverityAvg.toFixed(1)}/10
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.factorRow}>
+                      <Text style={[styles.factorLabel, isRTL && { textAlign: "left" }]}>
+                        {isRTL ? "الأدوية النشطة" : "Active Medications"}
+                      </Text>
+                      <Text style={[styles.factorValue, isRTL && { textAlign: "left" }]}>
+                        {healthData.healthScoreResult.factors.activeMedications}
+                      </Text>
+                    </View>
+
+                    {healthData.healthScoreResult.factors.activeMedications > 0 && (
+                      <View style={styles.factorRow}>
+                        <Text style={[styles.factorLabel, isRTL && { textAlign: "left" }]}>
+                          {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
+                        </Text>
+                        <Text style={[styles.factorValue, isRTL && { textAlign: "left" }]}>
+                          {healthData.healthScoreResult.factors.medicationCompliance}%
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Info Note */}
+                  <View style={styles.infoNote}>
+                    <HelpCircle color="#64748B" size={16} />
+                    <Text style={[styles.infoNoteText, isRTL && { textAlign: "left" }]}>
+                      {isRTL 
+                        ? "يتم حساب نقاط الصحة بناءً على الأعراض الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
+                        : "Your health score is calculated based on recent symptoms (last 7 days) and medication compliance. Base score is 100, with points deducted for symptoms and bonuses added for good medication adherence."}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#2563EB" size="large" />
+                  <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
+                    {isRTL ? "جاري تحميل التفاصيل..." : "Loading details..."}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Global Search Modal */}
+      <GlobalSearch visible={showSearch} onClose={() => setShowSearch(false)} />
+      {/* Calendar Modal */}
+      <Modal
+        animationType="slide"
+        presentationStyle="pageSheet"
+        visible={showCalendarModal}
+        onRequestClose={() => {
+          setShowCalendarModal(false);
+          setSelectedEvent(null);
+        }}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 12 }}>
+              <CalendarIcon size={24} color={theme.colors.primary.main} />
+              <Heading level={4} style={{ fontSize: 20 }}>
+                {isRTL ? "التقويم الصحي" : "HEALTH CALENDAR"}
+              </Heading>
+            </View>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowAddEventModal(true);
+                  setEventStartDate(calendarSelectedDate);
+                }}
+                style={{
+                  backgroundColor: theme.colors.primary.main,
+                  borderRadius: theme.borderRadius.full,
+                  width: 40,
+                  height: 40,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Plus color={theme.colors.neutral.white} size={24} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowCalendarModal(false);
+                  setSelectedEvent(null);
+                }}
+              >
+                <X size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Month Navigation */}
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 16, paddingHorizontal: 16, paddingVertical: 12 }}>
+            <TouchableOpacity onPress={() => navigateMonth("prev")}>
+              <ChevronLeft size={24} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+            <Text style={{ flex: 1, textAlign: "center", fontSize: 16, fontFamily: "Geist-SemiBold", color: theme.colors.text.primary }}>
+              {formatMonthYear(calendarCurrentDate)}
+            </Text>
+            <TouchableOpacity onPress={() => navigateMonth("next")}>
+              <ChevronRight size={24} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Calendar Grid */}
+          <View style={{ padding: 16 }}>
+            {/* Week Days Header */}
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", marginBottom: 8 }}>
+              {getWeekDays().map((day, index) => (
+                <View key={index} style={{ flex: 1, alignItems: "center" }}>
+                  <Text style={{ fontSize: 12, fontFamily: "Geist-Medium", color: theme.colors.text.secondary }}>
+                    {day}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Calendar Days */}
+            <View style={{ flexWrap: "wrap", flexDirection: isRTL ? "row-reverse" : "row" }}>
+              {(() => {
+                const daysInMonth = getDaysInMonth(calendarCurrentDate);
+                const firstDay = getFirstDayOfMonth(calendarCurrentDate);
+                const days: React.ReactElement[] = [];
+                const today = new Date();
+
+                // Add empty cells for days before the first day of the month
+                for (let i = 0; i < firstDay; i++) {
+                  days.push(<View key={`empty-${i}`} style={{ flex: 1, aspectRatio: 1, margin: 2 }} />);
+                }
+
+                // Add days of the month
+                for (let day = 1; day <= daysInMonth; day++) {
+                  const date = new Date(
+                    calendarCurrentDate.getFullYear(),
+                    calendarCurrentDate.getMonth(),
+                    day
+                  );
+                  const isSelected =
+                    calendarSelectedDate.getDate() === day &&
+                    calendarSelectedDate.getMonth() === calendarCurrentDate.getMonth() &&
+                    calendarSelectedDate.getFullYear() === calendarCurrentDate.getFullYear();
+                  const isToday =
+                    today.getDate() === day &&
+                    today.getMonth() === calendarCurrentDate.getMonth() &&
+                    today.getFullYear() === calendarCurrentDate.getFullYear();
+                  const dayEvents = getEventsForDay(day);
+
+                  days.push(
+                    <TouchableOpacity
+                      key={day}
+                      style={[
+                        {
+                          flex: 1,
+                          aspectRatio: 1,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          borderRadius: 8,
+                          margin: 2,
+                        },
+                        isSelected && { backgroundColor: theme.colors.primary.main },
+                        isToday && !isSelected && { borderWidth: 2, borderColor: theme.colors.primary.main },
+                      ]}
+                      onPress={() => {
+                        setCalendarSelectedDate(date);
+                        setShowEventModal(true);
+                      }}
+                    >
+                      <TypographyText
+                        style={[
+                          { fontSize: 14 },
+                          isSelected && { color: theme.colors.neutral.white, fontWeight: "600" },
+                        ]}
+                      >
+                        {day}
+                      </TypographyText>
+                      {dayEvents.length > 0 && (
+                        <View
+                          style={{
+                            width: 4,
+                            height: 4,
+                            borderRadius: 2,
+                            marginTop: 2,
+                            backgroundColor: dayEvents[0].color || theme.colors.primary.main,
+                          }}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
+
+                return days;
+              })()}
+            </View>
+          </View>
+
+          {/* Events List for Selected Date */}
+          <ScrollView
+            style={{ padding: 16 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={calendarRefreshing}
+                onRefresh={() => loadCalendarEvents(true)}
+              />
+            }
+          >
+            <Heading level={6} style={{ marginBottom: 16 }}>
+              {isRTL
+                ? `الأحداث في ${calendarSelectedDate.toLocaleDateString("ar", { day: "numeric", month: "long", year: "numeric" })}`
+                : `Events on ${calendarSelectedDate.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`}
+            </Heading>
+
+            {calendarLoading ? (
+              <ActivityIndicator size="large" color={theme.colors.primary.main} />
+            ) : getSelectedDateEvents().length === 0 ? (
+              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 40 }}>
+                <CalendarIcon size={64} color={theme.colors.text.secondary} />
+                <Text style={{ marginTop: 16, textAlign: "center", color: theme.colors.text.secondary }}>
+                  {isRTL ? "لا توجد أحداث في هذا التاريخ" : "No events on this date"}
+                </Text>
+              </View>
+            ) : (
+              getSelectedDateEvents().map((event) => (
+                <Card
+                  key={event.id}
+                  variant="elevated"
+                  style={{ marginBottom: 12 }}
+                  contentStyle={{}}
+                  onPress={() => {
+                    setSelectedEvent(event);
+                    setShowEventModal(true);
+                  }}
+                >
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                    <View style={{ flex: 1 }}>
+                      <TypographyText weight="bold" style={{ fontSize: 16 }}>
+                        {event.title}
+                      </TypographyText>
+                      <Badge variant="outline" size="small" style={{ marginTop: 4, alignSelf: "flex-start" }}>
+                        {getEventTypeLabel(event.type)}
+                      </Badge>
+                    </View>
+                    {event.familyId && (
+                      <Users size={16} color={theme.colors.primary.main} />
+                    )}
+                  </View>
+
+                  {event.description && (
+                    <Caption style={{ marginTop: 8 }} numberOfLines={3}>
+                      {event.description}
+                    </Caption>
+                  )}
+
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8, marginTop: 8 }}>
+                    <Clock size={14} color={theme.colors.text.secondary} />
+                    <Caption style={{}} numberOfLines={1}>
+                      {event.allDay
+                        ? isRTL
+                          ? "طوال اليوم"
+                          : "All Day"
+                        : formatTime(event.startDate)}
+                    </Caption>
+                    {event.location && (
+                      <>
+                        <MapPin size={14} color={theme.colors.text.secondary} />
+                        <Caption style={{}} numberOfLines={1}>{event.location}</Caption>
+                      </>
+                    )}
+                  </View>
+                </Card>
+              ))
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Event Detail Modal */}
+      <Modal
+        visible={showEventModal && !!selectedEvent}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setShowEventModal(false);
+          setSelectedEvent(null);
+        }}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
+            <Heading level={5} style={{ fontSize: 18 }}>
+              {selectedEvent?.title}
+            </Heading>
+            <TouchableOpacity
+              onPress={() => {
+                setShowEventModal(false);
+                setSelectedEvent(null);
+              }}
+            >
+              <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
+                {isRTL ? "إغلاق" : "Close"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ padding: 16 }}>
+            {selectedEvent && (
+              <>
+                <View style={{ marginBottom: 16 }}>
+                  <Badge variant="outline" size="small" style={{}}>
+                    {getEventTypeLabel(selectedEvent.type)}
+                  </Badge>
+                </View>
+                {selectedEvent.description && (
+                  <View style={{ marginBottom: 16 }}>
+                    <TypographyText weight="semibold" style={{}}>
+                      {isRTL ? "الوصف" : "Description"}
+                    </TypographyText>
+                    <Caption style={{}} numberOfLines={10}>{selectedEvent.description}</Caption>
+                  </View>
+                )}
+                <View style={{ marginBottom: 16 }}>
+                  <TypographyText weight="semibold" style={{}}>
+                    {isRTL ? "التاريخ والوقت" : "Date & Time"}
+                  </TypographyText>
+                  <Caption style={{}} numberOfLines={1}>
+                    {selectedEvent.startDate.toLocaleString(isRTL ? "ar" : "en-US")}
+                    {selectedEvent.endDate &&
+                      ` - ${selectedEvent.endDate.toLocaleString(isRTL ? "ar" : "en-US")}`}
+                  </Caption>
+                </View>
+                {selectedEvent.location && (
+                  <View style={{ marginBottom: 16 }}>
+                    <TypographyText weight="semibold" style={{}}>
+                      {isRTL ? "الموقع" : "Location"}
+                    </TypographyText>
+                    <Caption style={{}} numberOfLines={1}>{selectedEvent.location}</Caption>
+                  </View>
+                )}
+                {selectedEvent.familyId && (
+                  <View style={{ marginBottom: 16 }}>
+                    <TypographyText weight="semibold" style={{}}>
+                      {isRTL ? "مشارك مع العائلة" : "Shared with Family"}
+                    </TypographyText>
+                  </View>
+                )}
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Add Event Modal */}
+      <Modal
+        visible={showAddEventModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setShowAddEventModal(false);
+          resetEventForm();
+        }}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
+            <Heading level={5} style={{}}>
+              {isRTL ? "إضافة حدث" : "Add Event"}
+            </Heading>
+            <TouchableOpacity onPress={() => {
+              setShowAddEventModal(false);
+              resetEventForm();
+            }}>
+              <X size={24} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={{ padding: 16 }}>
+            {/* Title */}
+            <View style={{ marginBottom: 16 }}>
+              <TypographyText style={{ marginBottom: 8 }}>
+                {isRTL ? "العنوان" : "Title"} *
+              </TypographyText>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light, borderRadius: 8, padding: 12, backgroundColor: theme.colors.background.secondary }}
+                value={eventTitle}
+                onChangeText={setEventTitle}
+                placeholder={isRTL ? "عنوان الحدث" : "Event title"}
+                placeholderTextColor={theme.colors.text.secondary}
+              />
+            </View>
+
+            {/* Type */}
+            <View style={{ marginBottom: 16 }}>
+              <TypographyText style={{ marginBottom: 8 }}>
+                {isRTL ? "نوع الحدث" : "Event Type"} *
+              </TypographyText>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, flexWrap: "wrap" }}>
+                {[
+                  { value: "appointment", label: isRTL ? "موعد" : "Appointment" },
+                  { value: "medication", label: isRTL ? "دواء" : "Medication" },
+                  { value: "symptom", label: isRTL ? "عرض" : "Symptom" },
+                  { value: "lab_result", label: isRTL ? "نتيجة مختبر" : "Lab Result" },
+                  { value: "vaccination", label: isRTL ? "تطعيم" : "Vaccination" },
+                  { value: "reminder", label: isRTL ? "تذكير" : "Reminder" },
+                  { value: "other", label: isRTL ? "أخرى" : "Other" },
+                ].map((eventTypeOption) => (
+                  <TouchableOpacity
+                    key={eventTypeOption.value}
+                    onPress={() => setEventType(eventTypeOption.value as CalendarEvent["type"])}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      borderColor: eventTypeOption.value === eventType ? theme.colors.primary.main : (typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light),
+                      backgroundColor: eventTypeOption.value === eventType ? theme.colors.primary.main : theme.colors.background.secondary,
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: eventTypeOption.value === eventType ? theme.colors.neutral.white : theme.colors.text.secondary }}>
+                      {eventTypeOption.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* All Day Toggle */}
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, marginBottom: 16 }}>
+              <TypographyText style={{}}>
+                {isRTL ? "طوال اليوم" : "All Day"}
+              </TypographyText>
+              <Switch
+                value={eventAllDay}
+                onValueChange={setEventAllDay}
+                trackColor={{
+                  false: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                  true: theme.colors.primary.main,
+                }}
+                thumbColor={theme.colors.background.primary}
+              />
+            </View>
+
+            {/* Location */}
+            <View style={{ marginBottom: 16 }}>
+              <TypographyText style={{ marginBottom: 8 }}>
+                {isRTL ? "الموقع" : "Location"} ({isRTL ? "اختياري" : "Optional"})
+              </TypographyText>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light, borderRadius: 8, padding: 12, backgroundColor: theme.colors.background.secondary }}
+                value={eventLocation}
+                onChangeText={setEventLocation}
+                placeholder={isRTL ? "موقع الحدث" : "Event location"}
+                placeholderTextColor={theme.colors.text.secondary}
+              />
+            </View>
+
+            {/* Description */}
+            <View style={{ marginBottom: 16 }}>
+              <TypographyText style={{ marginBottom: 8 }}>
+                {isRTL ? "الوصف" : "Description"} ({isRTL ? "اختياري" : "Optional"})
+              </TypographyText>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light, borderRadius: 8, padding: 12, backgroundColor: theme.colors.background.secondary, minHeight: 100, textAlignVertical: "top" }}
+                value={eventDescription}
+                onChangeText={setEventDescription}
+                multiline
+                numberOfLines={4}
+                placeholder={isRTL ? "وصف الحدث..." : "Event description..."}
+                placeholderTextColor={theme.colors.text.secondary}
+              />
+            </View>
+
+            {/* Share with Family */}
+            {user?.familyId && (
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, marginBottom: 16 }}>
+                <TypographyText style={{}}>
+                  {isRTL ? "مشاركة مع العائلة" : "Share with Family"}
+                </TypographyText>
+                <Switch
+                  value={eventShareWithFamily}
+                  onValueChange={setEventShareWithFamily}
+                  trackColor={{
+                    false: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                    true: theme.colors.primary.main,
+                  }}
+                  thumbColor={theme.colors.background.primary}
+                />
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Actions */}
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light }}>
+            <Button
+              variant="outline"
+              onPress={() => {
+                setShowAddEventModal(false);
+                resetEventForm();
+              }}
+              style={{ flex: 1 }}
+              textStyle={{}}
+              disabled={savingEvent}
+              title={isRTL ? "إلغاء" : "Cancel"}
+            />
+            <Button
+              variant="primary"
+              onPress={() => {
+                handleSaveEvent();
+              }}
+              style={{ flex: 1 }}
+              textStyle={{}}
+              disabled={savingEvent || !eventTitle.trim()}
+              loading={savingEvent}
+              title={savingEvent ? (isRTL ? "جاري الحفظ..." : "Saving...") : (isRTL ? "حفظ" : "Save")}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -723,6 +1659,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
@@ -1107,5 +2046,130 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
+  },
+  healthScoreBreakdownContent: {
+    padding: 20,
+  },
+  breakdownSection: {
+    marginBottom: 24,
+  },
+  scoreDisplay: {
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  scoreValue: {
+    fontSize: 48,
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
+    marginBottom: 4,
+  },
+  scoreOutOf: {
+    fontSize: 16,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginBottom: 12,
+  },
+  ratingBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+  },
+  ratingText: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
+  },
+  breakdownTitle: {
+    fontSize: 18,
+    fontFamily: "Geist-Bold",
+    color: "#1E293B",
+    marginBottom: 16,
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  finalScoreRow: {
+    borderBottomWidth: 0,
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: "#E2E8F0",
+  },
+  breakdownLabel: {
+    fontSize: 16,
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
+    flex: 1,
+  },
+  finalScoreLabel: {
+    fontSize: 18,
+    fontFamily: "Geist-Bold",
+  },
+  breakdownValue: {
+    fontSize: 16,
+    fontFamily: "Geist-Bold",
+    color: "#10B981",
+  },
+  breakdownValuePositive: {
+    fontSize: 16,
+    fontFamily: "Geist-Bold",
+    color: "#10B981",
+  },
+  breakdownValueNegative: {
+    fontSize: 16,
+    fontFamily: "Geist-Bold",
+    color: "#EF4444",
+  },
+  finalScoreValue: {
+    fontSize: 20,
+    fontFamily: "Geist-Bold",
+    color: "#2563EB",
+  },
+  factorRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F8FAFC",
+  },
+  factorLabel: {
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    flex: 1,
+  },
+  factorValue: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
+  },
+  infoNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    gap: 12,
+  },
+  infoNoteText: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    flex: 1,
+    lineHeight: 18,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginTop: 12,
   },
 });

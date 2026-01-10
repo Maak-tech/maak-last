@@ -65,7 +65,7 @@ export const createPPGStyles = createThemedStyles((theme) => ({
     position: "absolute" as const,
     top: theme.spacing.lg,
     right: theme.spacing.lg,
-    zIndex: 1000,
+    zIndex: 10001,
     backgroundColor: theme.colors.background.secondary,
     borderRadius: theme.borderRadius.full,
     padding: theme.spacing.sm,

@@ -114,6 +114,27 @@ export default function TabLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          href: null, // Access via track tab or dashboard
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="timeline"
+        options={{
+          href: null, // Access via track tab or dashboard
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="lab-results"
+        options={{
+          href: null, // Access via track tab or profile
+          headerShown: false,
+        }}
+      />
     </Tabs>
   );
 }

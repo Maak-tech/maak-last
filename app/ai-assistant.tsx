@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Volume2, VolumeX } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import {
   addDoc,
@@ -29,6 +30,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "../lib/firebase";
 import healthContextService from "../lib/services/healthContextService";
+import { voiceService } from "../lib/services/voiceService";
 import openaiService, {
   AI_MODELS,
   type ChatMessage as AIMessage,
@@ -68,11 +70,24 @@ export default function AIAssistant() {
   const [systemPrompt, setSystemPrompt] = useState<string>("");
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<SavedSession[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(false);
 
   useEffect(() => {
     initializeChat();
     loadChatHistory();
+    checkVoiceAvailability();
   }, []);
+
+  const checkVoiceAvailability = async () => {
+    try {
+      const available = await voiceService.isAvailable();
+      setVoiceEnabled(available);
+    } catch (error) {
+      setVoiceEnabled(false);
+    }
+  };
 
   useEffect(() => {
     scrollToBottom();
@@ -299,6 +314,20 @@ export default function AIAssistant() {
           ...assistantMessage,
           content: fullResponse,
         });
+        
+        // Speak the response if voice is enabled and auto-speak is on
+        if (voiceEnabled && autoSpeak) {
+          try {
+            setIsSpeaking(true);
+            await voiceService.speak(fullResponse, {
+              language: "en-US", // Could be dynamic based on user preference
+            });
+            setIsSpeaking(false);
+          } catch (error) {
+            setIsSpeaking(false);
+            // Silently handle voice error
+          }
+        }
       },
       (error) => {
         setIsStreaming(false);
@@ -553,6 +582,32 @@ export default function AIAssistant() {
         </ScrollView>
 
         <View style={styles.inputContainer}>
+          {voiceEnabled && (
+            <TouchableOpacity
+              onPress={async () => {
+                if (isSpeaking) {
+                  await voiceService.stop();
+                  setIsSpeaking(false);
+                } else if (autoSpeak) {
+                  setAutoSpeak(false);
+                } else {
+                  setAutoSpeak(true);
+                }
+              }}
+              style={[
+                styles.voiceButton,
+                (isSpeaking || autoSpeak) && styles.voiceButtonActive,
+              ]}
+            >
+              {isSpeaking ? (
+                <VolumeX size={20} color="white" />
+              ) : autoSpeak ? (
+                <Volume2 size={20} color="white" />
+              ) : (
+                <VolumeX size={20} color="#666" />
+              )}
+            </TouchableOpacity>
+          )}
           <TextInput
             editable={!isStreaming}
             multiline
@@ -857,6 +912,18 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: "#B0B0B0",
+  },
+  voiceButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#E0E0E0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginEnd: 8,
+  },
+  voiceButtonActive: {
+    backgroundColor: "#007AFF",
   },
   modalContainer: {
     flex: 1,

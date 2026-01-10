@@ -1056,26 +1056,24 @@ export default function PPGVitalMonitor({
         onRequestClose={onClose}
       >
       <SafeAreaView style={styles.modal as ViewStyle}>
-        <View style={{ position: 'absolute' as const, top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000, pointerEvents: 'box-none' as const }}>
-          <TouchableOpacity 
-            style={[styles.closeButton as ViewStyle, { zIndex: 10001 }]} 
-            onPress={() => {
-              resetState();
-              onClose();
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.7}
-            pointerEvents="auto"
-          >
-            <X color={theme.colors.text.primary} size={20} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity 
+          style={[styles.closeButton as ViewStyle, { zIndex: 10001, elevation: 20 }]} 
+          onPress={() => {
+            resetState();
+            onClose();
+          }}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          activeOpacity={0.7}
+        >
+          <X color={theme.colors.text.primary} size={20} />
+        </TouchableOpacity>
 
         <ScrollView
           style={styles.container as ViewStyle}
           contentContainerStyle={styles.scrollContent as ViewStyle}
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="automatic"
+          scrollEventThrottle={16}
         >
           <View style={styles.header as ViewStyle}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: theme.spacing.sm, marginBottom: theme.spacing.sm }}>

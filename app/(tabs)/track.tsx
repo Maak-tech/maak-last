@@ -3,20 +3,20 @@ import {
   Activity,
   AlertTriangle,
   ChevronRight,
+  Clock,
   Droplet,
   FileText,
   Heart,
   Pill,
   Smile,
+  TestTube,
   Zap,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   type StyleProp,
   Text,
@@ -25,6 +25,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { allergyService } from "@/lib/services/allergyService";
@@ -42,22 +43,15 @@ import type {
   User as UserType,
 } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import BloodPressureEntry from "@/components/BloodPressureEntry";
+// Temporarily comment out to debug
+// import BloodPressureEntry from "@/components/BloodPressureEntry";
 
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
   
-  // Ensure track screen is properly focused when navigated to
-  useFocusEffect(
-    useCallback(() => {
-      // Track screen is focused - ensure it's the active route
-      return () => {
-        // Cleanup if needed
-      };
-    }, [])
-  );
+  // All hooks must be called before any conditional returns
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
@@ -80,6 +74,11 @@ export default function TrackScreen() {
     moodsThisWeek: 0,
     avgMoodIntensity: 0,
   });
+
+  // Early return if theme is not available (after all hooks)
+  if (!theme) {
+    return null;
+  }
 
   const isRTL = i18n.language === "ar";
 
@@ -341,8 +340,8 @@ export default function TrackScreen() {
         medicationCompliance: Math.round(compliance),
         upcomingMedications,
         totalConditions,
-        moodsThisWeek: moodStats.totalMoods,
-        avgMoodIntensity: moodStats.avgIntensity,
+        moodsThisWeek: moodStats?.totalMoods || 0,
+        avgMoodIntensity: moodStats?.avgIntensity || 0,
       });
     } catch (error) {
       // Silently handle error
@@ -362,8 +361,22 @@ export default function TrackScreen() {
     }, [user])
   );
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (timestamp: Date | string | { toDate?: () => Date; seconds?: number } | null | undefined) => {
+    if (!timestamp) return "";
+    let date: Date;
+    if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === "string") {
+      date = new Date(timestamp);
+    } else if (timestamp && typeof timestamp === "object" && "toDate" in timestamp && timestamp.toDate) {
+      date = timestamp.toDate();
+    } else if (timestamp && typeof timestamp === "object" && "seconds" in timestamp && timestamp.seconds !== undefined) {
+      date = new Date(timestamp.seconds * 1000);
+    } else {
+      return "";
+    }
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
 
   const getMoodEmoji = (moodType: string) => {
     const moodMap: { [key: string]: string } = {
@@ -1011,6 +1024,129 @@ export default function TrackScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* Health Timeline and Lab Results */}
+              <View
+                style={
+                  [
+                    styles.trackingOptions,
+                    { marginTop: theme.spacing.md },
+                  ] as StyleProp<ViewStyle>
+                }
+              >
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/timeline")}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.secondary.main + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Clock color={theme.colors.secondary.main} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الخط الزمني الصحي" : "Health Timeline"}
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "عرض جميع الأحداث الصحية بترتيب زمني"
+                      : "View all health events chronologically"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/timeline")}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.secondary.main },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Clock color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "عرض" : "View"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+
+                {/* Lab Results */}
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/lab-results")}
+                  style={styles.trackingCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.primary.main + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <TestTube color={theme.colors.primary.main} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "نتائج المختبر" : "Lab Results"}
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "تتبع نتائج المختبر والفحوصات"
+                      : "Track lab tests and results"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/(tabs)/lab-results")}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.primary.main },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <TestTube color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "عرض" : "View"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Recent Activity - Symptoms */}
@@ -1639,13 +1775,14 @@ export default function TrackScreen() {
       {/* PPG Heart Rate Monitor now accessed via /ppg-measure route */}
 
       {/* Blood Pressure Entry Modal */}
-      <BloodPressureEntry
+      {/* Temporarily commented out for debugging */}
+      {/* <BloodPressureEntry
         visible={showBloodPressureEntry}
         onClose={() => setShowBloodPressureEntry(false)}
         onSave={() => {
           loadTrackingData();
         }}
-      />
+      /> */}
     </SafeAreaView>
   );
 }

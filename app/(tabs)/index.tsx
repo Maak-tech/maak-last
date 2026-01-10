@@ -6,9 +6,12 @@ import {
   Check,
   ChevronRight,
   Heart,
+  HelpCircle,
   Phone,
   Pill,
+  Settings,
   Users,
+  X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,8 +20,9 @@ import {
   Alert,
   Linking,
   Modal,
+  Platform,
+  Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   type StyleProp,
   type TextStyle,
@@ -27,19 +31,27 @@ import {
   type ViewStyle,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { alertService } from "@/lib/services/alertService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
-import { healthScoreService } from "@/lib/services/healthScoreService";
+import { healthScoreService, type HealthScoreResult } from "@/lib/services/healthScoreService";
 import type { Medication, Symptom, User as UserType } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 // Design System Components
+import DashboardWidgetSettings from "@/app/components/DashboardWidgetSettings";
+import HealthInsightsCard from "@/app/components/HealthInsightsCard";
+import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import { Button, Card } from "@/components/design-system";
 import { Heading, Text, Caption } from "@/components/design-system/Typography";
 import { Badge } from "@/components/design-system/AdditionalComponents";
+import {
+  dashboardWidgetService,
+  type DashboardConfig,
+} from "@/lib/services/dashboardWidgetService";
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
@@ -54,6 +66,8 @@ export default function DashboardScreen() {
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
+  const [healthScoreModalVisible, setHealthScoreModalVisible] = useState(false);
+  const [healthScoreResult, setHealthScoreResult] = useState<HealthScoreResult | null>(null);
   const [stats, setStats] = useState({
     symptomsThisWeek: 0,
     avgSeverity: 0,
@@ -61,6 +75,8 @@ export default function DashboardScreen() {
     healthScore: 75,
   });
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
+  const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);
+  const [showWidgetSettings, setShowWidgetSettings] = useState(false);
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -255,43 +271,36 @@ export default function DashboardScreen() {
       height: 6,
       borderRadius: 3,
     },
-    healthScoreCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      flexDirection: "row" as const,
+    healthScoreCardContainer: {
+      backgroundColor: theme.colors.background.secondary || "#F8FAFC",
+      borderRadius: theme.borderRadius.md || 12,
+      padding: theme.spacing.base || 16,
       alignItems: "center" as const,
-      marginTop: theme.spacing.base,
-      marginBottom: theme.spacing.xl,
-      ...theme.shadows.md,
+      minHeight: 100,
+      width: "100%",
     },
-    healthScoreInfo: {
-      marginStart: theme.spacing.base,
-      flex: 1,
+    healthScoreIconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: theme.colors.background.primary || "#FFFFFF",
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
+      marginBottom: 8,
     },
-    healthScoreTitle: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+    healthScoreCardValue: {
+      fontSize: 20,
+      fontFamily: "Geist-Bold",
+      color: theme.colors.text.primary || "#1E293B",
       marginBottom: 4,
+      textAlign: "center" as const,
     },
-    healthScoreTitleRTL: {
-      alignSelf: "flex-start" as const,
-      textAlign: "left" as const,
-    },
-    healthScoreValue: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.accent.success),
-      fontSize: 32,
-      lineHeight: 40,
-    },
-    healthScoreValueRTL: {
-      alignSelf: "flex-start" as const,
-      textAlign: "left" as const,
-    },
-    healthScoreDesc: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-    },
-    healthScoreDescRTL: {
-      alignSelf: "flex-start" as const,
-      textAlign: "left" as const,
+    healthScoreCardLabel: {
+      fontSize: 11,
+      fontFamily: "Geist-Medium",
+      color: theme.colors.text.secondary || "#64748B",
+      textAlign: "center" as const,
+      lineHeight: 14,
     },
     emptyText: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.tertiary),
@@ -409,11 +418,25 @@ export default function DashboardScreen() {
     },
   }))(theme);
 
+  const loadDashboardConfig = async () => {
+    if (!user) return;
+
+    try {
+      const config = await dashboardWidgetService.getDashboardConfig(user.id);
+      setDashboardConfig(config);
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
   const loadDashboardData = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
+      
+      // Load dashboard config
+      await loadDashboardConfig();
 
       // Always load family members first if user has family
       let members: UserType[] = [];
@@ -466,6 +489,7 @@ export default function DashboardScreen() {
       // Calculate health score using the new centralized service
       const healthScoreResult = await healthScoreService.calculateHealthScore(user.id);
 
+      setHealthScoreResult(healthScoreResult);
       setStats({
         symptomsThisWeek: symptomStats.totalSymptoms,
         avgSeverity: symptomStats.avgSeverity,
@@ -607,6 +631,593 @@ export default function DashboardScreen() {
     );
   };
 
+  // Get enabled widgets sorted by order
+  // If config is not loaded yet, use default widgets to show something during initial load
+  const enabledWidgets = dashboardConfig
+    ? dashboardWidgetService.getEnabledWidgets(dashboardConfig)
+    : dashboardWidgetService.getEnabledWidgets({
+        userId: user?.id || "",
+        widgets: [
+          { id: "healthScore", enabled: true, order: 0 },
+          { id: "stats", enabled: true, order: 1 },
+          { id: "todaysMedications", enabled: true, order: 2 },
+          { id: "recentSymptoms", enabled: true, order: 3 },
+          { id: "healthInsights", enabled: true, order: 4 },
+          { id: "alerts", enabled: true, order: 5 },
+          { id: "familyMembers", enabled: true, order: 6 },
+          { id: "quickActions", enabled: true, order: 7 },
+        ],
+        updatedAt: new Date(),
+      });
+
+  // Widget render functions
+  const renderWidget = (widgetId: string) => {
+    switch (widgetId) {
+      case "healthScore":
+        return (
+          <View key="healthScore" style={styles.section as ViewStyle}>
+            <TouchableOpacity
+              style={styles.healthScoreCardContainer as ViewStyle}
+              onPress={() => setHealthScoreModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.healthScoreIconContainer as ViewStyle}>
+                <Activity color="#10B981" size={24} />
+              </View>
+              <Text
+                style={
+                  [
+                    styles.healthScoreCardValue,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {stats.healthScore}
+              </Text>
+              <Text
+                numberOfLines={2}
+                style={
+                  [
+                    styles.healthScoreCardLabel,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {t("healthScore")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        );
+
+      case "stats":
+        return (
+          <View key="stats">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.statsContainer as ViewStyle}
+              style={isRTL ? { marginStart: -theme.spacing.base, marginEnd: 0 } : { marginHorizontal: -theme.spacing.base }}
+            >
+              <Card 
+                variant="elevated" 
+                onPress={() => router.push("/(tabs)/symptoms")}
+                pressable={true}
+                style={styles.statCard as ViewStyle}
+                contentStyle={{ padding: 0 }}
+              >
+                <View style={styles.statCardContent as ViewStyle}>
+                  <View style={styles.statIcon as ViewStyle}>
+                    <Activity color={theme.colors.primary.main} size={32} />
+                  </View>
+                  <Text
+                    weight="bold"
+                    size="large"
+                    color={theme.colors.secondary.main}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.6}
+                    style={
+                      [
+                        styles.statValue,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {stats.symptomsThisWeek}
+                  </Text>
+                  <Text
+                    weight="medium"
+                    style={
+                      [
+                        styles.statLabel,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الأعراض الصحية هذا الأسبوع" : "Symptoms This Week"}
+                  </Text>
+                </View>
+              </Card>
+
+              <Card 
+                variant="elevated" 
+                onPress={() => router.push("/(tabs)/medications")}
+                pressable={true}
+                style={styles.statCard as ViewStyle}
+                contentStyle={{ padding: 0 }}
+              >
+                <View style={styles.statCardContent as ViewStyle}>
+                  <View style={styles.statIcon as ViewStyle}>
+                    <Pill color={theme.colors.accent.success} size={32} />
+                  </View>
+                  <Text
+                    weight="bold"
+                    size="large"
+                    color={theme.colors.secondary.main}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.7}
+                    style={
+                      [
+                        styles.statValue,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {stats.medicationCompliance}%
+                  </Text>
+                  <Text
+                    weight="medium"
+                    style={
+                      [
+                        styles.statLabel,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
+                  </Text>
+                </View>
+              </Card>
+
+              <Card 
+                variant="elevated" 
+                onPress={() => router.push("/(tabs)/family")}
+                pressable={true}
+                style={styles.statCard as ViewStyle}
+                contentStyle={{ padding: 0 }}
+              >
+                <View style={styles.statCardContent as ViewStyle}>
+                  <View style={styles.statIcon as ViewStyle}>
+                    <Users color={theme.colors.secondary.main} size={32} />
+                  </View>
+                  <Text
+                    weight="bold"
+                    size="large"
+                    color={theme.colors.secondary.main}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.7}
+                    style={
+                      [
+                        styles.statValue,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {familyMembersCount || 1}
+                  </Text>
+                  <Text
+                    weight="medium"
+                    style={
+                      [
+                        styles.statLabel,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "أفراد العائلة" : "Family Members"}
+                  </Text>
+                </View>
+              </Card>
+            </ScrollView>
+          </View>
+        );
+
+      case "todaysMedications":
+        return (
+          <View key="todaysMedications" style={styles.section as ViewStyle}>
+            <View style={styles.sectionHeader as ViewStyle}>
+              <Text
+                style={
+                  [
+                    styles.sectionTitle,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {isRTL ? "أدوية اليوم" : "Today's Medications"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/medications")}
+                style={styles.viewAllButton as ViewStyle}
+              >
+                <Text
+                  style={
+                    [
+                      styles.viewAllText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "عرض الكل" : "View All"}
+                </Text>
+                <ChevronRight color={theme.colors.primary.main} size={16} />
+              </TouchableOpacity>
+            </View>
+
+            {todaysMedications.length > 0 ? (
+              todaysMedications.slice(0, 3).map((medication) => (
+                <TouchableOpacity
+                  key={medication.id}
+                  onPress={() => router.push("/(tabs)/medications")}
+                  style={styles.medicationItem as ViewStyle}
+                >
+                  <View style={styles.medicationIcon as ViewStyle}>
+                    <Pill color={theme.colors.primary.main} size={20} />
+                  </View>
+                  <View style={styles.medicationInfo as ViewStyle}>
+                    <Text
+                      style={
+                        [
+                          styles.medicationName,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {medication.name}
+                    </Text>
+                    <Text
+                      style={
+                        [
+                          styles.medicationDosage,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {medication.dosage} • {medication.frequency}
+                    </Text>
+                  </View>
+                  <View style={styles.medicationStatus as ViewStyle}>
+                    {Array.isArray(medication.reminders) &&
+                    medication.reminders.some((r) => r.taken) ? (
+                      <View
+                        style={
+                          [
+                            styles.statusCheckContainer,
+                            { backgroundColor: theme.colors.accent.success },
+                          ] as StyleProp<ViewStyle>
+                        }
+                      >
+                        <Check
+                          color={theme.colors.neutral.white}
+                          size={16}
+                          strokeWidth={3}
+                        />
+                      </View>
+                    ) : (
+                      <View
+                        style={
+                          [
+                            styles.statusCheckContainer,
+                            {
+                              backgroundColor: theme.colors.background.secondary,
+                              borderColor: theme.colors.border.medium,
+                              borderWidth: 2,
+                            },
+                          ] as StyleProp<ViewStyle>
+                        }
+                      >
+                        <Check
+                          color={theme.colors.text.tertiary}
+                          size={16}
+                          strokeWidth={2}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/medications")}
+                style={styles.emptyContainer as ViewStyle}
+              >
+                <Text
+                  style={
+                    [
+                      styles.emptyText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL
+                    ? "لا توجد أدوية لليوم - اضغط لإضافة دواء"
+                    : "No medications for today - tap to add"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+
+      case "recentSymptoms":
+        return (
+          <View key="recentSymptoms" style={styles.section as ViewStyle}>
+            <View style={styles.sectionHeader as ViewStyle}>
+              <Text
+                style={
+                  [
+                    styles.sectionTitle,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {isRTL ? "الأعراض الصحية الأخيرة" : "Recent Symptoms"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/symptoms")}
+                style={styles.viewAllButton as ViewStyle}
+              >
+                <Text
+                  style={
+                    [
+                      styles.viewAllText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "عرض الكل" : "View All"}
+                </Text>
+                <ChevronRight color={theme.colors.primary.main} size={16} />
+              </TouchableOpacity>
+            </View>
+
+            {recentSymptoms.length > 0 ? (
+              recentSymptoms.map((symptom) => (
+                <TouchableOpacity
+                  key={symptom.id}
+                  onPress={() => router.push("/(tabs)/symptoms")}
+                  style={[
+                    styles.symptomItem as ViewStyle,
+                    isRTL && { flexDirection: "row-reverse" as const },
+                  ]}
+                >
+                  <View style={styles.symptomInfo as ViewStyle}>
+                    <Text
+                      style={
+                        [
+                          styles.symptomType,
+                          isRTL && styles.rtlText,
+                          isRTL && styles.symptomTypeRTL,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {t(symptom.type)}
+                    </Text>
+                    <Text
+                      style={
+                        [
+                          styles.symptomTime,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {formatTime(symptom.timestamp)}
+                    </Text>
+                  </View>
+                  <View style={styles.severityDisplay as ViewStyle}>
+                    {[...Array(5)].map((_, i) => (
+                      <View
+                        key={i}
+                        style={
+                          [
+                            styles.severityDot,
+                            {
+                              backgroundColor:
+                                i < symptom.severity
+                                  ? getSeverityColor(symptom.severity)
+                                  : theme.colors.neutral[200],
+                            },
+                          ] as StyleProp<ViewStyle>
+                        }
+                      />
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/symptoms")}
+                style={styles.emptyContainer as ViewStyle}
+              >
+                <Text
+                  style={
+                    [
+                      styles.emptyText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL
+                    ? "لا توجد أعراض الصحية مسجلة - اضغط لإضافة أعراض صحية"
+                    : "No symptoms recorded - tap to add"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+
+      case "healthInsights":
+        return (
+          <View key="healthInsights">
+            <HealthInsightsCard />
+            <ProactiveHealthSuggestions maxSuggestions={5} />
+          </View>
+        );
+
+      case "alerts":
+        if (alertsCount === 0) return null;
+        return (
+          <View key="alerts">
+            <Card
+              variant="elevated"
+              onPress={async () => {
+                setShowAlertsModal(true);
+                setLoadingAlerts(true);
+                try {
+                  const alerts = await alertService.getActiveAlerts(user.id);
+                  setUserAlerts(alerts);
+                } finally {
+                  setLoadingAlerts(false);
+                }
+              }}
+              style={styles.alertCard as ViewStyle}
+              contentStyle={undefined}
+            >
+              <AlertTriangle color={theme.colors.accent.error} size={24} />
+              <View style={styles.alertContent as ViewStyle}>
+                <Text
+                  weight="bold"
+                  color={theme.colors.accent.error}
+                  style={
+                    [
+                      styles.alertTitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "تنبيهات طوارئ صحية نشطة" : "Active Emergency Alerts"}
+                </Text>
+                <Text
+                  color={theme.colors.accent.error}
+                  style={
+                    [
+                      styles.alertText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL
+                    ? `لديك ${alertsCount} تنبيه${
+                        alertsCount > 1 ? "ات" : ""
+                      } يتطلب الانتباه`
+                    : `You have ${alertsCount} alert${
+                        alertsCount > 1 ? "s" : ""
+                      } requiring attention`}
+                </Text>
+              </View>
+              <ChevronRight color={theme.colors.accent.error} size={20} />
+            </Card>
+          </View>
+        );
+
+      case "familyMembers":
+        // Family members are shown in stats widget, so this can be a no-op or show additional family info
+        return null;
+
+      case "quickActions":
+        return (
+          <View key="quickActions" style={styles.section as ViewStyle}>
+            <View style={styles.sectionHeader as ViewStyle}>
+              <Text
+                style={
+                  [
+                    styles.sectionTitle,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {isRTL ? "إجراءات سريعة" : "Quick Actions"}
+              </Text>
+            </View>
+
+            <View style={styles.quickActionsGrid as ViewStyle}>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/track")}
+                style={styles.quickActionCard as ViewStyle}
+              >
+                <Activity color={theme.colors.primary.main} size={24} />
+                <Text
+                  style={
+                    [
+                      styles.quickActionText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "تتبع الصحة" : "Track Health"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/medications")}
+                style={styles.quickActionCard as ViewStyle}
+              >
+                <Pill color={theme.colors.accent.success} size={24} />
+                <Text
+                  style={
+                    [
+                      styles.quickActionText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "إدارة الأدوية" : "Medications"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/vitals")}
+                style={styles.quickActionCard as ViewStyle}
+              >
+                <Heart color={theme.colors.secondary.main} size={24} />
+                <Text
+                  style={
+                    [
+                      styles.quickActionText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/family")}
+                style={styles.quickActionCard as ViewStyle}
+              >
+                <Users color={theme.colors.primary.light} size={24} />
+                <Text
+                  style={
+                    [
+                      styles.quickActionText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "إدارة العائلة" : "Manage Family"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   if (!user) {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
@@ -628,6 +1239,8 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
         contentContainerStyle={styles.contentInner as ViewStyle}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
       >
         {/* Header with SOS Button */}
         <View style={styles.headerWithSOS as ViewStyle}>
@@ -663,205 +1276,47 @@ export default function DashboardScreen() {
               })}
             </Caption>
           </View>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            onPress={handleSOS}
-            style={[
-              styles.sosHeaderButton as ViewStyle,
-              isRTL && { marginStart: theme.spacing.md }
-            ]}
-          >
-            <Phone color={theme.colors.neutral.white} size={20} />
-            <Text weight="bold" color={theme.colors.neutral.white} style={styles.sosHeaderText as StyleProp<TextStyle>}>
-              {isRTL ? "SOS" : "SOS"}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, zIndex: 1001, flexShrink: 0 }}>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                setShowWidgetSettings(true);
+              }}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              style={({ pressed }) => ({
+                backgroundColor: theme.colors.background.secondary,
+                borderRadius: 20,
+                padding: 10,
+                justifyContent: "center",
+                alignItems: "center",
+                zIndex: 1001,
+                elevation: 5,
+                minWidth: 40,
+                minHeight: 40,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Settings color={theme.colors.text.primary} size={20} />
+            </Pressable>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={handleSOS}
+              style={[
+                styles.sosHeaderButton as ViewStyle,
+                isRTL && { marginStart: theme.spacing.md }
+              ]}
+            >
+              <Phone color={theme.colors.neutral.white} size={20} />
+              <Text weight="bold" color={theme.colors.neutral.white} style={styles.sosHeaderText as StyleProp<TextStyle>}>
+                {isRTL ? "SOS" : "SOS"}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Quick Stats */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statsContainer as ViewStyle}
-          style={isRTL ? { marginStart: -theme.spacing.base, marginEnd: 0 } : { marginHorizontal: -theme.spacing.base }}
-        >
-          <Card 
-            variant="elevated" 
-            onPress={() => router.push("/(tabs)/symptoms")}
-            pressable={true}
-            style={styles.statCard as ViewStyle}
-            contentStyle={{ padding: 0 }}
-          >
-            <View style={styles.statCardContent as ViewStyle}>
-              <View style={styles.statIcon as ViewStyle}>
-                <Activity color={theme.colors.primary.main} size={32} />
-              </View>
-              <Text
-                weight="bold"
-                size="large"
-                color={theme.colors.secondary.main}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.6}
-                style={
-                  [
-                    styles.statValue,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {stats.symptomsThisWeek}
-              </Text>
-              <Text
-                weight="medium"
-                style={
-                  [
-                    styles.statLabel,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "الأعراض الصحية هذا الأسبوع" : "Symptoms This Week"}
-              </Text>
-            </View>
-          </Card>
-
-          <Card 
-            variant="elevated" 
-            onPress={() => router.push("/(tabs)/medications")}
-            pressable={true}
-            style={styles.statCard as ViewStyle}
-            contentStyle={{ padding: 0 }}
-          >
-            <View style={styles.statCardContent as ViewStyle}>
-              <View style={styles.statIcon as ViewStyle}>
-                <Pill color={theme.colors.accent.success} size={32} />
-              </View>
-              <Text
-                weight="bold"
-                size="large"
-                color={theme.colors.secondary.main}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.7}
-                style={
-                  [
-                    styles.statValue,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {stats.medicationCompliance}%
-              </Text>
-              <Text
-                weight="medium"
-                style={
-                  [
-                    styles.statLabel,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
-              </Text>
-            </View>
-          </Card>
-
-          <Card 
-            variant="elevated" 
-            onPress={() => router.push("/(tabs)/family")}
-            pressable={true}
-            style={styles.statCard as ViewStyle}
-            contentStyle={{ padding: 0 }}
-          >
-            <View style={styles.statCardContent as ViewStyle}>
-              <View style={styles.statIcon as ViewStyle}>
-                <Users color={theme.colors.secondary.main} size={32} />
-              </View>
-              <Text
-                weight="bold"
-                size="large"
-                color={theme.colors.secondary.main}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.7}
-                style={
-                  [
-                    styles.statValue,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {familyMembersCount || 1}
-              </Text>
-              <Text
-                weight="medium"
-                style={
-                  [
-                    styles.statLabel,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "أفراد العائلة" : "Family Members"}
-              </Text>
-            </View>
-          </Card>
-        </ScrollView>
-
-        {/* Alerts */}
-        {alertsCount > 0 && (
-          <Card
-            variant="elevated"
-            onPress={async () => {
-              setShowAlertsModal(true);
-              setLoadingAlerts(true);
-              try {
-                const alerts = await alertService.getActiveAlerts(user.id);
-                setUserAlerts(alerts);
-              } finally {
-                setLoadingAlerts(false);
-              }
-            }}
-            style={styles.alertCard as ViewStyle}
-            contentStyle={undefined}
-          >
-            <AlertTriangle color={theme.colors.accent.error} size={24} />
-            <View style={styles.alertContent as ViewStyle}>
-              <Text
-                weight="bold"
-                color={theme.colors.accent.error}
-                style={
-                  [
-                    styles.alertTitle,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "تنبيهات طوارئ صحية نشطة" : "Active Emergency Alerts"}
-              </Text>
-              <Text
-                color={theme.colors.accent.error}
-                style={
-                  [
-                    styles.alertText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL
-                  ? `لديك ${alertsCount} تنبيه${
-                      alertsCount > 1 ? "ات" : ""
-                    } يتطلب الانتباه`
-                  : `You have ${alertsCount} alert${
-                      alertsCount > 1 ? "s" : ""
-                    } requiring attention`}
-              </Text>
-            </View>
-            <ChevronRight color={theme.colors.accent.error} size={20} />
-          </Card>
-        )}
+        {/* Render widgets dynamically based on config order */}
+        {enabledWidgets.map((widget) => renderWidget(widget.id))}
 
         {/* Alerts Modal */}
         <Modal
@@ -1129,360 +1584,594 @@ export default function DashboardScreen() {
           </View>
         </Modal>
 
-        {/* Today's Medications */}
-        <View style={styles.section as ViewStyle}>
-          <View style={styles.sectionHeader as ViewStyle}>
-            <Text
-              style={
-                [
-                  styles.sectionTitle,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
+        {/* Health Score Breakdown Modal */}
+        <Modal
+          animationType="slide"
+          onRequestClose={() => setHealthScoreModalVisible(false)}
+          visible={healthScoreModalVisible}
+          transparent={true}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: "flex-end",
+            }}
+          >
+            <SafeAreaView
+              edges={["bottom"]}
+              style={{
+                backgroundColor: theme.colors.background.primary,
+                borderTopLeftRadius: theme.borderRadius.xl,
+                borderTopRightRadius: theme.borderRadius.xl,
+                maxHeight: Dimensions.get("window").height * 0.9,
+              }}
             >
-              {isRTL ? "أدوية اليوم" : "Today's Medications"}
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/medications")}
-              style={styles.viewAllButton as ViewStyle}
-            >
-              <Text
-                style={
-                  [
-                    styles.viewAllText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: theme.spacing.base,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.border.light,
+                }}
               >
-                {isRTL ? "عرض الكل" : "View All"}
-              </Text>
-              <ChevronRight color={theme.colors.primary.main} size={16} />
-            </TouchableOpacity>
-          </View>
-
-          {todaysMedications.length > 0 ? (
-            todaysMedications.slice(0, 3).map((medication) => (
-              <TouchableOpacity
-                key={medication.id}
-                onPress={() => router.push("/(tabs)/medications")}
-                style={styles.medicationItem as ViewStyle}
+                <Text
+                  style={
+                    [
+                      getTextStyle(
+                        theme,
+                        "heading",
+                        "bold",
+                        theme.colors.text.primary
+                      ),
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "تفاصيل نقاط الصحة" : "Health Score Breakdown"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setHealthScoreModalVisible(false)}
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: theme.colors.background.secondary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <X color={theme.colors.text.secondary} size={24} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                contentContainerStyle={{
+                  padding: theme.spacing.base,
+                  paddingBottom: theme.spacing.xl * 2,
+                  paddingHorizontal: theme.spacing.md,
+                }}
+                showsVerticalScrollIndicator={false}
               >
-                <View style={styles.medicationIcon as ViewStyle}>
-                  <Pill color={theme.colors.primary.main} size={20} />
-                </View>
-                <View style={styles.medicationInfo as ViewStyle}>
-                  <Text
-                    style={
-                      [
-                        styles.medicationName,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {medication.name}
-                  </Text>
-                  <Text
-                    style={
-                      [
-                        styles.medicationDosage,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {medication.dosage} • {medication.frequency}
-                  </Text>
-                </View>
-                <View style={styles.medicationStatus as ViewStyle}>
-                  {Array.isArray(medication.reminders) &&
-                  medication.reminders.some((r) => r.taken) ? (
-                    <View
-                      style={
-                        [
-                          styles.statusCheckContainer,
-                          { backgroundColor: theme.colors.accent.success },
-                        ] as StyleProp<ViewStyle>
-                      }
-                    >
-                      <Check
-                        color={theme.colors.neutral.white}
-                        size={16}
-                        strokeWidth={3}
-                      />
-                    </View>
-                  ) : (
-                    <View
-                      style={
-                        [
-                          styles.statusCheckContainer,
-                          {
+                {healthScoreResult ? (
+                  <>
+                    {/* Overall Score */}
+                    <View style={{ marginBottom: theme.spacing.xl }}>
+                      <View style={{ alignItems: "center", marginBottom: theme.spacing.sm, paddingHorizontal: theme.spacing.md }}>
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 48,
+                                fontFamily: "Geist-Bold",
+                                color: theme.colors.text.primary,
+                                marginBottom: 4,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {healthScoreResult.score}
+                        </Text>
+                        <Text
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={false}
+                          style={
+                            [
+                              {
+                                fontSize: 16,
+                                fontFamily: "Geist-Regular",
+                                color: theme.colors.text.secondary,
+                                marginBottom: theme.spacing.md,
+                                paddingHorizontal: theme.spacing.sm,
+                                textAlign: "center",
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {isRTL ? "من 100" : "out of 100"}
+                        </Text>
+                        <View
+                          style={{
+                            paddingHorizontal: 16,
+                            paddingVertical: 6,
+                            borderRadius: 20,
                             backgroundColor: theme.colors.background.secondary,
-                            borderColor: theme.colors.border.medium,
-                            borderWidth: 2,
-                          },
-                        ] as StyleProp<ViewStyle>
-                      }
-                    >
-                      <Check
-                        color={theme.colors.text.tertiary}
-                        size={16}
-                        strokeWidth={2}
-                      />
+                          }}
+                        >
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 14,
+                                  fontFamily: "Geist-Medium",
+                                  color: theme.colors.text.primary,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {healthScoreResult.rating === "excellent" && (isRTL ? "ممتاز" : "Excellent")}
+                            {healthScoreResult.rating === "good" && (isRTL ? "جيد" : "Good")}
+                            {healthScoreResult.rating === "fair" && (isRTL ? "مقبول" : "Fair")}
+                            {healthScoreResult.rating === "poor" && (isRTL ? "ضعيف" : "Poor")}
+                            {healthScoreResult.rating === "critical" && (isRTL ? "حرج" : "Critical")}
+                          </Text>
+                        </View>
+                      </View>
                     </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/medications")}
-              style={styles.emptyContainer as ViewStyle}
-            >
-              <Text
-                style={
-                  [
-                    styles.emptyText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL
-                  ? "لا توجد أدوية لليوم - اضغط لإضافة دواء"
-                  : "No medications for today - tap to add"}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
-        {/* Recent Symptoms */}
-        <View style={styles.section as ViewStyle}>
-          <View style={styles.sectionHeader as ViewStyle}>
-            <Text
-              style={
-                [
-                  styles.sectionTitle,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {isRTL ? "الأعراض الصحية الأخيرة" : "Recent Symptoms"}
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/symptoms")}
-              style={styles.viewAllButton as ViewStyle}
-            >
-              <Text
-                style={
-                  [
-                    styles.viewAllText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "عرض الكل" : "View All"}
-              </Text>
-              <ChevronRight color={theme.colors.primary.main} size={16} />
-            </TouchableOpacity>
-          </View>
+                    {/* Calculation Breakdown */}
+                    <View style={{ marginBottom: theme.spacing.xl }}>
+                      <Text
+                        style={
+                          [
+                            {
+                              fontSize: 18,
+                              fontFamily: "Geist-Bold",
+                              color: theme.colors.text.primary,
+                              marginBottom: theme.spacing.base,
+                            },
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
+                        {isRTL ? "كيف تم حساب النقاط" : "How Your Score Was Calculated"}
+                      </Text>
+                      
+                      {/* Base Score */}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          paddingVertical: theme.spacing.sm,
+                          borderBottomWidth: 1,
+                          borderBottomColor: theme.colors.border.light,
+                        }}
+                      >
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 16,
+                                fontFamily: "Geist-Medium",
+                                color: theme.colors.text.primary,
+                                flex: 1,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {isRTL ? "النقاط الأساسية" : "Base Score"}
+                        </Text>
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 16,
+                                fontFamily: "Geist-Bold",
+                                color: theme.colors.accent.success,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          +{healthScoreResult.breakdown.baseScore}
+                        </Text>
+                      </View>
 
-          {recentSymptoms.length > 0 ? (
-            recentSymptoms.map((symptom) => (
-              <TouchableOpacity
-                key={symptom.id}
-                onPress={() => router.push("/(tabs)/symptoms")}
-                style={[
-                  styles.symptomItem as ViewStyle,
-                  isRTL && { flexDirection: "row-reverse" as const },
-                ]}
-              >
-                <View style={styles.symptomInfo as ViewStyle}>
-                  <Text
-                    style={
-                      [
-                        styles.symptomType,
-                        isRTL && styles.rtlText,
-                        isRTL && styles.symptomTypeRTL,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {t(symptom.type)}
-                  </Text>
-                  <Text
-                    style={
-                      [
-                        styles.symptomTime,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {formatTime(symptom.timestamp)}
-                  </Text>
-                </View>
-                <View style={styles.severityDisplay as ViewStyle}>
-                  {[...Array(5)].map((_, i) => (
+                      {/* Symptom Penalty */}
+                      {healthScoreResult.breakdown.symptomPenalty > 0 && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            paddingVertical: theme.spacing.sm,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.colors.border.light,
+                          }}
+                        >
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 16,
+                                  fontFamily: "Geist-Medium",
+                                  color: theme.colors.text.primary,
+                                  flex: 1,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {isRTL ? "خصم الأعراض" : "Symptom Penalty"}
+                          </Text>
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 16,
+                                  fontFamily: "Geist-Bold",
+                                  color: theme.colors.accent.error,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            -{healthScoreResult.breakdown.symptomPenalty.toFixed(1)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Medication Bonus */}
+                      {healthScoreResult.breakdown.medicationBonus !== 0 && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            paddingVertical: theme.spacing.sm,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.colors.border.light,
+                          }}
+                        >
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 16,
+                                  fontFamily: "Geist-Medium",
+                                  color: theme.colors.text.primary,
+                                  flex: 1,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {isRTL ? "مكافأة الأدوية" : "Medication Bonus"}
+                          </Text>
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 16,
+                                  fontFamily: "Geist-Bold",
+                                  color: healthScoreResult.breakdown.medicationBonus > 0 
+                                    ? theme.colors.accent.success 
+                                    : theme.colors.accent.error,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {healthScoreResult.breakdown.medicationBonus > 0 ? "+" : ""}
+                            {healthScoreResult.breakdown.medicationBonus.toFixed(1)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Final Score */}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          paddingVertical: theme.spacing.base,
+                          marginTop: theme.spacing.sm,
+                          paddingTop: theme.spacing.base,
+                          borderTopWidth: 2,
+                          borderTopColor: theme.colors.border.medium,
+                        }}
+                      >
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 18,
+                                fontFamily: "Geist-Bold",
+                                color: theme.colors.text.primary,
+                                flex: 1,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {isRTL ? "النقاط النهائية" : "Final Score"}
+                        </Text>
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 20,
+                                fontFamily: "Geist-Bold",
+                                color: theme.colors.primary.main,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {healthScoreResult.score}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Factors */}
+                    <View style={{ marginBottom: theme.spacing.xl }}>
+                      <Text
+                        style={
+                          [
+                            {
+                              fontSize: 18,
+                              fontFamily: "Geist-Bold",
+                              color: theme.colors.text.primary,
+                              marginBottom: theme.spacing.base,
+                            },
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
+                        {isRTL ? "العوامل المؤثرة" : "Contributing Factors"}
+                      </Text>
+                      
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          paddingVertical: theme.spacing.sm,
+                          borderBottomWidth: 1,
+                          borderBottomColor: theme.colors.background.secondary,
+                        }}
+                      >
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 14,
+                                fontFamily: "Geist-Regular",
+                                color: theme.colors.text.secondary,
+                                flex: 1,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {isRTL ? "الأعراض الأخيرة (7 أيام)" : "Recent Symptoms (7 days)"}
+                        </Text>
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 14,
+                                fontFamily: "Geist-Medium",
+                                color: theme.colors.text.primary,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {healthScoreResult.factors.recentSymptoms}
+                        </Text>
+                      </View>
+
+                      {healthScoreResult.factors.recentSymptoms > 0 && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            paddingVertical: theme.spacing.sm,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.colors.background.secondary,
+                          }}
+                        >
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 14,
+                                  fontFamily: "Geist-Regular",
+                                  color: theme.colors.text.secondary,
+                                  flex: 1,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {isRTL ? "متوسط شدة الأعراض" : "Average Symptom Severity"}
+                          </Text>
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 14,
+                                  fontFamily: "Geist-Medium",
+                                  color: theme.colors.text.primary,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {healthScoreResult.factors.symptomSeverityAvg.toFixed(1)}/10
+                          </Text>
+                        </View>
+                      )}
+
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          paddingVertical: theme.spacing.sm,
+                          borderBottomWidth: 1,
+                          borderBottomColor: theme.colors.background.secondary,
+                        }}
+                      >
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 14,
+                                fontFamily: "Geist-Regular",
+                                color: theme.colors.text.secondary,
+                                flex: 1,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {isRTL ? "الأدوية النشطة" : "Active Medications"}
+                        </Text>
+                        <Text
+                          style={
+                            [
+                              {
+                                fontSize: 14,
+                                fontFamily: "Geist-Medium",
+                                color: theme.colors.text.primary,
+                              },
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {healthScoreResult.factors.activeMedications}
+                        </Text>
+                      </View>
+
+                      {healthScoreResult.factors.activeMedications > 0 && (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            paddingVertical: theme.spacing.sm,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.colors.background.secondary,
+                          }}
+                        >
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 14,
+                                  fontFamily: "Geist-Regular",
+                                  color: theme.colors.text.secondary,
+                                  flex: 1,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
+                          </Text>
+                          <Text
+                            style={
+                              [
+                                {
+                                  fontSize: 14,
+                                  fontFamily: "Geist-Medium",
+                                  color: theme.colors.text.primary,
+                                },
+                                isRTL && styles.rtlText,
+                              ] as StyleProp<TextStyle>
+                            }
+                          >
+                            {healthScoreResult.factors.medicationCompliance}%
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Info Note */}
                     <View
-                      key={i}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "flex-start",
+                        backgroundColor: theme.colors.background.secondary,
+                        padding: theme.spacing.base,
+                        borderRadius: theme.borderRadius.lg,
+                        marginTop: theme.spacing.sm,
+                        gap: theme.spacing.sm,
+                      }}
+                    >
+                      <HelpCircle color={theme.colors.text.secondary} size={16} style={{ marginTop: 2 }} />
+                      <Text
+                        style={
+                          [
+                            {
+                              fontSize: 12,
+                              fontFamily: "Geist-Regular",
+                              color: theme.colors.text.secondary,
+                              flex: 1,
+                              lineHeight: 18,
+                            },
+                            isRTL && styles.rtlText,
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
+                        {isRTL 
+                          ? "يتم حساب نقاط الصحة بناءً على الأعراض الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
+                          : "Your health score is calculated based on recent symptoms (last 7 days) and medication compliance. Base score is 100, with points deducted for symptoms and bonuses added for good medication adherence."}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View
+                    style={{
+                      paddingVertical: theme.spacing.xl,
+                      alignItems: "center",
+                    }}
+                  >
+                    <ActivityIndicator
+                      color={theme.colors.primary.main}
+                      size="large"
+                    />
+                    <Text
                       style={
                         [
-                          styles.severityDot,
                           {
-                            backgroundColor:
-                              i < symptom.severity
-                                ? getSeverityColor(symptom.severity)
-                                : theme.colors.neutral[200],
+                            fontSize: 14,
+                            fontFamily: "Geist-Regular",
+                            color: theme.colors.text.secondary,
+                            marginTop: theme.spacing.base,
                           },
-                        ] as StyleProp<ViewStyle>
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
                       }
-                    />
-                  ))}
-                </View>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/symptoms")}
-              style={styles.emptyContainer as ViewStyle}
-            >
-              <Text
-                style={
-                  [
-                    styles.emptyText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL
-                  ? "لا توجد أعراض الصحية مسجلة - اضغط لإضافة أعراض صحية"
-                  : "No symptoms recorded - tap to add"}
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Health Score with Maak One-liner */}
-        <View style={styles.healthScoreCard as ViewStyle}>
-          <Heart color={theme.colors.accent.error} size={32} />
-          <View style={styles.healthScoreInfo as ViewStyle}>
-            <Text
-              style={
-                [
-                  styles.healthScoreTitle,
-                  isRTL && styles.rtlText,
-                  isRTL && styles.healthScoreTitleRTL,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {isRTL ? "نقاط الصحة" : "Health Score"}
-            </Text>
-            <Text
-              style={
-                [
-                  styles.healthScoreValue,
-                  isRTL && styles.rtlText,
-                  isRTL && styles.healthScoreValueRTL,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {stats.healthScore}
-            </Text>
-            <Text
-              style={
-                [
-                  styles.healthScoreDesc,
-                  isRTL && styles.rtlText,
-                  isRTL && styles.healthScoreDescRTL,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {isRTL ? "نقاط من 100" : "out of 100"}
-            </Text>
+                    >
+                      {isRTL ? "جاري تحميل التفاصيل..." : "Loading details..."}
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </SafeAreaView>
           </View>
-        </View>
+        </Modal>
 
-        {/* Quick Actions Hub */}
-        <View style={styles.section as ViewStyle}>
-          <View style={styles.sectionHeader as ViewStyle}>
-            <Text
-              style={
-                [
-                  styles.sectionTitle,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {isRTL ? "إجراءات سريعة" : "Quick Actions"}
-            </Text>
-          </View>
-
-          <View style={styles.quickActionsGrid as ViewStyle}>
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/track")}
-              style={styles.quickActionCard as ViewStyle}
-            >
-              <Activity color={theme.colors.primary.main} size={24} />
-              <Text
-                style={
-                  [
-                    styles.quickActionText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "تتبع الصحة" : "Track Health"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/medications")}
-              style={styles.quickActionCard as ViewStyle}
-            >
-              <Pill color={theme.colors.accent.success} size={24} />
-              <Text
-                style={
-                  [
-                    styles.quickActionText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "إدارة الأدوية" : "Medications"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/vitals")}
-              style={styles.quickActionCard as ViewStyle}
-            >
-              <Heart color={theme.colors.secondary.main} size={24} />
-              <Text
-                style={
-                  [
-                    styles.quickActionText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push("/(tabs)/family")}
-              style={styles.quickActionCard as ViewStyle}
-            >
-              <Users color={theme.colors.primary.light} size={24} />
-              <Text
-                style={
-                  [
-                    styles.quickActionText,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "إدارة العائلة" : "Manage Family"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
         {/* Maak One-liner */}
         <View style={styles.onelineCard as ViewStyle}>
@@ -1499,6 +2188,16 @@ export default function DashboardScreen() {
               : '"Because health starts at home."'}
           </Text>
         </View>
+
+        {/* Widget Settings Modal */}
+        <DashboardWidgetSettings
+          visible={showWidgetSettings}
+          onClose={() => setShowWidgetSettings(false)}
+          onConfigChange={(config) => {
+            setDashboardConfig(config);
+            loadDashboardConfig();
+          }}
+        />
       </ScrollView>
     </SafeAreaView>
   );

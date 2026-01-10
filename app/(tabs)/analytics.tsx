@@ -1,0 +1,389 @@
+import { Calendar, TrendingUp } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { chartsService } from "@/lib/services/chartsService";
+import { medicationService } from "@/lib/services/medicationService";
+import { symptomService } from "@/lib/services/symptomService";
+import { healthDataService } from "@/lib/services/healthDataService";
+import type { Symptom, Medication, VitalSign } from "@/types";
+import { createThemedStyles, getTextStyle } from "@/utils/styles";
+import HealthChart from "@/app/components/HealthChart";
+import CorrelationChart from "@/app/components/CorrelationChart";
+import TrendPredictionChart from "@/app/components/TrendPredictionChart";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Button, Card } from "@/components/design-system";
+import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
+
+type DateRange = "7d" | "30d" | "90d" | "custom";
+
+export default function AnalyticsScreen() {
+  const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const isRTL = i18n.language === "ar";
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const [symptoms, setSymptoms] = useState<Symptom[]>([]);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [vitals, setVitals] = useState<VitalSign[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+
+  const styles = createThemedStyles((theme) => ({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background.primary,
+    } as ViewStyle,
+    header: {
+      paddingHorizontal: theme.spacing.base,
+      paddingVertical: theme.spacing.base,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.light,
+    } as ViewStyle,
+    headerTitle: {
+      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
+      fontSize: 24,
+      marginBottom: theme.spacing.base,
+    } as TextStyle & ViewStyle,
+    dateRangeSelector: {
+      flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+      gap: theme.spacing.xs,
+      flexWrap: "wrap" as ViewStyle["flexWrap"],
+    } as ViewStyle,
+    dateRangeButton: {
+      paddingHorizontal: theme.spacing.base,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.borderRadius.full,
+      borderWidth: 1,
+      borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+      backgroundColor: theme.colors.background.secondary,
+    } as ViewStyle,
+    dateRangeButtonActive: {
+      backgroundColor: theme.colors.primary.main,
+      borderColor: theme.colors.primary.main,
+    } as ViewStyle,
+    dateRangeButtonText: {
+      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
+      fontSize: 12,
+    } as TextStyle,
+    dateRangeButtonTextActive: {
+      color: theme.colors.neutral.white,
+    } as TextStyle,
+    content: {
+      paddingBottom: theme.spacing.xl,
+    } as ViewStyle,
+    section: {
+      marginVertical: theme.spacing.base,
+    } as ViewStyle,
+    sectionHeader: {
+      flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+      justifyContent: "space-between" as ViewStyle["justifyContent"],
+      alignItems: "center" as ViewStyle["alignItems"],
+      paddingHorizontal: theme.spacing.base,
+      marginBottom: theme.spacing.sm,
+    } as ViewStyle,
+    comparisonToggle: {
+      flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+      alignItems: "center" as ViewStyle["alignItems"],
+      gap: theme.spacing.xs,
+    } as ViewStyle,
+    emptyContainer: {
+      flex: 1,
+      justifyContent: "center" as ViewStyle["justifyContent"],
+      alignItems: "center" as ViewStyle["alignItems"],
+      padding: theme.spacing.xl,
+    } as ViewStyle,
+    emptyText: {
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+      textAlign: "center" as TextStyle["textAlign"],
+      marginTop: theme.spacing.base,
+    } as TextStyle & ViewStyle,
+    rtlText: {
+      textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
+    } as TextStyle,
+  }))(theme);
+
+  const getDaysFromRange = (range: DateRange): number => {
+    switch (range) {
+      case "7d":
+        return 7;
+      case "30d":
+        return 30;
+      case "90d":
+        return 90;
+      default:
+        return 30;
+    }
+  };
+
+  const loadAnalyticsData = useCallback(async (isRefresh = false) => {
+    if (!user) return;
+
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const days = getDaysFromRange(dateRange);
+
+      // Load data in parallel
+      const [userSymptoms, userMedications, userVitals] = await Promise.all([
+        symptomService.getUserSymptoms(user.id, 1000), // Get more for better charts
+        medicationService.getUserMedications(user.id),
+        healthDataService.getLatestVitals(), // This might need to be updated to get historical vitals
+      ]);
+
+      setSymptoms(userSymptoms);
+      setMedications(userMedications);
+      // Note: getLatestVitals returns VitalSigns object, not VitalSign[]
+      // For now, we'll keep vitals as empty array since it's not used in the analytics
+      setVitals([]);
+    } catch (error) {
+      // Handle error silently
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user, dateRange]);
+
+  useEffect(() => {
+    loadAnalyticsData();
+  }, [loadAnalyticsData]);
+
+  const dateRanges: Array<{ value: DateRange; label: string }> = [
+    { value: "7d", label: isRTL ? "7 أيام" : "7 Days" },
+    { value: "30d", label: isRTL ? "30 يوم" : "30 Days" },
+    { value: "90d", label: isRTL ? "90 يوم" : "90 Days" },
+  ];
+
+  // Prepare chart data
+  const symptomChartData = chartsService.prepareSymptomTimeSeries(
+    symptoms,
+    getDaysFromRange(dateRange)
+  );
+
+  const medicationComplianceData = chartsService.prepareMedicationComplianceTimeSeries(
+    medications,
+    getDaysFromRange(dateRange)
+  );
+
+  const correlationData = chartsService.calculateCorrelation(
+    symptoms,
+    medications,
+    getDaysFromRange(dateRange)
+  );
+
+  const symptomTrend = chartsService.predictTrend(
+    symptomChartData.labels.map((label, index) => ({
+      x: label,
+      y: symptomChartData.datasets[0].data[index],
+    })),
+    7
+  );
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container as ViewStyle}>
+        <View style={styles.emptyContainer as ViewStyle}>
+          <Text style={styles.emptyText as TextStyle}>
+            {isRTL ? "يجب تسجيل الدخول" : "Please log in"}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container as ViewStyle}>
+      <View style={styles.header as ViewStyle}>
+        <Heading level={4} style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          {isRTL ? "التحليلات والاتجاهات" : "Analytics & Trends"}
+        </Heading>
+
+        {/* Date Range Selector */}
+        <View style={styles.dateRangeSelector as ViewStyle}>
+          {dateRanges.map((range) => (
+            <TouchableOpacity
+              key={range.value}
+              onPress={() => setDateRange(range.value)}
+              style={[
+                styles.dateRangeButton,
+                dateRange === range.value ? styles.dateRangeButtonActive : undefined,
+              ] as ViewStyle[]}
+            >
+              <Text
+                style={[
+                  styles.dateRangeButtonText,
+                  dateRange === range.value ? styles.dateRangeButtonTextActive : undefined,
+                ] as TextStyle[]}
+              >
+                {range.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.emptyContainer as ViewStyle}>
+          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.content as ViewStyle}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadAnalyticsData(true)}
+            />
+          }
+        >
+          {/* Symptom Trends */}
+          {symptoms.length > 0 && (
+            <View style={styles.section as ViewStyle}>
+              <View style={styles.sectionHeader as ViewStyle}>
+                <Heading level={6} style={[styles.rtlText, undefined]}>
+                  {isRTL ? "اتجاهات الأعراض" : "Symptom Trends"}
+                </Heading>
+              </View>
+              <HealthChart
+                data={symptomChartData}
+                title=""
+                yAxisLabel="Severity"
+                yAxisSuffix=""
+              />
+            </View>
+          )}
+
+          {/* Symptom Trend Prediction */}
+          {symptoms.length > 7 && (
+            <View style={styles.section as ViewStyle}>
+              <View style={styles.sectionHeader as ViewStyle}>
+                <Heading level={6} style={[styles.rtlText, undefined]}>
+                  {isRTL ? "التنبؤ بالاتجاه" : "Trend Prediction"}
+                </Heading>
+              </View>
+              <TrendPredictionChart
+                prediction={symptomTrend}
+                title=""
+                yAxisLabel="Severity"
+              />
+            </View>
+          )}
+
+          {/* Medication Compliance */}
+          {medications.length > 0 && (
+            <View style={styles.section as ViewStyle}>
+              <View style={styles.sectionHeader as ViewStyle}>
+                <Heading level={6} style={[styles.rtlText, undefined]}>
+                  {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
+                </Heading>
+              </View>
+              <HealthChart
+                data={medicationComplianceData}
+                title=""
+                yAxisLabel=""
+                yAxisSuffix="%"
+              />
+            </View>
+          )}
+
+          {/* Correlation Analysis */}
+          {symptoms.length > 0 && medications.length > 0 && (
+            <View style={styles.section as ViewStyle}>
+              <View style={styles.sectionHeader as ViewStyle}>
+                <Heading level={6} style={[styles.rtlText, undefined]}>
+                  {isRTL ? "تحليل الارتباط" : "Correlation Analysis"}
+                </Heading>
+              </View>
+              <CorrelationChart
+                data={correlationData}
+                title=""
+              />
+              <Card variant="elevated" style={{ marginHorizontal: 16, marginTop: 8 }} onPress={undefined} contentStyle={undefined}>
+                <View style={{ padding: 16 }}>
+                  <TypographyText weight="semibold" style={{ marginBottom: 8 }}>
+                    {isRTL ? "التفسير" : "Interpretation"}
+                  </TypographyText>
+                  <Caption style={{}} numberOfLines={5}>
+                    {correlationData.correlation > 0.3
+                      ? isRTL
+                        ? "يبدو أن الالتزام بالأدوية يرتبط بانخفاض شدة الأعراض"
+                        : "Medication compliance appears to correlate with lower symptom severity"
+                      : correlationData.correlation < -0.3
+                        ? isRTL
+                          ? "يبدو أن انخفاض الالتزام بالأدوية يرتبط بزيادة شدة الأعراض"
+                          : "Lower medication compliance appears to correlate with higher symptom severity"
+                        : isRTL
+                          ? "لا يوجد ارتباط واضح بين الالتزام بالأدوية وشدة الأعراض"
+                          : "No clear correlation found between medication compliance and symptom severity"}
+                  </Caption>
+                </View>
+              </Card>
+            </View>
+          )}
+
+          {/* Summary Stats */}
+          <View style={styles.section as ViewStyle}>
+            <View style={styles.sectionHeader as ViewStyle}>
+              <Heading level={6} style={[styles.rtlText, undefined]}>
+                {isRTL ? "ملخص الإحصائيات" : "Summary Statistics"}
+              </Heading>
+            </View>
+            <View style={{ paddingHorizontal: 16, gap: 12 }}>
+              <Card variant="elevated" style={undefined} onPress={undefined} contentStyle={undefined}>
+                <View style={{ padding: 16 }}>
+                  <TypographyText weight="semibold" style={{ marginBottom: 4 }}>
+                    {isRTL ? "متوسط شدة الأعراض" : "Average Symptom Severity"}
+                  </TypographyText>
+                  <TypographyText size="large" weight="bold" style={{}}>
+                    {symptomChartData.datasets[0].data.length > 0
+                      ? (
+                          symptomChartData.datasets[0].data.reduce((a, b) => a + b, 0) /
+                          symptomChartData.datasets[0].data.length
+                        ).toFixed(1)
+                      : "0"}
+                    /5
+                  </TypographyText>
+                </View>
+              </Card>
+
+              <Card variant="elevated" style={undefined} onPress={undefined} contentStyle={undefined}>
+                <View style={{ padding: 16 }}>
+                  <TypographyText weight="semibold" style={{ marginBottom: 4 }}>
+                    {isRTL ? "متوسط الالتزام بالأدوية" : "Average Medication Compliance"}
+                  </TypographyText>
+                  <TypographyText size="large" weight="bold" style={{}}>
+                    {medicationComplianceData.datasets[0].data.length > 0
+                      ? (
+                          medicationComplianceData.datasets[0].data.reduce((a, b) => a + b, 0) /
+                          medicationComplianceData.datasets[0].data.length
+                        ).toFixed(0)
+                      : "100"}
+                    %
+                  </TypographyText>
+                </View>
+              </Card>
+            </View>
+          </View>
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+}

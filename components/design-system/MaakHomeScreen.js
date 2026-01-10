@@ -25,7 +25,7 @@ const MaakHomeScreen = () => {
           </View>
         </View>
         <View style={styles.headerRight}>
-          <Avatar name="User" size={40} />
+          <Avatar name="User" size="md" />
         </View>
       </View>
 
@@ -90,7 +90,7 @@ const MaakHomeScreen = () => {
 
           <Card onPress={() => {}} style={styles.projectCard}>
             <View style={styles.projectHeader}>
-              <Avatar name="Project Alpha" size={48} />
+              <Avatar name="Project Alpha" size="md" />
               <View style={styles.projectInfo}>
                 <Text weight="semibold" size="large">Project Alpha</Text>
                 <Caption>Mobile App Development</Caption>
@@ -103,9 +103,9 @@ const MaakHomeScreen = () => {
             </Text>
             <View style={styles.projectFooter}>
               <View style={styles.avatarGroup}>
-                <Avatar name="User 1" size={28} style={styles.avatarOverlap} />
-                <Avatar name="User 2" size={28} style={styles.avatarOverlap} />
-                <Avatar name="User 3" size={28} style={styles.avatarOverlap} />
+                <Avatar name="User 1" size="sm" style={styles.avatarOverlap} />
+                <Avatar name="User 2" size="sm" style={styles.avatarOverlap} />
+                <Avatar name="User 3" size="sm" style={styles.avatarOverlap} />
                 <View style={[styles.avatarOverlap, styles.moreAvatar]}>
                   <Text size="small" weight="semibold">+5</Text>
                 </View>
@@ -116,7 +116,7 @@ const MaakHomeScreen = () => {
 
           <Card onPress={() => {}} style={styles.projectCard}>
             <View style={styles.projectHeader}>
-              <Avatar name="Design Sprint" size={48} />
+              <Avatar name="Design Sprint" size="md" />
               <View style={styles.projectInfo}>
                 <Text weight="semibold" size="large">Design Sprint</Text>
                 <Caption>UI/UX Workshop</Caption>
@@ -129,8 +129,8 @@ const MaakHomeScreen = () => {
             </Text>
             <View style={styles.projectFooter}>
               <View style={styles.avatarGroup}>
-                <Avatar name="User 4" size={28} style={styles.avatarOverlap} />
-                <Avatar name="User 5" size={28} style={styles.avatarOverlap} />
+                <Avatar name="User 4" size="sm" style={styles.avatarOverlap} />
+                <Avatar name="User 5" size="sm" style={styles.avatarOverlap} />
                 <View style={[styles.avatarOverlap, styles.moreAvatar]}>
                   <Text size="small" weight="semibold">+3</Text>
                 </View>
