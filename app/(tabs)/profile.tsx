@@ -121,6 +121,10 @@ export default function ProfileScreen() {
   const [eventShareWithFamily, setEventShareWithFamily] = useState(false);
   const [eventTags, setEventTags] = useState<string[]>([]);
   const [savingEvent, setSavingEvent] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const isRTL = i18n.language === "ar";
 
@@ -461,6 +465,10 @@ export default function ProfileScreen() {
     setEventRecurrencePattern("none");
     setEventShareWithFamily(false);
     setEventTags([]);
+    setShowStartDatePicker(false);
+    setShowStartTimePicker(false);
+    setShowEndDatePicker(false);
+    setShowEndTimePicker(false);
   };
 
   useEffect(() => {
@@ -561,7 +569,7 @@ export default function ProfileScreen() {
         },
         {
           icon: Calendar,
-          label: t("calendar"),
+          label: t("calendar").charAt(0).toUpperCase() + t("calendar").slice(1).toLowerCase(),
           onPress: () => {
             setShowCalendarModal(true);
             loadCalendarEvents();
@@ -1573,6 +1581,116 @@ export default function ProfileScreen() {
               />
             </View>
 
+            {/* Start Date & Time */}
+            <View style={{ marginBottom: 16 }}>
+              <TypographyText style={{ marginBottom: 8 }}>
+                {isRTL ? "تاريخ ووقت البداية" : "Start Date & Time"} *
+              </TypographyText>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setShowStartDatePicker(true)}
+                  style={{
+                    flex: 1,
+                    borderWidth: 1,
+                    borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                    borderRadius: 8,
+                    padding: 12,
+                    backgroundColor: theme.colors.background.secondary,
+                    flexDirection: isRTL ? "row-reverse" : "row",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <CalendarIcon size={16} color={theme.colors.text.secondary} />
+                  <Text style={{ color: theme.colors.text.primary, flex: 1 }}>
+                    {eventStartDate.toLocaleDateString(isRTL ? "ar" : "en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </Text>
+                </TouchableOpacity>
+                {!eventAllDay && (
+                  <TouchableOpacity
+                    onPress={() => setShowStartTimePicker(true)}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                      borderRadius: 8,
+                      padding: 12,
+                      backgroundColor: theme.colors.background.secondary,
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Clock size={16} color={theme.colors.text.secondary} />
+                    <Text style={{ color: theme.colors.text.primary, flex: 1 }}>
+                      {formatTime(eventStartDate)}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* End Date & Time */}
+            {!eventAllDay && (
+              <View style={{ marginBottom: 16 }}>
+                <TypographyText style={{ marginBottom: 8 }}>
+                  {isRTL ? "تاريخ ووقت النهاية" : "End Date & Time"} ({isRTL ? "اختياري" : "Optional"})
+                </TypographyText>
+                <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => setShowEndDatePicker(true)}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                      borderRadius: 8,
+                      padding: 12,
+                      backgroundColor: theme.colors.background.secondary,
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <CalendarIcon size={16} color={theme.colors.text.secondary} />
+                    <Text style={{ color: theme.colors.text.primary, flex: 1 }}>
+                      {eventEndDate
+                        ? eventEndDate.toLocaleDateString(isRTL ? "ar" : "en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        : isRTL ? "اختر التاريخ" : "Select Date"}
+                    </Text>
+                  </TouchableOpacity>
+                  {eventEndDate && (
+                    <TouchableOpacity
+                      onPress={() => setShowEndTimePicker(true)}
+                      style={{
+                        flex: 1,
+                        borderWidth: 1,
+                        borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                        borderRadius: 8,
+                        padding: 12,
+                        backgroundColor: theme.colors.background.secondary,
+                        flexDirection: isRTL ? "row-reverse" : "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <Clock size={16} color={theme.colors.text.secondary} />
+                      <Text style={{ color: theme.colors.text.primary, flex: 1 }}>
+                        {formatTime(eventEndDate)}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
             {/* Location */}
             <View style={{ marginBottom: 16 }}>
               <TypographyText style={{ marginBottom: 8 }}>
@@ -1648,6 +1766,303 @@ export default function ProfileScreen() {
             />
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* Start Date Picker Modal */}
+      <Modal
+        visible={showStartDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowStartDatePicker(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.colors.background.primary, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: "50%" }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", marginBottom: 20 }}>
+              <Heading level={5} style={{}}>{isRTL ? "اختر تاريخ البداية" : "Select Start Date"}</Heading>
+              <TouchableOpacity onPress={() => setShowStartDatePicker(false)}>
+                <X size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {Array.from({ length: 365 }, (_, i) => {
+                const date = new Date();
+                date.setDate(date.getDate() + i - 30); // Show past 30 days to future 335 days
+                const isSelected =
+                  eventStartDate.toDateString() === date.toDateString();
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => {
+                      const newDate = new Date(date);
+                      newDate.setHours(eventStartDate.getHours());
+                      newDate.setMinutes(eventStartDate.getMinutes());
+                      setEventStartDate(newDate);
+                      setShowStartDatePicker(false);
+                    }}
+                    style={{
+                      padding: 12,
+                      backgroundColor: isSelected ? theme.colors.primary.main : theme.colors.background.secondary,
+                      borderRadius: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: isSelected ? theme.colors.neutral.white : theme.colors.text.primary }}>
+                      {date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Start Time Picker Modal */}
+      <Modal
+        visible={showStartTimePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowStartTimePicker(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.colors.background.primary, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", marginBottom: 20 }}>
+              <Heading level={5} style={{}}>{isRTL ? "اختر وقت البداية" : "Select Start Time"}</Heading>
+              <TouchableOpacity onPress={() => setShowStartTimePicker(false)}>
+                <X size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 16, marginBottom: 20 }}>
+              <View style={{ flex: 1 }}>
+                <TypographyText style={{ marginBottom: 8 }}>{isRTL ? "ساعة" : "Hour"}</TypographyText>
+                <ScrollView style={{ maxHeight: 200 }}>
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const hour = i;
+                    const isSelected = eventStartDate.getHours() === hour;
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => {
+                          const newDate = new Date(eventStartDate);
+                          newDate.setHours(hour);
+                          setEventStartDate(newDate);
+                        }}
+                        style={{
+                          padding: 12,
+                          backgroundColor: isSelected ? theme.colors.primary.main : theme.colors.background.secondary,
+                          borderRadius: 8,
+                          marginBottom: 4,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: isSelected ? theme.colors.neutral.white : theme.colors.text.primary }}>
+                          {hour.toString().padStart(2, "0")}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+              <View style={{ flex: 1 }}>
+                <TypographyText style={{ marginBottom: 8 }}>{isRTL ? "دقيقة" : "Minute"}</TypographyText>
+                <ScrollView style={{ maxHeight: 200 }}>
+                  {Array.from({ length: 60 }, (_, i) => {
+                    const minute = i;
+                    const isSelected = eventStartDate.getMinutes() === minute;
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => {
+                          const newDate = new Date(eventStartDate);
+                          newDate.setMinutes(minute);
+                          setEventStartDate(newDate);
+                        }}
+                        style={{
+                          padding: 12,
+                          backgroundColor: isSelected ? theme.colors.primary.main : theme.colors.background.secondary,
+                          borderRadius: 8,
+                          marginBottom: 4,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: isSelected ? theme.colors.neutral.white : theme.colors.text.primary }}>
+                          {minute.toString().padStart(2, "0")}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+            <Button
+              variant="primary"
+              onPress={() => setShowStartTimePicker(false)}
+              title={isRTL ? "تم" : "Done"}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Date Picker Modal */}
+      <Modal
+        visible={showEndDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEndDatePicker(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.colors.background.primary, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: "50%" }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", marginBottom: 20 }}>
+              <Heading level={5} style={{}}>{isRTL ? "اختر تاريخ النهاية" : "Select End Date"}</Heading>
+              <TouchableOpacity onPress={() => setShowEndDatePicker(false)}>
+                <X size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {Array.from({ length: 365 }, (_, i) => {
+                const date = new Date();
+                date.setDate(date.getDate() + i - 30); // Show past 30 days to future 335 days
+                const isSelected =
+                  eventEndDate && eventEndDate.toDateString() === date.toDateString();
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => {
+                      const newDate = new Date(date);
+                      if (eventEndDate) {
+                        newDate.setHours(eventEndDate.getHours());
+                        newDate.setMinutes(eventEndDate.getMinutes());
+                      } else {
+                        newDate.setHours(eventStartDate.getHours() + 1);
+                        newDate.setMinutes(eventStartDate.getMinutes());
+                      }
+                      setEventEndDate(newDate);
+                      setShowEndDatePicker(false);
+                    }}
+                    style={{
+                      padding: 12,
+                      backgroundColor: isSelected ? theme.colors.primary.main : theme.colors.background.secondary,
+                      borderRadius: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: isSelected ? theme.colors.neutral.white : theme.colors.text.primary }}>
+                      {date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndTimePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEndTimePicker(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
+          <View style={{ backgroundColor: theme.colors.background.primary, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 }}>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", marginBottom: 20 }}>
+              <Heading level={5} style={{}}>{isRTL ? "اختر وقت النهاية" : "Select End Time"}</Heading>
+              <TouchableOpacity onPress={() => setShowEndTimePicker(false)}>
+                <X size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 16, marginBottom: 20 }}>
+              <View style={{ flex: 1 }}>
+                <TypographyText style={{ marginBottom: 8 }}>{isRTL ? "ساعة" : "Hour"}</TypographyText>
+                <ScrollView style={{ maxHeight: 200 }}>
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const hour = i;
+                    const isSelected = eventEndDate && eventEndDate.getHours() === hour;
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => {
+                          if (!eventEndDate) {
+                            const newDate = new Date(eventStartDate);
+                            newDate.setHours(hour);
+                            setEventEndDate(newDate);
+                          } else {
+                            const newDate = new Date(eventEndDate);
+                            newDate.setHours(hour);
+                            setEventEndDate(newDate);
+                          }
+                        }}
+                        style={{
+                          padding: 12,
+                          backgroundColor: isSelected ? theme.colors.primary.main : theme.colors.background.secondary,
+                          borderRadius: 8,
+                          marginBottom: 4,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: isSelected ? theme.colors.neutral.white : theme.colors.text.primary }}>
+                          {hour.toString().padStart(2, "0")}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+              <View style={{ flex: 1 }}>
+                <TypographyText style={{ marginBottom: 8 }}>{isRTL ? "دقيقة" : "Minute"}</TypographyText>
+                <ScrollView style={{ maxHeight: 200 }}>
+                  {Array.from({ length: 60 }, (_, i) => {
+                    const minute = i;
+                    const isSelected = eventEndDate && eventEndDate.getMinutes() === minute;
+                    return (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => {
+                          if (!eventEndDate) {
+                            const newDate = new Date(eventStartDate);
+                            newDate.setMinutes(minute);
+                            setEventEndDate(newDate);
+                          } else {
+                            const newDate = new Date(eventEndDate);
+                            newDate.setMinutes(minute);
+                            setEventEndDate(newDate);
+                          }
+                        }}
+                        style={{
+                          padding: 12,
+                          backgroundColor: isSelected ? theme.colors.primary.main : theme.colors.background.secondary,
+                          borderRadius: 8,
+                          marginBottom: 4,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: isSelected ? theme.colors.neutral.white : theme.colors.text.primary }}>
+                          {minute.toString().padStart(2, "0")}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+            <Button
+              variant="primary"
+              onPress={() => setShowEndTimePicker(false)}
+              title={isRTL ? "تم" : "Done"}
+            />
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );

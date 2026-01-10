@@ -12,10 +12,13 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Medication } from "@/types";
+import { offlineService } from "./offlineService";
 
 export const medicationService = {
-  // Add new medication
+  // Add new medication (offline-first)
   async addMedication(medicationData: Omit<Medication, "id">): Promise<string> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
       // Filter out undefined values to prevent Firebase errors
       const cleanedData = Object.fromEntries(
@@ -28,10 +31,37 @@ export const medicationService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, "medications"), cleanedData);
-      return docRef.id;
+      if (isOnline) {
+        const docRef = await addDoc(collection(db, "medications"), cleanedData);
+        // Cache the result for offline access
+        const newMedication = { id: docRef.id, ...medicationData };
+        const currentMedications = await offlineService.getOfflineCollection<Medication>("medications");
+        await offlineService.storeOfflineData("medications", [...currentMedications, newMedication]);
+        return docRef.id;
+      } else {
+        // Offline - queue the operation
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "medications",
+          data: { ...medicationData, userId: medicationData.userId },
+        });
+        // Store locally for immediate UI update
+        const tempId = `offline_${operationId}`;
+        const newMedication = { id: tempId, ...medicationData };
+        const currentMedications = await offlineService.getOfflineCollection<Medication>("medications");
+        await offlineService.storeOfflineData("medications", [...currentMedications, newMedication]);
+        return tempId;
+      }
     } catch (error) {
-      // Silently handle error
+      // If online but fails, queue for retry
+      if (isOnline) {
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "medications",
+          data: { ...medicationData, userId: medicationData.userId },
+        });
+        return `offline_${operationId}`;
+      }
       throw error;
     }
   },
@@ -67,48 +97,66 @@ export const medicationService = {
     }
   },
 
-  // Get user medications
+  // Get user medications (offline-first)
   async getUserMedications(userId: string): Promise<Medication[]> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
-      // Query without orderBy to avoid index requirement, then sort in memory
-      const q = query(
-        collection(db, "medications"),
-        where("userId", "==", userId),
-        where("isActive", "==", true)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const medications: Medication[] = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Convert reminder takenAt Timestamps to Date objects
-        const processedReminders = (data.reminders || []).map(
-          (reminder: any) => ({
-            ...reminder,
-            takenAt: reminder.takenAt
-              ? reminder.takenAt.toDate
-                ? reminder.takenAt.toDate()
-                : new Date(reminder.takenAt)
-              : undefined,
-          })
+      if (isOnline) {
+        // Query without orderBy to avoid index requirement, then sort in memory
+        const q = query(
+          collection(db, "medications"),
+          where("userId", "==", userId),
+          where("isActive", "==", true)
         );
 
-        medications.push({
-          id: doc.id,
-          ...data,
-          reminders: processedReminders,
-          startDate: data.startDate.toDate(),
-          endDate: data.endDate?.toDate() || undefined,
-        } as Medication);
-      });
+        const querySnapshot = await getDocs(q);
+        const medications: Medication[] = [];
 
-      // Sort by startDate descending in memory
-      medications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          // Convert reminder takenAt Timestamps to Date objects
+          const processedReminders = (data.reminders || []).map(
+            (reminder: any) => ({
+              ...reminder,
+              takenAt: reminder.takenAt
+                ? reminder.takenAt.toDate
+                  ? reminder.takenAt.toDate()
+                  : new Date(reminder.takenAt)
+                : undefined,
+            })
+          );
 
-      return medications;
+          medications.push({
+            id: doc.id,
+            ...data,
+            reminders: processedReminders,
+            startDate: data.startDate.toDate(),
+            endDate: data.endDate?.toDate() || undefined,
+          } as Medication);
+        });
+
+        // Sort by startDate descending in memory
+        medications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+
+        // Cache for offline access
+        await offlineService.storeOfflineData("medications", medications);
+        return medications;
+      } else {
+        // Offline - use cached data filtered by userId
+        const cachedMedications = await offlineService.getOfflineCollection<Medication>("medications");
+        return cachedMedications
+          .filter((m) => m.userId === userId && m.isActive !== false)
+          .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+      }
     } catch (error) {
-      // Silently handle error getting medications:", error);
+      // If online but fails, try offline cache
+      if (isOnline) {
+        const cachedMedications = await offlineService.getOfflineCollection<Medication>("medications");
+        return cachedMedications
+          .filter((m) => m.userId === userId && m.isActive !== false)
+          .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+      }
       throw error;
     }
   },

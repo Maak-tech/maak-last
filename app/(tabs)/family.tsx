@@ -31,7 +31,7 @@ import {
   Users,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -191,6 +191,7 @@ export default function FamilyScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
+  const viewModeInitialized = useRef(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
     type: "personal",
@@ -1048,6 +1049,17 @@ export default function FamilyScreen() {
       setRefreshingElderlyDashboard(false);
     }
   }, [user, isRTL]);
+
+  // Set default view mode to dashboard for admins when user loads (only once)
+  useEffect(() => {
+    if (user && isAdmin && !viewModeInitialized.current && viewMode === "list") {
+      // Set to dashboard view for admins by default (only on initial load)
+      setViewMode("dashboard");
+      viewModeInitialized.current = true;
+    } else if (user && !isAdmin) {
+      viewModeInitialized.current = true; // Mark as initialized for non-admins too
+    }
+  }, [user?.id, isAdmin, viewMode]);
 
   // Load caregiver dashboard when view mode changes to dashboard and user is admin
   useEffect(() => {

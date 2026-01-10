@@ -13,10 +13,13 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Symptom } from "@/types";
+import { offlineService } from "./offlineService";
 
 export const symptomService = {
-  // Add new symptom
+  // Add new symptom (offline-first)
   async addSymptom(symptomData: Omit<Symptom, "id">): Promise<string> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
       // Filter out undefined values to prevent Firebase errors
       const cleanedData = Object.fromEntries(
@@ -26,10 +29,37 @@ export const symptomService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
-      return docRef.id;
+      if (isOnline) {
+        const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
+        // Cache the result for offline access
+        const newSymptom = { id: docRef.id, ...symptomData };
+        const currentSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
+        await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
+        return docRef.id;
+      } else {
+        // Offline - queue the operation
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "symptoms",
+          data: { ...symptomData, userId: symptomData.userId },
+        });
+        // Store locally for immediate UI update
+        const tempId = `offline_${operationId}`;
+        const newSymptom = { id: tempId, ...symptomData };
+        const currentSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
+        await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
+        return tempId;
+      }
     } catch (error) {
-      // Silently handle error
+      // If online but fails, queue for retry
+      if (isOnline) {
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "symptoms",
+          data: { ...symptomData, userId: symptomData.userId },
+        });
+        return `offline_${operationId}`;
+      }
       throw error;
     }
   },
@@ -62,31 +92,51 @@ export const symptomService = {
     }
   },
 
-  // Get user symptoms
+  // Get user symptoms (offline-first)
   async getUserSymptoms(userId: string, limitCount = 50): Promise<Symptom[]> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
-      const q = query(
-        collection(db, "symptoms"),
-        where("userId", "==", userId),
-        orderBy("timestamp", "desc"),
-        limit(limitCount)
-      );
+      if (isOnline) {
+        const q = query(
+          collection(db, "symptoms"),
+          where("userId", "==", userId),
+          orderBy("timestamp", "desc"),
+          limit(limitCount)
+        );
 
-      const querySnapshot = await getDocs(q);
-      const symptoms: Symptom[] = [];
+        const querySnapshot = await getDocs(q);
+        const symptoms: Symptom[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          symptoms.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp.toDate(),
+          } as Symptom);
+        });
 
-      return symptoms;
+        // Cache for offline access
+        await offlineService.storeOfflineData("symptoms", symptoms);
+        return symptoms;
+      } else {
+        // Offline - use cached data filtered by userId
+        const cachedSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
+        return cachedSymptoms
+          .filter((s) => s.userId === userId)
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .slice(0, limitCount);
+      }
     } catch (error) {
-      // Silently handle error getting symptoms:", error);
+      // If online but fails, try offline cache
+      if (isOnline) {
+        const cachedSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
+        return cachedSymptoms
+          .filter((s) => s.userId === userId)
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .slice(0, limitCount);
+      }
       throw error;
     }
   },

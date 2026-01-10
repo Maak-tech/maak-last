@@ -13,10 +13,13 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Mood } from "@/types";
+import { offlineService } from "./offlineService";
 
 export const moodService = {
-  // Add new mood
+  // Add new mood (offline-first)
   async addMood(moodData: Omit<Mood, "id">): Promise<string> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
       // Validate required fields
       if (!moodData.userId) {
@@ -40,9 +43,37 @@ export const moodService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, "moods"), cleanedData);
-      return docRef.id;
+      if (isOnline) {
+        const docRef = await addDoc(collection(db, "moods"), cleanedData);
+        // Cache the result for offline access
+        const newMood = { id: docRef.id, ...moodData };
+        const currentMoods = await offlineService.getOfflineCollection<Mood>("moods");
+        await offlineService.storeOfflineData("moods", [...currentMoods, newMood]);
+        return docRef.id;
+      } else {
+        // Offline - queue the operation
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "moods",
+          data: { ...moodData, userId: moodData.userId },
+        });
+        // Store locally for immediate UI update
+        const tempId = `offline_${operationId}`;
+        const newMood = { id: tempId, ...moodData };
+        const currentMoods = await offlineService.getOfflineCollection<Mood>("moods");
+        await offlineService.storeOfflineData("moods", [...currentMoods, newMood]);
+        return tempId;
+      }
     } catch (error) {
+      // If online but fails, queue for retry
+      if (isOnline) {
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "moods",
+          data: { ...moodData, userId: moodData.userId },
+        });
+        return `offline_${operationId}`;
+      }
       throw error;
     }
   },
@@ -88,30 +119,51 @@ export const moodService = {
     }
   },
 
-  // Get user moods
+  // Get user moods (offline-first)
   async getUserMoods(userId: string, limitCount = 50): Promise<Mood[]> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
-      const q = query(
-        collection(db, "moods"),
-        where("userId", "==", userId),
-        orderBy("timestamp", "desc"),
-        limit(limitCount)
-      );
+      if (isOnline) {
+        const q = query(
+          collection(db, "moods"),
+          where("userId", "==", userId),
+          orderBy("timestamp", "desc"),
+          limit(limitCount)
+        );
 
-      const querySnapshot = await getDocs(q);
-      const moods: Mood[] = [];
+        const querySnapshot = await getDocs(q);
+        const moods: Mood[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        moods.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Mood);
-      });
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          moods.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp.toDate(),
+          } as Mood);
+        });
 
-      return moods;
+        // Cache for offline access
+        await offlineService.storeOfflineData("moods", moods);
+        return moods;
+      } else {
+        // Offline - use cached data filtered by userId
+        const cachedMoods = await offlineService.getOfflineCollection<Mood>("moods");
+        return cachedMoods
+          .filter((m) => m.userId === userId)
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .slice(0, limitCount);
+      }
     } catch (error) {
+      // If online but fails, try offline cache
+      if (isOnline) {
+        const cachedMoods = await offlineService.getOfflineCollection<Mood>("moods");
+        return cachedMoods
+          .filter((m) => m.userId === userId)
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .slice(0, limitCount);
+      }
       throw error;
     }
   },

@@ -11,10 +11,13 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Allergy } from "@/types";
+import { offlineService } from "./offlineService";
 
 export const allergyService = {
-  // Add new allergy
+  // Add new allergy (offline-first)
   async addAllergy(allergyData: Omit<Allergy, "id">): Promise<string> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
       // Filter out undefined values to prevent Firebase errors
       const cleanedData = Object.fromEntries(
@@ -27,73 +30,131 @@ export const allergyService = {
         }).filter(([_, value]) => value !== undefined)
       );
 
-      const docRef = await addDoc(collection(db, "allergies"), cleanedData);
-      return docRef.id;
+      if (isOnline) {
+        const docRef = await addDoc(collection(db, "allergies"), cleanedData);
+        // Cache the result for offline access
+        const newAllergy = { id: docRef.id, ...allergyData };
+        const currentAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
+        await offlineService.storeOfflineData("allergies", [...currentAllergies, newAllergy]);
+        return docRef.id;
+      } else {
+        // Offline - queue the operation
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "allergies",
+          data: { ...allergyData, userId: allergyData.userId },
+        });
+        // Store locally for immediate UI update
+        const tempId = `offline_${operationId}`;
+        const newAllergy = { id: tempId, ...allergyData };
+        const currentAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
+        await offlineService.storeOfflineData("allergies", [...currentAllergies, newAllergy]);
+        return tempId;
+      }
     } catch (error) {
+      // If online but fails, queue for retry
+      if (isOnline) {
+        const operationId = await offlineService.queueOperation({
+          type: "create",
+          collection: "allergies",
+          data: { ...allergyData, userId: allergyData.userId },
+        });
+        return `offline_${operationId}`;
+      }
       throw error;
     }
   },
 
-  // Get user allergies
+  // Get user allergies (offline-first)
   async getUserAllergies(userId: string, limitCount = 50): Promise<Allergy[]> {
+    const isOnline = offlineService.isDeviceOnline();
+
     try {
-      // Query without orderBy to avoid index requirement, then sort in memory
-      const q = query(
-        collection(db, "allergies"),
-        where("userId", "==", userId)
-      );
+      if (isOnline) {
+        // Query without orderBy to avoid index requirement, then sort in memory
+        const q = query(
+          collection(db, "allergies"),
+          where("userId", "==", userId)
+        );
 
-      const querySnapshot = await getDocs(q);
-      const allergies: Allergy[] = [];
+        const querySnapshot = await getDocs(q);
+        const allergies: Allergy[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        try {
-          // Safely convert timestamp
-          let timestamp: Date;
-          if (data.timestamp?.toDate && typeof data.timestamp.toDate === "function") {
-            timestamp = data.timestamp.toDate();
-          } else if (data.timestamp instanceof Date) {
-            timestamp = data.timestamp;
-          } else if (data.timestamp) {
-            timestamp = new Date(data.timestamp);
-          } else {
-            timestamp = new Date();
-          }
-
-          // Safely convert discoveredDate
-          let discoveredDate: Date | undefined;
-          if (data.discoveredDate) {
-            if (data.discoveredDate?.toDate && typeof data.discoveredDate.toDate === "function") {
-              discoveredDate = data.discoveredDate.toDate();
-            } else if (data.discoveredDate instanceof Date) {
-              discoveredDate = data.discoveredDate;
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          try {
+            // Safely convert timestamp
+            let timestamp: Date;
+            if (data.timestamp?.toDate && typeof data.timestamp.toDate === "function") {
+              timestamp = data.timestamp.toDate();
+            } else if (data.timestamp instanceof Date) {
+              timestamp = data.timestamp;
+            } else if (data.timestamp) {
+              timestamp = new Date(data.timestamp);
             } else {
-              const parsed = new Date(data.discoveredDate);
-              discoveredDate = isNaN(parsed.getTime()) ? undefined : parsed;
+              timestamp = new Date();
             }
+
+            // Safely convert discoveredDate
+            let discoveredDate: Date | undefined;
+            if (data.discoveredDate) {
+              if (data.discoveredDate?.toDate && typeof data.discoveredDate.toDate === "function") {
+                discoveredDate = data.discoveredDate.toDate();
+              } else if (data.discoveredDate instanceof Date) {
+                discoveredDate = data.discoveredDate;
+              } else {
+                const parsed = new Date(data.discoveredDate);
+                discoveredDate = isNaN(parsed.getTime()) ? undefined : parsed;
+              }
+            }
+
+            allergies.push({
+              id: doc.id,
+              ...data,
+              timestamp,
+              discoveredDate,
+            } as Allergy);
+          } catch (error) {
+            // Silently handle parsing error
           }
+        });
 
-          allergies.push({
-            id: doc.id,
-            ...data,
-            timestamp,
-            discoveredDate,
-          } as Allergy);
-        } catch (error) {
-          // Silently handle parsing error
-        }
-      });
+        // Sort by timestamp descending and limit results
+        allergies.sort((a, b) => {
+          const timeA = a.timestamp?.getTime() || 0;
+          const timeB = b.timestamp?.getTime() || 0;
+          return timeB - timeA;
+        });
 
-      // Sort by timestamp descending and limit results
-      allergies.sort((a, b) => {
-        const timeA = a.timestamp?.getTime() || 0;
-        const timeB = b.timestamp?.getTime() || 0;
-        return timeB - timeA;
-      });
-
-      return allergies.slice(0, limitCount);
+        const result = allergies.slice(0, limitCount);
+        // Cache for offline access
+        await offlineService.storeOfflineData("allergies", result);
+        return result;
+      } else {
+        // Offline - use cached data filtered by userId
+        const cachedAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
+        return cachedAllergies
+          .filter((a) => a.userId === userId)
+          .sort((a, b) => {
+            const timeA = a.timestamp?.getTime() || 0;
+            const timeB = b.timestamp?.getTime() || 0;
+            return timeB - timeA;
+          })
+          .slice(0, limitCount);
+      }
     } catch (error) {
+      // If online but fails, try offline cache
+      if (isOnline) {
+        const cachedAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
+        return cachedAllergies
+          .filter((a) => a.userId === userId)
+          .sort((a, b) => {
+            const timeA = a.timestamp?.getTime() || 0;
+            const timeB = b.timestamp?.getTime() || 0;
+            return timeB - timeA;
+          })
+          .slice(0, limitCount);
+      }
       throw error;
     }
   },

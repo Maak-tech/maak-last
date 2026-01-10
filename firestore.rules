@@ -177,22 +177,37 @@ service cloud.firestore {
     // Lab Results collection
     match /labResults/{labResultId} {
       // Allow users to create their own lab results (primary rule - no document reads required)
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && 
+        request.resource.data.userId != null &&
+        request.resource.data.userId == request.auth.uid;
       
       // Allow admins to create lab results for family members (secondary rule - requires user document)
+      // Only evaluate if userId doesn't match auth.uid (to avoid unnecessary document reads)
       allow create: if request.auth != null && 
+        request.resource.data.userId != null &&
+        request.resource.data.userId != request.auth.uid &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        exists(/databases/$(database)/documents/users/$(request.resource.data.userId)) &&
         isFamilyAdmin() && 
         isSameFamily(request.resource.data.userId);
       
       // Allow users to read and write their own lab results
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && 
+        resource.data.userId != null &&
+        resource.data.userId == request.auth.uid;
       
       // Allow family members to read each other's lab results (for viewing family data)
-      allow read: if request.auth != null && isSameFamily(resource.data.userId);
+      allow read: if request.auth != null && 
+        resource.data.userId != null &&
+        resource.data.userId != request.auth.uid &&
+        isSameFamily(resource.data.userId);
       
       // Allow admins to update/delete lab results for family members
       allow update, delete: if request.auth != null && 
+        resource.data.userId != null &&
+        resource.data.userId != request.auth.uid &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        exists(/databases/$(database)/documents/users/$(resource.data.userId)) &&
         isFamilyAdmin() && 
         isSameFamily(resource.data.userId);
       

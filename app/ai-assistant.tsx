@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Volume2, VolumeX } from "lucide-react-native";
+import { Mic, Volume2, VolumeX } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import {
   addDoc,
@@ -73,12 +73,24 @@ export default function AIAssistant() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [recognitionAvailable, setRecognitionAvailable] = useState(false);
 
   useEffect(() => {
     initializeChat();
     loadChatHistory();
     checkVoiceAvailability();
+    checkRecognitionAvailability();
   }, []);
+
+  const checkRecognitionAvailability = async () => {
+    try {
+      const available = await voiceService.isRecognitionAvailable();
+      setRecognitionAvailable(available);
+    } catch (error) {
+      setRecognitionAvailable(false);
+    }
+  };
 
   const checkVoiceAvailability = async () => {
     try {
@@ -606,6 +618,42 @@ export default function AIAssistant() {
               ) : (
                 <VolumeX size={20} color="#666" />
               )}
+            </TouchableOpacity>
+          )}
+          {recognitionAvailable && (
+            <TouchableOpacity
+              onPress={async () => {
+                if (isListening) {
+                  await voiceService.stopListening();
+                  setIsListening(false);
+                } else {
+                  try {
+                    setIsListening(true);
+                    // Note: Full implementation requires audio recording
+                    // For now, show a message that this feature needs audio recording setup
+                    Alert.alert(
+                      "Voice Input",
+                      "Voice input requires audio recording capabilities. " +
+                      "Please install expo-av and configure audio permissions to use this feature. " +
+                      "For now, you can type your message.",
+                      [{ text: "OK" }]
+                    );
+                    setIsListening(false);
+                  } catch (error) {
+                    setIsListening(false);
+                    Alert.alert(
+                      "Error",
+                      "Failed to start voice input. Please check audio permissions."
+                    );
+                  }
+                }
+              }}
+              style={[
+                styles.voiceButton,
+                isListening && styles.voiceButtonActive,
+              ]}
+            >
+              <Mic size={20} color={isListening ? "white" : "#666"} />
             </TouchableOpacity>
           )}
           <TextInput

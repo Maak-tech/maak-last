@@ -42,6 +42,7 @@ export default function AnalyticsScreen() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [vitals, setVitals] = useState<VitalSign[]>([]);
   const [showComparison, setShowComparison] = useState(false);
+  const [comparisonRange, setComparisonRange] = useState<DateRange | null>(null);
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -197,6 +198,26 @@ export default function AnalyticsScreen() {
     7
   );
 
+  // Prepare comparison data if comparison is enabled
+  const symptomComparisonData = showComparison && comparisonRange
+    ? chartsService.prepareComparisonData(
+        symptomChartData.labels.map((label, index) => ({
+          x: label,
+          y: symptomChartData.datasets[0].data[index],
+        })),
+        chartsService.prepareSymptomTimeSeries(
+          symptoms,
+          getDaysFromRange(comparisonRange)
+        ).labels.map((label, index) => ({
+          x: label,
+          y: chartsService.prepareSymptomTimeSeries(
+            symptoms,
+            getDaysFromRange(comparisonRange)
+          ).datasets[0].data[index],
+        }))
+      )
+    : null;
+
   if (!user) {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
@@ -261,13 +282,79 @@ export default function AnalyticsScreen() {
                 <Heading level={6} style={[styles.rtlText, undefined]}>
                   {isRTL ? "اتجاهات الأعراض" : "Symptom Trends"}
                 </Heading>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (showComparison) {
+                      setShowComparison(false);
+                      setComparisonRange(null);
+                    } else {
+                      // Set comparison range to previous period
+                      const currentDays = getDaysFromRange(dateRange);
+                      if (dateRange === "7d") {
+                        setComparisonRange("7d");
+                      } else if (dateRange === "30d") {
+                        setComparisonRange("30d");
+                      } else if (dateRange === "90d") {
+                        setComparisonRange("90d");
+                      }
+                      setShowComparison(true);
+                    }
+                  }}
+                  style={styles.comparisonToggle as ViewStyle}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: showComparison
+                        ? theme.colors.primary.main
+                        : theme.colors.text.secondary,
+                    }}
+                  >
+                    {isRTL ? (showComparison ? "إخفاء المقارنة" : "مقارنة") : (showComparison ? "Hide Comparison" : "Compare")}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <HealthChart
-                data={symptomChartData}
-                title=""
-                yAxisLabel="Severity"
-                yAxisSuffix=""
-              />
+              {showComparison && symptomComparisonData ? (
+                <View>
+                  <HealthChart
+                    data={symptomComparisonData.current}
+                    title={isRTL ? "الفترة الحالية" : "Current Period"}
+                    yAxisLabel="Severity"
+                    yAxisSuffix=""
+                  />
+                  <HealthChart
+                    data={symptomComparisonData.previous}
+                    title={isRTL ? "الفترة السابقة" : "Previous Period"}
+                    yAxisLabel="Severity"
+                    yAxisSuffix=""
+                  />
+                  <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color:
+                          symptomComparisonData.change > 0
+                            ? theme.colors.accent.error
+                            : symptomComparisonData.change < 0
+                              ? theme.colors.accent.success
+                              : theme.colors.text.secondary,
+                      }}
+                    >
+                      {isRTL
+                        ? `التغيير: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`
+                        : `Change: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <HealthChart
+                  data={symptomChartData}
+                  title=""
+                  yAxisLabel="Severity"
+                  yAxisSuffix=""
+                />
+              )}
             </View>
           )}
 
