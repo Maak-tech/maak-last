@@ -1072,6 +1072,7 @@ export default function DashboardScreen() {
             <Card
               variant="elevated"
               onPress={async () => {
+                if (!user?.id) return;
                 setShowAlertsModal(true);
                 setLoadingAlerts(true);
                 try {
@@ -2194,8 +2195,8 @@ export default function DashboardScreen() {
           visible={showWidgetSettings}
           onClose={() => setShowWidgetSettings(false)}
           onConfigChange={(config) => {
+            // Update the dashboard config immediately with the saved config
             setDashboardConfig(config);
-            loadDashboardConfig();
           }}
         />
       </ScrollView>

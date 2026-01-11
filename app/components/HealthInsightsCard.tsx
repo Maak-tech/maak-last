@@ -65,15 +65,15 @@ export default function HealthInsightsCard({
   const getInsightIcon = (type: PatternInsight["type"]) => {
     switch (type) {
       case "temporal":
-        return "📅";
+        return "time-outline";
       case "correlation":
-        return "🔗";
+        return "link-outline";
       case "trend":
-        return "📈";
+        return "trending-up-outline";
       case "recommendation":
-        return "💡";
+        return "bulb-outline";
       default:
-        return "ℹ️";
+        return "information-circle-outline";
     }
   };
 
@@ -116,7 +116,12 @@ export default function HealthInsightsCard({
         activeOpacity={0.7}
       >
         <View style={styles.headerLeft}>
-          <Text style={styles.icon}>📊</Text>
+          <Ionicons
+            name="analytics-outline"
+            size={24}
+            color={theme.colors.primary.main}
+            style={styles.icon}
+          />
           <View style={styles.headerText}>
             <Heading level={5} style={styles.title}>
               {t("healthInsights")}
@@ -252,9 +257,12 @@ export default function HealthInsightsCard({
               {insights.map((insight, index) => (
                 <View key={index} style={styles.insightItem}>
                   <View style={styles.insightHeader}>
-                    <Text style={styles.insightIcon}>
-                      {getInsightIcon(insight.type)}
-                    </Text>
+                    <Ionicons
+                      name={getInsightIcon(insight.type)}
+                      size={20}
+                      color={theme.colors.primary.main}
+                      style={styles.insightIcon}
+                    />
                     <View style={styles.insightText}>
                       <Text style={styles.insightTitle}>{insight.title}</Text>
                       <Caption numberOfLines={2} style={styles.insightDescription}>
@@ -283,7 +291,7 @@ export default function HealthInsightsCard({
                   {insight.recommendation && (
                     <View style={styles.recommendationBox}>
                       <Caption numberOfLines={3} style={styles.recommendationText}>
-                        💡 {insight.recommendation}
+                        {insight.recommendation}
                       </Caption>
                     </View>
                   )}
@@ -348,7 +356,6 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     flex: 1,
   } as ViewStyle,
   icon: {
-    fontSize: 24,
     marginRight: isRTL ? 0 : theme.spacing.base,
     marginLeft: isRTL ? theme.spacing.base : 0,
   },
@@ -436,7 +443,7 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     gap: theme.spacing.sm,
   } as ViewStyle,
   insightIcon: {
-    fontSize: 20,
+    marginTop: 2,
   },
   insightText: {
     flex: 1,

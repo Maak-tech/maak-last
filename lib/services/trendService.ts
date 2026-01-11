@@ -71,7 +71,6 @@ export const trendService = {
 
       return alerts;
     } catch (error) {
-      console.error("Error fetching trend alerts:", error);
       return [];
     }
   },
@@ -116,7 +115,6 @@ export const trendService = {
 
       return alerts;
     } catch (error) {
-      console.error("Error fetching family trend alerts:", error);
       return [];
     }
   },
@@ -156,7 +154,6 @@ export const trendService = {
 
       return data;
     } catch (error) {
-      console.error("Error fetching vital data for trend:", error);
       return [];
     }
   },
@@ -196,7 +193,6 @@ export const trendService = {
 
       return data;
     } catch (error) {
-      console.error("Error fetching symptom data for trend:", error);
       return [];
     }
   },
@@ -216,7 +212,6 @@ export const trendService = {
 
       return analyzeVitalTrend(data, vitalType, unit, days);
     } catch (error) {
-      console.error("Error analyzing vital trend:", error);
       return null;
     }
   },
@@ -235,7 +230,6 @@ export const trendService = {
 
       return analyzeSymptomTrend(data, symptomType, days);
     } catch (error) {
-      console.error("Error analyzing symptom trend:", error);
       return null;
     }
   },

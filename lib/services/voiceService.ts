@@ -12,7 +12,6 @@ try {
   Speech = require("expo-speech");
 } catch (error) {
   // expo-speech not available, will use fallback
-  console.log("expo-speech not available, voice features will be limited");
 }
 
 import { Platform } from "react-native";

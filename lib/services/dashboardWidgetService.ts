@@ -2,6 +2,7 @@ import {
   doc,
   getDoc,
   setDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -79,16 +80,25 @@ class DashboardWidgetService {
   async saveDashboardConfig(config: DashboardConfig): Promise<void> {
     try {
       const docRef = doc(db, "dashboardConfigs", config.userId);
-      await setDoc(
-        docRef,
-        {
-          widgets: config.widgets,
-          updatedAt: new Date(),
-        },
-        { merge: true }
-      );
-    } catch (error) {
-      throw new Error("Failed to save dashboard configuration");
+      
+      // Ensure widgets array is valid
+      if (!config.widgets || !Array.isArray(config.widgets)) {
+        throw new Error("Invalid widgets configuration");
+      }
+
+      // Prepare data for Firestore - convert Date to Timestamp
+      const firestoreData = {
+        userId: config.userId,
+        widgets: config.widgets,
+        updatedAt: Timestamp.now(),
+      };
+
+      await setDoc(docRef, firestoreData, { merge: true });
+    } catch (error: any) {
+      
+      // Provide more detailed error message
+      const errorMessage = error?.message || "Unknown error";
+      throw new Error(`Failed to save dashboard configuration: ${errorMessage}`);
     }
   }
 

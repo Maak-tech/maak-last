@@ -396,6 +396,15 @@ export default function ProfileScreen() {
       return;
     }
 
+    // Validate start date
+    if (!eventStartDate || isNaN(eventStartDate.getTime())) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "يرجى اختيار تاريخ صحيح" : "Please select a valid start date"
+      );
+      return;
+    }
+
     setSavingEvent(true);
     try {
       // Set endDate to startDate + 1 hour if not set and not allDay
@@ -407,6 +416,16 @@ export default function ProfileScreen() {
         // For all-day events, set endDate to end of the same day
         finalEndDate = new Date(eventStartDate);
         finalEndDate.setHours(23, 59, 59, 999);
+      }
+
+      // Validate end date if set
+      if (finalEndDate && isNaN(finalEndDate.getTime())) {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "يرجى اختيار تاريخ نهاية صحيح" : "Please select a valid end date"
+        );
+        setSavingEvent(false);
+        return;
       }
 
       await calendarService.addEvent(user.id, {
@@ -437,12 +456,12 @@ export default function ProfileScreen() {
               setShowAddEventModal(false);
               resetEventForm();
               loadCalendarEvents();
+              setShowCalendarModal(true);
             },
           },
         ]
       );
     } catch (error: any) {
-      console.error("Error adding event:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL 
@@ -1210,6 +1229,7 @@ export default function ProfileScreen() {
             <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12 }}>
               <TouchableOpacity
                 onPress={() => {
+                  setShowCalendarModal(false);
                   setShowAddEventModal(true);
                   setEventStartDate(calendarSelectedDate);
                 }}
@@ -1500,6 +1520,7 @@ export default function ProfileScreen() {
         onRequestClose={() => {
           setShowAddEventModal(false);
           resetEventForm();
+          setShowCalendarModal(true);
         }}
       >
         <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
@@ -1510,6 +1531,7 @@ export default function ProfileScreen() {
             <TouchableOpacity onPress={() => {
               setShowAddEventModal(false);
               resetEventForm();
+              setShowCalendarModal(true);
             }}>
               <X size={24} color={theme.colors.text.primary} />
             </TouchableOpacity>
@@ -1747,6 +1769,7 @@ export default function ProfileScreen() {
               onPress={() => {
                 setShowAddEventModal(false);
                 resetEventForm();
+                setShowCalendarModal(true);
               }}
               style={{ flex: 1 }}
               textStyle={{}}

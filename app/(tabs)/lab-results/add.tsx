@@ -1,9 +1,10 @@
 import { router } from "expo-router";
-import { Plus, Trash2, X } from "lucide-react-native";
+import { ChevronDown, Plus, Trash2, X } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   Text,
@@ -20,6 +21,80 @@ import { Button } from "@/components/design-system";
 import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
 import TagInput from "@/app/components/TagInput";
 
+const COMMON_LABS: Array<{
+  en: string;
+  ar: string;
+  testType: "blood" | "urine" | "imaging" | "other";
+}> = [
+  // Blood Tests
+  { en: "Complete Blood Count (CBC)", ar: "فحص الدم الكامل", testType: "blood" },
+  { en: "Basic Metabolic Panel (BMP)", ar: "لوحة التمثيل الغذائي الأساسية", testType: "blood" },
+  { en: "Comprehensive Metabolic Panel (CMP)", ar: "لوحة التمثيل الغذائي الشاملة", testType: "blood" },
+  { en: "Lipid Panel", ar: "لوحة الدهون", testType: "blood" },
+  { en: "Liver Function Tests (LFT)", ar: "اختبارات وظائف الكبد", testType: "blood" },
+  { en: "Thyroid Stimulating Hormone (TSH)", ar: "هرمون تحفيز الغدة الدرقية", testType: "blood" },
+  { en: "Hemoglobin A1C (HbA1c)", ar: "الهيموجلوبين السكري", testType: "blood" },
+  { en: "Vitamin D", ar: "فيتامين د", testType: "blood" },
+  { en: "Vitamin B12", ar: "فيتامين ب12", testType: "blood" },
+  { en: "Iron Studies", ar: "دراسات الحديد", testType: "blood" },
+  { en: "Cholesterol Test", ar: "فحص الكوليسترول", testType: "blood" },
+  { en: "Blood Glucose", ar: "سكر الدم", testType: "blood" },
+  { en: "Creatinine", ar: "الكرياتينين", testType: "blood" },
+  { en: "BUN (Blood Urea Nitrogen)", ar: "نيتروجين اليوريا في الدم", testType: "blood" },
+  { en: "ALT (Alanine Aminotransferase)", ar: "إنزيم ALT", testType: "blood" },
+  { en: "AST (Aspartate Aminotransferase)", ar: "إنزيم AST", testType: "blood" },
+  { en: "C-Reactive Protein (CRP)", ar: "بروتين سي التفاعلي", testType: "blood" },
+  { en: "Complete Blood Count with Differential", ar: "فحص الدم الكامل مع التفاضلي", testType: "blood" },
+  { en: "Hemoglobin", ar: "الهيموجلوبين", testType: "blood" },
+  { en: "Hematocrit", ar: "الهيماتوكريت", testType: "blood" },
+  { en: "White Blood Cell Count (WBC)", ar: "عدد خلايا الدم البيضاء", testType: "blood" },
+  { en: "Platelet Count", ar: "عدد الصفائح الدموية", testType: "blood" },
+  { en: "Prothrombin Time (PT)", ar: "زمن البروثرومبين", testType: "blood" },
+  { en: "Partial Thromboplastin Time (PTT)", ar: "زمن الثرومبوبلاستين الجزئي", testType: "blood" },
+  { en: "Erythrocyte Sedimentation Rate (ESR)", ar: "معدل ترسيب كريات الدم الحمراء", testType: "blood" },
+  { en: "Ferritin", ar: "الفيريتين", testType: "blood" },
+  { en: "Folate", ar: "حمض الفوليك", testType: "blood" },
+  { en: "Testosterone", ar: "التستوستيرون", testType: "blood" },
+  { en: "Estrogen", ar: "الإستروجين", testType: "blood" },
+  { en: "PSA (Prostate Specific Antigen)", ar: "مستضد البروستاتا النوعي", testType: "blood" },
+  
+  // Urine Tests
+  { en: "Complete Urinalysis", ar: "تحليل البول الكامل", testType: "urine" },
+  { en: "Urine Culture", ar: "زراعة البول", testType: "urine" },
+  { en: "Urine Protein", ar: "بروتين البول", testType: "urine" },
+  { en: "Urine Glucose", ar: "سكر البول", testType: "urine" },
+  { en: "Urine Microalbumin", ar: "البول الدقيق", testType: "urine" },
+  { en: "24-Hour Urine Collection", ar: "جمع البول لمدة 24 ساعة", testType: "urine" },
+  { en: "Urine Drug Screen", ar: "فحص المخدرات في البول", testType: "urine" },
+  { en: "Urine Pregnancy Test", ar: "فحص الحمل في البول", testType: "urine" },
+  
+  // Imaging Tests
+  { en: "Chest X-Ray", ar: "أشعة الصدر", testType: "imaging" },
+  { en: "ECG/EKG", ar: "تخطيط القلب", testType: "imaging" },
+  { en: "Echocardiogram", ar: "فحص القلب بالموجات فوق الصوتية", testType: "imaging" },
+  { en: "Mammogram", ar: "تصوير الثدي", testType: "imaging" },
+  { en: "Abdominal Ultrasound", ar: "الموجات فوق الصوتية للبطن", testType: "imaging" },
+  { en: "Pelvic Ultrasound", ar: "الموجات فوق الصوتية للحوض", testType: "imaging" },
+  { en: "CT Scan - Head", ar: "التصوير المقطعي للرأس", testType: "imaging" },
+  { en: "CT Scan - Chest", ar: "التصوير المقطعي للصدر", testType: "imaging" },
+  { en: "CT Scan - Abdomen", ar: "التصوير المقطعي للبطن", testType: "imaging" },
+  { en: "MRI - Head", ar: "التصوير بالرنين المغناطيسي للرأس", testType: "imaging" },
+  { en: "MRI - Spine", ar: "التصوير بالرنين المغناطيسي للعمود الفقري", testType: "imaging" },
+  { en: "Bone Density Scan (DEXA)", ar: "فحص كثافة العظام", testType: "imaging" },
+  { en: "X-Ray - Extremity", ar: "أشعة الأطراف", testType: "imaging" },
+  { en: "X-Ray - Spine", ar: "أشعة العمود الفقري", testType: "imaging" },
+  
+  // Other Tests
+  { en: "Pap Smear", ar: "مسحة عنق الرحم", testType: "other" },
+  { en: "Stool Culture", ar: "زراعة البراز", testType: "other" },
+  { en: "Stool Occult Blood", ar: "فحص الدم الخفي في البراز", testType: "other" },
+  { en: "Throat Culture", ar: "زراعة الحلق", testType: "other" },
+  { en: "Sputum Culture", ar: "زراعة البلغم", testType: "other" },
+  { en: "Skin Biopsy", ar: "خزعة الجلد", testType: "other" },
+  { en: "Allergy Test", ar: "فحص الحساسية", testType: "other" },
+  { en: "Pulmonary Function Test", ar: "فحص وظائف الرئة", testType: "other" },
+];
+
 export default function AddLabResultScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -27,6 +102,8 @@ export default function AddLabResultScreen() {
   const isRTL = i18n.language === "ar";
 
   const [testName, setTestName] = useState("");
+  const [selectedCommonLab, setSelectedCommonLab] = useState<string | null>(null);
+  const [showCommonLabsDropdown, setShowCommonLabsDropdown] = useState(false);
   const [testType, setTestType] = useState<LabResult["testType"]>("blood");
   const [testDate, setTestDate] = useState(new Date());
   const [facility, setFacility] = useState("");
@@ -152,6 +229,54 @@ export default function AddLabResultScreen() {
     rtlText: {
       textAlign: isRTL ? "right" : "left",
     },
+    inputContainer: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      gap: theme.spacing.xs,
+    },
+    inputWithDropdown: {
+      flex: 1,
+    },
+    dropdownButton: {
+      padding: theme.spacing.base,
+      borderWidth: 1,
+      borderColor: theme.colors.border.medium,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.background.secondary,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    dropdownModal: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+    },
+    dropdownModalContent: {
+      backgroundColor: theme.colors.background.primary,
+      borderTopLeftRadius: theme.borderRadius.lg,
+      borderTopRightRadius: theme.borderRadius.lg,
+      maxHeight: "70%",
+      paddingBottom: theme.spacing.base,
+    },
+    dropdownModalHeader: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: theme.spacing.base,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.light,
+    },
+    dropdownList: {
+      padding: theme.spacing.base,
+    },
+    dropdownItem: {
+      padding: theme.spacing.base,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border.light,
+    },
+    dropdownItemText: {
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+    },
   }))(theme) as any;
 
   const testTypes: Array<{ value: LabResult["testType"]; label: string }> = [
@@ -160,6 +285,21 @@ export default function AddLabResultScreen() {
     { value: "imaging", label: isRTL ? "التصوير" : "Imaging" },
     { value: "other", label: isRTL ? "أخرى" : "Other" },
   ];
+
+  // Filter common labs based on selected test type
+  const filteredCommonLabs = COMMON_LABS.filter((lab) => lab.testType === testType);
+
+  // Clear selected lab when test type changes
+  const handleTestTypeChange = (newTestType: LabResult["testType"]) => {
+    setTestType(newTestType);
+    if (selectedCommonLab) {
+      const selectedLab = COMMON_LABS.find((lab) => lab.en === selectedCommonLab);
+      if (selectedLab && selectedLab.testType !== newTestType) {
+        setSelectedCommonLab(null);
+        setTestName("");
+      }
+    }
+  };
 
   const handleAddResult = () => {
     setResults([
@@ -261,7 +401,6 @@ export default function AddLabResultScreen() {
         ]
       );
     } catch (error: any) {
-      console.error("Error adding lab result:", error);
       const errorMessage = error?.message || "Unknown error";
       Alert.alert(
         isRTL ? "خطأ" : "Error",
@@ -291,13 +430,32 @@ export default function AddLabResultScreen() {
           <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
             {isRTL ? "اسم الاختبار" : "Test Name"} *
           </TypographyText>
-          <TextInput
-            style={[styles.input, isRTL && styles.rtlText]}
-            value={testName}
-            onChangeText={setTestName}
-            placeholder={isRTL ? "مثال: فحص الدم الكامل" : "e.g., Complete Blood Count"}
-            placeholderTextColor={theme.colors.text.secondary}
-          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[styles.input, styles.inputWithDropdown, isRTL && styles.rtlText]}
+              value={testName}
+              onChangeText={(text) => {
+                setTestName(text);
+                // Clear selected common lab if user types custom text
+                if (selectedCommonLab && text !== (isRTL ? COMMON_LABS.find(l => l.en === selectedCommonLab)?.ar : selectedCommonLab)) {
+                  setSelectedCommonLab(null);
+                }
+              }}
+              placeholder={isRTL ? "مثال: فحص الدم الكامل" : "e.g., Complete Blood Count"}
+              placeholderTextColor={theme.colors.text.secondary}
+            />
+            <TouchableOpacity
+              onPress={() => setShowCommonLabsDropdown(true)}
+              style={styles.dropdownButton}
+            >
+              <ChevronDown size={20} color={theme.colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+          <Caption style={[styles.rtlText, { marginTop: 4 }]}>
+            {isRTL
+              ? "أو اختر من القائمة المنسدلة للفحوصات الشائعة"
+              : "Or select from common lab tests dropdown"}
+          </Caption>
         </View>
 
         {/* Test Type */}
@@ -309,7 +467,7 @@ export default function AddLabResultScreen() {
             {testTypes.map((type) => (
               <TouchableOpacity
                 key={type.value}
-                onPress={() => setTestType(type.value)}
+                onPress={() => handleTestTypeChange(type.value)}
                 style={[
                   styles.typeButton,
                   testType === type.value && styles.typeButtonActive,
@@ -506,6 +664,77 @@ export default function AddLabResultScreen() {
           disabled={saving}
         />
       </View>
+
+      {/* Common Labs Dropdown Modal */}
+      <Modal
+        visible={showCommonLabsDropdown}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCommonLabsDropdown(false)}
+      >
+        <View style={styles.dropdownModal}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={1}
+            onPress={() => setShowCommonLabsDropdown(false)}
+          />
+          <View style={styles.dropdownModalContent}>
+            <View style={styles.dropdownModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Heading level={5} style={[styles.label, { marginBottom: 0 }, isRTL && styles.rtlText]}>
+                  {isRTL ? "الفحوصات الشائعة" : "Common Lab Tests"}
+                </Heading>
+                <Caption style={[styles.rtlText, { marginTop: 4 }]}>
+                  {testTypes.find((t) => t.value === testType)?.label}
+                </Caption>
+              </View>
+              <TouchableOpacity onPress={() => setShowCommonLabsDropdown(false)}>
+                <X size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+              {filteredCommonLabs.length === 0 ? (
+                <View style={styles.dropdownItem}>
+                  <Text style={[styles.dropdownItemText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? "لا توجد فحوصات شائعة لهذا النوع"
+                      : "No common tests for this type"}
+                  </Text>
+                </View>
+              ) : (
+                filteredCommonLabs.map((lab) => {
+                const labLabel = isRTL ? lab.ar : lab.en;
+                const isSelected = selectedCommonLab === lab.en;
+                return (
+                  <TouchableOpacity
+                    key={lab.en}
+                    onPress={() => {
+                      setSelectedCommonLab(lab.en);
+                      setTestName(labLabel);
+                      setShowCommonLabsDropdown(false);
+                    }}
+                    style={[
+                      styles.dropdownItem,
+                      isSelected && { backgroundColor: theme.colors.primary.main + "20" },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        isRTL && styles.rtlText,
+                        isSelected && { color: theme.colors.primary.main, fontWeight: "600" },
+                      ]}
+                    >
+                      {labLabel}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

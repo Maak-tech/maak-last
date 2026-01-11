@@ -27,10 +27,8 @@ export default function PPGMeasureScreen() {
       // Until React 19 + Reanimated compatibility is fixed, use simulated only
       try {
         const simulatedModule = require("@/components/PPGVitalMonitor");
-        console.log('✓ Loaded PPGVitalMonitor (simulated - awaiting Reanimated 4 for real camera)');
         setPPGComponent(() => simulatedModule.default);
       } catch (error) {
-        console.error('Failed to load PPG component:', error);
       } finally {
         setLoading(false);
       }

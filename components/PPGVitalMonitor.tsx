@@ -489,7 +489,6 @@ export default function PPGVitalMonitor({
       },
     };
     } catch (error) {
-      console.error('Error creating styles:', error);
       return {} as any;
     }
   }, [theme]);
@@ -1040,7 +1039,6 @@ export default function PPGVitalMonitor({
   
   // Guard against null theme
   if (!theme || !theme.colors) {
-    console.warn('PPGVitalMonitor: theme or theme.colors is null');
     return null;
   }
 
@@ -1510,7 +1508,6 @@ export default function PPGVitalMonitor({
     </Modal>
     );
   } catch (error) {
-    console.error('PPGVitalMonitor render error:', error);
     return null;
   }
 }

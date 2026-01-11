@@ -90,7 +90,6 @@ async function saveVitalSample(
 
     await addDoc(collection(db, "vitals"), vitalData);
   } catch (error) {
-    console.error(`Error saving vital ${vitalType}:`, error);
     throw error;
   }
 }
@@ -180,10 +179,6 @@ export async function saveIntegrationVitalsToFirestore(
             savedCount++;
           }
         } catch (error) {
-          console.error(
-            `Error saving sample for ${vitalType}:`,
-            error
-          );
           // Continue with next sample
         }
       }
@@ -191,7 +186,6 @@ export async function saveIntegrationVitalsToFirestore(
 
     return savedCount;
   } catch (error) {
-    console.error("Error saving integration vitals to Firestore:", error);
     throw error;
   }
 }

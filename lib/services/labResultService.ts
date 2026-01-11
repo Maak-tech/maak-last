@@ -67,10 +67,8 @@ class LabResultService {
 
       return docRef.id;
     } catch (error: any) {
-      console.error("Error adding lab result:", error);
       const errorMessage = error?.message || "Unknown error";
       const errorCode = error?.code || "unknown";
-      console.error("Error details:", { errorMessage, errorCode, error });
       throw new Error(`Failed to add lab result: ${errorMessage}`);
     }
   }

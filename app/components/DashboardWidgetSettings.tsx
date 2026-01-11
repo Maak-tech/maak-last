@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Modal,
   ScrollView,
   Switch,
@@ -114,15 +115,52 @@ export default function DashboardWidgetSettings({
   };
 
   const handleSave = async () => {
-    if (!user || !config) return;
+    if (!user || !config || saving) return;
+
+    // Validate config before saving
+    if (!config.userId || !config.widgets || !Array.isArray(config.widgets)) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "إعدادات غير صالحة. يرجى المحاولة مرة أخرى."
+          : "Invalid configuration. Please try again."
+      );
+      return;
+    }
 
     setSaving(true);
     try {
-      await dashboardWidgetService.saveDashboardConfig(config);
-      onConfigChange?.(config);
+      // Ensure userId matches current user
+      const configToSave: DashboardConfig = {
+        ...config,
+        userId: user.id,
+      };
+      
+      // Save the current config
+      await dashboardWidgetService.saveDashboardConfig(configToSave);
+      
+      // Reload the config from server to ensure we have the latest version
+      const savedConfig = await dashboardWidgetService.getDashboardConfig(user.id);
+      
+      // Update local state with saved config
+      setConfig(savedConfig);
+      
+      // Notify parent component of the change
+      onConfigChange?.(savedConfig);
+      
+      // Close the modal - changes will be visible immediately
       onClose();
-    } catch (error) {
-      // Handle error
+    } catch (error: any) {
+      // Log error for debugging
+      
+      // Show error to user with more details
+      const errorMessage = error?.message || "Unknown error";
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? `فشل حفظ التغييرات: ${errorMessage}`
+          : `Failed to save changes: ${errorMessage}`
+      );
     } finally {
       setSaving(false);
     }
@@ -240,10 +278,17 @@ export default function DashboardWidgetSettings({
                   value={widget.enabled}
                   onValueChange={() => handleToggleWidget(widget.id)}
                   trackColor={{
-                    false: theme.colors.border.medium,
+                    false: typeof theme.colors.border === "string" 
+                      ? theme.colors.border 
+                      : theme.colors.border.medium,
                     true: theme.colors.primary.main,
                   }}
-                  thumbColor={theme.colors.background.primary}
+                  thumbColor={widget.enabled 
+                    ? theme.colors.neutral?.white || "#FFFFFF"
+                    : typeof theme.colors.border === "string"
+                      ? theme.colors.border
+                      : theme.colors.neutral?.[400] || "#94A3B8"
+                  }
                 />
               </View>
             ))}
@@ -286,7 +331,9 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: typeof theme.colors.border === "string" 
+      ? theme.colors.border 
+      : theme.colors.border.light,
   },
   title: {
     fontSize: 20,
@@ -320,7 +367,9 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     backgroundColor: theme.colors.background.secondary,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: typeof theme.colors.border === "string" 
+      ? theme.colors.border 
+      : theme.colors.border.light,
   },
   widgetLeft: {
     flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",

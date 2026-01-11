@@ -733,7 +733,6 @@ export default function PPGVitalMonitorVisionCamera({
         await Brightness.setSystemBrightnessAsync(1.0); // Set to maximum brightness
       } catch (brightnessError) {
         // Continue even if brightness control fails
-        console.warn('Failed to set brightness:', brightnessError);
       }
       
       setStatus("measuring");

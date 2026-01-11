@@ -41,13 +41,6 @@ class OpenAIService {
       // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
       
-      // Debug logging (only in development) - API keys are never logged for security
-      if (__DEV__) {
-        console.log('[OpenAI Service] Config extra:', config ? Object.keys(config) : 'null');
-        console.log('[OpenAI Service] openaiApiKey present:', !!config?.openaiApiKey);
-        console.log('[OpenAI Service] zeinaApiKey present:', !!config?.zeinaApiKey);
-        // API key preview removed for security - never log API keys
-      }
       
       // Treat empty strings as null - normalize API keys
       const normalizeKey = (key: any): string | null => {
@@ -66,7 +59,6 @@ class OpenAIService {
       // API key validation handled in getApiKey method
     } catch (error) {
       if (__DEV__) {
-        console.error('[OpenAI Service] Initialize error:', error);
       }
     }
   }

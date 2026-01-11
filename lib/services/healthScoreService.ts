@@ -195,9 +195,13 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - HEALTH_SCORE_WINDOW_DAYS);
     
-    const recentSymptoms = symptoms.filter(
-      (symptom) => new Date(symptom.timestamp) >= cutoffDate
-    );
+    const recentSymptoms = symptoms.filter((symptom) => {
+      if (!symptom.timestamp) return false;
+      const symptomDate = symptom.timestamp instanceof Date 
+        ? symptom.timestamp 
+        : new Date(symptom.timestamp);
+      return !isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
+    });
 
     // Get active medications
     const activeMedications = medications.filter((med) => med.isActive);
@@ -234,8 +238,6 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
       rating: getHealthRating(score),
     };
   } catch (error) {
-    console.error("Error calculating health score:", error);
-    
     // Return default score in case of error
     return {
       score: 75,
@@ -272,9 +274,13 @@ export function calculateHealthScoreFromData(
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - HEALTH_SCORE_WINDOW_DAYS);
     
-    const recentSymptoms = symptoms.filter(
-      (symptom) => new Date(symptom.timestamp) >= cutoffDate
-    );
+    const recentSymptoms = symptoms.filter((symptom) => {
+      if (!symptom.timestamp) return false;
+      const symptomDate = symptom.timestamp instanceof Date 
+        ? symptom.timestamp 
+        : new Date(symptom.timestamp);
+      return !isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
+    });
 
     // Get active medications
     const activeMedications = medications.filter((med) => med.isActive);
@@ -311,8 +317,6 @@ export function calculateHealthScoreFromData(
       rating: getHealthRating(score),
     };
   } catch (error) {
-    console.error("Error calculating health score from data:", error);
-    
     // Return default score in case of error
     return {
       score: 75,

@@ -124,8 +124,20 @@ export const symptomService = {
         // Offline - use cached data filtered by userId
         const cachedSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
         return cachedSymptoms
-          .filter((s) => s.userId === userId)
-          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .filter((s) => {
+            if (s.userId !== userId) return false;
+            if (!s.timestamp) return false;
+            // Ensure timestamp is a Date object
+            if (!(s.timestamp instanceof Date)) {
+              s.timestamp = new Date(s.timestamp);
+            }
+            return !isNaN(s.timestamp.getTime());
+          })
+          .sort((a, b) => {
+            const aTime = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
+            const bTime = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
+            return bTime - aTime;
+          })
           .slice(0, limitCount);
       }
     } catch (error) {
@@ -133,8 +145,20 @@ export const symptomService = {
       if (isOnline) {
         const cachedSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
         return cachedSymptoms
-          .filter((s) => s.userId === userId)
-          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .filter((s) => {
+            if (s.userId !== userId) return false;
+            if (!s.timestamp) return false;
+            // Ensure timestamp is a Date object
+            if (!(s.timestamp instanceof Date)) {
+              s.timestamp = new Date(s.timestamp);
+            }
+            return !isNaN(s.timestamp.getTime());
+          })
+          .sort((a, b) => {
+            const aTime = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
+            const bTime = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
+            return bTime - aTime;
+          })
           .slice(0, limitCount);
       }
       throw error;

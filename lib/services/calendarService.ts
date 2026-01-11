@@ -24,17 +24,59 @@ class CalendarService {
     event: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">
   ): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, "calendarEvents"), {
-        ...event,
+      // Filter out undefined values - Firestore doesn't accept undefined
+      const cleanedEvent: any = {
         userId,
+        title: event.title,
+        type: event.type,
         startDate: Timestamp.fromDate(event.startDate),
-        endDate: event.endDate ? Timestamp.fromDate(event.endDate) : null,
-        recurrenceEndDate: event.recurrenceEndDate
-          ? Timestamp.fromDate(event.recurrenceEndDate)
-          : null,
+        allDay: event.allDay ?? false,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-      });
+      };
+
+      // Only add fields that are defined
+      if (event.description !== undefined && event.description !== null && event.description.trim() !== "") {
+        cleanedEvent.description = event.description;
+      }
+      if (event.endDate) {
+        cleanedEvent.endDate = Timestamp.fromDate(event.endDate);
+      }
+      if (event.location !== undefined && event.location !== null && event.location.trim() !== "") {
+        cleanedEvent.location = event.location;
+      }
+      if (event.familyId !== undefined && event.familyId !== null) {
+        cleanedEvent.familyId = event.familyId;
+      }
+      if (event.recurrencePattern !== undefined && event.recurrencePattern !== null && event.recurrencePattern !== "none") {
+        cleanedEvent.recurrencePattern = event.recurrencePattern;
+      }
+      if (event.recurrenceEndDate) {
+        cleanedEvent.recurrenceEndDate = Timestamp.fromDate(event.recurrenceEndDate);
+      }
+      if (event.recurrenceCount !== undefined && event.recurrenceCount !== null) {
+        cleanedEvent.recurrenceCount = event.recurrenceCount;
+      }
+      if (event.relatedItemId !== undefined && event.relatedItemId !== null) {
+        cleanedEvent.relatedItemId = event.relatedItemId;
+      }
+      if (event.relatedItemType !== undefined && event.relatedItemType !== null) {
+        cleanedEvent.relatedItemType = event.relatedItemType;
+      }
+      if (event.color !== undefined && event.color !== null) {
+        cleanedEvent.color = event.color;
+      }
+      if (event.reminders !== undefined && event.reminders !== null && event.reminders.length > 0) {
+        cleanedEvent.reminders = event.reminders;
+      }
+      if (event.tags !== undefined && event.tags !== null && event.tags.length > 0) {
+        cleanedEvent.tags = event.tags;
+      }
+      if (event.attendees !== undefined && event.attendees !== null && event.attendees.length > 0) {
+        cleanedEvent.attendees = event.attendees;
+      }
+
+      const docRef = await addDoc(collection(db, "calendarEvents"), cleanedEvent);
 
       // Generate recurring events if needed
       if (event.recurrencePattern && event.recurrencePattern !== "none") {
@@ -42,8 +84,9 @@ class CalendarService {
       }
 
       return docRef.id;
-    } catch (error) {
-      throw new Error("Failed to add calendar event");
+    } catch (error: any) {
+      const errorMessage = error?.message || "Unknown error";
+      throw new Error(`Failed to add calendar event: ${errorMessage}`);
     }
   }
 
@@ -57,25 +100,68 @@ class CalendarService {
     try {
       const docRef = doc(db, "calendarEvents", eventId);
       const updateData: any = {
-        ...updates,
         updatedAt: Timestamp.now(),
       };
 
-      if (updates.startDate) {
+      // Only include defined fields
+      if (updates.title !== undefined) {
+        updateData.title = updates.title;
+      }
+      if (updates.description !== undefined) {
+        updateData.description = updates.description || null;
+      }
+      if (updates.type !== undefined) {
+        updateData.type = updates.type;
+      }
+      if (updates.startDate !== undefined) {
         updateData.startDate = Timestamp.fromDate(updates.startDate);
       }
-      if (updates.endDate) {
-        updateData.endDate = Timestamp.fromDate(updates.endDate);
+      if (updates.endDate !== undefined) {
+        updateData.endDate = updates.endDate ? Timestamp.fromDate(updates.endDate) : null;
       }
-      if (updates.recurrenceEndDate) {
-        updateData.recurrenceEndDate = Timestamp.fromDate(
-          updates.recurrenceEndDate
-        );
+      if (updates.allDay !== undefined) {
+        updateData.allDay = updates.allDay;
+      }
+      if (updates.location !== undefined) {
+        updateData.location = updates.location || null;
+      }
+      if (updates.familyId !== undefined) {
+        updateData.familyId = updates.familyId || null;
+      }
+      if (updates.recurrencePattern !== undefined) {
+        updateData.recurrencePattern = updates.recurrencePattern || null;
+      }
+      if (updates.recurrenceEndDate !== undefined) {
+        updateData.recurrenceEndDate = updates.recurrenceEndDate 
+          ? Timestamp.fromDate(updates.recurrenceEndDate) 
+          : null;
+      }
+      if (updates.recurrenceCount !== undefined) {
+        updateData.recurrenceCount = updates.recurrenceCount || null;
+      }
+      if (updates.relatedItemId !== undefined) {
+        updateData.relatedItemId = updates.relatedItemId || null;
+      }
+      if (updates.relatedItemType !== undefined) {
+        updateData.relatedItemType = updates.relatedItemType || null;
+      }
+      if (updates.color !== undefined) {
+        updateData.color = updates.color || null;
+      }
+      if (updates.reminders !== undefined) {
+        updateData.reminders = updates.reminders || null;
+      }
+      if (updates.tags !== undefined) {
+        updateData.tags = updates.tags || null;
+      }
+      if (updates.attendees !== undefined) {
+        updateData.attendees = updates.attendees || null;
       }
 
       await updateDoc(docRef, updateData);
-    } catch (error) {
-      throw new Error("Failed to update calendar event");
+    } catch (error: any) {
+      const errorMessage = error?.message || "Unknown error";
+      throw new Error(`Failed to update calendar event: ${errorMessage}`);
     }
   }
 
