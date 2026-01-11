@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   Activity,
+  AlertTriangle,
   Bell,
   BookOpen,
   Calendar as CalendarIcon,
@@ -10,10 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Droplet,
   FileText,
   Globe,
   Heart,
   HelpCircle,
+  History,
   Lock,
   LogOut,
   MapPin,
@@ -21,6 +24,7 @@ import {
   Plus,
   Shield,
   Sun,
+  TestTube,
   User,
   Users,
   X,
@@ -127,6 +131,13 @@ export default function ProfileScreen() {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const isRTL = i18n.language === "ar";
+  const isAdmin = user?.role === "admin";
+
+  // Helper function to convert Western numerals to Arabic numerals
+  const toArabicNumerals = (num: number): string => {
+    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    return num.toString().replace(/\d/g, (digit) => arabicNumerals[parseInt(digit)]);
+  };
 
   // Refresh data when tab is focused
   useFocusEffect(
@@ -567,7 +578,11 @@ export default function ProfileScreen() {
     );
   };
 
+  // Determine user role
+  const isRegularUser = !isAdmin;
+
   const profileSections: ProfileSection[] = [
+    // Basic account section for all users
     {
       title: t("account"),
       items: [
@@ -586,40 +601,103 @@ export default function ProfileScreen() {
           label: t("healthReports"),
           onPress: handleHealthReports,
         },
-        {
-          icon: Calendar,
-          label: t("calendar").charAt(0).toUpperCase() + t("calendar").slice(1).toLowerCase(),
-          onPress: () => {
-            setShowCalendarModal(true);
-            loadCalendarEvents();
+        // Show additional options only for admin users
+        ...(isAdmin ? [
+          {
+            icon: FileText,
+            label: t("healthReports"),
+            onPress: handleHealthReports,
           },
-        },
-        {
-          icon: BookOpen,
-          label: t("healthResources"),
-          onPress: () => router.push("/(tabs)/resources"),
-          comingSoon: true,
-        },
+          {
+            icon: Calendar,
+            label: isRTL ? t("calendar") : t("calendar").charAt(0).toUpperCase() + t("calendar").slice(1).toLowerCase(),
+            onPress: () => {
+              setShowCalendarModal(true);
+              loadCalendarEvents();
+            },
+          },
+          {
+            icon: BookOpen,
+            label: t("healthResources"),
+            onPress: () => router.push("/(tabs)/resources"),
+            comingSoon: true,
+          },
+        ] : []),
       ],
     },
+    // Health features for regular users
+    ...(isRegularUser ? [
+      {
+        title: t("healthData"),
+        items: [
+          {
+            icon: AlertTriangle,
+            label: t("allergies"),
+            onPress: () => router.push("/(tabs)/allergies"),
+          },
+          {
+            icon: Heart,
+            label: t("bloodPressure"),
+            onPress: () => router.push("/(tabs)/vitals"),
+          },
+          {
+            icon: History,
+            label: t("medicalHistory"),
+            onPress: () => router.push("/profile/medical-history"),
+          },
+          {
+            icon: TestTube,
+            label: t("labResults"),
+            onPress: () => router.push("/(tabs)/lab-results"),
+          },
+          {
+            icon: Clock,
+            label: t("healthTimeline"),
+            onPress: () => router.push("/(tabs)/timeline"),
+          },
+          {
+            icon: Heart,
+            label: t("vitalsMonitor"),
+            onPress: () => router.push("/ppg-measure"),
+          },
+          {
+            icon: Activity,
+            label: t("healthIntegrations"),
+            onPress: () => router.push("/profile/health-integrations" as any),
+          },
+        ],
+      },
+    ] : []),
+    // Simplified settings for regular users
     {
       title: t("settings"),
       items: [
-        {
-          icon: Bell,
-          label: t("notifications"),
-          onPress: () => router.push("/profile/notification-settings"),
-        },
-        {
-          icon: Shield,
-          label: t("fallDetection"),
-          onPress: () => router.push("/profile/fall-detection"),
-        },
-        {
-          icon: Activity,
-          label: t("healthIntegrations"),
-          onPress: () => router.push("/profile/health-integrations" as any),
-        },
+        // Basic notifications for regular users
+        ...(isRegularUser ? [
+          {
+            icon: Bell,
+            label: t("notifications"),
+            onPress: () => router.push("/profile/notification-settings"),
+          },
+        ] : [
+          // Full settings for admin users
+          {
+            icon: Bell,
+            label: t("notifications"),
+            onPress: () => router.push("/profile/notification-settings"),
+          },
+          {
+            icon: Shield,
+            label: t("fallDetection"),
+            onPress: () => router.push("/profile/fall-detection"),
+          },
+          {
+            icon: Activity,
+            label: t("healthIntegrations"),
+            onPress: () => router.push("/profile/health-integrations" as any),
+          },
+        ]),
+        // Theme and language for all users
         {
           icon: isDark ? Sun : Moon,
           label: t("darkMode"),
@@ -637,6 +715,7 @@ export default function ProfileScreen() {
         },
       ],
     },
+    // Support section for all users
     {
       title: t("support"),
       items: [
@@ -645,16 +724,25 @@ export default function ProfileScreen() {
           label: t("helpSupport"),
           onPress: handleHelpSupport,
         },
-        {
-          icon: FileText,
-          label: t("termsConditions"),
-          onPress: handleTermsConditions,
-        },
-        {
-          icon: Shield,
-          label: t("privacyPolicy"),
-          onPress: handlePrivacyPolicy,
-        },
+        // Basic privacy for regular users, full legal for admins
+        ...(isRegularUser ? [
+          {
+            icon: Shield,
+            label: t("privacyPolicy"),
+            onPress: handlePrivacyPolicy,
+          },
+        ] : [
+          {
+            icon: FileText,
+            label: t("termsConditions"),
+            onPress: handleTermsConditions,
+          },
+          {
+            icon: Shield,
+            label: t("privacyPolicy"),
+            onPress: handlePrivacyPolicy,
+          },
+        ]),
       ],
     },
   ];
@@ -665,20 +753,22 @@ export default function ProfileScreen() {
         <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
           {t("profile")}
         </Text>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => setShowSearch(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={{
-            backgroundColor: isDark ? "#1E293B" : "#F1F5F9",
-            borderRadius: 20,
-            padding: 10,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 20 }}>🔍</Text>
-        </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setShowSearch(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={{
+              backgroundColor: isDark ? "#1E293B" : "#F1F5F9",
+              borderRadius: 20,
+              padding: 10,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>🔍</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView
@@ -1337,7 +1427,7 @@ export default function ProfileScreen() {
                           isSelected && { color: theme.colors.neutral.white, fontWeight: "600" },
                         ]}
                       >
-                        {day}
+                        {isRTL ? toArabicNumerals(day) : day}
                       </TypographyText>
                       {dayEvents.length > 0 && (
                         <View

@@ -154,6 +154,7 @@ export default {
           healthUpdatePermission: "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records."
         }
       ],
+      "@react-native-voice/voice",
       "expo-localization",
       "expo-local-authentication",
       "expo-secure-store",

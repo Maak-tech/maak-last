@@ -84,17 +84,12 @@ export class PerformanceMonitor {
   static endMeasurement(label: string): number {
     const startTime = this.measurements.get(label);
     if (!startTime) {
-      console.warn(`No measurement started for label: ${label}`);
       return 0;
     }
-    
+
     const duration = Date.now() - startTime;
     this.measurements.delete(label);
-    
-    if (__DEV__) {
-      console.log(`Performance: ${label} took ${duration}ms`);
-    }
-    
+
     return duration;
   }
 
@@ -253,7 +248,6 @@ export const BundleOptimizer = {
     try {
       return await importFn();
     } catch (error) {
-      console.error('Dynamic import failed:', error);
       throw error;
     }
   }

@@ -110,8 +110,8 @@ export default function MoodsScreen() {
       let moodsError: any = null;
       let statsError: any = null;
       
-      if (selectedFilter.type === "family" && user.familyId) {
-        // Load family moods and stats (both admins and members can view)
+      if (selectedFilter.type === "family" && user.familyId && isAdmin) {
+        // Load family moods and stats (admin only)
         try {
           const familyMoods = await moodService.getFamilyMoods(user.familyId, 50);
           setMoods(familyMoods);
@@ -119,7 +119,7 @@ export default function MoodsScreen() {
           moodsError = error;
           setMoods([]);
         }
-        
+
         try {
           const familyStats = await moodService.getFamilyMoodStats(user.familyId, 7);
           setStats(familyStats);
@@ -128,8 +128,8 @@ export default function MoodsScreen() {
           // Keep default stats if stats fail, but track the error
           setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
         }
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
-        // Load specific member moods and stats (both admins and members can view)
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
+        // Load specific member moods and stats (admin only)
         try {
           const memberMoods = await moodService.getMemberMoods(selectedFilter.memberId, 50);
           setMoods(memberMoods);
@@ -137,7 +137,7 @@ export default function MoodsScreen() {
           moodsError = error;
           setMoods([]);
         }
-        
+
         try {
           const memberStats = await moodService.getMemberMoodStats(selectedFilter.memberId, 7);
           setStats(memberStats);

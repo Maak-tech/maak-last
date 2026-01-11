@@ -106,8 +106,8 @@ export default function TrackScreen() {
       }
 
       // Load data based on selected filter
-      if (selectedFilter.type === "family" && user.familyId) {
-        // Load family symptoms and stats (both admins and members can view)
+      if (selectedFilter.type === "family" && user.familyId && isAdmin) {
+        // Load family symptoms and stats (admin only)
         const [familySymptoms, familyStats] = await Promise.all([
           symptomService.getFamilySymptoms(user.familyId, 50),
           symptomService.getFamilySymptomStats(user.familyId, 7),
@@ -115,8 +115,8 @@ export default function TrackScreen() {
 
         setSymptoms(familySymptoms);
         setStats(familyStats);
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
-        // Load specific member symptoms and stats (both admins and members can view)
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
+        // Load specific member symptoms and stats (admin only)
         const [memberSymptoms, memberStats] = await Promise.all([
           symptomService.getMemberSymptoms(selectedFilter.memberId, 50),
           symptomService.getMemberSymptomStats(selectedFilter.memberId, 7),

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useNotifications = () => {
+  const { user } = useAuth();
   const notificationListener = useRef<any>(undefined);
   const responseListener = useRef<any>(undefined);
   const isInitialized = useRef(false);
@@ -87,8 +89,16 @@ export const useNotifications = () => {
             });
 
           responseListener.current =
-            Notifications.addNotificationResponseReceivedListener(() => {
-              // Notification response handler
+            Notifications.addNotificationResponseReceivedListener((response) => {
+              // Handle quick actions from interactive notifications
+              const { actionIdentifier, notification } = response;
+              const data = notification.request.content.data;
+
+              if (actionIdentifier && data?.type) {
+                // Handle quick action
+                const { NotificationResponseHandler } = require('../lib/services/smartNotificationService');
+                NotificationResponseHandler.handleQuickAction(actionIdentifier, data, user?.id || '');
+              }
             });
         } catch (listenerError) {
           // Silently handle listener error

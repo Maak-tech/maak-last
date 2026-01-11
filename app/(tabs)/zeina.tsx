@@ -32,6 +32,7 @@ import healthContextService from "@/lib/services/healthContextService";
 import openaiService, {
   type ChatMessage as AIMessage,
 } from "@/lib/services/openaiService";
+import { voiceService } from "@/lib/services/voiceService";
 import ChatMessage from "../components/ChatMessage";
 import { useTranslation } from "react-i18next";
 
@@ -64,10 +65,27 @@ export default function ZeinaScreen() {
   const [systemPrompt, setSystemPrompt] = useState<string>("");
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<SavedSession[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isVoiceAvailable, setIsVoiceAvailable] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // User role logic
+  const isAdmin = user?.role === "admin";
+  const isRegularUser = !isAdmin;
+
+  // Guided conversation options for regular users
+  const guidedQuestions = [
+    { label: t("manageSymptomsQuestion"), icon: "activity" },
+    { label: t("medicationQuestions"), icon: "pill" },
+    { label: t("dietNutritionAdvice"), icon: "apple" },
+    { label: t("exerciseRecommendations"), icon: "activity" },
+    { label: t("generalHealthConcerns"), icon: "heart" },
+  ];
 
   useEffect(() => {
     initializeChat();
     loadChatHistory();
+    checkVoiceAvailability();
   }, []);
 
   useEffect(() => {
@@ -426,36 +444,110 @@ export default function ZeinaScreen() {
     );
   };
 
+  const checkVoiceAvailability = async () => {
+    try {
+      const [speechAvailable, recognitionAvailable] = await Promise.all([
+        voiceService.isAvailable(),
+        voiceService.isRecognitionAvailable(),
+      ]);
+      setIsVoiceAvailable(speechAvailable && recognitionAvailable);
+    } catch (error) {
+      setIsVoiceAvailable(false);
+    }
+  };
+
+  const handleVoiceInput = async () => {
+    if (isRecording || isStreaming) return;
+
+    try {
+      setIsRecording(true);
+
+      // Request microphone permissions if not already granted
+      const hasPermission = await voiceService.hasMicrophonePermissions();
+      if (!hasPermission) {
+        const granted = await voiceService.requestMicrophonePermissions();
+        if (!granted) {
+          Alert.alert(t("microphonePermissionRequired"), t("microphonePermissionMessage"));
+          return;
+        }
+      }
+
+      await voiceService.startListening(
+        (result) => {
+          // Success callback - set the transcribed text as input
+          setInputText(result.text);
+          setIsRecording(false);
+        },
+        (error) => {
+          // Error callback
+          setIsRecording(false);
+          Alert.alert(t("voiceError"), error.message);
+        },
+        "en-US" // Default language, could be made configurable
+      );
+    } catch (error) {
+      setIsRecording(false);
+      Alert.alert(
+        t("voiceError"),
+        error instanceof Error ? error.message : t("failedToStartRecording")
+      );
+    }
+  };
+
+  const handleTextToSpeech = async (text: string) => {
+    if (!isVoiceAvailable || isSpeaking) return;
+
+    try {
+      setIsSpeaking(true);
+      await voiceService.speak(text, {
+        language: "en-US",
+        rate: 0.9,
+        pitch: 1.0,
+      });
+    } catch (error) {
+      Alert.alert(
+        t("speechError"),
+        error instanceof Error ? error.message : t("failedToSpeak")
+      );
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>{t("zeina")}</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={handleNewChat}
-            style={[styles.headerButton, styles.newChatHeaderButton]}
-          >
-            <Ionicons color="#007AFF" name="add-circle" size={28} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={async () => {
-              await loadChatHistory();
-              setShowHistory(true);
-            }}
-            style={[styles.headerButton, styles.historyHeaderButton]}
-          >
-            <View>
-              <Ionicons color="#007AFF" name="chatbubbles" size={26} />
-              {chatHistory.length > 0 && (
-                <View style={styles.historyBadge}>
-                  <Text style={styles.historyBadgeText}>
-                    {chatHistory.length}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
+          {isAdmin && (
+            <TouchableOpacity
+              onPress={handleNewChat}
+              style={[styles.headerButton, styles.newChatHeaderButton]}
+            >
+              <Ionicons color="#007AFF" name="add-circle" size={28} />
+            </TouchableOpacity>
+          )}
+          {isAdmin && (
+            <TouchableOpacity
+              onPress={async () => {
+                await loadChatHistory();
+                setShowHistory(true);
+              }}
+              style={[styles.headerButton, styles.historyHeaderButton]}
+            >
+              <View>
+                <Ionicons color="#007AFF" name="chatbubbles" size={26} />
+                {chatHistory.length > 0 && (
+                  <View style={styles.historyBadge}>
+                    <Text style={styles.historyBadgeText}>
+                      {chatHistory.length}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -491,13 +583,64 @@ export default function ZeinaScreen() {
                     key={message.id}
                     role={message.role as "user" | "assistant"}
                     timestamp={message.timestamp}
+                    onSpeak={isVoiceAvailable ? handleTextToSpeech : undefined}
+                    isSpeaking={isSpeaking}
                   />
                 ))}
             </>
           )}
         </ScrollView>
 
+        {/* Guided Questions for Regular Users */}
+        {isRegularUser && !isStreaming && (
+          <View style={styles.guidedQuestionsContainer}>
+            <Text style={styles.guidedQuestionsTitle}>
+              {t("quickQuestions")}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.guidedQuestionsScroll}
+            >
+              {guidedQuestions.map((question, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => setInputText(question.label)}
+                  style={styles.guidedQuestionButton}
+                >
+                  <Ionicons
+                    name={question.icon as any}
+                    size={20}
+                    color="#007AFF"
+                    style={styles.guidedQuestionIcon}
+                  />
+                  <Text style={styles.guidedQuestionText}>
+                    {question.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.inputContainer}>
+          {isAdmin && isVoiceAvailable && (
+            <TouchableOpacity
+              disabled={isStreaming}
+              onPress={handleVoiceInput}
+              style={[
+                styles.voiceButton,
+                isRecording && styles.voiceButtonRecording,
+                isStreaming && styles.voiceButtonDisabled,
+              ]}
+            >
+              <Ionicons
+                color={isRecording ? "#FF3B30" : isStreaming ? "#B0B0B0" : "#007AFF"}
+                name={isRecording ? "mic-off" : "mic"}
+                size={20}
+              />
+            </TouchableOpacity>
+          )}
           <TextInput
             editable={!isStreaming}
             multiline
@@ -766,6 +909,23 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     backgroundColor: "#B0B0B0",
   },
+  voiceButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F0F0F0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginEnd: 8,
+  },
+  voiceButtonRecording: {
+    backgroundColor: "#FFEBEB",
+    borderWidth: 2,
+    borderColor: "#FF3B30",
+  },
+  voiceButtonDisabled: {
+    backgroundColor: "#F5F5F5",
+  },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -855,5 +1015,45 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  guidedQuestionsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E0E0E0",
+    backgroundColor: "#F8F9FA",
+  },
+  guidedQuestionsTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+  guidedQuestionsScroll: {
+    paddingRight: 16,
+  },
+  guidedQuestionButton: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginRight: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  guidedQuestionIcon: {
+    marginRight: 8,
+  },
+  guidedQuestionText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
   },
 });

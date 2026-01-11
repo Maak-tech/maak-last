@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import type { Medication } from "@/types";
 import { smartNotificationService } from "@/lib/services/smartNotificationService";
 import { useNotifications } from "./useNotifications";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UseSmartNotificationsOptions {
   medications?: Medication[];
@@ -17,11 +18,13 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
     checkInterval = 60, // Default: check every hour
   } = options;
 
-  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const checkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { ensureInitialized } = useNotifications();
 
+  const { user } = useAuth();
+
   const checkAndScheduleNotifications = useCallback(async () => {
-    if (!enabled || Platform.OS === "web" || medications.length === 0) {
+    if (!enabled || Platform.OS === "web" || !user?.id) {
       return;
     }
 
@@ -32,25 +35,24 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
         return;
       }
 
-      // Check and schedule refill notifications
-      await smartNotificationService.checkAndScheduleRefillNotifications(
-        medications
+      // Generate comprehensive notifications including daily check-ins
+      const context = smartNotificationService.getTimeContext();
+      const smartNotifications = await smartNotificationService.generateComprehensiveNotifications(
+        user.id,
+        medications,
+        context
       );
 
-      // Generate and schedule context-aware notifications
-      const context = smartNotificationService.getTimeContext();
-      const smartNotifications =
-        smartNotificationService.generateSmartNotifications(medications, context);
-
       if (smartNotifications.length > 0) {
-        await smartNotificationService.scheduleSmartNotifications(
+        const result = await smartNotificationService.scheduleSmartNotifications(
           smartNotifications
         );
       }
     } catch (error) {
+      console.error('Error scheduling notifications:', error);
       // Silently handle errors
     }
-  }, [medications, enabled, ensureInitialized]);
+  }, [medications, enabled, ensureInitialized, user?.id]);
 
   useEffect(() => {
     if (!enabled || Platform.OS === "web") {
@@ -74,5 +76,74 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
 
   return {
     checkAndScheduleNotifications,
+  };
+};
+
+/**
+ * Hook for scheduling daily interactive notifications
+ */
+export const useDailyNotificationScheduler = (enabled: boolean = true) => {
+  const { user } = useAuth();
+  const { ensureInitialized } = useNotifications();
+  const lastScheduledDate = useRef<string | null>(null);
+
+  const scheduleDailyNotifications = useCallback(async () => {
+    if (!enabled || !user?.id || Platform.OS === "web") {
+      return;
+    }
+
+    try {
+      // Ensure notifications are initialized
+      const isReady = await ensureInitialized();
+      if (!isReady) {
+        return;
+      }
+
+      // Check if we've already scheduled for today
+      const today = new Date().toDateString();
+      if (lastScheduledDate.current === today) {
+        return; // Already scheduled for today
+      }
+
+      // Schedule daily notifications
+      const result = await smartNotificationService.scheduleDailyNotifications(user.id);
+
+      if (result.scheduled > 0) {
+        lastScheduledDate.current = today;
+      }
+
+    } catch (error) {
+      console.error('Error scheduling daily notifications:', error);
+    }
+  }, [enabled, user?.id, ensureInitialized]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    // Schedule initial notifications
+    scheduleDailyNotifications();
+
+    // Schedule refresh for tomorrow at 2 AM
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(2, 0, 0, 0);
+
+    const timeUntilTomorrow = tomorrow.getTime() - now.getTime();
+
+    const timeoutId = setTimeout(() => {
+      scheduleDailyNotifications();
+
+      // Set up daily scheduling (every 24 hours)
+      const intervalId = setInterval(scheduleDailyNotifications, 24 * 60 * 60 * 1000);
+
+      return () => clearInterval(intervalId);
+    }, timeUntilTomorrow);
+
+    return () => clearTimeout(timeoutId);
+  }, [enabled, scheduleDailyNotifications]);
+
+  return {
+    scheduleDailyNotifications,
   };
 };

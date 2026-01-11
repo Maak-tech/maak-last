@@ -29,7 +29,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { allergyService } from "@/lib/services/allergyService";
-import { healthDataService, type VitalSigns } from "@/lib/services/healthDataService";
+import { healthDataService } from "@/lib/services/healthDataService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
@@ -61,7 +61,6 @@ export default function TrackScreen() {
   >([]);
   const [recentMoods, setRecentMoods] = useState<Mood[]>([]);
   const [recentAllergies, setRecentAllergies] = useState<Allergy[]>([]);
-  const [latestVitals, setLatestVitals] = useState<VitalSigns | null>(null);
   // PPG monitor now accessed via /ppg-measure route instead of modal
   const [showBloodPressureEntry, setShowBloodPressureEntry] = useState(false);
   const [stats, setStats] = useState({
@@ -290,14 +289,13 @@ export default function TrackScreen() {
       }
 
       // Load recent data for overview
-      const [symptoms, medications, medicalHistory, moods, moodStats, vitals, allergies] =
+      const [symptoms, medications, medicalHistory, moods, moodStats, allergies] =
         await Promise.all([
           symptomService.getUserSymptoms(user.id, 3),
           medicationService.getTodaysMedications(user.id),
           medicalHistoryService.getUserMedicalHistory(user.id),
           moodService.getUserMoods(user.id, 3),
           moodService.getMoodStats(user.id, 7),
-          healthDataService.getLatestVitals(),
           allergyService.getUserAllergies(user.id, 3),
         ]);
 
@@ -306,7 +304,6 @@ export default function TrackScreen() {
       setRecentMedicalHistory(medicalHistory.slice(0, 3)); // Get 3 most recent
       setRecentMoods(moods);
       setRecentAllergies(allergies);
-      setLatestVitals(vitals);
 
       // Calculate stats (optimized single pass)
       const totalSymptoms = symptoms.length;
@@ -1544,216 +1541,6 @@ export default function TrackScreen() {
               </View>
             )}
 
-            {/* Recent Activity - Vitals */}
-            {latestVitals && (
-              <View style={styles.recentSection as ViewStyle}>
-                <View style={styles.sectionHeader as ViewStyle}>
-                  <Text
-                    style={
-                      [
-                        styles.sectionTitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL ? "المؤشرات الحيوية الأخيرة" : "Latest Vital Signs"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/vitals")}
-                    style={styles.viewAllButton as ViewStyle}
-                  >
-                    <Text
-                      style={
-                        [
-                          styles.viewAllText,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "عرض الكل" : "View All"}
-                    </Text>
-                    <ChevronRight color={theme.colors.primary.main} size={16} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Heart Rate */}
-                {latestVitals.heartRate !== undefined && (
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/vitals")}
-                    style={styles.recentItem as ViewStyle}
-                  >
-                    <View
-                      style={
-                        [
-                          styles.recentIcon,
-                          { backgroundColor: theme.colors.accent.error + "20" },
-                        ] as StyleProp<ViewStyle>
-                      }
-                    >
-                      <Heart color={theme.colors.accent.error} size={20} />
-                    </View>
-                    <View style={styles.recentInfo as ViewStyle}>
-                      <Text
-                        style={
-                          [
-                            styles.recentTitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {isRTL ? "معدل ضربات القلب" : "Heart Rate"}
-                      </Text>
-                      <Text
-                        style={
-                          [
-                            styles.recentSubtitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {Math.round(latestVitals.heartRate)} BPM
-                        {latestVitals.timestamp
-                          ? ` • ${formatTime(latestVitals.timestamp)}`
-                          : ""}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-
-                {/* Steps */}
-                {latestVitals.steps !== undefined && (
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/vitals")}
-                    style={styles.recentItem as ViewStyle}
-                  >
-                    <View
-                      style={
-                        [
-                          styles.recentIcon,
-                          { backgroundColor: theme.colors.primary[50] },
-                        ] as StyleProp<ViewStyle>
-                      }
-                    >
-                      <Activity color={theme.colors.primary.main} size={20} />
-                    </View>
-                    <View style={styles.recentInfo as ViewStyle}>
-                      <Text
-                        style={
-                          [
-                            styles.recentTitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {isRTL ? "الخطوات" : "Steps"}
-                      </Text>
-                      <Text
-                        style={
-                          [
-                            styles.recentSubtitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {latestVitals.steps.toLocaleString()} {isRTL ? "خطوة" : "steps"}
-                        {latestVitals.timestamp
-                          ? ` • ${formatTime(latestVitals.timestamp)}`
-                          : ""}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-
-                {/* Sleep */}
-                {latestVitals.sleepHours !== undefined && (
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/vitals")}
-                    style={styles.recentItem as ViewStyle}
-                  >
-                    <View
-                      style={
-                        [
-                          styles.recentIcon,
-                          { backgroundColor: theme.colors.accent.info + "20" },
-                        ] as StyleProp<ViewStyle>
-                      }
-                    >
-                      <Zap color={theme.colors.accent.info} size={20} />
-                    </View>
-                    <View style={styles.recentInfo as ViewStyle}>
-                      <Text
-                        style={
-                          [
-                            styles.recentTitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {isRTL ? "النوم" : "Sleep"}
-                      </Text>
-                      <Text
-                        style={
-                          [
-                            styles.recentSubtitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {latestVitals.sleepHours.toFixed(1)} {isRTL ? "ساعة" : "hours"}
-                        {latestVitals.timestamp
-                          ? ` • ${formatTime(latestVitals.timestamp)}`
-                          : ""}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-
-                {/* Blood Pressure */}
-                {latestVitals.bloodPressure && (
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/vitals")}
-                    style={styles.recentItem as ViewStyle}
-                  >
-                    <View
-                      style={
-                        [
-                          styles.recentIcon,
-                          { backgroundColor: theme.colors.accent.warning + "20" },
-                        ] as StyleProp<ViewStyle>
-                      }
-                    >
-                      <Heart color={theme.colors.accent.warning} size={20} />
-                    </View>
-                    <View style={styles.recentInfo as ViewStyle}>
-                      <Text
-                        style={
-                          [
-                            styles.recentTitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {isRTL ? "ضغط الدم" : "Blood Pressure"}
-                      </Text>
-                      <Text
-                        style={
-                          [
-                            styles.recentSubtitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {latestVitals.bloodPressure.systolic}/
-                        {latestVitals.bloodPressure.diastolic} mmHg
-                        {latestVitals.timestamp
-                          ? ` • ${formatTime(latestVitals.timestamp)}`
-                          : ""}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
 
             {/* Maak One-liner */}
             <View style={styles.onelineCard as ViewStyle}>

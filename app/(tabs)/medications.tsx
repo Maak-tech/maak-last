@@ -19,7 +19,6 @@ import {
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
-import BulkMedicationImport from "@/app/components/BulkMedicationImport";
 import MedicationRefillCard from "@/app/components/MedicationRefillCard";
 import MedicationInteractionWarning from "@/app/components/MedicationInteractionWarning";
 import TagInput from "@/app/components/TagInput";
@@ -202,7 +201,6 @@ export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -262,13 +260,13 @@ export default function MedicationsScreen() {
       let loadedMedications: Medication[] = [];
 
       // Load data based on selected filter
-      if (selectedFilter.type === "family" && user.familyId) {
-        // Load family medications (both admins and members can view)
+      if (selectedFilter.type === "family" && user.familyId && isAdmin) {
+        // Load family medications (admin only)
         loadedMedications =
           await medicationService.getFamilyTodaysMedications(user.familyId);
         setMedications(loadedMedications);
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
-        // Load specific member medications (both admins and members can view)
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
+        // Load specific member medications (admin only)
         loadedMedications = await medicationService.getMemberMedications(
           selectedFilter.memberId
         );
@@ -284,10 +282,10 @@ export default function MedicationsScreen() {
       // Calculate refill predictions for loaded medications
       // Use all medications (not just today's) for refill calculations
       let allMedicationsForRefill: Medication[] = [];
-      if (selectedFilter.type === "family" && user.familyId) {
+      if (selectedFilter.type === "family" && user.familyId && isAdmin) {
         allMedicationsForRefill =
           await medicationService.getFamilyMedications(user.familyId);
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+      } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
         allMedicationsForRefill = await medicationService.getMemberMedications(
           selectedFilter.memberId
         );
@@ -832,12 +830,6 @@ export default function MedicationsScreen() {
           {t("medications")}
         </Heading>
         <View style={styles.headerButtons}>
-          <TouchableOpacity
-            onPress={() => setShowBulkImportModal(true)}
-            style={[styles.headerAddButton, styles.bulkImportButton]}
-          >
-            <Ionicons name="document-text" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => {
               setNewMedication({
@@ -1641,13 +1633,6 @@ export default function MedicationsScreen() {
       </Modal>
 
       {/* Bulk Import Modal */}
-      <BulkMedicationImport
-        visible={showBulkImportModal}
-        onClose={() => setShowBulkImportModal(false)}
-        onImportComplete={() => {
-          loadMedications();
-        }}
-      />
     </SafeAreaView>
   );
 }
@@ -1682,9 +1667,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#2563EB",
     justifyContent: "center",
     alignItems: "center",
-  },
-  bulkImportButton: {
-    backgroundColor: "#10B981",
   },
   content: {
     flex: 1,

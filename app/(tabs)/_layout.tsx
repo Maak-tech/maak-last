@@ -2,10 +2,19 @@ import { Tabs } from "expo-router";
 import { Activity, Home, Sparkles, User, Users } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function TabLayout() {
   const { t } = useTranslation();
   const { theme } = useTheme();
+  const { user } = useAuth();
+
+  // User role logic
+  const isAdmin = user?.role === "admin";
+  const isRegularUser = !isAdmin;
+
+  // Debug logging
+  console.log('User role:', user?.role, 'isAdmin:', isAdmin, 'isRegularUser:', isRegularUser);
 
   return (
     <Tabs
@@ -27,6 +36,7 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* Home tab for all users */}
       <Tabs.Screen
         name="index"
         options={{
@@ -36,6 +46,8 @@ export default function TabLayout() {
           ),
         }}
       />
+
+      {/* Track tab only for admin users */}
       <Tabs.Screen
         name="track"
         options={{
@@ -43,8 +55,10 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Activity color={color} size={size || 24} />
           ),
+          href: isAdmin ? undefined : null, // Only show for admins
         }}
       />
+
       <Tabs.Screen
         name="zeina"
         options={{
@@ -61,6 +75,7 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
             <Users color={color} size={size || 24} />
           ),
+          href: isAdmin ? undefined : null, // Only visible to admin users
         }}
       />
       <Tabs.Screen
@@ -75,28 +90,28 @@ export default function TabLayout() {
       <Tabs.Screen
         name="symptoms"
         options={{
-          href: null, // Access via track tab
+          href: null, // Access via profile tab for regular users
           headerShown: false,
         }}
       />
       <Tabs.Screen
         name="moods"
         options={{
-          href: null, // Access via track tab
+          href: null, // Access via profile tab for regular users
           headerShown: false,
         }}
       />
       <Tabs.Screen
         name="allergies"
         options={{
-          href: null, // Access via track tab
+          href: null, // Access via profile tab for regular users
           headerShown: false,
         }}
       />
       <Tabs.Screen
         name="medications"
         options={{
-          href: null, // Access via symptoms/track tab
+          href: null, // Access via profile tab for regular users
           headerShown: false,
         }}
       />
@@ -110,28 +125,28 @@ export default function TabLayout() {
       <Tabs.Screen
         name="vitals"
         options={{
-          href: null, // Access via track tab
+          href: null, // Access via profile tab for regular users
           headerShown: false,
         }}
       />
       <Tabs.Screen
         name="analytics"
         options={{
-          href: null, // Access via track tab or dashboard
+          href: null, // Access via track tab for admins, profile for regular users
           headerShown: false,
         }}
       />
       <Tabs.Screen
         name="timeline"
         options={{
-          href: null, // Access via track tab or dashboard
+          href: null, // Access via profile tab for regular users
           headerShown: false,
         }}
       />
       <Tabs.Screen
         name="lab-results"
         options={{
-          href: null, // Access via track tab or profile
+          href: null, // Access via profile tab for regular users
           headerShown: false,
         }}
       />

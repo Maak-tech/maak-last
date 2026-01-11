@@ -19,6 +19,21 @@ import * as FileSystem from "expo-file-system";
 import Constants from "expo-constants";
 import openaiService from "./openaiService";
 
+// Dynamic import for expo-av with proper error handling
+let Audio: any = null;
+try {
+  // Only load expo-av on native platforms (iOS/Android)
+  if (Platform.OS === 'ios' || Platform.OS === 'android') {
+    // Use require instead of import to avoid TypeScript module resolution issues
+    const expoAv = require("expo-av");
+    Audio = expoAv.Audio;
+  } else {
+    // expo-av not available on web platform
+  }
+} catch (error) {
+  // expo-av not available: ${error}
+}
+
 export interface VoiceConfig {
   language: string;
   pitch?: number;
@@ -37,6 +52,7 @@ class VoiceService {
   private isListening = false;
   private recognitionCallbacks: Array<(result: SpeechRecognitionResult) => void> = [];
   private recognitionErrorCallbacks: Array<(error: Error) => void> = [];
+  private recording: Audio.Recording | null = null;
 
   /**
    * Speak text using text-to-speech
@@ -143,8 +159,8 @@ class VoiceService {
    */
   async isAvailable(): Promise<boolean> {
     try {
-      // Check if Speech module is loaded
-      return Speech !== null && (Platform.OS === "ios" || Platform.OS === "android");
+      // Speech is available on web and native platforms
+      return Speech !== null && (Platform.OS === "ios" || Platform.OS === "android" || Platform.OS === "web");
     } catch (error) {
       return false;
     }
@@ -156,14 +172,15 @@ class VoiceService {
    */
   async startListening(
     onResult?: (result: SpeechRecognitionResult) => void,
-    onError?: (error: Error) => void
+    onError?: (error: Error) => void,
+    language: string = "en-US"
   ): Promise<void> {
     if (this.isListening) {
       throw new Error("Already listening for speech");
     }
 
     this.isListening = true;
-    
+
     if (onResult) {
       this.recognitionCallbacks.push(onResult);
     }
@@ -171,27 +188,80 @@ class VoiceService {
       this.recognitionErrorCallbacks.push(onError);
     }
 
-    // Note: For full implementation, you would:
-    // 1. Use expo-av or react-native-audio-recorder to record audio
-    // 2. Convert audio to a format compatible with Whisper API (mp3, wav, etc.)
-    // 3. Send audio file to OpenAI Whisper API
-    // 4. Return transcribed text
-    
-    // For now, we'll provide a basic implementation that can be extended
-    // with actual audio recording
-    throw new Error(
-      "Speech recognition requires audio recording. " +
-      "Please install expo-av or react-native-audio-recorder and configure audio permissions."
-    );
+    try {
+      // Check if Audio is available
+      if (!Audio) {
+        throw new Error("Audio recording not available. Please ensure expo-av is properly installed.");
+      }
+
+      // Request audio permissions
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        throw new Error("Microphone permission denied");
+      }
+
+      // Set audio mode for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+        playThroughEarpieceAndroid: false,
+      });
+
+      // Create and start recording
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+
+      // Wait for a moment to capture some audio (you might want to make this configurable)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Stop recording
+      await recording.stopAndUnloadAsync();
+
+      // Get the recorded URI
+      const uri = recording.getURI();
+      if (!uri) {
+        throw new Error("Failed to record audio");
+      }
+
+      // Transcribe the audio
+      const result = await this.transcribeAudio(uri, language.split('-')[0]);
+
+      // Call success callbacks
+      this.recognitionCallbacks.forEach(callback => callback(result));
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorObj = new Error(errorMessage);
+
+      // Call error callbacks
+      this.recognitionErrorCallbacks.forEach(callback => callback(errorObj));
+    } finally {
+      this.isListening = false;
+      this.recognitionCallbacks = [];
+      this.recognitionErrorCallbacks = [];
+    }
   }
 
   /**
    * Stop listening for speech
    */
   async stopListening(): Promise<void> {
-    this.isListening = false;
-    this.recognitionCallbacks = [];
-    this.recognitionErrorCallbacks = [];
+    try {
+      if (this.recording) {
+        await this.recording.stopAndUnloadAsync();
+        this.recording = null;
+      }
+    } catch (error) {
+      // Silently handle cleanup errors
+    } finally {
+      this.isListening = false;
+      this.recognitionCallbacks = [];
+      this.recognitionErrorCallbacks = [];
+    }
   }
 
   /**
@@ -199,8 +269,11 @@ class VoiceService {
    */
   async transcribeAudio(audioUri: string, language?: string): Promise<SpeechRecognitionResult> {
     try {
-      // Get OpenAI API key
-      const apiKey = await openaiService.getApiKey();
+      // Get OpenAI API key (try premium key first for Zeina)
+      let apiKey = await openaiService.getApiKey(true);
+      if (!apiKey) {
+        apiKey = await openaiService.getApiKey(false);
+      }
       if (!apiKey) {
         throw new Error("OpenAI API key not configured");
       }
@@ -210,12 +283,18 @@ class VoiceService {
         encoding: FileSystem.EncodingType.Base64,
       });
 
+      // Determine audio format based on file extension or default to m4a (expo-av default)
+      const fileExtension = audioUri.split('.').pop()?.toLowerCase() || 'm4a';
+      const mimeType = fileExtension === 'mp3' ? 'audio/mp3' :
+                      fileExtension === 'wav' ? 'audio/wav' :
+                      'audio/m4a'; // Default for expo-av recordings
+
       // Convert base64 to blob format for API
-      const audioBlob = await fetch(`data:audio/mp3;base64,${audioBase64}`).then((r) => r.blob());
+      const audioBlob = await fetch(`data:${mimeType};base64,${audioBase64}`).then((r) => r.blob());
 
       // Create form data
       const formData = new FormData();
-      formData.append("file", audioBlob as any, "audio.mp3");
+      formData.append("file", audioBlob as any, `audio.${fileExtension}`);
       formData.append("model", "whisper-1");
       if (language) {
         formData.append("language", language);
@@ -239,7 +318,7 @@ class VoiceService {
 
       const result = await response.json();
       return {
-        text: result.text || "",
+        text: result.text?.trim() || "",
         confidence: 1.0, // Whisper doesn't return confidence scores
       };
     } catch (error) {
@@ -250,12 +329,44 @@ class VoiceService {
   }
 
   /**
+   * Request microphone permissions
+   */
+  async requestMicrophonePermissions(): Promise<boolean> {
+    try {
+      if (!Audio) return false;
+      const permission = await Audio.requestPermissionsAsync();
+      return permission.status === 'granted';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Check if microphone permissions are granted
+   */
+  async hasMicrophonePermissions(): Promise<boolean> {
+    try {
+      if (!Audio) return false;
+      const permission = await Audio.getPermissionsAsync();
+      return permission.status === 'granted';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Check if speech recognition is available
    */
   async isRecognitionAvailable(): Promise<boolean> {
     try {
-      const apiKey = await openaiService.getApiKey();
-      return apiKey !== null;
+      // Speech recognition requires native platforms (expo-av)
+      if (Platform.OS === 'web') {
+        return false;
+      }
+
+      const hasPermissions = await this.hasMicrophonePermissions();
+      const hasApiKey = await openaiService.getApiKey(true) || await openaiService.getApiKey(false);
+      return hasPermissions && hasApiKey !== null && hasApiKey !== undefined && Audio !== null;
     } catch {
       return false;
     }

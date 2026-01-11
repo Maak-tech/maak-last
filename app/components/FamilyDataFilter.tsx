@@ -63,7 +63,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
       },
     ];
 
-    if (hasFamily && familyMembers.length > 1) {
+    if (hasFamily && familyMembers.length > 1 && isAdmin) {
       options.push({
         id: "family",
         type: "family",
@@ -76,7 +76,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
           const memberName = member.firstName && member.lastName
             ? `${member.firstName} ${member.lastName}`
             : member.firstName || "User";
-          
+
           options.push({
             id: member.id,
             type: "member",

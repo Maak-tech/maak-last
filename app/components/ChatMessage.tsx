@@ -7,6 +7,8 @@ interface ChatMessageProps {
   content: string;
   isStreaming?: boolean;
   timestamp?: Date;
+  onSpeak?: (text: string) => void;
+  isSpeaking?: boolean;
 }
 
 export default function ChatMessage({
@@ -14,6 +16,8 @@ export default function ChatMessage({
   content,
   isStreaming,
   timestamp,
+  onSpeak,
+  isSpeaking,
 }: ChatMessageProps) {
   const [displayedContent, setDisplayedContent] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -66,6 +70,17 @@ export default function ChatMessage({
           isUser ? styles.userMessage : styles.assistantMessage,
         ]}
       >
+        <View style={styles.messageHeader}>
+          {!isUser && onSpeak && (
+            <Ionicons
+              color={isSpeaking ? "#007AFF" : "#666"}
+              name={isSpeaking ? "volume-high" : "volume-medium"}
+              size={16}
+              style={styles.speakerIcon}
+              onPress={() => onSpeak(content)}
+            />
+          )}
+        </View>
         <Text
           style={[
             styles.messageText,
@@ -121,6 +136,14 @@ const styles = StyleSheet.create({
     maxWidth: "75%",
     borderRadius: 16,
     padding: 12,
+  },
+  messageHeader: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginBottom: 4,
+  },
+  speakerIcon: {
+    padding: 2,
   },
   userMessage: {
     backgroundColor: "#007AFF",

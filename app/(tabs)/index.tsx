@@ -10,6 +10,8 @@ import {
   Phone,
   Pill,
   Settings,
+  Smile,
+  Sparkles,
   Users,
   X,
 } from "lucide-react-native";
@@ -38,7 +40,6 @@ import { alertService } from "@/lib/services/alertService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
-import { healthScoreService, type HealthScoreResult } from "@/lib/services/healthScoreService";
 import type { Medication, Symptom, User as UserType } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 // Design System Components
@@ -52,6 +53,7 @@ import {
   dashboardWidgetService,
   type DashboardConfig,
 } from "@/lib/services/dashboardWidgetService";
+import { useDailyNotificationScheduler } from "@/hooks/useSmartNotifications";
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
@@ -66,13 +68,10 @@ export default function DashboardScreen() {
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
-  const [healthScoreModalVisible, setHealthScoreModalVisible] = useState(false);
-  const [healthScoreResult, setHealthScoreResult] = useState<HealthScoreResult | null>(null);
   const [stats, setStats] = useState({
     symptomsThisWeek: 0,
     avgSeverity: 0,
     medicationCompliance: 0,
-    healthScore: 75,
   });
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
   const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);
@@ -81,6 +80,9 @@ export default function DashboardScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
+
+  // Initialize daily notification scheduler
+  useDailyNotificationScheduler(true);
 
   // Create themed styles
   const styles = createThemedStyles((theme) => ({
@@ -271,37 +273,6 @@ export default function DashboardScreen() {
       height: 6,
       borderRadius: 3,
     },
-    healthScoreCardContainer: {
-      backgroundColor: theme.colors.background.secondary || "#F8FAFC",
-      borderRadius: theme.borderRadius.md || 12,
-      padding: theme.spacing.base || 16,
-      alignItems: "center" as const,
-      minHeight: 100,
-      width: "100%",
-    },
-    healthScoreIconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: theme.colors.background.primary || "#FFFFFF",
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginBottom: 8,
-    },
-    healthScoreCardValue: {
-      fontSize: 20,
-      fontFamily: "Geist-Bold",
-      color: theme.colors.text.primary || "#1E293B",
-      marginBottom: 4,
-      textAlign: "center" as const,
-    },
-    healthScoreCardLabel: {
-      fontSize: 11,
-      fontFamily: "Geist-Medium",
-      color: theme.colors.text.secondary || "#64748B",
-      textAlign: "center" as const,
-      lineHeight: 14,
-    },
     emptyText: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.tertiary),
       textAlign: "center" as const,
@@ -393,6 +364,92 @@ export default function DashboardScreen() {
       ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
       textAlign: "center" as const,
     },
+    trackingSection: {
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      marginBottom: theme.spacing.xl,
+      ...theme.shadows.md,
+    },
+    trackingOptions: {
+      flexDirection: "row" as const,
+      gap: theme.spacing.md,
+      flexWrap: "wrap" as const,
+    },
+    trackingCard: {
+      flex: 1,
+      minWidth: 140,
+      backgroundColor: theme.colors.background.primary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      borderWidth: 2,
+      borderColor: theme.colors.border.light,
+      alignItems: "center" as const,
+      ...theme.shadows.sm,
+    },
+    trackingCardIcon: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
+      marginBottom: theme.spacing.md,
+    },
+    trackingCardTitle: {
+      ...getTextStyle(theme, "body", "bold", theme.colors.text.primary),
+      marginBottom: theme.spacing.sm,
+      textAlign: "center" as const,
+    },
+    trackingCardSubtitle: {
+      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+      textAlign: "center" as const,
+      marginBottom: theme.spacing.md,
+    },
+    trackingCardButton: {
+      backgroundColor: theme.colors.primary.main,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.xs,
+    },
+    trackingCardButtonText: {
+      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
+    },
+    healthInsightsSection: {
+      marginBottom: theme.spacing.xl,
+    },
+    healthInsightsGrid: {
+      gap: theme.spacing.md,
+    },
+    healthInsightCard: {
+      flexDirection: "row" as const,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      alignItems: "center" as const,
+      ...theme.shadows.sm,
+    },
+    healthInsightIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      justifyContent: "center" as const,
+      alignItems: "center" as const,
+      marginEnd: theme.spacing.md,
+    },
+    healthInsightContent: {
+      flex: 1,
+    },
+    healthInsightTitle: {
+      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
+      marginBottom: 4,
+    },
+    healthInsightMessage: {
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+      fontSize: 14,
+    },
     quickActionsGrid: {
       flexDirection: "row" as const,
       flexWrap: "wrap" as const,
@@ -434,7 +491,7 @@ export default function DashboardScreen() {
 
     try {
       setLoading(true);
-      
+
       // Load dashboard config
       await loadDashboardConfig();
 
@@ -486,15 +543,10 @@ export default function DashboardScreen() {
       const compliance =
         totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
 
-      // Calculate health score using the new centralized service
-      const healthScoreResult = await healthScoreService.calculateHealthScore(user.id);
-
-      setHealthScoreResult(healthScoreResult);
       setStats({
         symptomsThisWeek: symptomStats.totalSymptoms,
         avgSeverity: symptomStats.avgSeverity,
         medicationCompliance: Math.round(compliance),
-        healthScore: healthScoreResult.score,
       });
     } catch (error) {
       // Silently handle dashboard data load error
@@ -638,14 +690,13 @@ export default function DashboardScreen() {
     : dashboardWidgetService.getEnabledWidgets({
         userId: user?.id || "",
         widgets: [
-          { id: "healthScore", enabled: true, order: 0 },
-          { id: "stats", enabled: true, order: 1 },
-          { id: "todaysMedications", enabled: true, order: 2 },
-          { id: "recentSymptoms", enabled: true, order: 3 },
-          { id: "healthInsights", enabled: true, order: 4 },
-          { id: "alerts", enabled: true, order: 5 },
-          { id: "familyMembers", enabled: true, order: 6 },
-          { id: "quickActions", enabled: true, order: 7 },
+          { id: "stats", enabled: true, order: 0 },
+          { id: "todaysMedications", enabled: true, order: 1 },
+          { id: "recentSymptoms", enabled: true, order: 2 },
+          { id: "healthInsights", enabled: true, order: 3 },
+          { id: "alerts", enabled: true, order: 4 },
+          { id: "familyMembers", enabled: true, order: 5 },
+          { id: "quickActions", enabled: true, order: 6 },
         ],
         updatedAt: new Date(),
       });
@@ -653,41 +704,6 @@ export default function DashboardScreen() {
   // Widget render functions
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
-      case "healthScore":
-        return (
-          <View key="healthScore" style={styles.section as ViewStyle}>
-            <TouchableOpacity
-              style={styles.healthScoreCardContainer as ViewStyle}
-              onPress={() => setHealthScoreModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.healthScoreIconContainer as ViewStyle}>
-                <Activity color="#10B981" size={24} />
-              </View>
-              <Text
-                style={
-                  [
-                    styles.healthScoreCardValue,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {stats.healthScore}
-              </Text>
-              <Text
-                numberOfLines={2}
-                style={
-                  [
-                    styles.healthScoreCardLabel,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {t("healthScore")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        );
 
       case "stats":
         return (
@@ -1278,27 +1294,29 @@ export default function DashboardScreen() {
             </Caption>
           </View>
           <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, zIndex: 1001, flexShrink: 0 }}>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                setShowWidgetSettings(true);
-              }}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-              style={({ pressed }) => ({
-                backgroundColor: theme.colors.background.secondary,
-                borderRadius: 20,
-                padding: 10,
-                justifyContent: "center",
-                alignItems: "center",
-                zIndex: 1001,
-                elevation: 5,
-                minWidth: 40,
-                minHeight: 40,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Settings color={theme.colors.text.primary} size={20} />
-            </Pressable>
+            {isAdmin && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  setShowWidgetSettings(true);
+                }}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                style={({ pressed }) => ({
+                  backgroundColor: theme.colors.background.secondary,
+                  borderRadius: 20,
+                  padding: 10,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  zIndex: 1001,
+                  elevation: 5,
+                  minWidth: 40,
+                  minHeight: 40,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <Settings color={theme.colors.text.primary} size={20} />
+              </Pressable>
+            )}
             <TouchableOpacity
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1316,8 +1334,189 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Render widgets dynamically based on config order */}
-        {enabledWidgets.map((widget) => renderWidget(widget.id))}
+        {/* Simple Health Insights for Regular Users */}
+        {!isAdmin && (
+          <View style={styles.healthInsightsSection as ViewStyle}>
+            <Text
+              style={
+                [
+                  styles.sectionTitle,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
+              {isRTL ? "رؤى صحية" : "Health Insights"}
+            </Text>
+            <View style={styles.healthInsightsGrid as ViewStyle}>
+              {/* Medication Adherence Insight */}
+              {stats.medicationCompliance < 80 && (
+                <View style={styles.healthInsightCard as ViewStyle}>
+                  <View
+                    style={
+                      [
+                        styles.healthInsightIcon,
+                        { backgroundColor: theme.colors.accent.warning + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Activity color={theme.colors.accent.warning} size={20} />
+                  </View>
+                  <View style={styles.healthInsightContent as ViewStyle}>
+                    <Text
+                      style={
+                        [
+                          styles.healthInsightTitle,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "الالتزام بالدواء" : "Medication Adherence"}
+                    </Text>
+                    <Text
+                      style={
+                        [
+                          styles.healthInsightMessage,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL
+                        ? "حاول تناول أدويتك في الوقت المحدد"
+                        : "Try taking your medications on time"}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Good Medication Adherence */}
+              {stats.medicationCompliance >= 80 && (
+                <View style={styles.healthInsightCard as ViewStyle}>
+                  <View
+                    style={
+                      [
+                        styles.healthInsightIcon,
+                        { backgroundColor: theme.colors.accent.success + "20" },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Check color={theme.colors.accent.success} size={20} />
+                  </View>
+                  <View style={styles.healthInsightContent as ViewStyle}>
+                    <Text
+                      style={
+                        [
+                          styles.healthInsightTitle,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "ممتاز!" : "Excellent!"}
+                    </Text>
+                    <Text
+                      style={
+                        [
+                          styles.healthInsightMessage,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL
+                        ? "الالتزام الجيد بالدواء - استمر!"
+                        : "Great medication adherence - keep it up!"}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Symptom Tracking Reminder */}
+              {recentSymptoms.length === 0 && (
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/symptoms")}
+                  style={styles.healthInsightCard as ViewStyle}
+                >
+                  <View
+                    style={
+                      [
+                        styles.healthInsightIcon,
+                        { backgroundColor: theme.colors.primary[50] },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Activity color={theme.colors.primary.main} size={20} />
+                  </View>
+                  <View style={styles.healthInsightContent as ViewStyle}>
+                    <Text
+                      style={
+                        [
+                          styles.healthInsightTitle,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "تتبع الأعراض" : "Track Symptoms"}
+                    </Text>
+                    <Text
+                      style={
+                        [
+                          styles.healthInsightMessage,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL
+                        ? "سجل أعراضك اليومية للحصول على رؤى أفضل"
+                        : "Log your daily symptoms for better insights"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {/* Exercise Suggestion */}
+              <TouchableOpacity
+                onPress={() => router.push("/ppg-measure")}
+                style={styles.healthInsightCard as ViewStyle}
+              >
+                <View
+                  style={
+                    [
+                      styles.healthInsightIcon,
+                      { backgroundColor: theme.colors.secondary[50] },
+                    ] as StyleProp<ViewStyle>
+                  }
+                >
+                  <Heart color={theme.colors.secondary.main} size={20} />
+                </View>
+                <View style={styles.healthInsightContent as ViewStyle}>
+                  <Text
+                    style={
+                      [
+                        styles.healthInsightTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "حركة خفيفة" : "Light Exercise"}
+                  </Text>
+                  <Text
+                    style={
+                      [
+                        styles.healthInsightMessage,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "جرب المشي لمدة 10 دقائق اليوم"
+                      : "Try a 10-minute walk today"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Render widgets dynamically based on config order (Admin only) */}
+        {isAdmin && enabledWidgets.map((widget) => renderWidget(widget.id))}
 
         {/* Alerts Modal */}
         <Modal
@@ -1585,594 +1784,240 @@ export default function DashboardScreen() {
           </View>
         </Modal>
 
-        {/* Health Score Breakdown Modal */}
-        <Modal
-          animationType="slide"
-          onRequestClose={() => setHealthScoreModalVisible(false)}
-          visible={healthScoreModalVisible}
-          transparent={true}
-        >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              justifyContent: "flex-end",
-            }}
-          >
-            <SafeAreaView
-              edges={["bottom"]}
-              style={{
-                backgroundColor: theme.colors.background.primary,
-                borderTopLeftRadius: theme.borderRadius.xl,
-                borderTopRightRadius: theme.borderRadius.xl,
-                maxHeight: Dimensions.get("window").height * 0.9,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: theme.spacing.base,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.border.light,
-                }}
+
+
+
+        {/* Health Tracking Section for Regular Users */}
+        {!isAdmin && (
+          <View style={styles.trackingSection as ViewStyle}>
+            <View style={styles.sectionHeader as ViewStyle}>
+              <Text
+                style={
+                  [
+                    styles.sectionTitle,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
               >
+                {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
+              </Text>
+            </View>
+
+            <View style={styles.trackingOptions as ViewStyle}>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/symptoms")}
+                style={styles.trackingCard as ViewStyle}
+              >
+                <View
+                  style={
+                    [
+                      styles.trackingCardIcon,
+                      { backgroundColor: theme.colors.primary[50] },
+                    ] as StyleProp<ViewStyle>
+                  }
+                >
+                  <Activity color={theme.colors.primary.main} size={28} />
+                </View>
                 <Text
                   style={
                     [
-                      getTextStyle(
-                        theme,
-                        "heading",
-                        "bold",
-                        theme.colors.text.primary
-                      ),
+                      styles.trackingCardTitle,
                       isRTL && styles.rtlText,
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "تفاصيل نقاط الصحة" : "Health Score Breakdown"}
+                  {isRTL ? "الأعراض" : "Symptoms"}
+                </Text>
+                <Text
+                  style={
+                    [
+                      styles.trackingCardSubtitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL
+                    ? "تسجيل الأعراض الصحية"
+                    : "Log health symptoms"}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => setHealthScoreModalVisible(false)}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: theme.colors.background.secondary,
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
+                  onPress={() => router.push("/(tabs)/symptoms")}
+                  style={styles.trackingCardButton as ViewStyle}
                 >
-                  <X color={theme.colors.text.secondary} size={24} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView
-                contentContainerStyle={{
-                  padding: theme.spacing.base,
-                  paddingBottom: theme.spacing.xl * 2,
-                  paddingHorizontal: theme.spacing.md,
-                }}
-                showsVerticalScrollIndicator={false}
-              >
-                {healthScoreResult ? (
-                  <>
-                    {/* Overall Score */}
-                    <View style={{ marginBottom: theme.spacing.xl }}>
-                      <View style={{ alignItems: "center", marginBottom: theme.spacing.sm, paddingHorizontal: theme.spacing.md }}>
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 48,
-                                fontFamily: "Geist-Bold",
-                                color: theme.colors.text.primary,
-                                marginBottom: 4,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {healthScoreResult.score}
-                        </Text>
-                        <Text
-                          numberOfLines={1}
-                          adjustsFontSizeToFit={false}
-                          style={
-                            [
-                              {
-                                fontSize: 16,
-                                fontFamily: "Geist-Regular",
-                                color: theme.colors.text.secondary,
-                                marginBottom: theme.spacing.md,
-                                paddingHorizontal: theme.spacing.sm,
-                                textAlign: "center",
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {isRTL ? "من 100" : "out of 100"}
-                        </Text>
-                        <View
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 6,
-                            borderRadius: 20,
-                            backgroundColor: theme.colors.background.secondary,
-                          }}
-                        >
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 14,
-                                  fontFamily: "Geist-Medium",
-                                  color: theme.colors.text.primary,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {healthScoreResult.rating === "excellent" && (isRTL ? "ممتاز" : "Excellent")}
-                            {healthScoreResult.rating === "good" && (isRTL ? "جيد" : "Good")}
-                            {healthScoreResult.rating === "fair" && (isRTL ? "مقبول" : "Fair")}
-                            {healthScoreResult.rating === "poor" && (isRTL ? "ضعيف" : "Poor")}
-                            {healthScoreResult.rating === "critical" && (isRTL ? "حرج" : "Critical")}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Calculation Breakdown */}
-                    <View style={{ marginBottom: theme.spacing.xl }}>
-                      <Text
-                        style={
-                          [
-                            {
-                              fontSize: 18,
-                              fontFamily: "Geist-Bold",
-                              color: theme.colors.text.primary,
-                              marginBottom: theme.spacing.base,
-                            },
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {isRTL ? "كيف تم حساب النقاط" : "How Your Score Was Calculated"}
-                      </Text>
-                      
-                      {/* Base Score */}
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: theme.spacing.sm,
-                          borderBottomWidth: 1,
-                          borderBottomColor: theme.colors.border.light,
-                        }}
-                      >
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 16,
-                                fontFamily: "Geist-Medium",
-                                color: theme.colors.text.primary,
-                                flex: 1,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {isRTL ? "النقاط الأساسية" : "Base Score"}
-                        </Text>
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 16,
-                                fontFamily: "Geist-Bold",
-                                color: theme.colors.accent.success,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          +{healthScoreResult.breakdown.baseScore}
-                        </Text>
-                      </View>
-
-                      {/* Symptom Penalty */}
-                      {healthScoreResult.breakdown.symptomPenalty > 0 && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            paddingVertical: theme.spacing.sm,
-                            borderBottomWidth: 1,
-                            borderBottomColor: theme.colors.border.light,
-                          }}
-                        >
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 16,
-                                  fontFamily: "Geist-Medium",
-                                  color: theme.colors.text.primary,
-                                  flex: 1,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {isRTL ? "خصم الأعراض" : "Symptom Penalty"}
-                          </Text>
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 16,
-                                  fontFamily: "Geist-Bold",
-                                  color: theme.colors.accent.error,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            -{healthScoreResult.breakdown.symptomPenalty.toFixed(1)}
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* Medication Bonus */}
-                      {healthScoreResult.breakdown.medicationBonus !== 0 && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            paddingVertical: theme.spacing.sm,
-                            borderBottomWidth: 1,
-                            borderBottomColor: theme.colors.border.light,
-                          }}
-                        >
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 16,
-                                  fontFamily: "Geist-Medium",
-                                  color: theme.colors.text.primary,
-                                  flex: 1,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {isRTL ? "مكافأة الأدوية" : "Medication Bonus"}
-                          </Text>
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 16,
-                                  fontFamily: "Geist-Bold",
-                                  color: healthScoreResult.breakdown.medicationBonus > 0 
-                                    ? theme.colors.accent.success 
-                                    : theme.colors.accent.error,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {healthScoreResult.breakdown.medicationBonus > 0 ? "+" : ""}
-                            {healthScoreResult.breakdown.medicationBonus.toFixed(1)}
-                          </Text>
-                        </View>
-                      )}
-
-                      {/* Final Score */}
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: theme.spacing.base,
-                          marginTop: theme.spacing.sm,
-                          paddingTop: theme.spacing.base,
-                          borderTopWidth: 2,
-                          borderTopColor: theme.colors.border.medium,
-                        }}
-                      >
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 18,
-                                fontFamily: "Geist-Bold",
-                                color: theme.colors.text.primary,
-                                flex: 1,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {isRTL ? "النقاط النهائية" : "Final Score"}
-                        </Text>
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 20,
-                                fontFamily: "Geist-Bold",
-                                color: theme.colors.primary.main,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {healthScoreResult.score}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Factors */}
-                    <View style={{ marginBottom: theme.spacing.xl }}>
-                      <Text
-                        style={
-                          [
-                            {
-                              fontSize: 18,
-                              fontFamily: "Geist-Bold",
-                              color: theme.colors.text.primary,
-                              marginBottom: theme.spacing.base,
-                            },
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {isRTL ? "العوامل المؤثرة" : "Contributing Factors"}
-                      </Text>
-                      
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: theme.spacing.sm,
-                          borderBottomWidth: 1,
-                          borderBottomColor: theme.colors.background.secondary,
-                        }}
-                      >
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 14,
-                                fontFamily: "Geist-Regular",
-                                color: theme.colors.text.secondary,
-                                flex: 1,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {isRTL ? "الأعراض الأخيرة (7 أيام)" : "Recent Symptoms (7 days)"}
-                        </Text>
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 14,
-                                fontFamily: "Geist-Medium",
-                                color: theme.colors.text.primary,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {healthScoreResult.factors.recentSymptoms}
-                        </Text>
-                      </View>
-
-                      {healthScoreResult.factors.recentSymptoms > 0 && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            paddingVertical: theme.spacing.sm,
-                            borderBottomWidth: 1,
-                            borderBottomColor: theme.colors.background.secondary,
-                          }}
-                        >
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 14,
-                                  fontFamily: "Geist-Regular",
-                                  color: theme.colors.text.secondary,
-                                  flex: 1,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {isRTL ? "متوسط شدة الأعراض" : "Average Symptom Severity"}
-                          </Text>
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 14,
-                                  fontFamily: "Geist-Medium",
-                                  color: theme.colors.text.primary,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {healthScoreResult.factors.symptomSeverityAvg.toFixed(1)}/10
-                          </Text>
-                        </View>
-                      )}
-
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          paddingVertical: theme.spacing.sm,
-                          borderBottomWidth: 1,
-                          borderBottomColor: theme.colors.background.secondary,
-                        }}
-                      >
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 14,
-                                fontFamily: "Geist-Regular",
-                                color: theme.colors.text.secondary,
-                                flex: 1,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {isRTL ? "الأدوية النشطة" : "Active Medications"}
-                        </Text>
-                        <Text
-                          style={
-                            [
-                              {
-                                fontSize: 14,
-                                fontFamily: "Geist-Medium",
-                                color: theme.colors.text.primary,
-                              },
-                              isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
-                          }
-                        >
-                          {healthScoreResult.factors.activeMedications}
-                        </Text>
-                      </View>
-
-                      {healthScoreResult.factors.activeMedications > 0 && (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            paddingVertical: theme.spacing.sm,
-                            borderBottomWidth: 1,
-                            borderBottomColor: theme.colors.background.secondary,
-                          }}
-                        >
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 14,
-                                  fontFamily: "Geist-Regular",
-                                  color: theme.colors.text.secondary,
-                                  flex: 1,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
-                          </Text>
-                          <Text
-                            style={
-                              [
-                                {
-                                  fontSize: 14,
-                                  fontFamily: "Geist-Medium",
-                                  color: theme.colors.text.primary,
-                                },
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {healthScoreResult.factors.medicationCompliance}%
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* Info Note */}
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "flex-start",
-                        backgroundColor: theme.colors.background.secondary,
-                        padding: theme.spacing.base,
-                        borderRadius: theme.borderRadius.lg,
-                        marginTop: theme.spacing.sm,
-                        gap: theme.spacing.sm,
-                      }}
-                    >
-                      <HelpCircle color={theme.colors.text.secondary} size={16} style={{ marginTop: 2 }} />
-                      <Text
-                        style={
-                          [
-                            {
-                              fontSize: 12,
-                              fontFamily: "Geist-Regular",
-                              color: theme.colors.text.secondary,
-                              flex: 1,
-                              lineHeight: 18,
-                            },
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {isRTL 
-                          ? "يتم حساب نقاط الصحة بناءً على الأعراض الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
-                          : "Your health score is calculated based on recent symptoms (last 7 days) and medication compliance. Base score is 100, with points deducted for symptoms and bonuses added for good medication adherence."}
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <View
-                    style={{
-                      paddingVertical: theme.spacing.xl,
-                      alignItems: "center",
-                    }}
+                  <Activity color={theme.colors.neutral.white} size={16} />
+                  <Text
+                    style={
+                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                    }
                   >
-                    <ActivityIndicator
-                      color={theme.colors.primary.main}
-                      size="large"
-                    />
-                    <Text
-                      style={
-                        [
-                          {
-                            fontSize: 14,
-                            fontFamily: "Geist-Regular",
-                            color: theme.colors.text.secondary,
-                            marginTop: theme.spacing.base,
-                          },
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "جاري تحميل التفاصيل..." : "Loading details..."}
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-            </SafeAreaView>
-          </View>
-        </Modal>
+                    {isRTL ? "تسجيل" : "Log"}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
 
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/medications")}
+                style={styles.trackingCard as ViewStyle}
+              >
+                <View
+                  style={
+                    [
+                      styles.trackingCardIcon,
+                      { backgroundColor: theme.colors.accent.success + "20" },
+                    ] as StyleProp<ViewStyle>
+                  }
+                >
+                  <Pill color={theme.colors.accent.success} size={28} />
+                </View>
+                <Text
+                  style={
+                    [
+                      styles.trackingCardTitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "الأدوية" : "Medications"}
+                </Text>
+                <Text
+                  style={
+                    [
+                      styles.trackingCardSubtitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL
+                    ? "إدارة الأدوية والتذكيرات"
+                    : "Manage meds & reminders"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/medications")}
+                  style={styles.trackingCardButton as ViewStyle}
+                >
+                  <Pill color={theme.colors.neutral.white} size={16} />
+                  <Text
+                    style={
+                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "إدارة" : "Manage"}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/moods")}
+                style={styles.trackingCard as ViewStyle}
+              >
+                <View
+                  style={
+                    [
+                      styles.trackingCardIcon,
+                      { backgroundColor: theme.colors.accent.warning + "20" },
+                    ] as StyleProp<ViewStyle>
+                  }
+                >
+                  <Smile color={theme.colors.accent.warning} size={28} />
+                </View>
+                <Text
+                  style={
+                    [
+                      styles.trackingCardTitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "الحالة النفسية" : "Mood"}
+                </Text>
+                <Text
+                  style={
+                    [
+                      styles.trackingCardSubtitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "تسجيل المزاج اليومي" : "Track daily mood"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/moods")}
+                  style={
+                    [
+                      styles.trackingCardButton,
+                      { backgroundColor: theme.colors.accent.warning },
+                    ] as StyleProp<ViewStyle>
+                  }
+                >
+                  <Smile color={theme.colors.neutral.white} size={16} />
+                  <Text
+                    style={
+                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "تسجيل" : "Log"}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/vitals")}
+                style={styles.trackingCard as ViewStyle}
+              >
+                <View
+                  style={
+                    [
+                      styles.trackingCardIcon,
+                      { backgroundColor: theme.colors.accent.info + "20" },
+                    ] as StyleProp<ViewStyle>
+                  }
+                >
+                  <Heart color={theme.colors.accent.info} size={28} />
+                </View>
+                <Text
+                  style={
+                    [
+                      styles.trackingCardTitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "العلامات الحيوية" : "Vitals"}
+                </Text>
+                <Text
+                  style={
+                    [
+                      styles.trackingCardSubtitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL
+                    ? "قياس الضغط والنبض"
+                    : "Blood pressure & pulse"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/vitals")}
+                  style={
+                    [
+                      styles.trackingCardButton,
+                      { backgroundColor: theme.colors.accent.info },
+                    ] as StyleProp<ViewStyle>
+                  }
+                >
+                  <Heart color={theme.colors.neutral.white} size={16} />
+                  <Text
+                    style={
+                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "قياس" : "Measure"}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Maak One-liner */}
         <View style={styles.onelineCard as ViewStyle}>

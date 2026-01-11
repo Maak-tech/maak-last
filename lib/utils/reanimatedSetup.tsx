@@ -233,7 +233,6 @@ function wrapWithForwardRef<T extends React.ComponentType<any>>(component: T, di
     }
   } catch (error) {
     // Silently handle errors
-    console.warn('Error patching React Native components:', error);
   }
 })();
 
@@ -403,7 +402,6 @@ function patchReanimatedCreateAnimatedComponent() {
               return originalCreateAnimatedComponent(wrapped);
             } catch (error: any) {
               // If wrapped version fails, return wrapped component anyway to prevent crash
-              console.warn('Failed to create animated component with wrapped function component:', componentName || 'Unknown', error?.message || error);
               return wrapped;
             }
           }
@@ -445,7 +443,6 @@ function patchReanimatedCreateAnimatedComponent() {
                 return originalCreateAnimatedComponent(wrapped);
               } catch (retryError: any) {
                 // If that also fails, return wrapped component to prevent crash
-                console.warn('Failed to create animated component even after wrapping:', componentName || 'Unknown', retryError?.message || retryError);
                 return wrapped;
               }
             }
@@ -472,12 +469,10 @@ function patchReanimatedCreateAnimatedComponent() {
                 return originalCreateAnimatedComponent(wrapped);
               } catch (retryError: any) {
                 // Return wrapped component to prevent crash
-                console.warn('Failed to create animated component after error catch-all wrap:', componentName, retryError?.message || retryError);
                 return wrapped;
               }
             } catch (wrapError) {
               // If wrapping fails, return component as-is to prevent infinite loop
-              console.warn('Failed to wrap component in error handler:', wrapError);
               return component;
             }
           }

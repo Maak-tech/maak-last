@@ -151,18 +151,7 @@ export const syncHealthData = async (
       startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }
 
-    console.log(
-      `[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
-    );
-
     // Fetch metrics from provider
-    console.log(`[Health Sync] Fetching metrics for provider: ${provider}`);
-    console.log(
-      `[Health Sync] Selected metrics: ${JSON.stringify(connection.selectedMetrics)}`
-    );
-    console.log(
-      `[Health Sync] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
-    );
 
     let metrics;
     switch (provider) {
@@ -175,9 +164,6 @@ export const syncHealthData = async (
           connection.selectedMetrics,
           startDate,
           endDate
-        );
-        console.log(
-          `[Health Sync] Fetched ${metrics.length} metrics from Apple Health`
         );
         break;
       }
@@ -222,11 +208,11 @@ export const syncHealthData = async (
       });
 
       if (!response.ok) {
-        console.warn(`Backend sync failed: ${response.statusText}`);
+        // Backend sync failed: ${response.statusText}
         // Continue anyway to save to Firestore
       }
     } catch (error) {
-      console.warn("Backend sync endpoint not available, saving to Firestore only:", error);
+      // Backend sync endpoint not available, saving to Firestore only: ${error}
       // Continue to save to Firestore
     }
 
@@ -236,7 +222,6 @@ export const syncHealthData = async (
         provider: provider,
         metrics: metrics,
       });
-      console.log(`[Health Sync] Saved ${savedCount} vital samples to Firestore`);
     } catch (error) {
       console.error("[Health Sync] Error saving vitals to Firestore:", error);
       // Don't fail the sync if Firestore save fails
