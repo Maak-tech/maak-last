@@ -102,13 +102,18 @@ export const garminService = {
       }
 
       // Exchange for access token (simplified - Garmin uses OAuth 1.0a)
+      // Note: GarminTokens type uses refreshToken, but Garmin OAuth 1.0a uses oauth_verifier
+      // For now, storing oauth_verifier as refreshToken for compatibility
       await garminService.saveTokens({
         accessToken: oauthToken,
-        accessTokenSecret: oauthVerifier,
+        refreshToken: oauthVerifier, // OAuth 1.0a verifier stored as refreshToken
         expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+        userId: "", // Will be populated after token exchange
+        scope: "", // Will be populated after token exchange
       });
 
-      await saveProviderConnection("garmin", {
+      await saveProviderConnection({
+        provider: "garmin",
         connected: true,
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || [],
@@ -178,7 +183,8 @@ export const garminService = {
   disconnect: async (): Promise<void> => {
     try {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.GARMIN_TOKENS);
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.GARMIN_CONNECTION);
+      // Garmin connection is stored in AsyncStorage via saveProviderConnection,
+      // not in SecureStore, so we don't need to delete it here
     } catch (error) {
       console.error("Error disconnecting Garmin:", error);
     }

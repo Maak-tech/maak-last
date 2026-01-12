@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Mic, Volume2, VolumeX } from "lucide-react-native";
+import { Mic, MicOff, Volume2, VolumeX, Settings } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import {
   addDoc,
@@ -14,6 +14,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
@@ -27,6 +28,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "../lib/firebase";
 import healthContextService from "../lib/services/healthContextService";
@@ -56,6 +58,7 @@ interface SavedSession {
 
 export default function AIAssistant() {
   const router = useRouter();
+  const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -75,12 +78,38 @@ export default function AIAssistant() {
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recognitionAvailable, setRecognitionAvailable] = useState(false);
+  const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
+  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
+  const [voiceLanguage, setVoiceLanguage] = useState("en-US");
 
   useEffect(() => {
     initializeChat();
     loadChatHistory();
     checkVoiceAvailability();
     checkRecognitionAvailability();
+
+    // Initialize voice settings from local storage
+    const loadVoiceSettings = async () => {
+      try {
+        const savedVoiceOutput = await AsyncStorage.getItem("voice_output_enabled");
+        const savedVoiceInput = await AsyncStorage.getItem("voice_input_enabled");
+        const savedVoiceLanguage = await AsyncStorage.getItem("voice_language");
+
+        if (savedVoiceOutput !== null) {
+          setVoiceOutputEnabled(JSON.parse(savedVoiceOutput));
+        }
+        if (savedVoiceInput !== null) {
+          setVoiceInputEnabled(JSON.parse(savedVoiceInput));
+        }
+        if (savedVoiceLanguage) {
+          setVoiceLanguage(savedVoiceLanguage);
+        }
+      } catch (error) {
+        // Use defaults
+      }
+    };
+
+    loadVoiceSettings();
   }, []);
 
   const checkRecognitionAvailability = async () => {
@@ -99,6 +128,79 @@ export default function AIAssistant() {
     } catch (error) {
       setVoiceEnabled(false);
     }
+  };
+
+  const handleVoiceInput = async () => {
+    if (isListening) {
+      await voiceService.stopListening();
+      setIsListening(false);
+      return;
+    }
+
+    if (!recognitionAvailable) {
+      Alert.alert(
+        t("speechError", "Speech Error"),
+        t("voiceInputNotAvailable", "Voice input is not available on this device")
+      );
+      return;
+    }
+
+    try {
+      setIsListening(true);
+      await voiceService.startListening(
+        async (result) => {
+          setIsListening(false);
+          if (result.text && result.text.trim()) {
+            setInputText(result.text);
+            // Automatically send the voice input
+            await handleSend(result.text);
+          }
+        },
+        (error) => {
+          setIsListening(false);
+          Alert.alert(
+            t("speechError", "Speech Error"),
+            error.message || t("failedToRecognizeSpeech", "Failed to recognize speech")
+          );
+        },
+        voiceLanguage
+      );
+    } catch (error: any) {
+      setIsListening(false);
+      Alert.alert(
+        t("speechError", "Speech Error"),
+        error.message || t("failedToStartVoiceInput", "Failed to start voice input")
+      );
+    }
+  };
+
+  const handleVoiceOutput = async (text: string) => {
+    if (!voiceEnabled || !voiceOutputEnabled) return;
+
+    try {
+      setIsSpeaking(true);
+      await voiceService.speak(text, {
+        language: voiceLanguage,
+        rate: 0.9,
+        pitch: 1.0,
+        volume: 1.0,
+      });
+    } catch (error) {
+      // Silently fail if TTS is not available
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
+
+  const toggleVoiceOutput = () => {
+    if (!voiceEnabled) {
+      Alert.alert(
+        t("voiceNotAvailable", "Voice Not Available"),
+        t("voiceOutputNotSupported", "Voice output is not supported on this device")
+      );
+      return;
+    }
+    setVoiceOutputEnabled(!voiceOutputEnabled);
   };
 
   useEffect(() => {
@@ -250,8 +352,9 @@ export default function AIAssistant() {
     });
   };
 
-  const handleSend = async () => {
-    if (!inputText.trim() || isStreaming) return;
+  const handleSend = async (textOverride?: string | unknown) => {
+    const textToSend = typeof textOverride === "string" ? textOverride : inputText;
+    if (!textToSend.trim() || isStreaming) return;
 
     // Check if API key is configured in the service (not state, for security)
     try {
@@ -276,7 +379,7 @@ export default function AIAssistant() {
     const userMessage: AIMessage = {
       id: Date.now().toString(),
       role: "user",
-      content: inputText.trim(),
+      content: textToSend.trim(),
       timestamp: new Date(),
     };
 
@@ -328,17 +431,8 @@ export default function AIAssistant() {
         });
         
         // Speak the response if voice is enabled and auto-speak is on
-        if (voiceEnabled && autoSpeak) {
-          try {
-            setIsSpeaking(true);
-            await voiceService.speak(fullResponse, {
-              language: "en-US", // Could be dynamic based on user preference
-            });
-            setIsSpeaking(false);
-          } catch (error) {
-            setIsSpeaking(false);
-            // Silently handle voice error
-          }
+        if (voiceOutputEnabled && autoSpeak) {
+          await handleVoiceOutput(fullResponse);
         }
       },
       (error) => {
@@ -382,6 +476,16 @@ export default function AIAssistant() {
 
     await openaiService.setApiKey(tempApiKey);
     await openaiService.setModel(tempModel);
+
+    // Save voice settings
+    try {
+      await AsyncStorage.setItem("voice_output_enabled", JSON.stringify(voiceOutputEnabled));
+      await AsyncStorage.setItem("voice_input_enabled", JSON.stringify(voiceInputEnabled));
+      await AsyncStorage.setItem("voice_language", voiceLanguage);
+    } catch (error) {
+      // Silently handle storage error
+    }
+
     // Mask API key for security - only store masked version in state
     const maskedKey = `${tempApiKey.substring(0, 7)}...${tempApiKey.substring(tempApiKey.length - 4)}`;
     setApiKey(maskedKey);
@@ -596,24 +700,15 @@ export default function AIAssistant() {
         <View style={styles.inputContainer}>
           {voiceEnabled && (
             <TouchableOpacity
-              onPress={async () => {
-                if (isSpeaking) {
-                  await voiceService.stop();
-                  setIsSpeaking(false);
-                } else if (autoSpeak) {
-                  setAutoSpeak(false);
-                } else {
-                  setAutoSpeak(true);
-                }
-              }}
+              onPress={toggleVoiceOutput}
               style={[
                 styles.voiceButton,
-                (isSpeaking || autoSpeak) && styles.voiceButtonActive,
+                voiceOutputEnabled && styles.voiceButtonActive,
               ]}
             >
               {isSpeaking ? (
                 <VolumeX size={20} color="white" />
-              ) : autoSpeak ? (
+              ) : voiceOutputEnabled ? (
                 <Volume2 size={20} color="white" />
               ) : (
                 <VolumeX size={20} color="#666" />
@@ -622,38 +717,17 @@ export default function AIAssistant() {
           )}
           {recognitionAvailable && (
             <TouchableOpacity
-              onPress={async () => {
-                if (isListening) {
-                  await voiceService.stopListening();
-                  setIsListening(false);
-                } else {
-                  try {
-                    setIsListening(true);
-                    // Note: Full implementation requires audio recording
-                    // For now, show a message that this feature needs audio recording setup
-                    Alert.alert(
-                      "Voice Input",
-                      "Voice input requires audio recording capabilities. " +
-                      "Please install expo-av and configure audio permissions to use this feature. " +
-                      "For now, you can type your message.",
-                      [{ text: "OK" }]
-                    );
-                    setIsListening(false);
-                  } catch (error) {
-                    setIsListening(false);
-                    Alert.alert(
-                      "Error",
-                      "Failed to start voice input. Please check audio permissions."
-                    );
-                  }
-                }
-              }}
+              onPress={handleVoiceInput}
               style={[
                 styles.voiceButton,
                 isListening && styles.voiceButtonActive,
               ]}
             >
-              <Mic size={20} color={isListening ? "white" : "#666"} />
+              {isListening ? (
+                <MicOff size={20} color="white" />
+              ) : (
+                <Mic size={20} color="#666" />
+              )}
             </TouchableOpacity>
           )}
           <TextInput
@@ -743,6 +817,97 @@ export default function AIAssistant() {
             <Text style={styles.modalHint}>
               GPT-3.5 Turbo is recommended for best cost/performance balance
             </Text>
+
+            {/* Voice Settings */}
+            {(voiceEnabled || recognitionAvailable) && (
+              <>
+                <Text style={[styles.modalLabel, { marginTop: 20 }]}>
+                  Voice Settings
+                </Text>
+
+                {voiceEnabled && (
+                  <View style={styles.voiceSetting}>
+                    <View style={styles.voiceSettingInfo}>
+                      <Volume2 size={20} color="#007AFF" />
+                      <View style={{ marginStart: 12, flex: 1 }}>
+                        <Text style={styles.voiceSettingTitle}>Voice Output</Text>
+                        <Text style={styles.voiceSettingDescription}>
+                          Enable text-to-speech for AI responses
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setVoiceOutputEnabled(!voiceOutputEnabled)}
+                      style={[
+                        styles.voiceToggle,
+                        voiceOutputEnabled && styles.voiceToggleActive,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.voiceToggleKnob,
+                          voiceOutputEnabled && styles.voiceToggleKnobActive,
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {recognitionAvailable && (
+                  <View style={styles.voiceSetting}>
+                    <View style={styles.voiceSettingInfo}>
+                      <Mic size={20} color="#007AFF" />
+                      <View style={{ marginStart: 12, flex: 1 }}>
+                        <Text style={styles.voiceSettingTitle}>Voice Input</Text>
+                        <Text style={styles.voiceSettingDescription}>
+                          Enable speech-to-text for voice commands
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setVoiceInputEnabled(!voiceInputEnabled)}
+                      style={[
+                        styles.voiceToggle,
+                        voiceInputEnabled && styles.voiceToggleActive,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.voiceToggleKnob,
+                          voiceInputEnabled && styles.voiceToggleKnobActive,
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <View style={styles.voiceSetting}>
+                  <View style={styles.voiceSettingInfo}>
+                    <Settings size={20} color="#007AFF" />
+                    <View style={{ marginStart: 12, flex: 1 }}>
+                      <Text style={styles.voiceSettingTitle}>Voice Language</Text>
+                      <Text style={styles.voiceSettingDescription}>
+                        Language for voice input/output
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      // Cycle through available languages
+                      const languages = ["en-US", "ar-SA"];
+                      const currentIndex = languages.indexOf(voiceLanguage);
+                      const nextIndex = (currentIndex + 1) % languages.length;
+                      setVoiceLanguage(languages[nextIndex]);
+                    }}
+                    style={styles.languageButton}
+                  >
+                    <Text style={styles.languageButtonText}>
+                      {voiceLanguage === "en-US" ? "English" : "العربية"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
             <TouchableOpacity
               onPress={handleSaveSettings}
@@ -1142,6 +1307,63 @@ const styles = StyleSheet.create({
   newChatButtonText: {
     color: "white",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  voiceSetting: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  voiceSettingInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  voiceSettingTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 2,
+  },
+  voiceSettingDescription: {
+    fontSize: 14,
+    color: "#666",
+  },
+  voiceToggle: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#E0E0E0",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  voiceToggleActive: {
+    backgroundColor: "#007AFF",
+  },
+  voiceToggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "white",
+    transform: [{ translateX: 0 }],
+  },
+  voiceToggleKnobActive: {
+    transform: [{ translateX: 22 }],
+  },
+  languageButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#007AFF",
+    borderRadius: 16,
+  },
+  languageButtonText: {
+    color: "white",
+    fontSize: 14,
     fontWeight: "600",
   },
 });

@@ -404,7 +404,7 @@ class SharedMedicationScheduleService {
         caregiverId === memberId ||
         (caregiver.role === "admin" &&
           caregiver.familyId === member.familyId &&
-          member.familyId)
+          !!member.familyId)
       );
     } catch (error) {
       return false;

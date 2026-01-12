@@ -19,7 +19,7 @@ import {
   type HealthPattern,
   type HealthTrend
 } from "@/lib/services/healthSummaryService";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
+import { getTextStyle } from "@/utils/styles";
 import { Card } from "@/components/design-system";
 import { Heading, Text as TypographyText, Caption } from "@/components/design-system/Typography";
 import { Badge } from "@/components/design-system/AdditionalComponents";
@@ -37,7 +37,7 @@ export default function HealthSummaryScreen() {
     (params.period as "weekly" | "monthly") || "weekly"
   );
 
-  const styles = createThemedStyles((theme) => ({
+  const styles = {
     container: {
       flex: 1,
       backgroundColor: theme.colors.background.primary,
@@ -70,7 +70,7 @@ export default function HealthSummaryScreen() {
     },
     periodButtonTextActive: {
       color: theme.colors.neutral.white,
-      fontWeight: "600",
+      fontWeight: "600" as const,
     },
     content: {
       flex: 1,
@@ -86,7 +86,7 @@ export default function HealthSummaryScreen() {
     },
     metricCard: {
       flex: 1,
-      minWidth: "45%",
+      minWidth: "45%" as any,
       backgroundColor: theme.colors.background.secondary,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
@@ -184,9 +184,9 @@ export default function HealthSummaryScreen() {
       textAlign: "center" as const,
     },
     rtlText: {
-      textAlign: isRTL ? "right" : "left",
+      textAlign: isRTL ? ("right" as const) : ("left" as const),
     },
-  }));
+  };
 
   useEffect(() => {
     loadSummary();
@@ -205,7 +205,7 @@ export default function HealthSummaryScreen() {
       }
       setSummary(summaryData);
     } catch (error) {
-      console.error("Error loading health summary:", error);
+      // Error loading health summary
     } finally {
       setLoading(false);
     }
@@ -268,7 +268,7 @@ export default function HealthSummaryScreen() {
     const { overview } = summary;
 
     return (
-      <Card variant="elevated" style={styles.overviewCard}>
+      <Card variant="elevated" style={styles.overviewCard} pressable={false} onPress={() => {}} contentStyle={{}}>
         <Heading level={4} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
           {isRTL ? "نظرة عامة" : "Overview"}
         </Heading>
@@ -316,7 +316,7 @@ export default function HealthSummaryScreen() {
         </Heading>
 
         {summary.insights.map((insight, index) => (
-          <Card key={index} variant="outlined" style={styles.insightCard}>
+          <Card key={index} variant="outlined" style={styles.insightCard} pressable={false} onPress={() => {}} contentStyle={{}}>
             <View style={styles.insightHeader}>
               {getInsightIcon(insight.type)}
               <Text style={[styles.insightTitle, isRTL && styles.rtlText]}>
@@ -351,13 +351,13 @@ export default function HealthSummaryScreen() {
         </Heading>
 
         {summary.patterns.map((pattern, index) => (
-          <Card key={index} variant="outlined" style={styles.patternCard}>
+          <Card key={index} variant="outlined" style={styles.patternCard} pressable={false} onPress={() => {}} contentStyle={{}}>
             <View style={styles.insightHeader}>
               {getPatternIcon(pattern.type)}
               <Text style={[styles.insightTitle, isRTL && styles.rtlText]}>
                 {pattern.title}
               </Text>
-              <Badge variant="outline" size="small">
+              <Badge variant="outline" size="small" style={{}}>
                 {(pattern.confidence * 100).toFixed(0)}%
               </Badge>
             </View>
@@ -397,7 +397,7 @@ export default function HealthSummaryScreen() {
         </Heading>
 
         {summary.trends.map((trend, index) => (
-          <Card key={index} variant="outlined" style={styles.trendCard}>
+          <Card key={index} variant="outlined" style={styles.trendCard} pressable={false} onPress={() => {}} contentStyle={{}}>
             <View style={styles.trendHeader}>
               <Text style={[styles.insightTitle, isRTL && styles.rtlText]}>
                 {trend.metric}

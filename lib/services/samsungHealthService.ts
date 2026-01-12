@@ -17,6 +17,7 @@ import {
   type SamsungHealthTokens,
   type NormalizedMetricPayload,
   type ProviderAvailability,
+  type MetricSample,
 } from "../health/healthTypes";
 import { saveProviderConnection } from "../health/healthSync";
 
@@ -134,10 +135,12 @@ export const samsungHealthService = {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
-        scope: tokens.scope,
+        userId: tokens.user_id || tokens.userId || "", // Samsung Health may provide user_id in token response
+        scope: tokens.scope || "",
       });
 
-      await saveProviderConnection("samsung_health", {
+      await saveProviderConnection({
+        provider: "samsung_health",
         connected: true,
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || [],
@@ -208,7 +211,8 @@ export const samsungHealthService = {
         accessToken: newTokens.access_token,
         refreshToken: newTokens.refresh_token || tokens.refreshToken,
         expiresAt: Date.now() + newTokens.expires_in * 1000,
-        scope: newTokens.scope || tokens.scope,
+        userId: newTokens.user_id || newTokens.userId || tokens.userId || "",
+        scope: newTokens.scope || tokens.scope || "",
       });
 
       return newTokens.access_token;
@@ -247,8 +251,10 @@ export const samsungHealthService = {
 
         if (response.ok) {
           const data = await response.json();
-          const normalized = parseMetricData(key, data, metric.unit);
-          results.push(...normalized);
+          const normalized = parseMetricData(key, data, metric);
+          if (normalized) {
+            results.push(normalized);
+          }
         }
       }
 
@@ -265,7 +271,8 @@ export const samsungHealthService = {
   disconnect: async (): Promise<void> => {
     try {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS);
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_CONNECTION);
+      // Samsung Health connection is stored in AsyncStorage via saveProviderConnection,
+      // not in SecureStore, so we don't need to delete it here
     } catch (error) {
       console.error("Error disconnecting Samsung Health:", error);
     }
@@ -280,17 +287,30 @@ function formatDate(date: Date): string {
 function parseMetricData(
   metricKey: string,
   data: any,
-  unit?: string
-): NormalizedMetricPayload[] {
-  if (!data || !Array.isArray(data.data)) return [];
+  metric: { displayName: string; unit?: string } | undefined
+): NormalizedMetricPayload | null {
+  if (!data || !Array.isArray(data.data) || data.data.length === 0) {
+    return null;
+  }
 
-  return data.data.map((item: any) => ({
-    metricKey,
+  if (!metric) {
+    return null;
+  }
+
+  const samples: MetricSample[] = data.data.map((item: any) => ({
     value: item.value || item.count || 0,
-    unit: unit || "",
-    timestamp: new Date(item.timestamp || item.date),
+    unit: metric.unit || "",
+    startDate: new Date(item.timestamp || item.date).toISOString(),
     source: "Samsung Health",
   }));
+
+  return {
+    provider: "samsung_health",
+    metricKey,
+    displayName: metric.displayName,
+    unit: metric.unit,
+    samples,
+  };
 }
 
 export default samsungHealthService;

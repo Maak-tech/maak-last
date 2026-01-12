@@ -14,6 +14,21 @@
 
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import { createWebSocketWithHeaders, getWebSocketSetupGuidance } from "@/lib/polyfills/websocketWithHeaders";
+
+// Dynamic import for expo-av and expo-file-system
+let Audio: any = null;
+let FileSystem: any = null;
+
+try {
+  if (Platform.OS === "ios" || Platform.OS === "android") {
+    const expoAv = require("expo-av");
+    Audio = expoAv.Audio;
+    FileSystem = require("expo-file-system");
+  }
+} catch (error) {
+  console.log("expo-av or expo-file-system not available");
+}
 
 // Types for the Realtime API
 export interface RealtimeMessage {
@@ -24,7 +39,7 @@ export interface RealtimeMessage {
 export interface RealtimeSessionConfig {
   modalities: ("text" | "audio")[];
   instructions: string;
-  voice: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
+  voice: "alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse";
   input_audio_format: "pcm16" | "g711_ulaw" | "g711_alaw";
   output_audio_format: "pcm16" | "g711_ulaw" | "g711_alaw";
   input_audio_transcription: {
@@ -259,6 +274,10 @@ class RealtimeAgentService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 3;
   private currentTranscript = { user: "", assistant: "" };
+  private currentSound: any = null;
+  private audioQueue: string[] = [];
+  private audioPlaybackQueue: Array<{ data: Uint8Array; timestamp: number }> = [];
+  private isPlayingAudio = false;
 
   constructor() {
     this.loadApiKey();
@@ -267,15 +286,26 @@ class RealtimeAgentService {
   private async loadApiKey() {
     try {
       const config = Constants.expoConfig?.extra;
+      
+      console.log("Loading API key for Zeina...");
+      console.log("Config available:", !!config);
+      
       // Use zeinaApiKey first (for Zeina voice agent), then fall back to openaiApiKey
       const key = config?.zeinaApiKey || config?.openaiApiKey || null;
       
       // Validate the key is not empty
       if (key && typeof key === 'string' && key.trim() !== '') {
         this.apiKey = key.trim();
+        // Mask the key for security - show first 7 and last 4 characters
+        const maskedKey = key.length > 15 
+          ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}`
+          : '***masked***';
+        console.log("✅ API key loaded successfully:", maskedKey);
       } else {
         this.apiKey = null;
-        console.warn("Zeina API key not configured. Please set OPENAI_API_KEY in your .env file.");
+        console.warn("❌ Zeina API key not configured.");
+        console.warn("Please set OPENAI_API_KEY or ZEINA_API_KEY in your .env file.");
+        console.warn("After adding the key, rebuild the app for the changes to take effect.");
       }
     } catch (error) {
       console.error("Failed to load API key:", error);
@@ -320,50 +350,109 @@ class RealtimeAgentService {
         // Connect to OpenAI Realtime API via WebSocket
         const wsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`;
 
-        this.ws = new WebSocket(wsUrl, {
+        // Create WebSocket with authentication headers
+        const ws = createWebSocketWithHeaders(wsUrl, undefined, {
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
             "OpenAI-Beta": "realtime=v1",
           },
-        } as any);
+        });
 
-        this.ws.onopen = () => {
-          console.log("Connected to OpenAI Realtime API");
+        this.ws = ws;
+
+        // Set up event handlers
+        let connectionTimeout: NodeJS.Timeout;
+        let hasResolved = false;
+
+        ws.onopen = () => {
+          console.log("✅ Connected to OpenAI Realtime API");
+          console.log("   WebSocket state:", ws.readyState);
+          
           this.setConnectionState("connected");
           this.reconnectAttempts = 0;
 
           // Configure the session
+          console.log("   Configuring session...");
           this.configureSession(customInstructions);
-          resolve();
+          
+          if (!hasResolved) {
+            hasResolved = true;
+            clearTimeout(connectionTimeout);
+            resolve();
+          }
         };
 
-        this.ws.onmessage = (event) => {
+        ws.onmessage = (event) => {
           this.handleMessage(event.data);
         };
 
-        this.ws.onerror = (error) => {
+        ws.onerror = (error: any) => {
           console.error("WebSocket error:", error);
-          this.eventHandlers.onError?.(error);
+          
+          // Provide more detailed error information
+          const errorMessage = error?.message || error?.toString() || "Unknown WebSocket error";
+          const setupGuidance = getWebSocketSetupGuidance();
+          const detailedError = new Error(
+            `WebSocket connection failed: ${errorMessage}.\n\n` +
+            `Common causes:\n` +
+            `1. Missing or invalid OpenAI API key\n` +
+            `2. Network connectivity issues\n` +
+            `3. WebSocket headers not supported on this platform\n\n` +
+            `${setupGuidance}\n\n` +
+            `Please ensure OPENAI_API_KEY is set in your .env file.`
+          );
+          
+          clearTimeout(connectionTimeout);
+          this.eventHandlers.onError?.(detailedError);
           this.setConnectionState("error");
-          reject(error);
+          
+          if (!hasResolved) {
+            hasResolved = true;
+            reject(detailedError);
+          }
         };
 
-        this.ws.onclose = (event) => {
+        ws.onclose = (event) => {
           console.log("WebSocket closed:", event.code, event.reason);
+          clearTimeout(connectionTimeout);
           this.setConnectionState("disconnected");
+
+          // Provide helpful error messages based on close code
+          if (event.code === 1006) {
+            // Abnormal closure - often means connection failed
+            const error = new Error(
+              "WebSocket connection closed abnormally. This usually means: " +
+              "1) Invalid API key or missing authentication, " +
+              "2) Network connectivity issues, or " +
+              "3) OpenAI API service unavailable. " +
+              `Close code: ${event.code}, Reason: ${event.reason || "No reason provided"}`
+            );
+            this.eventHandlers.onError?.(error);
+          } else if (event.code === 1002) {
+            // Protocol error
+            const error = new Error(
+              "WebSocket protocol error. This may indicate that WebSocket headers are not supported on this platform. " +
+              "Consider using a WebSocket library that supports custom headers for React Native."
+            );
+            this.eventHandlers.onError?.(error);
+          }
 
           // Attempt reconnection if it wasn't intentional
           if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             setTimeout(() => this.connect(customInstructions), 2000 * this.reconnectAttempts);
+          } else if (!hasResolved && event.code !== 1000) {
+            hasResolved = true;
+            reject(new Error(`WebSocket closed with code ${event.code}: ${event.reason || "Connection failed"}`));
           }
         };
 
         // Timeout for connection
-        setTimeout(() => {
-          if (this.connectionState === "connecting") {
-            this.ws?.close();
-            reject(new Error("Connection timeout"));
+        connectionTimeout = setTimeout(() => {
+          if (this.connectionState === "connecting" && !hasResolved) {
+            hasResolved = true;
+            ws?.close();
+            reject(new Error("Connection timeout after 10 seconds. Please check your network connection and API key."));
           }
         }, 10000);
       } catch (error) {
@@ -380,7 +469,7 @@ class RealtimeAgentService {
     const sessionConfig: Partial<RealtimeSessionConfig> = {
       modalities: ["text", "audio"],
       instructions: customInstructions || healthAssistantInstructions,
-      voice: "nova", // Warm, professional female voice
+      voice: "coral", // Warm, professional voice
       input_audio_format: "pcm16",
       output_audio_format: "pcm16",
       input_audio_transcription: {
@@ -516,10 +605,14 @@ class RealtimeAgentService {
         case "response.audio.delta":
           this.eventHandlers.onAudioDelta?.(message.delta);
           this.audioBuffer.push(message.delta);
+          // Queue audio for playback
+          this.queueAudioChunk(message.delta);
           break;
 
         case "response.audio.done":
           this.eventHandlers.onAudioDone?.();
+          // Play any remaining queued audio
+          this.flushAudioQueue();
           this.processAudioBuffer();
           break;
 
@@ -606,6 +699,212 @@ class RealtimeAgentService {
   }
 
   /**
+   * Queue an audio chunk for playback
+   */
+  private queueAudioChunk(base64Audio: string): void {
+    if (!Audio || !FileSystem || Platform.OS === "web") {
+      // On web, we'd need Web Audio API - for now, just queue it
+      this.audioQueue.push(base64Audio);
+      return;
+    }
+
+    try {
+      // Decode base64 to binary
+      const binaryString = atob(base64Audio);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Queue the audio data
+      this.audioPlaybackQueue.push({
+        data: bytes,
+        timestamp: Date.now(),
+      });
+
+      // Start playing if not already playing
+      if (!this.isPlayingAudio) {
+        this.processAudioQueue();
+      }
+    } catch (error) {
+      console.error("Error queueing audio chunk:", error);
+    }
+  }
+
+  /**
+   * Process the audio queue and play accumulated chunks
+   */
+  private async processAudioQueue(): Promise<void> {
+    if (this.isPlayingAudio || this.audioPlaybackQueue.length === 0) {
+      return;
+    }
+
+    this.isPlayingAudio = true;
+
+    try {
+      // Accumulate chunks (up to a reasonable size for smooth playback)
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
+      const maxChunkSize = 48000; // ~1 second of audio at 24kHz
+
+      while (this.audioPlaybackQueue.length > 0 && totalLength < maxChunkSize) {
+        const chunk = this.audioPlaybackQueue.shift();
+        if (chunk) {
+          chunks.push(chunk.data);
+          totalLength += chunk.data.length;
+        }
+      }
+
+      if (chunks.length === 0) {
+        this.isPlayingAudio = false;
+        return;
+      }
+
+      // Combine chunks
+      const combinedData = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combinedData.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Convert PCM16 to WAV format
+      const wavData = this.pcm16ToWav(combinedData, 24000, 1); // 24kHz, mono
+
+      // Create a temporary file URI
+      const tempUri = `${FileSystem.cacheDirectory}zeina_audio_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
+      
+      // Convert WAV data to base64 for writing
+      const base64Wav = this.arrayBufferToBase64(wavData.buffer);
+      
+      // Write the base64 data - expo-file-system will handle the conversion
+      // Note: We write as base64 string, but the file will be read as binary by Audio.Sound
+      try {
+        await FileSystem.writeAsStringAsync(tempUri, base64Wav, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      } catch (error) {
+        // Fallback: try writing as data URI if file write fails
+        console.warn("File write failed, trying data URI:", error);
+        const dataUri = `data:audio/wav;base64,${base64Wav}`;
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: dataUri },
+          { shouldPlay: true, volume: 1.0 }
+        );
+        sound.setOnPlaybackStatusUpdate((status: any) => {
+          if (status.didJustFinish) {
+            sound.unloadAsync().catch(() => {});
+            this.isPlayingAudio = false;
+            this.processAudioQueue();
+          }
+        });
+        this.currentSound = sound;
+        return;
+      }
+
+      // Play the audio
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: tempUri },
+        { shouldPlay: true, volume: 1.0 }
+      );
+
+      // Clean up after playback and continue processing queue
+      sound.setOnPlaybackStatusUpdate((status: any) => {
+        if (status.didJustFinish) {
+          sound.unloadAsync().catch(() => {});
+          // Clean up temp file
+          FileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {});
+          this.isPlayingAudio = false;
+          // Process next chunk in queue
+          this.processAudioQueue();
+        }
+      });
+
+      // Store reference to stop if needed
+      this.currentSound = sound;
+    } catch (error) {
+      console.error("Error processing audio queue:", error);
+      this.isPlayingAudio = false;
+      // Try to continue processing
+      if (this.audioPlaybackQueue.length > 0) {
+        setTimeout(() => this.processAudioQueue(), 100);
+      }
+    }
+  }
+
+  /**
+   * Flush any remaining audio in the queue
+   */
+  private flushAudioQueue(): void {
+    if (this.audioPlaybackQueue.length > 0 && !this.isPlayingAudio) {
+      this.processAudioQueue();
+    }
+  }
+
+  /**
+   * Convert PCM16 data to WAV format
+   */
+  private pcm16ToWav(pcmData: Uint8Array, sampleRate: number, channels: number): Uint8Array {
+    const length = pcmData.length;
+    const buffer = new ArrayBuffer(44 + length);
+    const view = new DataView(buffer);
+
+    // WAV header
+    const writeString = (offset: number, string: string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + length, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, 1, true); // audio format (1 = PCM)
+    view.setUint16(22, channels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * channels * 2, true); // byte rate
+    view.setUint16(32, channels * 2, true); // block align
+    view.setUint16(34, 16, true); // bits per sample
+    writeString(36, "data");
+    view.setUint32(40, length, true);
+
+    // Copy PCM data
+    const wavData = new Uint8Array(buffer);
+    wavData.set(pcmData, 44);
+
+    return wavData;
+  }
+
+  /**
+   * Convert ArrayBuffer to base64
+   */
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+
+  /**
+   * Stop current audio playback
+   */
+  async stopAudio(): Promise<void> {
+    if (this.currentSound) {
+      try {
+        await this.currentSound.stopAsync();
+        await this.currentSound.unloadAsync();
+        this.currentSound = null;
+      } catch (error) {
+        console.error("Error stopping audio:", error);
+      }
+    }
+  }
+
+  /**
    * Update connection state and notify handlers
    */
   private setConnectionState(state: ConnectionState) {
@@ -616,13 +915,19 @@ class RealtimeAgentService {
   /**
    * Disconnect from the Realtime API
    */
-  disconnect() {
+  async disconnect() {
+    // Stop any playing audio
+    await this.stopAudio();
+
     if (this.ws) {
       this.ws.close(1000, "Client disconnect");
       this.ws = null;
     }
     this.setConnectionState("disconnected");
     this.audioBuffer = [];
+    this.audioQueue = [];
+    this.audioPlaybackQueue = [];
+    this.isPlayingAudio = false;
     this.pendingToolCalls.clear();
   }
 

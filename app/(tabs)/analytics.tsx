@@ -233,7 +233,7 @@ export default function AnalyticsScreen() {
   return (
     <SafeAreaView style={styles.container as ViewStyle}>
       <View style={styles.header as ViewStyle}>
-        <Heading level={4} style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && styles.rtlText]}>
           {isRTL ? "التحليلات والاتجاهات" : "Analytics & Trends"}
         </Heading>
 
@@ -279,7 +279,7 @@ export default function AnalyticsScreen() {
           {symptoms.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={[styles.rtlText, undefined]}>
+                <Heading level={6} style={styles.rtlText}>
                   {isRTL ? "اتجاهات الأعراض" : "Symptom Trends"}
                 </Heading>
                 <TouchableOpacity
@@ -362,7 +362,7 @@ export default function AnalyticsScreen() {
           {symptoms.length > 7 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={[styles.rtlText, undefined]}>
+                <Heading level={6} style={styles.rtlText}>
                   {isRTL ? "التنبؤ بالاتجاه" : "Trend Prediction"}
                 </Heading>
               </View>
@@ -378,7 +378,7 @@ export default function AnalyticsScreen() {
           {medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={[styles.rtlText, undefined]}>
+                <Heading level={6} style={styles.rtlText}>
                   {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
                 </Heading>
               </View>
@@ -395,7 +395,7 @@ export default function AnalyticsScreen() {
           {symptoms.length > 0 && medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={[styles.rtlText, undefined]}>
+                <Heading level={6} style={styles.rtlText}>
                   {isRTL ? "تحليل الارتباط" : "Correlation Analysis"}
                 </Heading>
               </View>
@@ -429,7 +429,7 @@ export default function AnalyticsScreen() {
           {/* Summary Stats */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading level={6} style={[styles.rtlText, undefined]}>
+              <Heading level={6} style={styles.rtlText}>
                 {isRTL ? "ملخص الإحصائيات" : "Summary Statistics"}
               </Heading>
             </View>

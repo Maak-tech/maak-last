@@ -417,7 +417,7 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   } as ViewStyle,
   trendText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "600" as const,
   },
   insightsSection: {
     marginBottom: theme.spacing.base,
@@ -464,7 +464,7 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   },
   confidenceText: {
     fontSize: 10,
-    fontWeight: "600",
+    fontWeight: "600" as const,
   },
   recommendationBox: {
     marginTop: theme.spacing.sm,

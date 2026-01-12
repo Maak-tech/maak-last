@@ -480,10 +480,94 @@ export const useNotifications = () => {
     }
   }, []);
 
+  // Cancel a specific medication's notifications
+  const cancelMedicationNotifications = useCallback(
+    async (medicationName: string, reminderTime?: string) => {
+      if (Platform.OS === "web") {
+        return;
+      }
+
+      try {
+        const Notifications = await import("expo-notifications");
+        const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+        
+        const toCancel = allScheduled.filter((n: any) => {
+          const data = n.content?.data;
+          if (data?.type !== "medication_reminder") return false;
+          if (data?.medicationName !== medicationName) return false;
+          if (reminderTime && data?.reminderTime !== reminderTime) return false;
+          return true;
+        });
+
+        for (const notification of toCancel) {
+          try {
+            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+            // Also remove from our tracking map
+            const key = `med_${medicationName.toLowerCase().replace(/\s+/g, '_')}_${notification.content?.data?.reminderTime || ''}`;
+            scheduledMedicationNotifications.delete(key);
+          } catch {
+            // Silently handle individual cancellation error
+          }
+        }
+      } catch {
+        // Silently handle error
+      }
+    },
+    []
+  );
+
+  // Clear all duplicate medication notifications (keeps only one per medication+time)
+  const clearDuplicateMedicationNotifications = useCallback(async () => {
+    if (Platform.OS === "web") {
+      return { cleared: 0 };
+    }
+
+    try {
+      const Notifications = await import("expo-notifications");
+      const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+      
+      // Group medication notifications by medication+time
+      const medicationGroups: Map<string, any[]> = new Map();
+      
+      for (const notification of allScheduled) {
+        const data = notification.content?.data;
+        if (data?.type === "medication_reminder") {
+          const key = `${data.medicationName}_${data.reminderTime}`;
+          const group = medicationGroups.get(key) || [];
+          group.push(notification);
+          medicationGroups.set(key, group);
+        }
+      }
+
+      let cleared = 0;
+      
+      // For each group, keep only the most recent notification and cancel the rest
+      for (const [, notifications] of medicationGroups) {
+        if (notifications.length > 1) {
+          // Keep the first one, cancel the rest
+          for (let i = 1; i < notifications.length; i++) {
+            try {
+              await Notifications.cancelScheduledNotificationAsync(notifications[i].identifier);
+              cleared++;
+            } catch {
+              // Silently handle individual cancellation error
+            }
+          }
+        }
+      }
+
+      return { cleared };
+    } catch {
+      return { cleared: 0 };
+    }
+  }, []);
+
   return {
     scheduleNotification,
     scheduleMedicationReminder,
     scheduleRecurringMedicationReminder,
+    cancelMedicationNotifications,
+    clearDuplicateMedicationNotifications,
     ensureInitialized,
     checkAndRequestPermissions,
     isInitialized: () => isInitialized.current,

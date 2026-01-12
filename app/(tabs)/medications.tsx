@@ -238,7 +238,16 @@ export default function MedicationsScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
-  const { scheduleRecurringMedicationReminder } = useNotifications();
+  const { 
+    scheduleRecurringMedicationReminder, 
+    cancelMedicationNotifications,
+    clearDuplicateMedicationNotifications 
+  } = useNotifications();
+
+  // Clear duplicate notifications on mount to fix any existing duplicates
+  useEffect(() => {
+    clearDuplicateMedicationNotifications();
+  }, [clearDuplicateMedicationNotifications]);
 
   const loadMedications = async (isRefresh = false) => {
     if (!user) return;
@@ -442,6 +451,15 @@ export default function MedicationsScreen() {
           editingMedication.userId === user.id &&
           newMedication.reminders.length > 0
         ) {
+          // First, cancel all existing notifications for the old medication name
+          // This prevents duplicate notifications when editing
+          await cancelMedicationNotifications(editingMedication.name);
+          
+          // If the medication name changed, also cancel notifications for the new name
+          if (editingMedication.name !== newMedication.name) {
+            await cancelMedicationNotifications(newMedication.name);
+          }
+
           const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
             if (reminder.time && reminder.time.trim()) {
@@ -728,6 +746,12 @@ export default function MedicationsScreen() {
           onPress: async () => {
             try {
               setLoading(true);
+              
+              // Cancel any scheduled notifications for this medication
+              if (medication.userId === user?.id) {
+                await cancelMedicationNotifications(medication.name);
+              }
+              
               await medicationService.deleteMedication(medication.id);
               await loadMedications();
               Alert.alert(

@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -1294,6 +1295,24 @@ export default function DashboardScreen() {
             </Caption>
           </View>
           <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, zIndex: 1001, flexShrink: 0 }}>
+            <Pressable
+              onPress={() => router.push("/search")}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              style={({ pressed }) => ({
+                backgroundColor: theme.colors.background.secondary,
+                borderRadius: 20,
+                padding: 10,
+                justifyContent: "center",
+                alignItems: "center",
+                zIndex: 1001,
+                elevation: 5,
+                minWidth: 40,
+                minHeight: 40,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Ionicons name="search" color={theme.colors.text.primary} size={20} />
+            </Pressable>
             {isAdmin && (
               <Pressable
                 onPress={() => {

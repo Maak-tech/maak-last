@@ -131,19 +131,43 @@ export const dexcomService = {
 
       const tokens = await tokenResponse.json();
 
+      // Get user ID from Dexcom API
+      // Dexcom API uses "self" as userId, but we need to fetch it to confirm
+      let userId = "self"; // Default to "self" as Dexcom uses /users/self endpoints
+      try {
+        // Try to get user info if available
+        const userResponse = await fetch(
+          `${DEXCOM_API_BASE}/v2/users/self`,
+          {
+            headers: {
+              Authorization: `Bearer ${tokens.access_token}`,
+            },
+          }
+        );
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          userId = userData.accountId || userData.userId || "self";
+        }
+      } catch {
+        // If user endpoint fails, use "self" as default
+        userId = tokens.userId || tokens.accountId || "self";
+      }
+
       // Save tokens securely
       await dexcomService.saveTokens({
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
+        userId: userId,
         scope: tokens.scope,
       });
 
       // Save connection state
-      await saveProviderConnection("dexcom", {
+      await saveProviderConnection({
+        provider: "dexcom",
         connected: true,
         connectedAt: new Date().toISOString(),
-        selectedMetrics: selectedMetrics || ["bloodGlucose"],
+        selectedMetrics: selectedMetrics || ["blood_glucose"],
       });
     } catch (error: any) {
       throw new Error(`Failed to complete Dexcom authentication: ${error.message}`);
@@ -213,6 +237,7 @@ export const dexcomService = {
         accessToken: newTokens.access_token,
         refreshToken: newTokens.refresh_token || tokens.refreshToken,
         expiresAt: Date.now() + newTokens.expires_in * 1000,
+        userId: tokens.userId, // Preserve existing userId
         scope: newTokens.scope || tokens.scope,
       });
 
@@ -270,15 +295,26 @@ export const dexcomService = {
   },
 
   /**
-   * Get glucose history
+   * Fetch metrics for sync
    */
-  getGlucoseHistory: async (
+  fetchMetrics: async (
+    selectedMetrics: string[],
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {
     try {
       const accessToken = await dexcomService.refreshTokenIfNeeded();
       if (!accessToken) return [];
+
+      const results: NormalizedMetricPayload[] = [];
+
+      // Dexcom only supports blood glucose
+      if (!selectedMetrics.includes("blood_glucose")) {
+        return [];
+      }
+
+      const metric = getMetricByKey("blood_glucose");
+      if (!metric) return [];
 
       const response = await fetch(
         `${DEXCOM_API_BASE}/v2/users/self/egvs?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
@@ -292,22 +328,40 @@ export const dexcomService = {
       if (!response.ok) return [];
 
       const data = await response.json();
+      const egvs = data.egvs || [];
 
-      return (data.egvs || []).map((reading: any) => ({
-        metricKey: "bloodGlucose",
-        value: reading.value,
-        unit: "mg/dL",
-        timestamp: new Date(reading.displayTime),
-        source: "Dexcom CGM",
-        metadata: {
-          trend: reading.trend,
-          trendArrow: getTrendArrow(reading.trend),
-        },
-      }));
-    } catch (error) {
-      console.error("Error fetching Dexcom glucose history:", error);
+      if (egvs.length > 0) {
+        const samples = egvs.map((reading: any) => ({
+          value: reading.value,
+          unit: "mg/dL",
+          startDate: reading.displayTime,
+          source: "Dexcom CGM",
+        }));
+
+        results.push({
+          provider: "dexcom",
+          metricKey: "blood_glucose",
+          displayName: metric.displayName,
+          unit: "mg/dL",
+          samples,
+        });
+      }
+
+      return results;
+    } catch (error: any) {
+      console.error("Error fetching Dexcom metrics:", error);
       return [];
     }
+  },
+
+  /**
+   * Get glucose history
+   */
+  getGlucoseHistory: async (
+    startDate: Date,
+    endDate: Date
+  ): Promise<NormalizedMetricPayload[]> => {
+    return dexcomService.fetchMetrics(["blood_glucose"], startDate, endDate);
   },
 
   /**
@@ -316,7 +370,8 @@ export const dexcomService = {
   disconnect: async (): Promise<void> => {
     try {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.DEXCOM_TOKENS);
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.DEXCOM_CONNECTION);
+      // Connection data is stored in AsyncStorage via saveProviderConnection
+      // and will be cleared by disconnectProvider in healthSync.ts
     } catch (error) {
       console.error("Error disconnecting Dexcom:", error);
     }

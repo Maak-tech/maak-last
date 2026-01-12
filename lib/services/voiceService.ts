@@ -17,10 +17,22 @@ try {
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system";
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import openaiService from "./openaiService";
 
 // Dynamic import for expo-av with proper error handling
-let Audio: any = null;
+// Type declaration for Audio namespace
+type AudioNamespace = {
+  Recording: {
+    createAsync: (options?: any) => Promise<any>;
+    stopAndUnloadAsync: () => Promise<void>;
+    getStatusAsync: () => Promise<any>;
+    setOnRecordingStatusUpdate: (callback: (status: any) => void) => void;
+  };
+  [key: string]: any;
+};
+
+let Audio: AudioNamespace | null = null;
 try {
   // Only load expo-av on native platforms (iOS/Android)
   if (Platform.OS === 'ios' || Platform.OS === 'android') {
@@ -194,6 +206,11 @@ class VoiceService {
         throw new Error("Audio recording not available. Please ensure expo-av is properly installed.");
       }
 
+      // Check if running on simulator (audio recording doesn't work on simulators)
+      if (!Device.isDevice) {
+        throw new Error("Audio recording is not available on Simulator. Please use a physical device for voice features.");
+      }
+
       // Request audio permissions
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
@@ -280,7 +297,7 @@ class VoiceService {
 
       // Read audio file as base64
       const audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       // Determine audio format based on file extension or default to m4a (expo-av default)
@@ -361,6 +378,11 @@ class VoiceService {
     try {
       // Speech recognition requires native platforms (expo-av)
       if (Platform.OS === 'web') {
+        return false;
+      }
+
+      // Audio recording doesn't work on simulators
+      if (!Device.isDevice) {
         return false;
       }
 

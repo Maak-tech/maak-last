@@ -13,9 +13,6 @@ export default function TabLayout() {
   const isAdmin = user?.role === "admin";
   const isRegularUser = !isAdmin;
 
-  // Debug logging
-  console.log('User role:', user?.role, 'isAdmin:', isAdmin, 'isRegularUser:', isRegularUser);
-
   return (
     <Tabs
       screenOptions={{
@@ -76,16 +73,6 @@ export default function TabLayout() {
             <Users color={color} size={size || 24} />
           ),
           href: isAdmin ? undefined : null, // Only visible to admin users
-        }}
-      />
-      <Tabs.Screen
-        name="events"
-        options={{
-          title: t("events"),
-          tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
-            <AlertTriangle color={color} size={size || 24} />
-          ),
-          href: isAdmin ? undefined : null, // Only visible to admin/caregiver users
         }}
       />
       <Tabs.Screen
@@ -157,6 +144,13 @@ export default function TabLayout() {
         name="lab-results"
         options={{
           href: null, // Access via profile tab for regular users
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          href: null, // Access via profile/family tab
           headerShown: false,
         }}
       />

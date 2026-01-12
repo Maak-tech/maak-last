@@ -31,6 +31,7 @@ import {
   getAvailableMetricsForProvider,
   getGroupDisplayName,
   type HealthMetric,
+  type MetricGroup,
 } from "@/lib/health/healthMetricsCatalog";
 import { samsungHealthService } from "@/lib/services/samsungHealthService";
 import { saveProviderConnection } from "@/lib/health/healthSync";
@@ -55,7 +56,7 @@ export default function SamsungHealthPermissionsScreen() {
   const [connecting, setConnecting] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
-  const [groups, setGroups] = useState<string[]>([]);
+  const [groups, setGroups] = useState<MetricGroup[]>([]);
 
   // Load available metrics for Samsung Health
   useEffect(() => {
@@ -120,7 +121,7 @@ export default function SamsungHealthPermissionsScreen() {
     setSelectedMetrics(newSelected);
   };
 
-  const toggleGroup = (groupKey: string) => {
+  const toggleGroup = (groupKey: MetricGroup) => {
     const groupMetrics = availableMetrics.filter((m) => m.group === groupKey);
     const allSelected = groupMetrics.every((m) => selectedMetrics.has(m.key));
     const noneSelected = groupMetrics.every((m) => !selectedMetrics.has(m.key));
@@ -138,11 +139,11 @@ export default function SamsungHealthPermissionsScreen() {
     setSelectedMetrics(newSelected);
   };
 
-  const getMetricsInGroup = (groupKey: string) => {
+  const getMetricsInGroup = (groupKey: MetricGroup) => {
     return availableMetrics.filter((m) => m.group === groupKey);
   };
 
-  const isGroupFullySelected = (groupKey: string) => {
+  const isGroupFullySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
     return (
       groupMetrics.length > 0 &&
@@ -150,7 +151,7 @@ export default function SamsungHealthPermissionsScreen() {
     );
   };
 
-  const isGroupPartiallySelected = (groupKey: string) => {
+  const isGroupPartiallySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
     const selectedCount = groupMetrics.filter((m) => selectedMetrics.has(m.key)).length;
     return selectedCount > 0 && selectedCount < groupMetrics.length;
@@ -182,7 +183,7 @@ export default function SamsungHealthPermissionsScreen() {
         [
           {
             text: isRTL ? "موافق" : "OK",
-            onPress: () => router.replace("/profile/health"),
+            onPress: () => router.replace("/profile/health-integrations" as any),
           },
         ]
       );

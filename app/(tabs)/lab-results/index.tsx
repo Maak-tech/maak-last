@@ -1,11 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { router } from "expo-router";
 import {
-  Activity,
-  Calendar,
   ChevronLeft,
   ChevronRight,
-  FileText,
   Plus,
   TestTube,
   X,
@@ -185,8 +182,8 @@ export default function LabResultsScreen() {
       padding: theme.spacing.base,
     },
     rtlText: {
-      textAlign: isRTL ? "right" : "left",
-    },
+      textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
+    } as TextStyle,
   }))(theme);
 
   const loadLabResults = useCallback(async (isRefresh = false) => {
@@ -297,7 +294,7 @@ export default function LabResultsScreen() {
             style={isRTL ? { transform: [{ rotate: "180deg" }] } : undefined}
           />
         </TouchableOpacity>
-        <Heading level={4} style={[styles.headerTitle, isRTL && styles.rtlText, { flex: 1 }]}>
+        <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined, { flex: 1 }]}>
           {isRTL ? "نتائج المختبر" : "Lab Results"}
         </Heading>
         <TouchableOpacity
@@ -358,7 +355,6 @@ export default function LabResultsScreen() {
             onPress={() => router.push("/(tabs)/lab-results/add")}
             style={{ marginTop: theme.spacing.base }}
             title={isRTL ? "إضافة نتيجة مختبر" : "Add Lab Result"}
-            textStyle={{}}
           />
         </ScrollView>
       ) : (
@@ -374,7 +370,7 @@ export default function LabResultsScreen() {
               key={result.id}
               variant="elevated"
               style={styles.resultCard as StyleProp<ViewStyle>}
-              contentStyle={{}}
+              contentStyle={undefined}
               onPress={() => {
                 setSelectedResult(result);
                 setShowAddModal(true);
@@ -384,11 +380,11 @@ export default function LabResultsScreen() {
                 <View style={{ flex: 1 }}>
                   <TypographyText
                     weight="bold"
-                    style={[styles.resultTitle, isRTL && styles.rtlText]}
+                    style={[styles.resultTitle as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]}
                   >
                     {result.testName}
                   </TypographyText>
-                  <Caption style={[styles.resultDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
                     {formatDate(result.testDate)}
                   </Caption>
                 </View>
@@ -401,14 +397,14 @@ export default function LabResultsScreen() {
                         : "outline"
                   }
                   size="small"
-                  style={{}}
+                  style={undefined}
                 >
                   {result.testType}
                 </Badge>
               </View>
 
               {result.facility && (
-                <Caption style={[styles.resultDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
                   {isRTL ? "المنشأة: " : "Facility: "}
                   {result.facility}
                 </Caption>
@@ -426,7 +422,7 @@ export default function LabResultsScreen() {
                       <View style={styles.resultValueData as StyleProp<ViewStyle>}>
                         <TypographyText
                           style={[
-                            styles.resultValueText,
+                            styles.resultValueText as StyleProp<TextStyle>,
                             { color: getStatusColor(value.status) },
                           ]}
                         >
@@ -447,7 +443,7 @@ export default function LabResultsScreen() {
                                   : "warning"
                             }
                             size="small"
-                            style={{}}
+                            style={undefined}
                           >
                             {getStatusLabel(value.status)}
                           </Badge>
@@ -456,7 +452,7 @@ export default function LabResultsScreen() {
                     </View>
                   ))}
                   {result.results.length > 3 && (
-                    <Caption style={[styles.resultDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                    <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
                       {isRTL
                         ? `+${result.results.length - 3} المزيد`
                         : `+${result.results.length - 3} more`}
@@ -489,7 +485,7 @@ export default function LabResultsScreen() {
       >
         <SafeAreaView style={styles.modalContainer as StyleProp<ViewStyle>}>
           <View style={styles.modalHeader as StyleProp<ViewStyle>}>
-            <Heading level={5} style={[styles.resultTitle, isRTL && styles.rtlText]}>
+            <Heading level={5} style={[styles.resultTitle as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]}>
               {selectedResult?.testName}
             </Heading>
             <TouchableOpacity
@@ -505,18 +501,18 @@ export default function LabResultsScreen() {
             {selectedResult && (
               <>
                 <View style={{ marginBottom: theme.spacing.base }}>
-                  <Caption style={[styles.resultDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                  <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
                     {isRTL ? "التاريخ: " : "Date: "}
                     {formatDate(selectedResult.testDate)}
                   </Caption>
                   {selectedResult.facility && (
-                    <Caption style={[styles.resultDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                    <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
                       {isRTL ? "المنشأة: " : "Facility: "}
                       {selectedResult.facility}
                     </Caption>
                   )}
                   {selectedResult.orderedBy && (
-                    <Caption style={[styles.resultDate, isRTL && styles.rtlText]} numberOfLines={1}>
+                    <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
                       {isRTL ? "طلب من: " : "Ordered by: "}
                       {selectedResult.orderedBy}
                     </Caption>
@@ -544,7 +540,7 @@ export default function LabResultsScreen() {
                         <View style={styles.resultValueData as StyleProp<ViewStyle>}>
                           <TypographyText
                             style={[
-                              styles.resultValueText,
+                              styles.resultValueText as StyleProp<TextStyle>,
                               { color: getStatusColor(value.status) },
                             ]}
                           >

@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Calendar,
   Check,
+  CheckCircle,
   ChevronLeft,
   Clock,
   Download,
@@ -66,6 +67,9 @@ import { familyInviteService } from "@/lib/services/familyInviteService";
 import healthContextService from "@/lib/services/healthContextService";
 import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicationService } from "@/lib/services/medicationService";
+import { getUserHealthEvents } from "../../src/health/events/healthEventsService";
+import { acknowledgeHealthEvent, resolveHealthEvent, escalateHealthEvent } from "../../src/health/events/createHealthEvent";
+import type { HealthEvent } from "../../src/health/events/types";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { healthScoreService } from "@/lib/services/healthScoreService";
@@ -183,6 +187,8 @@ export default function FamilyScreen() {
   const [todaySchedule, setTodaySchedule] = useState<SharedScheduleDay | null>(null);
   const [upcomingSchedule, setUpcomingSchedule] = useState<SharedScheduleDay[]>([]);
   const [loadingMedicationSchedule, setLoadingMedicationSchedule] = useState(false);
+  const [events, setEvents] = useState<HealthEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
   const [medicationScheduleViewMode, setMedicationScheduleViewMode] = useState<"today" | "upcoming" | "all">("today");
   const [markingTaken, setMarkingTaken] = useState<string | null>(null);
 
@@ -245,6 +251,136 @@ export default function FamilyScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const loadEvents = async (isRefresh = false) => {
+    if (!user?.id) return;
+
+    try {
+      if (isRefresh) {
+        setLoadingEvents(true);
+      }
+      const userEvents = await getUserHealthEvents(user.id);
+      setEvents(userEvents);
+    } catch (error) {
+      // Failed to load events
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+
+  const handleAcknowledgeEvent = async (eventId: string) => {
+    if (!user?.id) return;
+
+    try {
+      await acknowledgeHealthEvent(eventId, user.id);
+      await loadEvents(true);
+      Alert.alert(
+        isRTL ? "تم" : "Success",
+        isRTL ? "تم تأكيد الحدث" : "Event acknowledged"
+      );
+    } catch (error) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في تأكيد الحدث" : "Failed to acknowledge event"
+      );
+    }
+  };
+
+  const handleResolveEvent = async (eventId: string) => {
+    if (!user?.id) return;
+
+    try {
+      await resolveHealthEvent(eventId, user.id);
+      await loadEvents(true);
+      Alert.alert(
+        isRTL ? "تم" : "Success",
+        isRTL ? "تم حل الحدث" : "Event resolved"
+      );
+    } catch (error) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "فشل في حل الحدث" : "Failed to resolve event"
+      );
+    }
+  };
+
+  const handleEscalateEvent = async (eventId: string) => {
+    if (!user?.id) return;
+
+    Alert.prompt(
+      isRTL ? "تصعيد الحدث" : "Escalate Event",
+      isRTL ? "أدخل سبب التصعيد:" : "Enter reason for escalation:",
+      [
+        { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+        {
+          text: isRTL ? "تصعيد" : "Escalate",
+          onPress: async (reason?: string) => {
+            try {
+              await escalateHealthEvent(eventId, user.id, reason || undefined);
+              await loadEvents(true);
+              Alert.alert(
+                isRTL ? "تم" : "Success",
+                isRTL ? "تم تصعيد الحدث" : "Event escalated"
+              );
+            } catch (error) {
+              Alert.alert(
+                isRTL ? "خطأ" : "Error",
+                isRTL ? "فشل في تصعيد الحدث" : "Failed to escalate event"
+              );
+            }
+          }
+        }
+      ],
+      "plain-text",
+      "",
+      "default"
+    );
+  };
+
+  const formatEventTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) {
+      return "Just now";
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else {
+      return `${diffDays}d ago`;
+    }
+  };
+
+  const getEventStatusColor = (status: HealthEvent["status"]) => {
+    switch (status) {
+      case "OPEN":
+        return "#EF4444";
+      case "ACKED":
+        return "#F59E0B";
+      case "RESOLVED":
+        return "#10B981";
+      case "ESCALATED":
+        return "#8B5CF6";
+      default:
+        return "#EF4444";
+    }
+  };
+
+  const getEventStatusText = (status: HealthEvent["status"]) => {
+    switch (status) {
+      case "OPEN":
+        return "Open";
+      case "ACKED":
+        return "Acknowledged";
+      case "RESOLVED":
+        return "Resolved";
+      case "ESCALATED":
+        return "Escalated";
+      default:
+        return "Unknown";
     }
   };
 
@@ -1075,6 +1211,7 @@ export default function FamilyScreen() {
   useFocusEffect(
     useCallback(() => {
       loadFamilyMembers();
+      loadEvents();
       if (viewMode === "dashboard" && isAdmin) {
         loadCaregiverDashboard();
       } else if (viewMode === "dashboard" && !isAdmin) {
@@ -2727,6 +2864,98 @@ export default function FamilyScreen() {
           )}
         </View>
 
+        {/* Health Events Section */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <AlertTriangle color="#EF4444" size={20} />
+              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+                {isRTL ? "الأحداث الصحية" : "Health Events"}
+              </Text>
+              <Text style={[styles.sectionCount, isRTL && styles.rtlText]}>
+                ({events.length})
+              </Text>
+            </View>
+            {loadingEvents ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={theme.colors.primary.main} size="small" />
+              </View>
+            ) : events.length > 0 ? (
+              <View style={styles.eventsList}>
+                {events.map((event) => (
+                  <View key={event.id} style={styles.eventCard}>
+                    <View style={styles.eventHeader}>
+                      <Text style={[styles.eventType, isRTL && styles.rtlText]}>
+                        {event.type === "VITAL_ALERT"
+                          ? (isRTL ? "تنبيه حيوي" : "Vital Alert")
+                          : event.type}
+                      </Text>
+                      <View style={styles.eventStatus}>
+                        <View style={[styles.statusBadge, { backgroundColor: getEventStatusColor(event.status) }]}>
+                          <Text style={styles.statusBadgeText}>
+                            {getEventStatusText(event.status)}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.eventReasons}>
+                      {event.reasons.map((reason, index) => (
+                        <Text
+                          key={index}
+                          style={[styles.reasonItem, isRTL && styles.rtlText]}
+                        >
+                          • {reason}
+                        </Text>
+                      ))}
+                    </View>
+
+                    <View style={styles.eventFooter}>
+                      <Text style={[styles.eventTime, isRTL && styles.rtlText]}>
+                        {formatEventTime(event.createdAt)}
+                      </Text>
+
+                      {event.status === "OPEN" && (
+                        <View style={styles.actionButtons}>
+                          <TouchableOpacity
+                            onPress={() => handleAcknowledgeEvent(event.id!)}
+                            style={[styles.eventActionButton, styles.acknowledgeButton]}
+                          >
+                            <Text style={styles.actionButtonText}>Ack</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleEscalateEvent(event.id!)}
+                            style={[styles.eventActionButton, styles.escalateButton]}
+                          >
+                            <Text style={styles.actionButtonText}>Esc</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      {(event.status === "OPEN" || event.status === "ACKED") && (
+                        <TouchableOpacity
+                          onPress={() => handleResolveEvent(event.id!)}
+                          style={[styles.eventActionButton, styles.resolveButton]}
+                        >
+                          <Text style={styles.actionButtonText}>Resolve</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                  {isRTL
+                    ? "لا توجد أحداث صحية"
+                    : "No health events"}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
@@ -4304,5 +4533,122 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
     marginTop: 16,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionCount: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+  },
+  emptyState: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  eventsList: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  eventCard: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  eventHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  eventType: {
+    fontSize: 16,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    flex: 1,
+  },
+  eventStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontFamily: "Geist-Bold",
+    color: "#FFFFFF",
+  },
+  eventReasons: {
+    marginBottom: 8,
+  },
+  reasonItem: {
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    color: "#64748B",
+    marginBottom: 4,
+  },
+  eventFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  eventTime: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#94A3B8",
+  },
+  actionButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  eventActionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  acknowledgeButton: {
+    backgroundColor: "#F59E0B",
+  },
+  resolveButton: {
+    backgroundColor: "#10B981",
+  },
+  escalateButton: {
+    backgroundColor: "#EF4444",
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontFamily: "Geist-Bold",
+    color: "#FFFFFF",
+  },
+  viewAllButton: {
+    padding: 16,
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#2563EB",
   },
 });

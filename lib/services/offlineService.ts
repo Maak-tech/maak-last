@@ -34,7 +34,7 @@ export interface OfflineData {
 class OfflineService {
   private isOnline: boolean = true;
   private syncListeners: Array<(isOnline: boolean) => void> = [];
-  private networkCheckInterval: NodeJS.Timeout | null = null;
+  private networkCheckInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.initializeNetworkListener();

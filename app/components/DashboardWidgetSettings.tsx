@@ -7,6 +7,7 @@ import {
   Switch,
   TouchableOpacity,
   View,
+  type TextStyle,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -337,11 +338,11 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   },
   title: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: "600" as TextStyle["fontWeight"],
     color: theme.colors.text.primary,
   },
   rtlText: {
-    textAlign: isRTL ? "right" : "left",
+    textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
   },
   closeButton: {
     padding: theme.spacing.xs,
@@ -394,7 +395,7 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   },
   widgetName: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "500" as TextStyle["fontWeight"],
     color: theme.colors.text.primary,
     marginBottom: 2,
   },

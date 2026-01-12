@@ -17,6 +17,7 @@ import {
   type WithingsTokens,
   type NormalizedMetricPayload,
   type ProviderAvailability,
+  type MetricSample,
 } from "../health/healthTypes";
 import { saveProviderConnection } from "../health/healthSync";
 
@@ -139,7 +140,8 @@ export const withingsService = {
         userId: tokens.userid,
       });
 
-      await saveProviderConnection("withings", {
+      await saveProviderConnection({
+        provider: "withings",
         connected: true,
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || [],
@@ -237,6 +239,7 @@ export const withingsService = {
       if (!accessToken) return [];
 
       const results: NormalizedMetricPayload[] = [];
+      const samplesByMetric: Record<string, MetricSample[]> = {};
 
       // Fetch measurements
       const response = await fetch(`${WITHINGS_API_BASE}/measure`, {
@@ -256,18 +259,36 @@ export const withingsService = {
 
       if (data.status === 0 && data.body?.measuregrps) {
         for (const group of data.body.measuregrps) {
+          const timestamp = new Date(group.date * 1000);
           for (const measure of group.measures) {
             const metricKey = mapWithingsMeasureType(measure.type);
             if (metricKey && metricKeys.includes(metricKey)) {
-              results.push({
-                metricKey,
+              if (!samplesByMetric[metricKey]) {
+                samplesByMetric[metricKey] = [];
+              }
+              const sample: MetricSample = {
                 value: measure.value * Math.pow(10, measure.unit),
                 unit: getUnitForMetric(metricKey),
-                timestamp: new Date(group.date * 1000),
+                startDate: timestamp.toISOString(),
                 source: "Withings",
-              });
+              };
+              samplesByMetric[metricKey].push(sample);
             }
           }
+        }
+      }
+
+      // Convert grouped samples to NormalizedMetricPayload format
+      for (const [metricKey, samples] of Object.entries(samplesByMetric)) {
+        const metric = getMetricByKey(metricKey);
+        if (metric && samples.length > 0) {
+          results.push({
+            provider: "withings",
+            metricKey,
+            displayName: metric.displayName,
+            unit: getUnitForMetric(metricKey),
+            samples,
+          });
         }
       }
 
@@ -284,7 +305,8 @@ export const withingsService = {
   disconnect: async (): Promise<void> => {
     try {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS);
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_CONNECTION);
+      // Withings connection is stored in AsyncStorage via saveProviderConnection,
+      // not in SecureStore, so we don't need to delete it here
     } catch (error) {
       console.error("Error disconnecting Withings:", error);
     }

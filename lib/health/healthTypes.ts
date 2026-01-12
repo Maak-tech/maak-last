@@ -75,6 +75,54 @@ export interface FitbitTokens {
   scope: string;
 }
 
+export interface SamsungHealthTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp
+  userId: string;
+  scope: string;
+}
+
+export interface GarminTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp
+  userId: string;
+  scope: string;
+}
+
+export interface WithingsTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp
+  userId: string;
+  scope: string;
+}
+
+export interface OuraTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp
+  userId: string;
+  scope: string;
+}
+
+export interface DexcomTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp
+  userId: string;
+  scope: string;
+}
+
+export interface FreestyleLibreTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // Unix timestamp
+  userId: string;
+  scope: string;
+}
+
 /**
  * Health provider availability
  */
@@ -105,5 +153,11 @@ export const HEALTH_STORAGE_KEYS = {
   HEALTH_CONNECT_CONNECTION: "@health/health_connect_connection",
   FITBIT_CONNECTION: "@health/fitbit_connection",
   FITBIT_TOKENS: "@health/fitbit_tokens_secure", // Stored in Keychain/Keystore
+  SAMSUNG_HEALTH_TOKENS: "@health/samsung_health_tokens_secure",
+  GARMIN_TOKENS: "@health/garmin_tokens_secure",
+  WITHINGS_TOKENS: "@health/withings_tokens_secure",
+  OURA_TOKENS: "@health/oura_tokens_secure",
+  DEXCOM_TOKENS: "@health/dexcom_tokens_secure",
+  FREESTYLE_LIBRE_TOKENS: "@health/freestyle_libre_tokens_secure",
   LAST_SYNC_TIMESTAMPS: "@health/last_sync_timestamps",
 } as const;

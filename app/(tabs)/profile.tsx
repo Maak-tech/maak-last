@@ -25,6 +25,7 @@ import {
   Shield,
   Sun,
   TestTube,
+  TrendingUp,
   User,
   Users,
   X,
@@ -654,6 +655,11 @@ export default function ProfileScreen() {
             icon: Heart,
             label: t("vitalsMonitor"),
             onPress: () => router.push("/ppg-measure"),
+          },
+          {
+            icon: TrendingUp,
+            label: t("healthSummary"),
+            onPress: () => router.push("/health-summary"),
           },
           {
             icon: Activity,

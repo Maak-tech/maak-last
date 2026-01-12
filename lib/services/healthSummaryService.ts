@@ -233,7 +233,7 @@ class HealthSummaryService {
 
     // Calculate average mood score
     const moodScore = moods.length > 0
-      ? moods.reduce((sum, m) => sum + m.moodRating, 0) / moods.length
+      ? moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / moods.length
       : 3; // Neutral default
 
     // Calculate health score (simplified algorithm)
@@ -287,9 +287,9 @@ class HealthSummaryService {
 
     // Symptom insights
     if (symptoms.length > 0) {
-      const avgSeverity = symptoms.reduce((sum, s) => sum + s.severity, 0) / symptoms.length;
+      const avgSeverity = symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / symptoms.length;
       const prevAvgSeverity = previousData.symptoms.length > 0
-        ? previousData.symptoms.reduce((sum, s) => sum + s.severity, 0) / previousData.symptoms.length
+        ? previousData.symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / previousData.symptoms.length
         : avgSeverity;
 
       if (avgSeverity < prevAvgSeverity) {
@@ -327,9 +327,9 @@ class HealthSummaryService {
 
     // Mood insights
     if (moods.length > 0) {
-      const avgMood = moods.reduce((sum, m) => sum + m.moodRating, 0) / moods.length;
+      const avgMood = moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / moods.length;
       const prevAvgMood = previousData.moods.length > 0
-        ? previousData.moods.reduce((sum, m) => sum + m.moodRating, 0) / previousData.moods.length
+        ? previousData.moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / previousData.moods.length
         : avgMood;
 
       if (avgMood > prevAvgMood + 0.5) {
@@ -628,10 +628,10 @@ class HealthSummaryService {
 
     // Average severity trend
     const currentAvgSeverity = symptoms.length > 0
-      ? symptoms.reduce((sum, s) => sum + s.severity, 0) / symptoms.length
+      ? symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / symptoms.length
       : 0;
     const previousAvgSeverity = previousData.symptoms.length > 0
-      ? previousData.symptoms.reduce((sum, s) => sum + s.severity, 0) / previousData.symptoms.length
+      ? previousData.symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / previousData.symptoms.length
       : 0;
     trends.push({
       metric: "Average Severity",
@@ -645,10 +645,10 @@ class HealthSummaryService {
 
     // Mood trend
     const currentAvgMood = moods.length > 0
-      ? moods.reduce((sum, m) => sum + m.moodRating, 0) / moods.length
+      ? moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / moods.length
       : 3;
     const previousAvgMood = previousData.moods.length > 0
-      ? previousData.moods.reduce((sum, m) => sum + m.moodRating, 0) / previousData.moods.length
+      ? previousData.moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / previousData.moods.length
       : 3;
     trends.push({
       metric: "Mood",

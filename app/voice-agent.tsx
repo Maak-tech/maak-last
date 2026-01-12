@@ -19,6 +19,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -34,13 +35,25 @@ import healthContextService from "@/lib/services/healthContextService";
 
 // Audio recording imports
 let Audio: any = null;
+let isAudioAvailable = false;
+let audioLoadError: string | null = null;
+
 try {
   if (Platform.OS === "ios" || Platform.OS === "android") {
     const expoAv = require("expo-av");
     Audio = expoAv.Audio;
+    isAudioAvailable = !!Audio;
+    
+    if (!Audio) {
+      audioLoadError = "expo-av loaded but Audio module not found";
+    }
+  } else {
+    audioLoadError = `Platform ${Platform.OS} not supported for audio recording`;
   }
 } catch (error) {
-  console.log("expo-av not available");
+  isAudioAvailable = false;
+  audioLoadError = error instanceof Error ? error.message : String(error);
+  console.warn("Failed to load expo-av:", audioLoadError);
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -66,6 +79,17 @@ export default function VoiceAgentScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
+  
+  // Log audio availability on mount for debugging
+  useEffect(() => {
+    console.log("Voice Agent - Audio availability check:");
+    console.log("  Platform:", Platform.OS);
+    console.log("  isAudioAvailable:", isAudioAvailable);
+    console.log("  Audio module:", !!Audio);
+    if (audioLoadError) {
+      console.log("  Error:", audioLoadError);
+    }
+  }, []);
 
   // Connection and session state
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
@@ -77,6 +101,7 @@ export default function VoiceAgentScreen() {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [toolCalls, setToolCalls] = useState<ToolCallStatus[]>([]);
+  const [textInput, setTextInput] = useState("");
 
   // Audio recording state
   const recordingRef = useRef<any>(null);
@@ -171,7 +196,6 @@ export default function VoiceAgentScreen() {
       },
 
       onSessionCreated: (session) => {
-        console.log("Session created:", session?.id);
         // Add welcome message
         setMessages([
           {
@@ -264,7 +288,6 @@ export default function VoiceAgentScreen() {
       },
 
       onToolCall: async (toolCall) => {
-        console.log("Tool call:", toolCall.name);
         setToolCalls((prev) => [
           ...prev,
           {
@@ -289,7 +312,6 @@ export default function VoiceAgentScreen() {
           // Submit the tool output
           realtimeAgentService.submitToolOutput(toolCall.call_id, JSON.stringify(result));
         } catch (error) {
-          console.error("Tool execution error:", error);
           setToolCalls((prev) =>
             prev.map((tc) =>
               tc.id === toolCall.call_id
@@ -314,14 +336,39 @@ export default function VoiceAgentScreen() {
       },
 
       onError: (error) => {
-        console.error("Realtime error:", error);
         setIsProcessing(false);
         setIsListening(false);
         setIsSpeaking(false);
 
+        // Provide more helpful error messages
+        let errorMessage = error?.message || t("connectionError", "Connection error occurred");
+        
+        // Check for common WebSocket errors
+        if (errorMessage.includes("WebSocket") || errorMessage.includes("headers")) {
+          errorMessage = 
+            "WebSocket connection failed. This is likely because React Native's WebSocket doesn't support custom headers. " +
+            "To fix this, you may need to:\n\n" +
+            "1. Install a WebSocket library that supports headers (e.g., 'react-native-websocket')\n" +
+            "2. Or use a proxy/middleware server\n" +
+            "3. Or ensure your API key is properly configured\n\n" +
+            `Original error: ${errorMessage}`;
+        } else if (errorMessage.includes("API key") || errorMessage.includes("authentication")) {
+          errorMessage = 
+            "Authentication failed. Please ensure OPENAI_API_KEY is set in your environment variables.\n\n" +
+            `Error: ${errorMessage}`;
+        }
+
         Alert.alert(
           t("error", "Error"),
-          error?.message || t("connectionError", "Connection error occurred")
+          errorMessage,
+          [
+            { text: t("ok", "OK"), style: "default" },
+            { 
+              text: t("retry", "Retry"), 
+              onPress: () => handleConnect(),
+              style: "default"
+            }
+          ]
         );
       },
     };
@@ -373,7 +420,6 @@ export default function VoiceAgentScreen() {
 
       await realtimeAgentService.connect(customInstructions);
     } catch (error) {
-      console.error("Connection failed:", error);
       Alert.alert(
         t("connectionFailed", "Connection Failed"),
         error instanceof Error ? error.message : t("unableToConnect", "Unable to connect to voice service")
@@ -391,8 +437,28 @@ export default function VoiceAgentScreen() {
 
   // Start/stop recording
   const toggleRecording = async () => {
-    if (!Audio) {
-      Alert.alert(t("error", "Error"), t("audioNotAvailable", "Audio recording not available on this platform"));
+    if (!Audio || !isAudioAvailable) {
+      // Provide detailed error message
+      let errorTitle = t("audioNotAvailable", "Audio recording not available");
+      let errorMessage = "";
+      
+      if (Platform.OS === "web") {
+        errorMessage = t("useTextInput", "Please use text input to communicate with Zeina on this platform.");
+      } else if (audioLoadError) {
+        errorMessage = `Audio recording failed to initialize:\n\n${audioLoadError}\n\n`;
+        
+        if (audioLoadError.includes("expo-av")) {
+          errorMessage += "Please ensure expo-av is properly installed:\n\nbun install expo-av\n\nThen restart the app.";
+        } else if (Platform.OS === "ios" || Platform.OS === "android") {
+          errorMessage += "This may happen on simulators/emulators. Try using a physical device.";
+        }
+      } else {
+        errorMessage = t("audioNotAvailable", "Audio recording not available on this platform. Please ensure expo-av is properly installed.");
+      }
+      
+      Alert.alert(errorTitle, errorMessage, [
+        { text: t("ok", "OK"), style: "cancel" },
+      ]);
       return;
     }
 
@@ -405,7 +471,7 @@ export default function VoiceAgentScreen() {
         }
         realtimeAgentService.commitAudioBuffer();
       } catch (error) {
-        console.error("Error stopping recording:", error);
+        // Error stopping recording
       }
     } else {
       // Start recording
@@ -460,7 +526,6 @@ export default function VoiceAgentScreen() {
         recordingRef.current = recording;
         setIsListening(true);
       } catch (error) {
-        console.error("Error starting recording:", error);
         Alert.alert(t("error", "Error"), t("recordingFailed", "Failed to start recording"));
       }
     }
@@ -720,40 +785,77 @@ export default function VoiceAgentScreen() {
 
           {/* Control buttons */}
           <View style={styles.controlsContainer}>
-            <TouchableOpacity
-              onPress={toggleRecording}
-              disabled={connectionState !== "connected" || isProcessing}
-              style={[
-                styles.talkButton,
-                isListening && styles.talkButtonActive,
-                (connectionState !== "connected" || isProcessing) && styles.talkButtonDisabled,
-              ]}
-            >
-              <LinearGradient
-                colors={
-                  isListening
-                    ? ["#ff6b6b", "#ee5a5a"]
-                    : connectionState === "connected"
-                    ? ["#667eea", "#764ba2"]
-                    : ["#636e72", "#2d3436"]
-                }
-                style={styles.talkButtonGradient}
-              >
-                <Ionicons
-                  name={isListening ? "stop" : "mic"}
-                  size={32}
-                  color="#fff"
-                />
-              </LinearGradient>
-            </TouchableOpacity>
+            {isAudioAvailable ? (
+              <>
+                <TouchableOpacity
+                  onPress={toggleRecording}
+                  disabled={connectionState !== "connected" || isProcessing}
+                  style={[
+                    styles.talkButton,
+                    isListening && styles.talkButtonActive,
+                    (connectionState !== "connected" || isProcessing) && styles.talkButtonDisabled,
+                  ]}
+                >
+                  <LinearGradient
+                    colors={
+                      isListening
+                        ? ["#ff6b6b", "#ee5a5a"]
+                        : connectionState === "connected"
+                        ? ["#667eea", "#764ba2"]
+                        : ["#636e72", "#2d3436"]
+                    }
+                    style={styles.talkButtonGradient}
+                  >
+                    <Ionicons
+                      name={isListening ? "stop" : "mic"}
+                      size={32}
+                      color="#fff"
+                    />
+                  </LinearGradient>
+                </TouchableOpacity>
 
-            <Text style={styles.controlHint}>
-              {connectionState !== "connected"
-                ? t("pressConnectFirst", "Press connect first")
-                : isListening
-                ? t("releaseToSend", "Tap to stop")
-                : t("holdToTalk", "Tap to talk")}
-            </Text>
+                <Text style={styles.controlHint}>
+                  {connectionState !== "connected"
+                    ? t("pressConnectFirst", "Press connect first")
+                    : isListening
+                    ? t("releaseToSend", "Tap to stop")
+                    : t("holdToTalk", "Tap to talk")}
+                </Text>
+              </>
+            ) : (
+              <View style={styles.textInputContainer}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder={t("typeMessage", "Type your message...")}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  value={textInput}
+                  onChangeText={setTextInput}
+                  multiline
+                  editable={connectionState === "connected" && !isProcessing}
+                  onSubmitEditing={() => {
+                    if (textInput.trim() && connectionState === "connected") {
+                      sendTextMessage(textInput.trim());
+                      setTextInput("");
+                    }
+                  }}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (textInput.trim() && connectionState === "connected") {
+                      sendTextMessage(textInput.trim());
+                      setTextInput("");
+                    }
+                  }}
+                  disabled={!textInput.trim() || connectionState !== "connected" || isProcessing}
+                  style={[
+                    styles.sendButton,
+                    (!textInput.trim() || connectionState !== "connected" || isProcessing) && styles.sendButtonDisabled,
+                  ]}
+                >
+                  <Ionicons name="send" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -994,5 +1096,33 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 13,
     color: "rgba(255, 255, 255, 0.6)",
+  },
+  textInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  textInput: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    color: "#fff",
+    fontSize: 15,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#667eea",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
   },
 });

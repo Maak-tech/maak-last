@@ -129,14 +129,33 @@ export const ouraService = {
 
       const tokens = await tokenResponse.json();
 
+      // Get user ID from Oura API
+      let userId = "unknown";
+      try {
+        const userResponse = await fetch(`${OURA_API_BASE}/v2/userinfo`, {
+          headers: {
+            Authorization: `Bearer ${tokens.access_token}`,
+          },
+        });
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          userId = userData.id || userData.user_id || "unknown";
+        }
+      } catch {
+        // If user endpoint fails, try to get from token response
+        userId = tokens.userId || tokens.user_id || "unknown";
+      }
+
       await ouraService.saveTokens({
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
+        userId: userId,
         scope: tokens.scope,
       });
 
-      await saveProviderConnection("oura", {
+      await saveProviderConnection({
+        provider: "oura",
         connected: true,
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || [],
@@ -207,6 +226,7 @@ export const ouraService = {
         accessToken: newTokens.access_token,
         refreshToken: newTokens.refresh_token || tokens.refreshToken,
         expiresAt: Date.now() + newTokens.expires_in * 1000,
+        userId: tokens.userId, // Preserve existing userId
         scope: newTokens.scope || tokens.scope,
       });
 
@@ -218,9 +238,10 @@ export const ouraService = {
   },
 
   /**
-   * Fetch sleep data from Oura
+   * Fetch metrics for sync
    */
-  fetchSleepData: async (
+  fetchMetrics: async (
+    selectedMetrics: string[],
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {
@@ -228,42 +249,122 @@ export const ouraService = {
       const accessToken = await ouraService.refreshTokenIfNeeded();
       if (!accessToken) return [];
 
-      const response = await fetch(
-        `${OURA_API_BASE}/v2/usercollection/sleep?start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) return [];
-
-      const data = await response.json();
       const results: NormalizedMetricPayload[] = [];
+      const dateStr = formatDate(startDate);
+      const endDateStr = formatDate(endDate);
 
-      for (const sleep of data.data || []) {
-        results.push({
-          metricKey: "sleep_analysis",
-          value: sleep.total_sleep_duration / 60, // Convert seconds to minutes
-          unit: "min",
-          timestamp: new Date(sleep.day),
-          source: "Oura Ring",
-          metadata: {
-            deepSleep: sleep.deep_sleep_duration,
-            remSleep: sleep.rem_sleep_duration,
-            lightSleep: sleep.light_sleep_duration,
-            efficiency: sleep.efficiency,
-            score: sleep.score,
-          },
-        });
+      // Fetch sleep data if requested
+      if (selectedMetrics.includes("sleep_analysis")) {
+        const sleepResponse = await fetch(
+          `${OURA_API_BASE}/v2/usercollection/sleep?start_date=${dateStr}&end_date=${endDateStr}`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (sleepResponse.ok) {
+          const sleepData = await sleepResponse.json();
+          const metric = getMetricByKey("sleep_analysis");
+          if (metric) {
+            const samples = (sleepData.data || []).map((sleep: any) => ({
+              value: sleep.total_sleep_duration / 60, // Convert seconds to minutes
+              unit: "min",
+              startDate: sleep.day,
+              source: "Oura Ring",
+            }));
+
+            if (samples.length > 0) {
+              results.push({
+                provider: "oura",
+                metricKey: "sleep_analysis",
+                displayName: metric.displayName,
+                unit: "min",
+                samples,
+              });
+            }
+          }
+        }
+      }
+
+      // Fetch activity data if requested
+      if (selectedMetrics.some((m) => ["steps", "active_energy"].includes(m))) {
+        const activityResponse = await fetch(
+          `${OURA_API_BASE}/v2/usercollection/daily_activity?start_date=${dateStr}&end_date=${endDateStr}`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (activityResponse.ok) {
+          const activityData = await activityResponse.json();
+
+          // Steps
+          if (selectedMetrics.includes("steps")) {
+            const metric = getMetricByKey("steps");
+            if (metric) {
+              const samples = (activityData.data || []).map((activity: any) => ({
+                value: activity.steps,
+                unit: "count",
+                startDate: activity.day,
+                source: "Oura Ring",
+              }));
+
+              if (samples.length > 0) {
+                results.push({
+                  provider: "oura",
+                  metricKey: "steps",
+                  displayName: metric.displayName,
+                  unit: "count",
+                  samples,
+                });
+              }
+            }
+          }
+
+          // Active energy
+          if (selectedMetrics.includes("active_energy")) {
+            const metric = getMetricByKey("active_energy");
+            if (metric) {
+              const samples = (activityData.data || []).map((activity: any) => ({
+                value: activity.active_calories,
+                unit: "kcal",
+                startDate: activity.day,
+                source: "Oura Ring",
+              }));
+
+              if (samples.length > 0) {
+                results.push({
+                  provider: "oura",
+                  metricKey: "active_energy",
+                  displayName: metric.displayName,
+                  unit: "kcal",
+                  samples,
+                });
+              }
+            }
+          }
+        }
       }
 
       return results;
-    } catch (error) {
-      console.error("Error fetching Oura sleep data:", error);
+    } catch (error: any) {
+      console.error("Error fetching Oura metrics:", error);
       return [];
     }
+  },
+
+  /**
+   * Fetch sleep data from Oura
+   */
+  fetchSleepData: async (
+    startDate: Date,
+    endDate: Date
+  ): Promise<NormalizedMetricPayload[]> => {
+    return ouraService.fetchMetrics(["sleep_analysis"], startDate, endDate);
   },
 
   /**
@@ -273,43 +374,9 @@ export const ouraService = {
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {
-    try {
-      const accessToken = await ouraService.refreshTokenIfNeeded();
-      if (!accessToken) return [];
-
-      const response = await fetch(
-        `${OURA_API_BASE}/v2/usercollection/daily_readiness?start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) return [];
-
-      const data = await response.json();
-      const results: NormalizedMetricPayload[] = [];
-
-      for (const readiness of data.data || []) {
-        results.push({
-          metricKey: "readiness_score",
-          value: readiness.score,
-          unit: "",
-          timestamp: new Date(readiness.day),
-          source: "Oura Ring",
-          metadata: {
-            temperature_deviation: readiness.temperature_deviation,
-            hrv_balance: readiness.hrv_balance,
-          },
-        });
-      }
-
-      return results;
-    } catch (error) {
-      console.error("Error fetching Oura readiness data:", error);
-      return [];
-    }
+    // Readiness score is not a standard health metric, return empty array
+    // This can be extended if needed in the future
+    return [];
   },
 
   /**
@@ -319,47 +386,7 @@ export const ouraService = {
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {
-    try {
-      const accessToken = await ouraService.refreshTokenIfNeeded();
-      if (!accessToken) return [];
-
-      const response = await fetch(
-        `${OURA_API_BASE}/v2/usercollection/daily_activity?start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) return [];
-
-      const data = await response.json();
-      const results: NormalizedMetricPayload[] = [];
-
-      for (const activity of data.data || []) {
-        results.push({
-          metricKey: "steps",
-          value: activity.steps,
-          unit: "steps",
-          timestamp: new Date(activity.day),
-          source: "Oura Ring",
-        });
-
-        results.push({
-          metricKey: "active_calories",
-          value: activity.active_calories,
-          unit: "kcal",
-          timestamp: new Date(activity.day),
-          source: "Oura Ring",
-        });
-      }
-
-      return results;
-    } catch (error) {
-      console.error("Error fetching Oura activity data:", error);
-      return [];
-    }
+    return ouraService.fetchMetrics(["steps", "active_energy"], startDate, endDate);
   },
 
   /**
@@ -368,7 +395,8 @@ export const ouraService = {
   disconnect: async (): Promise<void> => {
     try {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.OURA_TOKENS);
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.OURA_CONNECTION);
+      // Connection data is stored in AsyncStorage via saveProviderConnection
+      // and will be cleared by disconnectProvider in healthSync.ts
     } catch (error) {
       console.error("Error disconnecting Oura:", error);
     }

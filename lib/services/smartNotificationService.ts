@@ -1,4 +1,4 @@
-import type { Medication } from "@/types";
+import type { Medication, MedicationReminder } from "@/types";
 import { medicationRefillService } from "./medicationRefillService";
 import i18n from "@/lib/i18n";
 
@@ -286,8 +286,8 @@ class SmartNotificationService {
     const userStats = await this.getUserStats(userId);
     const userRole = await this.getUserRole(userId);
 
-    // Get notification preferences (default to reasonable limits)
-    const maxNotifications = context?.notificationPreferences?.maxPerDay || 6;
+    // Get notification preferences (default to reasonable limits - reduced to prevent notification overload)
+    const maxNotifications = context?.notificationPreferences?.maxPerDay || 3;
 
     // Core daily check-ins (2-3 most important)
     const dailyNotifications = await this.generateDailyInteractiveNotifications(userId);
@@ -624,8 +624,25 @@ class SmartNotificationService {
       ...this.getAdditionalContent(notification)
     };
 
-    if (notification.scheduledTime.getTime() <= Date.now() + 60000) { // Within 1 minute
-      // Schedule immediately
+    const now = Date.now();
+    const scheduledTime = notification.scheduledTime.getTime();
+    const isImmediate = scheduledTime <= now + 60000; // Within 1 minute
+    const isImportant = notification.priority === 'critical' || notification.priority === 'high';
+
+    // Prevent immediate low-priority notifications from being scheduled too frequently
+    // Only schedule immediately if it's important or scheduled for future
+    if (isImmediate && !isImportant) {
+      // For low-priority immediate notifications, delay them by at least 5 minutes
+      const delayedTime = new Date(now + 5 * 60 * 1000);
+      await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: delayedTime,
+        },
+      });
+    } else if (isImmediate && isImportant) {
+      // Schedule important notifications immediately
       await Notifications.scheduleNotificationAsync({
         content,
         trigger: null,
@@ -1106,16 +1123,16 @@ class SmartNotificationService {
 
     // Group medications by timing (similar to checkins but for confirmations)
     const morningMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('morning') || time.includes('08') || time.includes('09'))
+      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('morning') || reminder.time.includes('08') || reminder.time.includes('09'))
     );
     const afternoonMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('afternoon') || time.includes('14') || time.includes('15'))
+      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('afternoon') || reminder.time.includes('14') || reminder.time.includes('15'))
     );
     const eveningMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('evening') || time.includes('18') || time.includes('19') || time.includes('20'))
+      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('evening') || reminder.time.includes('18') || reminder.time.includes('19') || reminder.time.includes('20'))
     );
     const nightMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('night') || time.includes('bedtime') || time.includes('22') || time.includes('23'))
+      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('night') || reminder.time.includes('bedtime') || reminder.time.includes('22') || reminder.time.includes('23'))
     );
 
     const now = new Date();

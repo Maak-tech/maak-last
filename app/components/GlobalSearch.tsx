@@ -19,8 +19,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import {
   globalSearchService,
   type SearchResult,
-  type SearchResultType,
 } from "@/lib/services/globalSearchService";
+
+type SearchResultType = SearchResult["type"];
 import { Card } from "@/components/design-system";
 import { Heading, Text, Caption } from "@/components/design-system/Typography";
 import { Badge } from "@/components/design-system/AdditionalComponents";
@@ -30,13 +31,12 @@ interface GlobalSearchProps {
   onClose: () => void;
 }
 
-const TYPE_LABELS: Record<SearchResultType, { en: string; ar: string; icon: string }> = {
+const TYPE_LABELS: Partial<Record<SearchResultType, { en: string; ar: string; icon: string }>> = {
   medication: { en: "Medication", ar: "دواء", icon: "💊" },
   symptom: { en: "Symptom", ar: "عرض", icon: "🤒" },
-  medicalHistory: { en: "Condition", ar: "حالة", icon: "🏥" },
-  allergy: { en: "Allergy", ar: "حساسية", icon: "⚠️" },
   mood: { en: "Mood", ar: "مزاج", icon: "😊" },
-  vital: { en: "Vital", ar: "علامة حيوية", icon: "❤️" },
+  family: { en: "Family", ar: "عائلة", icon: "👨‍👩‍👧‍👦" },
+  note: { en: "Note", ar: "ملاحظة", icon: "📝" },
 };
 
 export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
@@ -52,9 +52,9 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
   const [selectedTypes, setSelectedTypes] = useState<SearchResultType[]>([
     "medication",
     "symptom",
-    "medicalHistory",
-    "allergy",
     "mood",
+    "family",
+    "note",
   ]);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -86,12 +86,8 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
       setIsSearching(true);
       try {
         const searchResults = await globalSearchService.search(user.id, query, {
-          filters: {
-            types: selectedTypes,
-          },
-          limit: 50,
-          sortBy: "relevance",
-        });
+          types: selectedTypes,
+        }, 50);
         setResults(searchResults);
       } catch (error) {
         setResults([]);
@@ -132,14 +128,14 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
       case "symptom":
         router.push("/(tabs)/symptoms");
         break;
-      case "medicalHistory":
-        router.push("/(tabs)/profile");
-        break;
-      case "allergy":
-        router.push("/(tabs)/allergies");
-        break;
       case "mood":
         router.push("/(tabs)/moods");
+        break;
+      case "family":
+        router.push("/(tabs)/family");
+        break;
+      case "note":
+        router.push("/(tabs)/profile");
         break;
     }
     onClose();
@@ -237,13 +233,14 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
               [
                 "medication",
                 "symptom",
-                "medicalHistory",
-                "allergy",
                 "mood",
+                "family",
+                "note",
               ] as SearchResultType[]
             ).map((type) => {
               const isSelected = selectedTypes.includes(type);
               const label = TYPE_LABELS[type];
+              if (!label) return null;
               return (
                 <TouchableOpacity
                   key={type}
@@ -288,7 +285,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
                   ? "لم يتم العثور على نتائج"
                   : "No results found"}
               </Text>
-              <Caption numberOfLines={undefined} style={styles.emptySubtext}>
+              <Caption numberOfLines={undefined} style={[styles.emptySubtext, { textAlign: "center" as const }]}>
                 {isRTL
                   ? "جرب مصطلحات بحث مختلفة"
                   : "Try different search terms"}
@@ -313,6 +310,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
               keyExtractor={(item) => `${item.type}-${item.id}`}
               renderItem={({ item }) => {
                 const typeLabel = TYPE_LABELS[item.type];
+                if (!typeLabel) return null;
                 return (
                   <TouchableOpacity
                     onPress={() => handleResultPress(item)}
@@ -447,7 +445,7 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   },
   emptySubtext: {
     marginTop: theme.spacing.sm,
-    textAlign: "center",
+    textAlign: "center" as const,
   },
   resultsList: {
     padding: theme.spacing.lg,

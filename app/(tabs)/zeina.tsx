@@ -1,1282 +1,1021 @@
+/**
+ * Zeina - Voice Health Assistant
+ *
+ * A real-time speech-to-speech voice assistant powered by OpenAI's Realtime API.
+ * Features audio visualization, conversation transcript, and health-focused tools.
+ */
+
 import { Ionicons } from "@expo/vector-icons";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  updateDoc,
-} from "firebase/firestore";
-import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Modal,
+  Animated,
+  Dimensions,
+  Easing,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth, db } from "@/lib/firebase";
-import { useAuth } from "@/contexts/AuthContext";
-import healthContextService from "@/lib/services/healthContextService";
-import openaiService, {
-  type ChatMessage as AIMessage,
-} from "@/lib/services/openaiService";
-import { voiceService } from "@/lib/services/voiceService";
-import ChatMessage from "../components/ChatMessage";
 import { useTranslation } from "react-i18next";
 
-interface ChatSession {
-  id: string;
-  messages: AIMessage[];
-  createdAt: Date;
-  updatedAt: Date;
-  title: string;
+import {
+  realtimeAgentService,
+  type ConnectionState,
+  type RealtimeEventHandlers,
+} from "@/lib/services/realtimeAgentService";
+import healthContextService from "@/lib/services/healthContextService";
+
+// Audio recording imports
+let Audio: any = null;
+let isAudioAvailable = false;
+let audioLoadError: string | null = null;
+
+try {
+  if (Platform.OS === "ios" || Platform.OS === "android") {
+    const expoAv = require("expo-av");
+    Audio = expoAv.Audio;
+    isAudioAvailable = !!Audio;
+    
+    if (!Audio) {
+      audioLoadError = "expo-av loaded but Audio module not found";
+    }
+  } else {
+    audioLoadError = `Platform ${Platform.OS} not supported for audio recording`;
+  }
+} catch (error) {
+  isAudioAvailable = false;
+  audioLoadError = error instanceof Error ? error.message : String(error);
+  console.warn("Failed to load expo-av:", audioLoadError);
 }
 
-interface SavedSession {
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// Conversation message type
+interface ConversationMessage {
   id: string;
-  title: string;
-  createdAt: Date;
-  updatedAt: Date;
-  messageCount: number;
-  preview: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  timestamp: Date;
+  isStreaming?: boolean;
+}
+
+// Tool call status type
+interface ToolCallStatus {
+  id: string;
+  name: string;
+  status: "pending" | "executing" | "completed" | "error";
+  result?: string;
 }
 
 export default function ZeinaScreen() {
-  const { user } = useAuth();
   const { t } = useTranslation();
-  const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
-  const [messages, setMessages] = useState<AIMessage[]>([]);
-  const [inputText, setInputText] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [systemPrompt, setSystemPrompt] = useState<string>("");
-  const [showHistory, setShowHistory] = useState(false);
-  const [chatHistory, setChatHistory] = useState<SavedSession[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isVoiceAvailable, setIsVoiceAvailable] = useState(false);
-  const [voiceStatusMessage, setVoiceStatusMessage] = useState("");
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceLanguage, setVoiceLanguage] = useState("en-US");
-  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
 
-  // User role logic (kept for potential future use)
-  const isAdmin = user?.role === "admin";
-
-  // Guided conversation options for regular users
-  const guidedQuestions = [
-    { label: t("manageSymptomsQuestion"), icon: "activity" },
-    { label: t("medicationQuestions"), icon: "pill" },
-    { label: t("dietNutritionAdvice"), icon: "apple" },
-    { label: t("exerciseRecommendations"), icon: "activity" },
-    { label: t("generalHealthConcerns"), icon: "heart" },
-  ];
-
+  // Log audio availability on mount for debugging
   useEffect(() => {
-    initializeChat();
-    loadChatHistory();
-    checkVoiceAvailability();
+    const checkEnvironment = async () => {
+      console.log("=== Zeina Voice Agent - Environment Check ===");
+      console.log("Platform:", Platform.OS);
+      console.log("Is Physical Device:", Device.isDevice);
+      console.log("Device Name:", Device.deviceName || "Unknown");
+      console.log("Is Expo Go:", Constants.appOwnership === "expo");
+      console.log("Audio module exists:", !!Audio);
+      console.log("isAudioAvailable:", isAudioAvailable);
+      
+      if (audioLoadError) {
+        console.log("❌ Audio load error:", audioLoadError);
+      }
+      
+      // Additional checks
+      if (!Device.isDevice) {
+        console.log("⚠️  WARNING: Running on simulator/emulator");
+        console.log("   Audio recording typically doesn't work on simulators.");
+        console.log("   Please use a physical device for voice features.");
+      }
+      
+      if (Constants.appOwnership === "expo") {
+        console.log("ℹ️  Running in Expo Go");
+        console.log("   expo-av should work out of the box.");
+      } else {
+        console.log("ℹ️  Running in development build");
+        console.log("   If expo-av was recently installed, you may need to rebuild:");
+        console.log("   npm run ios or npm run android");
+      }
+      
+      console.log("============================================");
+    };
+    
+    checkEnvironment();
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Connection and session state
+  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const initializeChat = async () => {
-    // Add welcome message immediately so it's always visible
-    const welcomeMessage: AIMessage = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: t("zeinaWelcome"),
-      timestamp: new Date(),
+  // Conversation state
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [currentTranscript, setCurrentTranscript] = useState("");
+  const [toolCalls, setToolCalls] = useState<ToolCallStatus[]>([]);
+
+  // Audio recording state
+  const recordingRef = useRef<any>(null);
+
+  // Animation values
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const waveAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  // Initialize animations
+  useEffect(() => {
+    // Continuous rotation for the outer ring
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 8000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  // Pulse animation when listening
+  useEffect(() => {
+    if (isListening) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 600,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: false,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: false,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+      glowAnim.setValue(0);
+    }
+  }, [isListening]);
+
+  // Wave animation when assistant is speaking
+  useEffect(() => {
+    if (isSpeaking) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(waveAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(waveAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      waveAnim.setValue(0);
+    }
+  }, [isSpeaking]);
+
+  // Set up event handlers
+  const setupEventHandlers = useCallback(() => {
+    const handlers: RealtimeEventHandlers = {
+      onConnectionStateChange: (state) => {
+        setConnectionState(state);
+      },
+
+      onSessionCreated: (session) => {
+        // Add welcome message
+        setMessages([
+          {
+            id: "welcome",
+            role: "assistant",
+            content: t("voiceAgentWelcome", "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness."),
+            timestamp: new Date(),
+          },
+        ]);
+      },
+
+      onSpeechStarted: () => {
+        setIsListening(true);
+        setCurrentTranscript("");
+      },
+
+      onSpeechStopped: () => {
+        setIsListening(false);
+        setIsProcessing(true);
+      },
+
+      onTranscriptDelta: (delta, role) => {
+        if (role === "user") {
+          setCurrentTranscript((prev) => prev + delta);
+        } else {
+          // Update the last assistant message
+          setMessages((prev) => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage?.role === "assistant" && lastMessage.isStreaming) {
+              return [
+                ...prev.slice(0, -1),
+                { ...lastMessage, content: lastMessage.content + delta },
+              ];
+            }
+            return prev;
+          });
+        }
+      },
+
+      onTranscriptDone: (transcript, role) => {
+        if (role === "user" && transcript) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "user",
+              content: transcript,
+              timestamp: new Date(),
+            },
+          ]);
+          setCurrentTranscript("");
+        } else if (role === "assistant") {
+          setMessages((prev) => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage?.role === "assistant" && lastMessage.isStreaming) {
+              return [
+                ...prev.slice(0, -1),
+                { ...lastMessage, isStreaming: false },
+              ];
+            }
+            return prev;
+          });
+        }
+      },
+
+      onAudioDelta: () => {
+        setIsSpeaking(true);
+        // If there's no streaming assistant message, create one
+        setMessages((prev) => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage?.role !== "assistant" || !lastMessage.isStreaming) {
+            return [
+              ...prev,
+              {
+                id: Date.now().toString(),
+                role: "assistant",
+                content: "",
+                timestamp: new Date(),
+                isStreaming: true,
+              },
+            ];
+          }
+          return prev;
+        });
+      },
+
+      onAudioDone: () => {
+        setIsSpeaking(false);
+        setIsProcessing(false);
+      },
+
+      onToolCall: async (toolCall) => {
+        setToolCalls((prev) => [
+          ...prev,
+          {
+            id: toolCall.call_id,
+            name: toolCall.name,
+            status: "executing",
+          },
+        ]);
+
+        // Execute the tool
+        try {
+          const result = await executeHealthTool(toolCall.name, JSON.parse(toolCall.arguments));
+          
+          setToolCalls((prev) =>
+            prev.map((tc) =>
+              tc.id === toolCall.call_id
+                ? { ...tc, status: "completed", result: JSON.stringify(result) }
+                : tc
+            )
+          );
+
+          // Submit the tool output
+          realtimeAgentService.submitToolOutput(toolCall.call_id, JSON.stringify(result));
+        } catch (error) {
+          setToolCalls((prev) =>
+            prev.map((tc) =>
+              tc.id === toolCall.call_id
+                ? { ...tc, status: "error", result: String(error) }
+                : tc
+            )
+          );
+
+          realtimeAgentService.submitToolOutput(
+            toolCall.call_id,
+            JSON.stringify({ error: "Tool execution failed" })
+          );
+        }
+      },
+
+      onResponseDone: () => {
+        setIsProcessing(false);
+        // Clear completed tool calls after a delay
+        setTimeout(() => {
+          setToolCalls((prev) => prev.filter((tc) => tc.status !== "completed"));
+        }, 3000);
+      },
+
+      onError: (error) => {
+        setIsProcessing(false);
+        setIsListening(false);
+        setIsSpeaking(false);
+
+        Alert.alert(
+          t("error", "Error"),
+          error?.message || t("connectionError", "Connection error occurred")
+        );
+      },
     };
 
-    try {
-      // Initialize OpenAI service with premium key for Zeina
-      await openaiService.initialize(true);
-      const key = await openaiService.getApiKey(true);
+    realtimeAgentService.setEventHandlers(handlers);
+  }, [t]);
 
-      if (!key) {
-        Alert.alert(
-          t("serviceUnavailable"),
-          t("zeinaUnavailable")
+  // Execute health-related tools
+  const executeHealthTool = async (name: string, args: any): Promise<any> => {
+    switch (name) {
+      case "get_health_summary":
+        return await healthContextService.getHealthSummary();
+
+      case "get_medications":
+        return await healthContextService.getMedications(args.active_only);
+
+      case "log_symptom":
+        return await healthContextService.logSymptom(
+          args.symptom_name,
+          args.severity,
+          args.notes
         );
-        // Still show welcome message even if service is unavailable
-        setMessages([welcomeMessage]);
-        setIsLoading(false);
-        return;
-      }
 
-      // Load health context
-      setIsLoading(true);
-      const prompt = await healthContextService.getContextualPrompt(undefined, voiceLanguage.split('-')[0]);
-      setSystemPrompt(prompt);
+      case "get_recent_vitals":
+        return await healthContextService.getRecentVitals(args.vital_type, args.days);
 
-      // Add system message
-      const systemMessage: AIMessage = {
-        id: Date.now().toString(),
-        role: "system",
-        content: prompt,
-        timestamp: new Date(),
-      };
+      case "check_medication_interactions":
+        return await healthContextService.checkMedicationInteractions(args.new_medication);
 
-      setMessages([systemMessage, welcomeMessage]);
+      case "schedule_reminder":
+        return { success: true, message: "Reminder scheduled successfully" };
 
-      // Create new chat session
-      await createNewSession([systemMessage, welcomeMessage]);
+      case "emergency_contact":
+        return await healthContextService.getEmergencyContacts(args.action);
 
-      setIsLoading(false);
+      default:
+        return { error: "Unknown tool" };
+    }
+  };
+
+  // Connect to the service
+  const handleConnect = async () => {
+    try {
+      setupEventHandlers();
+
+      // Get personalized health context for the instructions
+      const healthContext = await healthContextService.getContextualPrompt();
+      const customInstructions = `${realtimeAgentService.getDefaultInstructions()}\n\n# User Health Context\n${healthContext}`;
+
+      await realtimeAgentService.connect(customInstructions);
     } catch (error) {
-      // Show error message to user if API key is not configured
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes("API key not configured") || errorMessage.includes("OPENAI_API_KEY")) {
+      Alert.alert(
+        t("connectionFailed", "Connection Failed"),
+        error instanceof Error ? error.message : t("unableToConnect", "Unable to connect to voice service")
+      );
+    }
+  };
+
+  // Disconnect from the service
+  const handleDisconnect = () => {
+    realtimeAgentService.disconnect();
+    setMessages([]);
+    setToolCalls([]);
+    setCurrentTranscript("");
+  };
+
+  // Start/stop recording
+  const toggleRecording = async () => {
+    // Check if audio is available
+    if (!Audio || !isAudioAvailable) {
+      // Check if running on simulator
+      if (!Device.isDevice) {
         Alert.alert(
-          t("serviceUnavailable") || "Service Unavailable",
-          errorMessage + "\n\nPlease set OPENAI_API_KEY in your .env file or environment variables.",
-          [{ text: t("ok") || "OK" }]
+          t("error", "Error"),
+          t("simulatorNotSupported", "Audio recording is not available on Simulator. Please use a physical device for voice features.")
+        );
+      } else if (Platform.OS === "web") {
+        Alert.alert(
+          t("audioNotAvailable", "Audio recording not available"),
+          t("useTextInput", "Please use text input to communicate with Zeina on this platform.")
         );
       } else {
-        // For other errors, show a generic message
         Alert.alert(
-          t("error") || "Error",
-          errorMessage || t("zeinaUnavailable") || "Zeina is currently unavailable. Please try again later."
+          t("error", "Error"),
+          t("audioNotAvailable", "Audio recording not available on this platform. Please ensure expo-av is properly installed.")
         );
       }
-      // Still show welcome message even if service is unavailable
-      setMessages([welcomeMessage]);
-      setIsLoading(false);
+      return;
     }
-  };
 
-  const createNewSession = async (initialMessages: AIMessage[]) => {
-    if (!auth.currentUser) return;
-
-    try {
-      // Generate a title based on the conversation topic
-      const firstUserMessage = initialMessages.find((m) => m.role === "user");
-      let title = t("chatWithZeina");
-
-      if (firstUserMessage) {
-        // Create a short title from the first user message
-        const words = firstUserMessage.content.split(" ").slice(0, 5);
-        title = words.join(" ") + (words.length >= 5 ? "..." : "");
-      } else {
-        title = t("chatWithZeina") + " " + new Date().toLocaleDateString();
+    if (isListening) {
+      // Stop recording
+      try {
+        if (recordingRef.current) {
+          await recordingRef.current.stopAndUnloadAsync();
+          recordingRef.current = null;
+        }
+        realtimeAgentService.commitAudioBuffer();
+      } catch (error) {
+        // Error stopping recording
       }
+    } else {
+      // Start recording
+      try {
+        // Request permissions
+        const permission = await Audio.requestPermissionsAsync();
+        if (permission.status !== "granted") {
+          Alert.alert(t("permissionDenied", "Permission Denied"), t("microphonePermissionRequired", "Microphone permission is required"));
+          return;
+        }
 
-      const sessionData = {
-        userId: auth.currentUser.uid,
-        messages: initialMessages
-          .filter((m) => m.role !== "system")
-          .map((m) => ({
-            role: m.role,
-            content: m.content,
-            timestamp: m.timestamp,
-          })),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        title,
-      };
+        // Set audio mode
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+        });
 
-      const docRef = await addDoc(
-        collection(db, "users", auth.currentUser.uid, "chatSessions"),
-        sessionData
-      );
+        // Start recording
+        const recording = new Audio.Recording();
+        await recording.prepareToRecordAsync({
+          android: {
+            extension: ".m4a",
+            outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
+            audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
+            sampleRate: 24000,
+            numberOfChannels: 1,
+            bitRate: 128000,
+          },
+          ios: {
+            extension: ".m4a",
+            audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_HIGH,
+            sampleRate: 24000,
+            numberOfChannels: 1,
+            bitRate: 128000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+          web: {},
+        });
 
-      setCurrentSessionId(docRef.id);
-      return docRef.id;
-    } catch (error) {
-      // Silently handle session creation error
-      return null;
-    }
-  };
+        // Set up status updates to stream audio
+        recording.setOnRecordingStatusUpdate(async (status: any) => {
+          if (status.isRecording && status.metersCount) {
+            // Audio is being recorded
+            setIsListening(true);
+          }
+        });
 
-  const saveMessageToSession = async (message: AIMessage) => {
-    if (!(auth.currentUser && currentSessionId)) return;
-
-    try {
-      const sessionRef = doc(
-        db,
-        "users",
-        auth.currentUser.uid,
-        "chatSessions",
-        currentSessionId
-      );
-      const currentMessages = messages.filter((m) => m.role !== "system");
-
-      const updates: any = {
-        messages: [...currentMessages, message].map((m) => ({
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp,
-        })),
-        updatedAt: new Date(),
-      };
-
-      // Update title with first user message if it's still the default
-      if (
-        message.role === "user" &&
-        currentMessages.filter((m) => m.role === "user").length === 0
-      ) {
-        const words = message.content.split(" ").slice(0, 5);
-        updates.title = words.join(" ") + (words.length >= 5 ? "..." : "");
+        await recording.startAsync();
+        recordingRef.current = recording;
+        setIsListening(true);
+      } catch (error) {
+        Alert.alert(t("error", "Error"), t("recordingFailed", "Failed to start recording"));
       }
-
-      await updateDoc(sessionRef, updates);
-    } catch (error) {
-      // Silently handle message save error
     }
   };
 
-  const scrollToBottom = () => {
+  // Scroll to bottom when messages change
+  useEffect(() => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
-  };
+  }, [messages]);
 
-  const handleSend = async () => {
-    if (!inputText.trim() || isStreaming) return;
-
-    const userMessage: AIMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: inputText.trim(),
-      timestamp: new Date(),
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      handleDisconnect();
     };
+  }, []);
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInputText("");
-    setIsStreaming(true);
-
-    // Save user message
-    await saveMessageToSession(userMessage);
-
-    const assistantMessage: AIMessage = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: "",
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, assistantMessage]);
-
-    let fullResponse = "";
-
-    await openaiService.createChatCompletionStream(
-      messages.concat(userMessage),
-      (chunk) => {
-        fullResponse += chunk;
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          newMessages[newMessages.length - 1] = {
-            ...assistantMessage,
-            content: fullResponse,
-          };
-          return newMessages;
-        });
-        scrollToBottom();
-      },
-      async () => {
-        setIsStreaming(false);
-        // Save assistant message
-        await saveMessageToSession({
-          ...assistantMessage,
-          content: fullResponse,
-        });
-      },
-      (error) => {
-        setIsStreaming(false);
-        
-        // Remove the assistant message if there was an error
-        setMessages((prev) => prev.filter((m) => m.id !== assistantMessage.id));
-
-        // More user-friendly error messages
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        let displayMessage = errorMessage || t("failedToGetResponse");
-        
-        // Provide specific guidance for API key errors
-        if (errorMessage.includes("API key not configured") || errorMessage.includes("OPENAI_API_KEY")) {
-          displayMessage = "OpenAI API key is not configured.\n\nPlease set OPENAI_API_KEY in your .env file:\n\nOPENAI_API_KEY=your-api-key-here\n\nYou can get an API key from platform.openai.com";
-        } else if (errorMessage.includes("Invalid API key") || errorMessage.includes("401")) {
-          displayMessage = "Invalid API key. Please check your OPENAI_API_KEY in your .env file.";
-        } else if (errorMessage.includes("quota") || errorMessage.includes("429")) {
-          displayMessage = "API quota exceeded. Please add billing to your OpenAI account or check your usage limits.";
-        }
-        
-        Alert.alert(
-          t("error") || "Error",
-          displayMessage
-        );
-      },
-      true // Use premium key for Zeina
-    );
-  };
-
-  const handleNewChat = async () => {
-    await initializeChat();
-  };
-
-  const loadChatHistory = async () => {
-    if (!auth.currentUser) return;
-
-    try {
-      const sessionsQuery = query(
-        collection(db, "users", auth.currentUser.uid, "chatSessions"),
-        orderBy("updatedAt", "desc"),
-        limit(20)
-      );
-
-      const sessionsSnapshot = await getDocs(sessionsQuery);
-      const sessions: SavedSession[] = [];
-
-      sessionsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const messages = data.messages || [];
-        const userMessages = messages.filter((m: any) => m.role === "user");
-        const lastUserMessage = userMessages[userMessages.length - 1];
-
-        sessions.push({
-          id: doc.id,
-          title: data.title || t("chatSession"),
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          messageCount: messages.length,
-          preview:
-            lastUserMessage?.content?.substring(0, 50) + "..." || t("noMessages"),
-        });
-      });
-
-      setChatHistory(sessions);
-    } catch (error) {
-      // Silently handle chat history load error
+  // Connection button styles
+  const getConnectionButtonStyle = () => {
+    switch (connectionState) {
+      case "connected":
+        return styles.connectedButton;
+      case "connecting":
+        return styles.connectingButton;
+      case "error":
+        return styles.errorButton;
+      default:
+        return styles.disconnectedButton;
     }
   };
 
-  const loadSession = async (sessionId: string) => {
-    if (!auth.currentUser) return;
-
-    try {
-      setIsLoading(true);
-      const sessionDoc = await getDoc(
-        doc(db, "users", auth.currentUser.uid, "chatSessions", sessionId)
-      );
-
-      if (sessionDoc.exists()) {
-        const data = sessionDoc.data();
-        const sessionMessages = data.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: msg.timestamp?.toDate() || new Date(),
-        }));
-
-        // Add system message at the beginning
-        const systemMessage: AIMessage = {
-          id: "system",
-          role: "system",
-          content: systemPrompt,
-          timestamp: new Date(),
-        };
-
-        setMessages([systemMessage, ...sessionMessages]);
-        setCurrentSessionId(sessionId);
-        setShowHistory(false);
-        scrollToBottom();
-      }
-    } catch (error) {
-      // Silently handle session load error
-      Alert.alert(t("error"), t("failedToLoadSession"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const deleteSession = async (sessionId: string) => {
-    if (!auth.currentUser) return;
-
-    Alert.alert(
-      t("deleteChat"),
-      t("confirmDeleteChat"),
-      [
-        { text: t("cancel"), style: "cancel" },
-        {
-          text: t("delete"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              if (!auth.currentUser) {
-                Alert.alert(
-                  t("error"),
-                  t("mustBeLoggedIn")
-                );
-                return;
-              }
-              await deleteDoc(
-                doc(
-                  db,
-                  "users",
-                  auth.currentUser.uid,
-                  "chatSessions",
-                  sessionId
-                )
-              );
-              await loadChatHistory();
-
-              // If deleting current session, start new chat
-              if (sessionId === currentSessionId) {
-                await handleNewChat();
-              }
-            } catch (error) {
-              // Silently handle session delete error
-              Alert.alert(t("error"), t("failedToDeleteSession"));
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const deleteAllChatHistory = async () => {
-    if (!auth.currentUser) return;
-
-    Alert.alert(
-      t("clearAllHistory"),
-      t("confirmClearAllHistory"),
-      [
-        { text: t("cancel"), style: "cancel" },
-        {
-          text: t("clearAll"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              if (!auth.currentUser) {
-                Alert.alert(
-                  t("error"),
-                  t("mustBeLoggedIn")
-                );
-                return;
-              }
-
-              // Delete all chat sessions
-              const batch = [];
-              for (const session of chatHistory) {
-                batch.push(deleteDoc(
-                  doc(db, "users", auth.currentUser.uid, "chatSessions", session.id)
-                ));
-              }
-
-              await Promise.all(batch);
-
-              // Clear the chat history state
-              setChatHistory([]);
-              setShowHistory(false);
-
-              // Start a new chat
-              await handleNewChat();
-
-              Alert.alert(t("success"), t("allHistoryCleared"));
-            } catch (error) {
-              // Handle error
-              Alert.alert(t("error"), t("failedToClearHistory"));
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const checkVoiceAvailability = async () => {
-    try {
-      const [speechAvailable, recognitionAvailable] = await Promise.all([
-        voiceService.isAvailable(),
-        voiceService.isRecognitionAvailable(),
-      ]);
-
-      const available = speechAvailable && recognitionAvailable;
-      setIsVoiceAvailable(available);
-
-      // Set status message for debugging
-      if (!available) {
-        if (!speechAvailable && !recognitionAvailable) {
-          setVoiceStatusMessage("Voice features not available on this platform (Windows)");
-        } else if (!speechAvailable) {
-          setVoiceStatusMessage("Text-to-speech not available on this platform");
-        } else if (!recognitionAvailable) {
-          setVoiceStatusMessage("Speech recognition not available (check API key and permissions)");
-        }
-      } else {
-        setVoiceStatusMessage("Voice features available");
-      }
-    } catch (error) {
-      // For development/testing, show the button even if there are errors
-      // The button will be disabled but visible, and users will get error messages when they try to use it
-      setIsVoiceAvailable(true);
-      setVoiceStatusMessage("Voice check failed - button enabled for testing");
-    }
-  };
-
-  const handleVoiceInput = async () => {
-    if (isRecording || isStreaming) return;
-
-    try {
-      setIsRecording(true);
-
-      // Request microphone permissions if not already granted
-      const hasPermission = await voiceService.hasMicrophonePermissions();
-      if (!hasPermission) {
-        const granted = await voiceService.requestMicrophonePermissions();
-        if (!granted) {
-          Alert.alert(t("microphonePermissionRequired"), t("microphonePermissionMessage"));
-          return;
-        }
-      }
-
-      await voiceService.startListening(
-        (result) => {
-          // Success callback - set the transcribed text as input
-          setInputText(result.text);
-          setIsRecording(false);
-        },
-        (error) => {
-          // Error callback
-          setIsRecording(false);
-          Alert.alert(t("voiceError"), error.message);
-        },
-        voiceLanguage // Use selected language
-      );
-    } catch (error) {
-      setIsRecording(false);
-      Alert.alert(
-        t("voiceError"),
-        error instanceof Error ? error.message : t("failedToStartRecording")
+  // Render waveform bars
+  const renderWaveformBars = () => {
+    const bars = [];
+    for (let i = 0; i < 5; i++) {
+      bars.push(
+        <Animated.View
+          key={i}
+          style={[
+            styles.waveBar,
+            {
+              transform: [
+                {
+                  scaleY: waveAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.3, 1 + Math.random() * 0.5],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
       );
     }
+    return bars;
   };
 
-  const handleTextToSpeech = async (text: string) => {
-    if (!isVoiceAvailable || isSpeaking) return;
+  const rotateInterpolate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
-    try {
-      setIsSpeaking(true);
-      await voiceService.speak(text, {
-        language: voiceLanguage,
-        rate: voiceLanguage.startsWith("ar") ? 0.8 : 0.9, // Slightly slower for Arabic
-        pitch: 1.0,
-      });
-    } catch (error) {
-      Alert.alert(
-        t("speechError"),
-        error instanceof Error ? error.message : t("failedToSpeak")
-      );
-    } finally {
-      setIsSpeaking(false);
-    }
-  };
+  const glowInterpolate = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(0, 122, 255, 0.1)", "rgba(0, 122, 255, 0.4)"],
+  });
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerSpacer} />
-        <Text style={styles.headerTitle}>{t("zeina")}</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => router.push("/voice-agent")}
-            style={[styles.headerButton, styles.voiceAgentButton]}
-          >
-            <Ionicons color="#fff" name="mic" size={18} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleNewChat}
-            style={[styles.headerButton, styles.newChatHeaderButton]}
-          >
-            <Ionicons color="#007AFF" name="add-circle" size={28} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setShowLanguageSelector(true)}
-            style={[styles.headerButton, styles.languageHeaderButton]}
-          >
-            <Text style={styles.languageButtonText}>
-              {voiceLanguage === "ar-SA" ? "عربي" : voiceLanguage === "ar-EG" ? "عربي" : "EN"}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={async () => {
-              await loadChatHistory();
-              setShowHistory(true);
-            }}
-            style={[styles.headerButton, styles.historyHeaderButton]}
-          >
-            <View>
-              <Ionicons color="#007AFF" name="chatbubbles" size={26} />
-              {chatHistory.length > 0 && (
-                <View style={styles.historyBadge}>
-                  <Text style={styles.historyBadgeText}>
-                    {chatHistory.length}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={90}
-        style={styles.chatContainer}
+    <View style={styles.container}>
+      <LinearGradient
+        colors={["#0a0a1a", "#1a1a2e", "#16213e"]}
+        style={styles.gradient}
       >
-        <ScrollView
-          contentContainerStyle={styles.messagesContent}
-          ref={scrollViewRef}
-          showsVerticalScrollIndicator={false}
-          style={styles.messagesContainer}
-        >
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color="#007AFF" size="large" />
-              <Text style={styles.loadingText}>
-                {t("loadingHealthContext")}
-              </Text>
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>{t("zeina", "Zeina")}</Text>
+              <View style={[styles.statusDot, connectionState === "connected" && styles.statusDotConnected]} />
             </View>
-          ) : (
-            <>
-              {messages
-                .filter((m) => m.role !== "system")
-                .map((message) => (
-                  <ChatMessage
-                    content={message.content}
-                    isStreaming={
-                      isStreaming &&
-                      message.id === messages[messages.length - 1].id
-                    }
-                    key={message.id}
-                    role={message.role as "user" | "assistant"}
-                    timestamp={message.timestamp}
-                    onSpeak={isVoiceAvailable ? handleTextToSpeech : undefined}
-                    isSpeaking={isSpeaking}
-                  />
-                ))}
-            </>
-          )}
-        </ScrollView>
-
-        {/* Guided Questions for All Users */}
-        {!isStreaming && (
-          <View style={styles.guidedQuestionsContainer}>
-            <Text style={styles.guidedQuestionsTitle}>
-              {t("quickQuestions")}
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.guidedQuestionsScroll}
-            >
-              {guidedQuestions.map((question, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => setInputText(question.label)}
-                  style={styles.guidedQuestionButton}
-                >
-                  <Ionicons
-                    name={question.icon as any}
-                    size={20}
-                    color="#007AFF"
-                    style={styles.guidedQuestionIcon}
-                  />
-                  <Text style={styles.guidedQuestionText}>
-                    {question.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        <View style={styles.inputContainer}>
-          <TouchableOpacity
-            disabled={isStreaming || !isVoiceAvailable}
-            onPress={handleVoiceInput}
-            style={[
-              styles.voiceButton,
-              isRecording && styles.voiceButtonRecording,
-              (isStreaming || !isVoiceAvailable) && styles.voiceButtonDisabled,
-            ]}
-          >
-            <Ionicons
-              color={
-                !isVoiceAvailable
-                  ? "#B0B0B0"
-                  : isRecording
-                  ? "#FF3B30"
-                  : isStreaming
-                  ? "#B0B0B0"
-                  : "#007AFF"
-              }
-              name={isRecording ? "mic-off" : "mic"}
-              size={20}
-            />
-          </TouchableOpacity>
-          <TextInput
-            editable={!isStreaming}
-            multiline
-            onChangeText={setInputText}
-            placeholder={t("askZeina")}
-            placeholderTextColor="#999"
-            scrollEnabled
-            style={styles.textInput}
-            textAlignVertical="top"
-            value={inputText}
-          />
-          <TouchableOpacity
-            disabled={!inputText.trim() || isStreaming}
-            onPress={handleSend}
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isStreaming) && styles.sendButtonDisabled,
-            ]}
-          >
-            {isStreaming ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <Ionicons color="white" name="send" size={20} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-
-
-      {/* Chat History Modal */}
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setShowHistory(false)}
-        transparent={true}
-        visible={showHistory}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { maxHeight: "80%" }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("chatHistory")}</Text>
-              <TouchableOpacity onPress={() => setShowHistory(false)}>
-                <Ionicons color="#333" name="close" size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={{ maxHeight: 400 }}
-            >
-              {chatHistory.length === 0 ? (
-                <View style={styles.emptyHistory}>
-                  <Ionicons color="#999" name="chatbubbles-outline" size={48} />
-                  <Text style={styles.emptyHistoryText}>
-                    {t("noChatHistory")}
-                  </Text>
-                  <Text style={styles.emptyHistorySubtext}>
-                    {t("conversationsWillAppear")}
-                  </Text>
-                </View>
-              ) : (
-                chatHistory.map((session) => (
-                  <TouchableOpacity
-                    key={session.id}
-                    onPress={() => loadSession(session.id)}
-                    style={styles.historyItem}
-                  >
-                    <View style={styles.historyItemContent}>
-                      <Text numberOfLines={1} style={styles.historyItemTitle}>
-                        {session.title}
-                      </Text>
-                      <Text numberOfLines={2} style={styles.historyItemPreview}>
-                        {session.preview}
-                      </Text>
-                      <View style={styles.historyItemMeta}>
-                        <Text style={styles.historyItemDate}>
-                          {session.updatedAt.toLocaleDateString()}
-                        </Text>
-                        <Text style={styles.historyItemMessages}>
-                          {session.messageCount} {t("messages")}
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        deleteSession(session.id);
-                      }}
-                      style={styles.historyItemDelete}
-                    >
-                      <Ionicons
-                        color="#EF4444"
-                        name="trash-outline"
-                        size={20}
-                      />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-
-            {chatHistory.length > 0 && (
-              <TouchableOpacity
-                onPress={deleteAllChatHistory}
-                style={styles.clearAllButton}
-              >
-                <Ionicons
-                  color="#EF4444"
-                  name="trash-outline"
-                  size={20}
-                  style={{ marginEnd: 8 }}
-                />
-                <Text style={styles.clearAllButtonText}>{t("clearAllHistory")}</Text>
-              </TouchableOpacity>
-            )}
-
             <TouchableOpacity
-              onPress={() => {
-                setShowHistory(false);
-                handleNewChat();
-              }}
-              style={styles.newChatButton}
+              onPress={connectionState === "connected" ? handleDisconnect : handleConnect}
+              style={[styles.connectionButton, getConnectionButtonStyle()]}
             >
-              <Ionicons
-                color="white"
-                name="add-circle-outline"
-                size={20}
-                style={{ marginEnd: 8 }}
-              />
-              <Text style={styles.newChatButtonText}>{t("startNewChat")}</Text>
+              {connectionState === "connecting" ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons
+                  name={connectionState === "connected" ? "radio" : "radio-outline"}
+                  size={20}
+                  color="#fff"
+                />
+              )}
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
 
-      {/* Language Selector Modal */}
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setShowLanguageSelector(false)}
-        transparent={true}
-        visible={showLanguageSelector}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { maxHeight: "60%" }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("selectLanguage")}</Text>
-              <TouchableOpacity onPress={() => setShowLanguageSelector(false)}>
-                <Ionicons color="#333" name="close" size={24} />
-              </TouchableOpacity>
+          {/* Main content area */}
+          <View style={styles.content}>
+            {/* Audio visualization */}
+            <View style={styles.visualizationContainer}>
+              <Animated.View
+                style={[
+                  styles.outerRing,
+                  {
+                    transform: [{ rotate: rotateInterpolate }],
+                  },
+                ]}
+              >
+                <LinearGradient
+                  colors={["#667eea", "#764ba2", "#f093fb"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.ringGradient}
+                />
+              </Animated.View>
+
+              <Animated.View
+                style={[
+                  styles.glowCircle,
+                  {
+                    backgroundColor: glowInterpolate,
+                    transform: [{ scale: pulseAnim }],
+                  },
+                ]}
+              />
+
+              <Animated.View
+                style={[
+                  styles.mainCircle,
+                  {
+                    transform: [{ scale: pulseAnim }],
+                  },
+                ]}
+              >
+                <LinearGradient
+                  colors={
+                    isListening
+                      ? ["#ff6b6b", "#ee5a5a"]
+                      : isSpeaking
+                      ? ["#4ecdc4", "#44a08d"]
+                      : connectionState === "connected"
+                      ? ["#667eea", "#764ba2"]
+                      : ["#2d3436", "#636e72"]
+                  }
+                  style={styles.circleGradient}
+                >
+                  {isSpeaking ? (
+                    <View style={styles.waveformContainer}>{renderWaveformBars()}</View>
+                  ) : isListening ? (
+                    <Ionicons name="mic" size={48} color="#fff" />
+                  ) : (
+                    <Ionicons
+                      name={connectionState === "connected" ? "ear" : "mic-off"}
+                      size={48}
+                      color="#fff"
+                    />
+                  )}
+                </LinearGradient>
+              </Animated.View>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {[
-                { code: "en-US", name: "English (US)" },
-                { code: "ar-SA", name: "العربية (السعودية)" },
-                { code: "ar-EG", name: "العربية (مصر)" },
-              ].map((lang) => (
-                <TouchableOpacity
-                  key={lang.code}
-                  onPress={() => {
-                    setVoiceLanguage(lang.code);
-                    setShowLanguageSelector(false);
-                    // Reinitialize chat with new language
-                    handleNewChat();
-                  }}
+            {/* Status text */}
+            <Text style={styles.statusText}>
+              {isListening
+                ? t("listening", "Listening...")
+                : isSpeaking
+                ? t("zeinaSpeaking", "Zeina is speaking...")
+                : isProcessing
+                ? t("processing", "Processing...")
+                : connectionState === "connected"
+                ? t("tapToSpeak", "Tap the button to speak")
+                : t("connectToStart", "Tap connect to start")}
+            </Text>
+
+            {/* Current transcript while speaking */}
+            {currentTranscript && (
+              <View style={styles.transcriptPreview}>
+                <Text style={styles.transcriptPreviewText}>{currentTranscript}</Text>
+              </View>
+            )}
+
+            {/* Tool calls indicator */}
+            {toolCalls.length > 0 && (
+              <View style={styles.toolCallsContainer}>
+                {toolCalls.map((tc) => (
+                  <View key={tc.id} style={styles.toolCallBadge}>
+                    <Ionicons
+                      name={tc.status === "executing" ? "sync" : tc.status === "completed" ? "checkmark-circle" : "alert-circle"}
+                      size={14}
+                      color={tc.status === "completed" ? "#4ecdc4" : tc.status === "error" ? "#ff6b6b" : "#fff"}
+                    />
+                    <Text style={styles.toolCallText}>{tc.name.replace(/_/g, " ")}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Conversation messages */}
+          <View style={styles.messagesContainer}>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesScroll}
+              contentContainerStyle={styles.messagesContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {messages.map((message) => (
+                <View
+                  key={message.id}
                   style={[
-                    styles.languageOption,
-                    voiceLanguage === lang.code && styles.languageOptionSelected,
+                    styles.messageBubble,
+                    message.role === "user" ? styles.userMessage : styles.assistantMessage,
                   ]}
                 >
                   <Text
                     style={[
-                      styles.languageOptionText,
-                      voiceLanguage === lang.code && styles.languageOptionTextSelected,
+                      styles.messageText,
+                      message.role === "user" ? styles.userMessageText : styles.assistantMessageText,
                     ]}
                   >
-                    {lang.name}
+                    {message.content}
                   </Text>
-                  {voiceLanguage === lang.code && (
-                    <Ionicons color="#007AFF" name="checkmark" size={20} />
+                  {message.isStreaming && (
+                    <View style={styles.streamingIndicator}>
+                      <ActivityIndicator size="small" color="#667eea" />
+                    </View>
                   )}
-                </TouchableOpacity>
+                </View>
               ))}
             </ScrollView>
+          </View>
 
-            <Text style={styles.languageNote}>
-              {t("languageNote")}
-            </Text>
-            <Text style={[styles.languageNote, { marginTop: 8, fontSize: 11, color: isVoiceAvailable ? '#28a745' : '#dc3545' }]}>
-              Voice Status: {voiceStatusMessage}
+          {/* Control buttons */}
+          <View style={styles.controlsContainer}>
+            <TouchableOpacity
+              onPress={toggleRecording}
+              disabled={connectionState !== "connected" || isProcessing}
+              style={[
+                styles.talkButton,
+                isListening && styles.talkButtonActive,
+                (connectionState !== "connected" || isProcessing) && styles.talkButtonDisabled,
+              ]}
+            >
+              <LinearGradient
+                colors={
+                  isListening
+                    ? ["#ff6b6b", "#ee5a5a"]
+                    : connectionState === "connected"
+                    ? ["#667eea", "#764ba2"]
+                    : ["#636e72", "#2d3436"]
+                }
+                style={styles.talkButtonGradient}
+              >
+                <Ionicons
+                  name={isListening ? "stop" : "mic"}
+                  size={32}
+                  color="#fff"
+                />
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <Text style={styles.controlHint}>
+              {connectionState !== "connected"
+                ? t("pressConnectFirst", "Press connect button first")
+                : isListening
+                ? t("releaseToSend", "Tap to stop")
+                : t("holdToTalk", "Tap to talk")}
             </Text>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        </SafeAreaView>
+      </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+  },
+  gradient: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  headerSpacer: {
-    width: 40,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    flex: 1,
-    textAlign: "center",
-  },
-  headerActions: {
+  headerTitleContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
-  headerButton: {
-    padding: 4,
-    marginStart: 8,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: 0.5,
   },
-  newChatHeaderButton: {
-    marginStart: 0,
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#636e72",
+    marginLeft: 10,
   },
-  historyHeaderButton: {
-    position: "relative",
+  statusDotConnected: {
+    backgroundColor: "#4ecdc4",
   },
-  voiceAgentButton: {
-    marginStart: 0,
-    backgroundColor: "#667eea",
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  languageHeaderButton: {
-    marginStart: 0,
-    backgroundColor: "#007AFF",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  languageButtonText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  historyBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: "#EF4444",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+  connectionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 4,
   },
-  historyBadgeText: {
-    color: "white",
-    fontSize: 10,
-    fontWeight: "bold",
+  disconnectedButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
-  chatContainer: {
+  connectingButton: {
+    backgroundColor: "#667eea",
+  },
+  connectedButton: {
+    backgroundColor: "#4ecdc4",
+  },
+  errorButton: {
+    backgroundColor: "#ff6b6b",
+  },
+  content: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  visualizationContainer: {
+    width: 220,
+    height: 220,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  outerRing: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    padding: 3,
+  },
+  ringGradient: {
     flex: 1,
+    borderRadius: 110,
+    opacity: 0.3,
+  },
+  glowCircle: {
+    position: "absolute",
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+  },
+  mainCircle: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    overflow: "hidden",
+  },
+  circleGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  waveformContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 48,
+  },
+  waveBar: {
+    width: 6,
+    height: 30,
+    backgroundColor: "#fff",
+    marginHorizontal: 3,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 17,
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: 24,
+    fontWeight: "500",
+  },
+  transcriptPreview: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 16,
+    maxWidth: SCREEN_WIDTH - 60,
+  },
+  transcriptPreviewText: {
+    color: "#fff",
+    fontSize: 15,
+    fontStyle: "italic",
+  },
+  toolCallsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  toolCallBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(102, 126, 234, 0.3)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    margin: 4,
+  },
+  toolCallText: {
+    color: "#fff",
+    fontSize: 13,
+    marginLeft: 8,
+    textTransform: "capitalize",
   },
   messagesContainer: {
     flex: 1,
+    marginTop: 10,
+    paddingHorizontal: 16,
+  },
+  messagesScroll: {
+    flex: 1,
   },
   messagesContent: {
-    paddingVertical: 16,
+    paddingBottom: 20,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 100,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#666",
-  },
-  premiumContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-    paddingTop: 100,
-  },
-  premiumTitle: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  premiumText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 12,
-    lineHeight: 24,
-  },
-  premiumSubtext: {
-    fontSize: 14,
-    color: "#999",
-    textAlign: "center",
-    marginBottom: 32,
-    lineHeight: 20,
-  },
-  upgradeButton: {
-    backgroundColor: "#007AFF",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    minWidth: 200,
-  },
-  upgradeButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  inputContainer: {
-    flexDirection: "row",
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
-    alignItems: "flex-end",
-  },
-  textInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginEnd: 8,
-    fontSize: 16,
-    maxHeight: 100,
-    color: "#333",
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sendButtonDisabled: {
-    backgroundColor: "#B0B0B0",
-  },
-  voiceButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F0F0F0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginEnd: 8,
-  },
-  voiceButtonRecording: {
-    backgroundColor: "#FFEBEB",
-    borderWidth: 2,
-    borderColor: "#FF3B30",
-  },
-  voiceButtonDisabled: {
-    backgroundColor: "#F5F5F5",
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    width: "90%",
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 24,
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-  },
-  emptyHistory: {
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  emptyHistoryText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 16,
-  },
-  emptyHistorySubtext: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 8,
-  },
-  historyItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-  },
-  historyItemContent: {
-    flex: 1,
-    marginEnd: 12,
-  },
-  historyItemTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 4,
-  },
-  historyItemPreview: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  historyItemMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  historyItemDate: {
-    fontSize: 12,
-    color: "#999",
-  },
-  historyItemMessages: {
-    fontSize: 12,
-    color: "#999",
-  },
-  historyItemDelete: {
-    padding: 8,
-  },
-  clearAllButton: {
-    flexDirection: "row",
-    backgroundColor: "#FEF2F2",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-  },
-  clearAllButtonText: {
-    color: "#EF4444",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  newChatButton: {
-    flexDirection: "row",
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
-  },
-  newChatButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  guidedQuestionsContainer: {
-    paddingHorizontal: 16,
+  messageBubble: {
+    maxWidth: "85%",
+    paddingHorizontal: 18,
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
-    backgroundColor: "#F8F9FA",
-  },
-  guidedQuestionsTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginBottom: 8,
-  },
-  guidedQuestionsScroll: {
-    paddingRight: 16,
-  },
-  guidedQuestionButton: {
-    backgroundColor: "white",
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginVertical: 6,
   },
-  guidedQuestionIcon: {
-    marginRight: 8,
+  userMessage: {
+    alignSelf: "flex-end",
+    backgroundColor: "#667eea",
   },
-  guidedQuestionText: {
-    fontSize: 14,
-    color: "#333",
-    fontWeight: "500",
+  assistantMessage: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
   },
-  languageOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-  },
-  languageOptionSelected: {
-    backgroundColor: "#F0F8FF",
-  },
-  languageOptionText: {
+  messageText: {
     fontSize: 16,
-    color: "#333",
+    lineHeight: 22,
   },
-  languageOptionTextSelected: {
-    color: "#007AFF",
-    fontWeight: "600",
+  userMessageText: {
+    color: "#fff",
   },
-  languageNote: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 16,
-    paddingHorizontal: 16,
+  assistantMessageText: {
+    color: "rgba(255, 255, 255, 0.95)",
+  },
+  streamingIndicator: {
+    marginTop: 8,
+    alignItems: "flex-start",
+  },
+  controlsContainer: {
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingBottom: 36,
+  },
+  talkButton: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    overflow: "hidden",
+    elevation: 8,
+    shadowColor: "#667eea",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  talkButtonActive: {
+    shadowColor: "#ff6b6b",
+  },
+  talkButtonDisabled: {
+    opacity: 0.5,
+  },
+  talkButtonGradient: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  controlHint: {
+    marginTop: 14,
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.6)",
   },
 });

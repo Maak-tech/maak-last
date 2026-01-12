@@ -55,6 +55,24 @@ export const getProviderConnection = async (
       case "fitbit":
         storageKey = HEALTH_STORAGE_KEYS.FITBIT_CONNECTION;
         break;
+      case "samsung_health":
+        storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
+        break;
+      case "garmin":
+        storageKey = HEALTH_STORAGE_KEYS.GARMIN_TOKENS;
+        break;
+      case "withings":
+        storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
+        break;
+      case "oura":
+        storageKey = HEALTH_STORAGE_KEYS.OURA_TOKENS;
+        break;
+      case "dexcom":
+        storageKey = HEALTH_STORAGE_KEYS.DEXCOM_TOKENS;
+        break;
+      case "freestyle_libre":
+        storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
+        break;
       default:
         return null;
     }
@@ -83,6 +101,24 @@ export const saveProviderConnection = async (
         break;
       case "fitbit":
         storageKey = HEALTH_STORAGE_KEYS.FITBIT_CONNECTION;
+        break;
+      case "samsung_health":
+        storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
+        break;
+      case "garmin":
+        storageKey = HEALTH_STORAGE_KEYS.GARMIN_TOKENS;
+        break;
+      case "withings":
+        storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
+        break;
+      case "oura":
+        storageKey = HEALTH_STORAGE_KEYS.OURA_TOKENS;
+        break;
+      case "dexcom":
+        storageKey = HEALTH_STORAGE_KEYS.DEXCOM_TOKENS;
+        break;
+      case "freestyle_libre":
+        storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
         break;
       default:
         throw new Error(`Unknown provider: ${connection.provider}`);
@@ -113,6 +149,24 @@ export const disconnectProvider = async (
       case "fitbit":
         storageKey = HEALTH_STORAGE_KEYS.FITBIT_CONNECTION;
         await fitbitService.disconnect();
+        break;
+      case "samsung_health":
+        storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
+        break;
+      case "garmin":
+        storageKey = HEALTH_STORAGE_KEYS.GARMIN_TOKENS;
+        break;
+      case "withings":
+        storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
+        break;
+      case "oura":
+        storageKey = HEALTH_STORAGE_KEYS.OURA_TOKENS;
+        break;
+      case "dexcom":
+        storageKey = HEALTH_STORAGE_KEYS.DEXCOM_TOKENS;
+        break;
+      case "freestyle_libre":
+        storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);
@@ -181,6 +235,72 @@ export const syncHealthData = async (
           endDate
         );
         break;
+      case "samsung_health": {
+        const { samsungHealthService } = await import(
+          "../services/samsungHealthService"
+        );
+        metrics = await samsungHealthService.fetchMetrics(
+          connection.selectedMetrics,
+          startDate,
+          endDate
+        );
+        break;
+      }
+      case "garmin": {
+        const { garminService } = await import(
+          "../services/garminService"
+        );
+        metrics = await garminService.fetchMetrics(
+          connection.selectedMetrics,
+          startDate,
+          endDate
+        );
+        break;
+      }
+      case "withings": {
+        const { withingsService } = await import(
+          "../services/withingsService"
+        );
+        metrics = await withingsService.fetchMetrics(
+          connection.selectedMetrics,
+          startDate,
+          endDate
+        );
+        break;
+      }
+      case "oura": {
+        const { ouraService } = await import(
+          "../services/ouraService"
+        );
+        metrics = await ouraService.fetchMetrics(
+          connection.selectedMetrics,
+          startDate,
+          endDate
+        );
+        break;
+      }
+      case "dexcom": {
+        const { dexcomService } = await import(
+          "../services/dexcomService"
+        );
+        metrics = await dexcomService.fetchMetrics(
+          connection.selectedMetrics,
+          startDate,
+          endDate
+        );
+        break;
+      }
+      case "freestyle_libre": {
+        const { freestyleLibreService } = await import(
+          "../services/freestyleLibreService"
+        );
+        metrics = await freestyleLibreService.fetchMetrics(
+          connection.selectedMetrics,
+          startDate,
+          endDate
+        );
+        break;
+      }
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
@@ -281,6 +401,12 @@ export const getAllConnectedProviders = async (): Promise<
     "apple_health",
     "health_connect",
     "fitbit",
+    "samsung_health",
+    "garmin",
+    "withings",
+    "oura",
+    "dexcom",
+    "freestyle_libre",
   ];
 
   const connections = await Promise.all(

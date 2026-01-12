@@ -6,8 +6,10 @@
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { MetricSample } from "@/lib/health/healthTypes";
-import { evaluateVitals, requiresHealthEvent } from "../../src/health/rules/evaluateVitals";
-import { createVitalAlertEvent } from "../../src/health/events/createHealthEvent";
+// import { evaluateVitals, requiresHealthEvent } from "../../src/health/rules/evaluateVitals";
+// import { createVitalAlertEvent } from "../../src/health/events/createHealthEvent";
+import { dexcomService } from "./dexcomService";
+import { freestyleLibreService } from "./freestyleLibreService";
 
 /**
  * Map metric keys to vital types for Firestore
@@ -33,6 +35,9 @@ const METRIC_TO_VITAL_TYPE: Record<string, string> = {
   sleep_analysis: "sleepHours",
   water_intake: "waterIntake",
   blood_glucose: "bloodGlucose",
+  glucose_trend: "glucoseTrend",
+  glucose_trend_arrow: "glucoseTrendArrow",
+  time_in_range: "timeInRange",
 };
 
 /**
@@ -60,6 +65,9 @@ function getVitalUnit(vitalType: string): string {
     sleepHours: "hours",
     waterIntake: "ml",
     bloodGlucose: "mg/dL",
+    glucoseTrend: "trend",
+    glucoseTrendArrow: "arrow",
+    timeInRange: "boolean",
   };
   return unitMap[vitalType] || "unknown";
 }
@@ -142,25 +150,25 @@ async function evaluateAndCreateHealthEventIfNeeded(
       return;
     }
 
-    // Evaluate vitals
-    const evaluation = evaluateVitals({
-      ...vitalValues,
-      timestamp,
-    });
-
-    // Create health event if abnormal
-    if (requiresHealthEvent(evaluation)) {
-      const sourceType = source.includes("apple") || source.includes("fitbit") || source.includes("google")
-        ? "wearable" as const
-        : source === "manual" ? "manual" as const : "clinic" as const;
-
-      await createVitalAlertEvent(
-        userId,
-        evaluation,
-        vitalValues,
-        sourceType
-      );
-    }
+    // NOTE: Automatic health event creation disabled to prevent event stimulation
+    // evaluateVitals is not available - evaluation functionality has been disabled
+    // const evaluation = evaluateVitals({
+    //   ...vitalValues,
+    //   timestamp,
+    // });
+    // Events should be manually managed through the family tab interface
+    // if (requiresHealthEvent(evaluation)) {
+    //   const sourceType = source.includes("apple") || source.includes("fitbit") || source.includes("google")
+    //     ? "wearable" as const
+    //     : source === "manual" ? "manual" as const : "clinic" as const;
+    //
+    //   await createVitalAlertEvent(
+    //     userId,
+    //     evaluation,
+    //     vitalValues,
+    //     sourceType
+    //   );
+    // }
   } catch (error) {
     // Silently fail health event creation to avoid breaking vital saving
     console.warn("Failed to evaluate vitals for health events:", error);
@@ -288,3 +296,109 @@ export async function saveSyncVitalsToFirestore(
   );
 }
 
+/**
+ * Sync CGM data from Dexcom for real-time glucose monitoring
+ */
+export async function syncDexcomCGMData(userId: string): Promise<void> {
+  try {
+    const currentGlucose = await dexcomService.getCurrentGlucose();
+    if (currentGlucose) {
+      // Save current glucose reading
+      await saveVitalSample(
+        userId,
+        "bloodGlucose",
+        currentGlucose.value,
+        getVitalUnit("bloodGlucose"),
+        new Date(currentGlucose.timestamp),
+        "Dexcom CGM",
+        {
+          trend: currentGlucose.trend,
+          trendArrow: currentGlucose.trendArrow,
+          unit: currentGlucose.unit,
+        }
+      );
+    }
+  } catch (error) {
+    console.error("Failed to sync Dexcom CGM data:", error);
+    // Don't throw error - CGM sync failures shouldn't break other operations
+  }
+}
+
+/**
+ * Sync CGM data from Freestyle Libre for real-time glucose monitoring
+ */
+export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
+  try {
+    const currentGlucose = await freestyleLibreService.getCurrentGlucose();
+    if (currentGlucose) {
+      // Save current glucose reading
+      await saveVitalSample(
+        userId,
+        "bloodGlucose",
+        currentGlucose.value,
+        getVitalUnit("bloodGlucose"),
+        new Date(currentGlucose.timestamp),
+        "Freestyle Libre",
+        {
+          trend: currentGlucose.trend,
+          unit: currentGlucose.unit,
+        }
+      );
+    }
+  } catch (error) {
+    console.error("Failed to sync Freestyle Libre CGM data:", error);
+    // Don't throw error - CGM sync failures shouldn't break other operations
+  }
+}
+
+/**
+ * Get latest glucose reading from all connected CGM devices
+ */
+export async function getLatestGlucoseReading(userId: string): Promise<{
+  value: number;
+  unit: string;
+  timestamp: Date;
+  source: string;
+  trend?: string;
+  trendArrow?: string;
+} | null> {
+  try {
+    // Try Dexcom first
+    try {
+      const dexcomReading = await dexcomService.getCurrentGlucose();
+      if (dexcomReading) {
+        return {
+          value: dexcomReading.value,
+          unit: dexcomReading.unit,
+          timestamp: new Date(dexcomReading.timestamp),
+          source: "Dexcom CGM",
+          trend: dexcomReading.trend,
+          trendArrow: dexcomReading.trendArrow,
+        };
+      }
+    } catch (error) {
+      console.log("Dexcom not available or failed");
+    }
+
+    // Try Freestyle Libre as fallback
+    try {
+      const libreReading = await freestyleLibreService.getCurrentGlucose();
+      if (libreReading) {
+        return {
+          value: libreReading.value,
+          unit: libreReading.unit,
+          timestamp: new Date(libreReading.timestamp),
+          source: "Freestyle Libre",
+          trend: libreReading.trend,
+        };
+      }
+    } catch (error) {
+      console.log("Freestyle Libre not available or failed");
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Failed to get latest glucose reading:", error);
+    return null;
+  }
+}

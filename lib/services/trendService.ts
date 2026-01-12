@@ -6,6 +6,7 @@
 import {
   collection,
   getDocs,
+  limit,
   orderBy,
   query,
   Timestamp,
@@ -228,7 +229,14 @@ export const trendService = {
       const data = await this.getSymptomDataForTrend(userId, symptomType, days);
       if (data.length < 2) return null;
 
-      return analyzeSymptomTrend(data, symptomType, days);
+      // Add type property to match analyzeSymptomTrend signature
+      const symptomsWithType = data.map(item => ({
+        type: symptomType,
+        severity: item.severity,
+        timestamp: item.timestamp,
+      }));
+
+      return analyzeSymptomTrend(symptomsWithType, symptomType, days);
     } catch (error) {
       return null;
     }

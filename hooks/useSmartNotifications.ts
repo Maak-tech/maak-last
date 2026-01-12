@@ -15,16 +15,27 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
   const {
     medications = [],
     enabled = true,
-    checkInterval = 60, // Default: check every hour
+    checkInterval = 360, // Default: check every 6 hours (reduced frequency)
   } = options;
 
   const checkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastCheckTimeRef = useRef<number>(0);
   const { ensureInitialized } = useNotifications();
 
   const { user } = useAuth();
 
   const checkAndScheduleNotifications = useCallback(async () => {
     if (!enabled || Platform.OS === "web" || !user?.id) {
+      return;
+    }
+
+    // Rate limiting: Don't check more than once per hour
+    const now = Date.now();
+    const timeSinceLastCheck = now - lastCheckTimeRef.current;
+    const minIntervalMs = 60 * 60 * 1000; // 1 hour minimum between checks
+    
+    if (timeSinceLastCheck < minIntervalMs && lastCheckTimeRef.current > 0) {
+      console.log('Skipping notification check - too soon since last check');
       return;
     }
 
@@ -35,6 +46,8 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
         return;
       }
 
+      lastCheckTimeRef.current = now;
+
       // Generate comprehensive notifications including daily check-ins
       const context = smartNotificationService.getTimeContext();
       const smartNotifications = await smartNotificationService.generateComprehensiveNotifications(
@@ -43,9 +56,19 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
         context
       );
 
-      if (smartNotifications.length > 0) {
+      // Filter out immediate notifications unless they're critical/high priority
+      // This prevents flooding the user with notifications on every check
+      const filteredNotifications = smartNotifications.filter(notification => {
+        const isImmediate = notification.scheduledTime.getTime() <= Date.now() + 60000; // Within 1 minute
+        const isImportant = notification.priority === 'critical' || notification.priority === 'high';
+        
+        // Only allow immediate notifications if they're important
+        return !isImmediate || isImportant;
+      });
+
+      if (filteredNotifications.length > 0) {
         const result = await smartNotificationService.scheduleSmartNotifications(
-          smartNotifications
+          filteredNotifications
         );
       }
     } catch (error) {

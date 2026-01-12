@@ -255,24 +255,20 @@ export const alertService = {
 
       // Send notification to all admins in the family
       try {
-        const familyMembers = await userService.getFamilyMembers(familyId);
-        const admins = familyMembers.filter((m) => m.role === "admin" && m.id !== caregiverId);
-
-        if (admins.length > 0) {
-          await pushNotificationService.sendToUsers(
-            admins.map(admin => admin.id),
-            {
-              title: "Caregiver Alert",
-              body: message,
-              data: {
-                type: "caregiver_alert",
-                alertId,
-                caregiverId,
-                familyId
-              }
+        await pushNotificationService.sendToAdmins(
+          familyId,
+          {
+            title: "Caregiver Alert",
+            body: message,
+            data: {
+              type: "caregiver_alert",
+              alertId,
+              caregiverId,
+              familyId
             }
-          );
-        }
+          },
+          caregiverId // Exclude the caregiver who sent the alert
+        );
       } catch (notificationError) {
         // Silently fail if notification fails
       }
