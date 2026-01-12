@@ -79,41 +79,11 @@ export default function ZeinaScreen() {
   const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Log audio availability on mount for debugging
+  // Check audio availability on mount
   useEffect(() => {
-    const checkEnvironment = async () => {
-      console.log("=== Zeina Voice Agent - Environment Check ===");
-      console.log("Platform:", Platform.OS);
-      console.log("Is Physical Device:", Device.isDevice);
-      console.log("Device Name:", Device.deviceName || "Unknown");
-      console.log("Is Expo Go:", Constants.appOwnership === "expo");
-      console.log("Audio module exists:", !!Audio);
-      console.log("isAudioAvailable:", isAudioAvailable);
-      
-      if (audioLoadError) {
-        console.log("❌ Audio load error:", audioLoadError);
-      }
-      
-      // Additional checks
-      if (!Device.isDevice) {
-        console.log("⚠️  WARNING: Running on simulator/emulator");
-        console.log("   Audio recording typically doesn't work on simulators.");
-        console.log("   Please use a physical device for voice features.");
-      }
-      
-      if (Constants.appOwnership === "expo") {
-        console.log("ℹ️  Running in Expo Go");
-        console.log("   expo-av should work out of the box.");
-      } else {
-        console.log("ℹ️  Running in development build");
-        console.log("   If expo-av was recently installed, you may need to rebuild:");
-        console.log("   npm run ios or npm run android");
-      }
-      
-      console.log("============================================");
-    };
-    
-    checkEnvironment();
+    if (audioLoadError && !Device.isDevice) {
+      console.warn("Audio recording not available on simulator. Use a physical device for voice features.");
+    }
   }, []);
 
   // Connection and session state

@@ -33,9 +33,6 @@ export function createWebSocketWithHeaders(
 ): WebSocket {
   const headers = options?.headers || {};
 
-  console.log('[WebSocket] Creating connection to:', url.replace(/\?.*/, '?...'));
-  console.log('[WebSocket] With headers:', Object.keys(headers).join(', '));
-
   try {
     // For React Native, we need to pass headers in the options object
     // The native implementation should pick this up
@@ -52,12 +49,9 @@ export function createWebSocketWithHeaders(
     // Note: The third parameter is React Native specific and not part of web standards
     const ws = new WebSocket(url, protocols, wsOptions);
     
-    console.log('[WebSocket] WebSocket instance created');
-    
     return ws;
   } catch (error) {
     console.error('[WebSocket] Failed to create WebSocket with headers:', error);
-    console.warn('[WebSocket] Attempting fallback without headers (auth will likely fail)');
     
     // Last resort fallback
     return new WebSocket(url, protocols);

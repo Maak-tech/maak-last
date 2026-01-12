@@ -287,25 +287,15 @@ class RealtimeAgentService {
     try {
       const config = Constants.expoConfig?.extra;
       
-      console.log("Loading API key for Zeina...");
-      console.log("Config available:", !!config);
-      
       // Use zeinaApiKey first (for Zeina voice agent), then fall back to openaiApiKey
       const key = config?.zeinaApiKey || config?.openaiApiKey || null;
       
       // Validate the key is not empty
       if (key && typeof key === 'string' && key.trim() !== '') {
         this.apiKey = key.trim();
-        // Mask the key for security - show first 7 and last 4 characters
-        const maskedKey = key.length > 15 
-          ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}`
-          : '***masked***';
-        console.log("✅ API key loaded successfully:", maskedKey);
       } else {
         this.apiKey = null;
-        console.warn("❌ Zeina API key not configured.");
-        console.warn("Please set OPENAI_API_KEY or ZEINA_API_KEY in your .env file.");
-        console.warn("After adding the key, rebuild the app for the changes to take effect.");
+        console.warn("Zeina API key not configured. Please set OPENAI_API_KEY in your .env file.");
       }
     } catch (error) {
       console.error("Failed to load API key:", error);
@@ -332,7 +322,6 @@ class RealtimeAgentService {
    */
   async connect(customInstructions?: string): Promise<void> {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      console.log("Already connected to Realtime API");
       return;
     }
 
@@ -365,14 +354,10 @@ class RealtimeAgentService {
         let hasResolved = false;
 
         ws.onopen = () => {
-          console.log("✅ Connected to OpenAI Realtime API");
-          console.log("   WebSocket state:", ws.readyState);
-          
           this.setConnectionState("connected");
           this.reconnectAttempts = 0;
 
           // Configure the session
-          console.log("   Configuring session...");
           this.configureSession(customInstructions);
           
           if (!hasResolved) {
@@ -413,7 +398,6 @@ class RealtimeAgentService {
         };
 
         ws.onclose = (event) => {
-          console.log("WebSocket closed:", event.code, event.reason);
           clearTimeout(connectionTimeout);
           this.setConnectionState("disconnected");
 
@@ -672,10 +656,7 @@ class RealtimeAgentService {
           break;
 
         default:
-          // Log unhandled message types for debugging
-          if (__DEV__) {
-            console.log("Unhandled message type:", message.type);
-          }
+          // Silently ignore unhandled message types
       }
     } catch (error) {
       console.error("Failed to parse message:", error);
