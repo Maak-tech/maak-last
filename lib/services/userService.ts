@@ -232,7 +232,7 @@ export const userService = {
 
       // Check if this user is the creator of the family
       const familyDoc = await getDoc(doc(db, "families", familyId));
-      let role: "admin" | "member" = "member"; // Default to member
+      let role: "admin" | "member" | "caregiver" = "member"; // Default to member
 
       if (familyDoc.exists()) {
         const familyData = familyDoc.data();
@@ -331,10 +331,20 @@ export const userService = {
     }
   },
 
+  // Check if user is caregiver or admin (has family access)
+  async isUserCaregiverOrAdmin(userId: string): Promise<boolean> {
+    try {
+      const user = await this.getUser(userId);
+      return user?.role === "admin" || user?.role === "caregiver";
+    } catch (error) {
+      return false;
+    }
+  },
+
   // Update user role (only for admins)
   async updateUserRole(
     userId: string,
-    newRole: "admin" | "member",
+    newRole: "admin" | "member" | "caregiver",
     requestingUserId: string
   ): Promise<void> {
     try {
@@ -345,6 +355,47 @@ export const userService = {
       }
 
       await updateDoc(doc(db, "users", userId), { role: newRole });
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Set a user as caregiver (admin only)
+  async setUserAsCaregiver(userId: string, requestingUserId: string): Promise<void> {
+    try {
+      // Check if the requesting user is an admin
+      const isAdmin = await this.isUserAdmin(requestingUserId);
+      if (!isAdmin) {
+        throw new Error("Only admins can assign caregiver role");
+      }
+
+      await this.updateUserRole(userId, "caregiver", requestingUserId);
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Get caregivers for a family
+  async getFamilyCaregivers(familyId: string): Promise<User[]> {
+    try {
+      const q = query(
+        collection(db, "users"),
+        where("familyId", "==", familyId),
+        where("role", "==", "caregiver")
+      );
+      const querySnapshot = await getDocs(q);
+      const caregivers: User[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        caregivers.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+        } as User);
+      });
+
+      return caregivers;
     } catch (error) {
       throw error;
     }

@@ -95,6 +95,29 @@ class ProactiveHealthSuggestionsService {
       );
       suggestions.push(...preventiveSuggestions);
 
+      // 8. Trend analysis suggestions
+      const trendSuggestions = await this.getTrendAnalysisSuggestions(
+        symptoms,
+        moods,
+        activeMedications
+      );
+      suggestions.push(...trendSuggestions);
+
+      // 9. Predictive health suggestions
+      const predictiveSuggestions = await this.getPredictiveHealthSuggestions(
+        symptoms,
+        healthContext
+      );
+      suggestions.push(...predictiveSuggestions);
+
+      // 10. Personalized wellness suggestions
+      const wellnessSuggestions = await this.getPersonalizedWellnessSuggestions(
+        healthContext,
+        symptoms,
+        moods
+      );
+      suggestions.push(...wellnessSuggestions);
+
       // Sort by priority (high first)
       suggestions.sort((a, b) => {
         const priorityOrder = { high: 0, medium: 1, low: 2 };
@@ -487,6 +510,493 @@ class ProactiveHealthSuggestionsService {
       return tips.slice(0, 5); // Return top 5 tips
     } catch (error) {
       return [];
+    }
+  }
+
+  /**
+   * Get trend analysis suggestions based on symptom and medication patterns
+   */
+  private async getTrendAnalysisSuggestions(
+    symptoms: Symptom[],
+    moods: Mood[],
+    medications: Medication[]
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    try {
+      // Analyze symptom trends over time
+      const recentSymptoms = symptoms.filter(
+        s => new Date().getTime() - s.timestamp.getTime() < 30 * 24 * 60 * 60 * 1000 // Last 30 days
+      );
+
+      if (recentSymptoms.length > 5) {
+        const symptomTypes = recentSymptoms.reduce((acc, symptom) => {
+          acc[symptom.type] = (acc[symptom.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const mostCommonSymptom = Object.entries(symptomTypes)
+          .sort(([,a], [,b]) => b - a)[0];
+
+        if (mostCommonSymptom && mostCommonSymptom[1] >= 3) {
+          suggestions.push({
+            id: "symptom-pattern",
+            type: "wellness",
+            priority: "medium",
+            title: "Recurring Symptom Pattern",
+            description: `You've reported ${mostCommonSymptom[0]} ${mostCommonSymptom[1]} times in the last month. Consider tracking what triggers this symptom.`,
+            action: {
+              label: "View Symptom History",
+              route: "/(tabs)/symptoms",
+            },
+            icon: "TrendingUp",
+            category: "Symptoms",
+            timestamp: new Date(),
+          });
+        }
+      }
+
+      // Analyze mood trends
+      const recentMoods = moods.filter(
+        m => new Date().getTime() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000 // Last 14 days
+      );
+
+      if (recentMoods.length > 3) {
+        const avgMood = recentMoods.reduce((sum, m) => sum + m.moodRating, 0) / recentMoods.length;
+
+        if (avgMood < 3) {
+          suggestions.push({
+            id: "mood-trend",
+            type: "wellness",
+            priority: "medium",
+            title: "Mood Support",
+            description: "Your recent mood entries suggest you might benefit from additional support. Consider activities that boost your mood.",
+            action: {
+              label: "View Mood History",
+              route: "/(tabs)/moods",
+            },
+            icon: "Smile",
+            category: "Wellness",
+            timestamp: new Date(),
+          });
+        }
+      }
+
+      // Medication effectiveness analysis
+      if (medications.length > 0 && symptoms.length > 10) {
+        const symptomTrends = this.analyzeSymptomMedicationCorrelation(symptoms, medications);
+
+        if (symptomTrends.length > 0) {
+          suggestions.push({
+            id: "medication-effectiveness",
+            type: "medication",
+            priority: "high",
+            title: "Medication Effectiveness Review",
+            description: "We notice some patterns in your symptoms that may relate to your medication schedule. Consider reviewing with your healthcare provider.",
+            action: {
+              label: "Discuss with Provider",
+              route: "/ai-assistant",
+            },
+            icon: "Activity",
+            category: "Medication",
+            timestamp: new Date(),
+          });
+        }
+      }
+
+    } catch (error) {
+      // Silently handle error
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get predictive health suggestions based on patterns
+   */
+  private async getPredictiveHealthSuggestions(
+    symptoms: Symptom[],
+    healthContext: any
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    try {
+      // Predict potential flare-ups based on patterns
+      const flareUpPrediction = this.predictFlareUps(symptoms);
+
+      if (flareUpPrediction.likelihood > 0.7) {
+        suggestions.push({
+          id: "flare-up-warning",
+          type: "preventive",
+          priority: "high",
+          title: "Potential Symptom Flare-Up",
+          description: `Based on your symptom patterns, there may be an increased risk of ${flareUpPrediction.symptomType} flare-up in the next few days.`,
+          action: {
+            label: "Take Preventive Measures",
+            route: "/ai-assistant",
+          },
+          icon: "AlertTriangle",
+          category: "Preventive Care",
+          timestamp: new Date(),
+        });
+      }
+
+      // Predict medication needs
+      const medicationPrediction = this.predictMedicationNeeds(symptoms, healthContext);
+
+      if (medicationPrediction.needsAdjustment) {
+        suggestions.push({
+          id: "medication-adjustment",
+          type: "medication",
+          priority: "high",
+          title: "Medication Adjustment Needed",
+          description: "Your symptom patterns suggest your current medication regimen may need adjustment. Consider consulting your healthcare provider.",
+          action: {
+            label: "Consult Provider",
+            route: "/ai-assistant",
+          },
+          icon: "Pill",
+          category: "Medication",
+          timestamp: new Date(),
+        });
+      }
+
+      // Seasonal health predictions
+      const seasonalPrediction = this.getSeasonalHealthPrediction();
+
+      if (seasonalPrediction) {
+        suggestions.push({
+          id: "seasonal-health",
+          type: "preventive",
+          priority: "low",
+          title: seasonalPrediction.title,
+          description: seasonalPrediction.description,
+          action: {
+            label: seasonalPrediction.actionLabel,
+            route: "/ai-assistant",
+          },
+          icon: "Calendar",
+          category: "Preventive Care",
+          timestamp: new Date(),
+        });
+      }
+
+    } catch (error) {
+      // Silently handle error
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get personalized wellness suggestions
+   */
+  private async getPersonalizedWellnessSuggestions(
+    healthContext: any,
+    symptoms: Symptom[],
+    moods: Mood[]
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    try {
+      // Activity level analysis
+      const activitySuggestion = this.analyzeActivityNeeds(healthContext, symptoms);
+      if (activitySuggestion) {
+        suggestions.push(activitySuggestion);
+      }
+
+      // Sleep pattern analysis
+      const sleepSuggestion = this.analyzeSleepPatterns(healthContext);
+      if (sleepSuggestion) {
+        suggestions.push(sleepSuggestion);
+      }
+
+      // Nutrition suggestions based on symptoms
+      const nutritionSuggestion = this.analyzeNutritionNeeds(symptoms, healthContext);
+      if (nutritionSuggestion) {
+        suggestions.push(nutritionSuggestion);
+      }
+
+      // Stress management suggestions
+      const stressSuggestion = this.analyzeStressLevels(moods, symptoms);
+      if (stressSuggestion) {
+        suggestions.push(stressSuggestion);
+      }
+
+      // Social connection suggestions
+      const socialSuggestion = this.analyzeSocialNeeds(moods);
+      if (socialSuggestion) {
+        suggestions.push(socialSuggestion);
+      }
+
+    } catch (error) {
+      // Silently handle error
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Analyze symptom-medication correlations
+   */
+  private analyzeSymptomMedicationCorrelation(symptoms: Symptom[], medications: Medication[]): string[] {
+    const correlations: string[] = [];
+
+    try {
+      // Simple correlation analysis - in a real implementation this would be more sophisticated
+      const symptomTypes = [...new Set(symptoms.map(s => s.type))];
+
+      symptomTypes.forEach(symptomType => {
+        const symptomOccurrences = symptoms.filter(s => s.type === symptomType);
+        const medicationNames = medications.map(m => m.name);
+
+        // Look for patterns - this is a simplified version
+        if (symptomOccurrences.length > 5) {
+          correlations.push(`${symptomType} appears frequently`);
+        }
+      });
+    } catch (error) {
+      // Silently handle error
+    }
+
+    return correlations;
+  }
+
+  /**
+   * Predict potential flare-ups based on symptom patterns
+   */
+  private predictFlareUps(symptoms: Symptom[]): { likelihood: number; symptomType: string } {
+    try {
+      if (symptoms.length < 10) return { likelihood: 0, symptomType: "" };
+
+      // Simple pattern recognition - look for increasing frequency or severity
+      const recentSymptoms = symptoms.filter(
+        s => new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000 // Last 7 days
+      );
+
+      const symptomTypes = recentSymptoms.reduce((acc, symptom) => {
+        acc[symptom.type] = (acc[symptom.type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const mostCommon = Object.entries(symptomTypes)
+        .sort(([,a], [,b]) => b - a)[0];
+
+      // If a symptom appears more than 3 times in a week, consider it a potential flare-up
+      const likelihood = mostCommon && mostCommon[1] >= 3 ? 0.8 : 0.2;
+
+      return { likelihood, symptomType: mostCommon ? mostCommon[0] : "" };
+    } catch (error) {
+      return { likelihood: 0, symptomType: "" };
+    }
+  }
+
+  /**
+   * Predict medication needs based on symptom patterns
+   */
+  private predictMedicationNeeds(symptoms: Symptom[], healthContext: any): { needsAdjustment: boolean } {
+    try {
+      // Simple analysis - if symptoms are increasing despite medication, suggest adjustment
+      const recentSymptoms = symptoms.filter(
+        s => new Date().getTime() - s.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000 // Last 14 days
+      );
+
+      const avgSeverity = recentSymptoms.reduce((sum, s) => sum + s.severity, 0) / recentSymptoms.length;
+
+      // If average severity is high and there are many symptoms, suggest adjustment
+      const needsAdjustment = avgSeverity > 3 && recentSymptoms.length > 10;
+
+      return { needsAdjustment };
+    } catch (error) {
+      return { needsAdjustment: false };
+    }
+  }
+
+  /**
+   * Get seasonal health predictions
+   */
+  private getSeasonalHealthPrediction(): { title: string; description: string; actionLabel: string } | null {
+    try {
+      const month = new Date().getMonth();
+
+      // Seasonal recommendations based on month
+      if (month >= 11 || month <= 1) { // Winter
+        return {
+          title: "Winter Wellness",
+          description: "Cold weather can affect your symptoms. Stay warm and maintain your vitamin D levels.",
+          actionLabel: "Winter Health Tips"
+        };
+      } else if (month >= 2 && month <= 4) { // Spring
+        return {
+          title: "Spring Allergies",
+          description: "Pollen season may increase allergy symptoms. Consider allergy management strategies.",
+          actionLabel: "Allergy Management"
+        };
+      } else if (month >= 5 && month <= 7) { // Summer
+        return {
+          title: "Summer Hydration",
+          description: "Hot weather increases the need for hydration. Monitor your fluid intake carefully.",
+          actionLabel: "Hydration Tips"
+        };
+      } else { // Fall
+        return {
+          title: "Fall Transition",
+          description: "Seasonal changes can affect sleep and energy levels. Maintain consistent routines.",
+          actionLabel: "Seasonal Adjustment"
+        };
+      }
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Analyze activity needs based on health context and symptoms
+   */
+  private analyzeActivityNeeds(healthContext: any, symptoms: Symptom[]): HealthSuggestion | null {
+    try {
+      const recentSymptoms = symptoms.filter(
+        s => new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
+      );
+
+      const fatigueSymptoms = recentSymptoms.filter(s => s.type === "fatigue" || s.type === "tired").length;
+
+      if (fatigueSymptoms >= 3) {
+        return {
+          id: "activity-fatigue",
+          type: "lifestyle",
+          priority: "medium",
+          title: "Gentle Activity",
+          description: "You've reported fatigue several times this week. Consider gentle activities like short walks or light stretching.",
+          action: {
+            label: "Activity Suggestions",
+            route: "/ai-assistant",
+          },
+          icon: "Activity",
+          category: "Lifestyle",
+          timestamp: new Date(),
+        };
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Analyze sleep patterns
+   */
+  private analyzeSleepPatterns(healthContext: any): HealthSuggestion | null {
+    try {
+      // This would analyze actual sleep data if available
+      // For now, return a general suggestion if sleep symptoms are present
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Analyze nutrition needs based on symptoms
+   */
+  private analyzeNutritionNeeds(symptoms: Symptom[], healthContext: any): HealthSuggestion | null {
+    try {
+      const nauseaSymptoms = symptoms.filter(s => s.type === "nausea").length;
+      const appetiteSymptoms = symptoms.filter(s => s.type === "lossOfAppetite").length;
+
+      if (nauseaSymptoms >= 2 || appetiteSymptoms >= 2) {
+        return {
+          id: "nutrition-support",
+          type: "lifestyle",
+          priority: "medium",
+          title: "Nutrition Support",
+          description: "You've mentioned digestive or appetite issues. Consider speaking with a nutritionist for dietary adjustments.",
+          action: {
+            label: "Nutrition Advice",
+            route: "/ai-assistant",
+          },
+          icon: "Heart",
+          category: "Lifestyle",
+          timestamp: new Date(),
+        };
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Analyze stress levels and suggest management techniques
+   */
+  private analyzeStressLevels(moods: Mood[], symptoms: Symptom[]): HealthSuggestion | null {
+    try {
+      const recentMoods = moods.filter(
+        m => new Date().getTime() - m.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
+      );
+
+      const lowMoods = recentMoods.filter(m => m.moodRating < 4).length;
+      const anxietySymptoms = symptoms.filter(s => s.type === "anxiety").length;
+
+      if (lowMoods >= 3 || anxietySymptoms >= 2) {
+        return {
+          id: "stress-management",
+          type: "wellness",
+          priority: "medium",
+          title: "Stress Management",
+          description: "Consider stress reduction techniques like meditation, deep breathing, or gentle exercise.",
+          action: {
+            label: "Stress Relief Tips",
+            route: "/ai-assistant",
+          },
+          icon: "Smile",
+          category: "Wellness",
+          timestamp: new Date(),
+        };
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Analyze social connection needs
+   */
+  private analyzeSocialNeeds(moods: Mood[]): HealthSuggestion | null {
+    try {
+      const recentMoods = moods.filter(
+        m => new Date().getTime() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000
+      );
+
+      const lonelyMoods = recentMoods.filter(m =>
+        m.notes?.toLowerCase().includes("lonely") ||
+        m.notes?.toLowerCase().includes("alone")
+      ).length;
+
+      if (lonelyMoods >= 2) {
+        return {
+          id: "social-connection",
+          type: "wellness",
+          priority: "low",
+          title: "Social Connection",
+          description: "Social connections are important for mental health. Consider reaching out to friends or family.",
+          action: {
+            label: "Connection Tips",
+            route: "/ai-assistant",
+          },
+          icon: "Users",
+          category: "Wellness",
+          timestamp: new Date(),
+        };
+      }
+
+      return null;
+    } catch (error) {
+      return null;
     }
   }
 }

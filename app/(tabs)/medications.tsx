@@ -263,7 +263,7 @@ export default function MedicationsScreen() {
       if (selectedFilter.type === "family" && user.familyId && isAdmin) {
         // Load family medications (admin only)
         loadedMedications =
-          await medicationService.getFamilyTodaysMedications(user.familyId);
+          await medicationService.getFamilyTodaysMedications(user.id, user.familyId);
         setMedications(loadedMedications);
       } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
         // Load specific member medications (admin only)
@@ -284,7 +284,7 @@ export default function MedicationsScreen() {
       let allMedicationsForRefill: Medication[] = [];
       if (selectedFilter.type === "family" && user.familyId && isAdmin) {
         allMedicationsForRefill =
-          await medicationService.getFamilyMedications(user.familyId);
+          await medicationService.getFamilyMedications(user.id, user.familyId);
       } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
         allMedicationsForRefill = await medicationService.getMemberMedications(
           selectedFilter.memberId

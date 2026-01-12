@@ -168,7 +168,7 @@ export default function FamilyScreen() {
     firstName: "",
     lastName: "",
     email: "",
-    role: "member" as "admin" | "member",
+    role: "member" as "admin" | "member" | "caregiver",
   });
   const [joinFamilyCode, setJoinFamilyCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -1532,7 +1532,7 @@ export default function FamilyScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={[styles.title, isRTL && styles.rtlText]}>
+          <Text style={[styles.title, isRTL ? styles.rtlText : {}]}>
             {t("family")}
           </Text>
         </View>
@@ -1794,7 +1794,7 @@ export default function FamilyScreen() {
                 <View>
                   {/* Summary Section */}
                   <Card variant="elevated" style={{ marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                    <Heading level={6} style={[isRTL && styles.rtlText, { marginBottom: theme.spacing.base }]}>
+                    <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.base }]}>
                       {isRTL ? "الملخص" : "Overview"}
                     </Heading>
                     <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: theme.spacing.base }}>
@@ -1838,7 +1838,7 @@ export default function FamilyScreen() {
                   </Card>
 
                   {/* Member Details */}
-                  <Heading level={6} style={[isRTL && styles.rtlText, { marginBottom: theme.spacing.base, marginTop: theme.spacing.base }]}>
+                  <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.base, marginTop: theme.spacing.base }]}>
                     {isRTL ? "تفاصيل الأعضاء" : "Member Details"}
                   </Heading>
                   {caregiverOverview.members.map((memberData) => (
@@ -1860,9 +1860,9 @@ export default function FamilyScreen() {
                           avatarType={memberData.member.avatarType}
                         />
                         <View style={{ flex: 1 }}>
-                          <TypographyText weight="bold" style={[isRTL && styles.rtlText, { marginBottom: theme.spacing.xs }]}>
+                          <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.xs }]}>
                             {memberData.member.firstName} {memberData.member.lastName}
-                          </TypographyText>
+                          </Heading>
                           <Badge
                             variant="outline"
                             size="small"
@@ -1928,7 +1928,7 @@ export default function FamilyScreen() {
                       {/* Attention Reasons */}
                       {memberData.attentionReasons.length > 0 && (
                         <View style={{ marginTop: theme.spacing.sm }}>
-                          <Caption style={[isRTL && styles.rtlText, { marginBottom: theme.spacing.xs }]} numberOfLines={1}>
+                          <Caption style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.xs }]} numberOfLines={1}>
                             {isRTL ? "أسباب الانتباه" : "Attention Reasons"}:
                           </Caption>
                           <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap" }}>
@@ -1949,7 +1949,7 @@ export default function FamilyScreen() {
                       {/* Emergency Contacts */}
                       {memberData.emergencyContacts.length > 0 && (
                         <View style={{ marginTop: theme.spacing.sm }}>
-                          <Caption style={[isRTL && styles.rtlText, { marginBottom: theme.spacing.xs }]} numberOfLines={1}>
+                          <Caption style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.xs }]} numberOfLines={1}>
                             {isRTL ? "جهات الاتصال الطارئة" : "Emergency Contacts"}:
                           </Caption>
                           {memberData.emergencyContacts.map((contact, index) => (
@@ -2388,16 +2388,16 @@ export default function FamilyScreen() {
                   <Card variant="elevated" style={{ backgroundColor: theme.colors.primary.main + "10", borderColor: theme.colors.primary.main, borderWidth: 2, padding: 24, borderRadius: 16, marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
                     <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 16, marginBottom: 16 }}>
                       <Pill size={32} color={theme.colors.primary.main} />
-                      <TypographyText weight="bold" style={{ fontSize: 24 }}>
+                      <Heading level={1} style={{ fontSize: 24 }}>
                         {isRTL ? "الدواء التالي" : "Next Medication"}
-                      </TypographyText>
+                      </Heading>
                     </View>
                     <Text style={{ fontSize: 32, fontFamily: "Geist-Bold", color: theme.colors.primary.main, marginBottom: 8 }}>
                       {elderlyDashboardData.nextMedication.time}
                     </Text>
-                    <TypographyText weight="bold" style={{ fontSize: 20, marginBottom: 4 }}>
+                    <Heading level={2} style={{ fontSize: 20, marginBottom: 4 }}>
                       {elderlyDashboardData.nextMedication.name}
-                    </TypographyText>
+                    </Heading>
                     <Caption style={{ fontSize: 18 }} numberOfLines={1}>
                       {isRTL ? "الجرعة" : "Dosage"}: {elderlyDashboardData.nextMedication.dosage}
                     </Caption>
@@ -2438,9 +2438,9 @@ export default function FamilyScreen() {
                   <Card variant="elevated" style={{ backgroundColor: "#FEE2E2", borderColor: "#EF4444", borderWidth: 2, padding: 24, borderRadius: 16, marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
                     <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 16 }}>
                       <AlertTriangle size={32} color="#EF4444" />
-                      <TypographyText weight="bold" style={{ fontSize: 24 }}>
+                      <Heading level={1} style={{ fontSize: 24 }}>
                         {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
-                      </TypographyText>
+                      </Heading>
                     </View>
                     <TypographyText style={{ fontSize: 18, marginTop: 8 }}>
                       {isRTL
@@ -2474,9 +2474,9 @@ export default function FamilyScreen() {
                 {/* Emergency Contacts */}
                 {elderlyDashboardData.emergencyContacts.length > 0 && (
                   <View>
-                    <TypographyText weight="bold" style={{ fontSize: 20, marginBottom: theme.spacing.base }}>
+                    <Heading level={2} style={{ fontSize: 20, marginBottom: theme.spacing.base }}>
                       {isRTL ? "جهات الاتصال الطارئة" : "Emergency Contacts"}
-                    </TypographyText>
+                    </Heading>
                     {elderlyDashboardData.emergencyContacts.map((contact, index) => (
                       <TouchableOpacity
                         key={index}
@@ -2553,9 +2553,9 @@ export default function FamilyScreen() {
               {medicationScheduleViewMode === "today" && todaySchedule && (
                 <View style={{ marginBottom: theme.spacing.base }}>
                   <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spacing.sm, paddingBottom: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
-                    <TypographyText weight="bold" style={[isRTL && styles.rtlText]}>
+                    <Heading level={6} style={[isRTL ? styles.rtlText : {}]}>
                       {formatMedicationDate(todaySchedule.date)}
-                    </TypographyText>
+                    </Heading>
                       <Badge variant="outline" size="small" style={{}}>
                         {todaySchedule.entries.length}
                       </Badge>
@@ -2567,10 +2567,10 @@ export default function FamilyScreen() {
                         <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
                           <Pill size={24} color={theme.colors.primary.main} />
                           <View style={{ flex: 1 }}>
-                            <TypographyText weight="bold" style={[isRTL && styles.rtlText, { marginBottom: 2 }]}>
+                            <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: 2 }]}>
                               {entry.medication.name}
-                            </TypographyText>
-                            <Caption style={[isRTL && styles.rtlText]} numberOfLines={1}>
+                            </Heading>
+                            <Caption style={[isRTL ? styles.rtlText : {}]} numberOfLines={1}>
                               {entry.medication.dosage} • {entry.medication.frequency}
                             </Caption>
                             <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
@@ -2647,9 +2647,9 @@ export default function FamilyScreen() {
                 upcomingSchedule.map((day) => (
                   <View key={day.date.toISOString()} style={{ marginBottom: theme.spacing.base }}>
                     <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spacing.sm, paddingBottom: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
-                      <TypographyText weight="bold" style={[isRTL && styles.rtlText]}>
+                      <Heading level={6} style={[isRTL ? styles.rtlText : {}]}>
                         {formatMedicationDate(day.date)}
-                      </TypographyText>
+                      </Heading>
                       <Badge variant="outline" size="small" style={{}}>
                         {day.entries.length}
                       </Badge>
@@ -2661,10 +2661,10 @@ export default function FamilyScreen() {
                           <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
                             <Pill size={24} color={theme.colors.primary.main} />
                             <View style={{ flex: 1 }}>
-                              <TypographyText weight="bold" style={[isRTL && styles.rtlText, { marginBottom: 2 }]}>
+                              <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: 2 }]}>
                                 {entry.medication.name}
-                              </TypographyText>
-                              <Caption style={[isRTL && styles.rtlText]} numberOfLines={1}>
+                              </Heading>
+                              <Caption style={[isRTL ? styles.rtlText : {}]} numberOfLines={1}>
                                 {entry.medication.dosage} • {entry.medication.frequency}
                               </Caption>
                               <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
@@ -2697,10 +2697,10 @@ export default function FamilyScreen() {
                       <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
                         <Pill size={24} color={theme.colors.primary.main} />
                         <View style={{ flex: 1 }}>
-                          <TypographyText weight="bold" style={[isRTL && styles.rtlText, { marginBottom: 2 }]}>
+                          <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: 2 }]}>
                             {entry.medication.name}
-                          </TypographyText>
-                          <Caption style={[isRTL && styles.rtlText]} numberOfLines={1}>
+                          </Heading>
+                          <Caption style={[isRTL ? styles.rtlText : {}]} numberOfLines={1}>
                             {entry.medication.dosage} • {entry.medication.frequency}
                           </Caption>
                           <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
@@ -3218,7 +3218,7 @@ export default function FamilyScreen() {
                       onPress={() =>
                         setEditMemberForm({
                           ...editMemberForm,
-                          role: role as "admin" | "member",
+                          role: role as "admin" | "member" | "caregiver",
                         })
                       }
                       style={[
@@ -3411,9 +3411,9 @@ export default function FamilyScreen() {
                           onPress={undefined}
                           contentStyle={undefined}
                         >
-                          <TypographyText weight="semibold" style={{}}>
+                          <Heading level={6} style={{}}>
                             {alert.member}
-                          </TypographyText>
+                          </Heading>
                           <Caption style={{}} numberOfLines={2}>{alert.message}</Caption>
                         </Card>
                       ))}
@@ -3456,9 +3456,9 @@ export default function FamilyScreen() {
                     >
                       <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                         <View style={{ flex: 1 }}>
-                          <TypographyText weight="bold" style={{}}>
+                          <Heading level={6} style={{}}>
                             {memberReport.member.firstName} {memberReport.member.lastName}
-                          </TypographyText>
+                          </Heading>
                         </View>
                         <Badge
                           variant="outline"

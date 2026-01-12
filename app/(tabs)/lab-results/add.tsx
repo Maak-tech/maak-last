@@ -451,7 +451,7 @@ export default function AddLabResultScreen() {
               <ChevronDown size={20} color={theme.colors.text.primary} />
             </TouchableOpacity>
           </View>
-          <Caption style={[styles.rtlText, { marginTop: 4 }]}>
+          <Caption style={[styles.rtlText, { marginTop: 4 }]} numberOfLines={2}>
             {isRTL
               ? "أو اختر من القائمة المنسدلة للفحوصات الشائعة"
               : "Or select from common lab tests dropdown"}
@@ -684,7 +684,7 @@ export default function AddLabResultScreen() {
                 <Heading level={5} style={[styles.label, { marginBottom: 0 }, isRTL && styles.rtlText]}>
                   {isRTL ? "الفحوصات الشائعة" : "Common Lab Tests"}
                 </Heading>
-                <Caption style={[styles.rtlText, { marginTop: 4 }]}>
+                <Caption style={[styles.rtlText, { marginTop: 4 }]} numberOfLines={1}>
                   {testTypes.find((t) => t.value === testType)?.label}
                 </Caption>
               </View>

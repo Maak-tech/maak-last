@@ -140,7 +140,7 @@ class SharedMedicationScheduleService {
       if (
         caregiver.familyId !== familyId ||
         member.familyId !== familyId ||
-        (caregiver.role !== "admin" && caregiverId !== memberId)
+        (caregiver.role !== "admin" && caregiver.role !== "caregiver" && caregiverId !== memberId)
       ) {
         throw new Error("Permission denied");
       }

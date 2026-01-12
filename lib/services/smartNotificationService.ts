@@ -63,7 +63,7 @@ export interface SmartNotification {
   id: string;
   title: string;
   body: string;
-  type: "medication" | "refill" | "health_tip" | "reminder" | "alert" | "wellness_checkin" | "streak_reminder" | "activity_alert" | "achievement" | "family_update";
+  type: "medication" | "refill" | "health_tip" | "reminder" | "alert" | "wellness_checkin" | "streak_reminder" | "activity_alert" | "achievement" | "family_update" | "medication_confirmation";
   priority: "low" | "normal" | "high" | "critical";
   scheduledTime: Date;
   data?: Record<string, any>;
@@ -301,6 +301,10 @@ class SmartNotificationService {
     if (medications.length > 0) {
       const existingNotifications = this.generateSmartNotifications(medications, context);
       notifications.push(...existingNotifications.slice(0, 2)); // Max 2 medication notifications
+
+      // Medication confirmation check-ins (ask if they took scheduled medication)
+      const confirmationNotifications = this.generateMedicationConfirmationNotifications(medications, userStats);
+      notifications.push(...confirmationNotifications.slice(0, 1)); // Max 1 confirmation notification
     }
 
     // Key wellness reminders (1-2 based on context)
@@ -371,12 +375,21 @@ class SmartNotificationService {
     let suppressed = 0;
 
     try {
+      // Safety check for notifications array
+      if (!notifications || !Array.isArray(notifications)) {
+        console.warn('Invalid notifications array:', notifications);
+        return { scheduled: 0, failed: 0, suppressed: 0 };
+      }
+
       const Notifications = await import("expo-notifications");
       const { Platform } = await import("react-native");
 
       if (Platform.OS === "web") {
         return { scheduled: 0, failed: notifications.length, suppressed: 0 };
       }
+
+      // Step 0: Clear existing notifications of the same types to prevent duplicates
+      await this.clearExistingNotificationsOfTypes(notifications, Notifications);
 
       // Step 1: Optimize and prioritize notifications
       const optimizedNotifications = await this.optimizeNotificationSchedule(notifications);
@@ -402,6 +415,57 @@ class SmartNotificationService {
     }
 
     return { scheduled, failed, suppressed };
+  }
+
+  /**
+   * Clear existing notifications of the same types to prevent duplicates
+   */
+  private async clearExistingNotificationsOfTypes(
+    newNotifications: SmartNotification[],
+    Notifications: any
+  ): Promise<void> {
+    try {
+      // Safety check for newNotifications
+      if (!newNotifications || !Array.isArray(newNotifications)) {
+        return;
+      }
+
+      // Get all currently scheduled notifications
+      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+
+      // Safety check for scheduledNotifications
+      if (!scheduledNotifications || !Array.isArray(scheduledNotifications)) {
+        return;
+      }
+
+      // Get the types of notifications we're about to schedule
+      const newNotificationTypes = new Set(newNotifications.map(n => n.type));
+      const newUserIds = new Set(newNotifications.map(n => n.data?.userId).filter(Boolean));
+
+      // Find notifications to cancel - those with matching types and user IDs
+      const notificationsToCancel = scheduledNotifications.filter((scheduled: any) => {
+        const notificationData = scheduled.content.data || {};
+        const notificationType = notificationData.type;
+
+        // Cancel if it's a wellness check-in type and matches our user IDs
+        if (newNotificationTypes.has('wellness_checkin') && notificationType?.includes('checkin')) {
+          const scheduledUserId = notificationData.userId;
+          return !scheduledUserId || newUserIds.has(scheduledUserId);
+        }
+
+        return false;
+      });
+
+      // Cancel the matching notifications
+      if (notificationsToCancel.length > 0) {
+        const identifiersToCancel = notificationsToCancel.map((n: any) => n.identifier);
+        await Notifications.cancelScheduledNotificationAsync(identifiersToCancel);
+        console.log(`Cancelled ${identifiersToCancel.length} duplicate notifications`);
+      }
+    } catch (error) {
+      // Silently handle errors when clearing notifications
+      console.warn('Error clearing existing notifications:', error);
+    }
   }
 
   /**
@@ -545,6 +609,12 @@ class SmartNotificationService {
     notification: SmartNotification,
     Notifications: any
   ): Promise<void> {
+    // Safety check for notification
+    if (!notification || !notification.title || !notification.body) {
+      console.warn('Invalid notification object:', notification);
+      return;
+    }
+
     const content = {
       title: notification.title,
       body: notification.body,
@@ -860,16 +930,28 @@ class SmartNotificationService {
 
     // Group medications by timing
     const morningMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('morning') || time.includes('08') || time.includes('09'))
+      med.reminders?.some(reminder => {
+        const hour = parseInt(reminder.time.split(':')[0]);
+        return hour >= 6 && hour < 12; // 6 AM to 12 PM
+      })
     );
     const afternoonMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('afternoon') || time.includes('14') || time.includes('15'))
+      med.reminders?.some(reminder => {
+        const hour = parseInt(reminder.time.split(':')[0]);
+        return hour >= 12 && hour < 18; // 12 PM to 6 PM
+      })
     );
     const eveningMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('evening') || time.includes('18') || time.includes('19') || time.includes('20'))
+      med.reminders?.some(reminder => {
+        const hour = parseInt(reminder.time.split(':')[0]);
+        return hour >= 18 && hour < 22; // 6 PM to 10 PM
+      })
     );
     const nightMeds = medications.filter(med =>
-      med.times?.some(time => time.includes('night') || time.includes('bedtime') || time.includes('22') || time.includes('23'))
+      med.reminders?.some(reminder => {
+        const hour = parseInt(reminder.time.split(':')[0]);
+        return hour >= 22 || hour < 6; // 10 PM to 6 AM
+      })
     );
 
     // Morning medication check-in (8:30 AM)
@@ -1007,6 +1089,148 @@ class SmartNotificationService {
             { label: "🛒 Check Refills", action: "check_refills_needed" },
             { label: "💊 Update Meds", action: "update_medications" },
             { label: "📞 Call Pharmacist", action: "contact_pharmacist" }
+          ]
+        });
+      }
+    }
+
+    return notifications;
+  }
+
+  /**
+   * Generate medication confirmation notifications that ask if user took their scheduled medication
+   */
+  generateMedicationConfirmationNotifications(medications: Medication[], userStats: UserStats): SmartNotification[] {
+    const notifications: SmartNotification[] = [];
+    const t = i18n.t.bind(i18n);
+
+    // Group medications by timing (similar to checkins but for confirmations)
+    const morningMeds = medications.filter(med =>
+      med.times?.some(time => time.includes('morning') || time.includes('08') || time.includes('09'))
+    );
+    const afternoonMeds = medications.filter(med =>
+      med.times?.some(time => time.includes('afternoon') || time.includes('14') || time.includes('15'))
+    );
+    const eveningMeds = medications.filter(med =>
+      med.times?.some(time => time.includes('evening') || time.includes('18') || time.includes('19') || time.includes('20'))
+    );
+    const nightMeds = medications.filter(med =>
+      med.times?.some(time => time.includes('night') || time.includes('bedtime') || time.includes('22') || time.includes('23'))
+    );
+
+    const now = new Date();
+
+    // Morning medication confirmation (30 minutes after scheduled time)
+    if (morningMeds.length > 0) {
+      const morningConfirmationTime = new Date();
+      morningConfirmationTime.setHours(9, 0, 0, 0); // 30 minutes after 8:30
+
+      if (morningConfirmationTime > now && morningConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+        notifications.push({
+          id: `morning-med-confirmation-${Date.now()}`,
+          title: "💊 Did you take your morning medication?",
+          body: `We noticed it's been a while since your morning medication time. Did you take your ${morningMeds.length} scheduled medication(s)?`,
+          type: "medication_confirmation",
+          priority: "normal",
+          scheduledTime: morningConfirmationTime,
+          data: {
+            type: "medication_confirmation",
+            timing: "morning",
+            medications: morningMeds.map(m => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 30, 0, 0)
+          },
+          quickActions: [
+            { label: "✅ Yes, I took it", action: "medication_taken_yes" },
+            { label: "❌ No, I missed it", action: "medication_taken_no" },
+            { label: "⏰ Remind me later", action: "remind_later" },
+            { label: "📝 Log manually", action: "log_medication_manually" }
+          ]
+        });
+      }
+    }
+
+    // Afternoon medication confirmation (30 minutes after scheduled time)
+    if (afternoonMeds.length > 0) {
+      const afternoonConfirmationTime = new Date();
+      afternoonConfirmationTime.setHours(15, 0, 0, 0); // 30 minutes after 2:30
+
+      if (afternoonConfirmationTime > now && afternoonConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+        notifications.push({
+          id: `afternoon-med-confirmation-${Date.now()}`,
+          title: "💊 Afternoon medication check-in",
+          body: `Did you take your afternoon medication(s)? Keeping track helps us ensure you're staying on schedule.`,
+          type: "medication_confirmation",
+          priority: "normal",
+          scheduledTime: afternoonConfirmationTime,
+          data: {
+            type: "medication_confirmation",
+            timing: "afternoon",
+            medications: afternoonMeds.map(m => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 30, 0, 0)
+          },
+          quickActions: [
+            { label: "✅ Yes, taken", action: "medication_taken_yes" },
+            { label: "❌ Not yet", action: "medication_taken_no" },
+            { label: "⏰ 15 min reminder", action: "remind_15min" },
+            { label: "📱 Set alarm", action: "set_medication_alarm" }
+          ]
+        });
+      }
+    }
+
+    // Evening medication confirmation (30 minutes after scheduled time)
+    if (eveningMeds.length > 0) {
+      const eveningConfirmationTime = new Date();
+      eveningConfirmationTime.setHours(19, 0, 0, 0); // 30 minutes after 6:30
+
+      if (eveningConfirmationTime > now && eveningConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+        notifications.push({
+          id: `evening-med-confirmation-${Date.now()}`,
+          title: "🌆 Evening medication reminder",
+          body: `Have you taken your evening medication yet? Let's make sure you're all set for the night.`,
+          type: "medication_confirmation",
+          priority: "normal",
+          scheduledTime: eveningConfirmationTime,
+          data: {
+            type: "medication_confirmation",
+            timing: "evening",
+            medications: eveningMeds.map(m => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 30, 0, 0)
+          },
+          quickActions: [
+            { label: "✅ All done", action: "medication_taken_yes" },
+            { label: "❌ Still need to take", action: "medication_taken_no" },
+            { label: "🍽️ After dinner", action: "remind_after_dinner" },
+            { label: "📋 Check schedule", action: "view_medication_schedule" }
+          ]
+        });
+      }
+    }
+
+    // Night medication confirmation (30 minutes after scheduled time)
+    if (nightMeds.length > 0) {
+      const nightConfirmationTime = new Date();
+      nightConfirmationTime.setHours(22, 0, 0, 0); // 30 minutes after 9:30
+
+      if (nightConfirmationTime > now && nightConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+        notifications.push({
+          id: `night-med-confirmation-${Date.now()}`,
+          title: "🌙 Bedtime medication check",
+          body: `Time for your bedtime medication check-in. Did you take your night medication(s)?`,
+          type: "medication_confirmation",
+          priority: "normal",
+          scheduledTime: nightConfirmationTime,
+          data: {
+            type: "medication_confirmation",
+            timing: "night",
+            medications: nightMeds.map(m => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21, 30, 0, 0)
+          },
+          quickActions: [
+            { label: "✅ Taken before bed", action: "medication_taken_yes" },
+            { label: "❌ Not yet", action: "medication_taken_no" },
+            { label: "😴 Almost sleep", action: "remind_before_bed" },
+            { label: "💤 Skip tonight", action: "skip_night_medication" }
           ]
         });
       }
@@ -3101,6 +3325,17 @@ export class NotificationResponseHandler {
           await this.showFeedback('Medication confirmed!');
           break;
 
+        // Medication confirmation responses
+        case 'medication_taken_yes':
+          await this.logMedicationAdherence(userId, data, true);
+          await this.showFeedback('Great! Medication adherence logged.');
+          break;
+
+        case 'medication_taken_no':
+          await this.logMedicationAdherence(userId, data, false);
+          await this.showFeedback('Noted. Consider setting a reminder for next time.');
+          break;
+
         case 'update_medications':
           await this.navigateToScreen('medications');
           break;
@@ -3279,6 +3514,38 @@ export class NotificationResponseHandler {
       // This would need to be implemented based on your medication logging system
     } catch (error) {
       console.error('Error confirming medication:', error);
+    }
+  }
+
+  private static async logMedicationAdherence(userId: string, data: any, taken: boolean): Promise<void> {
+    try {
+      // Log medication adherence to Firestore
+      const { db } = await import('@/lib/firebase');
+      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+
+      if (data?.medications && Array.isArray(data.medications)) {
+        // Log adherence for each medication in the confirmation
+        for (const med of data.medications) {
+          await addDoc(collection(db, 'medication_adherence'), {
+            userId,
+            medicationId: med.id,
+            medicationName: med.name,
+            taken,
+            timestamp: serverTimestamp(),
+            scheduledTime: data.scheduledTime || serverTimestamp(),
+            timing: data.timing || 'unspecified',
+            confirmationType: 'notification_response'
+          });
+        }
+      }
+
+      // If medication was missed, consider sending a gentle reminder or follow-up
+      if (!taken) {
+        // Could add logic here to schedule a follow-up reminder
+        console.log('Medication missed - could schedule follow-up reminder');
+      }
+    } catch (error) {
+      console.error('Error logging medication adherence:', error);
     }
   }
 

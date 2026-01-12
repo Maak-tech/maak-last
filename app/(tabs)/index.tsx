@@ -1271,8 +1271,8 @@ export default function DashboardScreen() {
               ] as StyleProp<TextStyle>}
             >
               {isRTL
-                ? `مرحباً، ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`
-                : `Welcome, ${user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName || "User"}`}
+                ? `مرحباً، ${user.firstName || "User"}`
+                : `Welcome, ${user.firstName || "User"}`}
             </Heading>
             <Caption
               color={theme.colors.text.secondary}

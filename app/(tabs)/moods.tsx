@@ -113,7 +113,7 @@ export default function MoodsScreen() {
       if (selectedFilter.type === "family" && user.familyId && isAdmin) {
         // Load family moods and stats (admin only)
         try {
-          const familyMoods = await moodService.getFamilyMoods(user.familyId, 50);
+          const familyMoods = await moodService.getFamilyMoods(user.id, user.familyId, 50);
           setMoods(familyMoods);
         } catch (error: any) {
           moodsError = error;
@@ -121,7 +121,7 @@ export default function MoodsScreen() {
         }
 
         try {
-          const familyStats = await moodService.getFamilyMoodStats(user.familyId, 7);
+          const familyStats = await moodService.getFamilyMoodStats(user.id, user.familyId, 7);
           setStats(familyStats);
         } catch (error: any) {
           statsError = error;

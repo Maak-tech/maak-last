@@ -191,9 +191,9 @@ export default function MedicationInteractionWarning({
       <Card variant="elevated" style={styles.warningCard} onPress={undefined} contentStyle={undefined}>
         <View style={styles.warningHeader}>
           <AlertTriangle size={24} color={theme.colors.accent.error} />
-          <TypographyText weight="bold" style={[styles.warningTitle, isRTL && styles.rtlText]}>
+          <Heading level={5} style={[styles.warningTitle, isRTL ? styles.rtlText : {}]}>
             {isRTL ? "تحذير: تفاعلات دوائية" : "Warning: Drug Interactions"}
-          </TypographyText>
+          </Heading>
         </View>
         <TypographyText style={[styles.warningText, isRTL && styles.rtlText]}>
           {isRTL
@@ -264,12 +264,12 @@ export default function MedicationInteractionWarning({
                 contentStyle={undefined}
               >
                 <View style={styles.interactionHeader}>
-                  <TypographyText
-                    weight="bold"
-                    style={[styles.interactionMedications, isRTL && styles.rtlText]}
+                  <Heading
+                    level={6}
+                    style={[styles.interactionMedications, isRTL ? styles.rtlText : {}]}
                   >
                     {interaction.medications.join(" + ")}
-                  </TypographyText>
+                  </Heading>
                   <Badge
                     variant="outline"
                     size="small"
@@ -307,12 +307,12 @@ export default function MedicationInteractionWarning({
 
                 {interaction.effects.length > 0 && (
                   <View style={styles.effectsList}>
-                    <TypographyText
-                      weight="semibold"
-                      style={[styles.effectsTitle, isRTL && styles.rtlText]}
+                    <Heading
+                      level={6}
+                      style={[styles.effectsTitle, isRTL ? styles.rtlText : {}]}
                     >
                       {isRTL ? "الآثار المحتملة" : "Potential Effects"}:
-                    </TypographyText>
+                    </Heading>
                     {interaction.effects.map((effect, effectIndex) => (
                       <Text
                         key={effectIndex}
@@ -326,12 +326,12 @@ export default function MedicationInteractionWarning({
 
                 {interaction.recommendations.length > 0 && (
                   <View style={styles.recommendationsList}>
-                    <TypographyText
-                      weight="semibold"
-                      style={[styles.effectsTitle, isRTL && styles.rtlText]}
+                    <Heading
+                      level={6}
+                      style={[styles.effectsTitle, isRTL ? styles.rtlText : {}]}
                     >
                       {isRTL ? "التوصيات" : "Recommendations"}:
-                    </TypographyText>
+                    </Heading>
                     {interaction.recommendations.map((rec, recIndex) => (
                       <Text
                         key={recIndex}

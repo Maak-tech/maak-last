@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Activity, Home, Sparkles, User, Users } from "lucide-react-native";
+import { Activity, AlertTriangle, Home, Sparkles, User, Users } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,6 +76,16 @@ export default function TabLayout() {
             <Users color={color} size={size || 24} />
           ),
           href: isAdmin ? undefined : null, // Only visible to admin users
+        }}
+      />
+      <Tabs.Screen
+        name="events"
+        options={{
+          title: t("events"),
+          tabBarIcon: ({ size, color }: { size?: number; color: string }) => (
+            <AlertTriangle color={color} size={size || 24} />
+          ),
+          href: isAdmin ? undefined : null, // Only visible to admin/caregiver users
         }}
       />
       <Tabs.Screen

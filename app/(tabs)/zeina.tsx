@@ -11,6 +11,7 @@ import {
   query,
   updateDoc,
 } from "firebase/firestore";
+import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -56,6 +57,7 @@ interface SavedSession {
 export default function ZeinaScreen() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -67,11 +69,13 @@ export default function ZeinaScreen() {
   const [chatHistory, setChatHistory] = useState<SavedSession[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isVoiceAvailable, setIsVoiceAvailable] = useState(false);
+  const [voiceStatusMessage, setVoiceStatusMessage] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceLanguage, setVoiceLanguage] = useState("en-US");
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
 
-  // User role logic
+  // User role logic (kept for potential future use)
   const isAdmin = user?.role === "admin";
-  const isRegularUser = !isAdmin;
 
   // Guided conversation options for regular users
   const guidedQuestions = [
@@ -119,7 +123,7 @@ export default function ZeinaScreen() {
 
       // Load health context
       setIsLoading(true);
-      const prompt = await healthContextService.getContextualPrompt();
+      const prompt = await healthContextService.getContextualPrompt(undefined, voiceLanguage.split('-')[0]);
       setSystemPrompt(prompt);
 
       // Add system message
@@ -444,15 +448,82 @@ export default function ZeinaScreen() {
     );
   };
 
+  const deleteAllChatHistory = async () => {
+    if (!auth.currentUser) return;
+
+    Alert.alert(
+      t("clearAllHistory"),
+      t("confirmClearAllHistory"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("clearAll"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (!auth.currentUser) {
+                Alert.alert(
+                  t("error"),
+                  t("mustBeLoggedIn")
+                );
+                return;
+              }
+
+              // Delete all chat sessions
+              const batch = [];
+              for (const session of chatHistory) {
+                batch.push(deleteDoc(
+                  doc(db, "users", auth.currentUser.uid, "chatSessions", session.id)
+                ));
+              }
+
+              await Promise.all(batch);
+
+              // Clear the chat history state
+              setChatHistory([]);
+              setShowHistory(false);
+
+              // Start a new chat
+              await handleNewChat();
+
+              Alert.alert(t("success"), t("allHistoryCleared"));
+            } catch (error) {
+              // Handle error
+              Alert.alert(t("error"), t("failedToClearHistory"));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const checkVoiceAvailability = async () => {
     try {
       const [speechAvailable, recognitionAvailable] = await Promise.all([
         voiceService.isAvailable(),
         voiceService.isRecognitionAvailable(),
       ]);
-      setIsVoiceAvailable(speechAvailable && recognitionAvailable);
+
+      const available = speechAvailable && recognitionAvailable;
+      setIsVoiceAvailable(available);
+
+      // Set status message for debugging
+      if (!available) {
+        if (!speechAvailable && !recognitionAvailable) {
+          setVoiceStatusMessage("Voice features not available on this platform (Windows)");
+        } else if (!speechAvailable) {
+          setVoiceStatusMessage("Text-to-speech not available on this platform");
+        } else if (!recognitionAvailable) {
+          setVoiceStatusMessage("Speech recognition not available (check API key and permissions)");
+        }
+      } else {
+        setVoiceStatusMessage("Voice features available");
+      }
     } catch (error) {
-      setIsVoiceAvailable(false);
+      // For development/testing, show the button even if there are errors
+      // The button will be disabled but visible, and users will get error messages when they try to use it
+      setIsVoiceAvailable(true);
+      setVoiceStatusMessage("Voice check failed - button enabled for testing");
     }
   };
 
@@ -483,7 +554,7 @@ export default function ZeinaScreen() {
           setIsRecording(false);
           Alert.alert(t("voiceError"), error.message);
         },
-        "en-US" // Default language, could be made configurable
+        voiceLanguage // Use selected language
       );
     } catch (error) {
       setIsRecording(false);
@@ -500,8 +571,8 @@ export default function ZeinaScreen() {
     try {
       setIsSpeaking(true);
       await voiceService.speak(text, {
-        language: "en-US",
-        rate: 0.9,
+        language: voiceLanguage,
+        rate: voiceLanguage.startsWith("ar") ? 0.8 : 0.9, // Slightly slower for Arabic
         pitch: 1.0,
       });
     } catch (error) {
@@ -520,34 +591,44 @@ export default function ZeinaScreen() {
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>{t("zeina")}</Text>
         <View style={styles.headerActions}>
-          {isAdmin && (
-            <TouchableOpacity
-              onPress={handleNewChat}
-              style={[styles.headerButton, styles.newChatHeaderButton]}
-            >
-              <Ionicons color="#007AFF" name="add-circle" size={28} />
-            </TouchableOpacity>
-          )}
-          {isAdmin && (
-            <TouchableOpacity
-              onPress={async () => {
-                await loadChatHistory();
-                setShowHistory(true);
-              }}
-              style={[styles.headerButton, styles.historyHeaderButton]}
-            >
-              <View>
-                <Ionicons color="#007AFF" name="chatbubbles" size={26} />
-                {chatHistory.length > 0 && (
-                  <View style={styles.historyBadge}>
-                    <Text style={styles.historyBadgeText}>
-                      {chatHistory.length}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => router.push("/voice-agent")}
+            style={[styles.headerButton, styles.voiceAgentButton]}
+          >
+            <Ionicons color="#fff" name="mic" size={18} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleNewChat}
+            style={[styles.headerButton, styles.newChatHeaderButton]}
+          >
+            <Ionicons color="#007AFF" name="add-circle" size={28} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowLanguageSelector(true)}
+            style={[styles.headerButton, styles.languageHeaderButton]}
+          >
+            <Text style={styles.languageButtonText}>
+              {voiceLanguage === "ar-SA" ? "عربي" : voiceLanguage === "ar-EG" ? "عربي" : "EN"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={async () => {
+              await loadChatHistory();
+              setShowHistory(true);
+            }}
+            style={[styles.headerButton, styles.historyHeaderButton]}
+          >
+            <View>
+              <Ionicons color="#007AFF" name="chatbubbles" size={26} />
+              {chatHistory.length > 0 && (
+                <View style={styles.historyBadge}>
+                  <Text style={styles.historyBadgeText}>
+                    {chatHistory.length}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -591,8 +672,8 @@ export default function ZeinaScreen() {
           )}
         </ScrollView>
 
-        {/* Guided Questions for Regular Users */}
-        {isRegularUser && !isStreaming && (
+        {/* Guided Questions for All Users */}
+        {!isStreaming && (
           <View style={styles.guidedQuestionsContainer}>
             <Text style={styles.guidedQuestionsTitle}>
               {t("quickQuestions")}
@@ -624,23 +705,29 @@ export default function ZeinaScreen() {
         )}
 
         <View style={styles.inputContainer}>
-          {isAdmin && isVoiceAvailable && (
-            <TouchableOpacity
-              disabled={isStreaming}
-              onPress={handleVoiceInput}
-              style={[
-                styles.voiceButton,
-                isRecording && styles.voiceButtonRecording,
-                isStreaming && styles.voiceButtonDisabled,
-              ]}
-            >
-              <Ionicons
-                color={isRecording ? "#FF3B30" : isStreaming ? "#B0B0B0" : "#007AFF"}
-                name={isRecording ? "mic-off" : "mic"}
-                size={20}
-              />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            disabled={isStreaming || !isVoiceAvailable}
+            onPress={handleVoiceInput}
+            style={[
+              styles.voiceButton,
+              isRecording && styles.voiceButtonRecording,
+              (isStreaming || !isVoiceAvailable) && styles.voiceButtonDisabled,
+            ]}
+          >
+            <Ionicons
+              color={
+                !isVoiceAvailable
+                  ? "#B0B0B0"
+                  : isRecording
+                  ? "#FF3B30"
+                  : isStreaming
+                  ? "#B0B0B0"
+                  : "#007AFF"
+              }
+              name={isRecording ? "mic-off" : "mic"}
+              size={20}
+            />
+          </TouchableOpacity>
           <TextInput
             editable={!isStreaming}
             multiline
@@ -741,6 +828,21 @@ export default function ZeinaScreen() {
               )}
             </ScrollView>
 
+            {chatHistory.length > 0 && (
+              <TouchableOpacity
+                onPress={deleteAllChatHistory}
+                style={styles.clearAllButton}
+              >
+                <Ionicons
+                  color="#EF4444"
+                  name="trash-outline"
+                  size={20}
+                  style={{ marginEnd: 8 }}
+                />
+                <Text style={styles.clearAllButtonText}>{t("clearAllHistory")}</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               onPress={() => {
                 setShowHistory(false);
@@ -756,6 +858,66 @@ export default function ZeinaScreen() {
               />
               <Text style={styles.newChatButtonText}>{t("startNewChat")}</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Language Selector Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setShowLanguageSelector(false)}
+        transparent={true}
+        visible={showLanguageSelector}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { maxHeight: "60%" }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t("selectLanguage")}</Text>
+              <TouchableOpacity onPress={() => setShowLanguageSelector(false)}>
+                <Ionicons color="#333" name="close" size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                { code: "en-US", name: "English (US)" },
+                { code: "ar-SA", name: "العربية (السعودية)" },
+                { code: "ar-EG", name: "العربية (مصر)" },
+              ].map((lang) => (
+                <TouchableOpacity
+                  key={lang.code}
+                  onPress={() => {
+                    setVoiceLanguage(lang.code);
+                    setShowLanguageSelector(false);
+                    // Reinitialize chat with new language
+                    handleNewChat();
+                  }}
+                  style={[
+                    styles.languageOption,
+                    voiceLanguage === lang.code && styles.languageOptionSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.languageOptionText,
+                      voiceLanguage === lang.code && styles.languageOptionTextSelected,
+                    ]}
+                  >
+                    {lang.name}
+                  </Text>
+                  {voiceLanguage === lang.code && (
+                    <Ionicons color="#007AFF" name="checkmark" size={20} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.languageNote}>
+              {t("languageNote")}
+            </Text>
+            <Text style={[styles.languageNote, { marginTop: 8, fontSize: 11, color: isVoiceAvailable ? '#28a745' : '#dc3545' }]}>
+              Voice Status: {voiceStatusMessage}
+            </Text>
           </View>
         </View>
       </Modal>
@@ -800,6 +962,25 @@ const styles = StyleSheet.create({
   },
   historyHeaderButton: {
     position: "relative",
+  },
+  voiceAgentButton: {
+    marginStart: 0,
+    backgroundColor: "#667eea",
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  languageHeaderButton: {
+    marginStart: 0,
+    backgroundColor: "#007AFF",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  languageButtonText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
   },
   historyBadge: {
     position: "absolute",
@@ -1002,6 +1183,22 @@ const styles = StyleSheet.create({
   historyItemDelete: {
     padding: 8,
   },
+  clearAllButton: {
+    flexDirection: "row",
+    backgroundColor: "#FEF2F2",
+    borderRadius: 8,
+    padding: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  clearAllButtonText: {
+    color: "#EF4444",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   newChatButton: {
     flexDirection: "row",
     backgroundColor: "#007AFF",
@@ -1055,5 +1252,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#333",
     fontWeight: "500",
+  },
+  languageOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  languageOptionSelected: {
+    backgroundColor: "#F0F8FF",
+  },
+  languageOptionText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  languageOptionTextSelected: {
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+  languageNote: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 16,
+    paddingHorizontal: 16,
   },
 });

@@ -226,6 +226,63 @@ export const alertService = {
     }
   },
 
+  // Create caregiver notification to admin
+  async createCaregiverAlert(
+    caregiverId: string,
+    familyId: string,
+    message: string,
+    severity: "low" | "medium" | "high" | "critical" = "medium"
+  ): Promise<string> {
+    try {
+      // Verify caregiver has permission
+      const caregiver = await userService.getUser(caregiverId);
+      if (!caregiver || caregiver.familyId !== familyId ||
+          (caregiver.role !== "admin" && caregiver.role !== "caregiver")) {
+        throw new Error("Access denied: Only admins and caregivers can send alerts");
+      }
+
+      const alertData: Omit<EmergencyAlert, "id"> = {
+        userId: caregiverId,
+        type: "emergency",
+        severity,
+        message: `Caregiver Alert: ${message}`,
+        timestamp: new Date(),
+        resolved: false,
+        responders: [],
+      };
+
+      const alertId = await this.createAlert(alertData);
+
+      // Send notification to all admins in the family
+      try {
+        const familyMembers = await userService.getFamilyMembers(familyId);
+        const admins = familyMembers.filter((m) => m.role === "admin" && m.id !== caregiverId);
+
+        if (admins.length > 0) {
+          await pushNotificationService.sendToUsers(
+            admins.map(admin => admin.id),
+            {
+              title: "Caregiver Alert",
+              body: message,
+              data: {
+                type: "caregiver_alert",
+                alertId,
+                caregiverId,
+                familyId
+              }
+            }
+          );
+        }
+      } catch (notificationError) {
+        // Silently fail if notification fails
+      }
+
+      return alertId;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   async getActiveAlertsCount(userId: string): Promise<number> {
     try {
       const q = query(

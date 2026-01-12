@@ -225,12 +225,39 @@ service cloud.firestore {
          resource.data.status == 'pending');
     }
 
+    // Health Events collection - For vital sign alerts and health monitoring events
+    match /healthEvents/{eventId} {
+      // Allow users to create their own health events (primary rule - no document reads required)
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+
+      // Allow admins to create health events for family members (secondary rule - requires user document)
+      allow create: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        isFamilyAdmin() &&
+        isSameFamily(request.resource.data.userId);
+
+      // Allow users to read and write their own health events
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      // Allow family members to read each other's health events (for viewing family data)
+      allow read: if request.auth != null && isSameFamily(resource.data.userId);
+
+      // Allow admins to update/delete health events for family members
+      allow update, delete: if request.auth != null &&
+        isFamilyAdmin() &&
+        isSameFamily(resource.data.userId);
+
+      // Allow authenticated users to query/list health events (queries are filtered by userId in the app)
+      // Individual document access is still controlled by the read rules above
+      allow list: if request.auth != null;
+    }
+
     // Alerts collection - More permissive for family features
     match /alerts/{alertId} {
       // Allow authenticated users to read, create, and update alerts
       // Family relationship validation is handled in the application layer
       allow read, create, update: if request.auth != null;
-      
+
       // Allow users to delete only their own alerts
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }

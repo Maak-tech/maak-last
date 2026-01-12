@@ -64,7 +64,7 @@ import { calendarService } from "@/lib/services/calendarService";
 import type { Medication, Symptom, CalendarEvent, RecurrencePattern } from "@/types";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Button, Card } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
+import { Caption, Heading, Text as TypographyText } from "@/components/design-system";
 import TagInput from "@/app/components/TagInput";
 
 interface ProfileSectionItem {
@@ -603,11 +603,6 @@ export default function ProfileScreen() {
         },
         // Show additional options only for admin users
         ...(isAdmin ? [
-          {
-            icon: FileText,
-            label: t("healthReports"),
-            onPress: handleHealthReports,
-          },
           {
             icon: Calendar,
             label: isRTL ? t("calendar") : t("calendar").charAt(0).toUpperCase() + t("calendar").slice(1).toLowerCase(),

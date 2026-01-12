@@ -79,6 +79,54 @@ export default function HealthIntegrationsScreen() {
       available: true,
       route: "/profile/health/fitbit-intro",
     },
+    {
+      id: "samsung_health",
+      name: "Samsung Health",
+      description: "Comprehensive health tracking from Samsung devices",
+      icon: Heart,
+      available: true,
+      route: "/profile/health/samsung-health-intro",
+    },
+    {
+      id: "garmin",
+      name: "Garmin Connect",
+      description: "Advanced fitness and health data from Garmin devices",
+      icon: Heart,
+      available: true,
+      route: "/profile/health/garmin-intro",
+    },
+    {
+      id: "withings",
+      name: "Withings",
+      description: "Smart scales and health monitors",
+      icon: Heart,
+      available: true,
+      route: "/profile/health/withings-intro",
+    },
+    {
+      id: "oura",
+      name: "Oura Ring",
+      description: "Sleep and readiness tracking with Oura Ring",
+      icon: Heart,
+      available: true,
+      route: "/profile/health/oura-intro",
+    },
+    {
+      id: "dexcom",
+      name: "Dexcom CGM",
+      description: "Continuous glucose monitoring for diabetes management",
+      icon: Heart,
+      available: true,
+      route: "/profile/health/dexcom-intro",
+    },
+    {
+      id: "freestyle_libre",
+      name: "Freestyle Libre",
+      description: "Continuous glucose monitoring system",
+      icon: Heart,
+      available: false, // Requires partnership with Abbott
+      route: "/profile/health/freestyle-libre-intro",
+    },
   ];
 
   const loadConnections = useCallback(async () => {

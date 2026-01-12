@@ -6,6 +6,8 @@
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { MetricSample } from "@/lib/health/healthTypes";
+import { evaluateVitals, requiresHealthEvent } from "../../src/health/rules/evaluateVitals";
+import { createVitalAlertEvent } from "../../src/health/events/createHealthEvent";
 
 /**
  * Map metric keys to vital types for Firestore
@@ -89,8 +91,79 @@ async function saveVitalSample(
     }
 
     await addDoc(collection(db, "vitals"), vitalData);
+
+    // Evaluate vitals for health events (only for critical vitals)
+    // We'll collect vitals and evaluate them in batches to avoid too many evaluations
+    await evaluateAndCreateHealthEventIfNeeded(userId, vitalType, value, timestamp, source, metadata);
   } catch (error) {
     throw error;
+  }
+}
+
+/**
+ * Evaluate collected vitals and create health event if needed
+ * This is a simplified implementation - in production you'd want more sophisticated batching
+ */
+async function evaluateAndCreateHealthEventIfNeeded(
+  userId: string,
+  vitalType: string,
+  value: number,
+  timestamp: Date,
+  source: string,
+  metadata?: Record<string, any>
+): Promise<void> {
+  try {
+    // Map vital types to evaluation format
+    const vitalValues: any = {};
+
+    switch (vitalType) {
+      case "heartRate":
+        vitalValues.heartRate = value;
+        break;
+      case "oxygenSaturation":
+        vitalValues.spo2 = value;
+        break;
+      case "bloodPressure":
+        if (metadata?.systolic && metadata?.diastolic) {
+          vitalValues.systolic = metadata.systolic;
+          vitalValues.diastolic = metadata.diastolic;
+        }
+        break;
+      case "bodyTemperature":
+        vitalValues.temp = value;
+        break;
+      default:
+        // Skip evaluation for non-critical vitals
+        return;
+    }
+
+    // Only evaluate if we have at least one critical vital
+    if (Object.keys(vitalValues).length === 0) {
+      return;
+    }
+
+    // Evaluate vitals
+    const evaluation = evaluateVitals({
+      ...vitalValues,
+      timestamp,
+    });
+
+    // Create health event if abnormal
+    if (requiresHealthEvent(evaluation)) {
+      const sourceType = source.includes("apple") || source.includes("fitbit") || source.includes("google")
+        ? "wearable" as const
+        : source === "manual" ? "manual" as const : "clinic" as const;
+
+      await createVitalAlertEvent(
+        userId,
+        evaluation,
+        vitalValues,
+        sourceType
+      );
+    }
+  } catch (error) {
+    // Silently fail health event creation to avoid breaking vital saving
+    console.warn("Failed to evaluate vitals for health events:", error);
   }
 }
 

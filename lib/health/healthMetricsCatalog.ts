@@ -13,7 +13,7 @@ export type MetricGroup =
   | "nutrition"
   | "glucose";
 
-export type HealthProvider = "apple_health" | "health_connect" | "fitbit";
+export type HealthProvider = "apple_health" | "health_connect" | "fitbit" | "samsung_health" | "garmin" | "withings" | "oura" | "dexcom" | "freestyle_libre";
 
 export interface HealthMetric {
   key: string;
@@ -35,6 +35,34 @@ export interface HealthMetric {
     available: boolean;
     scope: string; // Fitbit OAuth scope
     endpoint?: string; // Fitbit API endpoint path
+  };
+  samsungHealth?: {
+    available: boolean;
+    scope: string; // Samsung Health OAuth scope
+    endpoint?: string; // Samsung Health API endpoint path
+  };
+  garmin?: {
+    available: boolean;
+    scope: string; // Garmin OAuth scope
+    endpoint?: string; // Garmin API endpoint path
+  };
+  withings?: {
+    available: boolean;
+    scope: string; // Withings OAuth scope
+    category: number; // Withings measurement category
+  };
+  oura?: {
+    available: boolean;
+    scope: string; // Oura OAuth scope
+    endpoint?: string; // Oura API endpoint path
+  };
+  dexcom?: {
+    available: boolean;
+    scope: string; // Dexcom OAuth scope
+  };
+  freestyleLibre?: {
+    available: boolean;
+    scope: string; // Freestyle Libre OAuth scope
   };
 }
 
@@ -63,6 +91,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "heartrate",
       endpoint: "/1/user/-/activities/heart/date/{date}/1d.json",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.heart_rate",
+      endpoint: "/users/me/health-data/heart-rate/daily/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "heartrate",
+      endpoint: "/wellness-api/rest/heartRate",
+    },
   },
   {
     key: "resting_heart_rate",
@@ -82,6 +120,18 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "heartrate",
       endpoint: "/1/user/-/activities/heart/date/{date}/1d.json",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.heart_rate",
+    },
+    garmin: {
+      available: true,
+      scope: "heartrate",
+    },
+    oura: {
+      available: true,
+      scope: "heartrate",
     },
   },
   {
@@ -140,6 +190,15 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
     fitbit: {
       available: false,
       scope: "",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.blood_pressure",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 10, // Withings blood pressure category
     },
   },
   {
@@ -245,6 +304,11 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "weight",
       endpoint: "/1/user/-/body/log/weight/date/{date}/1m.json",
     },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 1, // Weight category
+    },
   },
   {
     key: "height",
@@ -324,6 +388,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "activity",
       endpoint: "/1/user/-/activities/steps/date/{date}/1d.json",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.step_count",
+      endpoint: "/users/me/health-data/step-count/daily/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "activity",
+      endpoint: "/wellness-api/rest/dailies",
     },
   },
   {
@@ -484,6 +558,11 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "sleep",
       endpoint: "/1.2/user/-/sleep/date/{date}.json",
     },
+    oura: {
+      available: true,
+      scope: "sleep",
+      endpoint: "/v2/usercollection/sleep",
+    },
   },
 
   // Nutrition
@@ -527,6 +606,10 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: false,
       scope: "",
     },
+    dexcom: {
+      available: true,
+      scope: "offline_access",
+    },
   },
 ];
 
@@ -550,6 +633,18 @@ export const getAvailableMetricsForProvider = (
         return metric.healthConnect?.available;
       case "fitbit":
         return metric.fitbit?.available;
+      case "samsung_health":
+        return metric.samsungHealth?.available;
+      case "garmin":
+        return metric.garmin?.available;
+      case "withings":
+        return metric.withings?.available;
+      case "oura":
+        return metric.oura?.available;
+      case "dexcom":
+        return metric.dexcom?.available;
+      case "freestyle_libre":
+        return metric.freestyleLibre?.available;
       default:
         return false;
     }
@@ -564,8 +659,8 @@ export const getMetricByKey = (key: string): HealthMetric | undefined =>
 /**
  * Get group display name
  */
-export const getGroupDisplayName = (group: MetricGroup): string => {
-  const names: Record<MetricGroup, string> = {
+export const getGroupDisplayName = (group: MetricGroup, language: string = "en"): string => {
+  const namesEn: Record<MetricGroup, string> = {
     heart_cardiovascular: "Heart & Cardiovascular",
     respiratory: "Respiratory",
     temperature: "Temperature",
@@ -575,7 +670,17 @@ export const getGroupDisplayName = (group: MetricGroup): string => {
     nutrition: "Nutrition",
     glucose: "Glucose",
   };
-  return names[group];
+  const namesAr: Record<MetricGroup, string> = {
+    heart_cardiovascular: "القلب والأوعية الدموية",
+    respiratory: "التنفس",
+    temperature: "درجة الحرارة",
+    body_measurements: "قياسات الجسم",
+    activity_fitness: "النشاط واللياقة",
+    sleep: "النوم",
+    nutrition: "التغذية",
+    glucose: "السكر",
+  };
+  return language === "ar" ? namesAr[group] : namesEn[group];
 };
 
 /**
@@ -601,6 +706,90 @@ export const getFitbitScopesForMetrics = (metricKeys: string[]): string[] => {
     const metric = getMetricByKey(key);
     if (metric?.fitbit?.scope) {
       scopes.add(metric.fitbit.scope);
+    }
+  });
+  return Array.from(scopes);
+};
+
+/**
+ * Get Samsung Health scopes for selected metrics
+ */
+export const getSamsungHealthScopesForMetrics = (metricKeys: string[]): string[] => {
+  const scopes = new Set<string>();
+  metricKeys.forEach((key) => {
+    const metric = getMetricByKey(key);
+    if (metric?.samsungHealth?.scope) {
+      scopes.add(metric.samsungHealth.scope);
+    }
+  });
+  return Array.from(scopes);
+};
+
+/**
+ * Get Garmin scopes for selected metrics
+ */
+export const getGarminScopesForMetrics = (metricKeys: string[]): string[] => {
+  const scopes = new Set<string>();
+  metricKeys.forEach((key) => {
+    const metric = getMetricByKey(key);
+    if (metric?.garmin?.scope) {
+      scopes.add(metric.garmin.scope);
+    }
+  });
+  return Array.from(scopes);
+};
+
+/**
+ * Get Withings scopes for selected metrics
+ */
+export const getWithingsScopesForMetrics = (metricKeys: string[]): string[] => {
+  const scopes = new Set<string>();
+  metricKeys.forEach((key) => {
+    const metric = getMetricByKey(key);
+    if (metric?.withings?.scope) {
+      scopes.add(metric.withings.scope);
+    }
+  });
+  return Array.from(scopes);
+};
+
+/**
+ * Get Oura scopes for selected metrics
+ */
+export const getOuraScopesForMetrics = (metricKeys: string[]): string[] => {
+  const scopes = new Set<string>();
+  metricKeys.forEach((key) => {
+    const metric = getMetricByKey(key);
+    if (metric?.oura?.scope) {
+      scopes.add(metric.oura.scope);
+    }
+  });
+  return Array.from(scopes);
+};
+
+/**
+ * Get Dexcom scopes for selected metrics
+ */
+export const getDexcomScopesForMetrics = (metricKeys: string[]): string[] => {
+  const scopes = new Set<string>();
+  metricKeys.forEach((key) => {
+    const metric = getMetricByKey(key);
+    if (metric?.dexcom?.scope) {
+      scopes.add(metric.dexcom.scope);
+    }
+  });
+  return Array.from(scopes);
+};
+
+/**
+ * Get Freestyle Libre scopes for selected metrics
+ */
+export const getFreestyleLibreScopesForMetrics = (metricKeys: string[]): string[] => {
+  const scopes = new Set<string>();
+  metricKeys.forEach((key) => {
+    const metric = getMetricByKey(key);
+    if (metric?.freestyleLibre?.scope) {
+      scopes.add(metric.freestyleLibre.scope);
     }
   });
   return Array.from(scopes);

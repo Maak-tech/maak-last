@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Track scheduled medication notification IDs to prevent duplicates
+const scheduledMedicationNotifications: Map<string, string> = new Map();
+
 export const useNotifications = () => {
   const { user } = useAuth();
   const notificationListener = useRef<any>(undefined);
@@ -304,6 +307,42 @@ export const useNotifications = () => {
           return { success: false, error: "Invalid time format" };
         }
 
+        // Create a unique key for this medication+time combination to prevent duplicates
+        const notificationKey = `med_${medicationName.toLowerCase().replace(/\s+/g, '_')}_${reminderTime}`;
+
+        // Cancel any existing notification with the same key to prevent duplicates
+        const existingNotificationId = scheduledMedicationNotifications.get(notificationKey);
+        if (existingNotificationId) {
+          try {
+            await Notifications.cancelScheduledNotificationAsync(existingNotificationId);
+          } catch {
+            // Silently handle cancellation error
+          }
+        }
+
+        // Also scan and cancel any duplicate notifications for this medication/time
+        try {
+          const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+          const duplicates = allScheduled.filter((n: any) => {
+            const data = n.content?.data;
+            return (
+              data?.type === "medication_reminder" &&
+              data?.medicationName === medicationName &&
+              data?.reminderTime === reminderTime
+            );
+          });
+          
+          for (const dup of duplicates) {
+            try {
+              await Notifications.cancelScheduledNotificationAsync(dup.identifier);
+            } catch {
+              // Silently handle individual cancellation error
+            }
+          }
+        } catch {
+          // Silently handle scan error
+        }
+
         // Schedule recurring daily notification
         // For daily recurring notifications, we need to use a Date trigger for the first occurrence
         // Calculate the next occurrence of this time
@@ -347,16 +386,8 @@ export const useNotifications = () => {
         const notificationId =
           await Notifications.scheduleNotificationAsync(notificationConfig);
 
-        // Verify the notification was scheduled by getting all scheduled notifications
-        try {
-          const scheduledNotifications =
-            await Notifications.getAllScheduledNotificationsAsync();
-          scheduledNotifications.find(
-            (n) => n.identifier === notificationId
-          );
-        } catch {
-          // Silently handle verification error
-        }
+        // Store the notification ID to prevent future duplicates
+        scheduledMedicationNotifications.set(notificationKey, notificationId);
 
         return { success: true, notificationId };
       } catch (error) {

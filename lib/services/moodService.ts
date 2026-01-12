@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Mood } from "@/types";
+import { userService } from "./userService";
 import { offlineService } from "./offlineService";
 
 export const moodService = {
@@ -168,9 +169,24 @@ export const moodService = {
     }
   },
 
-  // Get moods for all family members (for admins)
-  async getFamilyMoods(familyId: string, limitCount = 50): Promise<Mood[]> {
+  // Check if user has permission to access family data (admin or caregiver)
+  async checkFamilyAccessPermission(userId: string, familyId: string): Promise<boolean> {
     try {
+      const user = await userService.getUser(userId);
+      return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
+    } catch (error) {
+      return false;
+    }
+  },
+
+  // Get moods for all family members (for admins and caregivers)
+  async getFamilyMoods(userId: string, familyId: string, limitCount = 50): Promise<Mood[]> {
+    try {
+      // Check permissions
+      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      if (!hasPermission) {
+        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+      }
       // First get all family members
       const familyMembersQuery = query(
         collection(db, "users"),
@@ -220,8 +236,9 @@ export const moodService = {
     }
   },
 
-  // Get mood stats for all family members (for admins)
+  // Get mood stats for all family members (for admins and caregivers)
   async getFamilyMoodStats(
+    userId: string,
     familyId: string,
     days = 7
   ): Promise<{
@@ -238,6 +255,12 @@ export const moodService = {
     }[];
   }> {
     try {
+      // Check permissions
+      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      if (!hasPermission) {
+        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+      }
+
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 

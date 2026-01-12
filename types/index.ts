@@ -14,7 +14,7 @@ export interface User {
   avatar?: string;
   avatarType?: AvatarType;
   familyId?: string;
-  role: "admin" | "member";
+  role: "admin" | "member" | "caregiver";
   createdAt: Date;
   onboardingCompleted: boolean;
   isPremium?: boolean;

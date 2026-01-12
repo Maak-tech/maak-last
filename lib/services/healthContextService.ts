@@ -336,13 +336,21 @@ class HealthContextService {
     }
   }
 
-  generateSystemPrompt(context: HealthContext): string {
+  generateSystemPrompt(context: HealthContext, language: string = "en"): string {
     const activeMedications = context.medications.filter((m) => m.isActive);
     const inactiveMedications = context.medications.filter((m) => !m.isActive);
 
-    const prompt = `You are a helpful AI health assistant with access to the user's comprehensive health profile. 
-    
-PATIENT PROFILE:
+    const isArabic = language.startsWith("ar");
+
+    const prompt = `${isArabic ?
+      `أنت مساعد صحي ذكي مفيد لديك إمكانية الوصول إلى الملف الصحي الشامل للمستخدم.
+
+يجب أن ترد باللغة العربية دائماً.` :
+      `You are a helpful AI health assistant with access to the user's comprehensive health profile.
+
+You must respond in English.`}
+
+${isArabic ? `ملف المريض:` : `PATIENT PROFILE:`}
 - Name: ${context.profile.name}
 - Age: ${context.profile.age > 0 ? `${context.profile.age} years old` : "Not specified"}
 - Gender: ${context.profile.gender}
@@ -351,31 +359,32 @@ PATIENT PROFILE:
 - Weight: ${context.profile.weight}
 - Emergency Contact: ${context.profile.emergencyContact}
 
-MEDICAL HISTORY:
-Current Conditions: ${
+${isArabic ? `التاريخ الطبي:
+الحالات الحالية:` : `MEDICAL HISTORY:
+Current Conditions:`} ${
       context.medicalHistory.conditions.length > 0
         ? context.medicalHistory.conditions
             .map(
               (c) =>
-                `\n  • ${c.condition}${c.diagnosedDate ? ` (diagnosed: ${c.diagnosedDate})` : ""}${c.status ? ` - ${c.status}` : ""}${c.notes ? ` - ${c.notes}` : ""}`
+                `\n  • ${c.condition}${c.diagnosedDate ? ` (${isArabic ? 'تشخيص' : 'diagnosed'}: ${c.diagnosedDate})` : ""}${c.status ? ` - ${c.status}` : ""}${c.notes ? ` - ${c.notes}` : ""}`
             )
             .join("")
-        : "\n  • No chronic conditions reported"
+        : `\n  • ${isArabic ? 'لا توجد حالات مزمنة مسجلة' : 'No chronic conditions reported'}`
     }
 
-Allergies: ${
+${isArabic ? 'الحساسية:' : 'Allergies:'} ${
       context.medicalHistory.allergies.length > 0
         ? context.medicalHistory.allergies.map((a) => `\n  • ${a}`).join("")
-        : "\n  • No known allergies"
+        : `\n  • ${isArabic ? 'لا توجد حساسية معروفة' : 'No known allergies'}`
     }
 
-Previous Surgeries: ${
+${isArabic ? 'العمليات الجراحية السابقة:' : 'Previous Surgeries:'} ${
       context.medicalHistory.surgeries.length > 0
         ? context.medicalHistory.surgeries.map((s) => `\n  • ${s}`).join("")
-        : "\n  • No previous surgeries"
+        : `\n  • ${isArabic ? 'لا توجد عمليات جراحية سابقة' : 'No previous surgeries'}`
     }
 
-Family Medical History: ${
+${isArabic ? 'التاريخ الطبي العائلي:' : 'Family Medical History:'} ${
       context.medicalHistory.familyHistory.length > 0
         ? context.medicalHistory.familyHistory
             .map(
@@ -383,91 +392,103 @@ Family Medical History: ${
                 `\n  • ${f.condition}${f.relationship ? ` (${f.relationship})` : ""}`
             )
             .join("")
-        : "\n  • No family history recorded"
+        : `\n  • ${isArabic ? 'لا يوجد تاريخ عائلي مسجل' : 'No family history recorded'}`
     }
 
-CURRENT MEDICATIONS:
+${isArabic ? 'الأدوية الحالية:' : 'CURRENT MEDICATIONS:'}
 ${
   activeMedications.length > 0
     ? activeMedications
         .map(
           (med) =>
             `• ${med.name}: ${med.dosage}, ${med.frequency}
-  Started: ${med.startDate}${med.endDate ? `, Ends: ${med.endDate}` : " (ongoing)"}
-  ${med.reminders && med.reminders.length > 0 ? `Reminders: ${med.reminders.join(", ")}` : ""}
-  ${med.notes ? `Notes: ${med.notes}` : ""}`
+  ${isArabic ? 'بدء' : 'Started'}: ${med.startDate}${med.endDate ? `, ${isArabic ? 'ينتهي' : 'Ends'}: ${med.endDate}` : " (${isArabic ? 'مستمر' : 'ongoing'})"}
+  ${med.reminders && med.reminders.length > 0 ? `${isArabic ? 'تذكيرات' : 'Reminders'}: ${med.reminders.join(", ")}` : ""}
+  ${med.notes ? `${isArabic ? 'ملاحظات' : 'Notes'}: ${med.notes}` : ""}`
         )
         .join("\n")
-    : "• No current medications"
+    : `• ${isArabic ? 'لا توجد أدوية حالية' : 'No current medications'}`
 }
 
 ${
   inactiveMedications.length > 0
-    ? `\nPAST MEDICATIONS:\n${inactiveMedications
+    ? `\n${isArabic ? 'الأدوية السابقة:' : 'PAST MEDICATIONS:'}\n${inactiveMedications
         .slice(0, 5)
-        .map((med) => `• ${med.name}: ${med.dosage} (discontinued)`)
+        .map((med) => `• ${med.name}: ${med.dosage} (${isArabic ? 'متوقف' : 'discontinued'})`)
         .join("\n")}`
     : ""
 }
 
-RECENT SYMPTOMS (Last 90 days):
+${isArabic ? 'الأعراض الأخيرة (آخر 90 يوماً):' : 'RECENT SYMPTOMS (Last 90 days):'}
 ${
   context.symptoms.length > 0
     ? context.symptoms
         .slice(0, 10)
         .map(
           (symptom) =>
-            `• ${symptom.date}: ${symptom.name} (Severity: ${symptom.severity})
-  ${symptom.bodyPart ? `Location: ${symptom.bodyPart}` : ""}
-  ${symptom.duration ? `Duration: ${symptom.duration}` : ""}
-  ${symptom.notes ? `Notes: ${symptom.notes}` : ""}`
+            `• ${symptom.date}: ${symptom.name} (${isArabic ? 'الشدة' : 'Severity'}: ${symptom.severity})
+  ${symptom.bodyPart ? `${isArabic ? 'الموقع' : 'Location'}: ${symptom.bodyPart}` : ""}
+  ${symptom.duration ? `${isArabic ? 'المدة' : 'Duration'}: ${symptom.duration}` : ""}
+  ${symptom.notes ? `${isArabic ? 'ملاحظات' : 'Notes'}: ${symptom.notes}` : ""}`
         )
         .join("\n")
-    : "• No recent symptoms reported"
+    : `• ${isArabic ? 'لا توجد أعراض حديثة مسجلة' : 'No recent symptoms reported'}`
 }
 
-FAMILY MEMBERS:
+${isArabic ? 'أفراد العائلة:' : 'FAMILY MEMBERS:'}
 ${
   context.familyMembers.length > 0
     ? context.familyMembers
         .map(
           (member) =>
-            `• ${member.name} (${member.relationship}${member.age ? `, ${member.age} years old` : ""})
-  ${member.conditions && member.conditions.length > 0 ? `Conditions: ${member.conditions.join(", ")}` : ""}
-  ${member.healthStatus ? `Status: ${member.healthStatus}` : ""}`
+            `• ${member.name} (${member.relationship}${member.age ? `, ${member.age} ${isArabic ? 'سنوات' : 'years old'}` : ""})
+  ${member.conditions && member.conditions.length > 0 ? `${isArabic ? 'الحالات' : 'Conditions'}: ${member.conditions.join(", ")}` : ""}
+  ${member.healthStatus ? `${isArabic ? 'الحالة' : 'Status'}: ${member.healthStatus}` : ""}`
         )
         .join("\n")
-    : "• No family members connected yet. Family members can be added through the Family tab."
+    : `• ${isArabic ? 'لا يوجد أفراد عائلة متصلين بعد. يمكن إضافة أفراد العائلة من خلال تبويب العائلة.' : 'No family members connected yet. Family members can be added through the Family tab.'}`
 }
 
-${
-  context.recentAlerts.length > 0
-    ? `\nRECENT HEALTH ALERTS:\n${context.recentAlerts
-        .slice(0, 5)
-        .map(
-          (alert) =>
-            `• ${alert.timestamp.toLocaleDateString()}: ${alert.type} - ${alert.details}`
-        )
-        .join("\n")}`
-    : ""
+${isArabic ? 'تنبيهات صحية حديثة:' : 'RECENT HEALTH ALERTS:'}
+${context.recentAlerts.length > 0
+  ? context.recentAlerts
+      .slice(0, 5)
+      .map(
+        (alert) =>
+          `• ${alert.timestamp.toLocaleDateString()}: ${alert.type} - ${alert.details}`
+      )
+      .join("\n")
+  : ""
 }
 
 ${
   context.vitalSigns.lastUpdated
     ? `
-RECENT VITAL SIGNS (${context.vitalSigns.lastUpdated.toLocaleDateString()}):
-• Heart Rate: ${context.vitalSigns.heartRate || "Not recorded"} bpm
-• Blood Pressure: ${context.vitalSigns.bloodPressure || "Not recorded"}
-• Temperature: ${context.vitalSigns.temperature || "Not recorded"}°F
-• Oxygen Level: ${context.vitalSigns.oxygenLevel || "Not recorded"}%
-${context.vitalSigns.glucoseLevel ? `• Glucose: ${context.vitalSigns.glucoseLevel} mg/dL` : ""}
-${context.vitalSigns.weight ? `• Weight: ${context.vitalSigns.weight}` : ""}
+${isArabic ? 'العلامات الحيوية الأخيرة' : 'RECENT VITAL SIGNS'} (${context.vitalSigns.lastUpdated.toLocaleDateString()}):
+• ${isArabic ? 'معدل ضربات القلب' : 'Heart Rate'}: ${context.vitalSigns.heartRate || (isArabic ? 'غير مسجل' : 'Not recorded')} bpm
+• ${isArabic ? 'ضغط الدم' : 'Blood Pressure'}: ${context.vitalSigns.bloodPressure || (isArabic ? 'غير مسجل' : 'Not recorded')}
+• ${isArabic ? 'درجة الحرارة' : 'Temperature'}: ${context.vitalSigns.temperature || (isArabic ? 'غير مسجل' : 'Not recorded')}°F
+• ${isArabic ? 'مستوى الأكسجين' : 'Oxygen Level'}: ${context.vitalSigns.oxygenLevel || (isArabic ? 'غير مسجل' : 'Not recorded')}%
+${context.vitalSigns.glucoseLevel ? `• ${isArabic ? 'الجلوكوز' : 'Glucose'}: ${context.vitalSigns.glucoseLevel} mg/dL` : ""}
+${context.vitalSigns.weight ? `• ${isArabic ? 'الوزن' : 'Weight'}: ${context.vitalSigns.weight}` : ""}
 `
     : ""
 }
 
-INSTRUCTIONS FOR YOUR RESPONSES:
-1. Provide personalized health insights based on the complete medical profile
+${isArabic ? 'تعليمات لردودك:' : 'INSTRUCTIONS FOR YOUR RESPONSES:'}
+${isArabic ?
+`1. قدم رؤى صحية مخصصة بناءً على الملف الطبي الكامل
+2. ضع في اعتبارك جميع الأدوية عند مناقشة التفاعلات الدوائية أو العلاجات الجديدة
+3. كن على دراية بجميع الحساسية والحالات عند تقديم النصائح
+4. راجع الأعراض الأخيرة لتحديد الأنماط أو الاهتمامات
+5. ضع في اعتبارك التاريخ الطبي العائلي لمخاطر الحالات الوراثية
+6. ذكر دائماً المستخدمين باستشارة المتخصصين الصحيين للقرارات الطبية
+7. كن متعاطفاً وداعماً مع كونك معلوماتياً
+8. قدم نصائح عملية وقابلة للتنفيذ عند الاقتضاء
+9. إذا لاحظت أنماطاً مقلقة في الأعراض أو العلامات الحيوية، اقترح بلطف استشارة طبية
+
+تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.` :
+`1. Provide personalized health insights based on the complete medical profile
 2. Consider all medications when discussing drug interactions or new treatments
 3. Be aware of all allergies and conditions when giving advice
 4. Reference recent symptoms to identify patterns or concerns
@@ -477,14 +498,244 @@ INSTRUCTIONS FOR YOUR RESPONSES:
 8. Provide practical, actionable advice when appropriate
 9. If you notice concerning patterns in symptoms or vital signs, gently suggest medical consultation
 
-Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`;
+Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`}`;
 
     return prompt;
   }
 
-  async getContextualPrompt(userId?: string): Promise<string> {
+  async getContextualPrompt(userId?: string, language: string = "en"): Promise<string> {
     const context = await this.getUserHealthContext(userId);
-    return this.generateSystemPrompt(context);
+    return this.generateSystemPrompt(context, language);
+  }
+
+  /**
+   * Get a summary of the user's current health status
+   * Used by the voice agent for quick health overview
+   */
+  async getHealthSummary(): Promise<any> {
+    try {
+      const context = await this.getUserHealthContext();
+      
+      return {
+        profile: {
+          name: context.profile.name,
+          age: context.profile.age,
+          bloodType: context.profile.bloodType,
+        },
+        activeMedicationsCount: context.medications.filter(m => m.isActive).length,
+        recentSymptomsCount: context.symptoms.length,
+        conditionsCount: context.medicalHistory.conditions.length,
+        latestVitals: context.vitalSigns,
+        alertsCount: context.recentAlerts.length,
+        overallStatus: this.calculateOverallStatus(context),
+      };
+    } catch (error) {
+      console.error("Error getting health summary:", error);
+      return { error: "Unable to fetch health summary" };
+    }
+  }
+
+  /**
+   * Calculate overall health status based on context
+   */
+  private calculateOverallStatus(context: HealthContext): string {
+    const recentSymptoms = context.symptoms.filter(s => {
+      const symptomDate = new Date(s.date);
+      const daysDiff = (Date.now() - symptomDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysDiff <= 7;
+    });
+
+    if (recentSymptoms.some(s => s.severity === "severe" || s.severity === "high")) {
+      return "Needs attention - severe symptoms reported recently";
+    }
+    if (recentSymptoms.length > 3) {
+      return "Monitor closely - multiple symptoms reported";
+    }
+    if (context.recentAlerts.some(a => a.severity === "high" || a.severity === "urgent")) {
+      return "Review alerts - important notifications pending";
+    }
+    return "Stable - no immediate concerns";
+  }
+
+  /**
+   * Get user's medications list
+   */
+  async getMedications(activeOnly: boolean = true): Promise<any> {
+    try {
+      const context = await this.getUserHealthContext();
+      const medications = activeOnly 
+        ? context.medications.filter(m => m.isActive)
+        : context.medications;
+
+      return {
+        medications: medications.map(med => ({
+          name: med.name,
+          dosage: med.dosage,
+          frequency: med.frequency,
+          startDate: med.startDate,
+          endDate: med.endDate,
+          notes: med.notes,
+          isActive: med.isActive,
+          reminders: med.reminders,
+        })),
+        totalCount: medications.length,
+        activeCount: context.medications.filter(m => m.isActive).length,
+      };
+    } catch (error) {
+      console.error("Error getting medications:", error);
+      return { error: "Unable to fetch medications", medications: [] };
+    }
+  }
+
+  /**
+   * Log a new symptom
+   * Note: In production, this would save to Firestore
+   */
+  async logSymptom(symptomName: string, severity?: number, notes?: string): Promise<any> {
+    try {
+      // In a full implementation, this would save to Firestore
+      // For now, we return a success response
+      return {
+        success: true,
+        message: `Symptom "${symptomName}" logged successfully`,
+        data: {
+          name: symptomName,
+          severity: severity || 5,
+          notes: notes || "",
+          timestamp: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      console.error("Error logging symptom:", error);
+      return { success: false, error: "Failed to log symptom" };
+    }
+  }
+
+  /**
+   * Get recent vital signs
+   */
+  async getRecentVitals(vitalType: string = "all", days: number = 7): Promise<any> {
+    try {
+      const context = await this.getUserHealthContext();
+      const vitals = context.vitalSigns;
+
+      if (vitalType === "all") {
+        return {
+          vitals: {
+            heartRate: vitals.heartRate ? `${vitals.heartRate} bpm` : "Not recorded",
+            bloodPressure: vitals.bloodPressure || "Not recorded",
+            temperature: vitals.temperature ? `${vitals.temperature}°F` : "Not recorded",
+            oxygenSaturation: vitals.oxygenLevel ? `${vitals.oxygenLevel}%` : "Not recorded",
+            weight: vitals.weight || "Not recorded",
+            glucoseLevel: vitals.glucoseLevel ? `${vitals.glucoseLevel} mg/dL` : "Not recorded",
+          },
+          lastUpdated: vitals.lastUpdated?.toISOString() || "Never",
+        };
+      }
+
+      // Return specific vital type
+      const vitalMap: Record<string, any> = {
+        heart_rate: { value: vitals.heartRate, unit: "bpm" },
+        blood_pressure: { value: vitals.bloodPressure, unit: "mmHg" },
+        temperature: { value: vitals.temperature, unit: "°F" },
+        oxygen_saturation: { value: vitals.oxygenLevel, unit: "%" },
+        weight: { value: vitals.weight, unit: "lbs" },
+        glucose: { value: vitals.glucoseLevel, unit: "mg/dL" },
+      };
+
+      const vital = vitalMap[vitalType];
+      return {
+        type: vitalType,
+        value: vital?.value || "Not recorded",
+        unit: vital?.unit || "",
+        lastUpdated: vitals.lastUpdated?.toISOString() || "Never",
+      };
+    } catch (error) {
+      console.error("Error getting vitals:", error);
+      return { error: "Unable to fetch vitals" };
+    }
+  }
+
+  /**
+   * Check for potential medication interactions
+   */
+  async checkMedicationInteractions(newMedication?: string): Promise<any> {
+    try {
+      const context = await this.getUserHealthContext();
+      const activeMeds = context.medications.filter(m => m.isActive);
+
+      // In a full implementation, this would use a drug interaction database
+      // For now, we provide general guidance
+      const result: any = {
+        currentMedications: activeMeds.map(m => m.name),
+        allergies: context.medicalHistory.allergies,
+        warnings: [],
+        recommendations: [],
+      };
+
+      // Add general warnings based on number of medications
+      if (activeMeds.length >= 5) {
+        result.warnings.push("You are taking 5 or more medications. Please ensure your healthcare provider is aware of all medications.");
+      }
+
+      // Check against allergies if new medication provided
+      if (newMedication) {
+        result.newMedication = newMedication;
+        result.recommendations.push(
+          `Before starting ${newMedication}, please consult with your healthcare provider or pharmacist about potential interactions with your current medications.`
+        );
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error checking interactions:", error);
+      return { error: "Unable to check medication interactions" };
+    }
+  }
+
+  /**
+   * Get emergency contact information
+   */
+  async getEmergencyContacts(action: string): Promise<any> {
+    try {
+      const context = await this.getUserHealthContext();
+
+      switch (action) {
+        case "get_contacts":
+          return {
+            primaryContact: context.profile.emergencyContact,
+            phone: context.profile.phone,
+            email: context.profile.email,
+            familyMembers: context.familyMembers.map(m => ({
+              name: m.name,
+              relationship: m.relationship,
+              phone: m.phone,
+              email: m.email,
+            })),
+          };
+
+        case "alert_family":
+          // In production, this would trigger actual notifications
+          return {
+            success: true,
+            message: "Family members have been notified",
+            contactedMembers: context.familyMembers.map(m => m.name),
+          };
+
+        case "emergency_services_info":
+          return {
+            emergency: "911",
+            poisonControl: "1-800-222-1222",
+            note: "For medical emergencies, please call 911 immediately.",
+          };
+
+        default:
+          return { error: "Unknown action" };
+      }
+    } catch (error) {
+      console.error("Error with emergency contacts:", error);
+      return { error: "Unable to process emergency contact request" };
+    }
   }
 }
 

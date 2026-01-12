@@ -1,9 +1,42 @@
 import React from 'react';
-import { Text as RNText, StyleSheet } from 'react-native';
+import { Text as RNText, StyleSheet, TextProps as RNTextProps } from 'react-native';
 import { colors, typography, spacing } from './theme';
 
+export interface CaptionProps extends Omit<RNTextProps, 'style'> {
+  children: React.ReactNode;
+  color?: string;
+  style?: RNTextProps['style'];
+  numberOfLines?: number;
+}
+
+export interface HeadingProps extends Omit<RNTextProps, 'style'> {
+  level?: 1 | 2 | 3 | 4 | 5 | 6;
+  children: React.ReactNode;
+  color?: string;
+  align?: 'left' | 'center' | 'right';
+  weight?: 'light' | 'regular' | 'medium' | 'semibold' | 'bold';
+  style?: RNTextProps['style'];
+}
+
+export interface TextProps extends Omit<RNTextProps, 'style'> {
+  children: React.ReactNode;
+  size?: 'small' | 'medium' | 'large';
+  color?: string;
+  align?: 'left' | 'center' | 'right';
+  weight?: 'light' | 'regular' | 'medium' | 'semibold' | 'bold';
+  style?: RNTextProps['style'];
+  numberOfLines?: number;
+}
+
+export interface LabelProps extends Omit<RNTextProps, 'style'> {
+  children: React.ReactNode;
+  color?: string;
+  style?: RNTextProps['style'];
+  numberOfLines?: number;
+}
+
 // Heading Component
-export const Heading = ({
+export const Heading: React.FC<HeadingProps> = ({
   level = 1, // 1-6
   children,
   color = colors.textPrimary,
@@ -44,7 +77,7 @@ export const Heading = ({
 };
 
 // Body Text Component
-export const Text = ({
+export const Text: React.FC<TextProps> = ({
   children,
   size = 'medium', // small, medium, large
   color = colors.textPrimary,
@@ -82,7 +115,7 @@ export const Text = ({
 };
 
 // Caption Text
-export const Caption = ({ children, color = colors.textSecondary, style, numberOfLines, ...props }) => {
+export const Caption: React.FC<CaptionProps> = ({ children, color = colors.textSecondary, style, numberOfLines, ...props }) => {
   return (
     <RNText
       style={[styles.caption, { color }, style]}
@@ -95,7 +128,7 @@ export const Caption = ({ children, color = colors.textSecondary, style, numberO
 };
 
 // Label Text (for forms)
-export const Label = ({ children, required = false, style, ...props }) => {
+export const Label: React.FC<LabelProps> = ({ children, required = false, style, ...props }) => {
   return (
     <RNText style={[styles.label, style]} {...props}>
       {children}

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -30,12 +31,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { alertService } from "@/lib/services/alertService";
 import { db } from "@/lib/firebase";
+import { userService } from "@/lib/services/userService";
 import healthContextService from "@/lib/services/healthContextService";
 import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
-import { userService } from "@/lib/services/userService";
 import { doc, getDoc } from "firebase/firestore";
 import type { EmergencyAlert, Medication, MedicalHistory, Symptom, User } from "@/types";
 
@@ -171,6 +172,72 @@ export default function FamilyMemberHealthView() {
     return isRTL ? "خفيف" : "Mild";
   };
 
+  const changeMemberRole = async (targetUserId: string, newRole: "member" | "caregiver") => {
+    if (!user?.id) return;
+
+    try {
+      await userService.updateUserRole(targetUserId, newRole, user.id);
+
+      // Update local member state
+      setMember(prev => prev ? { ...prev, role: newRole } : null);
+
+      Alert.alert(
+        isRTL ? "نجح" : "Success",
+        isRTL
+          ? `تم تحديث دور العضو بنجاح`
+          : `Member role updated successfully`
+      );
+    } catch (error: any) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        error.message || (isRTL ? "فشل في تحديث الدور" : "Failed to update role")
+      );
+    }
+  };
+
+  const sendCaregiverAlert = () => {
+    if (!user?.id || !member?.id) return;
+
+    Alert.prompt(
+      isRTL ? "إرسال تنبيه للمدير" : "Send Alert to Admin",
+      isRTL
+        ? "اكتب رسالة التنبيه للمدير:"
+        : "Enter alert message for admin:",
+      [
+        { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
+        {
+          text: isRTL ? "إرسال" : "Send",
+          onPress: async (message?: string) => {
+            if (!message?.trim()) return;
+
+            try {
+              await alertService.createCaregiverAlert(
+                user.id,
+                user.familyId!,
+                message.trim()
+              );
+
+              Alert.alert(
+                isRTL ? "تم الإرسال" : "Sent",
+                isRTL
+                  ? "تم إرسال التنبيه لجميع المديرين"
+                  : "Alert sent to all admins"
+              );
+            } catch (error: any) {
+              Alert.alert(
+                isRTL ? "خطأ" : "Error",
+                error.message || (isRTL ? "فشل في إرسال التنبيه" : "Failed to send alert")
+              );
+            }
+          }
+        }
+      ],
+      "plain-text",
+      "",
+      "default"
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -294,6 +361,62 @@ export default function FamilyMemberHealthView() {
           <Text style={[styles.memberRelationship, isRTL && styles.rtlText]}>
             {displayRelationship}
           </Text>
+
+          {/* Role Management for Admins */}
+          {user?.role === "admin" && user?.id !== memberId && (
+            <View style={styles.roleManagement}>
+              <Text style={[styles.roleLabel, isRTL && styles.rtlText]}>
+                {isRTL ? "الدور" : "Role"}
+              </Text>
+              <View style={styles.roleButtons}>
+                <TouchableOpacity
+                  onPress={() => changeMemberRole(memberId, "member")}
+                  style={[
+                    styles.roleButton,
+                    member.role === "member" && styles.roleButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.roleButtonText,
+                      member.role === "member" && styles.roleButtonTextActive,
+                    ]}
+                  >
+                    {isRTL ? "عضو" : "Member"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => changeMemberRole(memberId, "caregiver")}
+                  style={[
+                    styles.roleButton,
+                    member.role === "caregiver" && styles.roleButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.roleButtonText,
+                      member.role === "caregiver" && styles.roleButtonTextActive,
+                    ]}
+                  >
+                    {isRTL ? "مرافق صحي" : "Caregiver"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Caregiver Alert Button */}
+          {user?.role === "caregiver" && user?.familyId === member?.familyId && (
+            <TouchableOpacity
+              onPress={() => sendCaregiverAlert()}
+              style={styles.caregiverAlertButton}
+            >
+              <AlertTriangle color="#FFFFFF" size={20} />
+              <Text style={styles.caregiverAlertText}>
+                {isRTL ? "إرسال تنبيه للمدير" : "Send Alert to Admin"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Alerts Section */}
@@ -751,6 +874,56 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 4,
     textAlign: "center",
+  },
+  roleManagement: {
+    marginTop: 16,
+    alignItems: "center",
+  },
+  roleLabel: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+  roleButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  roleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+  },
+  roleButtonActive: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  roleButtonText: {
+    fontSize: 12,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+  },
+  roleButtonTextActive: {
+    color: "#FFFFFF",
+  },
+  caregiverAlertButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F59E0B",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  caregiverAlertText: {
+    fontSize: 14,
+    fontFamily: "Geist-SemiBold",
+    color: "#FFFFFF",
   },
   section: {
     marginBottom: 24,

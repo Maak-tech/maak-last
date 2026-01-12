@@ -1147,7 +1147,7 @@ export default function TrackScreen() {
             </View>
 
             {/* Recent Activity - Symptoms */}
-            {recentSymptoms.length > 0 && (
+            {user?.role !== "admin" && recentSymptoms.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
                   <Text
@@ -1223,7 +1223,7 @@ export default function TrackScreen() {
             )}
 
             {/* Recent Activity - Moods */}
-            {recentMoods.length > 0 && (
+            {user?.role !== "admin" && recentMoods.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
                   <Text
@@ -1303,7 +1303,7 @@ export default function TrackScreen() {
             )}
 
             {/* Recent Activity - Allergies */}
-            {recentAllergies.length > 0 && (
+            {user?.role !== "admin" && recentAllergies.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
                   <Text
@@ -1458,7 +1458,7 @@ export default function TrackScreen() {
             )}
 
             {/* Recent Activity - Medical History */}
-            {recentMedicalHistory.length > 0 && (
+            {user?.role !== "admin" && recentMedicalHistory.length > 0 && (
               <View style={styles.recentSection as ViewStyle}>
                 <View style={styles.sectionHeader as ViewStyle}>
                   <Text

@@ -109,8 +109,8 @@ export default function TrackScreen() {
       if (selectedFilter.type === "family" && user.familyId && isAdmin) {
         // Load family symptoms and stats (admin only)
         const [familySymptoms, familyStats] = await Promise.all([
-          symptomService.getFamilySymptoms(user.familyId, 50),
-          symptomService.getFamilySymptomStats(user.familyId, 7),
+          symptomService.getFamilySymptoms(user.id, user.familyId, 50),
+          symptomService.getFamilySymptomStats(user.id, user.familyId, 7),
         ]);
 
         setSymptoms(familySymptoms);

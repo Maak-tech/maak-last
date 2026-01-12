@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Medication } from "@/types";
+import { userService } from "./userService";
 import { offlineService } from "./offlineService";
 
 export const medicationService = {
@@ -391,9 +392,24 @@ export const medicationService = {
     }
   },
 
-  // Get medications for all family members (for admins)
-  async getFamilyMedications(familyId: string): Promise<Medication[]> {
+  // Check if user has permission to access family data (admin or caregiver)
+  async checkFamilyAccessPermission(userId: string, familyId: string): Promise<boolean> {
     try {
+      const user = await userService.getUser(userId);
+      return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
+    } catch (error) {
+      return false;
+    }
+  },
+
+  // Get medications for all family members (for admins and caregivers)
+  async getFamilyMedications(userId: string, familyId: string): Promise<Medication[]> {
+    try {
+      // Check permissions
+      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      if (!hasPermission) {
+        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+      }
       // First get all family members
       const familyMembersQuery = query(
         collection(db, "users"),
@@ -447,10 +463,10 @@ export const medicationService = {
     }
   },
 
-  // Get today's medications for all family members (for admins)
-  async getFamilyTodaysMedications(familyId: string): Promise<Medication[]> {
+  // Get today's medications for all family members (for admins and caregivers)
+  async getFamilyTodaysMedications(userId: string, familyId: string): Promise<Medication[]> {
     try {
-      const familyMedications = await this.getFamilyMedications(familyId);
+      const familyMedications = await this.getFamilyMedications(userId, familyId);
 
       // Filter for today's medications (active medications with reminders)
       const today = new Date().toDateString();

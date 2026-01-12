@@ -50,9 +50,9 @@ class CaregiverDashboardService {
     familyId: string
   ): Promise<CaregiverOverview> {
     try {
-      // Verify caregiver is admin
+      // Verify caregiver is admin or caregiver
       const caregiver = await userService.getUser(caregiverId);
-      if (!caregiver || caregiver.role !== "admin" || caregiver.familyId !== familyId) {
+      if (!caregiver || (caregiver.role !== "admin" && caregiver.role !== "caregiver") || caregiver.familyId !== familyId) {
         throw new Error("Permission denied");
       }
 
