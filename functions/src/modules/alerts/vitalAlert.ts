@@ -8,7 +8,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { logger } from '../../observability/logger';
 import { createTraceId } from '../../observability/correlation';
 import { createAlertMessage, type AlertSeverity, type AlertDirection, type VitalType } from './engine';
-import { analyze as zeinaAnalyze, type AlertInfo } from '../../services/zeina/analyze';
+import { analyze as zeinaAnalyze, type AlertInfo } from '../../services/zeina/adapter';
 import { enrichAlertWithAnalysis } from '../../services/zeina/store';
 import { getRecentVitalsSummary } from '../vitals/recentSummary';
 import { getFamilyAdmins } from '../family/admins';

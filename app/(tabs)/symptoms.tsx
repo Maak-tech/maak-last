@@ -1,5 +1,5 @@
 import { useFocusEffect } from "expo-router";
-import { Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
+import { ArrowLeft, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -449,9 +449,21 @@ export default function TrackScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color="#1E293B"
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
         <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
           {t("symptoms")}
         </Heading>
+
         <TouchableOpacity
           onPress={() => {
             setSelectedTargetUser(user.id);
@@ -869,6 +881,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backButtonRTL: {
+    // RTL adjustments if needed
   },
   title: {
     fontSize: 24,

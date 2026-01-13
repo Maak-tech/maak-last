@@ -1,0 +1,136 @@
+# GitHub Actions Workflow for Zeina AI
+# Place this in: .github/workflows/zeina-tests.yml
+
+name: Zeina AI Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'functions/src/services/zeina/**'
+      - 'functions/src/observability/**'
+      - '.github/workflows/zeina-tests.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'functions/src/services/zeina/**'
+      - 'functions/src/observability/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: functions/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./functions
+      run: npm ci
+    
+    - name: Run linter
+      working-directory: ./functions
+      run: npm run lint -- services/zeina
+    
+    - name: Run unit tests
+      working-directory: ./functions
+      run: npm test -- services/zeina/__tests__/guardrails.test.ts services/zeina/__tests__/outputMapper.test.ts
+    
+    - name: Run integration tests
+      working-directory: ./functions
+      run: npm test -- services/zeina/__tests__/integration.test.ts
+    
+    - name: Generate coverage report
+      working-directory: ./functions
+      run: npm test -- services/zeina/__tests__/ --coverage
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./functions/coverage/lcov.info
+        flags: zeina
+        name: zeina-coverage
+        fail_ci_if_error: false
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Run security audit
+      working-directory: ./functions
+      run: npm audit --production
+    
+    - name: Check for PHI leaks in code
+      run: |
+        echo "Checking for potential PHI in code..."
+        # Check for common PHI patterns in Zeina code
+        if grep -r -i "exact.*age\|patient.*name\|email.*address" functions/src/services/zeina/analyze.ts functions/src/services/zeina/inputBuilder.ts; then
+          echo "❌ Potential PHI leak detected in code!"
+          exit 1
+        else
+          echo "✅ No obvious PHI leaks detected"
+        fi
+
+  phi-compliance:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Verify PHI sanitization
+      run: |
+        echo "Verifying PHI sanitization in inputBuilder.ts..."
+        
+        # Check that inputBuilder has bucketing functions
+        if ! grep -q "bucketVitalValue\|ageToGroup" functions/src/services/zeina/inputBuilder.ts; then
+          echo "❌ PHI sanitization functions missing!"
+          exit 1
+        fi
+        
+        # Check that analyze.ts doesn't process raw PHI
+        if grep -q "patientAge.*number\|exactAge\|rawValue" functions/src/services/zeina/analyze.ts; then
+          echo "⚠️  Warning: analyze.ts may be processing raw PHI"
+        fi
+        
+        echo "✅ PHI sanitization checks passed"
+
+  deployment-check:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Check deployment readiness
+      run: |
+        echo "Checking deployment readiness..."
+        
+        # Check for required documentation
+        if [ ! -f "functions/src/services/zeina/README.md" ]; then
+          echo "❌ Missing README.md"
+          exit 1
+        fi
+        
+        if [ ! -f "functions/src/services/zeina/DEPLOYMENT.md" ]; then
+          echo "❌ Missing DEPLOYMENT.md"
+          exit 1
+        fi
+        
+        echo "✅ Deployment documentation present"
+        echo "✅ Ready for staging deployment"

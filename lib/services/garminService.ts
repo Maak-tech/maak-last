@@ -172,7 +172,6 @@ export const garminService = {
 
       return results;
     } catch (error) {
-      console.error("Error fetching Garmin data:", error);
       return [];
     }
   },
@@ -186,7 +185,6 @@ export const garminService = {
       // Garmin connection is stored in AsyncStorage via saveProviderConnection,
       // not in SecureStore, so we don't need to delete it here
     } catch (error) {
-      console.error("Error disconnecting Garmin:", error);
     }
   },
 };

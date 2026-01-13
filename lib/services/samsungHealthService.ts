@@ -201,7 +201,6 @@ export const samsungHealthService = {
       });
 
       if (!response.ok) {
-        console.error("Samsung Health token refresh failed");
         return null;
       }
 
@@ -217,7 +216,6 @@ export const samsungHealthService = {
 
       return newTokens.access_token;
     } catch (error) {
-      console.error("Error refreshing Samsung Health token:", error);
       return null;
     }
   },
@@ -260,7 +258,6 @@ export const samsungHealthService = {
 
       return results;
     } catch (error) {
-      console.error("Error fetching Samsung Health data:", error);
       return [];
     }
   },
@@ -274,7 +271,6 @@ export const samsungHealthService = {
       // Samsung Health connection is stored in AsyncStorage via saveProviderConnection,
       // not in SecureStore, so we don't need to delete it here
     } catch (error) {
-      console.error("Error disconnecting Samsung Health:", error);
     }
   },
 };

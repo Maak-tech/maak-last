@@ -6,38 +6,18 @@
 import * as admin from 'firebase-admin';
 import { logger } from '../../observability/logger';
 
-/**
- * Notification type enum
- */
-export type NotificationType = 
-  | 'fall' 
-  | 'medication' 
-  | 'symptom' 
-  | 'vital' 
-  | 'trend' 
-  | 'family'
-  | string; // Allow other types to maintain compatibility
 
 /**
  * Check if a notification should be sent to a user based on their preferences
  * 
  * @param userId - The user ID to check
  * @param notificationType - Type of notification (fall, medication, symptom, vital, trend, family)
- * @param traceId - Optional correlation ID for logging
  * @returns true if notification should be sent, false otherwise
  */
 export async function shouldSendNotification(
   userId: string,
-  notificationType: NotificationType,
-  traceId?: string
+  notificationType: string
 ): Promise<boolean> {
-  logger.debug('Checking notification preferences', {
-    traceId,
-    uid: userId,
-    notificationType,
-    fn: 'shouldSendNotification',
-  });
-
   try {
     const db = admin.firestore();
     const userDoc = await db.collection('users').doc(userId).get();
@@ -45,7 +25,6 @@ export async function shouldSendNotification(
 
     if (!userData) {
       logger.debug('User not found', {
-        traceId,
         uid: userId,
         fn: 'shouldSendNotification',
       });
@@ -58,7 +37,6 @@ export async function shouldSendNotification(
     // Check global notification setting
     if (notificationSettings.enabled === false) {
       logger.debug('Notifications disabled globally for user', {
-        traceId,
         uid: userId,
         fn: 'shouldSendNotification',
       });
@@ -91,7 +69,6 @@ export async function shouldSendNotification(
     }
 
     logger.debug('Notification preference checked', {
-      traceId,
       uid: userId,
       notificationType,
       shouldSend,
@@ -101,7 +78,6 @@ export async function shouldSendNotification(
     return shouldSend;
   } catch (error) {
     logger.error('Failed to check notification preferences', error as Error, {
-      traceId,
       uid: userId,
       notificationType,
       fn: 'shouldSendNotification',

@@ -1,14 +1,14 @@
-import { router } from "expo-router";
+import { router, useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
+  ArrowLeft,
   Calendar,
   ChevronLeft,
   ChevronRight,
   FileText,
   Filter,
   Pill,
-  Search,
   Smile,
   TestTube,
 } from "lucide-react-native";
@@ -43,6 +43,7 @@ export default function TimelineScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const timelineRouter = useRouter();
   const isRTL = i18n.language === "ar";
 
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -70,6 +71,16 @@ export default function TimelineScreen() {
       paddingVertical: theme.spacing.base,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border.light,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    backButtonRTL: {
+      // RTL adjustments if needed
     },
     headerLeft: {
       flexDirection: isRTL ? "row-reverse" : "row",
@@ -443,6 +454,17 @@ export default function TimelineScreen() {
   return (
     <SafeAreaView style={styles.container as ViewStyle}>
       <View style={styles.header as ViewStyle}>
+        <TouchableOpacity
+          onPress={() => timelineRouter.back()}
+          style={[styles.backButton as ViewStyle, isRTL && (styles.backButtonRTL as ViewStyle)]}
+        >
+          <ArrowLeft
+            color={theme.colors.text.primary}
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
         <View style={styles.headerLeft as ViewStyle}>
           <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as StyleProp<TextStyle>}>
             {isRTL ? "الخط الزمني الصحي" : "Health Timeline"}

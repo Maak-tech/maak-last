@@ -227,7 +227,6 @@ export const dexcomService = {
       });
 
       if (!response.ok) {
-        console.error("Dexcom token refresh failed");
         return null;
       }
 
@@ -243,7 +242,6 @@ export const dexcomService = {
 
       return newTokens.access_token;
     } catch (error) {
-      console.error("Error refreshing Dexcom token:", error);
       return null;
     }
   },
@@ -272,7 +270,6 @@ export const dexcomService = {
       );
 
       if (!response.ok) {
-        console.error("Failed to fetch Dexcom glucose data");
         return null;
       }
 
@@ -289,7 +286,6 @@ export const dexcomService = {
         trendArrow: getTrendArrow(latestReading.trend),
       };
     } catch (error) {
-      console.error("Error fetching Dexcom glucose:", error);
       return null;
     }
   },
@@ -349,7 +345,6 @@ export const dexcomService = {
 
       return results;
     } catch (error: any) {
-      console.error("Error fetching Dexcom metrics:", error);
       return [];
     }
   },
@@ -373,7 +368,6 @@ export const dexcomService = {
       // Connection data is stored in AsyncStorage via saveProviderConnection
       // and will be cleared by disconnectProvider in healthSync.ts
     } catch (error) {
-      console.error("Error disconnecting Dexcom:", error);
     }
   },
 };

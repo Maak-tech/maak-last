@@ -171,7 +171,6 @@ async function evaluateAndCreateHealthEventIfNeeded(
     // }
   } catch (error) {
     // Silently fail health event creation to avoid breaking vital saving
-    console.warn("Failed to evaluate vitals for health events:", error);
   }
 }
 
@@ -319,7 +318,6 @@ export async function syncDexcomCGMData(userId: string): Promise<void> {
       );
     }
   } catch (error) {
-    console.error("Failed to sync Dexcom CGM data:", error);
     // Don't throw error - CGM sync failures shouldn't break other operations
   }
 }
@@ -346,7 +344,6 @@ export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
       );
     }
   } catch (error) {
-    console.error("Failed to sync Freestyle Libre CGM data:", error);
     // Don't throw error - CGM sync failures shouldn't break other operations
   }
 }
@@ -377,7 +374,7 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
         };
       }
     } catch (error) {
-      console.log("Dexcom not available or failed");
+      // Dexcom not available or failed
     }
 
     // Try Freestyle Libre as fallback
@@ -393,12 +390,11 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
         };
       }
     } catch (error) {
-      console.log("Freestyle Libre not available or failed");
+      // Freestyle Libre not available or failed
     }
 
     return null;
   } catch (error) {
-    console.error("Failed to get latest glucose reading:", error);
     return null;
   }
 }

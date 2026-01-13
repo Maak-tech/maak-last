@@ -55,6 +55,7 @@ export default {
         NSHealthUpdateUsageDescription: "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
         NSUserTrackingUsageDescription: "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure.",
         NSFaceIDUsageDescription: "Maak Health uses Face ID or Touch ID to securely authenticate your identity for biometric authentication.",
+        NSMicrophoneUsageDescription: "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant.",
         ITSAppUsesNonExemptEncryption: false,
         UIBackgroundModes: ["location", "processing"],
         UITextInputContextIdentifier: ""
@@ -121,6 +122,12 @@ export default {
       "expo-router",
       "expo-font",
       [
+        "expo-av",
+        {
+          microphonePermission: "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant."
+        }
+      ],
+      [
         "expo-notifications",
         {
           icon: "./assets/images/generated_image.png",
@@ -174,6 +181,16 @@ export default {
       // Create a .env file with these variables (see .env.example)
       fitbitClientId: process.env.FITBIT_CLIENT_ID || "",
       fitbitClientSecret: process.env.FITBIT_CLIENT_SECRET || "",
+      samsungHealthClientId: process.env.SAMSUNG_HEALTH_CLIENT_ID || "",
+      samsungHealthClientSecret: process.env.SAMSUNG_HEALTH_CLIENT_SECRET || "",
+      garminClientId: process.env.GARMIN_CLIENT_ID || "",
+      garminClientSecret: process.env.GARMIN_CLIENT_SECRET || "",
+      withingsClientId: process.env.WITHINGS_CLIENT_ID || "",
+      withingsClientSecret: process.env.WITHINGS_CLIENT_SECRET || "",
+      ouraClientId: process.env.OURA_CLIENT_ID || "",
+      ouraClientSecret: process.env.OURA_CLIENT_SECRET || "",
+      dexcomClientId: process.env.DEXCOM_CLIENT_ID || "",
+      dexcomClientSecret: process.env.DEXCOM_CLIENT_SECRET || "",
       // Both regular and premium users use the same OpenAI API key
       openaiApiKey: process.env.OPENAI_API_KEY || "",
       zeinaApiKey: process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY || "", // Prefer ZEINA_API_KEY if set

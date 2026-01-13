@@ -116,6 +116,20 @@ const resources = {
       tryVoiceAgent: "Try Voice Agent",
       voiceConversation: "Voice Conversation",
 
+      // Zeina Voice Assistant (Siri-like)
+      tapToActivate: "Tap to activate Zeina",
+      connecting: "Connecting...",
+      thinking: "Thinking...",
+      imListening: "I'm listening...",
+      physicalDeviceRequired: "Physical Device Required",
+      audioUnavailable: "Audio Unavailable",
+      configurationError: "Configuration Error",
+      apiKeyMissing: "Please configure your OpenAI API key in the app settings.",
+      tryAsking: "Try asking:",
+      tipHealthSummary: "What's my health summary?",
+      tipMedications: "What medications am I taking?",
+      tipVitals: "How are my vitals?",
+
       // Dashboard
       healthOverview: "Health Overview",
       healthInsights: "Health Insights",
@@ -831,6 +845,20 @@ const resources = {
       recordingFailed: "فشل بدء التسجيل",
       tryVoiceAgent: "جرب المساعد الصوتي",
       voiceConversation: "محادثة صوتية",
+
+      // Zeina Voice Assistant (Siri-like) - Arabic
+      tapToActivate: "اضغط لتفعيل زينة",
+      connecting: "جارٍ الاتصال...",
+      thinking: "أفكر...",
+      imListening: "أنا أستمع...",
+      physicalDeviceRequired: "جهاز حقيقي مطلوب",
+      audioUnavailable: "الصوت غير متاح",
+      configurationError: "خطأ في الإعداد",
+      apiKeyMissing: "يرجى إعداد مفتاح OpenAI API في إعدادات التطبيق.",
+      tryAsking: "جرب أن تسأل:",
+      tipHealthSummary: "ما هو ملخص صحتي؟",
+      tipMedications: "ما هي الأدوية التي أتناولها؟",
+      tipVitals: "كيف هي العلامات الحيوية الخاصة بي؟",
 
       // Dashboard
       healthOverview: "نظرة عامة على الصحة",

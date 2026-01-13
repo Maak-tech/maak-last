@@ -440,8 +440,3 @@ export default function GlobalSearchScreen() {
     </SafeAreaView>
   );
 }
-        )}
-      </View>
-    </SafeAreaView>
-  );
-}

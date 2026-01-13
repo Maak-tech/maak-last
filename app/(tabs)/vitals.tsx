@@ -1,6 +1,7 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   Activity,
+  ArrowLeft,
   Check,
   CheckCircle,
   ChevronRight,
@@ -1855,6 +1856,12 @@ export default function VitalsScreen() {
     <SafeAreaView style={styles.container as ViewStyle}>
       {/* Header */}
       <View style={styles.header as ViewStyle}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton as ViewStyle}
+        >
+          <ArrowLeft color={theme.colors.text.primary} size={24} />
+        </TouchableOpacity>
         <Text
           style={
             [

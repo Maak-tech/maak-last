@@ -1,14 +1,14 @@
 /**
- * Zeina - Voice Health Assistant
+ * Zeina - Siri-like Voice Health Assistant
  *
- * A real-time speech-to-speech voice assistant powered by OpenAI's Realtime API.
- * Features audio visualization, conversation transcript, and health-focused tools.
+ * A hands-free, always-listening voice assistant powered by OpenAI's Realtime API.
+ * Just tap to activate, then speak naturally - Zeina will respond with voice.
  */
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Device from "expo-device";
-import Constants from "expo-constants";
+import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,8 +33,9 @@ import {
 } from "@/lib/services/realtimeAgentService";
 import healthContextService from "@/lib/services/healthContextService";
 
-// Audio recording imports
+// Audio imports
 let Audio: any = null;
+let FileSystem: any = null;
 let isAudioAvailable = false;
 let audioLoadError: string | null = null;
 
@@ -42,52 +43,39 @@ try {
   if (Platform.OS === "ios" || Platform.OS === "android") {
     const expoAv = require("expo-av");
     Audio = expoAv.Audio;
-    isAudioAvailable = !!Audio;
-    
+    FileSystem = require("expo-file-system");
+    isAudioAvailable = !!Audio && !!FileSystem;
+
     if (!Audio) {
       audioLoadError = "expo-av loaded but Audio module not found";
+    } else if (!FileSystem) {
+      audioLoadError = "expo-file-system not available";
     }
   } else {
-    audioLoadError = `Platform ${Platform.OS} not supported for audio recording`;
+    audioLoadError = `Platform ${Platform.OS} not supported for audio`;
   }
 } catch (error) {
   isAudioAvailable = false;
   audioLoadError = error instanceof Error ? error.message : String(error);
-  console.warn("Failed to load expo-av:", audioLoadError);
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // Conversation message type
 interface ConversationMessage {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
-  isStreaming?: boolean;
-}
-
-// Tool call status type
-interface ToolCallStatus {
-  id: string;
-  name: string;
-  status: "pending" | "executing" | "completed" | "error";
-  result?: string;
 }
 
 export default function ZeinaScreen() {
   const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Check audio availability on mount
-  useEffect(() => {
-    if (audioLoadError && !Device.isDevice) {
-      console.warn("Audio recording not available on simulator. Use a physical device for voice features.");
-    }
-  }, []);
-
-  // Connection and session state
+  // Connection state
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const [isActive, setIsActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -95,114 +83,147 @@ export default function ZeinaScreen() {
   // Conversation state
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState("");
-  const [toolCalls, setToolCalls] = useState<ToolCallStatus[]>([]);
+  const [showTranscript, setShowTranscript] = useState(true);
 
-  // Audio recording state
+  // Audio streaming state
   const recordingRef = useRef<any>(null);
+  const streamingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isStreamingRef = useRef(false);
 
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const waveAnim = useRef(new Animated.Value(0)).current;
+  const breatheAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const waveAnims = useRef([...Array(5)].map(() => new Animated.Value(0.3))).current;
+  const orbitAnim = useRef(new Animated.Value(0)).current;
 
-  // Initialize animations
+  // Breathing animation (always on when active)
   useEffect(() => {
-    // Continuous rotation for the outer ring
-    Animated.loop(
-      Animated.timing(rotateAnim, {
+    if (isActive && connectionState === "connected") {
+      const breathe = Animated.loop(
+        Animated.sequence([
+          Animated.timing(breatheAnim, {
+            toValue: 1.05,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(breatheAnim, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      breathe.start();
+      return () => breathe.stop();
+    } else {
+      breatheAnim.setValue(1);
+    }
+  }, [isActive, connectionState]);
+
+  // Orbit animation
+  useEffect(() => {
+    const orbit = Animated.loop(
+      Animated.timing(orbitAnim, {
         toValue: 1,
-        duration: 8000,
+        duration: 10000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    orbit.start();
+    return () => orbit.stop();
   }, []);
 
-  // Pulse animation when listening
+  // Pulse animation when user is speaking
   useEffect(() => {
     if (isListening) {
-      Animated.loop(
+      const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.2,
-            duration: 600,
+            toValue: 1.15,
+            duration: 400,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 600,
+            duration: 400,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      pulse.start();
 
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: false,
-          }),
-          Animated.timing(glowAnim, {
-            toValue: 0.3,
-            duration: 800,
-            useNativeDriver: false,
-          }),
-        ])
-      ).start();
+      // Glow effect
+      Animated.timing(glowAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+
+      return () => pulse.stop();
     } else {
       pulseAnim.setValue(1);
-      glowAnim.setValue(0);
+      Animated.timing(glowAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
     }
   }, [isListening]);
 
-  // Wave animation when assistant is speaking
+  // Wave animation when Zeina is speaking
   useEffect(() => {
     if (isSpeaking) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(waveAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(waveAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
+      const animations = waveAnims.map((anim, index) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(anim, {
+              toValue: 0.6 + Math.random() * 0.4,
+              duration: 150 + index * 50,
+              useNativeDriver: true,
+            }),
+            Animated.timing(anim, {
+              toValue: 0.3,
+              duration: 150 + index * 50,
+              useNativeDriver: true,
+            }),
+          ])
+        )
+      );
+      animations.forEach((a) => a.start());
+      return () => animations.forEach((a) => a.stop());
     } else {
-      waveAnim.setValue(0);
+      waveAnims.forEach((anim) => anim.setValue(0.3));
     }
   }, [isSpeaking]);
 
-  // Set up event handlers
+  // Set up event handlers for the realtime service
   const setupEventHandlers = useCallback(() => {
     const handlers: RealtimeEventHandlers = {
       onConnectionStateChange: (state) => {
         setConnectionState(state);
+        if (state === "connected") {
+          // Auto-start listening when connected
+          startContinuousListening();
+        } else if (state === "disconnected" || state === "error") {
+          stopContinuousListening();
+        }
       },
 
-      onSessionCreated: (session) => {
-        // Add welcome message
-        setMessages([
-          {
-            id: "welcome",
-            role: "assistant",
-            content: t("voiceAgentWelcome", "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness."),
-            timestamp: new Date(),
-          },
-        ]);
+      onSessionCreated: () => {
+        // Haptic feedback on connection
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       },
 
       onSpeechStarted: () => {
         setIsListening(true);
         setCurrentTranscript("");
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       },
 
       onSpeechStopped: () => {
@@ -213,18 +234,6 @@ export default function ZeinaScreen() {
       onTranscriptDelta: (delta, role) => {
         if (role === "user") {
           setCurrentTranscript((prev) => prev + delta);
-        } else {
-          // Update the last assistant message
-          setMessages((prev) => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage?.role === "assistant" && lastMessage.isStreaming) {
-              return [
-                ...prev.slice(0, -1),
-                { ...lastMessage, content: lastMessage.content + delta },
-              ];
-            }
-            return prev;
-          });
         }
       },
 
@@ -240,79 +249,35 @@ export default function ZeinaScreen() {
             },
           ]);
           setCurrentTranscript("");
-        } else if (role === "assistant") {
-          setMessages((prev) => {
-            const lastMessage = prev[prev.length - 1];
-            if (lastMessage?.role === "assistant" && lastMessage.isStreaming) {
-              return [
-                ...prev.slice(0, -1),
-                { ...lastMessage, isStreaming: false },
-              ];
-            }
-            return prev;
-          });
         }
       },
 
       onAudioDelta: () => {
         setIsSpeaking(true);
-        // If there's no streaming assistant message, create one
-        setMessages((prev) => {
-          const lastMessage = prev[prev.length - 1];
-          if (lastMessage?.role !== "assistant" || !lastMessage.isStreaming) {
-            return [
-              ...prev,
-              {
-                id: Date.now().toString(),
-                role: "assistant",
-                content: "",
-                timestamp: new Date(),
-                isStreaming: true,
-              },
-            ];
-          }
-          return prev;
-        });
+        setIsProcessing(false);
       },
 
       onAudioDone: () => {
         setIsSpeaking(false);
         setIsProcessing(false);
+        // Resume listening after Zeina finishes speaking
+        if (isActive && connectionState === "connected") {
+          startContinuousListening();
+        }
       },
 
       onToolCall: async (toolCall) => {
-        setToolCalls((prev) => [
-          ...prev,
-          {
-            id: toolCall.call_id,
-            name: toolCall.name,
-            status: "executing",
-          },
-        ]);
-
-        // Execute the tool
+        // Execute health tools silently
         try {
-          const result = await executeHealthTool(toolCall.name, JSON.parse(toolCall.arguments));
-          
-          setToolCalls((prev) =>
-            prev.map((tc) =>
-              tc.id === toolCall.call_id
-                ? { ...tc, status: "completed", result: JSON.stringify(result) }
-                : tc
-            )
+          const result = await executeHealthTool(
+            toolCall.name,
+            JSON.parse(toolCall.arguments)
           );
-
-          // Submit the tool output
-          realtimeAgentService.submitToolOutput(toolCall.call_id, JSON.stringify(result));
+          realtimeAgentService.submitToolOutput(
+            toolCall.call_id,
+            JSON.stringify(result)
+          );
         } catch (error) {
-          setToolCalls((prev) =>
-            prev.map((tc) =>
-              tc.id === toolCall.call_id
-                ? { ...tc, status: "error", result: String(error) }
-                : tc
-            )
-          );
-
           realtimeAgentService.submitToolOutput(
             toolCall.call_id,
             JSON.stringify({ error: "Tool execution failed" })
@@ -320,447 +285,456 @@ export default function ZeinaScreen() {
         }
       },
 
-      onResponseDone: () => {
+      onResponseDone: (response) => {
+        // Extract assistant message from response if available
+        if (response?.output) {
+          const textOutput = response.output.find(
+            (o: any) => o.type === "message" && o.content
+          );
+          if (textOutput?.content) {
+            const textContent = textOutput.content.find(
+              (c: any) => c.type === "text" || c.type === "audio"
+            );
+            if (textContent?.transcript || textContent?.text) {
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  role: "assistant",
+                  content: textContent.transcript || textContent.text,
+                  timestamp: new Date(),
+                },
+              ]);
+            }
+          }
+        }
         setIsProcessing(false);
-        // Clear completed tool calls after a delay
-        setTimeout(() => {
-          setToolCalls((prev) => prev.filter((tc) => tc.status !== "completed"));
-        }, 3000);
       },
 
       onError: (error) => {
         setIsProcessing(false);
         setIsListening(false);
         setIsSpeaking(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-        Alert.alert(
-          t("error", "Error"),
-          error?.message || t("connectionError", "Connection error occurred")
-        );
+        if (error?.message?.includes("API key")) {
+          Alert.alert(
+            t("configurationError", "Configuration Error"),
+            t("apiKeyMissing", "Please configure your OpenAI API key in the app settings.")
+          );
+        }
       },
     };
 
     realtimeAgentService.setEventHandlers(handlers);
-  }, [t]);
+  }, [t, isActive, connectionState]);
 
   // Execute health-related tools
   const executeHealthTool = async (name: string, args: any): Promise<any> => {
     switch (name) {
       case "get_health_summary":
         return await healthContextService.getHealthSummary();
-
       case "get_medications":
         return await healthContextService.getMedications(args.active_only);
-
       case "log_symptom":
         return await healthContextService.logSymptom(
           args.symptom_name,
           args.severity,
           args.notes
         );
-
       case "get_recent_vitals":
         return await healthContextService.getRecentVitals(args.vital_type, args.days);
-
       case "check_medication_interactions":
         return await healthContextService.checkMedicationInteractions(args.new_medication);
-
       case "schedule_reminder":
-        return { success: true, message: "Reminder scheduled successfully" };
-
+        return { success: true, message: "Reminder scheduled" };
       case "emergency_contact":
         return await healthContextService.getEmergencyContacts(args.action);
-
       default:
         return { error: "Unknown tool" };
     }
   };
 
-  // Connect to the service
-  const handleConnect = async () => {
+  // Start continuous audio streaming for VAD
+  const startContinuousListening = async () => {
+    if (!Audio || !FileSystem || !isAudioAvailable || isStreamingRef.current) {
+      return;
+    }
+
     try {
-      setupEventHandlers();
+      // Request permissions
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== "granted") {
+        return;
+      }
 
-      // Get personalized health context for the instructions
-      const healthContext = await healthContextService.getContextualPrompt();
-      const customInstructions = `${realtimeAgentService.getDefaultInstructions()}\n\n# User Health Context\n${healthContext}`;
+      // Set audio mode
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        playThroughEarpieceAndroid: false,
+      });
 
-      await realtimeAgentService.connect(customInstructions);
+      isStreamingRef.current = true;
+
+      // Start streaming audio in chunks
+      const streamAudioChunk = async () => {
+        if (!isStreamingRef.current || connectionState !== "connected") {
+          return;
+        }
+
+        try {
+          // Create a short recording
+          const recording = new Audio.Recording();
+          await recording.prepareToRecordAsync({
+            android: {
+              extension: ".wav",
+              outputFormat: Audio.AndroidOutputFormat?.DEFAULT || 0,
+              audioEncoder: Audio.AndroidAudioEncoder?.DEFAULT || 0,
+              sampleRate: 24000,
+              numberOfChannels: 1,
+              bitRate: 384000,
+            },
+            ios: {
+              extension: ".wav",
+              audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
+              sampleRate: 24000,
+              numberOfChannels: 1,
+              bitRate: 384000,
+              linearPCMBitDepth: 16,
+              linearPCMIsBigEndian: false,
+              linearPCMIsFloat: false,
+            },
+            web: {},
+          });
+
+          await recording.startAsync();
+
+          // Record for 200ms chunks
+          await new Promise((resolve) => setTimeout(resolve, 200));
+
+          await recording.stopAndUnloadAsync();
+          const uri = recording.getURI();
+
+          if (uri && isStreamingRef.current) {
+            // Read and send audio
+            const base64Audio = await FileSystem.readAsStringAsync(uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+
+            if (base64Audio) {
+              realtimeAgentService.sendAudioData(base64Audio);
+            }
+
+            // Clean up
+            await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+          }
+        } catch (error) {
+          // Continue streaming despite errors
+        }
+
+        // Schedule next chunk if still streaming
+        if (isStreamingRef.current && connectionState === "connected") {
+          streamingIntervalRef.current = setTimeout(streamAudioChunk, 50);
+        }
+      };
+
+      // Start the streaming loop
+      streamAudioChunk();
     } catch (error) {
-      Alert.alert(
-        t("connectionFailed", "Connection Failed"),
-        error instanceof Error ? error.message : t("unableToConnect", "Unable to connect to voice service")
-      );
+      isStreamingRef.current = false;
     }
   };
 
-  // Disconnect from the service
-  const handleDisconnect = () => {
-    realtimeAgentService.disconnect();
-    setMessages([]);
-    setToolCalls([]);
-    setCurrentTranscript("");
+  // Stop continuous listening
+  const stopContinuousListening = () => {
+    isStreamingRef.current = false;
+    if (streamingIntervalRef.current) {
+      clearTimeout(streamingIntervalRef.current);
+      streamingIntervalRef.current = null;
+    }
+    if (recordingRef.current) {
+      recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      recordingRef.current = null;
+    }
   };
 
-  // Start/stop recording
-  const toggleRecording = async () => {
-    // Check if audio is available
-    if (!Audio || !isAudioAvailable) {
-      // Check if running on simulator
+  // Activate Zeina (like saying "Hey Siri")
+  const activateZeina = async () => {
+    if (!isAudioAvailable) {
       if (!Device.isDevice) {
         Alert.alert(
-          t("error", "Error"),
-          t("simulatorNotSupported", "Audio recording is not available on Simulator. Please use a physical device for voice features.")
-        );
-      } else if (Platform.OS === "web") {
-        Alert.alert(
-          t("audioNotAvailable", "Audio recording not available"),
-          t("useTextInput", "Please use text input to communicate with Zeina on this platform.")
+          t("physicalDeviceRequired", "Physical Device Required"),
+          t("simulatorNotSupported", "Voice features require a physical device.")
         );
       } else {
         Alert.alert(
-          t("error", "Error"),
-          t("audioNotAvailable", "Audio recording not available on this platform. Please ensure expo-av is properly installed.")
+          t("audioUnavailable", "Audio Unavailable"),
+          audioLoadError || t("audioNotAvailable", "Audio is not available on this device.")
         );
       }
       return;
     }
 
-    if (isListening) {
-      // Stop recording
-      try {
-        if (recordingRef.current) {
-          await recordingRef.current.stopAndUnloadAsync();
-          recordingRef.current = null;
-        }
-        realtimeAgentService.commitAudioBuffer();
-      } catch (error) {
-        // Error stopping recording
-      }
-    } else {
-      // Start recording
-      try {
-        // Request permissions
-        const permission = await Audio.requestPermissionsAsync();
-        if (permission.status !== "granted") {
-          Alert.alert(t("permissionDenied", "Permission Denied"), t("microphonePermissionRequired", "Microphone permission is required"));
-          return;
-        }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        // Set audio mode
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: true,
-        });
+    if (isActive) {
+      // Deactivate
+      setIsActive(false);
+      stopContinuousListening();
+      realtimeAgentService.disconnect();
+      setMessages([]);
+      return;
+    }
 
-        // Start recording
-        const recording = new Audio.Recording();
-        await recording.prepareToRecordAsync({
-          android: {
-            extension: ".m4a",
-            outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
-            audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
-            sampleRate: 24000,
-            numberOfChannels: 1,
-            bitRate: 128000,
-          },
-          ios: {
-            extension: ".m4a",
-            audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_HIGH,
-            sampleRate: 24000,
-            numberOfChannels: 1,
-            bitRate: 128000,
-            linearPCMBitDepth: 16,
-            linearPCMIsBigEndian: false,
-            linearPCMIsFloat: false,
-          },
-          web: {},
-        });
+    // Activate
+    setIsActive(true);
 
-        // Set up status updates to stream audio
-        recording.setOnRecordingStatusUpdate(async (status: any) => {
-          if (status.isRecording && status.metersCount) {
-            // Audio is being recorded
-            setIsListening(true);
-          }
-        });
+    try {
+      setupEventHandlers();
 
-        await recording.startAsync();
-        recordingRef.current = recording;
-        setIsListening(true);
-      } catch (error) {
-        Alert.alert(t("error", "Error"), t("recordingFailed", "Failed to start recording"));
-      }
+      // Get health context
+      const healthContext = await healthContextService.getContextualPrompt();
+      const instructions = `${realtimeAgentService.getDefaultInstructions()}\n\n# User Health Context\n${healthContext}`;
+
+      await realtimeAgentService.connect(instructions);
+    } catch (error) {
+      setIsActive(false);
+      Alert.alert(
+        t("connectionFailed", "Connection Failed"),
+        error instanceof Error ? error.message : t("unableToConnect", "Unable to connect")
+      );
     }
   };
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    if (messages.length > 0) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
   }, [messages]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      handleDisconnect();
+      stopContinuousListening();
+      realtimeAgentService.disconnect();
     };
   }, []);
 
-  // Connection button styles
-  const getConnectionButtonStyle = () => {
-    switch (connectionState) {
-      case "connected":
-        return styles.connectedButton;
-      case "connecting":
-        return styles.connectingButton;
-      case "error":
-        return styles.errorButton;
-      default:
-        return styles.disconnectedButton;
-    }
-  };
-
-  // Render waveform bars
-  const renderWaveformBars = () => {
-    const bars = [];
-    for (let i = 0; i < 5; i++) {
-      bars.push(
-        <Animated.View
-          key={i}
-          style={[
-            styles.waveBar,
-            {
-              transform: [
-                {
-                  scaleY: waveAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.3, 1 + Math.random() * 0.5],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-      );
-    }
-    return bars;
-  };
-
-  const rotateInterpolate = rotateAnim.interpolate({
+  const orbitRotate = orbitAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
   });
 
-  const glowInterpolate = glowAnim.interpolate({
+  const glowOpacity = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["rgba(0, 122, 255, 0.1)", "rgba(0, 122, 255, 0.4)"],
+    outputRange: [0.2, 0.6],
   });
+
+  // Get status message
+  const getStatusMessage = () => {
+    if (!isActive) return t("tapToActivate", "Tap to activate Zeina");
+    if (connectionState === "connecting") return t("connecting", "Connecting...");
+    if (isSpeaking) return ""; // Don't show text when Zeina is speaking
+    if (isProcessing) return t("thinking", "Thinking...");
+    if (isListening) return t("listening", "Listening...");
+    return t("imListening", "I'm listening...");
+  };
+
+  // Get orb colors based on state
+  const getOrbColors = (): [string, string, string] => {
+    if (!isActive || connectionState !== "connected") {
+      return ["#2d3436", "#636e72", "#2d3436"];
+    }
+    if (isListening) {
+      return ["#ff6b6b", "#ee5a5a", "#ff8787"];
+    }
+    if (isSpeaking) {
+      return ["#4ecdc4", "#44a08d", "#6ee7de"];
+    }
+    if (isProcessing) {
+      return ["#a29bfe", "#6c5ce7", "#b8b5ff"];
+    }
+    return ["#667eea", "#764ba2", "#8b7fef"];
+  };
+
+  const orbColors = getOrbColors();
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#0a0a1a", "#1a1a2e", "#16213e"]}
+        colors={["#0a0a0f", "#12121a", "#1a1a28"]}
         style={styles.gradient}
       >
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-          {/* Header */}
+          {/* Minimal header */}
           <View style={styles.header}>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>{t("zeina", "Zeina")}</Text>
-              <View style={[styles.statusDot, connectionState === "connected" && styles.statusDotConnected]} />
-            </View>
-            <TouchableOpacity
-              onPress={connectionState === "connected" ? handleDisconnect : handleConnect}
-              style={[styles.connectionButton, getConnectionButtonStyle()]}
-            >
-              {connectionState === "connecting" ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
+            <Text style={styles.headerTitle}>{t("zeina", "Zeina")}</Text>
+            {isActive && (
+              <TouchableOpacity
+                onPress={() => setShowTranscript(!showTranscript)}
+                style={styles.transcriptToggle}
+              >
                 <Ionicons
-                  name={connectionState === "connected" ? "radio" : "radio-outline"}
-                  size={20}
-                  color="#fff"
+                  name={showTranscript ? "chatbubbles" : "chatbubbles-outline"}
+                  size={22}
+                  color="rgba(255,255,255,0.6)"
                 />
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Main content area */}
-          <View style={styles.content}>
-            {/* Audio visualization */}
-            <View style={styles.visualizationContainer}>
+          {/* Main orb area */}
+          <View style={styles.orbContainer}>
+            {/* Outer orbit ring */}
+            <Animated.View
+              style={[
+                styles.orbitRing,
+                { transform: [{ rotate: orbitRotate }] },
+              ]}
+            >
+              <View style={styles.orbitDot} />
+            </Animated.View>
+
+            {/* Glow effect */}
+            <Animated.View
+              style={[
+                styles.glowEffect,
+                {
+                  opacity: glowOpacity,
+                  backgroundColor: orbColors[0],
+                  transform: [{ scale: pulseAnim }],
+                },
+              ]}
+            />
+
+            {/* Main orb */}
+            <TouchableOpacity
+              onPress={activateZeina}
+              activeOpacity={0.9}
+              style={styles.orbTouchable}
+            >
               <Animated.View
                 style={[
-                  styles.outerRing,
+                  styles.orb,
                   {
-                    transform: [{ rotate: rotateInterpolate }],
+                    transform: [
+                      { scale: Animated.multiply(breatheAnim, pulseAnim) },
+                    ],
                   },
                 ]}
               >
                 <LinearGradient
-                  colors={["#667eea", "#764ba2", "#f093fb"]}
+                  colors={orbColors}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.ringGradient}
-                />
-              </Animated.View>
-
-              <Animated.View
-                style={[
-                  styles.glowCircle,
-                  {
-                    backgroundColor: glowInterpolate,
-                    transform: [{ scale: pulseAnim }],
-                  },
-                ]}
-              />
-
-              <Animated.View
-                style={[
-                  styles.mainCircle,
-                  {
-                    transform: [{ scale: pulseAnim }],
-                  },
-                ]}
-              >
-                <LinearGradient
-                  colors={
-                    isListening
-                      ? ["#ff6b6b", "#ee5a5a"]
-                      : isSpeaking
-                      ? ["#4ecdc4", "#44a08d"]
-                      : connectionState === "connected"
-                      ? ["#667eea", "#764ba2"]
-                      : ["#2d3436", "#636e72"]
-                  }
-                  style={styles.circleGradient}
+                  style={styles.orbGradient}
                 >
-                  {isSpeaking ? (
-                    <View style={styles.waveformContainer}>{renderWaveformBars()}</View>
-                  ) : isListening ? (
-                    <Ionicons name="mic" size={48} color="#fff" />
+                  {connectionState === "connecting" ? (
+                    <ActivityIndicator size="large" color="#fff" />
+                  ) : isSpeaking ? (
+                    // Sound wave visualization
+                    <View style={styles.waveContainer}>
+                      {waveAnims.map((anim, i) => (
+                        <Animated.View
+                          key={i}
+                          style={[
+                            styles.waveBar,
+                            {
+                              transform: [{ scaleY: anim }],
+                              height: 40 + i * 8,
+                            },
+                          ]}
+                        />
+                      ))}
+                    </View>
                   ) : (
-                    <Ionicons
-                      name={connectionState === "connected" ? "ear" : "mic-off"}
-                      size={48}
-                      color="#fff"
-                    />
+                    <View style={styles.orbIcon}>
+                      {isActive ? (
+                        <View style={styles.listeningIndicator}>
+                          <View
+                            style={[
+                              styles.listeningDot,
+                              isListening && styles.listeningDotActive,
+                            ]}
+                          />
+                        </View>
+                      ) : (
+                        <Ionicons name="mic" size={56} color="#fff" />
+                      )}
+                    </View>
                   )}
                 </LinearGradient>
               </Animated.View>
-            </View>
-
-            {/* Status text */}
-            <Text style={styles.statusText}>
-              {isListening
-                ? t("listening", "Listening...")
-                : isSpeaking
-                ? t("zeinaSpeaking", "Zeina is speaking...")
-                : isProcessing
-                ? t("processing", "Processing...")
-                : connectionState === "connected"
-                ? t("tapToSpeak", "Tap the button to speak")
-                : t("connectToStart", "Tap connect to start")}
-            </Text>
-
-            {/* Current transcript while speaking */}
-            {currentTranscript && (
-              <View style={styles.transcriptPreview}>
-                <Text style={styles.transcriptPreviewText}>{currentTranscript}</Text>
-              </View>
-            )}
-
-            {/* Tool calls indicator */}
-            {toolCalls.length > 0 && (
-              <View style={styles.toolCallsContainer}>
-                {toolCalls.map((tc) => (
-                  <View key={tc.id} style={styles.toolCallBadge}>
-                    <Ionicons
-                      name={tc.status === "executing" ? "sync" : tc.status === "completed" ? "checkmark-circle" : "alert-circle"}
-                      size={14}
-                      color={tc.status === "completed" ? "#4ecdc4" : tc.status === "error" ? "#ff6b6b" : "#fff"}
-                    />
-                    <Text style={styles.toolCallText}>{tc.name.replace(/_/g, " ")}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Conversation messages */}
-          <View style={styles.messagesContainer}>
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.messagesScroll}
-              contentContainerStyle={styles.messagesContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {messages.map((message) => (
-                <View
-                  key={message.id}
-                  style={[
-                    styles.messageBubble,
-                    message.role === "user" ? styles.userMessage : styles.assistantMessage,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.messageText,
-                      message.role === "user" ? styles.userMessageText : styles.assistantMessageText,
-                    ]}
-                  >
-                    {message.content}
-                  </Text>
-                  {message.isStreaming && (
-                    <View style={styles.streamingIndicator}>
-                      <ActivityIndicator size="small" color="#667eea" />
-                    </View>
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Control buttons */}
-          <View style={styles.controlsContainer}>
-            <TouchableOpacity
-              onPress={toggleRecording}
-              disabled={connectionState !== "connected" || isProcessing}
-              style={[
-                styles.talkButton,
-                isListening && styles.talkButtonActive,
-                (connectionState !== "connected" || isProcessing) && styles.talkButtonDisabled,
-              ]}
-            >
-              <LinearGradient
-                colors={
-                  isListening
-                    ? ["#ff6b6b", "#ee5a5a"]
-                    : connectionState === "connected"
-                    ? ["#667eea", "#764ba2"]
-                    : ["#636e72", "#2d3436"]
-                }
-                style={styles.talkButtonGradient}
-              >
-                <Ionicons
-                  name={isListening ? "stop" : "mic"}
-                  size={32}
-                  color="#fff"
-                />
-              </LinearGradient>
             </TouchableOpacity>
 
-            <Text style={styles.controlHint}>
-              {connectionState !== "connected"
-                ? t("pressConnectFirst", "Press connect button first")
-                : isListening
-                ? t("releaseToSend", "Tap to stop")
-                : t("holdToTalk", "Tap to talk")}
-            </Text>
+            {/* Status text */}
+            <Text style={styles.statusText}>{getStatusMessage()}</Text>
+
+            {/* Current transcript preview */}
+            {currentTranscript && (
+              <View style={styles.transcriptPreview}>
+                <Text style={styles.transcriptPreviewText}>
+                  "{currentTranscript}"
+                </Text>
+              </View>
+            )}
           </View>
+
+          {/* Conversation transcript */}
+          {isActive && showTranscript && messages.length > 0 && (
+            <View style={styles.transcriptContainer}>
+              <ScrollView
+                ref={scrollViewRef}
+                style={styles.transcriptScroll}
+                contentContainerStyle={styles.transcriptContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {messages.map((message) => (
+                  <View
+                    key={message.id}
+                    style={[
+                      styles.messageBubble,
+                      message.role === "user"
+                        ? styles.userBubble
+                        : styles.assistantBubble,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.messageText,
+                        message.role === "user"
+                          ? styles.userText
+                          : styles.assistantText,
+                      ]}
+                    >
+                      {message.content}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Quick tips when inactive */}
+          {!isActive && (
+            <View style={styles.tipsContainer}>
+              <Text style={styles.tipsTitle}>{t("tryAsking", "Try asking:")}</Text>
+              <Text style={styles.tipText}>
+                "{t("tipHealthSummary", "What's my health summary?")}"
+              </Text>
+              <Text style={styles.tipText}>
+                "{t("tipMedications", "What medications am I taking?")}"
+              </Text>
+              <Text style={styles.tipText}>
+                "{t("tipVitals", "How are my vitals?")}"
+              </Text>
+            </View>
+          )}
         </SafeAreaView>
       </LinearGradient>
     </View>
@@ -781,211 +755,172 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  headerTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.9)",
+    letterSpacing: 1,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#636e72",
-    marginLeft: 10,
+  transcriptToggle: {
+    padding: 8,
   },
-  statusDotConnected: {
-    backgroundColor: "#4ecdc4",
-  },
-  connectionButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
+  orbContainer: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 40,
   },
-  disconnectedButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  orbitRing: {
+    position: "absolute",
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    borderWidth: 1,
+    borderColor: "rgba(102, 126, 234, 0.2)",
+    alignItems: "center",
+    justifyContent: "flex-start",
   },
-  connectingButton: {
+  orbitDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: "#667eea",
+    marginTop: -4,
   },
-  connectedButton: {
-    backgroundColor: "#4ecdc4",
-  },
-  errorButton: {
-    backgroundColor: "#ff6b6b",
-  },
-  content: {
-    alignItems: "center",
-    paddingVertical: 20,
-  },
-  visualizationContainer: {
-    width: 220,
-    height: 220,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  outerRing: {
+  glowEffect: {
     position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    padding: 3,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
   },
-  ringGradient: {
-    flex: 1,
-    borderRadius: 110,
-    opacity: 0.3,
+  orbTouchable: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
   },
-  glowCircle: {
-    position: "absolute",
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-  },
-  mainCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+  orb: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     overflow: "hidden",
+    elevation: 20,
+    shadowColor: "#667eea",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
   },
-  circleGradient: {
+  orbGradient: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
-  waveformContainer: {
+  orbIcon: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listeningIndicator: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listeningDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+  },
+  listeningDotActive: {
+    backgroundColor: "#fff",
+  },
+  waveContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    height: 48,
+    height: 80,
+    gap: 6,
   },
   waveBar: {
-    width: 6,
-    height: 30,
+    width: 8,
     backgroundColor: "#fff",
-    marginHorizontal: 3,
-    borderRadius: 3,
+    borderRadius: 4,
   },
   statusText: {
-    fontSize: 17,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 24,
+    marginTop: 32,
+    fontSize: 18,
+    color: "rgba(255, 255, 255, 0.7)",
     fontWeight: "500",
+    textAlign: "center",
   },
   transcriptPreview: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 16,
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 20,
     maxWidth: SCREEN_WIDTH - 60,
   },
   transcriptPreviewText: {
-    color: "#fff",
-    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 16,
     fontStyle: "italic",
+    textAlign: "center",
   },
-  toolCallsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    marginTop: 16,
-    paddingHorizontal: 20,
-  },
-  toolCallBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(102, 126, 234, 0.3)",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  transcriptContainer: {
+    maxHeight: SCREEN_HEIGHT * 0.3,
+    marginHorizontal: 16,
+    marginBottom: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 20,
-    margin: 4,
+    overflow: "hidden",
   },
-  toolCallText: {
-    color: "#fff",
-    fontSize: 13,
-    marginLeft: 8,
-    textTransform: "capitalize",
-  },
-  messagesContainer: {
-    flex: 1,
-    marginTop: 10,
-    paddingHorizontal: 16,
-  },
-  messagesScroll: {
+  transcriptScroll: {
     flex: 1,
   },
-  messagesContent: {
-    paddingBottom: 20,
+  transcriptContent: {
+    padding: 16,
+    gap: 12,
   },
   messageBubble: {
     maxWidth: "85%",
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 18,
   },
-  userMessage: {
+  userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#667eea",
+    backgroundColor: "rgba(102, 126, 234, 0.8)",
   },
-  assistantMessage: {
+  assistantBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   messageText: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
   },
-  userMessageText: {
+  userText: {
     color: "#fff",
   },
-  assistantMessageText: {
-    color: "rgba(255, 255, 255, 0.95)",
+  assistantText: {
+    color: "rgba(255, 255, 255, 0.9)",
   },
-  streamingIndicator: {
-    marginTop: 8,
-    alignItems: "flex-start",
-  },
-  controlsContainer: {
-    alignItems: "center",
-    paddingVertical: 24,
-    paddingBottom: 36,
-  },
-  talkButton: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    overflow: "hidden",
-    elevation: 8,
-    shadowColor: "#667eea",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  talkButtonActive: {
-    shadowColor: "#ff6b6b",
-  },
-  talkButtonDisabled: {
-    opacity: 0.5,
-  },
-  talkButtonGradient: {
-    flex: 1,
-    justifyContent: "center",
+  tipsContainer: {
+    paddingHorizontal: 32,
+    paddingBottom: 40,
     alignItems: "center",
   },
-  controlHint: {
-    marginTop: 14,
+  tipsTitle: {
     fontSize: 14,
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "rgba(255, 255, 255, 0.5)",
+    marginBottom: 16,
+    fontWeight: "500",
+  },
+  tipText: {
+    fontSize: 15,
+    color: "rgba(255, 255, 255, 0.4)",
+    marginBottom: 10,
+    fontStyle: "italic",
   },
 });

@@ -35,6 +35,7 @@ import healthContextService from "@/lib/services/healthContextService";
 
 // Audio recording imports
 let Audio: any = null;
+let FileSystem: any = null;
 let isAudioAvailable = false;
 let audioLoadError: string | null = null;
 
@@ -42,10 +43,13 @@ try {
   if (Platform.OS === "ios" || Platform.OS === "android") {
     const expoAv = require("expo-av");
     Audio = expoAv.Audio;
-    isAudioAvailable = !!Audio;
+    FileSystem = require("expo-file-system");
+    isAudioAvailable = !!Audio && !!FileSystem;
     
     if (!Audio) {
       audioLoadError = "expo-av loaded but Audio module not found";
+    } else if (!FileSystem) {
+      audioLoadError = "expo-file-system not available";
     }
   } else {
     audioLoadError = `Platform ${Platform.OS} not supported for audio recording`;
@@ -53,7 +57,6 @@ try {
 } catch (error) {
   isAudioAvailable = false;
   audioLoadError = error instanceof Error ? error.message : String(error);
-  console.warn("Failed to load expo-av:", audioLoadError);
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -82,13 +85,7 @@ export default function VoiceAgentScreen() {
   
   // Log audio availability on mount for debugging
   useEffect(() => {
-    console.log("Voice Agent - Audio availability check:");
-    console.log("  Platform:", Platform.OS);
-    console.log("  isAudioAvailable:", isAudioAvailable);
-    console.log("  Audio module:", !!Audio);
-    if (audioLoadError) {
-      console.log("  Error:", audioLoadError);
-    }
+    // Audio availability check for debugging (removed console logs)
   }, []);
 
   // Connection and session state
@@ -435,9 +432,22 @@ export default function VoiceAgentScreen() {
     setCurrentTranscript("");
   };
 
+  // Convert audio file to PCM16 base64 for the Realtime API
+  const convertAudioToBase64PCM = async (uri: string): Promise<string | null> => {
+    try {
+      // Read the audio file as base64
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return base64Audio;
+    } catch (error) {
+      return null;
+    }
+  };
+
   // Start/stop recording
   const toggleRecording = async () => {
-    if (!Audio || !isAudioAvailable) {
+    if (!Audio || !FileSystem || !isAudioAvailable) {
       // Provide detailed error message
       let errorTitle = t("audioNotAvailable", "Audio recording not available");
       let errorMessage = "";
@@ -463,14 +473,36 @@ export default function VoiceAgentScreen() {
     }
 
     if (isListening) {
-      // Stop recording
+      // Stop recording and send audio
       try {
         if (recordingRef.current) {
           await recordingRef.current.stopAndUnloadAsync();
+          
+          // Get the recorded audio URI
+          const uri = recordingRef.current.getURI();
           recordingRef.current = null;
+          
+          if (uri) {
+            // Read and send the audio to the API
+            const audioBase64 = await convertAudioToBase64PCM(uri);
+            if (audioBase64) {
+              realtimeAgentService.sendAudioData(audioBase64);
+            }
+            
+            // Clean up the temporary file
+            try {
+              await FileSystem.deleteAsync(uri, { idempotent: true });
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+          
+          // Commit the audio buffer to trigger response
+          realtimeAgentService.commitAudioBuffer();
         }
-        realtimeAgentService.commitAudioBuffer();
+        setIsListening(false);
       } catch (error) {
+        setIsListening(false);
         // Error stopping recording
       }
     } else {
@@ -483,43 +515,36 @@ export default function VoiceAgentScreen() {
           return;
         }
 
-        // Set audio mode
+        // Set audio mode for recording and playback
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
           staysActiveInBackground: true,
+          playThroughEarpieceAndroid: false,
         });
 
-        // Start recording
+        // Start recording in WAV/PCM format for better compatibility
         const recording = new Audio.Recording();
         await recording.prepareToRecordAsync({
           android: {
-            extension: ".m4a",
-            outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
-            audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
+            extension: ".wav",
+            outputFormat: Audio.AndroidOutputFormat?.DEFAULT || 0,
+            audioEncoder: Audio.AndroidAudioEncoder?.DEFAULT || 0,
             sampleRate: 24000,
             numberOfChannels: 1,
-            bitRate: 128000,
+            bitRate: 384000,
           },
           ios: {
-            extension: ".m4a",
-            audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_HIGH,
+            extension: ".wav",
+            audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
             sampleRate: 24000,
             numberOfChannels: 1,
-            bitRate: 128000,
+            bitRate: 384000,
             linearPCMBitDepth: 16,
             linearPCMIsBigEndian: false,
             linearPCMIsFloat: false,
           },
           web: {},
-        });
-
-        // Set up status updates to stream audio
-        recording.setOnRecordingStatusUpdate(async (status: any) => {
-          if (status.isRecording && status.metersCount) {
-            // Audio is being recorded
-            setIsListening(true);
-          }
         });
 
         await recording.startAsync();
@@ -1074,6 +1099,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
+    backgroundColor: "#667eea", // Add solid background for shadow performance
     overflow: "hidden",
     elevation: 8,
     shadowColor: "#667eea",

@@ -121,7 +121,6 @@ class HealthSummaryService {
         trends,
       };
     } catch (error) {
-      console.error("Error generating health summary:", error);
       // Return a basic summary if there's an error
       return {
         period,

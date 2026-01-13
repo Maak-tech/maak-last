@@ -216,7 +216,6 @@ export const ouraService = {
       });
 
       if (!response.ok) {
-        console.error("Oura token refresh failed");
         return null;
       }
 
@@ -232,7 +231,6 @@ export const ouraService = {
 
       return newTokens.access_token;
     } catch (error) {
-      console.error("Error refreshing Oura token:", error);
       return null;
     }
   },
@@ -352,7 +350,6 @@ export const ouraService = {
 
       return results;
     } catch (error: any) {
-      console.error("Error fetching Oura metrics:", error);
       return [];
     }
   },
@@ -398,7 +395,6 @@ export const ouraService = {
       // Connection data is stored in AsyncStorage via saveProviderConnection
       // and will be cleared by disconnectProvider in healthSync.ts
     } catch (error) {
-      console.error("Error disconnecting Oura:", error);
     }
   },
 };

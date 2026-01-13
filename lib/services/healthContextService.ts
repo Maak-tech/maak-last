@@ -530,7 +530,6 @@ Remember: You are an AI assistant providing information and support, not a repla
         overallStatus: this.calculateOverallStatus(context),
       };
     } catch (error) {
-      console.error("Error getting health summary:", error);
       return { error: "Unable to fetch health summary" };
     }
   }
@@ -582,7 +581,6 @@ Remember: You are an AI assistant providing information and support, not a repla
         activeCount: context.medications.filter(m => m.isActive).length,
       };
     } catch (error) {
-      console.error("Error getting medications:", error);
       return { error: "Unable to fetch medications", medications: [] };
     }
   }
@@ -606,7 +604,6 @@ Remember: You are an AI assistant providing information and support, not a repla
         },
       };
     } catch (error) {
-      console.error("Error logging symptom:", error);
       return { success: false, error: "Failed to log symptom" };
     }
   }
@@ -651,7 +648,6 @@ Remember: You are an AI assistant providing information and support, not a repla
         lastUpdated: vitals.lastUpdated?.toISOString() || "Never",
       };
     } catch (error) {
-      console.error("Error getting vitals:", error);
       return { error: "Unable to fetch vitals" };
     }
   }
@@ -688,7 +684,6 @@ Remember: You are an AI assistant providing information and support, not a repla
 
       return result;
     } catch (error) {
-      console.error("Error checking interactions:", error);
       return { error: "Unable to check medication interactions" };
     }
   }
@@ -733,7 +728,6 @@ Remember: You are an AI assistant providing information and support, not a repla
           return { error: "Unknown action" };
       }
     } catch (error) {
-      console.error("Error with emergency contacts:", error);
       return { error: "Unable to process emergency contact request" };
     }
   }

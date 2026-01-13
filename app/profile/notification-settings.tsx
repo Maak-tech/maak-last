@@ -28,6 +28,7 @@ import {
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface NotificationSettings {
   enabled: boolean;
@@ -47,6 +48,7 @@ export default function NotificationSettingsScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
+  const { cancelAllMedicationNotifications, clearDuplicateMedicationNotifications } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
@@ -138,11 +140,30 @@ export default function NotificationSettingsScreen() {
     }
   };
 
-  const toggleSetting = (key: keyof NotificationSettings) => {
+  const toggleSetting = async (key: keyof NotificationSettings) => {
+    const newValue = !settings[key];
     setSettings((prev) => ({
       ...prev,
-      [key]: !prev[key],
+      [key]: newValue,
     }));
+
+    // If medication reminders are being disabled, cancel all scheduled reminders
+    if (key === "medicationReminders" && newValue === false) {
+      try {
+        await cancelAllMedicationNotifications();
+      } catch (error) {
+        // Silently handle error - user can manually clear if needed
+      }
+    }
+
+    // If notifications are globally disabled, cancel all medication reminders
+    if (key === "enabled" && newValue === false) {
+      try {
+        await cancelAllMedicationNotifications();
+      } catch (error) {
+        // Silently handle error
+      }
+    }
   };
 
   const renderToggleItem = (
@@ -364,6 +385,64 @@ export default function NotificationSettingsScreen() {
           )}
         </View>
 
+        {/* Clear Notifications */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
+            {isRTL ? "إدارة الإشعارات" : "Notification Management"}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={async () => {
+              Alert.alert(
+                isRTL ? "مسح الإشعارات" : "Clear Notifications",
+                isRTL
+                  ? "هل تريد إلغاء جميع تذكيرات الأدوية المجدولة؟"
+                  : "Do you want to cancel all scheduled medication reminders?",
+                [
+                  {
+                    text: isRTL ? "إلغاء" : "Cancel",
+                    style: "cancel",
+                  },
+                  {
+                    text: isRTL ? "مسح" : "Clear",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        // Clear duplicates first
+                        await clearDuplicateMedicationNotifications();
+                        // Then cancel all medication notifications
+                        const result = await cancelAllMedicationNotifications();
+                        Alert.alert(
+                          isRTL ? "تم" : "Done",
+                          isRTL
+                            ? `تم إلغاء ${result.cancelled} إشعار`
+                            : `Cancelled ${result.cancelled} notification${result.cancelled !== 1 ? 's' : ''}`,
+                          [{ text: isRTL ? "موافق" : "OK" }]
+                        );
+                      } catch (error) {
+                        Alert.alert(
+                          isRTL ? "خطأ" : "Error",
+                          isRTL
+                            ? "فشل في مسح الإشعارات"
+                            : "Failed to clear notifications"
+                        );
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+          >
+            <BellOff color="#EF4444" size={20} />
+            <Text style={styles.clearButtonText}>
+              {isRTL
+                ? "مسح جميع تذكيرات الأدوية"
+                : "Clear All Medication Reminders"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Info Card */}
         <View style={styles.infoCard}>
           <AlertTriangle color="#F59E0B" size={20} />
@@ -552,6 +631,27 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginStart: 12,
     flex: 1,
+  },
+  clearButton: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  clearButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#EF4444",
+    marginStart: 8,
   },
   rtlText: {
     textAlign: "right",

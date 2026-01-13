@@ -1,0 +1,18 @@
+diff --git a/node_modules/react-native-reanimated/src/createAnimatedComponent/createAnimatedComponent.tsx b/node_modules/react-native-reanimated/src/createAnimatedComponent/createAnimatedComponent.tsx
+index e101e03..4a3f190 100644
+--- a/node_modules/react-native-reanimated/src/createAnimatedComponent/createAnimatedComponent.tsx
++++ b/node_modules/react-native-reanimated/src/createAnimatedComponent/createAnimatedComponent.tsx
+@@ -111,11 +111,8 @@ export function createAnimatedComponent(
+   Component: ComponentType<InitialComponentProps>,
+   options?: Options<InitialComponentProps>
+ ): any {
+-  invariant(
+-    typeof Component !== 'function' ||
+-      (Component.prototype && Component.prototype.isReactComponent),
+-    `Looks like you're passing a function component \`${Component.name}\` to \`createAnimatedComponent\` function which supports only class components. Please wrap your function component with \`React.forwardRef()\` or use a class component instead.`
+-  );
++  // React Native 0.81+ / React 19 compatibility - function components are now allowed
++  // The original invariant check has been removed to support TextImpl and other function components
+ 
+   class AnimatedComponent
+     extends React.Component<AnimatedComponentProps<InitialComponentProps>>

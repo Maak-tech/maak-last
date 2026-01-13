@@ -68,7 +68,6 @@ class GlobalSearchService {
 
       return filteredResults;
     } catch (error) {
-      console.error("Global search error:", error);
       return [];
     }
   }

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "expo-router";
-import { Clock, Edit, Minus, Pill, Plus, Trash2, X } from "lucide-react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { ArrowLeft, Clock, Edit, Minus, Pill, Plus, Trash2, X } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -200,6 +200,7 @@ const MEDICATION_DOSAGES: Record<string, string> = {
 export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(false);
@@ -850,9 +851,21 @@ export default function MedicationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color="#1E293B"
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
         <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
           {t("medications")}
         </Heading>
+
         <View style={styles.headerButtons}>
           <TouchableOpacity
             onPress={() => {
@@ -1673,6 +1686,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backButtonRTL: {
+    // RTL adjustments if needed
   },
   title: {
     fontSize: 28,

@@ -27,7 +27,7 @@ try {
     FileSystem = require("expo-file-system");
   }
 } catch (error) {
-  console.log("expo-av or expo-file-system not available");
+  // expo-av or expo-file-system not available
 }
 
 // Types for the Realtime API
@@ -295,10 +295,8 @@ class RealtimeAgentService {
         this.apiKey = key.trim();
       } else {
         this.apiKey = null;
-        console.warn("Zeina API key not configured. Please set OPENAI_API_KEY in your .env file.");
       }
     } catch (error) {
-      console.error("Failed to load API key:", error);
       this.apiKey = null;
     }
   }
@@ -372,7 +370,6 @@ class RealtimeAgentService {
         };
 
         ws.onerror = (error: any) => {
-          console.error("WebSocket error:", error);
           
           // Provide more detailed error information
           const errorMessage = error?.message || error?.toString() || "Unknown WebSocket error";
@@ -453,17 +450,18 @@ class RealtimeAgentService {
     const sessionConfig: Partial<RealtimeSessionConfig> = {
       modalities: ["text", "audio"],
       instructions: customInstructions || healthAssistantInstructions,
-      voice: "coral", // Warm, professional voice
+      voice: "coral", // Warm, professional voice - good for health assistant
       input_audio_format: "pcm16",
       output_audio_format: "pcm16",
       input_audio_transcription: {
         model: "whisper-1",
       },
+      // Optimized VAD settings for Siri-like continuous listening
       turn_detection: {
         type: "server_vad",
-        threshold: 0.5,
-        prefix_padding_ms: 300,
-        silence_duration_ms: 500,
+        threshold: 0.4, // Lower threshold for better speech detection
+        prefix_padding_ms: 400, // Capture beginning of speech
+        silence_duration_ms: 600, // Wait a bit after user stops speaking
       },
       tools: healthAssistantTools,
       tool_choice: "auto",
@@ -483,7 +481,6 @@ class RealtimeAgentService {
    */
   sendMessage(message: RealtimeMessage) {
     if (this.ws?.readyState !== WebSocket.OPEN) {
-      console.error("WebSocket not connected");
       return;
     }
 
@@ -492,12 +489,42 @@ class RealtimeAgentService {
 
   /**
    * Send audio data to the API
+   * Accepts base64 encoded WAV or raw PCM16 data
    */
   sendAudioData(audioBase64: string) {
-    this.sendMessage({
-      type: "input_audio_buffer.append",
-      audio: audioBase64,
-    });
+    try {
+      // Decode base64 to check if it's WAV format
+      const binaryString = atob(audioBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      // Check for WAV header (RIFF)
+      const isWav = bytes[0] === 0x52 && bytes[1] === 0x49 && 
+                    bytes[2] === 0x46 && bytes[3] === 0x46;
+      
+      let pcmData: string;
+      if (isWav) {
+        // Extract PCM data from WAV (skip 44-byte header)
+        const pcmBytes = bytes.slice(44);
+        pcmData = this.arrayBufferToBase64(pcmBytes.buffer.slice(pcmBytes.byteOffset, pcmBytes.byteOffset + pcmBytes.length));
+      } else {
+        // Assume it's already raw PCM or other format
+        pcmData = audioBase64;
+      }
+      
+      this.sendMessage({
+        type: "input_audio_buffer.append",
+        audio: pcmData,
+      });
+    } catch (error) {
+      // Fallback: send as-is
+      this.sendMessage({
+        type: "input_audio_buffer.append",
+        audio: audioBase64,
+      });
+    }
   }
 
   /**
@@ -651,7 +678,6 @@ class RealtimeAgentService {
           break;
 
         case "error":
-          console.error("Realtime API error:", message.error);
           this.eventHandlers.onError?.(message.error);
           break;
 
@@ -659,7 +685,6 @@ class RealtimeAgentService {
           // Silently ignore unhandled message types
       }
     } catch (error) {
-      console.error("Failed to parse message:", error);
     }
   }
 
@@ -708,7 +733,6 @@ class RealtimeAgentService {
         this.processAudioQueue();
       }
     } catch (error) {
-      console.error("Error queueing audio chunk:", error);
     }
   }
 
@@ -758,6 +782,20 @@ class RealtimeAgentService {
       // Convert WAV data to base64 for writing
       const base64Wav = this.arrayBufferToBase64(wavData.buffer);
       
+      // Set audio mode for playback (disable recording mode)
+      if (Audio) {
+        try {
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: true,
+            playThroughEarpieceAndroid: false,
+          });
+        } catch {
+          // Ignore audio mode errors
+        }
+      }
+      
       // Write the base64 data - expo-file-system will handle the conversion
       // Note: We write as base64 string, but the file will be read as binary by Audio.Sound
       try {
@@ -766,7 +804,6 @@ class RealtimeAgentService {
         });
       } catch (error) {
         // Fallback: try writing as data URI if file write fails
-        console.warn("File write failed, trying data URI:", error);
         const dataUri = `data:audio/wav;base64,${base64Wav}`;
         const { sound } = await Audio.Sound.createAsync(
           { uri: dataUri },
@@ -804,7 +841,6 @@ class RealtimeAgentService {
       // Store reference to stop if needed
       this.currentSound = sound;
     } catch (error) {
-      console.error("Error processing audio queue:", error);
       this.isPlayingAudio = false;
       // Try to continue processing
       if (this.audioPlaybackQueue.length > 0) {
@@ -880,7 +916,6 @@ class RealtimeAgentService {
         await this.currentSound.unloadAsync();
         this.currentSound = null;
       } catch (error) {
-        console.error("Error stopping audio:", error);
       }
     }
   }

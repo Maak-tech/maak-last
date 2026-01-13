@@ -1,5 +1,5 @@
-import { useFocusEffect } from "expo-router";
-import { Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
+import { router, useFocusEffect } from "expo-router";
+import { ArrowLeft, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -602,6 +602,20 @@ export default function MoodsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Custom Header with Back Button */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <ArrowLeft color={theme.colors.text.primary} size={24} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          {isRTL ? "تتبع الحالة النفسية" : "Mood Tracking"}
+        </Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
           {isRTL ? "تتبع الحالة النفسية" : "Mood Tracking"}
@@ -1463,5 +1477,28 @@ const styles = StyleSheet.create({
   memberRoleSelected: {
     color: "#2563EB",
     backgroundColor: "#EBF4FF",
+  },
+  // Custom header styles
+  customHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    textAlign: "center",
   },
 });

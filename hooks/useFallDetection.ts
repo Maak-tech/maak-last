@@ -812,7 +812,8 @@ export const useFallDetection = (
                       now - (freefallStartRef.current || now);
 
                     // Check if freefall ended (acceleration returned)
-                    if (filteredAccel >= FALL_CONFIG.FREEFALL_THRESHOLD) {
+                    // Use adaptive threshold for consistency with freefall entry detection
+                    if (filteredAccel >= adaptiveFreefallThreshold) {
                       // Freefall ended - check if it was valid duration
                       if (
                         freefallDuration >= FALL_CONFIG.FREEFALL_MIN_DURATION &&

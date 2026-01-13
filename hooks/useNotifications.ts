@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
+import { userService } from "@/lib/services/userService";
 
 // Track scheduled medication notification IDs to prevent duplicates
 const scheduledMedicationNotifications: Map<string, string> = new Map();
@@ -119,11 +120,48 @@ export const useNotifications = () => {
     initializationPromise.current = initializeNotifications();
 
     // Delay initialization to prevent race conditions
-    const initTimeout = setTimeout(() => {
-      initializationPromise.current?.catch(() => {
+    const initTimeout = setTimeout(async () => {
+      try {
+        await initializationPromise.current;
+        // Clean up duplicate notifications after initialization
+        if (isInitialized.current) {
+          try {
+            const Notifications = await import("expo-notifications");
+            const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+            
+            // Group medication notifications by medication+time
+            const medicationGroups: Map<string, any[]> = new Map();
+            
+            for (const notification of allScheduled) {
+              const data = notification.content?.data;
+              if (data?.type === "medication_reminder") {
+                const key = `${data.medicationName}_${data.reminderTime}`;
+                const group = medicationGroups.get(key) || [];
+                group.push(notification);
+                medicationGroups.set(key, group);
+              }
+            }
+
+            // For each group, keep only the first notification and cancel the rest
+            for (const [, notifications] of medicationGroups) {
+              if (notifications.length > 1) {
+                for (let i = 1; i < notifications.length; i++) {
+                  try {
+                    await Notifications.cancelScheduledNotificationAsync(notifications[i].identifier);
+                  } catch {
+                    // Silently handle individual cancellation error
+                  }
+                }
+              }
+            }
+          } catch {
+            // Silently handle duplicate cleanup error
+          }
+        }
+      } catch {
         // Silently handle initialization error
-      });
-    }, 2000);
+      }
+    }, 3000); // Increased delay to ensure initialization completes
 
     return () => {
       clearTimeout(initTimeout);
@@ -196,6 +234,35 @@ export const useNotifications = () => {
       }
 
       try {
+        // Check user notification preferences before scheduling
+        if (user) {
+          try {
+            const userData = await userService.getUser(user.id);
+            const notificationSettings = userData?.preferences?.notifications as any;
+            
+            // Check if notifications are globally disabled
+            if (notificationSettings?.enabled === false) {
+              return { 
+                success: false, 
+                error: "Notifications are disabled in settings",
+                skipped: true 
+              };
+            }
+            
+            // Check if medication reminders are disabled
+            if (notificationSettings?.medicationReminders === false) {
+              return { 
+                success: false, 
+                error: "Medication reminders are disabled in settings",
+                skipped: true 
+              };
+            }
+          } catch (prefError) {
+            // If we can't check preferences, continue (fail open for safety)
+            // But log it for debugging
+          }
+        }
+
         // Wait for initialization to complete if it's in progress
         if (!isInitialized.current && initializationPromise.current) {
           try {
@@ -562,12 +629,65 @@ export const useNotifications = () => {
     }
   }, []);
 
+  // Cancel all medication notifications
+  const cancelAllMedicationNotifications = useCallback(async () => {
+    if (Platform.OS === "web") {
+      return { cancelled: 0 };
+    }
+
+    try {
+      const Notifications = await import("expo-notifications");
+      const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+      
+      let cancelled = 0;
+      for (const notification of allScheduled) {
+        const data = notification.content?.data;
+        if (data?.type === "medication_reminder") {
+          try {
+            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+            cancelled++;
+          } catch {
+            // Silently handle individual cancellation error
+          }
+        }
+      }
+
+      // Clear the tracking map
+      scheduledMedicationNotifications.clear();
+
+      return { cancelled };
+    } catch {
+      return { cancelled: 0 };
+    }
+  }, []);
+
+  // Cancel all scheduled notifications (use with caution)
+  const cancelAllNotifications = useCallback(async () => {
+    if (Platform.OS === "web") {
+      return { cancelled: 0 };
+    }
+
+    try {
+      const Notifications = await import("expo-notifications");
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      
+      // Clear the tracking map
+      scheduledMedicationNotifications.clear();
+
+      return { cancelled: -1 }; // -1 indicates all were cancelled
+    } catch {
+      return { cancelled: 0 };
+    }
+  }, []);
+
   return {
     scheduleNotification,
     scheduleMedicationReminder,
     scheduleRecurringMedicationReminder,
     cancelMedicationNotifications,
     clearDuplicateMedicationNotifications,
+    cancelAllMedicationNotifications,
+    cancelAllNotifications,
     ensureInitialized,
     checkAndRequestPermissions,
     isInitialized: () => isInitialized.current,

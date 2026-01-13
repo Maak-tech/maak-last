@@ -205,7 +205,6 @@ export const withingsService = {
       const responseData = await response.json();
 
       if (responseData.status !== 0) {
-        console.error("Withings token refresh failed");
         return null;
       }
 
@@ -221,7 +220,6 @@ export const withingsService = {
 
       return newTokens.access_token;
     } catch (error) {
-      console.error("Error refreshing Withings token:", error);
       return null;
     }
   },
@@ -294,7 +292,6 @@ export const withingsService = {
 
       return results;
     } catch (error) {
-      console.error("Error fetching Withings data:", error);
       return [];
     }
   },
@@ -308,7 +305,6 @@ export const withingsService = {
       // Withings connection is stored in AsyncStorage via saveProviderConnection,
       // not in SecureStore, so we don't need to delete it here
     } catch (error) {
-      console.error("Error disconnecting Withings:", error);
     }
   },
 };

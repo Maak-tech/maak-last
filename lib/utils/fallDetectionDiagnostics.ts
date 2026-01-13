@@ -87,34 +87,11 @@ export const logFallDetectionDiagnostics = async (
   isInitialized: boolean,
   lastAlert: Date | null
 ): Promise<void> => {
-  console.log("\n[FallDetection] 📊 ===== DIAGNOSTICS =====");
-  const diagnostics = await getFallDetectionDiagnostics(
+  // Diagnostics output disabled for production
+  await getFallDetectionDiagnostics(
     isEnabled,
     isActive,
     isInitialized,
     lastAlert
   );
-
-  console.log("[FallDetection] Platform:", diagnostics.platform);
-  console.log(
-    "[FallDetection] Sensors Available:",
-    diagnostics.sensorsAvailable
-  );
-  console.log(
-    "[FallDetection] Permissions Granted:",
-    diagnostics.permissionsGranted
-  );
-  console.log("[FallDetection] Enabled:", diagnostics.isEnabled);
-  console.log("[FallDetection] Active:", diagnostics.isActive);
-  console.log("[FallDetection] Initialized:", diagnostics.isInitialized);
-  console.log("[FallDetection] Last Alert:", diagnostics.lastAlert || "Never");
-
-  if (diagnostics.recommendations.length > 0) {
-    console.log("[FallDetection] Recommendations:");
-    diagnostics.recommendations.forEach((rec, i) => {
-      console.log(`[FallDetection]   ${i + 1}. ${rec}`);
-    });
-  }
-
-  console.log("[FallDetection] ============================\n");
 };

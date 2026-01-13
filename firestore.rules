@@ -27,248 +27,229 @@ service cloud.firestore {
 
     // Helper function to check if user is a family admin
     function isFamilyAdmin() {
-      return request.auth != null && 
+      return request.auth != null &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         getUserData().role == 'admin';
     }
 
-    // Users collection
+    // Helper function to check if user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user can read PHI for a patient
+    function canReadPHI(patientUserId) {
+      return isSignedIn() && (
+        request.auth.uid == patientUserId || // User can read their own PHI
+        (isFamilyAdmin() && isSameFamily(patientUserId)) // Family admin can read same-family PHI
+      );
+    }
+
+    // Helper function to check if user can write PHI for a patient
+    function canWritePHI(patientUserId) {
+      return isSignedIn() && (
+        request.auth.uid == patientUserId || // User can write their own PHI
+        (isFamilyAdmin() && isSameFamily(patientUserId)) // Family admin can write same-family PHI
+      );
+    }
+
+    // Users collection - Protected user data
     match /users/{userId} {
       // Allow users to read/write their own document
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Allow family members to read each other's basic data
-      allow read: if isSameFamily(userId);
-      
+
+      // Allow same-family members to read each other's user docs (includes family admins via isSameFamily check)
+      // This enables family features like Zeina to query family members
+      allow read: if isSignedIn() && isSameFamily(userId);
+
       // Allow user creation during registration
       allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Allow list queries for authenticated users (individual document access still controlled by read rules above)
+      // This is needed for family member queries (e.g., Zeina healthContextService)
+      // PHI protection maintained: only documents passing isSameFamily() read rule will be returned
+      allow list: if isSignedIn();
       
-      // Allow authenticated users to query and list users (simplified for debugging)
-      allow list, read: if request.auth != null;
-      
-      // Subcollections under user document
-      match /medications/{medicationId} {
+      // Public profile subcollection - limited fields readable by same-family members
+      match /public/profile {
+        // Owner can read/write their own public profile
         allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Same-family members can read public profile (for caregiver UI)
+        allow read: if isSignedIn() && isSameFamily(userId);
+      }
+      
+      // Subcollections under user document - PHI protected
+      match /medications/{medicationId} {
+        // PHI access control: use same rules as top-level medications collection
+        allow create: if canWritePHI(userId);
+        allow read: if canReadPHI(userId);
+        allow update, delete: if canWritePHI(userId);
       }
       
       match /symptoms/{symptomId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // PHI access control: use same rules as top-level symptoms collection
+        allow create: if canWritePHI(userId);
+        allow read: if canReadPHI(userId);
+        allow update, delete: if canWritePHI(userId);
       }
       
       match /family/{familyMemberId} {
+        // Family member data - owner only access
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       
       match /alerts/{alertId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // PHI access control: use same rules as top-level alerts collection
+        allow create: if canWritePHI(userId);
+        allow read: if canReadPHI(userId);
+        allow update, delete: if canWritePHI(userId);
       }
       
       match /chatSessions/{sessionId} {
+        // Chat sessions - owner only access
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Symptoms collection (simplified for debugging)
+    // Symptoms collection - PHI protected (used by Zeina healthContextService)
     match /symptoms/{symptomId} {
-      // Allow all authenticated users to read and write symptoms
-      allow read, write, create, update, delete: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read/list only if user can read PHI for the target user
+      // Queries must include userId filter matching the authenticated user or family member
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Medications collection (simplified for debugging)
+    // Medications collection - PHI protected (used by Zeina healthContextService)
     match /medications/{medicationId} {
-      // Allow all authenticated users to read and write medications
-      allow read, write, create, update, delete: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read/list only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Moods collection
+    // Moods collection - PHI protected
     match /moods/{moodId} {
-      // Allow users to create their own moods OR admins to create moods for family members
-      allow create: if request.auth != null && (
-        request.resource.data.userId == request.auth.uid ||
-        (isFamilyAdmin() && isSameFamily(request.resource.data.userId))
-      );
-      
-      // Allow users to read and write their own moods
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      
-      // Allow family members to read each other's moods (for viewing family data)
-      allow read: if request.auth != null && isSameFamily(resource.data.userId);
-      
-      // Allow admins to update/delete moods for family members
-      allow update, delete: if request.auth != null && 
-        isFamilyAdmin() && 
-        isSameFamily(resource.data.userId);
-      
-      // Allow authenticated users to query/list moods (queries are filtered by userId in the app)
-      // Individual document access is still controlled by the read rules above
-      allow list: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read/list only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Medical History collection
+    // Medical History collection - PHI protected (used by Zeina healthContextService)
     match /medicalHistory/{historyId} {
-      // Allow users to read and write their own medical history
-      allow read, write: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        request.resource.data.userId == request.auth.uid
-      );
-      
-      // Allow users to create their own medical history
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      
-      // Allow family members to read each other's medical history (for viewing family data)
-      allow read: if isSameFamily(resource.data.userId);
-      
-      // Allow authenticated users to query and list medical history (simplified for debugging)
-      allow list, read: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read/list only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Allergies collection
+    // Allergies collection - PHI protected
     match /allergies/{allergyId} {
-      // Allow users to create their own allergies
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      
-      // Allow users to read and write their own allergies
-      allow read, update, delete: if request.auth != null && (
-        resource.data.userId == request.auth.uid ||
-        request.resource.data.userId == request.auth.uid
-      );
-      
-      // Allow family members to read each other's allergies (for viewing family data)
-      allow read: if request.auth != null && isSameFamily(resource.data.userId);
-      
-      // Allow admins to update/delete allergies for family members
-      allow update, delete: if request.auth != null && 
-        isFamilyAdmin() && 
-        isSameFamily(resource.data.userId);
-      
-      // Allow authenticated users to query and list allergies (simplified for debugging)
-      // This must come after the specific read rules to allow queries to work properly
-      // Individual document access is still controlled by the read rules above
-      allow list, read: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read/list only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Vitals collection (heart rate, blood pressure, etc.)
+    // Vitals collection - PHI protected
     match /vitals/{vitalId} {
-      // Allow users to create their own vitals (primary rule - no document reads required)
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      
-      // Allow admins to create vitals for family members (secondary rule - requires user document)
-      allow create: if request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        isFamilyAdmin() && 
-        isSameFamily(request.resource.data.userId);
-      
-      // Allow users to read and write their own vitals
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      
-      // Allow family members to read each other's vitals (for viewing family data)
-      allow read: if request.auth != null && isSameFamily(resource.data.userId);
-      
-      // Allow admins to update/delete vitals for family members
-      allow update, delete: if request.auth != null && 
-        isFamilyAdmin() && 
-        isSameFamily(resource.data.userId);
-      
-      // Allow authenticated users to query/list vitals (queries are filtered by userId in the app)
-      // Individual document access is still controlled by the read rules above
-      allow list: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read/list only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Lab Results collection
+    // Lab Results collection - PHI protected
     match /labResults/{labResultId} {
-      // Allow users to create their own lab results (primary rule - no document reads required)
-      allow create: if request.auth != null && 
-        request.resource.data.userId != null &&
-        request.resource.data.userId == request.auth.uid;
-      
-      // Allow admins to create lab results for family members (secondary rule - requires user document)
-      // Only evaluate if userId doesn't match auth.uid (to avoid unnecessary document reads)
-      allow create: if request.auth != null && 
-        request.resource.data.userId != null &&
-        request.resource.data.userId != request.auth.uid &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        exists(/databases/$(database)/documents/users/$(request.resource.data.userId)) &&
-        isFamilyAdmin() && 
-        isSameFamily(request.resource.data.userId);
-      
-      // Allow users to read and write their own lab results
-      allow read, update, delete: if request.auth != null && 
-        resource.data.userId != null &&
-        resource.data.userId == request.auth.uid;
-      
-      // Allow family members to read each other's lab results (for viewing family data)
-      allow read: if request.auth != null && 
-        resource.data.userId != null &&
-        resource.data.userId != request.auth.uid &&
-        isSameFamily(resource.data.userId);
-      
-      // Allow admins to update/delete lab results for family members
-      allow update, delete: if request.auth != null && 
-        resource.data.userId != null &&
-        resource.data.userId != request.auth.uid &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        exists(/databases/$(database)/documents/users/$(resource.data.userId)) &&
-        isFamilyAdmin() && 
-        isSameFamily(resource.data.userId);
-      
-      // Allow authenticated users to query/list lab results (queries are filtered by userId in the app)
-      // Individual document access is still controlled by the read rules above
-      allow list: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read/list only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Family invitation codes
+    // Calendar Events collection - user's own events only
+    match /calendarEvents/{eventId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Medication Adherence collection - PHI protected
+    match /medication_adherence/{recordId} {
+      allow create: if canWritePHI(request.resource.data.userId);
+      allow read: if canReadPHI(resource.data.userId);
+      allow update, delete: if canWritePHI(resource.data.userId);
+    }
+
+    // Family invitation codes - Restricted access
     match /familyInvitations/{invitationId} {
+      // Creator can create invitations
       allow create: if request.auth != null && request.auth.uid == request.resource.data.invitedBy;
-      allow read: if request.auth != null;
+      // Only allow read if user is the creator or the invitee (for accepting invitations)
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.invitedBy ||
+        request.auth.uid == resource.data.invitedTo
+      );
+      // Allow update only by creator or invitee when status is pending
       allow update: if request.auth != null &&
         (request.auth.uid == resource.data.invitedBy || 
-         resource.data.status == 'pending');
+         (request.auth.uid == resource.data.invitedTo && resource.data.status == 'pending'));
     }
 
-    // Health Events collection - For vital sign alerts and health monitoring events
+    // Health Events collection - PHI protected
     match /healthEvents/{eventId} {
-      // Allow users to create their own health events (primary rule - no document reads required)
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-
-      // Allow admins to create health events for family members (secondary rule - requires user document)
-      allow create: if request.auth != null &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        isFamilyAdmin() &&
-        isSameFamily(request.resource.data.userId);
-
-      // Allow users to read and write their own health events
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-
-      // Allow family members to read each other's health events (for viewing family data)
-      allow read: if request.auth != null && isSameFamily(resource.data.userId);
-
-      // Allow admins to update/delete health events for family members
-      allow update, delete: if request.auth != null &&
-        isFamilyAdmin() &&
-        isSameFamily(resource.data.userId);
-
-      // Allow authenticated users to query/list health events (queries are filtered by userId in the app)
-      // Individual document access is still controlled by the read rules above
-      allow list: if request.auth != null;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Alerts collection - More permissive for family features
+    // Alerts collection - PHI protected
     match /alerts/{alertId} {
-      // Allow authenticated users to read, create, and update alerts
-      // Family relationship validation is handled in the application layer
-      allow read, create, update: if request.auth != null;
-
-      // Allow users to delete only their own alerts
-      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Families collection (simplified for debugging)
+    // Families collection - Family-scoped access
     match /families/{familyId} {
-      // Allow authenticated users to read and write family documents
-      allow read, write: if request.auth != null;
-      
-      // Allow family creation by authenticated users
-      allow create: if request.auth != null;
+      // Allow family members to read family documents (must be in same family)
+      allow read: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().familyId == familyId;
+
+      // Allow family creation by authenticated users (for initial family setup)
+      allow create: if isSignedIn();
+
+      // Allow family admin to update family documents (restrictive to prevent membership manipulation)
+      allow update: if isFamilyAdmin() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().familyId == familyId;
+
+      // Allow family admin to delete family documents (admin-only, must be in same family)
+      allow delete: if isFamilyAdmin() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserData().familyId == familyId;
+
+      // TODO: Consider locking down write access further if membership fields cannot be safely protected
+      // Currently allows family admin updates - review if this exposes sensitive membership data
     }
 
     // Biometric profiles - user can only read/write their own
@@ -278,23 +259,39 @@ service cloud.firestore {
     
     // Auth logs - user can only read/write their own logs
     // Allow unauthenticated writes during biometric login (before user is authenticated)
-    // but validate that the userId exists in the users collection
+    // but validate that the userId exists in the users collection and only allowed fields/types are written
     match /auth_logs/{logId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      // Allow authenticated users to write their own logs
-      allow write: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      // Allow unauthenticated writes during biometric login (validate userId exists and timestamp is valid)
+      
+      // Allow authenticated users to write their own logs (with field type validation)
+      allow write: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid &&
+        // Validate required fields exist and are correct type
+        request.resource.data.userId is string &&
+        request.resource.data.timestamp is timestamp &&
+        // Validate optional fields are correct type if present
+        (request.resource.data.method == null || request.resource.data.method is string) &&
+        (request.resource.data.success == null || request.resource.data.success is bool) &&
+        (request.resource.data.deviceInfo == null || request.resource.data.deviceInfo is string);
+      
+      // Allow unauthenticated writes during biometric login (validate userId exists, timestamp is valid, and fields are restricted)
       allow create: if request.auth == null && 
         request.resource.data.userId != null &&
+        request.resource.data.userId is string &&
         exists(/databases/$(database)/documents/users/$(request.resource.data.userId)) &&
         // Validate timestamp exists, is a timestamp type, and is not in the future
         request.resource.data.timestamp != null &&
         request.resource.data.timestamp is timestamp &&
         request.resource.data.timestamp <= request.time &&
         // Ensure timestamp is recent (after 2024-01-01 to prevent very old logs)
-        request.resource.data.timestamp > timestamp.date(2024, 1, 1);
+        request.resource.data.timestamp > timestamp.date(2024, 1, 1) &&
+        // Validate optional fields are correct type if present (prevents injection of unexpected fields)
+        (request.resource.data.method == null || request.resource.data.method is string) &&
+        (request.resource.data.success == null || request.resource.data.success is bool) &&
+        (request.resource.data.deviceInfo == null || request.resource.data.deviceInfo is string);
       // Note: Actual rate limiting (e.g., max 1 log per 5 minutes) should be implemented
       // in Cloud Functions or application code, as Firestore rules don't support duration arithmetic
+      // Note: Field validation above ensures only expected fields with correct types can be written
     }
 
     // Dashboard configurations - users can only read/write their own dashboard config

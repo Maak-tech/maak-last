@@ -51,7 +51,6 @@ export function createWebSocketWithHeaders(
     
     return ws;
   } catch (error) {
-    console.error('[WebSocket] Failed to create WebSocket with headers:', error);
     
     // Last resort fallback
     return new WebSocket(url, protocols);

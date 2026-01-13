@@ -13,18 +13,15 @@ import { logger } from '../../observability/logger';
  * 2. fcmTokens map entries where entry.token matches invalid token
  * 
  * @param invalidTokens - Array of invalid FCM tokens
- * @param traceId - Optional correlation ID for logging
  */
 export async function cleanupInvalidTokens(
-  invalidTokens: string[],
-  traceId?: string
+  invalidTokens: string[]
 ): Promise<void> {
   if (invalidTokens.length === 0) {
     return;
   }
 
   logger.info('Cleaning up invalid FCM tokens', {
-    traceId,
     tokenCount: invalidTokens.length,
     fn: 'cleanupInvalidTokens',
   });
@@ -53,12 +50,35 @@ export async function cleanupInvalidTokens(
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();
         
-        // Remove from legacy fcmToken
-        if (userData.fcmToken && invalidTokenSet.has(userData.fcmToken)) {
-          updateBatch.update(doc.ref, {
-            fcmToken: admin.firestore.FieldValue.delete(),
-          });
-          totalUpdated++;
+        // Remove from legacy fcmToken if it matches any invalid token
+        if (userData.fcmToken) {
+          const tokenToCheck = Array.isArray(userData.fcmToken) 
+            ? userData.fcmToken 
+            : [userData.fcmToken];
+          
+          const hasInvalidToken = tokenToCheck.some(token => invalidTokenSet.has(token));
+          
+          if (hasInvalidToken) {
+            // If it's an array, filter out invalid tokens
+            if (Array.isArray(userData.fcmToken)) {
+              const validTokens = userData.fcmToken.filter(token => !invalidTokenSet.has(token));
+              if (validTokens.length === 0) {
+                updateBatch.update(doc.ref, {
+                  fcmToken: admin.firestore.FieldValue.delete(),
+                });
+              } else {
+                updateBatch.update(doc.ref, {
+                  fcmToken: validTokens,
+                });
+              }
+            } else {
+              // Single token - delete it
+              updateBatch.update(doc.ref, {
+                fcmToken: admin.firestore.FieldValue.delete(),
+              });
+            }
+            totalUpdated++;
+          }
         }
       });
 
@@ -113,14 +133,12 @@ export async function cleanupInvalidTokens(
     }
 
     logger.info('Invalid FCM tokens cleaned up', {
-      traceId,
       tokenCount: invalidTokens.length,
       usersUpdated: totalUpdated,
       fn: 'cleanupInvalidTokens',
     });
   } catch (error) {
     logger.error('Failed to cleanup invalid tokens', error as Error, {
-      traceId,
       tokenCount: invalidTokens.length,
       fn: 'cleanupInvalidTokens',
     });

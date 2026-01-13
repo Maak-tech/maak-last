@@ -24,10 +24,10 @@ import { shouldSendNotification } from '../../services/notifications/preferences
 import { sendToMany } from '../../services/notifications';
 import { 
   analyze as zeinaAnalyze,
-  enrichAlertWithAnalysis,
-  getRecentVitalsSummary,
   type AlertInfo
-} from '../../services/zeina';
+} from '../../services/zeina/adapter';
+import { enrichAlertWithAnalysis } from '../../services/zeina/store';
+import { getRecentVitalsSummary } from '../../services/zeina';
 
 /**
  * Vital reading for processing
@@ -411,7 +411,7 @@ export async function processVitalReading(
     // Filter by notification preferences
     const recipientIds: string[] = [];
     for (const familyId of familyIds) {
-      const shouldSend = await shouldSendNotification(familyId, 'vital', traceId);
+      const shouldSend = await shouldSendNotification(familyId, 'vital');
       if (shouldSend) {
         recipientIds.push(familyId);
       }

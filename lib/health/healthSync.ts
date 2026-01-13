@@ -343,7 +343,6 @@ export const syncHealthData = async (
         metrics: metrics,
       });
     } catch (error) {
-      console.error("[Health Sync] Error saving vitals to Firestore:", error);
       // Don't fail the sync if Firestore save fails
     }
 

@@ -23,6 +23,7 @@ class CalendarService {
     userId: string,
     event: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">
   ): Promise<string> {
+
     try {
       // Filter out undefined values - Firestore doesn't accept undefined
       const cleanedEvent: any = {

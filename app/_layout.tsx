@@ -1,6 +1,5 @@
-// CRITICAL: Import TextImpl patch FIRST, before anything else
-// This must be a .js file to ensure it loads before TypeScript transpilation
-require("@/lib/polyfills/textImplPatch");
+// TextImpl patch removed due to Bun compatibility issues
+// Reanimated setup handles TextImpl patching through TypeScript
 
 // Polyfill to prevent PushNotificationIOS errors
 import "@/lib/polyfills/pushNotificationIOS";

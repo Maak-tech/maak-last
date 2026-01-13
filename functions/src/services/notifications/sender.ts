@@ -8,28 +8,22 @@ import { logger } from '../../observability/logger';
 import type { NotificationPayload, NotificationType, MulticastResult } from './types';
 
 /**
- * Send options for multicast
- */
-export interface SendMulticastOptions {
-  tokens: string[];
-  notification: NotificationPayload;
-  notificationType: NotificationType;
-  traceId?: string;
-}
-
-/**
  * Send push notification to multiple tokens via FCM multicast
  * 
  * @param options - Send options
  * @returns Result with success/failure counts and failed tokens
  */
-export async function sendMulticast(
-  options: SendMulticastOptions
-): Promise<MulticastResult> {
-  const { tokens, notification, notificationType, traceId } = options;
+export async function sendMulticast({
+  tokens,
+  notification,
+  notificationType,
+}: {
+  tokens: string[];
+  notification: NotificationPayload;
+  notificationType: NotificationType;
+}): Promise<MulticastResult> {
 
   logger.debug('Sending FCM multicast', {
-    traceId,
     tokenCount: tokens.length,
     notificationType,
     fn: 'sendMulticast',
@@ -90,7 +84,6 @@ export async function sendMulticast(
     }
 
     logger.info('FCM multicast sent', {
-      traceId,
       notificationType,
       successCount: response.successCount,
       failureCount: response.failureCount,
@@ -104,7 +97,6 @@ export async function sendMulticast(
     };
   } catch (error) {
     logger.error('Failed to send FCM multicast', error as Error, {
-      traceId,
       tokenCount: tokens.length,
       notificationType,
       fn: 'sendMulticast',

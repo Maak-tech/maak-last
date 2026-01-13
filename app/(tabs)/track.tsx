@@ -43,8 +43,7 @@ import type {
   User as UserType,
 } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-// Temporarily comment out to debug
-// import BloodPressureEntry from "@/components/BloodPressureEntry";
+import BloodPressureEntry from "@/components/BloodPressureEntry";
 
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
@@ -1562,14 +1561,13 @@ export default function TrackScreen() {
       {/* PPG Heart Rate Monitor now accessed via /ppg-measure route */}
 
       {/* Blood Pressure Entry Modal */}
-      {/* Temporarily commented out for debugging */}
-      {/* <BloodPressureEntry
+      <BloodPressureEntry
         visible={showBloodPressureEntry}
         onClose={() => setShowBloodPressureEntry(false)}
         onSave={() => {
           loadTrackingData();
         }}
-      /> */}
+      />
     </SafeAreaView>
   );
 }

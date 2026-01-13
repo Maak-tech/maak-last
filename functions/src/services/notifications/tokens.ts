@@ -14,19 +14,11 @@ import { logger } from '../../observability/logger';
  * 2. Legacy format: fcmToken (string or array)
  * 
  * @param userId - The user ID to get tokens for
- * @param traceId - Optional correlation ID for logging
  * @returns Array of FCM tokens
  */
 export async function getUserTokens(
-  userId: string,
-  traceId?: string
+  userId: string
 ): Promise<string[]> {
-  logger.debug('Getting FCM tokens for user', {
-    traceId,
-    uid: userId,
-    fn: 'getUserTokens',
-  });
-
   try {
     const db = admin.firestore();
     const userDoc = await db.collection('users').doc(userId).get();
@@ -34,7 +26,6 @@ export async function getUserTokens(
 
     if (!userData) {
       logger.debug('User not found', {
-        traceId,
         uid: userId,
         fn: 'getUserTokens',
       });
@@ -69,7 +60,6 @@ export async function getUserTokens(
     const uniqueTokens = Array.from(new Set(tokens));
 
     logger.debug('FCM tokens retrieved', {
-      traceId,
       uid: userId,
       tokenCount: uniqueTokens.length,
       fn: 'getUserTokens',
@@ -78,7 +68,6 @@ export async function getUserTokens(
     return uniqueTokens;
   } catch (error) {
     logger.error('Failed to get FCM tokens', error as Error, {
-      traceId,
       uid: userId,
       fn: 'getUserTokens',
     });

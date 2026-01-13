@@ -11,23 +11,15 @@ import { createTraceId } from '../../observability/correlation';
 import { getUserTokens } from './tokens';
 import { shouldSendNotification } from './preferences';
 import { sendMulticast } from './sender';
-import { cleanupInvalidTokens as cleanupTokens } from './cleanup';
+import { cleanupInvalidTokens } from './cleanup';
 import type {
   PushNotificationResult,
-  SendPushNotificationOptions,
+  NotificationPayload,
+  NotificationType,
 } from './types';
 
-/**
- * Notification type for categorization
- */
-export type NotificationType = 
-  | 'fall_alert'
-  | 'vital_alert'
-  | 'symptom_alert'
-  | 'trend_alert'
-  | 'medication_alert'
-  | 'family_update'
-  | 'general';
+// Re-export NotificationType for convenience
+export type { NotificationType };
 
 /**
  * Notification send options
@@ -95,42 +87,6 @@ async function recordNotificationAttempt(
 }
 
 /**
- * Clean up invalid FCM tokens
- */
-async function cleanupInvalidTokens(invalidTokens: string[]): Promise<void> {
-  if (invalidTokens.length === 0) return;
-
-  try {
-    const db = admin.firestore();
-    const batch = db.batch();
-
-    // Find users with these tokens and remove them
-    // Note: This only handles single token format, not fcmTokens object
-    const usersSnapshot = await db
-      .collection('users')
-      .where('fcmToken', 'in', invalidTokens.slice(0, 10)) // Firestore 'in' limit
-      .get();
-
-    usersSnapshot.forEach((doc) => {
-      batch.update(doc.ref, {
-        fcmToken: admin.firestore.FieldValue.delete(),
-      });
-    });
-
-    await batch.commit();
-    
-    logger.info('Invalid FCM tokens cleaned up', {
-      tokenCount: invalidTokens.length,
-      fn: 'cleanupInvalidTokens',
-    });
-  } catch (error) {
-    logger.warn('Failed to cleanup invalid tokens', error as Error, {
-      fn: 'cleanupInvalidTokens',
-    });
-  }
-}
-
-/**
  * Send notification to a single user
  * 
  * @param userId - User ID to send to
@@ -153,7 +109,7 @@ export async function sendToUser(
 
   try {
     // Get FCM tokens for user
-    const tokens = await getUserTokens(userId, traceId);
+    const tokens = await getUserTokens(userId);
 
     if (tokens.length === 0) {
       logger.info('No FCM tokens for user, skipping', {
@@ -368,14 +324,25 @@ export async function sendToMany(
  * @param options - Send options
  * @returns Result with counts and message
  */
-export async function sendPushNotificationInternal(
-  options: SendPushNotificationOptions
-): Promise<PushNotificationResult> {
-  const traceId = options.traceId || createTraceId();
-  const { userIds, notification, notificationType, requireAuth, callerUid } = options;
+export async function sendPushNotificationInternal({
+  traceId,
+  userIds,
+  notification,
+  notificationType,
+  requireAuth,
+  callerUid,
+}: {
+  traceId?: string;
+  userIds: string[];
+  notification: NotificationPayload;
+  notificationType: NotificationType;
+  requireAuth?: boolean;
+  callerUid?: string;
+}): Promise<PushNotificationResult> {
+  const actualTraceId = traceId || createTraceId();
 
   logger.info('Push notification requested', {
-    traceId,
+    traceId: actualTraceId,
     uid: callerUid,
     userCount: userIds.length,
     notificationType,
@@ -386,7 +353,7 @@ export async function sendPushNotificationInternal(
     // Check auth if required
     if (requireAuth && !callerUid) {
       logger.warn('Unauthenticated push notification attempt', {
-        traceId,
+        traceId: actualTraceId,
         fn: 'sendPushNotificationInternal',
       });
       throw new Error('User must be authenticated');
@@ -400,13 +367,12 @@ export async function sendPushNotificationInternal(
       // Check preferences
       const shouldSend = await shouldSendNotification(
         userId,
-        notificationType,
-        traceId
+        notificationType
       );
 
       if (shouldSend) {
         // Get tokens for this user
-        const userTokens = await getUserTokens(userId, traceId);
+        const userTokens = await getUserTokens(userId);
         tokens.push(...userTokens);
       } else {
         skippedUsers.push(userId);
@@ -415,7 +381,7 @@ export async function sendPushNotificationInternal(
 
     if (tokens.length === 0) {
       logger.info('No tokens to send to', {
-        traceId,
+        traceId: actualTraceId,
         uid: callerUid,
         skippedCount: skippedUsers.length,
         fn: 'sendPushNotificationInternal',
@@ -435,16 +401,15 @@ export async function sendPushNotificationInternal(
       tokens,
       notification,
       notificationType,
-      traceId,
     });
 
     // Cleanup invalid tokens
     if (result.failedTokens.length > 0) {
-      await cleanupTokens(result.failedTokens, traceId);
+      await cleanupInvalidTokens(result.failedTokens);
     }
 
     logger.info('Push notifications sent', {
-      traceId,
+      traceId: actualTraceId,
       uid: callerUid,
       successCount: result.successCount,
       failureCount: result.failureCount,
@@ -461,7 +426,7 @@ export async function sendPushNotificationInternal(
     };
   } catch (error) {
     logger.error('Failed to send push notifications', error as Error, {
-      traceId,
+      traceId: actualTraceId,
       uid: callerUid,
       fn: 'sendPushNotificationInternal',
     });

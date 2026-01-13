@@ -1,5 +1,5 @@
-import { useFocusEffect } from "expo-router";
-import { AlertTriangle, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { AlertTriangle, ArrowLeft, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -55,6 +55,7 @@ export default function AllergiesScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAllergy, setSelectedAllergy] = useState("");
   const [customAllergy, setCustomAllergy] = useState("");
@@ -347,6 +348,16 @@ export default function AllergiesScreen() {
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border.light,
     },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    backButtonRTL: {
+      // RTL adjustments if needed
+    },
     title: {
       color: theme.colors.text.primary,
     },
@@ -357,6 +368,15 @@ export default function AllergiesScreen() {
       borderRadius: 20,
       justifyContent: "center",
       alignItems: "center",
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    backButtonRTL: {
+      transform: [{ scaleX: -1 }],
     },
     content: {
       flex: 1,
@@ -408,6 +428,8 @@ export default function AllergiesScreen() {
       flex: 1,
     },
     allergyName: {
+      fontSize: 18,
+      fontFamily: "Geist-SemiBold",
       color: theme.colors.text.primary,
       marginBottom: theme.spacing.xs,
     },
@@ -588,6 +610,17 @@ export default function AllergiesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, isRTL && styles.backButtonRTL]}
+        >
+          <ArrowLeft
+            color="#1E293B"
+            size={24}
+            style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+          />
+        </TouchableOpacity>
+
         <Heading level={4} style={[styles.title, isRTL && styles.rtlText]}>
           {t("allergies")}
         </Heading>

@@ -392,10 +392,10 @@ export default function ProfileScreen() {
   };
 
   const handleSaveEvent = async () => {
-    if (!user) {
+    if (!user?.id) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يجب تسجيل الدخول" : "You must be logged in"
+        isRTL ? "يجب تسجيل الدخول أولاً" : "You must be logged in first"
       );
       return;
     }
@@ -403,16 +403,16 @@ export default function ProfileScreen() {
     if (!eventTitle.trim()) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى إدخال العنوان" : "Please enter a title"
+        isRTL ? "يرجى إدخال عنوان الحدث" : "Please enter an event title"
       );
       return;
     }
 
-    // Validate start date
+    // Validate start date - ensure it's a valid Date object
     if (!eventStartDate || isNaN(eventStartDate.getTime())) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى اختيار تاريخ صحيح" : "Please select a valid start date"
+        isRTL ? "يرجى اختيار تاريخ البداية" : "Please select a start date"
       );
       return;
     }
@@ -439,6 +439,7 @@ export default function ProfileScreen() {
         setSavingEvent(false);
         return;
       }
+
 
       await calendarService.addEvent(user.id, {
         title: eventTitle.trim(),
@@ -1322,7 +1323,9 @@ export default function ProfileScreen() {
                 onPress={() => {
                   setShowCalendarModal(false);
                   setShowAddEventModal(true);
-                  setEventStartDate(calendarSelectedDate);
+                  // Ensure we have a valid date for the event
+                  const selectedDate = calendarSelectedDate || new Date();
+                  setEventStartDate(new Date(selectedDate));
                 }}
                 style={{
                   backgroundColor: theme.colors.primary.main,

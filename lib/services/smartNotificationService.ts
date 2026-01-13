@@ -377,7 +377,6 @@ class SmartNotificationService {
     try {
       // Safety check for notifications array
       if (!notifications || !Array.isArray(notifications)) {
-        console.warn('Invalid notifications array:', notifications);
         return { scheduled: 0, failed: 0, suppressed: 0 };
       }
 
@@ -404,13 +403,11 @@ class SmartNotificationService {
           await this.scheduleOptimizedNotification(notification, Notifications);
           scheduled++;
         } catch (error) {
-          console.error('Failed to schedule notification:', error);
           failed++;
         }
       }
 
     } catch (error) {
-      console.error('Error in notification scheduling:', error);
       failed = notifications.length;
     }
 
@@ -460,11 +457,9 @@ class SmartNotificationService {
       if (notificationsToCancel.length > 0) {
         const identifiersToCancel = notificationsToCancel.map((n: any) => n.identifier);
         await Notifications.cancelScheduledNotificationAsync(identifiersToCancel);
-        console.log(`Cancelled ${identifiersToCancel.length} duplicate notifications`);
       }
     } catch (error) {
       // Silently handle errors when clearing notifications
-      console.warn('Error clearing existing notifications:', error);
     }
   }
 
@@ -611,7 +606,6 @@ class SmartNotificationService {
   ): Promise<void> {
     // Safety check for notification
     if (!notification || !notification.title || !notification.body) {
-      console.warn('Invalid notification object:', notification);
       return;
     }
 
@@ -2280,7 +2274,6 @@ class SmartNotificationService {
       // Limit to prevent notification overload (max 5 per day)
       return notifications.slice(0, 5);
     } catch (error) {
-      console.error('Error generating daily notifications:', error);
       return [];
     }
   }
@@ -2321,7 +2314,6 @@ class SmartNotificationService {
         achievements
       };
     } catch (error) {
-      console.error('Error calculating user stats:', error);
       // Return default stats for new users (0 days inactive, no activity yet)
       return {
         currentStreak: 0,
@@ -2528,7 +2520,6 @@ class SmartNotificationService {
         };
       }
     } catch (error) {
-      console.error('Error getting user profile:', error);
     }
 
     return {
@@ -3079,7 +3070,6 @@ class SmartNotificationService {
       });
 
     } catch (error) {
-      console.error('Error generating family health updates:', error);
     }
 
     return notifications;
@@ -3162,7 +3152,6 @@ class SmartNotificationService {
       }
 
     } catch (error) {
-      console.error('Error generating caregiver coordination alerts:', error);
     }
 
     return notifications;
@@ -3474,7 +3463,6 @@ export class NotificationResponseHandler {
       await this.logNotificationAction(action, data, userId);
 
     } catch (error) {
-      console.error('Error handling notification action:', error);
       await this.showFeedback('Action could not be completed. Please try again.');
     }
   }
@@ -3490,7 +3478,6 @@ export class NotificationResponseHandler {
         notes: 'Logged via notification'
       });
     } catch (error) {
-      console.error('Error logging mood:', error);
     }
   }
 
@@ -3507,7 +3494,6 @@ export class NotificationResponseHandler {
         resolved: false
       });
     } catch (error) {
-      console.error('Error handling emergency:', error);
     }
   }
 
@@ -3522,7 +3508,6 @@ export class NotificationResponseHandler {
         notes: 'Evening check-in via notification'
       });
     } catch (error) {
-      console.error('Error logging evening check-in:', error);
     }
   }
 
@@ -3530,7 +3515,6 @@ export class NotificationResponseHandler {
     try {
       // This would need to be implemented based on your medication logging system
     } catch (error) {
-      console.error('Error confirming medication:', error);
     }
   }
 
@@ -3559,10 +3543,8 @@ export class NotificationResponseHandler {
       // If medication was missed, consider sending a gentle reminder or follow-up
       if (!taken) {
         // Could add logic here to schedule a follow-up reminder
-        console.log('Medication missed - could schedule follow-up reminder');
       }
     } catch (error) {
-      console.error('Error logging medication adherence:', error);
     }
   }
 
@@ -3578,7 +3560,6 @@ export class NotificationResponseHandler {
         location: 'General'
       });
     } catch (error) {
-      console.error('Error with quick health log:', error);
     }
   }
 
@@ -3586,7 +3567,6 @@ export class NotificationResponseHandler {
     try {
       // Log that user checked in with no symptoms
     } catch (error) {
-      console.error('Error logging no symptoms:', error);
     }
   }
 
@@ -3595,7 +3575,6 @@ export class NotificationResponseHandler {
       // This would integrate with your family/caregiver contact system
       // Could open phone dialer, send message, etc.
     } catch (error) {
-      console.error('Error contacting caregiver:', error);
     }
   }
 
@@ -3613,7 +3592,6 @@ export class NotificationResponseHandler {
       // navigationRef.current?.navigate(screen, { subScreen });
 
     } catch (error) {
-      console.error('Error navigating to screen:', error);
     }
   }
 
@@ -3629,7 +3607,6 @@ export class NotificationResponseHandler {
       // toast.show({ message, type: 'success' });
 
     } catch (error) {
-      console.error('Error showing feedback:', error);
     }
   }
 
@@ -3642,7 +3619,6 @@ export class NotificationResponseHandler {
       // await notificationService.rescheduleNotification(data.id, newTime);
 
     } catch (error) {
-      console.error('Error rescheduling notification:', error);
     }
   }
 
@@ -3653,7 +3629,6 @@ export class NotificationResponseHandler {
       // Implementation would depend on your family notification system
 
     } catch (error) {
-      console.error('Error sending family medication reminders:', error);
     }
   }
 
@@ -3666,7 +3641,6 @@ export class NotificationResponseHandler {
       await this.navigateToScreen('emergency', 'response');
 
     } catch (error) {
-      console.error('Error handling emergency response:', error);
     }
   }
 
@@ -3677,7 +3651,6 @@ export class NotificationResponseHandler {
       // Implementation would depend on device capabilities and contact permissions
 
     } catch (error) {
-      console.error('Error calling emergency contacts:', error);
     }
   }
 
@@ -3688,7 +3661,6 @@ export class NotificationResponseHandler {
       // Implementation would depend on your appointment system
 
     } catch (error) {
-      console.error('Error confirming family appointments:', error);
     }
   }
 
@@ -3703,26 +3675,21 @@ export class NotificationResponseHandler {
       // await Sharing.shareAsync(shareMessage);
 
     } catch (error) {
-      console.error('Error sharing achievement:', error);
     }
   }
 
   // Simplified helper methods for quick actions
   private static async logHydration(userId: string, type: string): Promise<void> {
     try {
-      console.log(`Logging hydration for user ${userId}: ${type}`);
       // Implement hydration logging logic
     } catch (error) {
-      console.error('Error logging hydration:', error);
     }
   }
 
   private static async logEnergyLevel(userId: string, level: string): Promise<void> {
     try {
-      console.log(`Logging energy level for user ${userId}: ${level}`);
       // Implement energy logging logic
     } catch (error) {
-      console.error('Error logging energy level:', error);
     }
   }
 
@@ -3739,7 +3706,6 @@ export class NotificationResponseHandler {
       // });
 
     } catch (error) {
-      console.error('Error logging notification action:', error);
     }
   }
 }

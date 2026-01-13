@@ -1,13 +1,3 @@
-import type {
-  Symptom,
-  Medication,
-  Mood,
-  Allergy,
-  VitalSign,
-  LabResult,
-  CalendarEvent,
-  MedicalHistory,
-} from "@/types";
 
 export interface TimelineEvent {
   id: string;

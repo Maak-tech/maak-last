@@ -35,7 +35,6 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
     const minIntervalMs = 60 * 60 * 1000; // 1 hour minimum between checks
     
     if (timeSinceLastCheck < minIntervalMs && lastCheckTimeRef.current > 0) {
-      console.log('Skipping notification check - too soon since last check');
       return;
     }
 
@@ -72,7 +71,6 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
         );
       }
     } catch (error) {
-      console.error('Error scheduling notifications:', error);
       // Silently handle errors
     }
   }, [medications, enabled, ensureInitialized, user?.id]);
@@ -136,7 +134,6 @@ export const useDailyNotificationScheduler = (enabled: boolean = true) => {
       }
 
     } catch (error) {
-      console.error('Error scheduling daily notifications:', error);
     }
   }, [enabled, user?.id, ensureInitialized]);
 
