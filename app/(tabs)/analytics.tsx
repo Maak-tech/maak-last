@@ -58,8 +58,7 @@ export default function AnalyticsScreen() {
     headerTitle: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
       fontSize: 24,
-      marginBottom: theme.spacing.base,
-    } as TextStyle & ViewStyle,
+    } as TextStyle,
     dateRangeSelector: {
       flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
       gap: theme.spacing.xs,
@@ -233,9 +232,11 @@ export default function AnalyticsScreen() {
   return (
     <SafeAreaView style={styles.container as ViewStyle}>
       <View style={styles.header as ViewStyle}>
-        <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && styles.rtlText]}>
-          {isRTL ? "التحليلات والاتجاهات" : "Analytics & Trends"}
-        </Heading>
+        <View style={{ marginBottom: theme.spacing.base }}>
+          <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && styles.rtlText as TextStyle]}>
+            {isRTL ? "التحليلات والاتجاهات" : "Analytics & Trends"}
+          </Heading>
+        </View>
 
         {/* Date Range Selector */}
         <View style={styles.dateRangeSelector as ViewStyle}>
@@ -279,7 +280,7 @@ export default function AnalyticsScreen() {
           {symptoms.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText}>
+                <Heading level={6} style={styles.rtlText as TextStyle}>
                   {isRTL ? "اتجاهات الأعراض" : "Symptom Trends"}
                 </Heading>
                 <TouchableOpacity
@@ -362,7 +363,7 @@ export default function AnalyticsScreen() {
           {symptoms.length > 7 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText}>
+                <Heading level={6} style={styles.rtlText as TextStyle}>
                   {isRTL ? "التنبؤ بالاتجاه" : "Trend Prediction"}
                 </Heading>
               </View>
@@ -378,7 +379,7 @@ export default function AnalyticsScreen() {
           {medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText}>
+                <Heading level={6} style={styles.rtlText as TextStyle}>
                   {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
                 </Heading>
               </View>
@@ -395,7 +396,7 @@ export default function AnalyticsScreen() {
           {symptoms.length > 0 && medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText}>
+                <Heading level={6} style={styles.rtlText as TextStyle}>
                   {isRTL ? "تحليل الارتباط" : "Correlation Analysis"}
                 </Heading>
               </View>
@@ -429,7 +430,7 @@ export default function AnalyticsScreen() {
           {/* Summary Stats */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading level={6} style={styles.rtlText}>
+              <Heading level={6} style={styles.rtlText as TextStyle}>
                 {isRTL ? "ملخص الإحصائيات" : "Summary Statistics"}
               </Heading>
             </View>

@@ -5,6 +5,7 @@ import {
   Alert,
   FlatList,
   Keyboard,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -170,7 +171,7 @@ export default function GlobalSearchScreen() {
     rtlText: {
       textAlign: isRTL ? "right" : "left",
     },
-  }));
+  }))(theme);
 
   useEffect(() => {
     loadSuggestions();
@@ -269,7 +270,11 @@ export default function GlobalSearchScreen() {
       onPress={() => handleResultPress(item)}
       style={styles.resultItem}
     >
-      <Card variant="elevated" style={styles.resultCard}>
+      <Card 
+        variant="elevated" 
+        style={styles.resultCard}
+        pressable={false}
+      >
         <View style={styles.resultHeader}>
           <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
             {getResultIcon(item.type)}
@@ -277,7 +282,7 @@ export default function GlobalSearchScreen() {
               {item.title}
             </Text>
           </View>
-          <Badge variant="outline" size="small">
+          <Badge variant="outline" size="small" style={{}}>
             {item.type}
           </Badge>
         </View>
@@ -430,6 +435,11 @@ export default function GlobalSearchScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           />
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
         )}
       </View>
     </SafeAreaView>

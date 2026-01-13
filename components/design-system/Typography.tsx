@@ -33,6 +33,7 @@ export interface LabelProps extends Omit<RNTextProps, 'style'> {
   color?: string;
   style?: RNTextProps['style'];
   numberOfLines?: number;
+  required?: boolean;
 }
 
 // Heading Component
@@ -66,7 +67,7 @@ export const Heading: React.FC<HeadingProps> = ({
     <RNText
       style={[
         styles.heading,
-        { fontSize, fontWeight, color, textAlign: align },
+        { fontSize, fontWeight: fontWeight as any, color, textAlign: align },
         style,
       ]}
       {...props}
@@ -104,7 +105,7 @@ export const Text: React.FC<TextProps> = ({
     <RNText
       style={[
         styles.text,
-        { fontSize, fontWeight, color, textAlign: align },
+        { fontSize, fontWeight: fontWeight as any, color, textAlign: align },
         style,
       ]}
       {...props}
@@ -150,9 +151,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.bodySmall,
-    fontWeight: typography.weightMedium,
+    fontWeight: typography.weightMedium as any,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
   },
   required: {
     color: colors.error,

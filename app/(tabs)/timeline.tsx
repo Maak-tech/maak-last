@@ -24,6 +24,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from "react-native";
@@ -443,7 +444,7 @@ export default function TimelineScreen() {
     <SafeAreaView style={styles.container as ViewStyle}>
       <View style={styles.header as ViewStyle}>
         <View style={styles.headerLeft as ViewStyle}>
-          <Heading level={4} style={[styles.headerTitle, isRTL && styles.rtlText]}>
+          <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as StyleProp<TextStyle>}>
             {isRTL ? "الخط الزمني الصحي" : "Health Timeline"}
           </Heading>
         </View>
@@ -549,7 +550,7 @@ export default function TimelineScreen() {
                 <View style={styles.dateHeader as ViewStyle}>
                   <TypographyText
                     weight="bold"
-                    style={[styles.dateHeaderText, isRTL && styles.rtlText]}
+                    style={[styles.dateHeaderText as TextStyle, isRTL && (styles.rtlText as TextStyle)] as any}
                   >
                     {date.toLocaleDateString(isRTL ? "ar" : "en-US", {
                       weekday: "long",
@@ -597,7 +598,7 @@ export default function TimelineScreen() {
                             <View style={{ flex: 1 }}>
                               <TypographyText
                                 weight="bold"
-                                style={[styles.eventTitle, isRTL && styles.rtlText]}
+                                style={[styles.eventTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as any}
                               >
                                 {event.title}
                               </TypographyText>
@@ -609,7 +610,7 @@ export default function TimelineScreen() {
                                 {getEventTypeLabel(event.type)}
                               </Badge>
                             </View>
-                            <Caption style={styles.eventTime} numberOfLines={1}>
+                            <Caption style={styles.eventTime as TextStyle} numberOfLines={1}>
                               {event.timestamp.toLocaleTimeString(
                                 isRTL ? "ar" : "en-US",
                                 {
@@ -622,9 +623,9 @@ export default function TimelineScreen() {
                           {event.description && (
                             <TypographyText
                               style={[
-                                styles.eventDescription,
-                                isRTL && styles.rtlText,
-                              ]}
+                                styles.eventDescription as TextStyle,
+                                isRTL && (styles.rtlText as TextStyle),
+                              ] as any}
                             >
                               {event.description}
                             </TypographyText>
@@ -663,7 +664,7 @@ export default function TimelineScreen() {
                 marginBottom: theme.spacing.base,
               }}
             >
-              <Heading level={6} style={[styles.rtlText]}>
+              <Heading level={6} style={[styles.rtlText as TextStyle] as any}>
                 {isRTL ? "تصفية" : "Filter"}
               </Heading>
               <TouchableOpacity onPress={() => setShowFilters(false)}>
@@ -681,7 +682,7 @@ export default function TimelineScreen() {
                 }}
                 style={styles.filterOption as ViewStyle}
               >
-                <TypographyText style={[styles.rtlText]}>
+                <TypographyText style={[styles.rtlText as TextStyle] as any}>
                   {option.label}
                 </TypographyText>
                 {selectedFilter === option.value && (
@@ -714,7 +715,7 @@ export default function TimelineScreen() {
       >
         <SafeAreaView style={styles.container as ViewStyle}>
           <View style={styles.header as ViewStyle}>
-            <Heading level={5} style={[styles.headerTitle, isRTL && styles.rtlText]}>
+            <Heading level={5} style={[styles.headerTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as any}>
               {selectedEvent?.title}
             </Heading>
             <TouchableOpacity
@@ -737,10 +738,10 @@ export default function TimelineScreen() {
                   </Badge>
                 </View>
                 <View style={{ marginBottom: theme.spacing.base }}>
-                  <TypographyText weight="semibold" style={[styles.rtlText]}>
+                  <TypographyText weight="semibold" style={[styles.rtlText as TextStyle] as any}>
                     {isRTL ? "التاريخ والوقت" : "Date & Time"}
                   </TypographyText>
-                  <Caption style={[styles.rtlText]} numberOfLines={1}>
+                  <Caption style={[styles.rtlText as TextStyle] as any} numberOfLines={1}>
                     {selectedEvent.timestamp.toLocaleString(
                       isRTL ? "ar" : "en-US"
                     )}
@@ -748,10 +749,10 @@ export default function TimelineScreen() {
                 </View>
                 {selectedEvent.description && (
                   <View style={{ marginBottom: theme.spacing.base }}>
-                    <TypographyText weight="semibold" style={[styles.rtlText]}>
+                    <TypographyText weight="semibold" style={[styles.rtlText as TextStyle] as any}>
                       {isRTL ? "الوصف" : "Description"}
                     </TypographyText>
-                    <Caption style={[styles.rtlText]} numberOfLines={10}>
+                    <Caption style={[styles.rtlText as TextStyle] as any} numberOfLines={10}>
                       {selectedEvent.description}
                     </Caption>
                   </View>
