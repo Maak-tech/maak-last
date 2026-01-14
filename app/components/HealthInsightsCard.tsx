@@ -50,8 +50,8 @@ export default function HealthInsightsCard({
     try {
       setLoading(true);
       const [summary, allInsights] = await Promise.all([
-        healthInsightsService.getWeeklySummary(user.id),
-        healthInsightsService.getAllInsights(user.id),
+        healthInsightsService.getWeeklySummary(user.id, undefined, isRTL),
+        healthInsightsService.getAllInsights(user.id, isRTL),
       ]);
       setWeeklySummary(summary);
       setInsights(allInsights.slice(0, 3)); // Show top 3 insights
@@ -149,7 +149,7 @@ export default function HealthInsightsCard({
                 {weeklySummary.symptoms.total}
               </Text>
               <Caption numberOfLines={1} style={styles.statLabel}>
-                {isRTL ? "أعراض" : "Symptoms"}
+                {isRTL ? "أعراض صحية" : "Symptoms"}
               </Caption>
             </View>
             <View style={styles.statItem}>
@@ -157,7 +157,7 @@ export default function HealthInsightsCard({
                 {weeklySummary.medications.compliance}%
               </Text>
               <Caption numberOfLines={1} style={styles.statLabel}>
-                {isRTL ? "امتثال" : "Compliance"}
+                {isRTL ? "الالتزام بالأدوية" : "Compliance"}
               </Caption>
             </View>
             <View style={styles.statItem}>
@@ -165,7 +165,7 @@ export default function HealthInsightsCard({
                 {weeklySummary.moods.averageIntensity.toFixed(1)}
               </Text>
               <Caption numberOfLines={1} style={styles.statLabel}>
-                {isRTL ? "مزاج" : "Mood"}
+                {isRTL ? "مزاج نفسي" : "Mood"}
               </Caption>
             </View>
           </View>
@@ -238,8 +238,8 @@ export default function HealthInsightsCard({
                 >
                   {isRTL
                     ? weeklySummary.moods.trend === "improving"
-                      ? "مزاج أفضل"
-                      : "مزاج أسوأ"
+                      ? "مزاج نفسي أفضل"
+                      : "مزاج نفسي أسوأ"
                     : weeklySummary.moods.trend === "improving"
                       ? "Mood ↑"
                       : "Mood ↓"}
@@ -252,7 +252,7 @@ export default function HealthInsightsCard({
           {insights.length > 0 && (
             <View style={styles.insightsSection}>
               <Text style={styles.sectionTitle}>
-                {isRTL ? "رؤى مهمة" : "Key Insights"}
+                {t("keyInsights")}
               </Text>
               {insights.map((insight, index) => (
                 <View key={index} style={styles.insightItem}>
@@ -304,7 +304,7 @@ export default function HealthInsightsCard({
           {weeklySummary.symptoms.mostCommon.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
-                {isRTL ? "الأعراض الأكثر شيوعاً" : "Most Common Symptoms"}
+                {isRTL ? "الأعراض الصحية الأكثر شيوعاً" : "Most Common Symptoms"}
               </Text>
               <View style={styles.tagsContainer}>
                 {weeklySummary.symptoms.mostCommon.map((symptom, index) => (
@@ -364,6 +364,7 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   },
   title: {
     marginBottom: theme.spacing.xs / 2,
+    color: theme.colors.primary.main,
   },
   subtitle: {
     color: theme.colors.text.secondary,

@@ -225,6 +225,64 @@ const fetchAllHealthData = async (
 };
 
 /**
+ * Metrics that should be aggregated by day (sum all samples for the same day)
+ */
+const DAILY_AGGREGATE_METRICS = [
+  "steps",
+  "active_energy",
+  "distance_walking_running",
+  "flights_climbed",
+  "exercise_minutes",
+  "stand_time",
+  "water_intake",
+];
+
+/**
+ * Aggregate samples by day for metrics that need daily aggregation
+ */
+const aggregateSamplesByDay = (
+  samples: Array<{ value: number | string; startDate: string; endDate?: string; source?: string }>,
+  metricKey: string
+): Array<{ value: number; date: string; sources: string[] }> => {
+  if (!DAILY_AGGREGATE_METRICS.includes(metricKey)) {
+    // Return samples as-is for non-aggregate metrics
+    return samples.map((s) => ({
+      value: typeof s.value === "number" ? s.value : parseFloat(s.value.toString()) || 0,
+      date: s.startDate,
+      sources: s.source ? [s.source] : [],
+    }));
+  }
+
+  // Group samples by day
+  const dailyGroups: Record<string, { value: number; sources: Set<string> }> = {};
+
+  for (const sample of samples) {
+    const sampleDate = new Date(sample.startDate);
+    const dayKey = sampleDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+    if (!dailyGroups[dayKey]) {
+      dailyGroups[dayKey] = { value: 0, sources: new Set() };
+    }
+
+    const numValue = typeof sample.value === "number" ? sample.value : parseFloat(sample.value.toString()) || 0;
+    dailyGroups[dayKey].value += numValue;
+    
+    if (sample.source) {
+      dailyGroups[dayKey].sources.add(sample.source);
+    }
+  }
+
+  // Convert to array and sort by date
+  return Object.entries(dailyGroups)
+    .map(([date, data]) => ({
+      value: data.value,
+      date,
+      sources: Array.from(data.sources),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+};
+
+/**
  * Convert health data to CSV format
  */
 const convertToCSV = (data: HealthReportData): string => {
@@ -233,20 +291,22 @@ const convertToCSV = (data: HealthReportData): string => {
   // Vitals Section
   rows.push("=== VITALS METRICS ===");
   if (data.vitals.length === 0) {
-    rows.push("Metric,Display Name,Unit,Value,Start Date,End Date,Source");
+    rows.push("Metric,Display Name,Unit,Value,Date,Source");
     rows.push("No vitals data available");
   } else {
-    rows.push("Metric,Display Name,Unit,Value,Start Date,End Date,Source");
+    rows.push("Metric,Display Name,Unit,Value,Date,Source");
     for (const metric of data.vitals) {
-      for (const sample of metric.samples) {
+      // Aggregate samples by day for daily aggregate metrics
+      const aggregatedSamples = aggregateSamplesByDay(metric.samples, metric.metricKey);
+      
+      for (const aggregated of aggregatedSamples) {
         const row = [
           metric.metricKey,
           `"${metric.displayName.replace(/"/g, '""')}"`,
           metric.unit || "",
-          sample.value.toString(),
-          sample.startDate,
-          sample.endDate || "",
-          sample.source || metric.provider,
+          aggregated.value.toString(),
+          aggregated.date,
+          aggregated.sources.length > 0 ? aggregated.sources.join("; ") : metric.provider,
         ];
         rows.push(row.join(","));
       }
@@ -569,44 +629,45 @@ const convertToPDFHTML = (
     `;
 
     if (metric.samples.length > 0) {
+      // Aggregate samples by day for daily aggregate metrics
+      const aggregatedSamples = aggregateSamplesByDay(metric.samples, metric.metricKey);
+      const isAggregated = DAILY_AGGREGATE_METRICS.includes(metric.metricKey);
+      
       html += `
           <table>
             <thead>
               <tr>
                 <th>Value</th>
                 <th>Unit</th>
-                <th>Start Date</th>
-                <th>End Date</th>
+                <th>${isAggregated ? "Date" : "Start Date"}</th>
+                ${!isAggregated ? "<th>End Date</th>" : ""}
                 <th>Source</th>
               </tr>
             </thead>
             <tbody>
       `;
 
-      // Limit to first 100 samples to avoid huge PDFs
-      const samplesToShow = metric.samples.slice(0, 100);
-      for (const sample of samplesToShow) {
-        const startDateFormatted = new Date(sample.startDate).toLocaleString();
-        const endDateFormatted = sample.endDate
-          ? new Date(sample.endDate).toLocaleString()
-          : "N/A";
+      // Limit to first 100 aggregated samples to avoid huge PDFs
+      const samplesToShow = aggregatedSamples.slice(0, 100);
+      for (const aggregated of samplesToShow) {
+        const dateFormatted = new Date(aggregated.date).toLocaleDateString();
 
         html += `
               <tr>
-                <td>${sample.value}</td>
-                <td>${sample.unit || metric.unit || ""}</td>
-                <td>${startDateFormatted}</td>
-                <td>${endDateFormatted}</td>
-                <td>${sample.source || metric.provider}</td>
+                <td>${aggregated.value}</td>
+                <td>${metric.unit || ""}</td>
+                <td>${dateFormatted}</td>
+                ${!isAggregated ? "<td>N/A</td>" : ""}
+                <td>${aggregated.sources.length > 0 ? aggregated.sources.join("; ") : metric.provider}</td>
               </tr>
         `;
       }
 
-      if (metric.samples.length > 100) {
+      if (aggregatedSamples.length > 100) {
         html += `
               <tr>
-                <td colspan="5" style="text-align: center; color: #999; font-style: italic;">
-                  ... and ${metric.samples.length - 100} more samples
+                <td colspan="${isAggregated ? "4" : "5"}" style="text-align: center; color: #999; font-style: italic;">
+                  ... and ${aggregatedSamples.length - 100} more ${isAggregated ? "days" : "samples"}
                 </td>
               </tr>
         `;

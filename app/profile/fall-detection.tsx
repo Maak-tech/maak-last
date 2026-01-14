@@ -3,20 +3,17 @@ import {
   Activity,
   AlertTriangle,
   ArrowLeft,
-  Bell,
-  Bug,
   CheckCircle,
-  Settings,
+  Info,
   Shield,
   TestTube,
-  Users,
-  XCircle,
 } from "lucide-react-native";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -25,16 +22,33 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { motionPermissionService } from "@/lib/services/motionPermissionService";
-import { pushNotificationService } from "@/lib/services/pushNotificationService";
 
-export default function FallDetectionScreen() {
+export default function FallDetectionSettingsScreen() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
+  const { theme, isDark } = useTheme();
+  const {
+    isEnabled,
+    isActive,
+    isInitialized,
+    toggleFallDetection,
+    testFallDetection,
+    lastAlert,
+  } = useFallDetectionContext();
+
+  const [loading, setLoading] = useState(false);
+  const [checkingPermissions, setCheckingPermissions] = useState(true);
+  const [permissionStatus, setPermissionStatus] = useState<{
+    available: boolean;
+    granted: boolean;
+    reason?: string;
+  } | null>(null);
+
+  const isRTL = i18n.language === "ar";
 
   // Hide the default header to prevent duplicate headers
   useLayoutEffect(() => {
@@ -42,370 +56,513 @@ export default function FallDetectionScreen() {
       headerShown: false,
     });
   }, [navigation]);
-  const {
-    isEnabled,
-    isActive,
-    isInitialized,
-    toggleFallDetection,
-    testFallDetection,
-    runDiagnostics,
-    lastAlert,
-  } = useFallDetectionContext();
-  const [testingNotifications, setTestingNotifications] = useState(false);
-  const [testingFallDetection, setTestingFallDetection] = useState(false);
-  const [motionPermissionGranted, setMotionPermissionGranted] = useState<
-    boolean | null
-  >(null);
-  const [checkingPermission, setCheckingPermission] = useState(true);
-
-  const isRTL = i18n.language === "ar";
 
   useEffect(() => {
-    checkMotionPermission();
+    checkPermissionStatus();
   }, []);
 
-  const checkMotionPermission = async () => {
-    setCheckingPermission(true);
+  const checkPermissionStatus = async () => {
+    setCheckingPermissions(true);
     try {
-      const hasPermission = await motionPermissionService.hasMotionPermission();
       const status = await motionPermissionService.checkMotionAvailability();
-      const isGranted = hasPermission && status.available;
-      setMotionPermissionGranted(isGranted);
+      setPermissionStatus(status);
     } catch (error) {
-      setMotionPermissionGranted(false);
+      setPermissionStatus({
+        available: false,
+        granted: false,
+        reason: "Failed to check permission status",
+      });
     } finally {
-      setCheckingPermission(false);
+      setCheckingPermissions(false);
     }
   };
 
-  const handleOpenMotionPermissions = () => {
-    router.push("/profile/motion-permissions" as any);
-  };
-
-  const handleTestNotifications = async () => {
-    if (!user) return;
-
-    try {
-      setTestingNotifications(true);
-      const fullName =
-        user.firstName && user.lastName
-          ? `${user.firstName} ${user.lastName}`
-          : user.firstName || "User";
-      await pushNotificationService.sendTestNotification(user.id, fullName);
-
+  const handleToggle = async (value: boolean) => {
+    if (!value && !permissionStatus?.granted) {
       Alert.alert(
-        isRTL ? "تم إرسال الإشعار" : "Notification Sent",
+        isRTL ? "إذن مطلوب" : "Permission Required",
         isRTL
-          ? "تم إرسال إشعار تجريبي بنجاح. تحقق من الإشعارات."
-          : "Test notification sent successfully. Check your notifications.",
-        [{ text: isRTL ? "موافق" : "OK" }]
+          ? "يجب تفعيل إذن الحركة أولاً لاستخدام كشف السقوط"
+          : "Motion permission must be enabled first to use fall detection",
+        [
+          {
+            text: isRTL ? "إلغاء" : "Cancel",
+            style: "cancel",
+          },
+          {
+            text: isRTL ? "فتح الإعدادات" : "Open Settings",
+            onPress: () => router.push("/profile/motion-permissions"),
+          },
+        ]
       );
-    } catch (error) {
-      // Silently handle error
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "فشل في إرسال الإشعار التجريبي"
-          : "Failed to send test notification"
-      );
-    } finally {
-      setTestingNotifications(false);
+      return;
     }
-  };
 
-  const handleTestFallDetection = async () => {
     try {
-      setTestingFallDetection(true);
-      await testFallDetection();
-    } catch (error) {
-      // Silently handle error
-    } finally {
-      setTestingFallDetection(false);
-    }
-  };
-
-  const handleRunDiagnostics = async () => {
-    try {
-      await runDiagnostics();
-      Alert.alert(
-        isRTL ? "التشخيص" : "Diagnostics",
-        isRTL
-          ? "تم تشغيل التشخيص. تحقق من سجل وحدة التحكم (Console) للتفاصيل."
-          : "Diagnostics completed. Check the console logs for details.",
-        [{ text: isRTL ? "موافق" : "OK" }]
-      );
+      setLoading(true);
+      await toggleFallDetection(value);
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في تشغيل التشخيص" : "Failed to run diagnostics"
+        isRTL ? "فشل في تحديث الإعدادات" : "Failed to update settings"
       );
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusColor = () => {
-    if (!isEnabled) return "#EF4444"; // Red - disabled
-    if (!isActive) return "#F59E0B"; // Yellow - enabled but not active
-    return "#10B981"; // Green - active
-  };
-
-  const getStatusText = () => {
-    if (!isEnabled) return isRTL ? "معطل" : "Disabled";
-    if (!isActive) return isRTL ? "جاري التحضير..." : "Starting...";
-    return isRTL ? "نشط" : "Active";
-  };
-
-  const getStatusIcon = () => {
-    if (!isEnabled) return <XCircle color="#EF4444" size={24} />;
-    if (!isActive) return <AlertTriangle color="#F59E0B" size={24} />;
-    return <CheckCircle color="#10B981" size={24} />;
-  };
-
-  const formatLastAlert = () => {
-    if (!lastAlert) return isRTL ? "لا توجد تنبيهات" : "No alerts";
-
-    const timeAgo = Math.floor(
-      (Date.now() - lastAlert.timestamp.getTime()) / 1000
+  const handleTest = async () => {
+    Alert.alert(
+      isRTL ? "اختبار كشف السقوط" : "Test Fall Detection",
+      isRTL
+        ? "سيتم إنشاء تنبيه تجريبي. هل تريد المتابعة؟"
+        : "This will create a test alert. Do you want to continue?",
+      [
+        {
+          text: isRTL ? "إلغاء" : "Cancel",
+          style: "cancel",
+        },
+        {
+          text: isRTL ? "اختبار" : "Test",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await testFallDetection();
+            } catch (error) {
+              Alert.alert(
+                isRTL ? "خطأ" : "Error",
+                isRTL
+                  ? "فشل في اختبار كشف السقوط"
+                  : "Failed to test fall detection"
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
     );
-    if (timeAgo < 60)
-      return isRTL ? "منذ أقل من دقيقة" : "Less than a minute ago";
-    if (timeAgo < 3600)
-      return isRTL
-        ? `منذ ${Math.floor(timeAgo / 60)} دقائق`
-        : `${Math.floor(timeAgo / 60)} minutes ago`;
-    if (timeAgo < 86_400)
-      return isRTL
-        ? `منذ ${Math.floor(timeAgo / 3600)} ساعات`
-        : `${Math.floor(timeAgo / 3600)} hours ago`;
-    return isRTL
-      ? `منذ ${Math.floor(timeAgo / 86_400)} أيام`
-      : `${Math.floor(timeAgo / 86_400)} days ago`;
   };
+
+
+  if (checkingPermissions) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: theme.colors.background.primary },
+        ]}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
+          <Text
+            style={[
+              styles.loadingText,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
+          >
+            {isRTL ? "جاري التحميل..." : "Loading..."}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ArrowLeft color="#333" size={24} />
+          <ArrowLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
+        <Text
+          style={[
+            styles.title,
+            { color: theme.colors.text.primary },
+            isRTL && { textAlign: "left" },
+          ]}
+        >
           {isRTL ? "كشف السقوط" : "Fall Detection"}
         </Text>
-        <View style={styles.headerRight} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {/* Master Toggle - At the top */}
-        {isInitialized && (
-          <View style={styles.section}>
-            <View style={styles.masterToggleCard}>
-              <View style={styles.masterToggleContent}>
-                {isEnabled ? (
-                  <Shield color="#10B981" size={32} />
-                ) : (
-                  <Shield color="#9CA3AF" size={32} />
-                )}
-                <View style={styles.masterToggleInfo}>
-                  <Text
-                    style={[styles.masterToggleTitle, isRTL && { textAlign: "left" }]}
-                  >
-                    {isRTL ? "كشف السقوط" : "Fall Detection"}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.masterToggleSubtitle,
-                      isRTL && { textAlign: "left" },
-                    ]}
-                  >
-                    {isEnabled
-                      ? isRTL
-                        ? "كشف السقوط مفعل"
-                        : "Fall detection is enabled"
-                      : isRTL
-                        ? "كشف السقوط معطل"
-                        : "Fall detection is disabled"}
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                onValueChange={toggleFallDetection}
-                thumbColor={isEnabled ? "#FFFFFF" : "#9CA3AF"}
-                trackColor={{ false: "#E5E7EB", true: "#10B981" }}
-                value={isEnabled}
-              />
-            </View>
-          </View>
-        )}
-
-        {/* Status Card */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <View style={styles.statusIcon}>{getStatusIcon()}</View>
-            <View style={styles.statusInfo}>
-              <Text style={[styles.statusTitle, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "حالة كشف السقوط" : "Fall Detection Status"}
-              </Text>
-              <Text
+        {/* Master Toggle */}
+        <View style={styles.section}>
+          <View
+            style={[
+              styles.masterToggleCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isEnabled
+                  ? permissionStatus?.granted
+                    ? "#10B981"
+                    : "#F59E0B"
+                  : "#E5E7EB",
+              },
+            ]}
+          >
+            <View style={styles.masterToggleContent}>
+              <View
                 style={[
-                  styles.statusValue,
-                  isRTL && { textAlign: "left" },
-                  { color: getStatusColor() },
+                  styles.iconContainer,
+                  {
+                    backgroundColor: isEnabled
+                      ? permissionStatus?.granted
+                        ? "#10B98120"
+                        : "#F59E0B20"
+                      : "#E5E7EB",
+                  },
                 ]}
               >
-                {getStatusText()}
-              </Text>
-              {!motionPermissionGranted && (
+                {isEnabled && permissionStatus?.granted ? (
+                  <Shield color="#10B981" size={32} />
+                ) : (
+                  <Shield color={isEnabled ? "#F59E0B" : "#9CA3AF"} size={32} />
+                )}
+              </View>
+              <View style={styles.masterToggleInfo}>
                 <Text
-                  style={[styles.permissionWarning, isRTL && { textAlign: "left" }]}
+                  style={[
+                    styles.masterToggleTitle,
+                    { color: theme.colors.text.primary },
+                    isRTL && { textAlign: "left" },
+                  ]}
                 >
-                  {isRTL
-                    ? "⚠️ أذن الحركة واللياقة البدنية مطلوبة"
-                    : "⚠️ Motion permissions required"}
+                  {isRTL ? "كشف السقوط" : "Fall Detection"}
                 </Text>
-              )}
+                <Text
+                  style={[
+                    styles.masterToggleSubtitle,
+                    { color: theme.colors.text.secondary },
+                    isRTL && { textAlign: "left" },
+                  ]}
+                >
+                  {isEnabled
+                    ? isActive
+                      ? isRTL
+                        ? "نشط ومستمر"
+                        : "Active and monitoring"
+                      : isRTL
+                        ? "مفعل ولكن غير نشط"
+                        : "Enabled but not active"
+                    : isRTL
+                      ? "معطل"
+                      : "Disabled"}
+                </Text>
+              </View>
             </View>
+            <Switch
+              disabled={loading}
+              onValueChange={handleToggle}
+              thumbColor={isEnabled ? "#FFFFFF" : "#9CA3AF"}
+              trackColor={{
+                false: "#E5E7EB",
+                true: permissionStatus?.granted ? "#10B981" : "#F59E0B",
+              }}
+              value={isEnabled}
+            />
           </View>
         </View>
 
-        {/* Motion Permissions Card */}
-        {!motionPermissionGranted && (
-          <View style={styles.permissionCard}>
-            <View style={styles.permissionHeader}>
-              <AlertTriangle color="#F59E0B" size={24} />
-              <View style={styles.permissionInfo}>
-                <Text style={[styles.permissionTitle, isRTL && { textAlign: "left" }]}>
-                  {isRTL ? "أذن الحركة واللياقة البدنية" : "Motion & Fitness Permissions"}
+        {/* Status Section */}
+        <View style={styles.section}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
+          >
+            {isRTL ? "الحالة" : "Status"}
+          </Text>
+
+          {/* Permission Status */}
+          <View
+            style={[
+              styles.statusCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: permissionStatus?.granted
+                  ? "#10B981"
+                  : permissionStatus?.available
+                    ? "#F59E0B"
+                    : "#EF4444",
+              },
+            ]}
+          >
+            <View style={styles.statusHeader}>
+              {permissionStatus?.granted ? (
+                <CheckCircle color="#10B981" size={24} />
+              ) : (
+                <AlertTriangle
+                  color={
+                    permissionStatus?.available ? "#F59E0B" : "#EF4444"
+                  }
+                  size={24}
+                />
+              )}
+              <View style={styles.statusInfo}>
+                <Text
+                  style={[
+                    styles.statusTitle,
+                    { color: theme.colors.text.primary },
+                    isRTL && { textAlign: "left" },
+                  ]}
+                >
+                  {isRTL ? "إذن الحركة" : "Motion Permission"}
                 </Text>
-                <Text style={[styles.permissionText, isRTL && { textAlign: "left" }]}>
-                  {isRTL
-                    ? "يجب تفعيل أذن الحركة واللياقة البدنية لكشف السقوط"
-                    : "Motion & Fitness permissions are required for fall detection"}
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: theme.colors.text.secondary },
+                    isRTL && { textAlign: "left" },
+                  ]}
+                >
+                  {permissionStatus?.granted
+                    ? isRTL
+                      ? "مفعل - جاهز للاستخدام"
+                      : "Granted - Ready to use"
+                    : permissionStatus?.available
+                      ? isRTL
+                        ? "مطلوب - اضغط لإعداد"
+                        : "Required - Tap to setup"
+                      : isRTL
+                        ? "غير متاح على هذا الجهاز"
+                        : "Not available on this device"}
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              onPress={handleOpenMotionPermissions}
-              style={styles.permissionButton}
-            >
-              <Settings color="#FFFFFF" size={20} />
-              <Text style={styles.permissionButtonText}>
-                {isRTL ? "فتح إعدادات أذن الحركة واللياقة البدنية" : "Open Motion & Fitness Permissions Settings"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Information Cards */}
-        <View style={styles.infoCards}>
-          {/* How It Works */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <Activity color="#2563EB" size={24} />
-              <Text style={[styles.infoTitle, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "كيف يعمل" : "How It Works"}
-              </Text>
-            </View>
-            <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
-              {isRTL
-                ? "يستخدم التطبيق أجهزة استشعار الحركة في هاتفك لرصد الحركة غير الطبيعية التي قد تشير إلى سقوط. عند اكتشاف سقوط محتمل، يتم إرسال تنبيه فوري إلى أفراد العائلة."
-                : "The app uses your phone's motion sensors to detect unusual movement patterns that may indicate a fall. When a potential fall is detected, immediate alerts are sent to family members."}
-            </Text>
+            {!permissionStatus?.granted && permissionStatus?.available && (
+              <TouchableOpacity
+                onPress={() => router.push("/profile/motion-permissions")}
+                style={styles.linkButton}
+              >
+                <Text style={styles.linkButtonText}>
+                  {isRTL ? "إعداد" : "Setup"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Family Notifications */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <Users color="#10B981" size={24} />
-              <Text style={[styles.infoTitle, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "تنبيهات العائلة" : "Family Notifications"}
-              </Text>
+          {/* Detection Status */}
+          <View
+            style={[
+              styles.statusCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isActive ? "#10B981" : "#E5E7EB",
+              },
+            ]}
+          >
+            <View style={styles.statusHeader}>
+              {isActive ? (
+                <Activity color="#10B981" size={24} />
+              ) : (
+                <Activity color="#9CA3AF" size={24} />
+              )}
+              <View style={styles.statusInfo}>
+                <Text
+                  style={[
+                    styles.statusTitle,
+                    { color: theme.colors.text.primary },
+                    isRTL && { textAlign: "left" },
+                  ]}
+                >
+                  {isRTL ? "حالة المراقبة" : "Monitoring Status"}
+                </Text>
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: theme.colors.text.secondary },
+                    isRTL && { textAlign: "left" },
+                  ]}
+                >
+                  {isActive
+                    ? isRTL
+                      ? "تراقب الحركة بنشاط"
+                      : "Actively monitoring motion"
+                    : isInitialized
+                      ? isRTL
+                        ? "غير نشط"
+                        : "Not active"
+                      : isRTL
+                        ? "جاري التهيئة..."
+                        : "Initializing..."}
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
-              {user?.familyId
-                ? isRTL
-                  ? "عند اكتشاف سقوط، سيتم إرسال إشعارات فورية إلى جميع أفراد العائلة المسجلين."
-                  : "When a fall is detected, instant notifications will be sent to all registered family members."
-                : isRTL
-                  ? "انضم إلى عائلة لتفعيل تنبيهات العائلة."
-                  : "Join a family to enable family notifications."}
-            </Text>
           </View>
 
           {/* Last Alert */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoHeader}>
-              <Bell color="#F59E0B" size={24} />
-              <Text style={[styles.infoTitle, isRTL && { textAlign: "left" }]}>
-                {isRTL ? "آخر تنبيه" : "Last Alert"}
-              </Text>
+          {lastAlert && (
+            <View
+              style={[
+                styles.statusCard,
+                {
+                  backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                  borderColor: "#2563EB",
+                },
+              ]}
+            >
+              <View style={styles.statusHeader}>
+                <AlertTriangle color="#2563EB" size={24} />
+                <View style={styles.statusInfo}>
+                  <Text
+                    style={[
+                      styles.statusTitle,
+                      { color: theme.colors.text.primary },
+                      isRTL && { textAlign: "left" },
+                    ]}
+                  >
+                    {isRTL ? "آخر تنبيه" : "Last Alert"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: theme.colors.text.secondary },
+                      isRTL && { textAlign: "left" },
+                    ]}
+                  >
+                    {isRTL
+                      ? `تم في: ${new Date(lastAlert.timestamp).toLocaleString("ar")}`
+                      : `At: ${new Date(lastAlert.timestamp).toLocaleString()}`}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <Text style={[styles.infoText, isRTL && { textAlign: "left" }]}>
-              {formatLastAlert()}
-            </Text>
-          </View>
+          )}
         </View>
 
-        {/* Test Buttons */}
-        <View style={styles.testSection}>
-          <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
-            {isRTL ? "اختبار النظام" : "Test System"}
+        {/* Actions Section */}
+        <View style={styles.section}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
+          >
+            {isRTL ? "الإجراءات" : "Actions"}
           </Text>
 
           <TouchableOpacity
-            disabled={testingFallDetection}
-            onPress={handleTestFallDetection}
-            style={[styles.testButton, styles.primaryButton]}
+            disabled={loading || !isEnabled}
+            onPress={handleTest}
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isEnabled ? "#2563EB" : "#E5E7EB",
+                opacity: isEnabled ? 1 : 0.5,
+              },
+            ]}
           >
-            {testingFallDetection ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <TestTube color="#FFFFFF" size={24} />
-            )}
-            <Text style={[styles.testButtonText, isRTL && { textAlign: "left" }]}>
+            <TestTube color={isEnabled ? "#2563EB" : "#9CA3AF"} size={20} />
+            <Text
+              style={[
+                styles.actionButtonText,
+                {
+                  color: isEnabled
+                    ? theme.colors.text.primary
+                    : theme.colors.text.secondary,
+                },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
               {isRTL ? "اختبار كشف السقوط" : "Test Fall Detection"}
             </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            disabled={testingNotifications}
-            onPress={handleTestNotifications}
-            style={[styles.testButton, styles.secondaryButton]}
-          >
-            {testingNotifications ? (
-              <ActivityIndicator color="#2563EB" size="small" />
-            ) : (
-              <Bell color="#2563EB" size={24} />
-            )}
-            <Text
-              style={[styles.testButtonTextSecondary, isRTL && { textAlign: "left" }]}
-            >
-              {isRTL ? "اختبار الإشعارات" : "Test Notifications"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={handleRunDiagnostics}
-            style={[styles.testButton, styles.diagnosticButton]}
-          >
-            <Bug color="#F59E0B" size={24} />
-            <Text
-              style={[styles.testButtonTextDiagnostic, isRTL && { textAlign: "left" }]}
-            >
-              {isRTL ? "تشخيص النظام" : "Run Diagnostics"}
-            </Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Warning */}
-        <View style={styles.warningCard}>
-          <AlertTriangle color="#F59E0B" size={24} />
-          <Text style={[styles.warningText, isRTL && { textAlign: "left" }]}>
-            {isRTL
-              ? "تذكر: كشف السقوط يستخدم أجهزة استشعار الهاتف وقد لا يكون دقيقاً في جميع الحالات. لا يُغني عن الرعاية الطبية المناسبة."
-              : "Remember: Fall detection uses phone sensors and may not be accurate in all situations. It does not replace proper medical care."}
+        {/* Information Section */}
+        <View style={styles.section}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
+          >
+            {isRTL ? "معلومات" : "Information"}
           </Text>
+
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                borderColor: isDark ? "#334155" : "#E2E8F0",
+              },
+            ]}
+          >
+            <View style={styles.infoHeader}>
+              <Info color={theme.colors.primary.main} size={20} />
+              <Text
+                style={[
+                  styles.infoTitle,
+                  { color: theme.colors.text.primary },
+                  isRTL && { textAlign: "left" },
+                ]}
+              >
+                {isRTL ? "كيف يعمل" : "How It Works"}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.infoText,
+                { color: theme.colors.text.secondary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {isRTL
+                ? "يستخدم التطبيق مستشعرات الحركة في جهازك (مقياس التسارع والجيروسكوب) لاكتشاف الحركات المفاجئة التي قد تشير إلى السقوط. عند اكتشاف السقوط، يتم إرسال تنبيه تلقائي إلى جهات الاتصال الطارئة الخاصة بك مع موقعك."
+                : "The app uses your device's motion sensors (accelerometer and gyroscope) to detect sudden movements that may indicate a fall. When a fall is detected, an automatic alert is sent to your emergency contacts with your location."}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.infoCard,
+              {
+                backgroundColor: "#FFFBEB",
+                borderColor: "#FEF3C7",
+              },
+            ]}
+          >
+            <View style={styles.infoHeader}>
+              <AlertTriangle color="#F59E0B" size={20} />
+              <Text
+                style={[
+                  styles.infoTitle,
+                  { color: "#92400E" },
+                  isRTL && { textAlign: "left" },
+                ]}
+              >
+                {isRTL ? "مهم" : "Important"}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.infoText,
+                { color: "#92400E" },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {isRTL
+                ? "كشف السقوط ليس بديلاً عن الرعاية الطبية الطارئة. في حالة الطوارئ الطبية، اتصل بخدمات الطوارئ المحلية على الفور."
+                : "Fall detection is not a substitute for emergency medical care. In case of a medical emergency, contact your local emergency services immediately."}
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -415,7 +572,17 @@ export default function FallDetectionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: "Geist-Medium",
   },
   header: {
     flexDirection: "row",
@@ -432,25 +599,30 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1F2937",
+    flex: 1,
+    textAlign: "center",
   },
-  headerRight: {
+  headerSpacer: {
     width: 40,
   },
   content: {
     flex: 1,
-    padding: 16,
   },
   section: {
-    marginBottom: 16,
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
   },
   masterToggleCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    borderWidth: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -462,78 +634,89 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
   },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginEnd: 16,
+  },
   masterToggleInfo: {
-    marginStart: 16,
     flex: 1,
   },
   masterToggleTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1F2937",
     marginBottom: 4,
   },
   masterToggleSubtitle: {
     fontSize: 14,
-    color: "#6B7280",
   },
   statusCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   statusHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-  },
-  statusIcon: {
-    marginEnd: 12,
   },
   statusInfo: {
+    marginStart: 12,
     flex: 1,
   },
   statusTitle: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#1F2937",
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  statusValue: {
+  statusText: {
+    fontSize: 13,
+  },
+  linkButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "#EBF4FF",
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  linkButtonText: {
+    color: "#2563EB",
     fontSize: 14,
     fontWeight: "600",
   },
-  statusToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-  },
-  toggleLabel: {
-    fontSize: 16,
-    color: "#1F2937",
-    fontWeight: "500",
-  },
-  infoCards: {
-    marginBottom: 24,
-  },
-  infoCard: {
-    backgroundColor: "#FFFFFF",
+  actionButton: {
     borderRadius: 12,
     padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
+    borderWidth: 1,
+    gap: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowRadius: 2,
     elevation: 2,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: "500",
+    flex: 1,
+  },
+  infoCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
   },
   infoHeader: {
     flexDirection: "row",
@@ -543,151 +726,10 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#1F2937",
     marginStart: 12,
   },
   infoText: {
     fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 20,
-  },
-  testSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
-    marginBottom: 16,
-  },
-  testButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  primaryButton: {
-    backgroundColor: "#2563EB",
-  },
-  secondaryButton: {
-    backgroundColor: "#F3F4F6",
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-  },
-  diagnosticButton: {
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FEF3C7",
-  },
-  testButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginStart: 12,
-  },
-  testButtonTextSecondary: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#2563EB",
-    marginStart: 12,
-  },
-  testButtonTextDiagnostic: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#F59E0B",
-    marginStart: 12,
-  },
-  warningCard: {
-    backgroundColor: "#FFFBEB",
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    borderWidth: 1,
-    borderColor: "#FEF3C7",
-  },
-  warningText: {
-    fontSize: 14,
-    color: "#92400E",
-    lineHeight: 20,
-    marginStart: 12,
-    flex: 1,
-  },
-  rtlText: {
-    textAlign: "right",
-  },
-  permissionWarning: {
-    backgroundColor: "#FFFBEB",
-    borderRadius: 12,
-    padding: 16,
-    margin: 16,
-    marginBottom: 0,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    borderWidth: 1,
-    borderColor: "#FEF3C7",
-  },
-  permissionWarningContent: {
-    flex: 1,
-    marginStart: 12,
-  },
-  permissionWarningTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#92400E",
-    marginBottom: 4,
-  },
-  permissionWarningText: {
-    fontSize: 14,
-    color: "#92400E",
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  permissionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F59E0B",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
-    alignSelf: "flex-start",
-  },
-  permissionButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  permissionCard: {
-    backgroundColor: "#FFFBEB",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#FEF3C7",
-  },
-  permissionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  permissionInfo: {
-    flex: 1,
-    marginStart: 12,
-  },
-  permissionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#92400E",
-    marginBottom: 4,
-  },
-  permissionText: {
-    fontSize: 14,
-    color: "#92400E",
     lineHeight: 20,
   },
 });

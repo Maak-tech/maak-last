@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { alertService } from "@/lib/services/alertService";
 
@@ -1136,9 +1136,12 @@ export const useFallDetection = (
     preFallActivityRef.current = [];
   }, []);
 
-  return {
-    isActive: isActive && isInitialized,
-    startFallDetection,
-    stopFallDetection,
-  };
+  return useMemo(
+    () => ({
+      isActive: isActive && isInitialized,
+      startFallDetection,
+      stopFallDetection,
+    }),
+    [isActive, isInitialized, startFallDetection, stopFallDetection]
+  );
 };

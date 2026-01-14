@@ -6,13 +6,17 @@ import {
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPhoneNumber,
+  PhoneAuthProvider,
+  signInWithCredential,
+  ConfirmationResult,
   signOut,
   updatePassword,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { auth, db } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
@@ -21,10 +25,37 @@ import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import type { AvatarType, User } from "@/types";
 
+// Import React Native Firebase for native phone auth
+let rnFirebaseAuth: typeof import("@react-native-firebase/auth").default | null = null;
+if (Platform.OS !== "web") {
+  try {
+    rnFirebaseAuth = require("@react-native-firebase/auth").default;
+  } catch (e) {
+    // React Native Firebase not available, will fall back to web SDK
+    logger.info("React Native Firebase auth not available, using web SDK", {}, "AuthContext");
+  }
+}
+
+// Type for React Native Firebase confirmation result
+interface RNFirebaseConfirmationResult {
+  confirm: (code: string) => Promise<any>;
+}
+
+// Combined confirmation result type
+type PhoneConfirmationResult = ConfirmationResult | RNFirebaseConfirmationResult;
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithPhone: (phoneNumber: string) => Promise<PhoneConfirmationResult>;
+  verifyPhoneCode: (
+    confirmationResult: PhoneConfirmationResult,
+    code: string,
+    firstName: string,
+    lastName: string,
+    avatarType?: AvatarType
+  ) => Promise<void>;
   signUp: (
     email: string,
     password: string,
@@ -32,6 +63,12 @@ interface AuthContextType {
     lastName: string,
     avatarType?: AvatarType
   ) => Promise<void>;
+  signUpWithPhone: (
+    phoneNumber: string,
+    firstName: string,
+    lastName: string,
+    avatarType?: AvatarType
+  ) => Promise<PhoneConfirmationResult>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   changePassword: (
@@ -81,7 +118,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         return {
           id: firebaseUser.uid,
-          email: firebaseUser.email || "",
+          email: firebaseUser.email || userData.email || undefined,
+          phoneNumber: firebaseUser.phoneNumber || userData.phoneNumber || undefined,
           firstName: firstName || "User",
           lastName: lastName || "",
           avatar: userData.avatar,
@@ -111,7 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     lastName: string
   ): Promise<User> => {
     const userData: Omit<User, "id"> = {
-      email: firebaseUser.email || "",
+      ...(firebaseUser.email && { email: firebaseUser.email }),
+      ...(firebaseUser.phoneNumber && { phoneNumber: firebaseUser.phoneNumber }),
       firstName,
       lastName,
       role: "user",
@@ -176,7 +215,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const userData = await userService.ensureUserDocument(
             firebaseUser.uid,
-            firebaseUser.email || "",
+            firebaseUser.email || undefined,
             firstName,
             lastName
           );
@@ -400,7 +439,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       await userService.ensureUserDocument(
         userCredential.user.uid,
-        userCredential.user.email || "",
+        userCredential.user.email || undefined,
         firstName,
         lastName
       );
@@ -446,7 +485,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         await userService.ensureUserDocument(
           userCredential.user.uid,
-          userCredential.user.email || "",
+          userCredential.user.email || undefined,
           firstName,
           lastName,
           avatarType
@@ -494,6 +533,259 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error(errorMessage);
     }
     // Don't set loading to false here - onAuthStateChanged will handle it
+  };
+
+  const signUpWithPhone = async (
+    phoneNumber: string,
+    firstName: string,
+    lastName: string,
+    avatarType?: AvatarType
+  ): Promise<PhoneConfirmationResult> => {
+    setLoading(true);
+    try {
+      // Clean and validate phone number
+      const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
+      
+      // Format phone number to E.164 format if needed
+      let formattedPhone: string;
+      if (cleanedPhone.startsWith("+")) {
+        formattedPhone = cleanedPhone;
+      } else if (cleanedPhone.startsWith("00")) {
+        // Convert 00 prefix to +
+        formattedPhone = "+" + cleanedPhone.substring(2);
+      } else if (cleanedPhone.startsWith("0")) {
+        // If starts with 0, might need country code - but we'll try with +
+        formattedPhone = "+" + cleanedPhone;
+      } else {
+        formattedPhone = "+" + cleanedPhone;
+      }
+
+      // Basic validation - E.164 format should be + followed by 1-15 digits
+      const e164Regex = /^\+[1-9]\d{1,14}$/;
+      if (!e164Regex.test(formattedPhone)) {
+        setLoading(false);
+        logger.error("Invalid phone number format", { phoneNumber, formattedPhone }, "AuthContext");
+        throw new Error(
+          "Invalid phone number format. Please enter your phone number with country code (e.g., +1234567890)"
+        );
+      }
+
+      // Store user data temporarily for after verification
+      const AsyncStorage = await import(
+        "@react-native-async-storage/async-storage"
+      );
+      await AsyncStorage.default.setItem(
+        "pendingPhoneSignup",
+        JSON.stringify({ firstName, lastName, avatarType, phoneNumber: formattedPhone })
+      );
+
+      logger.info("Sending verification code", { formattedPhone, platform: Platform.OS }, "AuthContext");
+
+      // Use React Native Firebase on native platforms, web SDK on web
+      if (Platform.OS !== "web" && rnFirebaseAuth) {
+        // Use React Native Firebase for native phone auth
+        const confirmation = await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
+        logger.info("Verification code sent successfully via RN Firebase", { formattedPhone }, "AuthContext");
+        setLoading(false);
+        return confirmation;
+      } else {
+        // Use web SDK for web platform
+        const confirmationResult = await signInWithPhoneNumber(
+          auth,
+          formattedPhone
+        );
+        logger.info("Verification code sent successfully via web SDK", { formattedPhone }, "AuthContext");
+        setLoading(false);
+        return confirmationResult;
+      }
+    } catch (error: any) {
+      setLoading(false);
+      
+      // Log the full error for debugging
+      logger.error("Phone signup error", { 
+        error: error.message || error, 
+        code: error.code,
+        phoneNumber 
+      }, "AuthContext");
+
+      let errorMessage = "Failed to send verification code. Please try again.";
+
+      // Check for the specific reCAPTCHA/verify error which means native SDK not available
+      if (error.message?.includes("verify") || error.message?.includes("undefined")) {
+        errorMessage = "Phone authentication requires a native build. Please rebuild the app with EAS Build.";
+      } else if (error.code === "auth/invalid-phone-number") {
+        errorMessage = "Invalid phone number format. Please include country code (e.g., +1234567890).";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many requests. Please try again later.";
+      } else if (error.code === "auth/quota-exceeded") {
+        errorMessage = "SMS quota exceeded. Please try again later.";
+      } else if (error.code === "auth/missing-phone-number") {
+        errorMessage = "Phone number is required.";
+      } else if (error.code === "auth/captcha-check-failed") {
+        errorMessage = "reCAPTCHA verification failed. Please try again.";
+      } else if (error.code === "auth/app-not-authorized") {
+        errorMessage = "Phone authentication is not enabled for this app. Please contact support.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      throw new Error(errorMessage);
+    }
+  };
+
+  const verifyPhoneCode = async (
+    confirmationResult: PhoneConfirmationResult,
+    code: string,
+    firstName: string,
+    lastName: string,
+    avatarType?: AvatarType
+  ) => {
+    setLoading(true);
+    try {
+      // Both web SDK and RN Firebase have a confirm method
+      const result = await confirmationResult.confirm(code);
+      
+      // RN Firebase returns the user directly, web SDK returns UserCredential
+      const user = result?.user || result;
+      const userId = user?.uid;
+      const userPhoneNumber = user?.phoneNumber;
+
+      if (!userId) {
+        throw new Error("Failed to get user after verification");
+      }
+
+      // Get stored phone number or use from user
+      const AsyncStorage = await import(
+        "@react-native-async-storage/async-storage"
+      );
+      const pendingDataStr = await AsyncStorage.default.getItem(
+        "pendingPhoneSignup"
+      );
+      let phoneNumber = userPhoneNumber || "";
+
+      if (pendingDataStr) {
+        const pendingData = JSON.parse(pendingDataStr);
+        phoneNumber = pendingData.phoneNumber || phoneNumber;
+        await AsyncStorage.default.removeItem("pendingPhoneSignup");
+      }
+
+      // Ensure user document is created
+      try {
+        await userService.ensureUserDocument(
+          userId,
+          "", // No email for phone auth
+          firstName,
+          lastName,
+          avatarType
+        );
+
+        // Update user document with phone number
+        const userDocRef = doc(db, "users", userId);
+        await updateDoc(userDocRef, {
+          phoneNumber: phoneNumber,
+        });
+      } catch (docError: any) {
+        let docErrorMessage =
+          "Failed to create user profile. Please try again.";
+        if (docError?.code === "permission-denied") {
+          docErrorMessage =
+            "Permission denied. Please check your Firestore security rules.";
+        } else if (docError?.code === "unavailable") {
+          docErrorMessage =
+            "Database unavailable. Please check your internet connection.";
+        } else if (docError?.message) {
+          docErrorMessage = docError.message;
+        }
+
+        // If document creation fails, try to sign out
+        try {
+          if (Platform.OS !== "web" && rnFirebaseAuth) {
+            await rnFirebaseAuth().signOut();
+          } else {
+            await signOut(auth);
+          }
+        } catch (signOutError) {
+          // Failed to sign out after document creation error
+        }
+
+        setLoading(false);
+        throw new Error(docErrorMessage);
+      }
+    } catch (error: any) {
+      setLoading(false);
+      let errorMessage = "Failed to verify code. Please try again.";
+
+      if (error.code === "auth/invalid-verification-code") {
+        errorMessage = "Invalid verification code.";
+      } else if (error.code === "auth/code-expired") {
+        errorMessage = "Verification code expired. Please request a new one.";
+      } else if (error.code === "auth/session-expired") {
+        errorMessage = "Session expired. Please start again.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      throw new Error(errorMessage);
+    }
+    // Don't set loading to false here - onAuthStateChanged will handle it
+  };
+
+  const signInWithPhone = async (
+    phoneNumber: string
+  ): Promise<PhoneConfirmationResult> => {
+    setLoading(true);
+    try {
+      // Format phone number to E.164 format if needed
+      const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
+      let formattedPhone: string;
+      if (cleanedPhone.startsWith("+")) {
+        formattedPhone = cleanedPhone;
+      } else if (cleanedPhone.startsWith("00")) {
+        formattedPhone = "+" + cleanedPhone.substring(2);
+      } else {
+        formattedPhone = "+" + cleanedPhone;
+      }
+
+      logger.info("Sending verification code for login", { formattedPhone, platform: Platform.OS }, "AuthContext");
+
+      // Use React Native Firebase on native platforms, web SDK on web
+      if (Platform.OS !== "web" && rnFirebaseAuth) {
+        // Use React Native Firebase for native phone auth
+        const confirmation = await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
+        logger.info("Verification code sent successfully via RN Firebase", { formattedPhone }, "AuthContext");
+        setLoading(false);
+        return confirmation;
+      } else {
+        // Use web SDK for web platform
+        const confirmationResult = await signInWithPhoneNumber(
+          auth,
+          formattedPhone
+        );
+        logger.info("Verification code sent successfully via web SDK", { formattedPhone }, "AuthContext");
+        setLoading(false);
+        return confirmationResult;
+      }
+    } catch (error: any) {
+      setLoading(false);
+      let errorMessage = "Failed to send verification code. Please try again.";
+
+      // Check for the specific reCAPTCHA/verify error which means native SDK not available
+      if (error.message?.includes("verify") || error.message?.includes("undefined")) {
+        errorMessage = "Phone authentication requires a native build. Please rebuild the app with EAS Build.";
+      } else if (error.code === "auth/invalid-phone-number") {
+        errorMessage = "Invalid phone number format.";
+      } else if (error.code === "auth/user-not-found") {
+        errorMessage = "No account found with this phone number.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many requests. Please try again later.";
+      } else if (error.code === "auth/quota-exceeded") {
+        errorMessage = "SMS quota exceeded. Please try again later.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      throw new Error(errorMessage);
+    }
   };
 
   const logout = async () => {
@@ -654,7 +946,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     user,
     loading,
     signIn,
+    signInWithPhone,
+    verifyPhoneCode,
     signUp,
+    signUpWithPhone,
     logout,
     updateUser,
     changePassword,

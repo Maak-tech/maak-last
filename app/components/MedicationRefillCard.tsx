@@ -99,7 +99,7 @@ export default function MedicationRefillCard({
           />
           <View style={styles.headerText}>
             <Heading level={5} style={styles.title}>
-              {isRTL ? "تنبيهات إعادة التعبئة" : "Refill Alerts"}
+              {isRTL ? "تنبيهات إعادة التعبئة للأدوية" : "Refill Alerts"}
             </Heading>
             <Caption numberOfLines={2} style={styles.subtitle}>
               {isRTL

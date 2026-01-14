@@ -8,7 +8,8 @@ export type AvatarType =
 
 export interface User {
   id: string;
-  email: string;
+  email?: string;
+  phoneNumber?: string;
   firstName: string;
   lastName: string;
   avatar?: string;
@@ -18,7 +19,6 @@ export interface User {
   createdAt: Date;
   onboardingCompleted: boolean;
   isPremium?: boolean;
-  phoneNumber?: string;
   preferences: {
     language: "en" | "ar";
     notifications: boolean;

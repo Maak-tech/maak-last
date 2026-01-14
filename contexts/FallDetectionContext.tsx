@@ -189,17 +189,20 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [isEnabled, fallDetection.isActive, isInitialized, lastAlert]);
 
-  const value: FallDetectionContextType = {
-    isEnabled,
-    isActive: isActive,
-    isInitialized,
-    toggleFallDetection,
-    startFallDetection,
-    stopFallDetection,
-    testFallDetection,
-    runDiagnostics,
-    lastAlert,
-  };
+  const value: FallDetectionContextType = useMemo(
+    () => ({
+      isEnabled,
+      isActive: isActive,
+      isInitialized,
+      toggleFallDetection,
+      startFallDetection,
+      stopFallDetection,
+      testFallDetection,
+      runDiagnostics,
+      lastAlert,
+    }),
+    [isEnabled, isActive, isInitialized, toggleFallDetection, startFallDetection, stopFallDetection, testFallDetection, runDiagnostics, lastAlert]
+  );
 
   return (
     <FallDetectionContext.Provider value={value}>

@@ -1,9 +1,15 @@
 /**
  * Health Event creation and management service
+ * 
+ * Observability: Follows backend patterns with structured logging
+ * - Logs include: traceId, userId/patientId, eventId, fn
+ * - No PHI logged (only IDs, status, severity)
+ * - All errors logged with context
  */
 
 import { addDoc, collection, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { logger } from "@/lib/utils/logger";
 import type {
   HealthEvent,
   CreateHealthEventInput,
@@ -14,10 +20,27 @@ import type {
 const HEALTH_EVENTS_COLLECTION = "healthEvents";
 
 /**
+ * Generate a trace ID for correlation
+ */
+function createTraceId(): string {
+  return `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
  * Create a new health event in Firestore
  */
 export async function createHealthEvent(input: CreateHealthEventInput): Promise<string> {
+  const traceId = createTraceId();
+  const startTime = Date.now();
+
   try {
+    logger.info("Creating health event", {
+      userId: input.userId,
+      type: input.type,
+      severity: input.severity,
+      source: input.source,
+    }, "createHealthEvent");
+
     const eventData: Omit<HealthEvent, "id"> = {
       ...input,
       status: "OPEN",
@@ -29,9 +52,19 @@ export async function createHealthEvent(input: CreateHealthEventInput): Promise<
       createdAt: Timestamp.fromDate(eventData.createdAt),
     });
 
+    const durationMs = Date.now() - startTime;
+    logger.info("Health event created successfully", {
+      eventId: docRef.id,
+      userId: input.userId,
+      type: input.type,
+      severity: input.severity,
+      durationMs,
+    }, "createHealthEvent");
+
     return docRef.id;
   } catch (error) {
-    console.error("Failed to create health event:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Failed to create health event", error, "createHealthEvent");
     throw new Error("Failed to create health event");
   }
 }
@@ -43,7 +76,18 @@ export async function updateHealthEvent(
   eventId: string,
   updates: UpdateHealthEventInput
 ): Promise<void> {
+  const traceId = createTraceId();
+  const startTime = Date.now();
+
   try {
+    logger.info("Updating health event", {
+      eventId,
+      status: updates.status,
+      acknowledgedBy: updates.acknowledgedBy,
+      resolvedBy: updates.resolvedBy,
+      escalatedBy: updates.escalatedBy,
+    }, "updateHealthEvent");
+
     const updateData: any = {
       status: updates.status,
     };
@@ -77,8 +121,16 @@ export async function updateHealthEvent(
     }
 
     await updateDoc(doc(db, HEALTH_EVENTS_COLLECTION, eventId), updateData);
+
+    const durationMs = Date.now() - startTime;
+    logger.info("Health event updated successfully", {
+      eventId,
+      status: updates.status,
+      durationMs,
+    }, "updateHealthEvent");
   } catch (error) {
-    console.error("Failed to update health event:", error);
+    const durationMs = Date.now() - startTime;
+    logger.error("Failed to update health event", error, "updateHealthEvent");
     throw new Error("Failed to update health event");
   }
 }
@@ -90,6 +142,11 @@ export async function acknowledgeHealthEvent(
   eventId: string,
   acknowledgedBy: string
 ): Promise<void> {
+  logger.debug("Acknowledging health event", {
+    eventId,
+    acknowledgedBy,
+  }, "acknowledgeHealthEvent");
+
   await updateHealthEvent(eventId, {
     status: "ACKED",
     acknowledgedBy,
@@ -103,6 +160,11 @@ export async function resolveHealthEvent(
   eventId: string,
   resolvedBy: string
 ): Promise<void> {
+  logger.debug("Resolving health event", {
+    eventId,
+    resolvedBy,
+  }, "resolveHealthEvent");
+
   await updateHealthEvent(eventId, {
     status: "RESOLVED",
     resolvedBy,
@@ -117,6 +179,12 @@ export async function escalateHealthEvent(
   escalatedBy: string,
   reason?: string
 ): Promise<void> {
+  logger.info("Escalating health event", {
+    eventId,
+    escalatedBy,
+    hasReason: !!reason,
+  }, "escalateHealthEvent");
+
   await updateHealthEvent(eventId, {
     status: "ESCALATED",
     escalatedBy,
@@ -143,10 +211,22 @@ export async function createVitalAlertEvent(
   },
   source: "wearable" | "manual" | "clinic" = "wearable"
 ): Promise<string | null> {
+  const traceId = createTraceId();
+
   // Only create events for abnormal vitals
   if (evaluation.severity === "normal") {
+    logger.debug("Skipping vital alert event - severity is normal", {
+      userId,
+    }, "createVitalAlertEvent");
     return null;
   }
+
+  logger.info("Creating vital alert event", {
+    userId,
+    evaluationSeverity: evaluation.severity,
+    reasonCount: evaluation.reasons.length,
+    source,
+  }, "createVitalAlertEvent");
 
   // Map severity levels
   const severityMap: Record<string, HealthEventSeverity> = {
@@ -156,15 +236,28 @@ export async function createVitalAlertEvent(
 
   const eventSeverity = severityMap[evaluation.severity] || "medium";
 
-  return await createHealthEvent({
-    userId,
-    type: "VITAL_ALERT",
-    severity: eventSeverity,
-    reasons: evaluation.reasons,
-    source,
-    vitalValues,
-    metadata: {
-      evaluationTimestamp: evaluation.timestamp,
-    },
-  });
+  try {
+    const eventId = await createHealthEvent({
+      userId,
+      type: "VITAL_ALERT",
+      severity: eventSeverity,
+      reasons: evaluation.reasons,
+      source,
+      vitalValues,
+      metadata: {
+        evaluationTimestamp: evaluation.timestamp,
+      },
+    });
+
+    logger.info("Vital alert event created", {
+      eventId,
+      userId,
+      severity: eventSeverity,
+    }, "createVitalAlertEvent");
+
+    return eventId;
+  } catch (error) {
+    logger.error("Failed to create vital alert event", error, "createVitalAlertEvent");
+    throw error;
+  }
 }

@@ -356,7 +356,7 @@ export default function AllergiesScreen() {
       alignItems: "center",
     },
     backButtonRTL: {
-      // RTL adjustments if needed
+      transform: [{ scaleX: -1 }],
     },
     title: {
       color: theme.colors.text.primary,
@@ -368,15 +368,6 @@ export default function AllergiesScreen() {
       borderRadius: 20,
       justifyContent: "center",
       alignItems: "center",
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    backButtonRTL: {
-      transform: [{ scaleX: -1 }],
     },
     content: {
       flex: 1,

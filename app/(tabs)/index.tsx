@@ -444,7 +444,7 @@ export default function DashboardScreen() {
       flex: 1,
     },
     healthInsightTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
+      ...getTextStyle(theme, "body", "semibold", theme.colors.primary.main),
       marginBottom: 4,
     },
     healthInsightMessage: {
@@ -1076,7 +1076,7 @@ export default function DashboardScreen() {
 
       case "healthInsights":
         return (
-          <View key="healthInsights">
+          <View key="healthInsights" style={styles.section as ViewStyle}>
             <HealthInsightsCard />
             <ProactiveHealthSuggestions maxSuggestions={5} />
           </View>
@@ -1295,24 +1295,6 @@ export default function DashboardScreen() {
             </Caption>
           </View>
           <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, zIndex: 1001, flexShrink: 0 }}>
-            <Pressable
-              onPress={() => router.push("/search")}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-              style={({ pressed }) => ({
-                backgroundColor: theme.colors.background.secondary,
-                borderRadius: 20,
-                padding: 10,
-                justifyContent: "center",
-                alignItems: "center",
-                zIndex: 1001,
-                elevation: 5,
-                minWidth: 40,
-                minHeight: 40,
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Ionicons name="search" color={theme.colors.text.primary} size={20} />
-            </Pressable>
             {isAdmin && (
               <Pressable
                 onPress={() => {
@@ -1364,7 +1346,7 @@ export default function DashboardScreen() {
                 ] as StyleProp<TextStyle>
               }
             >
-              {isRTL ? "رؤى صحية" : "Health Insights"}
+              {t("healthInsights")}
             </Text>
             <View style={styles.healthInsightsGrid as ViewStyle}>
               {/* Medication Adherence Insight */}
@@ -1483,7 +1465,7 @@ export default function DashboardScreen() {
                       }
                     >
                       {isRTL
-                        ? "سجل أعراضك اليومية للحصول على رؤى أفضل"
+                        ? "سجل أعراضك اليومية للحصول على رؤية صحية أفضل"
                         : "Log your daily symptoms for better insights"}
                     </Text>
                   </View>
@@ -1581,7 +1563,7 @@ export default function DashboardScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "التنبيهات الطوارئ الصحية النشطة" : "Active Emergency Alerts"}
+                  {isRTL ? "التنبيهات الطوارئ الصحية الفعالة" : "Active Emergency Alerts"}
                 </Text>
                 <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
                   <Text
@@ -1734,7 +1716,7 @@ export default function DashboardScreen() {
                                 Alert.alert(
                                   isRTL ? "نجح" : "Success",
                                   isRTL
-                                    ? "تم حل جميع التنبيهات الطوارئ المرضية النشطة"
+                                    ? "تم حل جميع التنبيهات الطوارئ الصحية الفعالة"
                                     : "All alerts resolved"
                                 );
                               } else {
@@ -1845,7 +1827,7 @@ export default function DashboardScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "الأعراض" : "Symptoms"}
+                  {isRTL ? "الأعراض الصحية" : "Symptoms"}
                 </Text>
                 <Text
                   style={

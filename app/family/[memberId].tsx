@@ -6,12 +6,22 @@ import {
   Calendar,
   CheckCircle2,
   Droplet,
+  Flame,
+  Footprints,
   Gauge,
   Heart,
   History,
+  Moon,
   Pill,
+  Route,
+  Ruler,
+  Scale,
+  ShieldAlert,
   Thermometer,
+  Waves,
+  Wind,
   XCircle,
+  Zap,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,8 +47,9 @@ import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
+import { allergyService } from "@/lib/services/allergyService";
 import { doc, getDoc } from "firebase/firestore";
-import type { EmergencyAlert, Medication, MedicalHistory, Symptom, User } from "@/types";
+import type { Allergy, EmergencyAlert, Medication, MedicalHistory, Symptom, User } from "@/types";
 
 export default function FamilyMemberHealthView() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
@@ -55,6 +66,7 @@ export default function FamilyMemberHealthView() {
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [medicalHistory, setMedicalHistory] = useState<MedicalHistory[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
+  const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [vitals, setVitals] = useState<VitalSigns | null>(null);
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
 
@@ -90,12 +102,14 @@ export default function FamilyMemberHealthView() {
         memberSymptoms,
         memberMedicalHistory,
         memberMedications,
+        memberAllergies,
         memberAlerts,
         healthContext,
       ] = await Promise.all([
         symptomService.getUserSymptoms(memberId),
         medicalHistoryService.getUserMedicalHistory(memberId),
         medicationService.getUserMedications(memberId),
+        allergyService.getUserAllergies(memberId),
         alertService.getActiveAlerts(memberId),
         healthContextService.getUserHealthContext(memberId).catch(() => null),
       ]);
@@ -103,6 +117,7 @@ export default function FamilyMemberHealthView() {
       setSymptoms(memberSymptoms);
       setMedicalHistory(memberMedicalHistory);
       setMedications(memberMedications.filter((m) => m.isActive));
+      setAllergies(memberAllergies);
       setAlerts(memberAlerts);
 
       // Extract vitals from health context
@@ -110,6 +125,9 @@ export default function FamilyMemberHealthView() {
         const vs = healthContext.vitalSigns;
         setVitals({
           heartRate: vs.heartRate,
+          restingHeartRate: vs.restingHeartRate,
+          walkingHeartRateAverage: vs.walkingHeartRateAverage,
+          heartRateVariability: vs.heartRateVariability,
           bloodPressure: vs.bloodPressure
             ? (() => {
                 const bp = vs.bloodPressure.split("/");
@@ -122,10 +140,18 @@ export default function FamilyMemberHealthView() {
                 return undefined;
               })()
             : undefined,
+          respiratoryRate: vs.respiratoryRate,
           bodyTemperature: vs.temperature,
           oxygenSaturation: vs.oxygenLevel,
           bloodGlucose: vs.glucoseLevel,
           weight: vs.weight,
+          height: vs.height,
+          bodyFatPercentage: vs.bodyFatPercentage,
+          steps: vs.steps,
+          sleepHours: vs.sleepHours,
+          activeEnergy: vs.activeEnergy,
+          distanceWalkingRunning: vs.distanceWalkingRunning,
+          waterIntake: vs.waterIntake,
           timestamp: vs.lastUpdated || new Date(),
         });
       } else {
@@ -270,7 +296,7 @@ export default function FamilyMemberHealthView() {
             <ArrowLeft color="#FFFFFF" size={24} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, isRTL && styles.rtlText]}>
-            {isRTL ? "عضو غير موجود" : "Member Not Found"}
+            {isRTL ? "فرد العائلة غير موجود" : "Member Not Found"}
           </Text>
         </View>
       </SafeAreaView>
@@ -307,10 +333,10 @@ export default function FamilyMemberHealthView() {
     ? getRelationshipLabel(relationship)
     : member.role === "admin"
       ? isRTL
-        ? "مدير"
+        ? "مدير العائلة"
         : "Admin"
       : isRTL
-        ? "عضو"
+        ? "فرد العائلة"
         : "Member";
 
   const recentSymptoms = symptoms
@@ -382,7 +408,7 @@ export default function FamilyMemberHealthView() {
                       member.role === "member" && styles.roleButtonTextActive,
                     ]}
                   >
-                    {isRTL ? "عضو" : "Member"}
+                    {isRTL ? "فرد العائلة" : "Member"}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -413,7 +439,7 @@ export default function FamilyMemberHealthView() {
             >
               <AlertTriangle color="#FFFFFF" size={20} />
               <Text style={styles.caregiverAlertText}>
-                {isRTL ? "إرسال تنبيه للمدير" : "Send Alert to Admin"}
+                {isRTL ? "إرسال تنبيه لمدير العائلة" : "Send Alert to Admin"}
               </Text>
             </TouchableOpacity>
           )}
@@ -478,6 +504,39 @@ export default function FamilyMemberHealthView() {
                   </Text>
                 </View>
               )}
+              {vitals.restingHeartRate !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Heart color="#EC4899" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {Math.round(vitals.restingHeartRate)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "استراحة" : "Resting"}
+                  </Text>
+                </View>
+              )}
+              {vitals.walkingHeartRateAverage !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Footprints color="#F97316" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {Math.round(vitals.walkingHeartRateAverage)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "مشي" : "Walking"}
+                  </Text>
+                </View>
+              )}
+              {vitals.heartRateVariability !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Zap color="#A855F7" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {Math.round(vitals.heartRateVariability)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    HRV
+                  </Text>
+                </View>
+              )}
               {vitals.bloodPressure && (
                 <View style={styles.vitalCard}>
                   <Gauge color="#F59E0B" size={24} />
@@ -487,6 +546,17 @@ export default function FamilyMemberHealthView() {
                   </Text>
                   <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
                     BP
+                  </Text>
+                </View>
+              )}
+              {vitals.respiratoryRate !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Wind color="#06B6D4" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {Math.round(vitals.respiratoryRate)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "تنفس/د" : "Resp"}
                   </Text>
                 </View>
               )}
@@ -525,12 +595,89 @@ export default function FamilyMemberHealthView() {
               )}
               {vitals.weight !== undefined && (
                 <View style={styles.vitalCard}>
-                  <Activity color="#10B981" size={24} />
+                  <Scale color="#8B5CF6" size={24} />
                   <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
                     {vitals.weight.toFixed(1)}
                   </Text>
                   <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
                     kg
+                  </Text>
+                </View>
+              )}
+              {vitals.height !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Ruler color="#6366F1" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {vitals.height.toFixed(0)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    cm
+                  </Text>
+                </View>
+              )}
+              {vitals.bodyFatPercentage !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Activity color="#EC4899" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {vitals.bodyFatPercentage.toFixed(1)}%
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "دهون" : "Body Fat"}
+                  </Text>
+                </View>
+              )}
+              {vitals.steps !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Footprints color="#22C55E" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {vitals.steps > 1000 ? `${(vitals.steps / 1000).toFixed(1)}k` : vitals.steps}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "خطوات" : "Steps"}
+                  </Text>
+                </View>
+              )}
+              {vitals.sleepHours !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Moon color="#6366F1" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {vitals.sleepHours.toFixed(1)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "ساعات" : "hrs"}
+                  </Text>
+                </View>
+              )}
+              {vitals.activeEnergy !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Flame color="#F97316" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {Math.round(vitals.activeEnergy)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    kcal
+                  </Text>
+                </View>
+              )}
+              {vitals.distanceWalkingRunning !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Route color="#14B8A6" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {vitals.distanceWalkingRunning.toFixed(1)}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    km
+                  </Text>
+                </View>
+              )}
+              {vitals.waterIntake !== undefined && (
+                <View style={styles.vitalCard}>
+                  <Waves color="#06B6D4" size={24} />
+                  <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
+                    {vitals.waterIntake > 1000 ? `${(vitals.waterIntake / 1000).toFixed(1)}L` : `${Math.round(vitals.waterIntake)}ml`}
+                  </Text>
+                  <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "ماء" : "Water"}
                   </Text>
                 </View>
               )}
@@ -806,6 +953,86 @@ export default function FamilyMemberHealthView() {
             </View>
           )}
         </View>
+
+        {/* Allergies Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <ShieldAlert color="#DC2626" size={20} />
+            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              {isRTL ? "الحساسية" : "Allergies"}
+            </Text>
+            <Text style={[styles.sectionCount, isRTL && styles.rtlText]}>
+              ({allergies.length})
+            </Text>
+          </View>
+          {allergies.length > 0 ? (
+            <View style={styles.allergiesList}>
+              {allergies.map((allergy) => (
+                <View key={allergy.id} style={styles.allergyItem}>
+                  <View style={styles.allergyHeader}>
+                    <Text
+                      style={[styles.allergyName, isRTL && styles.rtlText]}
+                    >
+                      {allergy.name}
+                    </Text>
+                    <View
+                      style={[
+                        styles.severityBadge,
+                        {
+                          backgroundColor:
+                            allergy.severity === "severe-life-threatening"
+                              ? "#7F1D1D"
+                              : allergy.severity === "severe"
+                                ? "#DC2626"
+                                : allergy.severity === "moderate"
+                                  ? "#F59E0B"
+                                  : "#10B981",
+                        },
+                      ]}
+                    >
+                      <Text style={styles.severityBadgeText}>
+                        {allergy.severity === "severe-life-threatening"
+                          ? isRTL
+                            ? "خطير جداً"
+                            : "Life-threatening"
+                          : allergy.severity === "severe"
+                            ? isRTL
+                              ? "شديد"
+                              : "Severe"
+                            : allergy.severity === "moderate"
+                              ? isRTL
+                                ? "متوسط"
+                                : "Moderate"
+                              : isRTL
+                                ? "خفيف"
+                                : "Mild"}
+                      </Text>
+                    </View>
+                  </View>
+                  {allergy.reaction && (
+                    <Text style={[styles.allergyReaction, isRTL && styles.rtlText]}>
+                      {isRTL ? "رد الفعل: " : "Reaction: "}
+                      {allergy.reaction}
+                    </Text>
+                  )}
+                  {allergy.notes && (
+                    <Text style={[styles.allergyNotes, isRTL && styles.rtlText]}>
+                      {allergy.notes}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                {isRTL
+                  ? "لا توجد حساسية مسجلة"
+                  : "No allergies recorded"}
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -978,6 +1205,7 @@ const styles = StyleSheet.create({
   vitalsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "center",
     gap: 12,
     marginBottom: 12,
   },
@@ -986,8 +1214,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
-    flex: 1,
-    minWidth: "30%",
+    minWidth: 100,
+    maxWidth: 120,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -1178,6 +1406,46 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Regular",
     color: "#64748B",
     marginTop: 4,
+  },
+  allergiesList: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  allergyItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  allergyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  allergyName: {
+    fontSize: 16,
+    fontFamily: "Geist-SemiBold",
+    color: "#1E293B",
+    flex: 1,
+  },
+  allergyReaction: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#DC2626",
+    marginBottom: 4,
+  },
+  allergyNotes: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#94A3B8",
+    marginTop: 4,
+    fontStyle: "italic",
   },
   emptyState: {
     backgroundColor: "#FFFFFF",

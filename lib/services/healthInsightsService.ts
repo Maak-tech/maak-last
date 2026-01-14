@@ -26,6 +26,129 @@ export interface PatternInsight {
   recommendation?: string;
 }
 
+// Localization helper for insights
+const getLocalizedInsightText = (key: string, isArabic: boolean, params?: Record<string, string | number>): { title: string; description: string; recommendation?: string } => {
+  const texts: Record<string, { en: { title: string; description: string; recommendation?: string }; ar: { title: string; description: string; recommendation?: string } }> = {
+    weekendSymptomPattern: {
+      en: {
+        title: "Weekend Symptom Pattern",
+        description: "Your symptoms tend to be more frequent on weekends. This could be related to changes in routine, stress, or activity levels.",
+        recommendation: "Consider maintaining a consistent routine on weekends and monitor what activities might trigger symptoms.",
+      },
+      ar: {
+        title: "نمط الأعراض في نهاية الأسبوع",
+        description: "تميل أعراضك إلى أن تكون أكثر تكراراً في عطلات نهاية الأسبوع. قد يكون هذا مرتبطاً بتغييرات في الروتين أو التوتر أو مستويات النشاط.",
+        recommendation: "حاول الحفاظ على روتين ثابت في عطلات نهاية الأسبوع وراقب الأنشطة التي قد تسبب الأعراض.",
+      },
+    },
+    betterMoodsWeekends: {
+      en: {
+        title: "Better Moods on Weekends",
+        description: "Your mood tends to be better on weekends. This suggests work or weekday activities may be affecting your well-being.",
+        recommendation: "Consider what makes weekends better and try to incorporate those elements into your weekdays.",
+      },
+      ar: {
+        title: "مزاج أفضل في نهاية الأسبوع",
+        description: "يميل مزاجك إلى أن يكون أفضل في عطلات نهاية الأسبوع. هذا يشير إلى أن العمل أو أنشطة أيام الأسبوع قد تؤثر على صحتك النفسية.",
+        recommendation: "فكر فيما يجعل عطلات نهاية الأسبوع أفضل وحاول دمج هذه العناصر في أيام الأسبوع.",
+      },
+    },
+    medicationEffectiveness: {
+      en: {
+        title: `${params?.medicationName || "Medication"} Effectiveness`,
+        description: `Your symptoms have decreased by ${params?.improvement || 0}% since starting ${params?.medicationName || "the medication"}. This suggests the medication may be helping.`,
+      },
+      ar: {
+        title: `فعالية ${params?.medicationName || "الدواء"}`,
+        description: `انخفضت أعراضك بنسبة ${params?.improvement || 0}% منذ بدء تناول ${params?.medicationName || "الدواء"}. هذا يشير إلى أن الدواء قد يكون مفيداً.`,
+      },
+    },
+    increasingSymptomSeverity: {
+      en: {
+        title: "Increasing Symptom Severity",
+        description: "Your symptoms have been more severe in the last 2 weeks compared to before. Consider discussing this with your healthcare provider.",
+        recommendation: "Monitor your symptoms closely and consider scheduling a check-up if the trend continues.",
+      },
+      ar: {
+        title: "زيادة شدة الأعراض",
+        description: "كانت أعراضك أكثر شدة في الأسبوعين الأخيرين مقارنة بالسابق. فكر في مناقشة هذا مع مقدم الرعاية الصحية.",
+        recommendation: "راقب أعراضك عن كثب وفكر في تحديد موعد للفحص إذا استمر هذا الاتجاه.",
+      },
+    },
+    improvingSymptomSeverity: {
+      en: {
+        title: "Improving Symptom Severity",
+        description: "Great news! Your symptoms have been less severe recently. Keep up whatever you're doing.",
+      },
+      ar: {
+        title: "تحسن شدة الأعراض",
+        description: "أخبار رائعة! كانت أعراضك أقل شدة مؤخراً. استمر في ما تفعله.",
+      },
+    },
+    improvingMood: {
+      en: {
+        title: "Improving Mood",
+        description: "Your mood has been improving over time. This is a positive trend!",
+      },
+      ar: {
+        title: "تحسن المزاج",
+        description: "يتحسن مزاجك بمرور الوقت. هذا اتجاه إيجابي!",
+      },
+    },
+    decliningMood: {
+      en: {
+        title: "Declining Mood",
+        description: "Your mood has been declining recently. Consider talking to someone or seeking support.",
+        recommendation: "Consider speaking with a mental health professional or trusted friend about how you're feeling.",
+      },
+      ar: {
+        title: "انخفاض المزاج",
+        description: "انخفض مزاجك مؤخراً. فكر في التحدث مع شخص ما أو طلب الدعم.",
+        recommendation: "فكر في التحدث مع متخصص في الصحة النفسية أو صديق موثوق حول ما تشعر به.",
+      },
+    },
+    medicationAdherence: {
+      en: {
+        title: "Medication Adherence",
+        description: "Consistent medication adherence is important for managing your health conditions.",
+        recommendation: "Set reminders and try to take medications at the same time each day.",
+      },
+      ar: {
+        title: "الالتزام بالدواء",
+        description: "الالتزام المستمر بتناول الأدوية مهم لإدارة حالتك الصحية.",
+        recommendation: "اضبط تذكيرات وحاول تناول الأدوية في نفس الوقت كل يوم.",
+      },
+    },
+    frequentSymptoms: {
+      en: {
+        title: "Frequent Symptoms",
+        description: "You've been experiencing symptoms frequently this week. Consider tracking triggers and patterns.",
+        recommendation: "Keep a detailed log of when symptoms occur, what you were doing, and what you ate to identify patterns.",
+      },
+      ar: {
+        title: "أعراض متكررة",
+        description: "كنت تعاني من أعراض متكررة هذا الأسبوع. فكر في تتبع المحفزات والأنماط.",
+        recommendation: "احتفظ بسجل مفصل لوقت حدوث الأعراض، وما كنت تفعله، وما أكلته لتحديد الأنماط.",
+      },
+    },
+    mentalWellbeing: {
+      en: {
+        title: "Mental Well-being",
+        description: "You've been experiencing more negative moods recently. Self-care is important.",
+        recommendation: "Consider activities that help you relax, such as exercise, meditation, or spending time with loved ones.",
+      },
+      ar: {
+        title: "الصحة النفسية",
+        description: "كنت تعاني من مزاج سلبي أكثر مؤخراً. الرعاية الذاتية مهمة.",
+        recommendation: "فكر في الأنشطة التي تساعدك على الاسترخاء، مثل التمارين الرياضية أو التأمل أو قضاء الوقت مع أحبائك.",
+      },
+    },
+  };
+
+  const locale = isArabic ? "ar" : "en";
+  return texts[key]?.[locale] || texts[key]?.en || { title: key, description: "" };
+};
+
 export interface WeeklySummary {
   weekStart: Date;
   weekEnd: Date;
@@ -74,7 +197,8 @@ class HealthInsightsService {
    */
   private detectTemporalPatterns(
     symptoms: Symptom[],
-    moods: Mood[]
+    moods: Mood[],
+    isArabic = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
 
@@ -120,15 +244,14 @@ class HealthInsightsService {
       const weekdayAvg = weekdaySymptoms / totalWeekdayDays;
 
       if (weekendAvg > weekdayAvg * 1.3) {
+        const localizedText = getLocalizedInsightText("weekendSymptomPattern", isArabic);
         insights.push({
           type: "temporal",
-          title: "Weekend Symptom Pattern",
-          description:
-            "Your symptoms tend to be more frequent on weekends. This could be related to changes in routine, stress, or activity levels.",
+          title: localizedText.title,
+          description: localizedText.description,
           confidence: Math.min(85, Math.round((weekendAvg / weekdayAvg) * 50)),
           actionable: true,
-          recommendation:
-            "Consider maintaining a consistent routine on weekends and monitor what activities might trigger symptoms.",
+          recommendation: localizedText.recommendation,
         });
       }
     }
@@ -156,15 +279,14 @@ class HealthInsightsService {
         weekdayMoods.reduce((sum, m) => sum + m, 0) / weekdayMoods.length;
 
       if (weekendAvg > weekdayAvg + 0.5) {
+        const localizedText = getLocalizedInsightText("betterMoodsWeekends", isArabic);
         insights.push({
           type: "temporal",
-          title: "Better Moods on Weekends",
-          description:
-            "Your mood tends to be better on weekends. This suggests work or weekday activities may be affecting your well-being.",
+          title: localizedText.title,
+          description: localizedText.description,
           confidence: 70,
           actionable: true,
-          recommendation:
-            "Consider what makes weekends better and try to incorporate those elements into your weekdays.",
+          recommendation: localizedText.recommendation,
         });
       }
     }
@@ -177,7 +299,8 @@ class HealthInsightsService {
    */
   private detectMedicationCorrelations(
     symptoms: Symptom[],
-    medications: Medication[]
+    medications: Medication[],
+    isArabic = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
 
@@ -213,20 +336,20 @@ class HealthInsightsService {
         const avgAfter = symptomsAfter.length / daysAfter;
 
         if (avgAfter < avgBefore * 0.7 && daysAfter >= 7) {
+          const improvement = Math.round(((avgBefore - avgAfter) / avgBefore) * 100);
+          const localizedText = getLocalizedInsightText("medicationEffectiveness", isArabic, { 
+            medicationName: medication.name, 
+            improvement 
+          });
           insights.push({
             type: "correlation",
-            title: `${medication.name} Effectiveness`,
-            description: `Your symptoms have decreased by ${Math.round(
-              ((avgBefore - avgAfter) / avgBefore) * 100
-            )}% since starting ${medication.name}. This suggests the medication may be helping.`,
-            confidence: Math.min(
-              90,
-              Math.round(((avgBefore - avgAfter) / avgBefore) * 100)
-            ),
+            title: localizedText.title,
+            description: localizedText.description,
+            confidence: Math.min(90, improvement),
             actionable: false,
             data: {
               medication: medication.name,
-              improvement: Math.round(((avgBefore - avgAfter) / avgBefore) * 100),
+              improvement,
             },
           });
         }
@@ -241,7 +364,8 @@ class HealthInsightsService {
    */
   private detectTrends(
     symptoms: Symptom[],
-    moods: Mood[]
+    moods: Mood[],
+    isArabic = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
 
@@ -265,22 +389,21 @@ class HealthInsightsService {
         olderSymptoms.length;
 
       if (recentAvg > olderAvg + 0.5) {
+        const localizedText = getLocalizedInsightText("increasingSymptomSeverity", isArabic);
         insights.push({
           type: "trend",
-          title: "Increasing Symptom Severity",
-          description:
-            "Your symptoms have been more severe in the last 2 weeks compared to before. Consider discussing this with your healthcare provider.",
+          title: localizedText.title,
+          description: localizedText.description,
           confidence: 75,
           actionable: true,
-          recommendation:
-            "Monitor your symptoms closely and consider scheduling a check-up if the trend continues.",
+          recommendation: localizedText.recommendation,
         });
       } else if (recentAvg < olderAvg - 0.5) {
+        const localizedText = getLocalizedInsightText("improvingSymptomSeverity", isArabic);
         insights.push({
           type: "trend",
-          title: "Improving Symptom Severity",
-          description:
-            "Great news! Your symptoms have been less severe recently. Keep up whatever you're doing.",
+          title: localizedText.title,
+          description: localizedText.description,
           confidence: 75,
           actionable: false,
         });
@@ -300,24 +423,23 @@ class HealthInsightsService {
         olderMoods.length;
 
       if (recentAvg > olderAvg + 0.5) {
+        const localizedText = getLocalizedInsightText("improvingMood", isArabic);
         insights.push({
           type: "trend",
-          title: "Improving Mood",
-          description:
-            "Your mood has been improving over time. This is a positive trend!",
+          title: localizedText.title,
+          description: localizedText.description,
           confidence: 70,
           actionable: false,
         });
       } else if (recentAvg < olderAvg - 0.5) {
+        const localizedText = getLocalizedInsightText("decliningMood", isArabic);
         insights.push({
           type: "trend",
-          title: "Declining Mood",
-          description:
-            "Your mood has been declining recently. Consider talking to someone or seeking support.",
+          title: localizedText.title,
+          description: localizedText.description,
           confidence: 70,
           actionable: true,
-          recommendation:
-            "Consider speaking with a mental health professional or trusted friend about how you're feeling.",
+          recommendation: localizedText.recommendation,
         });
       }
     }
@@ -331,7 +453,8 @@ class HealthInsightsService {
   private generateRecommendations(
     symptoms: Symptom[],
     medications: Medication[],
-    moods: Mood[]
+    moods: Mood[],
+    isArabic = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
 
@@ -340,15 +463,14 @@ class HealthInsightsService {
     if (activeMedications.length > 0) {
       // This would ideally use actual compliance data
       // For now, we'll generate a general recommendation
+      const localizedText = getLocalizedInsightText("medicationAdherence", isArabic);
       insights.push({
         type: "recommendation",
-        title: "Medication Adherence",
-        description:
-          "Consistent medication adherence is important for managing your health conditions.",
+        title: localizedText.title,
+        description: localizedText.description,
         confidence: 80,
         actionable: true,
-        recommendation:
-          "Set reminders and try to take medications at the same time each day.",
+        recommendation: localizedText.recommendation,
       });
     }
 
@@ -357,15 +479,14 @@ class HealthInsightsService {
       (s) => s.timestamp >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     );
     if (recentSymptoms.length > 5) {
+      const localizedText = getLocalizedInsightText("frequentSymptoms", isArabic);
       insights.push({
         type: "recommendation",
-        title: "Frequent Symptoms",
-        description:
-          "You've been experiencing symptoms frequently this week. Consider tracking triggers and patterns.",
+        title: localizedText.title,
+        description: localizedText.description,
         confidence: 75,
         actionable: true,
-        recommendation:
-          "Keep a detailed log of when symptoms occur, what you were doing, and what you ate to identify patterns.",
+        recommendation: localizedText.recommendation,
       });
     }
 
@@ -383,15 +504,14 @@ class HealthInsightsService {
     ).length;
 
     if (negativeMoodCount > recentMoods.length * 0.5) {
+      const localizedText = getLocalizedInsightText("mentalWellbeing", isArabic);
       insights.push({
         type: "recommendation",
-        title: "Mental Well-being",
-        description:
-          "You've been experiencing more negative moods recently. Self-care is important.",
+        title: localizedText.title,
+        description: localizedText.description,
         confidence: 70,
         actionable: true,
-        recommendation:
-          "Consider activities that help you relax, such as exercise, meditation, or spending time with loved ones.",
+        recommendation: localizedText.recommendation,
       });
     }
 
@@ -403,7 +523,8 @@ class HealthInsightsService {
    */
   async getWeeklySummary(
     userId: string,
-    weekStart?: Date
+    weekStart?: Date,
+    isArabic = false
   ): Promise<WeeklySummary> {
     const start = weekStart || new Date();
     start.setDate(start.getDate() - start.getDay()); // Start of week (Sunday)
@@ -499,12 +620,12 @@ class HealthInsightsService {
       }
     }
 
-    // Generate insights
+    // Generate insights with localization
     const allInsights = [
-      ...this.detectTemporalPatterns(weekSymptoms, weekMoods),
-      ...this.detectMedicationCorrelations(weekSymptoms, medications),
-      ...this.detectTrends(weekSymptoms, weekMoods),
-      ...this.generateRecommendations(weekSymptoms, medications, weekMoods),
+      ...this.detectTemporalPatterns(weekSymptoms, weekMoods, isArabic),
+      ...this.detectMedicationCorrelations(weekSymptoms, medications, isArabic),
+      ...this.detectTrends(weekSymptoms, weekMoods, isArabic),
+      ...this.generateRecommendations(weekSymptoms, medications, weekMoods, isArabic),
     ];
 
     return {
@@ -571,7 +692,8 @@ class HealthInsightsService {
   async getMonthlySummary(
     userId: string,
     month?: number,
-    year?: number
+    year?: number,
+    isArabic = false
   ): Promise<MonthlySummary> {
     const now = new Date();
     const targetMonth = month ?? now.getMonth();
@@ -628,12 +750,12 @@ class HealthInsightsService {
           monthMoods.length
         : 0;
 
-    // Generate insights
+    // Generate insights with localization
     const allInsights = [
-      ...this.detectTemporalPatterns(monthSymptoms, monthMoods),
-      ...this.detectMedicationCorrelations(monthSymptoms, medications),
-      ...this.detectTrends(monthSymptoms, monthMoods),
-      ...this.generateRecommendations(monthSymptoms, medications, monthMoods),
+      ...this.detectTemporalPatterns(monthSymptoms, monthMoods, isArabic),
+      ...this.detectMedicationCorrelations(monthSymptoms, medications, isArabic),
+      ...this.detectTrends(monthSymptoms, monthMoods, isArabic),
+      ...this.generateRecommendations(monthSymptoms, medications, monthMoods, isArabic),
     ];
 
     // Generate recommendations
@@ -670,7 +792,7 @@ class HealthInsightsService {
   /**
    * Get all insights for a user
    */
-  async getAllInsights(userId: string): Promise<PatternInsight[]> {
+  async getAllInsights(userId: string, isArabic = false): Promise<PatternInsight[]> {
     const [symptoms, medications, moodsData] = await Promise.all([
       symptomService.getUserSymptoms(userId, 100),
       medicationService.getUserMedications(userId),
@@ -682,10 +804,10 @@ class HealthInsightsService {
     ]);
 
     return [
-      ...this.detectTemporalPatterns(symptoms, moodsData),
-      ...this.detectMedicationCorrelations(symptoms, medications),
-      ...this.detectTrends(symptoms, moodsData),
-      ...this.generateRecommendations(symptoms, medications, moodsData),
+      ...this.detectTemporalPatterns(symptoms, moodsData, isArabic),
+      ...this.detectMedicationCorrelations(symptoms, medications, isArabic),
+      ...this.detectTrends(symptoms, moodsData, isArabic),
+      ...this.generateRecommendations(symptoms, medications, moodsData, isArabic),
     ];
   }
 }

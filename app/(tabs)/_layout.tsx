@@ -147,13 +147,6 @@ export default function TabLayout() {
           headerShown: false,
         }}
       />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          href: null, // Access via profile/family tab
-          headerShown: false,
-        }}
-      />
     </Tabs>
   );
 }

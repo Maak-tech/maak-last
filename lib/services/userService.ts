@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -61,7 +62,7 @@ export const userService = {
   // Ensure user document exists (create if it doesn't)
   async ensureUserDocument(
     userId: string,
-    email: string,
+    email: string | undefined,
     firstName: string,
     lastName: string,
     avatarType?: AvatarType
@@ -142,7 +143,7 @@ export const userService = {
 
       // Create new user document with default values
       const newUserData: Omit<User, "id"> = {
-        email,
+        ...(email && { email }), // Include email only if provided
         firstName,
         lastName,
         ...(avatarType && { avatarType }), // Include avatar type if provided
@@ -396,6 +397,64 @@ export const userService = {
       });
 
       return caregivers;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Remove a member from family (admin only)
+  async removeFamilyMember(
+    memberUserId: string,
+    familyId: string,
+    requestingUserId: string
+  ): Promise<void> {
+    try {
+      // Verify the requesting user is an admin
+      const isAdmin = await this.isUserAdmin(requestingUserId);
+      if (!isAdmin) {
+        throw new Error("Only admins can remove family members");
+      }
+
+      console.log("[removeFamilyMember] Starting removal:", { memberUserId, familyId, requestingUserId });
+
+      // Remove from family members array first
+      try {
+        const familyDoc = await getDoc(doc(db, "families", familyId));
+        if (familyDoc.exists()) {
+          const familyData = familyDoc.data();
+          const members = familyData.members || [];
+          const updatedMembers = members.filter(
+            (memberId: string) => memberId !== memberUserId
+          );
+
+          console.log("[removeFamilyMember] Updating families collection");
+          await updateDoc(doc(db, "families", familyId), {
+            members: updatedMembers,
+          });
+          console.log("[removeFamilyMember] Families collection updated successfully");
+        }
+      } catch (familyError: any) {
+        console.error("[removeFamilyMember] Error updating families:", familyError?.code, familyError?.message);
+        throw new Error(`Failed to update family: ${familyError?.code || familyError?.message}`);
+      }
+
+      // Update the user's document to remove family association
+      try {
+        console.log("[removeFamilyMember] Updating user document for:", memberUserId);
+        // Use null instead of deleteField() for better compatibility with Firestore rules
+        await updateDoc(doc(db, "users", memberUserId), {
+          familyId: null,
+          role: "admin", // They become admin of their own (empty) account
+        });
+        console.log("[removeFamilyMember] User document updated successfully");
+      } catch (userError: any) {
+        console.error("[removeFamilyMember] Error updating user:", userError?.code, userError?.message);
+        // If permission denied, provide more context
+        if (userError?.code === "permission-denied") {
+          throw new Error("Permission denied: Admin cannot update family member. Check Firestore rules.");
+        }
+        throw new Error(`Failed to update user: ${userError?.code || userError?.message}`);
+      }
     } catch (error) {
       throw error;
     }

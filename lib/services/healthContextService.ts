@@ -8,6 +8,7 @@ import {
   query,
   type QuerySnapshot,
   where,
+  type DocumentData,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -75,11 +76,22 @@ export interface HealthContext {
   }>;
   vitalSigns: {
     heartRate?: number;
+    restingHeartRate?: number;
+    walkingHeartRateAverage?: number;
+    heartRateVariability?: number;
     bloodPressure?: string;
+    respiratoryRate?: number;
     temperature?: number;
     oxygenLevel?: number;
     glucoseLevel?: number;
     weight?: number;
+    height?: number;
+    bodyFatPercentage?: number;
+    steps?: number;
+    sleepHours?: number;
+    activeEnergy?: number;
+    distanceWalkingRunning?: number;
+    waterIntake?: number;
     lastUpdated?: Date;
   };
 }
@@ -145,6 +157,16 @@ class HealthContextService {
               )
             )
           : getDocs(query(collection(db, "users"), limit(0))),
+        // Vitals query - get vitals from vitals collection (get more samples for daily aggregation)
+        // Get more samples to properly calculate daily totals for steps, energy, etc.
+        getDocs(
+          query(
+            collection(db, "vitals"),
+            where("userId", "==", uid),
+            orderBy("timestamp", "desc"),
+            limit(500)
+          )
+        ),
       ]);
 
       const [
@@ -153,6 +175,7 @@ class HealthContextService {
         historySnapshot,
         alertsSnapshot,
         familySnapshot,
+        vitalsSnapshot,
       ] = results;
 
       // Process medications
@@ -295,6 +318,208 @@ class HealthContextService {
         });
       }
 
+      // Process vitals from vitals collection
+      let latestVitals: HealthContext["vitalSigns"] = {
+        heartRate: userData.lastHeartRate,
+        bloodPressure: userData.lastBloodPressure,
+        temperature: userData.lastTemperature,
+        oxygenLevel: userData.lastOxygenLevel,
+        glucoseLevel: userData.lastGlucoseLevel,
+        weight: userData.lastWeight,
+        lastUpdated: userData.vitalsLastUpdated?.toDate(),
+      };
+
+      if (vitalsSnapshot.status === "fulfilled" && vitalsSnapshot.value.docs.length > 0) {
+        // Get today's date range for aggregating daily totals
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Metrics that should use latest value (not summed)
+        const latestValueMetrics = [
+          "heartRate",
+          "restingHeartRate",
+          "bloodPressure",
+          "respiratoryRate",
+          "bodyTemperature",
+          "oxygenSaturation",
+          "bloodGlucose",
+          "weight",
+          "height",
+        ];
+
+        // Metrics that should be summed for daily totals
+        const sumMetrics = [
+          "steps",
+          "activeEnergy",
+          "basalEnergy",
+          "distanceWalkingRunning",
+          "sleepHours",
+          "waterIntake",
+        ];
+
+        // Group vitals by type
+        const vitalsByType: Record<string, Array<{ value: number; timestamp: Date; metadata?: any }>> = {};
+        
+        vitalsSnapshot.value.docs.forEach((doc) => {
+          const data = doc.data();
+          const vitalType = data.type;
+          const timestamp = data.timestamp?.toDate?.() || new Date();
+          
+          if (!vitalsByType[vitalType]) {
+            vitalsByType[vitalType] = [];
+          }
+          vitalsByType[vitalType].push({
+            value: data.value,
+            timestamp,
+            metadata: data.metadata,
+          });
+        });
+
+        // Helper to get latest value for a metric type
+        const getLatestValue = (type: string) => {
+          const samples = vitalsByType[type];
+          if (!samples || samples.length === 0) return null;
+          // Sort by timestamp descending and get the latest
+          const sorted = [...samples].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          return sorted[0];
+        };
+
+        // Helper to get sum for today's samples
+        const getTodaySum = (type: string) => {
+          const samples = vitalsByType[type];
+          if (!samples || samples.length === 0) return null;
+          // Filter samples from today and sum them
+          const todaySamples = samples.filter(
+            (s) => s.timestamp >= today && s.timestamp < tomorrow
+          );
+          if (todaySamples.length === 0) return null;
+          const sum = todaySamples.reduce((acc, s) => acc + s.value, 0);
+          // Return the latest timestamp from today's samples
+          const latestTimestamp = todaySamples.reduce((latest, s) =>
+            s.timestamp > latest ? s.timestamp : latest,
+            todaySamples[0].timestamp
+          );
+          return { sum, timestamp: latestTimestamp };
+        };
+
+        // Helper to update lastUpdated timestamp
+        const updateTimestamp = (timestamp: Date) => {
+          if (!latestVitals.lastUpdated || timestamp > latestVitals.lastUpdated) {
+            latestVitals.lastUpdated = timestamp;
+          }
+        };
+
+        // Process latest value metrics
+        const heartRate = getLatestValue("heartRate");
+        if (heartRate) {
+          latestVitals.heartRate = heartRate.value;
+          updateTimestamp(heartRate.timestamp);
+        }
+
+        const restingHeartRate = getLatestValue("restingHeartRate");
+        if (restingHeartRate) {
+          latestVitals.restingHeartRate = restingHeartRate.value;
+          updateTimestamp(restingHeartRate.timestamp);
+        }
+
+        const walkingHeartRateAverage = getLatestValue("walkingHeartRateAverage");
+        if (walkingHeartRateAverage) {
+          latestVitals.walkingHeartRateAverage = walkingHeartRateAverage.value;
+          updateTimestamp(walkingHeartRateAverage.timestamp);
+        }
+
+        const heartRateVariability = getLatestValue("heartRateVariability");
+        if (heartRateVariability) {
+          latestVitals.heartRateVariability = heartRateVariability.value;
+          updateTimestamp(heartRateVariability.timestamp);
+        }
+
+        const bloodPressure = getLatestValue("bloodPressure");
+        if (bloodPressure) {
+          if (bloodPressure.metadata?.systolic && bloodPressure.metadata?.diastolic) {
+            latestVitals.bloodPressure = `${bloodPressure.metadata.systolic}/${bloodPressure.metadata.diastolic}`;
+          } else {
+            latestVitals.bloodPressure = `${bloodPressure.value}`;
+          }
+          updateTimestamp(bloodPressure.timestamp);
+        }
+
+        const respiratoryRate = getLatestValue("respiratoryRate");
+        if (respiratoryRate) {
+          latestVitals.respiratoryRate = respiratoryRate.value;
+          updateTimestamp(respiratoryRate.timestamp);
+        }
+
+        const bodyTemperature = getLatestValue("bodyTemperature");
+        if (bodyTemperature) {
+          latestVitals.temperature = bodyTemperature.value;
+          updateTimestamp(bodyTemperature.timestamp);
+        }
+
+        const oxygenSaturation = getLatestValue("oxygenSaturation");
+        if (oxygenSaturation) {
+          latestVitals.oxygenLevel = oxygenSaturation.value;
+          updateTimestamp(oxygenSaturation.timestamp);
+        }
+
+        const bloodGlucose = getLatestValue("bloodGlucose");
+        if (bloodGlucose) {
+          latestVitals.glucoseLevel = bloodGlucose.value;
+          updateTimestamp(bloodGlucose.timestamp);
+        }
+
+        const weight = getLatestValue("weight");
+        if (weight) {
+          latestVitals.weight = weight.value;
+          updateTimestamp(weight.timestamp);
+        }
+
+        const height = getLatestValue("height");
+        if (height) {
+          latestVitals.height = height.value;
+          updateTimestamp(height.timestamp);
+        }
+
+        const bodyFatPercentage = getLatestValue("bodyFatPercentage");
+        if (bodyFatPercentage) {
+          latestVitals.bodyFatPercentage = bodyFatPercentage.value;
+          updateTimestamp(bodyFatPercentage.timestamp);
+        }
+
+        // Process sum metrics (daily totals)
+        const stepsSum = getTodaySum("steps");
+        if (stepsSum) {
+          latestVitals.steps = stepsSum.sum;
+          updateTimestamp(stepsSum.timestamp);
+        }
+
+        const sleepHoursSum = getTodaySum("sleepHours");
+        if (sleepHoursSum) {
+          latestVitals.sleepHours = sleepHoursSum.sum;
+          updateTimestamp(sleepHoursSum.timestamp);
+        }
+
+        const activeEnergySum = getTodaySum("activeEnergy");
+        if (activeEnergySum) {
+          latestVitals.activeEnergy = activeEnergySum.sum;
+          updateTimestamp(activeEnergySum.timestamp);
+        }
+
+        const distanceSum = getTodaySum("distanceWalkingRunning");
+        if (distanceSum) {
+          latestVitals.distanceWalkingRunning = distanceSum.sum;
+          updateTimestamp(distanceSum.timestamp);
+        }
+
+        const waterIntakeSum = getTodaySum("waterIntake");
+        if (waterIntakeSum) {
+          latestVitals.waterIntake = waterIntakeSum.sum;
+          updateTimestamp(waterIntakeSum.timestamp);
+        }
+      }
+
       // Construct comprehensive health context
       const healthContext: HealthContext = {
         profile: {
@@ -319,15 +544,7 @@ class HealthContextService {
         symptoms,
         familyMembers,
         recentAlerts,
-        vitalSigns: {
-          heartRate: userData.lastHeartRate,
-          bloodPressure: userData.lastBloodPressure,
-          temperature: userData.lastTemperature,
-          oxygenLevel: userData.lastOxygenLevel,
-          glucoseLevel: userData.lastGlucoseLevel,
-          weight: userData.lastWeight,
-          lastUpdated: userData.vitalsLastUpdated?.toDate(),
-        },
+        vitalSigns: latestVitals,
       };
 
       return healthContext;

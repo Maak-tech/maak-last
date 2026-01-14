@@ -28,6 +28,7 @@ import {
   getAvailableMetricsForProvider,
   getGroupDisplayName,
   type HealthMetric,
+  type MetricGroup,
 } from "@/lib/health/healthMetricsCatalog";
 import { ouraService } from "@/lib/services/ouraService";
 
@@ -49,7 +50,7 @@ export default function OuraPermissionsScreen() {
   const [connecting, setConnecting] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
-  const [groups, setGroups] = useState<string[]>([]);
+  const [groups, setGroups] = useState<MetricGroup[]>([]);
 
   useEffect(() => {
     const loadMetrics = async () => {
@@ -102,7 +103,7 @@ export default function OuraPermissionsScreen() {
     setSelectedMetrics(newSelected);
   };
 
-  const toggleGroup = (groupKey: string) => {
+  const toggleGroup = (groupKey: MetricGroup) => {
     const groupMetrics = availableMetrics.filter((m) => m.group === groupKey);
     const allSelected = groupMetrics.every((m) => selectedMetrics.has(m.key));
 
@@ -117,16 +118,16 @@ export default function OuraPermissionsScreen() {
     setSelectedMetrics(newSelected);
   };
 
-  const getMetricsInGroup = (groupKey: string) => {
+  const getMetricsInGroup = (groupKey: MetricGroup) => {
     return availableMetrics.filter((m) => m.group === groupKey);
   };
 
-  const isGroupFullySelected = (groupKey: string) => {
+  const isGroupFullySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
     return groupMetrics.length > 0 && groupMetrics.every((m) => selectedMetrics.has(m.key));
   };
 
-  const isGroupPartiallySelected = (groupKey: string) => {
+  const isGroupPartiallySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
     const selectedCount = groupMetrics.filter((m) => selectedMetrics.has(m.key)).length;
     return selectedCount > 0 && selectedCount < groupMetrics.length;

@@ -72,6 +72,15 @@ export default function HealthIntegrationsScreen() {
       route: "/profile/health/apple-intro",
     },
     {
+      id: "health_connect",
+      name: "Google Health Connect",
+      description: "Secure health data platform for Android devices",
+      icon: Heart,
+      available: Platform.OS === "android",
+      recommended: Platform.OS === "android",
+      route: "/(settings)/health/healthconnect",
+    },
+    {
       id: "fitbit",
       name: t("fitbit"),
       description: t("fitbitDescription"),
@@ -165,7 +174,12 @@ export default function HealthIntegrationsScreen() {
     const connection = connections.get(provider.id);
     if (connection?.connected) {
       // Navigate to connected screen
-      router.push(provider.route.replace("-intro", "-connected") as any);
+      if (provider.id === "health_connect") {
+        // Health Connect uses permissions screen for connected state
+        router.push("/(settings)/health/healthconnect/permissions" as any);
+      } else {
+        router.push(provider.route.replace("-intro", "-connected") as any);
+      }
     } else {
       // Navigate to intro screen
       router.push(provider.route as any);

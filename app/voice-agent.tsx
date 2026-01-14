@@ -80,7 +80,7 @@ interface ToolCallStatus {
 
 export default function VoiceAgentScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
   
   // Log audio availability on mount for debugging
@@ -411,8 +411,9 @@ export default function VoiceAgentScreen() {
     try {
       setupEventHandlers();
 
-      // Get personalized health context for the instructions
-      const healthContext = await healthContextService.getContextualPrompt();
+      // Get personalized health context for the instructions with current language
+      const currentLanguage = i18n.language || "en";
+      const healthContext = await healthContextService.getContextualPrompt(undefined, currentLanguage);
       const customInstructions = `${realtimeAgentService.getDefaultInstructions()}\n\n# User Health Context\n${healthContext}`;
 
       await realtimeAgentService.connect(customInstructions);

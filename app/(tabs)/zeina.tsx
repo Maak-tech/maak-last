@@ -87,7 +87,7 @@ export default function ZeinaScreen() {
 
   // Audio streaming state
   const recordingRef = useRef<any>(null);
-  const streamingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const streamingIntervalRef = useRef<number | null>(null);
   const isStreamingRef = useRef(false);
 
   // Animation values

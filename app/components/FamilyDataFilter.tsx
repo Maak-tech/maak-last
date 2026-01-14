@@ -166,7 +166,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
         {option.type === "member" && (
           <View style={[styles.memberBadge, isSelected && styles.memberBadgeSelected]}>
             <Text style={[styles.memberBadgeText, isSelected && styles.memberBadgeTextSelected]}>
-              {isRTL ? "عضو" : "Member"}
+              {isRTL ? "فرد العائلة" : "Member"}
             </Text>
           </View>
         )}
@@ -192,7 +192,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
     switch (selectedFilter.type) {
       case "family":
         return isRTL
-          ? `عرض بيانات العائلة (${familyMembers.length} أعضاء)`
+          ? `عرض بيانات العائلة (${familyMembers.length} أفراد العائلة)`
           : `Viewing Family Data (${familyMembers.length} members)`;
       case "member":
         return isRTL

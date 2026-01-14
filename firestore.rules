@@ -61,6 +61,19 @@ service cloud.firestore {
       // Allow same-family members to read each other's user docs (includes family admins via isSameFamily check)
       // This enables family features like Zeina to query family members
       allow read: if isSignedIn() && isSameFamily(userId);
+      
+      // Allow family admin to update same-family member documents (for removing members, updating roles)
+      // This enables admin to remove family members by setting their familyId to null
+      // Two conditions: either same family check passes, OR admin's familyId matches the target user's familyId directly
+      allow update: if isFamilyAdmin() && request.auth.uid != userId && (
+        isSameFamily(userId) ||
+        (
+          // Direct familyId comparison as fallback
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          exists(/databases/$(database)/documents/users/$(userId)) &&
+          getUserData().familyId == resource.data.familyId
+        )
+      );
 
       // Allow user creation during registration
       allow create: if request.auth != null && request.auth.uid == userId;
@@ -182,10 +195,14 @@ service cloud.firestore {
       allow update, delete: if canWritePHI(resource.data.userId);
     }
 
-    // Calendar Events collection - user's own events only
+    // Calendar Events collection - user's own events and family shared events
     match /calendarEvents/{eventId} {
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || // User's own events
+        (resource.data.familyId != null && // Family shared events
+         getUserData().familyId == resource.data.familyId)
+      );
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 

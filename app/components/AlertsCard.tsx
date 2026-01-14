@@ -12,6 +12,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { alertService } from "@/lib/services/alertService";
 import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
 import type { EmergencyAlert, User } from "@/types";
 
 interface AlertsCardProps {
@@ -35,8 +36,15 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const loadAlerts = async () => {
     if (!user?.familyId) return;
 
+    const startTime = Date.now();
+
     try {
       setLoading(true);
+
+      logger.debug("Loading family emergency alerts", {
+        userId: user.id,
+        familyId: user.familyId,
+      }, "AlertsCard");
 
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members);
@@ -44,8 +52,31 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       const userIds = members.map((member) => member.id);
       const familyAlerts = await alertService.getFamilyAlerts(userIds, 10);
       setAlerts(familyAlerts);
+
+      const durationMs = Date.now() - startTime;
+      logger.info("Family emergency alerts loaded", {
+        userId: user.id,
+        familyId: user.familyId,
+        memberCount: members.length,
+        alertCount: familyAlerts.length,
+        durationMs,
+      }, "AlertsCard");
     } catch (error) {
-      // Silently fail
+      const durationMs = Date.now() - startTime;
+      
+      // Check if it's an index error
+      const isIndexError = error && typeof error === 'object' && 
+        'code' in error && error.code === 'failed-precondition';
+      
+      if (isIndexError) {
+        logger.warn("Firestore index not ready for alerts query", {
+          userId: user.id,
+          familyId: user.familyId,
+          durationMs,
+        }, "AlertsCard");
+      } else {
+        logger.error("Failed to load family alerts", error, "AlertsCard");
+      }
     } finally {
       setLoading(false);
     }
@@ -54,10 +85,25 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const handleRespond = async (alertId: string) => {
     if (!user?.id) return;
 
+    const startTime = Date.now();
+
     try {
       setRespondingTo(alertId);
 
+      logger.info("User responding to emergency alert", {
+        alertId,
+        userId: user.id,
+        role: user.role,
+      }, "AlertsCard");
+
       await alertService.addResponder(alertId, user.id);
+
+      const durationMs = Date.now() - startTime;
+      logger.info("Emergency alert response recorded", {
+        alertId,
+        userId: user.id,
+        durationMs,
+      }, "AlertsCard");
 
       Alert.alert(
         isRTL ? "تم التجاوب" : "Response Recorded",
@@ -69,6 +115,9 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
       await loadAlerts();
     } catch (error) {
+      const durationMs = Date.now() - startTime;
+      logger.error("Failed to record alert response", error, "AlertsCard");
+
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في تسجيل الاستجابة" : "Failed to record response",
@@ -83,9 +132,24 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const handleResolve = async (alertId: string) => {
     if (!user?.id) return;
 
+    const startTime = Date.now();
+
     try {
+      logger.info("User resolving emergency alert", {
+        alertId,
+        userId: user.id,
+        role: user.role,
+      }, "AlertsCard");
+
       await alertService.resolveAlert(alertId, user.id);
       await loadAlerts();
+
+      const durationMs = Date.now() - startTime;
+      logger.info("Emergency alert resolved successfully", {
+        alertId,
+        userId: user.id,
+        durationMs,
+      }, "AlertsCard");
 
       Alert.alert(
         isRTL ? "تم الحل" : "Resolved",
@@ -93,6 +157,9 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         [{ text: isRTL ? "موافق" : "OK" }]
       );
     } catch (error) {
+      const durationMs = Date.now() - startTime;
+      logger.error("Failed to resolve emergency alert", error, "AlertsCard");
+
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في حل التنبيه" : "Failed to resolve alert",
@@ -104,7 +171,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const getMemberName = (userId: string): string => {
     const member = familyMembers.find((m) => m.id === userId);
     if (!member) {
-      return isRTL ? "عضو غير معروف" : "Unknown Member";
+      return isRTL ? "فرد غير معروف" : "Unknown Member";
     }
     if (member.firstName && member.lastName) {
       return `${member.firstName} ${member.lastName}`;
@@ -112,7 +179,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     if (member.firstName) {
       return member.firstName;
     }
-    return isRTL ? "عضو غير معروف" : "Unknown Member";
+    return isRTL ? "فرد غير معروف" : "Unknown Member";
   };
 
   const getAlertIcon = (type: string) => {
@@ -193,7 +260,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         {item.responders && item.responders.length > 0 && (
           <View style={styles.respondersSection}>
             <Text style={[styles.respondersLabel, isRTL && styles.rtlText]}>
-              {isRTL ? "المتجاوبون:" : "Responders:"}
+              {isRTL ? "المستجبون:" : "Responders:"}
             </Text>
             <Text style={[styles.respondersText, isRTL && styles.rtlText]}>
               {item.responders.map((id) => getMemberName(id)).join(", ")}
@@ -214,7 +281,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
                 <CheckCircle color="#FFFFFF" size={16} />
               )}
               <Text style={[styles.actionButtonText, isRTL && styles.rtlText]}>
-                {isRTL ? "تجاوب" : "Respond"}
+                {isRTL ? "استجابة" : "Respond"}
               </Text>
             </TouchableOpacity>
           )}
@@ -232,7 +299,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
                 isRTL && styles.rtlText,
               ]}
             >
-              {isRTL ? "حل" : "Resolve"}
+              {isRTL ? "حل التنبيه" : "Resolve"}
             </Text>
           </TouchableOpacity>
         </View>

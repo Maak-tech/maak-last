@@ -1052,7 +1052,7 @@ export default function TrackScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "الخط الزمني الصحي" : "Health Timeline"}
+                    {isRTL ? "السجل الزمني الصحي" : "Health Timeline"}
                   </Text>
                   <Text
                     style={

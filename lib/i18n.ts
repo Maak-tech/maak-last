@@ -133,6 +133,7 @@ const resources = {
       // Dashboard
       healthOverview: "Health Overview",
       healthInsights: "Health Insights",
+      keyInsights: "Key Insights",
       recentSymptoms: "Recent Symptoms",
       upcomingMeds: "Upcoming Medications",
       familyAlerts: "Family Alerts",
@@ -155,6 +156,13 @@ const resources = {
       inviteFamily: "Invite Family Member",
       familyMembers: "Family Members",
       healthStatus: "Health Status",
+      
+      // Attention Reasons
+      attentionReasonLowHealthScore: "Low health score",
+      attentionReasonPoorCompliance: "Poor medication compliance",
+      attentionReasonMissedDoses: "Missed medication doses",
+      attentionReasonCriticalAlerts: "Critical alerts",
+      attentionReasonRecentFalls: "Recent falls detected",
 
       // Common symptoms
       headache: "Headache",
@@ -284,6 +292,27 @@ const resources = {
       account: "Account",
       settings: "Settings",
       support: "Support",
+      
+      // Admin Settings
+      adminSettings: "Admin Settings",
+      accountManagement: "Account Management",
+      subscriptionAndMembers: "Subscription & Members",
+      linkedFamilyMembers: "Linked Family Members",
+      planType: "Plan Type",
+      billingPeriod: "Billing Period",
+      expirationDate: "Expiration Date",
+      refreshStatus: "Refresh Status",
+      memberDetails: "Member Details",
+      removeFromFamily: "Remove from Family",
+      confirmRemoval: "Confirm Removal",
+      memberRemoved: "Member removed from family",
+      inviteFamilyMembers: "Invite Family Members",
+      noFamilyMembersLinked: "No family members linked",
+      inviteFromFamilyTab: "Invite family members from the Family tab",
+      caregiver: "Caregiver",
+      active: "Active",
+      inactive: "Inactive",
+      membersLinked: "members linked",
       changePassword: "Change Password",
       healthResources: "Health Resources",
       arabic: "العربية",
@@ -863,6 +892,7 @@ const resources = {
       // Dashboard
       healthOverview: "نظرة عامة على الصحة",
       healthInsights: "تحليلات صحية",
+      keyInsights: "ملاحظات مهمة",
       recentSymptoms: "الأعراض الأخيرة",
       upcomingMeds: "الأدوية القادمة",
       familyAlerts: "تنبيهات العائلة",
@@ -885,6 +915,13 @@ const resources = {
       inviteFamily: "دعوة فرد من العائلة",
       familyMembers: "أفراد العائلة",
       healthStatus: "الحالة الصحية",
+      
+      // Attention Reasons
+      attentionReasonLowHealthScore: "نقاط صحية منخفضة",
+      attentionReasonPoorCompliance: "التزام ضعيف بالأدوية",
+      attentionReasonMissedDoses: "جرعات دواء مفقودة",
+      attentionReasonCriticalAlerts: "تنبيهات حرجة",
+      attentionReasonRecentFalls: "سقوط حديث تم اكتشافه",
 
       // Common symptoms
       headache: "صداع",
@@ -1014,6 +1051,27 @@ const resources = {
       account: "الحساب",
       settings: "الإعدادات",
       support: "الدعم",
+      
+      // Admin Settings
+      adminSettings: "إعدادات المسؤول",
+      accountManagement: "إدارة الحساب",
+      subscriptionAndMembers: "الاشتراك والأعضاء",
+      linkedFamilyMembers: "أفراد العائلة المرتبطين",
+      planType: "نوع الخطة",
+      billingPeriod: "فترة الاشتراك",
+      expirationDate: "تاريخ الانتهاء",
+      refreshStatus: "تحديث الحالة",
+      memberDetails: "تفاصيل العضو",
+      removeFromFamily: "إزالة من العائلة",
+      confirmRemoval: "تأكيد الإزالة",
+      memberRemoved: "تم إزالة العضو من العائلة",
+      inviteFamilyMembers: "دعوة أفراد العائلة",
+      noFamilyMembersLinked: "لا يوجد أفراد عائلة مرتبطين",
+      inviteFromFamilyTab: "ادعُ أفراد العائلة من تبويب العائلة",
+      caregiver: "مقدم رعاية",
+      active: "نشط",
+      inactive: "غير نشط",
+      membersLinked: "أعضاء مرتبطين",
       changePassword: "تغيير كلمة المرور",
       calendar: "التقويم",
       healthResources: "المصادر التعليمية",

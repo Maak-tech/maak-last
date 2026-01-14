@@ -33,8 +33,8 @@ interface GlobalSearchProps {
 
 const TYPE_LABELS: Partial<Record<SearchResultType, { en: string; ar: string; icon: string }>> = {
   medication: { en: "Medication", ar: "دواء", icon: "💊" },
-  symptom: { en: "Symptom", ar: "عرض", icon: "🤒" },
-  mood: { en: "Mood", ar: "مزاج", icon: "😊" },
+  symptom: { en: "Symptom", ar: "أعراض صحية", icon: "🤒" },
+  mood: { en: "Mood", ar: "مزاج نفسي", icon: "😊" },
   family: { en: "Family", ar: "عائلة", icon: "👨‍👩‍👧‍👦" },
   note: { en: "Note", ar: "ملاحظة", icon: "📝" },
 };

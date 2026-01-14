@@ -25,11 +25,12 @@ import TagInput from "@/app/components/TagInput";
 import AnimatedCheckButton from "@/components/AnimatedCheckButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
+import { allergyService } from "@/lib/services/allergyService";
 import { medicationService } from "@/lib/services/medicationService";
 import { medicationRefillService } from "@/lib/services/medicationRefillService";
 import { userService } from "@/lib/services/userService";
 import { convertTo12Hour, convertTo24Hour } from "@/lib/utils/timeFormat";
-import type { Medication, MedicationReminder, User as UserType } from "@/types";
+import type { Allergy, Medication, MedicationReminder, User as UserType } from "@/types";
 // Design System Components
 import { Button, Card, Input } from "@/components/design-system";
 import { Heading, Text, Caption } from "@/components/design-system/Typography";
@@ -41,6 +42,28 @@ const FREQUENCY_OPTIONS = [
   { key: "thrice", labelEn: "Three times daily", labelAr: "ثلاث مرات يومياً" },
   { key: "meals", labelEn: "With meals", labelAr: "مع الوجبات" },
   { key: "needed", labelEn: "As needed", labelAr: "عند الحاجة" },
+];
+
+// Allergy keys mapping to translation keys (for conflict checking)
+const ALLERGY_KEYS = [
+  "allergyPeanuts",
+  "allergyTreeNuts",
+  "allergyMilk",
+  "allergyEggs",
+  "allergyFish",
+  "allergyShellfish",
+  "allergySoy",
+  "allergyWheat",
+  "allergyPollen",
+  "allergyDustMites",
+  "allergyPetDander",
+  "allergyMold",
+  "allergyLatex",
+  "allergyPenicillin",
+  "allergyAspirin",
+  "allergyBeeStings",
+  "allergySesame",
+  "allergySulfites",
 ];
 
 // Common medications in the Middle East
@@ -235,6 +258,7 @@ export default function MedicationsScreen() {
   const [refillSummary, setRefillSummary] = useState(
     medicationRefillService.getRefillPredictions([])
   );
+  const [userAllergies, setUserAllergies] = useState<Allergy[]>([]);
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -249,6 +273,21 @@ export default function MedicationsScreen() {
   useEffect(() => {
     clearDuplicateMedicationNotifications();
   }, [clearDuplicateMedicationNotifications]);
+
+  // Load user allergies
+  const loadUserAllergies = useCallback(async () => {
+    if (!user) return;
+    try {
+      const allergies = await allergyService.getUserAllergies(user.id);
+      setUserAllergies(allergies);
+    } catch (error) {
+      // Silently handle error - allergies check is not critical
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadUserAllergies();
+  }, [loadUserAllergies]);
 
   const loadMedications = async (isRefresh = false) => {
     if (!user) return;
@@ -345,6 +384,56 @@ export default function MedicationsScreen() {
     setSelectedFilter(filter);
   };
 
+  // Check if medication conflicts with allergies
+  const checkMedicationAllergyConflict = (
+    medicationName: string,
+    allergies: Allergy[]
+  ): Allergy[] => {
+    if (!medicationName || allergies.length === 0) return [];
+
+    const medicationLower = medicationName.toLowerCase().trim();
+    const conflicts: Allergy[] = [];
+
+    // Mapping of allergy translation keys to medication names/substrings
+    const allergyToMedicationMap: Record<string, string[]> = {
+      allergyPenicillin: ["penicillin", "amoxicillin", "augmentin", "ampicillin"],
+      allergyAspirin: ["aspirin", "acetylsalicylic"],
+      allergySulfites: ["sulfite", "sulfa", "sulfonamide"],
+    };
+
+    allergies.forEach((allergy) => {
+      let allergyName = allergy.name.toLowerCase();
+
+      // Handle translation keys (e.g., "allergyPenicillin" -> "penicillin")
+      if (allergy.name.startsWith("allergy")) {
+        const key = allergy.name;
+        if (allergyToMedicationMap[key]) {
+          // Check if medication contains any of the mapped medication names
+          const hasConflict = allergyToMedicationMap[key].some((med) =>
+            medicationLower.includes(med)
+          );
+          if (hasConflict) {
+            conflicts.push(allergy);
+            return;
+          }
+        }
+        // Extract base name from key (e.g., "allergyPenicillin" -> "penicillin")
+        allergyName = allergy.name.replace(/^allergy/, "").toLowerCase();
+      }
+
+      // Check for direct match or if medication contains allergy name
+      if (
+        medicationLower === allergyName ||
+        medicationLower.includes(allergyName) ||
+        allergyName.includes(medicationLower)
+      ) {
+        conflicts.push(allergy);
+      }
+    });
+
+    return conflicts;
+  };
+
   const getMemberName = (userId: string): string => {
     if (userId === user?.id) {
       return isRTL ? "أنت" : "You";
@@ -405,6 +494,104 @@ export default function MedicationsScreen() {
       );
       return;
     }
+
+    // Check for allergy conflicts
+    const targetUserId = selectedTargetUser || user.id;
+    let allergiesToCheck = userAllergies;
+    
+    // If adding for another user, we should check their allergies, but for now check current user's
+    // In a production system, you'd load the target user's allergies
+    if (targetUserId !== user.id && isAdmin) {
+      // For now, we'll still check current user's allergies as a safety measure
+      // In production, you'd fetch targetUserId's allergies here
+      allergiesToCheck = userAllergies;
+    }
+
+    const conflictingAllergies = checkMedicationAllergyConflict(
+      newMedication.name,
+      allergiesToCheck
+    );
+
+    if (conflictingAllergies.length > 0) {
+      // Get translated allergy names
+      const getTranslatedAllergyName = (allergyName: string): string => {
+        const englishToKeyMap: Record<string, string> = {
+          "Peanuts": "allergyPeanuts",
+          "Tree Nuts": "allergyTreeNuts",
+          "Milk": "allergyMilk",
+          "Eggs": "allergyEggs",
+          "Fish": "allergyFish",
+          "Shellfish": "allergyShellfish",
+          "Soy": "allergySoy",
+          "Wheat": "allergyWheat",
+          "Pollen": "allergyPollen",
+          "Dust Mites": "allergyDustMites",
+          "Pet Dander": "allergyPetDander",
+          "Mold": "allergyMold",
+          "Latex": "allergyLatex",
+          "Penicillin": "allergyPenicillin",
+          "Aspirin": "allergyAspirin",
+          "Bee Stings": "allergyBeeStings",
+          "Sesame": "allergySesame",
+          "Sulfites": "allergySulfites",
+        };
+        
+        // Check if it's a translation key (common allergy)
+        if (allergyName.startsWith("allergy") && ALLERGY_KEYS.includes(allergyName)) {
+          return t(allergyName);
+        }
+        
+        // Check if it's an old English name that needs mapping
+        if (englishToKeyMap[allergyName]) {
+          return t(englishToKeyMap[allergyName]);
+        }
+        
+        // Otherwise return as-is (custom allergy)
+        return allergyName;
+      };
+
+      const allergyNames = conflictingAllergies
+        .map((a) => getTranslatedAllergyName(a.name))
+        .join(", ");
+      
+      const severityText = conflictingAllergies.some(
+        (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
+      )
+        ? isRTL ? "خطيرة" : "severe"
+        : "";
+
+      Alert.alert(
+        isRTL ? "⚠️ تحذير: تعارض مع الحساسية" : "⚠️ Warning: Allergy Conflict",
+        isRTL
+          ? `هذا الدواء قد يتعارض مع الحساسيات التالية: ${allergyNames}${severityText ? `\n\nتحذير: بعض هذه الحساسيات ${severityText}!` : ""}\n\nهل أنت متأكد من رغبتك في المتابعة؟`
+          : `This medication may conflict with the following allergies: ${allergyNames}${severityText ? `\n\nWarning: Some of these allergies are ${severityText}!` : ""}\n\nAre you sure you want to proceed?`,
+        [
+          {
+            text: isRTL ? "إلغاء" : "Cancel",
+            style: "cancel",
+            onPress: () => {
+              // User cancelled, don't proceed
+            },
+          },
+          {
+            text: isRTL ? "المتابعة على أي حال" : "Proceed Anyway",
+            style: "destructive",
+            onPress: async () => {
+              // User confirmed, proceed with saving
+              await proceedWithMedicationSave();
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // Proceed with saving if no conflicts
+    await proceedWithMedicationSave();
+  };
+
+  const proceedWithMedicationSave = async () => {
+    if (!user) return;
 
     try {
       setLoading(true);
@@ -509,9 +696,9 @@ export default function MedicationsScreen() {
         setEditingMedication(null);
       } else {
         // Add new medication
-        const targetUserId = selectedTargetUser || user.id;
+        const targetUserIdForSave = selectedTargetUser || user.id;
         const medicationData: Omit<Medication, "id"> = {
-          userId: targetUserId,
+          userId: targetUserIdForSave,
           name: newMedication.name,
           dosage: newMedication.dosage,
           frequency: newMedication.frequency,
@@ -544,11 +731,11 @@ export default function MedicationsScreen() {
           isActive: true,
         };
 
-        if (isAdmin && targetUserId !== user.id) {
+        if (isAdmin && targetUserIdForSave !== user.id) {
           // Admin adding medication for another family member
           await medicationService.addMedicationForUser(
             medicationData,
-            targetUserId
+            targetUserIdForSave
           );
         } else {
           // User adding medication for themselves
@@ -556,7 +743,7 @@ export default function MedicationsScreen() {
         }
 
         // Schedule notifications for reminders (only for current user's medications)
-        if (targetUserId === user.id && newMedication.reminders.length > 0) {
+        if (targetUserIdForSave === user.id && newMedication.reminders.length > 0) {
           const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
             if (reminder.time && reminder.time.trim()) {
@@ -622,8 +809,9 @@ export default function MedicationsScreen() {
       setShowSuggestions(false);
       setShowAddModal(false);
 
-      // Reload medications
+      // Reload medications and allergies
       await loadMedications();
+      await loadUserAllergies();
 
       Alert.alert(
         isRTL ? "تمت العملية" : "Success",

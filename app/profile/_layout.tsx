@@ -17,6 +17,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="help-support" options={{ headerShown: false }} />
       <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
       <Stack.Screen name="terms-conditions" options={{ headerShown: false }} />
+      <Stack.Screen name="admin-settings" options={{ headerShown: false }} />
       {/* Health nested routes handled by health/_layout.tsx */}
       <Stack.Screen name="health" options={{ headerShown: false }} />
     </Stack>

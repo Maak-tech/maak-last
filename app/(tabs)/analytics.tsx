@@ -234,7 +234,7 @@ export default function AnalyticsScreen() {
       <View style={styles.header as ViewStyle}>
         <View style={{ marginBottom: theme.spacing.base }}>
           <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && styles.rtlText as TextStyle]}>
-            {isRTL ? "التحليلات والاتجاهات" : "Analytics & Trends"}
+            {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics & Trends"}
           </Heading>
         </View>
 
@@ -281,7 +281,7 @@ export default function AnalyticsScreen() {
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
                 <Heading level={6} style={styles.rtlText as TextStyle}>
-                  {isRTL ? "اتجاهات الأعراض" : "Symptom Trends"}
+                  {isRTL ? "اتجاهات الأعراض الصحية" : "Symptom Trends"}
                 </Heading>
                 <TouchableOpacity
                   onPress={() => {
@@ -343,7 +343,7 @@ export default function AnalyticsScreen() {
                       }}
                     >
                       {isRTL
-                        ? `التغيير: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`
+                        ? `التغير المتوقع: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`
                         : `Change: ${symptomComparisonData.change > 0 ? "+" : ""}${symptomComparisonData.change.toFixed(1)}%`}
                     </Text>
                   </View>
@@ -364,7 +364,7 @@ export default function AnalyticsScreen() {
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
                 <Heading level={6} style={styles.rtlText as TextStyle}>
-                  {isRTL ? "التنبؤ بالاتجاه" : "Trend Prediction"}
+                  {isRTL ? "التنبؤ باتجاه الأعراض الصحية" : "Trend Prediction"}
                 </Heading>
               </View>
               <TrendPredictionChart
@@ -397,7 +397,7 @@ export default function AnalyticsScreen() {
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
                 <Heading level={6} style={styles.rtlText as TextStyle}>
-                  {isRTL ? "تحليل الارتباط" : "Correlation Analysis"}
+                  {isRTL ? "تحليل الارتباط بين الأعراض الصحية والأدوية" : "Correlation Analysis"}
                 </Heading>
               </View>
               <CorrelationChart
@@ -407,19 +407,19 @@ export default function AnalyticsScreen() {
               <Card variant="elevated" style={{ marginHorizontal: 16, marginTop: 8 }} onPress={undefined} contentStyle={undefined}>
                 <View style={{ padding: 16 }}>
                   <TypographyText weight="semibold" style={{ marginBottom: 8 }}>
-                    {isRTL ? "التفسير" : "Interpretation"}
+                    {isRTL ? "التفسير الصحي" : "Interpretation"}
                   </TypographyText>
                   <Caption style={{}} numberOfLines={5}>
                     {correlationData.correlation > 0.3
                       ? isRTL
-                        ? "يبدو أن الالتزام بالأدوية يرتبط بانخفاض شدة الأعراض"
+                        ? "يبدو أن الالتزام بالأدوية يرتبط بانخفاض شدة الأعراض الصحية"
                         : "Medication compliance appears to correlate with lower symptom severity"
                       : correlationData.correlation < -0.3
                         ? isRTL
-                          ? "يبدو أن انخفاض الالتزام بالأدوية يرتبط بزيادة شدة الأعراض"
+                          ? "يبدو أن انخفاض الالتزام بالأدوية يرتبط بزيادة شدة الأعراض الصحية"
                           : "Lower medication compliance appears to correlate with higher symptom severity"
                         : isRTL
-                          ? "لا يوجد ارتباط واضح بين الالتزام بالأدوية وشدة الأعراض"
+                          ? "لا يوجد ارتباط واضح بين الالتزام بالأدوية وشدة الأعراض الصحية"
                           : "No clear correlation found between medication compliance and symptom severity"}
                   </Caption>
                 </View>
@@ -438,7 +438,7 @@ export default function AnalyticsScreen() {
               <Card variant="elevated" style={undefined} onPress={undefined} contentStyle={undefined}>
                 <View style={{ padding: 16 }}>
                   <TypographyText weight="semibold" style={{ marginBottom: 4 }}>
-                    {isRTL ? "متوسط شدة الأعراض" : "Average Symptom Severity"}
+                    {isRTL ? "متوسط شدة الأعراض الصحية" : "Average Symptom Severity"}
                   </TypographyText>
                   <TypographyText size="large" weight="bold" style={{}}>
                     {symptomChartData.datasets[0].data.length > 0

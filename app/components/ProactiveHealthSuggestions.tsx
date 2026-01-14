@@ -124,7 +124,8 @@ export default function ProactiveHealthSuggestions({
       }
 
       const allSuggestions = await proactiveHealthSuggestionsService.generateSuggestions(
-        user.id
+        user.id,
+        isRTL
       );
 
       // Filter out dismissed suggestions
@@ -141,7 +142,7 @@ export default function ProactiveHealthSuggestions({
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, maxSuggestions, dismissedIds]);
+  }, [user, maxSuggestions, dismissedIds, isRTL]);
 
   useEffect(() => {
     loadSuggestions();

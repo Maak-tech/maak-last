@@ -91,7 +91,7 @@ const getOnboardingSteps = (userRole: string) => {
         key: "zeina",
         image: require("@/assets/images/welcome.png"), // Using welcome image as placeholder
         titleEn: "Meet Zeina",
-        titleAr: "تعرف على زينا",
+        titleAr: "تعرف على زينة",
         descEn:
           "Your AI health assistant is here to help answer questions and provide guidance.",
         descAr:

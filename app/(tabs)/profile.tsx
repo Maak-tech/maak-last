@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useRouter, useLocalSearchParams } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  CreditCard,
   Droplet,
   FileText,
   Globe,
@@ -22,6 +23,7 @@ import {
   MapPin,
   Moon,
   Plus,
+  Settings,
   Shield,
   Sun,
   TestTube,
@@ -30,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -91,6 +93,8 @@ export default function ProfileScreen() {
     useFallDetectionContext();
   const { themeMode, setThemeMode, isDark, theme } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const calendarOpenedFromParam = useRef(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
   const [avatarCreatorVisible, setAvatarCreatorVisible] = useState(false);
@@ -147,6 +151,17 @@ export default function ProfileScreen() {
       loadUserSettings();
     }, [user])
   );
+
+  // Check for calendar open parameter
+  useEffect(() => {
+    if (params.openCalendar === "true" && !calendarOpenedFromParam.current) {
+      setShowCalendarModal(true);
+      calendarOpenedFromParam.current = true;
+    } else if (params.openCalendar !== "true") {
+      // Reset the flag when parameter is not present
+      calendarOpenedFromParam.current = false;
+    }
+  }, [params.openCalendar]);
 
   useEffect(() => {
     loadUserSettings();
@@ -298,6 +313,13 @@ export default function ProfileScreen() {
       setCalendarRefreshing(false);
     }
   }, [user, calendarCurrentDate, includeFamily, isRTL]);
+
+  // Reload calendar events when month changes or calendar opens
+  useEffect(() => {
+    if (showCalendarModal) {
+      loadCalendarEvents();
+    }
+  }, [calendarCurrentDate, showCalendarModal, loadCalendarEvents]);
 
   const navigateMonth = (direction: "prev" | "next") => {
     const newDate = new Date(calendarCurrentDate);
@@ -459,6 +481,10 @@ export default function ProfileScreen() {
         ] : undefined,
       });
 
+      // Navigate to the event's date
+      setCalendarSelectedDate(eventStartDate);
+      setCalendarCurrentDate(new Date(eventStartDate.getFullYear(), eventStartDate.getMonth(), 1));
+      
       Alert.alert(
         isRTL ? "نجح" : "Success",
         isRTL ? "تم إضافة الحدث بنجاح" : "Event added successfully",
@@ -468,8 +494,8 @@ export default function ProfileScreen() {
             onPress: () => {
               setShowAddEventModal(false);
               resetEventForm();
-              loadCalendarEvents();
               setShowCalendarModal(true);
+              // Events will auto-reload via useEffect
             },
           },
         ]
@@ -603,16 +629,16 @@ export default function ProfileScreen() {
           label: t("healthReports"),
           onPress: handleHealthReports,
         },
-        // Show additional options only for admin users
-        ...(isAdmin ? [
-          {
-            icon: Calendar,
-            label: isRTL ? t("calendar") : t("calendar").charAt(0).toUpperCase() + t("calendar").slice(1).toLowerCase(),
+        {
+          icon: Calendar,
+          label: isRTL ? t("calendar") : t("calendar").charAt(0).toUpperCase() + t("calendar").slice(1).toLowerCase(),
             onPress: () => {
               setShowCalendarModal(true);
               loadCalendarEvents();
             },
-          },
+        },
+        // Show additional options only for admin users
+        ...(isAdmin ? [
           {
             icon: BookOpen,
             label: t("healthResources"),
@@ -622,6 +648,19 @@ export default function ProfileScreen() {
         ] : []),
       ],
     },
+    // Admin management section - only for admin users
+    ...(isAdmin ? [
+      {
+        title: t("accountManagement"),
+        items: [
+          {
+            icon: CreditCard,
+            label: t("subscriptionAndMembers"),
+            onPress: () => router.push("/profile/admin-settings"),
+          },
+        ],
+      },
+    ] : []),
     // Health features for regular users
     ...(isRegularUser ? [
       {
@@ -691,7 +730,7 @@ export default function ProfileScreen() {
           {
             icon: Shield,
             label: t("fallDetection"),
-            onPress: () => router.push("/profile/fall-detection"),
+            onPress: () => router.push("/profile/fall-detection" as any),
           },
           {
             icon: Activity,
@@ -1191,7 +1230,7 @@ export default function ProfileScreen() {
                     {healthData.healthScoreResult.breakdown.symptomPenalty > 0 && (
                       <View style={styles.breakdownRow}>
                         <Text style={[styles.breakdownLabel, isRTL && { textAlign: "left" }]}>
-                          {isRTL ? "خصم الأعراض" : "Symptom Penalty"}
+                          {isRTL ? " خصم الأعراض الصحية" : "Symptom Penalty"}
                         </Text>
                         <Text style={[styles.breakdownValueNegative, isRTL && { textAlign: "left" }]}>
                           -{healthData.healthScoreResult.breakdown.symptomPenalty.toFixed(1)}
@@ -1236,7 +1275,7 @@ export default function ProfileScreen() {
                     
                     <View style={styles.factorRow}>
                       <Text style={[styles.factorLabel, isRTL && { textAlign: "left" }]}>
-                        {isRTL ? "الأعراض الأخيرة (7 أيام)" : "Recent Symptoms (7 days)"}
+                        {isRTL ? "الأعراض الصحية الأخيرة (7 أيام)" : "Recent Symptoms (7 days)"}
                       </Text>
                       <Text style={[styles.factorValue, isRTL && { textAlign: "left" }]}>
                         {healthData.healthScoreResult.factors.recentSymptoms}
@@ -1246,7 +1285,7 @@ export default function ProfileScreen() {
                     {healthData.healthScoreResult.factors.recentSymptoms > 0 && (
                       <View style={styles.factorRow}>
                         <Text style={[styles.factorLabel, isRTL && { textAlign: "left" }]}>
-                          {isRTL ? "متوسط شدة الأعراض" : "Average Symptom Severity"}
+                          {isRTL ? "متوسط شدة الأعراض الصحية" : "Average Symptom Severity"}
                         </Text>
                         <Text style={[styles.factorValue, isRTL && { textAlign: "left" }]}>
                           {healthData.healthScoreResult.factors.symptomSeverityAvg.toFixed(1)}/10
@@ -1256,7 +1295,7 @@ export default function ProfileScreen() {
 
                     <View style={styles.factorRow}>
                       <Text style={[styles.factorLabel, isRTL && { textAlign: "left" }]}>
-                        {isRTL ? "الأدوية النشطة" : "Active Medications"}
+                        {isRTL ? "الأدوية الفعالة" : "Active Medications"}
                       </Text>
                       <Text style={[styles.factorValue, isRTL && { textAlign: "left" }]}>
                         {healthData.healthScoreResult.factors.activeMedications}
@@ -1280,7 +1319,7 @@ export default function ProfileScreen() {
                     <HelpCircle color="#64748B" size={16} />
                     <Text style={[styles.infoNoteText, isRTL && { textAlign: "left" }]}>
                       {isRTL 
-                        ? "يتم حساب نقاط الصحة بناءً على الأعراض الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
+                        ? "يتم حساب نقاط الصحة بناءً على الأعراض الصحية الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
                         : "Your health score is calculated based on recent symptoms (last 7 days) and medication compliance. Base score is 100, with points deducted for symptoms and bonuses added for good medication adherence."}
                     </Text>
                   </View>
@@ -1385,7 +1424,7 @@ export default function ProfileScreen() {
 
                 // Add empty cells for days before the first day of the month
                 for (let i = 0; i < firstDay; i++) {
-                  days.push(<View key={`empty-${i}`} style={{ flex: 1, aspectRatio: 1, margin: 2 }} />);
+                  days.push(<View key={`empty-${i}`} style={{ width: "14.28%", aspectRatio: 1, padding: 2 }} />);
                 }
 
                 // Add days of the month
@@ -1408,42 +1447,52 @@ export default function ProfileScreen() {
                   days.push(
                     <TouchableOpacity
                       key={day}
-                      style={[
-                        {
-                          flex: 1,
-                          aspectRatio: 1,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          borderRadius: 8,
-                          margin: 2,
-                        },
-                        isSelected && { backgroundColor: theme.colors.primary.main },
-                        isToday && !isSelected && { borderWidth: 2, borderColor: theme.colors.primary.main },
-                      ]}
+                      style={{
+                        width: "14.28%",
+                        aspectRatio: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        borderRadius: 8,
+                        padding: 2,
+                      }}
                       onPress={() => {
                         setCalendarSelectedDate(date);
                         setShowEventModal(true);
                       }}
                     >
-                      <TypographyText
+                      <View
                         style={[
-                          { fontSize: 14 },
-                          isSelected && { color: theme.colors.neutral.white, fontWeight: "600" },
+                          {
+                            width: "100%",
+                            height: "100%",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderRadius: 8,
+                          },
+                          isSelected && { backgroundColor: theme.colors.primary.main },
+                          isToday && !isSelected && { borderWidth: 2, borderColor: theme.colors.primary.main },
                         ]}
                       >
-                        {isRTL ? toArabicNumerals(day) : day}
-                      </TypographyText>
-                      {dayEvents.length > 0 && (
-                        <View
-                          style={{
-                            width: 4,
-                            height: 4,
-                            borderRadius: 2,
-                            marginTop: 2,
-                            backgroundColor: dayEvents[0].color || theme.colors.primary.main,
-                          }}
-                        />
-                      )}
+                        <TypographyText
+                          style={[
+                            { fontSize: 14 },
+                            isSelected && { color: theme.colors.neutral.white, fontWeight: "600" },
+                          ]}
+                        >
+                          {isRTL ? toArabicNumerals(day) : day}
+                        </TypographyText>
+                        {dayEvents.length > 0 && (
+                          <View
+                            style={{
+                              width: 4,
+                              height: 4,
+                              borderRadius: 2,
+                              marginTop: 2,
+                              backgroundColor: dayEvents[0].color || theme.colors.primary.main,
+                            }}
+                          />
+                        )}
+                      </View>
                     </TouchableOpacity>
                   );
                 }
@@ -1475,7 +1524,7 @@ export default function ProfileScreen() {
               <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 40 }}>
                 <CalendarIcon size={64} color={theme.colors.text.secondary} />
                 <Text style={{ marginTop: 16, textAlign: "center", color: theme.colors.text.secondary }}>
-                  {isRTL ? "لا توجد أحداث في هذا التاريخ" : "No events on this date"}
+                  {isRTL ? "لا توجد أحداث صحية في هذا التاريخ" : "No events on this date"}
                 </Text>
               </View>
             ) : (
@@ -1608,33 +1657,40 @@ export default function ProfileScreen() {
 
       {/* Add Event Modal */}
       <Modal
-        visible={showAddEventModal}
+        visible={showAddEventModal && !showStartDatePicker && !showStartTimePicker && !showEndDatePicker && !showEndTimePicker}
         animationType="slide"
-        presentationStyle="pageSheet"
+        transparent={true}
         onRequestClose={() => {
           setShowAddEventModal(false);
           resetEventForm();
           setShowCalendarModal(true);
         }}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
-          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
-            <Heading level={5} style={{}}>
-              {isRTL ? "إضافة حدث" : "Add Event"}
-            </Heading>
-            <TouchableOpacity onPress={() => {
-              setShowAddEventModal(false);
-              resetEventForm();
-              setShowCalendarModal(true);
-            }}>
-              <X size={24} color={theme.colors.text.primary} />
-            </TouchableOpacity>
-          </View>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 }}>
+          <View style={{ backgroundColor: theme.colors.background.primary, borderRadius: 16, width: "100%", maxWidth: 400, height: "90%", display: "flex", flexDirection: "column" }}>
+            {/* Header */}
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light, backgroundColor: theme.colors.background.primary }}>
+              <Heading level={5} style={{ color: theme.colors.text.primary }}>
+                {isRTL ? "إضافة حدث" : "Add Event"}
+              </Heading>
+              <TouchableOpacity onPress={() => {
+                setShowAddEventModal(false);
+                resetEventForm();
+                setShowCalendarModal(true);
+              }}>
+                <X size={24} color={theme.colors.text.primary} />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={{ padding: 16 }}>
+            {/* Scrollable Content */}
+            <ScrollView 
+              style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
+              contentContainerStyle={{ padding: 16 }}
+              showsVerticalScrollIndicator={true}
+            >
             {/* Title */}
             <View style={{ marginBottom: 16 }}>
-              <TypographyText style={{ marginBottom: 8 }}>
+              <TypographyText style={{ marginBottom: 8, color: theme.colors.text.primary }}>
                 {isRTL ? "العنوان" : "Title"} *
               </TypographyText>
               <TextInput
@@ -1648,7 +1704,7 @@ export default function ProfileScreen() {
 
             {/* Type */}
             <View style={{ marginBottom: 16 }}>
-              <TypographyText style={{ marginBottom: 8 }}>
+              <TypographyText style={{ marginBottom: 8, color: theme.colors.text.primary }}>
                 {isRTL ? "نوع الحدث" : "Event Type"} *
               </TypographyText>
               <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8, flexWrap: "wrap" }}>
@@ -1683,7 +1739,7 @@ export default function ProfileScreen() {
 
             {/* All Day Toggle */}
             <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, marginBottom: 16 }}>
-              <TypographyText style={{}}>
+              <TypographyText style={{ color: theme.colors.text.primary }}>
                 {isRTL ? "طوال اليوم" : "All Day"}
               </TypographyText>
               <Switch
@@ -1699,16 +1755,20 @@ export default function ProfileScreen() {
 
             {/* Start Date & Time */}
             <View style={{ marginBottom: 16 }}>
-              <TypographyText style={{ marginBottom: 8 }}>
+              <TypographyText style={{ marginBottom: 8, color: theme.colors.text.primary }}>
                 {isRTL ? "تاريخ ووقت البداية" : "Start Date & Time"} *
               </TypographyText>
               <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
                 <TouchableOpacity
-                  onPress={() => setShowStartDatePicker(true)}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    console.log("Date picker pressed");
+                    setShowStartDatePicker(true);
+                  }}
                   style={{
                     flex: 1,
-                    borderWidth: 1,
-                    borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                    borderWidth: 2,
+                    borderColor: showStartDatePicker ? theme.colors.primary.main : (typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light),
                     borderRadius: 8,
                     padding: 12,
                     backgroundColor: theme.colors.background.secondary,
@@ -1728,11 +1788,15 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
                 {!eventAllDay && (
                   <TouchableOpacity
-                    onPress={() => setShowStartTimePicker(true)}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("Time picker pressed");
+                      setShowStartTimePicker(true);
+                    }}
                     style={{
                       flex: 1,
-                      borderWidth: 1,
-                      borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+                      borderWidth: 2,
+                      borderColor: showStartTimePicker ? theme.colors.primary.main : (typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light),
                       borderRadius: 8,
                       padding: 12,
                       backgroundColor: theme.colors.background.secondary,
@@ -1753,12 +1817,16 @@ export default function ProfileScreen() {
             {/* End Date & Time */}
             {!eventAllDay && (
               <View style={{ marginBottom: 16 }}>
-                <TypographyText style={{ marginBottom: 8 }}>
+                <TypographyText style={{ marginBottom: 8, color: theme.colors.text.primary }}>
                   {isRTL ? "تاريخ ووقت النهاية" : "End Date & Time"} ({isRTL ? "اختياري" : "Optional"})
                 </TypographyText>
                 <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 8 }}>
                   <TouchableOpacity
-                    onPress={() => setShowEndDatePicker(true)}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      console.log("End date picker pressed");
+                      setShowEndDatePicker(true);
+                    }}
                     style={{
                       flex: 1,
                       borderWidth: 1,
@@ -1784,7 +1852,11 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                   {eventEndDate && (
                     <TouchableOpacity
-                      onPress={() => setShowEndTimePicker(true)}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        console.log("End time picker pressed");
+                        setShowEndTimePicker(true);
+                      }}
                       style={{
                         flex: 1,
                         borderWidth: 1,
@@ -1809,7 +1881,7 @@ export default function ProfileScreen() {
 
             {/* Location */}
             <View style={{ marginBottom: 16 }}>
-              <TypographyText style={{ marginBottom: 8 }}>
+              <TypographyText style={{ marginBottom: 8, color: theme.colors.text.primary }}>
                 {isRTL ? "الموقع" : "Location"} ({isRTL ? "اختياري" : "Optional"})
               </TypographyText>
               <TextInput
@@ -1823,7 +1895,7 @@ export default function ProfileScreen() {
 
             {/* Description */}
             <View style={{ marginBottom: 16 }}>
-              <TypographyText style={{ marginBottom: 8 }}>
+              <TypographyText style={{ marginBottom: 8, color: theme.colors.text.primary }}>
                 {isRTL ? "الوصف" : "Description"} ({isRTL ? "اختياري" : "Optional"})
               </TypographyText>
               <TextInput
@@ -1839,8 +1911,8 @@ export default function ProfileScreen() {
 
             {/* Share with Family */}
             {user?.familyId && (
-              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, marginBottom: 16 }}>
-                <TypographyText style={{}}>
+              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12 }}>
+                <TypographyText style={{ color: theme.colors.text.primary }}>
                   {isRTL ? "مشاركة مع العائلة" : "Share with Family"}
                 </TypographyText>
                 <Switch
@@ -1854,35 +1926,47 @@ export default function ProfileScreen() {
                 />
               </View>
             )}
-          </ScrollView>
+            </ScrollView>
 
-          {/* Actions */}
-          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light }}>
-            <Button
-              variant="outline"
-              onPress={() => {
-                setShowAddEventModal(false);
-                resetEventForm();
-                setShowCalendarModal(true);
-              }}
-              style={{ flex: 1 }}
-              textStyle={{}}
-              disabled={savingEvent}
-              title={isRTL ? "إلغاء" : "Cancel"}
-            />
-            <Button
-              variant="primary"
-              onPress={() => {
-                handleSaveEvent();
-              }}
-              style={{ flex: 1 }}
-              textStyle={{}}
-              disabled={savingEvent || !eventTitle.trim()}
-              loading={savingEvent}
-              title={savingEvent ? (isRTL ? "جاري الحفظ..." : "Saving...") : (isRTL ? "حفظ" : "Save")}
-            />
+            {/* Actions - Fixed at Bottom */}
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light, backgroundColor: theme.colors.background.primary }}>
+              <Button
+                variant="outline"
+                onPress={() => {
+                  setShowAddEventModal(false);
+                  resetEventForm();
+                  setShowCalendarModal(true);
+                }}
+                style={{ 
+                  flex: 1,
+                  borderColor: theme.colors.primary.main,
+                  borderWidth: 2,
+                }}
+                textStyle={{
+                  color: theme.colors.primary.main,
+                }}
+                disabled={savingEvent}
+                title={isRTL ? "إلغاء" : "Cancel"}
+              />
+              <Button
+                variant="primary"
+                onPress={() => {
+                  handleSaveEvent();
+                }}
+                style={{ 
+                  flex: 1,
+                  backgroundColor: theme.colors.primary.main,
+                }}
+                textStyle={{
+                  color: theme.colors.neutral.white,
+                }}
+                disabled={savingEvent || !eventTitle.trim()}
+                loading={savingEvent}
+                title={savingEvent ? (isRTL ? "جاري الحفظ..." : "Saving...") : (isRTL ? "حفظ" : "Save")}
+              />
+            </View>
           </View>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       {/* Start Date Picker Modal */}

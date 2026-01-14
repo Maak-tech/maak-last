@@ -1,5 +1,5 @@
 import { Link, useRouter } from "expo-router";
-import { Check, Users, X } from "lucide-react-native";
+import { Check, Mail, Phone, Users, X } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18nInstance from "@/lib/i18n";
@@ -19,16 +19,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import type { AvatarType } from "@/types";
+import type { ConfirmationResult } from "firebase/auth";
 
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
-  const { signUp, loading, user } = useAuth();
+  const { signUp, signUpWithPhone, verifyPhoneCode, loading, user } = useAuth();
   const router = useRouter();
+  const [signupMethod, setSignupMethod] = useState<"email" | "phone">("email");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [showOtpInput, setShowOtpInput] = useState(false);
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -57,51 +63,154 @@ export default function RegisterScreen() {
     setErrors({});
 
     // Validate required fields - lastName is optional
-    if (!(firstName && email && password && confirmPassword)) {
+    if (!firstName) {
       setErrors({
         general: isRTL
-          ? "يرجى ملء جميع الحقول المطلوبة"
-          : "Please fill in all required fields",
+          ? "يرجى إدخال الاسم الأول"
+          : "Please enter your first name",
       });
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (signupMethod === "email") {
+      if (!(email && password && confirmPassword)) {
+        setErrors({
+          general: isRTL
+            ? "يرجى ملء جميع الحقول المطلوبة"
+            : "Please fill in all required fields",
+        });
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setErrors({
+          confirmPassword: isRTL
+            ? "كلمات المرور غير متطابقة"
+            : "Passwords do not match",
+        });
+        return;
+      }
+
+      if (password.length < 6) {
+        setErrors({
+          password: isRTL
+            ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل"
+            : "Password must be at least 6 characters",
+        });
+        return;
+      }
+
+      try {
+        // Store family code in AsyncStorage if provided (will be processed after signup)
+        if (familyCode.trim()) {
+          const AsyncStorage = await import("@react-native-async-storage/async-storage");
+          await AsyncStorage.default.setItem(
+            "pendingFamilyCode",
+            familyCode.trim()
+          );
+        }
+
+        await signUp(email, password, firstName, lastName, selectedAvatarType);
+        // Don't navigate here - let the useEffect above handle navigation
+        // once the auth state has fully updated
+      } catch (error: any) {
+        setErrors({
+          general: error.message || (isRTL
+            ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
+            : "Registration failed. Please try again."),
+        });
+      }
+    } else {
+      // Phone signup
+      if (!phoneNumber.trim()) {
+        setErrors({
+          general: isRTL
+            ? "يرجى إدخال رقم الهاتف"
+            : "Please enter your phone number",
+        });
+        return;
+      }
+
+      // Validate phone number format - must include country code
+      const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
+      const hasCountryCode = cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
+      
+      if (!hasCountryCode && cleanedPhone.length < 10) {
+        setErrors({
+          general: isRTL
+            ? "يرجى إدخال رقم هاتف صحيح مع رمز الدولة (مثال: +1234567890 للولايات المتحدة، +966501234567 للسعودية)"
+            : "Please enter a valid phone number with country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia)",
+        });
+        return;
+      }
+
+      try {
+        // Store family code in AsyncStorage if provided
+        if (familyCode.trim()) {
+          const AsyncStorage = await import("@react-native-async-storage/async-storage");
+          await AsyncStorage.default.setItem(
+            "pendingFamilyCode",
+            familyCode.trim()
+          );
+        }
+
+        const confirmation = await signUpWithPhone(
+          phoneNumber.trim(),
+          firstName,
+          lastName,
+          selectedAvatarType
+        );
+        setConfirmationResult(confirmation);
+        setShowOtpInput(true);
+        // Clear any previous errors on success
+        setErrors({});
+      } catch (error: any) {
+        console.error("Phone signup error:", error);
+        setErrors({
+          general: error.message || (isRTL
+            ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
+            : "Failed to send verification code. Please try again."),
+        });
+      }
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setErrors({});
+
+    if (!otpCode.trim() || otpCode.trim().length < 6) {
       setErrors({
-        confirmPassword: isRTL
-          ? "كلمات المرور غير متطابقة"
-          : "Passwords do not match",
+        general: isRTL
+          ? "يرجى إدخال رمز التحقق المكون من 6 أرقام"
+          : "Please enter the 6-digit verification code",
       });
       return;
     }
 
-    if (password.length < 6) {
+    if (!confirmationResult) {
       setErrors({
-        password: isRTL
-          ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل"
-          : "Password must be at least 6 characters",
+        general: isRTL
+          ? "خطأ في التحقق. يرجى المحاولة مرة أخرى."
+          : "Verification error. Please try again.",
       });
       return;
     }
 
     try {
-      // Store family code in AsyncStorage if provided (will be processed after signup)
-      if (familyCode.trim()) {
-        const AsyncStorage = await import("@react-native-async-storage/async-storage");
-        await AsyncStorage.default.setItem(
-          "pendingFamilyCode",
-          familyCode.trim()
-        );
-      }
-
-      await signUp(email, password, firstName, lastName, selectedAvatarType);
+      await verifyPhoneCode(
+        confirmationResult,
+        otpCode.trim(),
+        firstName,
+        lastName,
+        selectedAvatarType
+      );
       // Don't navigate here - let the useEffect above handle navigation
       // once the auth state has fully updated
     } catch (error: any) {
       setErrors({
         general: error.message || (isRTL
-          ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
-          : "Registration failed. Please try again."),
+          ? "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى."
+          : "Invalid verification code. Please try again."),
       });
     }
   };
@@ -222,76 +331,201 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                {t("email")}
-              </Text>
-              <TextInput
-                autoCapitalize="none"
-                autoComplete="username"
-                keyboardType="email-address"
-                onChangeText={setEmail}
-                placeholder={
-                  isRTL ? "ادخل بريدك الإلكتروني" : "Enter your email"
-                }
-                style={[styles.input, isRTL && styles.rtlInput]}
-                textAlign={isRTL ? "right" : "left"}
-                textContentType="username"
-                value={email ?? ""}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                {t("password")}
-              </Text>
-              <TextInput
-                autoComplete="off"
-                onChangeText={setPassword}
-                passwordRules=""
-                placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
-                secureTextEntry
+            {/* Signup Method Toggle */}
+            <View style={styles.methodToggleContainer}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSignupMethod("email");
+                  setShowOtpInput(false);
+                  setConfirmationResult(null);
+                  setErrors({});
+                }}
                 style={[
-                  styles.input,
-                  isRTL && styles.rtlInput,
-                  errors?.password && styles.inputError,
+                  styles.methodToggle,
+                  signupMethod === "email" && styles.methodToggleActive,
                 ]}
-                textAlign={isRTL ? "right" : "left"}
-                textContentType="none"
-                value={password ?? ""}
-              />
-              {errors?.password && (
-                <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>{errors.password}</Text>
-              )}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                {t("confirmPassword")}
-              </Text>
-              <TextInput
-                autoComplete="off"
-                onChangeText={setConfirmPassword}
-                passwordRules=""
-                placeholder={
-                  isRTL ? "أعد إدخال كلمة المرور" : "Confirm your password"
-                }
-                secureTextEntry
-                style={[
-                  styles.input,
-                  isRTL && styles.rtlInput,
-                  errors?.confirmPassword && styles.inputError,
-                ]}
-                textAlign={isRTL ? "right" : "left"}
-                textContentType="none"
-                value={confirmPassword ?? ""}
-              />
-              {errors?.confirmPassword && (
-                <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
-                  {errors.confirmPassword}
+              >
+                <Mail
+                  size={20}
+                  color={signupMethod === "email" ? "#2563EB" : "#64748B"}
+                />
+                <Text
+                  style={[
+                    styles.methodToggleText,
+                    signupMethod === "email" && styles.methodToggleTextActive,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  {isRTL ? "البريد الإلكتروني" : "Email"}
                 </Text>
-              )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setSignupMethod("phone");
+                  setShowOtpInput(false);
+                  setConfirmationResult(null);
+                  setErrors({});
+                }}
+                style={[
+                  styles.methodToggle,
+                  signupMethod === "phone" && styles.methodToggleActive,
+                ]}
+              >
+                <Phone
+                  size={20}
+                  color={signupMethod === "phone" ? "#2563EB" : "#64748B"}
+                />
+                <Text
+                  style={[
+                    styles.methodToggleText,
+                    signupMethod === "phone" && styles.methodToggleTextActive,
+                    isRTL && styles.rtlText,
+                  ]}
+                >
+                  {isRTL ? "رقم الهاتف" : "Phone"}
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            {signupMethod === "email" ? (
+              <>
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                    {t("email")}
+                  </Text>
+                  <TextInput
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    keyboardType="email-address"
+                    onChangeText={setEmail}
+                    placeholder={
+                      isRTL ? "ادخل بريدك الإلكتروني" : "Enter your email"
+                    }
+                    style={[styles.input, isRTL && styles.rtlInput]}
+                    textAlign={isRTL ? "right" : "left"}
+                    textContentType="username"
+                    value={email ?? ""}
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                    {t("password")}
+                  </Text>
+                  <TextInput
+                    autoComplete="off"
+                    onChangeText={setPassword}
+                    passwordRules=""
+                    placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
+                    secureTextEntry
+                    style={[
+                      styles.input,
+                      isRTL && styles.rtlInput,
+                      errors?.password && styles.inputError,
+                    ]}
+                    textAlign={isRTL ? "right" : "left"}
+                    textContentType="none"
+                    value={password ?? ""}
+                  />
+                  {errors?.password && (
+                    <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>{errors.password}</Text>
+                  )}
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                    {t("confirmPassword")}
+                  </Text>
+                  <TextInput
+                    autoComplete="off"
+                    onChangeText={setConfirmPassword}
+                    passwordRules=""
+                    placeholder={
+                      isRTL ? "أعد إدخال كلمة المرور" : "Confirm your password"
+                    }
+                    secureTextEntry
+                    style={[
+                      styles.input,
+                      isRTL && styles.rtlInput,
+                      errors?.confirmPassword && styles.inputError,
+                    ]}
+                    textAlign={isRTL ? "right" : "left"}
+                    textContentType="none"
+                    value={confirmPassword ?? ""}
+                  />
+                  {errors?.confirmPassword && (
+                    <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
+                      {errors.confirmPassword}
+                    </Text>
+                  )}
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.inputContainer}>
+                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                    {isRTL ? "رقم الهاتف" : "Phone Number"}
+                  </Text>
+                  <TextInput
+                    autoCapitalize="none"
+                    keyboardType="phone-pad"
+                    onChangeText={(text) => {
+                      setPhoneNumber(text);
+                      // Clear errors when user starts typing
+                      if (errors.general) {
+                        setErrors({});
+                      }
+                    }}
+                    placeholder={
+                      isRTL 
+                        ? "مثال: +1234567890 أو +966501234567" 
+                        : "Example: +1234567890 or +966501234567"
+                    }
+                    style={[styles.input, isRTL && styles.rtlInput]}
+                    textAlign={isRTL ? "right" : "left"}
+                    value={phoneNumber ?? ""}
+                  />
+                  <Text style={[styles.helperText, isRTL && styles.rtlText]}>
+                    {isRTL
+                      ? "أدخل رقم هاتفك مع رمز الدولة (مثال: +1234567890 للولايات المتحدة، +966501234567 للسعودية). سنرسل لك رمز تحقق عبر الرسائل النصية"
+                      : "Include country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia). We'll send you a verification code via SMS"}
+                  </Text>
+                </View>
+
+                {showOtpInput && (
+                  <View style={styles.inputContainer}>
+                    <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                      {isRTL ? "رمز التحقق" : "Verification Code"}
+                    </Text>
+                    <TextInput
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      onChangeText={setOtpCode}
+                      placeholder={
+                        isRTL ? "ادخل رمز التحقق المكون من 6 أرقام" : "Enter 6-digit verification code"
+                      }
+                      style={[styles.input, isRTL && styles.rtlInput]}
+                      textAlign={isRTL ? "right" : "left"}
+                      value={otpCode ?? ""}
+                    />
+                    <TouchableOpacity
+                      onPress={handleVerifyOtp}
+                      style={styles.verifyButton}
+                    >
+                      <Text style={styles.verifyButtonText}>
+                        {loading
+                          ? isRTL
+                            ? "جارٍ التحقق..."
+                            : "Verifying..."
+                          : isRTL
+                            ? "تحقق"
+                            : "Verify"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
 
             {/* Family Code Section */}
             <View style={styles.familySection}>
@@ -337,18 +571,26 @@ export default function RegisterScreen() {
               )}
             </View>
 
-            <TouchableOpacity
-              disabled={loading}
-              onPress={handleRegister}
-              style={[
-                styles.registerButton,
-                loading && styles.registerButtonDisabled,
-              ]}
-            >
-              <Text style={styles.registerButtonText}>
-                {loading ? t("loading") : t("createAccount")}
-              </Text>
-            </TouchableOpacity>
+            {!showOtpInput && (
+              <TouchableOpacity
+                disabled={loading}
+                onPress={handleRegister}
+                style={[
+                  styles.registerButton,
+                  loading && styles.registerButtonDisabled,
+                ]}
+              >
+                <Text style={styles.registerButtonText}>
+                  {loading
+                    ? t("loading")
+                    : signupMethod === "phone"
+                      ? isRTL
+                        ? "إرسال رمز التحقق"
+                        : "Send Verification Code"
+                      : t("createAccount")}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <View style={[styles.loginContainer, isRTL && styles.loginContainerRTL]}>
               <Text style={[styles.loginText, isRTL && styles.rtlText, isRTL && { marginStart: 4 }]}>
@@ -755,5 +997,62 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 4,
     lineHeight: 16,
+  },
+  phoneNoticeContainer: {
+    backgroundColor: "#FEF3C7",
+    borderColor: "#F59E0B",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  phoneNoticeText: {
+    color: "#92400E",
+    fontSize: 14,
+    fontFamily: "Geist-Regular",
+    lineHeight: 20,
+  },
+  methodToggleContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  methodToggle: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    gap: 8,
+  },
+  methodToggleActive: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EBF4FF",
+  },
+  methodToggleText: {
+    fontSize: 14,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+  },
+  methodToggleTextActive: {
+    color: "#2563EB",
+    fontFamily: "Geist-SemiBold",
+  },
+  verifyButton: {
+    backgroundColor: "#2563EB",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  verifyButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontFamily: "Geist-SemiBold",
   },
 });

@@ -1,4 +1,4 @@
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { ArrowLeft, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -61,6 +61,7 @@ export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSymptom, setSelectedSymptom] = useState("");
   const [customSymptom, setCustomSymptom] = useState("");

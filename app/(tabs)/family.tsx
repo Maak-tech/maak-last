@@ -67,12 +67,13 @@ import { familyInviteService } from "@/lib/services/familyInviteService";
 import healthContextService from "@/lib/services/healthContextService";
 import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicationService } from "@/lib/services/medicationService";
-import { getUserHealthEvents } from "../../src/health/events/healthEventsService";
+import { getUserHealthEvents, getFamilyHealthEvents } from "../../src/health/events/healthEventsService";
 import { acknowledgeHealthEvent, resolveHealthEvent, escalateHealthEvent } from "../../src/health/events/createHealthEvent";
 import type { HealthEvent } from "../../src/health/events/types";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { healthScoreService } from "@/lib/services/healthScoreService";
+import { logger } from "@/lib/utils/logger";
 import type { User } from "@/types";
 import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
 import { revenueCatService, PLAN_LIMITS } from "@/lib/services/revenueCatService";
@@ -204,6 +205,18 @@ export default function FamilyScreen() {
     label: "",
   });
 
+  // Helper function to translate attention reasons
+  const translateAttentionReason = (reason: string): string => {
+    const reasonMap: Record<string, string> = {
+      "Low health score": t("attentionReasonLowHealthScore"),
+      "Poor medication compliance": t("attentionReasonPoorCompliance"),
+      "Missed medication doses": t("attentionReasonMissedDoses"),
+      "Critical alerts": t("attentionReasonCriticalAlerts"),
+      "Recent falls detected": t("attentionReasonRecentFalls"),
+    };
+    return reasonMap[reason] || reason;
+  };
+
   useEffect(() => {
     loadFamilyMembers();
   }, [user]);
@@ -257,14 +270,50 @@ export default function FamilyScreen() {
   const loadEvents = async (isRefresh = false) => {
     if (!user?.id) return;
 
+    const startTime = Date.now();
+
     try {
       if (isRefresh) {
         setLoadingEvents(true);
       }
-      const userEvents = await getUserHealthEvents(user.id);
-      setEvents(userEvents);
+      
+      // For admins with family, load all family member events
+      if (isAdmin && user.familyId && familyMembers.length > 0) {
+        logger.debug("Loading family health events", {
+          userId: user.id,
+          familyId: user.familyId,
+          memberCount: familyMembers.length,
+        }, "FamilyScreen");
+
+        const userIds = familyMembers.map(member => member.id);
+        const familyEvents = await getFamilyHealthEvents(userIds);
+        setEvents(familyEvents);
+
+        const durationMs = Date.now() - startTime;
+        logger.info("Family health events loaded", {
+          userId: user.id,
+          eventCount: familyEvents.length,
+          durationMs,
+        }, "FamilyScreen");
+      } else {
+        // For non-admins or users without family, load only their own events
+        logger.debug("Loading user health events", {
+          userId: user.id,
+        }, "FamilyScreen");
+
+        const userEvents = await getUserHealthEvents(user.id);
+        setEvents(userEvents);
+
+        const durationMs = Date.now() - startTime;
+        logger.info("User health events loaded", {
+          userId: user.id,
+          eventCount: userEvents.length,
+          durationMs,
+        }, "FamilyScreen");
+      }
     } catch (error) {
-      // Failed to load events
+      const durationMs = Date.now() - startTime;
+      logger.error("Failed to load health events", error, "FamilyScreen");
     } finally {
       setLoadingEvents(false);
     }
@@ -273,14 +322,33 @@ export default function FamilyScreen() {
   const handleAcknowledgeEvent = async (eventId: string) => {
     if (!user?.id) return;
 
+    const startTime = Date.now();
+
     try {
+      logger.info("User acknowledging health event", {
+        eventId,
+        userId: user.id,
+        role: user.role,
+      }, "FamilyScreen");
+
       await acknowledgeHealthEvent(eventId, user.id);
       await loadEvents(true);
+
+      const durationMs = Date.now() - startTime;
+      logger.info("Health event acknowledged successfully", {
+        eventId,
+        userId: user.id,
+        durationMs,
+      }, "FamilyScreen");
+
       Alert.alert(
         isRTL ? "تم" : "Success",
         isRTL ? "تم تأكيد الحدث" : "Event acknowledged"
       );
     } catch (error) {
+      const durationMs = Date.now() - startTime;
+      logger.error("Failed to acknowledge health event", error, "FamilyScreen");
+
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في تأكيد الحدث" : "Failed to acknowledge event"
@@ -291,14 +359,33 @@ export default function FamilyScreen() {
   const handleResolveEvent = async (eventId: string) => {
     if (!user?.id) return;
 
+    const startTime = Date.now();
+
     try {
+      logger.info("User resolving health event", {
+        eventId,
+        userId: user.id,
+        role: user.role,
+      }, "FamilyScreen");
+
       await resolveHealthEvent(eventId, user.id);
       await loadEvents(true);
+
+      const durationMs = Date.now() - startTime;
+      logger.info("Health event resolved successfully", {
+        eventId,
+        userId: user.id,
+        durationMs,
+      }, "FamilyScreen");
+
       Alert.alert(
         isRTL ? "تم" : "Success",
         isRTL ? "تم حل الحدث" : "Event resolved"
       );
     } catch (error) {
+      const durationMs = Date.now() - startTime;
+      logger.error("Failed to resolve health event", error, "FamilyScreen");
+
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في حل الحدث" : "Failed to resolve event"
@@ -317,14 +404,34 @@ export default function FamilyScreen() {
         {
           text: isRTL ? "تصعيد" : "Escalate",
           onPress: async (reason?: string) => {
+            const startTime = Date.now();
+
             try {
+              logger.info("User escalating health event", {
+                eventId,
+                userId: user.id,
+                role: user.role,
+                hasReason: !!reason,
+              }, "FamilyScreen");
+
               await escalateHealthEvent(eventId, user.id, reason || undefined);
               await loadEvents(true);
+
+              const durationMs = Date.now() - startTime;
+              logger.info("Health event escalated successfully", {
+                eventId,
+                userId: user.id,
+                durationMs,
+              }, "FamilyScreen");
+
               Alert.alert(
                 isRTL ? "تم" : "Success",
                 isRTL ? "تم تصعيد الحدث" : "Event escalated"
               );
             } catch (error) {
+              const durationMs = Date.now() - startTime;
+              logger.error("Failed to escalate health event", error, "FamilyScreen");
+
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL ? "فشل في تصعيد الحدث" : "Failed to escalate event"
@@ -543,6 +650,13 @@ export default function FamilyScreen() {
       loadMemberMetrics(familyMembers);
     }
   }, [familyMembers.length]);
+
+  // Load events when family members are loaded (for admin)
+  useEffect(() => {
+    if (familyMembers.length > 0 && isAdmin) {
+      loadEvents();
+    }
+  }, [familyMembers.length, isAdmin]);
 
 
   const getHealthStatusColor = (status: string) => {
@@ -809,7 +923,7 @@ export default function FamilyScreen() {
       id: member.id,
       firstName: member.firstName,
       lastName: member.lastName,
-      email: member.email,
+      email: member.email || "",
       role: member.role,
     });
     setShowEditMemberModal(true);
@@ -1211,7 +1325,9 @@ export default function FamilyScreen() {
   useFocusEffect(
     useCallback(() => {
       loadFamilyMembers();
-      loadEvents();
+      if (user?.id) {
+        loadEvents();
+      }
       if (viewMode === "dashboard" && isAdmin) {
         loadCaregiverDashboard();
       } else if (viewMode === "dashboard" && !isAdmin) {
@@ -1631,7 +1747,7 @@ export default function FamilyScreen() {
           memberId: metric.user.id,
           memberName: fullName,
           reason: isRTL
-            ? `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "عرض هذا الأسبوع" : "أعراض هذا الأسبوع"}`
+            ? `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "عرض صحي هذا الأسبوع" : "أعراض الصحية هذا الأسبوع"}`
             : `${metric.symptomsThisWeek} ${metric.symptomsThisWeek === 1 ? "symptom" : "symptoms"} this week`,
           severity: metric.symptomsThisWeek > 5 ? "high" : "medium",
           icon: "symptom",
@@ -1935,36 +2051,52 @@ export default function FamilyScreen() {
                       {isRTL ? "الملخص" : "Overview"}
                     </Heading>
                     <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: theme.spacing.base }}>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
+                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
                         <Users size={32} color={theme.colors.primary.main} />
-                        <Text style={[getTextStyle(theme, "heading", "bold", theme.colors.text.primary), { fontSize: 32, marginTop: theme.spacing.xs }]}>
+                        <Text 
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.7}
+                          style={[getTextStyle(theme, "heading", "bold", theme.colors.text.primary), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
                           {caregiverOverview.totalMembers}
                         </Text>
                         <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
                           {isRTL ? "إجمالي الأعضاء" : "Total Members"}
                         </Text>
                       </View>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
+                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
                         <AlertTriangle size={32} color={theme.colors.accent.error} />
-                        <Text style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.error), { fontSize: 32, marginTop: theme.spacing.xs }]}>
+                        <Text 
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.7}
+                          style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.error), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
                           {caregiverOverview.membersNeedingAttention}
                         </Text>
                         <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
                           {isRTL ? "يحتاجون انتباه" : "Need Attention"}
                         </Text>
                       </View>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
+                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
                         <AlertTriangle size={32} color={theme.colors.accent.warning} />
-                        <Text style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.warning), { fontSize: 32, marginTop: theme.spacing.xs }]}>
+                        <Text 
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.7}
+                          style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.warning), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
                           {caregiverOverview.totalActiveAlerts}
                         </Text>
                         <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
                           {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
                         </Text>
                       </View>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
+                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
                         <Heart size={32} color={caregiverOverview.averageHealthScore >= 80 ? "#10B981" : caregiverOverview.averageHealthScore >= 60 ? "#F59E0B" : "#EF4444"} />
-                        <Text style={[getTextStyle(theme, "heading", "bold", caregiverOverview.averageHealthScore >= 80 ? "#10B981" : caregiverOverview.averageHealthScore >= 60 ? "#F59E0B" : "#EF4444"), { fontSize: 32, marginTop: theme.spacing.xs }]}>
+                        <Text 
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.7}
+                          style={[getTextStyle(theme, "heading", "bold", caregiverOverview.averageHealthScore >= 80 ? "#10B981" : caregiverOverview.averageHealthScore >= 60 ? "#F59E0B" : "#EF4444"), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
                           {caregiverOverview.averageHealthScore}
                         </Text>
                         <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
@@ -1987,7 +2119,8 @@ export default function FamilyScreen() {
                         backgroundColor: memberData.needsAttention ? theme.colors.accent.error + "10" : undefined,
                         borderColor: memberData.needsAttention ? theme.colors.accent.error : undefined,
                       }}
-                      onPress={undefined}
+                      onPress={() => router.push(`/family/${memberData.member.id}`)}
+                      pressable={true}
                       contentStyle={undefined}
                     >
                       <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.base, marginBottom: theme.spacing.base }}>
@@ -2039,7 +2172,7 @@ export default function FamilyScreen() {
                             {memberData.medicationCompliance.rate}%
                           </Text>
                           <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { marginTop: theme.spacing.xs, textAlign: "center" }]}>
-                            {isRTL ? "الامتثال" : "Compliance"}
+                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}
                           </Text>
                         </View>
                         <View style={{ flex: 1, padding: theme.spacing.sm, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
@@ -2076,7 +2209,7 @@ export default function FamilyScreen() {
                                 size="small"
                                 style={{ marginTop: theme.spacing.xs, marginRight: theme.spacing.xs, alignSelf: "flex-start" }}
                               >
-                                <Caption style={{}} numberOfLines={1}>{reason}</Caption>
+                                <Caption style={{}} numberOfLines={1}>{translateAttentionReason(reason)}</Caption>
                               </Badge>
                             ))}
                           </View>
@@ -2214,7 +2347,7 @@ export default function FamilyScreen() {
                               isRTL && styles.rtlText,
                             ]}
                           >
-                            {isRTL ? "أعراض" : "Symptoms"}
+                            {isRTL ? "أعراض صحية" : "Symptoms"}
                           </Text>
                         </View>
 
@@ -2336,7 +2469,7 @@ export default function FamilyScreen() {
                                     isRTL && styles.rtlText,
                                   ]}
                                 >
-                                  {isRTL ? "خطوات" : "Steps"}
+                                  {isRTL ? " خطوات" : "Steps"}
                                 </Text>
                               </View>
                             )}
@@ -2472,7 +2605,7 @@ export default function FamilyScreen() {
                         ]}
                       >
                         <Text style={styles.statusText}>
-                          {isRTL ? "نشط" : "Active"}
+                          {isRTL ? "فعال" : "Active"}
                         </Text>
                       </View>
                     </View>
@@ -2576,7 +2709,7 @@ export default function FamilyScreen() {
                     <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 16 }}>
                       <AlertTriangle size={32} color="#EF4444" />
                       <Heading level={1} style={{ fontSize: 24 }}>
-                        {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
+                        {isRTL ? "تنبيهات فعالة" : "Active Alerts"}
                       </Heading>
                     </View>
                     <TypographyText style={{ fontSize: 18, marginTop: 8 }}>
@@ -2739,7 +2872,7 @@ export default function FamilyScreen() {
                                 <TrendingDown size={12} color={getComplianceColor(entry.complianceRate)} />
                               )}
                               <Caption style={{ color: getComplianceColor(entry.complianceRate) }} numberOfLines={1}>
-                                {isRTL ? "الامتثال" : "Compliance"}: {entry.complianceRate}%
+                                {isRTL ? "الالتزام بالأدوية" : "Compliance"}: {entry.complianceRate}%
                               </Caption>
                             </View>
                           </Badge>
@@ -2882,14 +3015,26 @@ export default function FamilyScreen() {
               </View>
             ) : events.length > 0 ? (
               <View style={styles.eventsList}>
-                {events.map((event) => (
+                {events.map((event) => {
+                  // Find the family member this event belongs to
+                  const eventMember = familyMembers.find(m => m.id === event.userId);
+                  const memberName = eventMember 
+                    ? `${eventMember.firstName || ''} ${eventMember.lastName || ''}`.trim() || eventMember.email
+                    : 'Unknown Member';
+
+                  return (
                   <View key={event.id} style={styles.eventCard}>
                     <View style={styles.eventHeader}>
-                      <Text style={[styles.eventType, isRTL && styles.rtlText]}>
-                        {event.type === "VITAL_ALERT"
-                          ? (isRTL ? "تنبيه حيوي" : "Vital Alert")
-                          : event.type}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.eventType, isRTL && styles.rtlText]}>
+                          {event.type === "VITAL_ALERT"
+                            ? (isRTL ? "تنبيه حيوي" : "Vital Alert")
+                            : event.type}
+                        </Text>
+                        <Text style={[styles.eventMemberName, isRTL && styles.rtlText]}>
+                          {isRTL ? `للعضو: ${memberName}` : `For: ${memberName}`}
+                        </Text>
+                      </View>
                       <View style={styles.eventStatus}>
                         <View style={[styles.statusBadge, { backgroundColor: getEventStatusColor(event.status) }]}>
                           <Text style={styles.statusBadgeText}>
@@ -2942,7 +3087,8 @@ export default function FamilyScreen() {
                       )}
                     </View>
                   </View>
-                ))}
+                  );
+                })}
               </View>
             ) : (
               <View style={styles.emptyState}>
@@ -2974,7 +3120,7 @@ export default function FamilyScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => router.push("/(tabs)/profile")}
+              onPress={() => router.push("/(tabs)/profile?openCalendar=true")}
               style={styles.quickActionButton}
             >
               <Calendar color="#10B981" size={24} />
@@ -3364,7 +3510,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "تعديل العضو" : "Edit Member"}
+              {isRTL ? "تعديل فرد العائلة" : "Edit Member"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -3506,7 +3652,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "الترقية إلى المميز" : "Upgrade to Premium"}
+              {isRTL ? "الترقية إلى الاشتراك العائلي" : "Upgrade to Premium"}
             </Text>
             <TouchableOpacity
               onPress={() => setShowPaywall(false)}
@@ -3673,7 +3819,7 @@ export default function FamilyScreen() {
                 {/* Member Details */}
                 <View style={{ marginBottom: 24 }}>
                   <Heading level={6} style={{ marginBottom: 12 }}>
-                    {isRTL ? "تفاصيل الأعضاء" : "Member Details"}
+                    {isRTL ? "تفاصيل أفراد العائلة" : "Member Details"}
                   </Heading>
                   {healthReport.members.map((memberReport) => (
                     <Card
@@ -3708,11 +3854,11 @@ export default function FamilyScreen() {
                           {isRTL ? "الأعراض" : "Symptoms"}: {memberReport.symptoms.total}
                         </Caption>
                         <Caption style={{}} numberOfLines={1}>
-                          {isRTL ? "الأدوية النشطة" : "Active Medications"}: {memberReport.medications.active}
+                          {isRTL ? "الأدوية الفعالة" : "Active Medications"}: {memberReport.medications.active}
                         </Caption>
                         {memberReport.medications.complianceRate !== undefined && (
                           <Caption style={{}} numberOfLines={1}>
-                            {isRTL ? "الامتثال" : "Compliance"}: {memberReport.medications.complianceRate}%
+                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}: {memberReport.medications.complianceRate}%
                           </Caption>
                         )}
                       </View>
@@ -3721,7 +3867,7 @@ export default function FamilyScreen() {
                       <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, marginTop: 8 }}>
                         {getTrendIcon(memberReport.trends.symptomTrend)}
                         <Caption style={{}} numberOfLines={1}>
-                          {isRTL ? "اتجاه الأعراض" : "Symptom Trend"}:{" "}
+                          {isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}:{" "}
                           {isRTL
                             ? memberReport.trends.symptomTrend === "improving"
                               ? "يتحسن"
@@ -3771,35 +3917,35 @@ export default function FamilyScreen() {
                 {[
                   {
                     key: "includeSymptoms",
-                    label: isRTL ? "تضمين الأعراض" : "Include Symptoms",
+                    label: isRTL ? "ضم أعراض الصحة في التقرير" : "Include Symptoms",
                   },
                   {
                     key: "includeMedications",
-                    label: isRTL ? "تضمين الأدوية" : "Include Medications",
+                    label: isRTL ? "ضم أدوية العائلة في التقرير" : "Include Medications",
                   },
                   {
                     key: "includeMoods",
-                    label: isRTL ? "تضمين الحالات النفسية" : "Include Moods",
+                    label: isRTL ? "ضم حالات نفسية في التقرير" : "Include Moods",
                   },
                   {
                     key: "includeAllergies",
-                    label: isRTL ? "تضمين الحساسية" : "Include Allergies",
+                    label: isRTL ? "ضم الحساسية" : "Include Allergies",
                   },
                   {
                     key: "includeMedicalHistory",
-                    label: isRTL ? "تضمين التاريخ الطبي" : "Include Medical History",
+                    label: isRTL ? "ضم التاريخ الطبي في التقرير" : "Include Medical History",
                   },
                   {
                     key: "includeLabResults",
-                    label: isRTL ? "تضمين نتائج المختبر" : "Include Lab Results",
+                    label: isRTL ? "ضم نتائج المختبر" : "Include Lab Results",
                   },
                   {
                     key: "includeVitals",
-                    label: isRTL ? "تضمين المؤشرات الحيوية" : "Include Vitals",
+                    label: isRTL ? "ضم المؤشرات الحيوية في التقرير" : "Include Vitals",
                   },
                   {
                     key: "includeComplianceData",
-                    label: isRTL ? "تضمين بيانات الامتثال" : "Include Compliance Data",
+                    label: isRTL ? "ضم بيانات التزام بالأدوية في التقرير" : "Include Compliance Data",
                   },
                 ].map((option) => (
                   <View key={option.key} style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
@@ -4581,7 +4727,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
-    flex: 1,
+  },
+  eventMemberName: {
+    fontSize: 13,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    marginTop: 2,
   },
   eventStatus: {
     flexDirection: "row",

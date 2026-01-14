@@ -411,13 +411,13 @@ export default function TimelineScreen() {
 
   const getEventTypeLabel = (type: TimelineEvent["type"]) => {
     const labels: Record<TimelineEvent["type"], { en: string; ar: string }> = {
-      symptom: { en: "Symptom", ar: "عرض" },
+      symptom: { en: "Symptom", ar: "أعراض صحية" },
       medication: { en: "Medication", ar: "دواء" },
       mood: { en: "Mood", ar: "حالة نفسية" },
       allergy: { en: "Allergy", ar: "حساسية" },
       vital: { en: "Vital", ar: "مؤشر حيوي" },
       labResult: { en: "Lab Result", ar: "نتيجة مختبر" },
-      calendar: { en: "Event", ar: "حدث" },
+      calendar: { en: "Event", ar: "حدث صحي" },
       medicalHistory: { en: "Medical History", ar: "تاريخ طبي" },
     };
     return isRTL ? labels[type].ar : labels[type].en;
@@ -430,12 +430,12 @@ export default function TimelineScreen() {
 
   const filterOptions: Array<{ value: FilterType; label: string }> = [
     { value: "all", label: isRTL ? "الكل" : "All" },
-    { value: "symptom", label: isRTL ? "أعراض" : "Symptoms" },
+    { value: "symptom", label: isRTL ? "أعراض صحية" : "Symptoms" },
     { value: "medication", label: isRTL ? "أدوية" : "Medications" },
     { value: "mood", label: isRTL ? "حالة نفسية" : "Moods" },
     { value: "allergy", label: isRTL ? "حساسية" : "Allergies" },
     { value: "labResult", label: isRTL ? "نتائج مختبر" : "Lab Results" },
-    { value: "calendar", label: isRTL ? "أحداث" : "Events" },
+    { value: "calendar", label: isRTL ? "أحداث صحية" : "Events" },
     { value: "medicalHistory", label: isRTL ? "تاريخ طبي" : "Medical History" },
   ];
 
@@ -467,7 +467,7 @@ export default function TimelineScreen() {
 
         <View style={styles.headerLeft as ViewStyle}>
           <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as StyleProp<TextStyle>}>
-            {isRTL ? "الخط الزمني الصحي" : "Health Timeline"}
+            {isRTL ? "السجل الزمني الصحي" : "Health Timeline"}
           </Heading>
         </View>
       </View>
@@ -550,7 +550,7 @@ export default function TimelineScreen() {
         >
           <FileText size={64} color={theme.colors.text.secondary} />
           <Text style={[styles.emptyText as TextStyle, isRTL && (styles.rtlText as TextStyle)]}>
-            {isRTL ? "لا توجد أحداث في هذا الفترة" : "No events in this period"}
+            {isRTL ? "لا توجد أحداث صحية في هذا الفترة" : "No events in this period"}
           </Text>
         </ScrollView>
       ) : (
@@ -687,7 +687,7 @@ export default function TimelineScreen() {
               }}
             >
               <Heading level={6} style={[styles.rtlText as TextStyle] as any}>
-                {isRTL ? "تصفية" : "Filter"}
+                {isRTL ? "تصفية الأحداث الصحية" : "Filter"}
               </Heading>
               <TouchableOpacity onPress={() => setShowFilters(false)}>
                 <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
@@ -772,7 +772,7 @@ export default function TimelineScreen() {
                 {selectedEvent.description && (
                   <View style={{ marginBottom: theme.spacing.base }}>
                     <TypographyText weight="semibold" style={[styles.rtlText as TextStyle] as any}>
-                      {isRTL ? "الوصف" : "Description"}
+                      {isRTL ? "الوصف الصحي" : "Description"}
                     </TypographyText>
                     <Caption style={[styles.rtlText as TextStyle] as any} numberOfLines={10}>
                       {selectedEvent.description}
