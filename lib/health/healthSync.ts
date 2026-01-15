@@ -137,7 +137,7 @@ export const disconnectProvider = async (
   provider: HealthProvider
 ): Promise<void> => {
   try {
-    // Clear connection data
+    // Clear connection data and call service disconnect methods
     let storageKey: string;
     switch (provider) {
       case "apple_health":
@@ -152,21 +152,45 @@ export const disconnectProvider = async (
         break;
       case "samsung_health":
         storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
+        try {
+          const { samsungHealthService } = await import("../services/samsungHealthService");
+          await samsungHealthService.disconnect();
+        } catch {}
         break;
       case "garmin":
         storageKey = HEALTH_STORAGE_KEYS.GARMIN_TOKENS;
+        try {
+          const { garminService } = await import("../services/garminService");
+          await garminService.disconnect();
+        } catch {}
         break;
       case "withings":
         storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
+        try {
+          const { withingsService } = await import("../services/withingsService");
+          await withingsService.disconnect();
+        } catch {}
         break;
       case "oura":
         storageKey = HEALTH_STORAGE_KEYS.OURA_TOKENS;
+        try {
+          const { ouraService } = await import("../services/ouraService");
+          await ouraService.disconnect();
+        } catch {}
         break;
       case "dexcom":
         storageKey = HEALTH_STORAGE_KEYS.DEXCOM_TOKENS;
+        try {
+          const { dexcomService } = await import("../services/dexcomService");
+          await dexcomService.disconnect();
+        } catch {}
         break;
       case "freestyle_libre":
         storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
+        try {
+          const { freestyleLibreService } = await import("../services/freestyleLibreService");
+          await freestyleLibreService.disconnect();
+        } catch {}
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);

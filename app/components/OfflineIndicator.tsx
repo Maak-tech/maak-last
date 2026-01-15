@@ -1,5 +1,5 @@
 import { Wifi, WifiOff, RefreshCw } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, TouchableOpacity, View } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -15,6 +15,12 @@ export default function OfflineIndicator() {
   const [queueLength, setQueueLength] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [slideAnim] = useState(new Animated.Value(-100));
+
+  const checkStatus = useCallback(async () => {
+    const status = await offlineService.getSyncStatus();
+    setQueueLength(status.queueLength);
+    setIsOnline(status.isOnline);
+  }, []);
 
   useEffect(() => {
     // Check initial status
@@ -37,7 +43,7 @@ export default function OfflineIndicator() {
       unsubscribe();
       clearInterval(interval);
     };
-  }, []);
+  }, [checkStatus]);
 
   useEffect(() => {
     // Animate slide in/out based on online status and queue
@@ -56,13 +62,7 @@ export default function OfflineIndicator() {
         friction: 7,
       }).start();
     }
-  }, [isOnline, queueLength]);
-
-  const checkStatus = async () => {
-    const status = await offlineService.getSyncStatus();
-    setQueueLength(status.queueLength);
-    setIsOnline(status.isOnline);
-  };
+  }, [isOnline, queueLength, slideAnim]);
 
   const handleSync = async () => {
     if (syncing || !isOnline) return;

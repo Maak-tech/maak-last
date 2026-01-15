@@ -99,7 +99,7 @@ class GlobalSearchService {
             title: medication.name,
             subtitle: `${medication.dosage} • ${medication.frequency}`,
             description: medication.notes || "No additional notes",
-            timestamp: medication.createdAt,
+            timestamp: medication.startDate,
             relevance,
             action: {
               label: "View Medication",
@@ -132,7 +132,6 @@ class GlobalSearchService {
         const relevance = this.calculateRelevance(query, [
           symptom.type,
           symptom.description || "",
-          symptom.notes || "",
         ]);
 
         if (relevance > 0 && this.matchesSeverityFilter(symptom.severity, filters)) {
@@ -141,7 +140,7 @@ class GlobalSearchService {
             type: "symptom",
             title: symptom.type,
             subtitle: `Severity: ${symptom.severity}/5 • ${symptom.timestamp.toLocaleDateString()}`,
-            description: symptom.description || symptom.notes || "No description",
+            description: symptom.description || "No description",
             timestamp: symptom.timestamp,
             relevance,
             action: {
@@ -173,17 +172,18 @@ class GlobalSearchService {
 
       moods.forEach(mood => {
         const relevance = this.calculateRelevance(query, [
-          this.getMoodLabel(mood.moodRating),
+          this.getMoodLabel(mood.intensity),
+          mood.mood,
           mood.notes || "",
-          ...mood.symptoms.map(s => s.type),
+          ...(mood.activities || []),
         ]);
 
         if (relevance > 0) {
           results.push({
             id: mood.id,
             type: "mood",
-            title: this.getMoodLabel(mood.moodRating),
-            subtitle: `${mood.timestamp.toLocaleDateString()} • ${mood.symptoms.length} symptom${mood.symptoms.length !== 1 ? 's' : ''}`,
+            title: this.getMoodLabel(mood.intensity),
+            subtitle: `${mood.timestamp.toLocaleDateString()} • ${mood.mood}`,
             description: mood.notes || "No notes",
             timestamp: mood.timestamp,
             relevance,

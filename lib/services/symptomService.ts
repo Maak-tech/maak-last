@@ -200,7 +200,21 @@ export const symptomService = {
         return [];
       }
 
-      // Get symptoms for all family members
+      // Firestore 'in' queries are limited to 10 items, so we need to batch if needed
+      if (memberIds.length > 10) {
+        // If more than 10 members, fetch symptoms for each member separately and combine
+        const symptomPromises = memberIds.map((memberId) =>
+          this.getUserSymptoms(memberId, limitCount).catch(() => [] as Symptom[])
+        );
+        const allSymptomsArrays = await Promise.all(symptomPromises);
+        const allSymptoms = allSymptomsArrays.flat();
+        // Sort by timestamp descending and limit
+        return allSymptoms
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+          .slice(0, limitCount);
+      }
+
+      // Get symptoms for all family members (works for up to 10 members)
       const symptomsQuery = query(
         collection(db, "symptoms"),
         where("userId", "in", memberIds),
@@ -221,8 +235,35 @@ export const symptomService = {
       });
 
       return symptoms;
-    } catch (error) {
-      // Silently handle error getting family symptoms:", error);
+    } catch (error: any) {
+      // Check if it's an index error
+      if (error?.code === "failed-precondition") {
+        // Fallback: fetch symptoms for each member separately
+        try {
+          const familyMembersQuery = query(
+            collection(db, "users"),
+            where("familyId", "==", familyId)
+          );
+          const familyMembersSnapshot = await getDocs(familyMembersQuery);
+          const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+
+          if (memberIds.length === 0) {
+            return [];
+          }
+
+          const symptomPromises = memberIds.map((memberId) =>
+            this.getUserSymptoms(memberId, limitCount).catch(() => [] as Symptom[])
+          );
+          const allSymptomsArrays = await Promise.all(symptomPromises);
+          const allSymptoms = allSymptomsArrays.flat();
+          // Sort by timestamp descending and limit
+          return allSymptoms
+            .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+            .slice(0, limitCount);
+        } catch (fallbackError) {
+          throw new Error(`Failed to load family symptoms: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`);
+        }
+      }
       throw error;
     }
   },
@@ -261,14 +302,68 @@ export const symptomService = {
       const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
       const membersMap = new Map();
       familyMembersSnapshot.docs.forEach((doc) => {
-        membersMap.set(doc.id, doc.data().name);
+        const data = doc.data();
+        membersMap.set(doc.id, data.name || `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Unknown");
       });
 
       if (memberIds.length === 0) {
         return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
       }
 
-      // Get symptoms for all family members
+      // Firestore 'in' queries are limited to 10 items, so we need to batch if needed
+      let symptoms: Symptom[] = [];
+      
+      if (memberIds.length > 10) {
+        // If more than 10 members, fetch stats for each member separately and combine
+        const statsPromises = memberIds.map((memberId) =>
+          this.getSymptomStats(memberId, days).catch(() => ({
+            totalSymptoms: 0,
+            avgSeverity: 0,
+            commonSymptoms: [] as { type: string; count: number }[],
+          }))
+        );
+        const allStats = await Promise.all(statsPromises);
+        
+        // Combine stats
+        const totalSymptoms = allStats.reduce((sum, stat) => sum + stat.totalSymptoms, 0);
+        const totalSeverity = allStats.reduce((sum, stat) => sum + (stat.avgSeverity * stat.totalSymptoms), 0);
+        const avgSeverity = totalSymptoms > 0 ? totalSeverity / totalSymptoms : 0;
+        
+        // Combine common symptoms
+        const symptomCounts = new Map<string, { count: number; users: Set<string> }>();
+        allStats.forEach((stat, index) => {
+          stat.commonSymptoms.forEach((cs) => {
+            const key = cs.type;
+            if (!symptomCounts.has(key)) {
+              symptomCounts.set(key, { count: 0, users: new Set() });
+            }
+            const entry = symptomCounts.get(key)!;
+            entry.count += cs.count;
+            entry.users.add(memberIds[index]);
+          });
+        });
+        
+        const commonSymptoms = Array.from(symptomCounts.entries())
+          .map(([type, data]) => ({
+            type,
+            count: data.count,
+            affectedMembers: data.users.size,
+            users: Array.from(data.users).map((userId) => ({
+              userId,
+              userName: membersMap.get(userId) || "Unknown",
+            })),
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+        
+        return {
+          totalSymptoms,
+          avgSeverity: Math.round(avgSeverity * 10) / 10,
+          commonSymptoms,
+        };
+      }
+
+      // Get symptoms for all family members (works for up to 10 members)
       const symptomsQuery = query(
         collection(db, "symptoms"),
         where("userId", "in", memberIds),
@@ -276,7 +371,6 @@ export const symptomService = {
       );
 
       const querySnapshot = await getDocs(symptomsQuery);
-      const symptoms: Symptom[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
@@ -328,8 +422,79 @@ export const symptomService = {
         avgSeverity: Math.round(avgSeverity * 10) / 10,
         commonSymptoms,
       };
-    } catch (error) {
-      // Silently handle error getting family symptom stats:", error);
+    } catch (error: any) {
+      // Check if it's an index error and use fallback
+      if (error?.code === "failed-precondition") {
+        try {
+          // Fallback: fetch stats for each member separately
+          const familyMembersQuery = query(
+            collection(db, "users"),
+            where("familyId", "==", familyId)
+          );
+          const familyMembersSnapshot = await getDocs(familyMembersQuery);
+          const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+          const membersMap = new Map();
+          familyMembersSnapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            membersMap.set(doc.id, data.name || `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Unknown");
+          });
+
+          if (memberIds.length === 0) {
+            return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
+          }
+
+          const statsPromises = memberIds.map((memberId) =>
+            this.getSymptomStats(memberId, days).catch(() => ({
+              totalSymptoms: 0,
+              avgSeverity: 0,
+              commonSymptoms: [] as { type: string; count: number }[],
+            }))
+          );
+          const allStats = await Promise.all(statsPromises);
+          
+          // Combine stats
+          const totalSymptoms = allStats.reduce((sum, stat) => sum + stat.totalSymptoms, 0);
+          const totalSeverity = allStats.reduce((sum, stat) => sum + (stat.avgSeverity * stat.totalSymptoms), 0);
+          const avgSeverity = totalSymptoms > 0 ? totalSeverity / totalSymptoms : 0;
+          
+          // Combine common symptoms
+          const symptomCounts = new Map<string, { count: number; users: Set<string> }>();
+          allStats.forEach((stat, index) => {
+            stat.commonSymptoms.forEach((cs) => {
+              const key = cs.type;
+              if (!symptomCounts.has(key)) {
+                symptomCounts.set(key, { count: 0, users: new Set() });
+              }
+              const entry = symptomCounts.get(key)!;
+              entry.count += cs.count;
+              entry.users.add(memberIds[index]);
+            });
+          });
+          
+          const commonSymptoms = Array.from(symptomCounts.entries())
+            .map(([type, data]) => ({
+              type,
+              count: data.count,
+              affectedMembers: data.users.size,
+              users: Array.from(data.users).map((userId) => ({
+                userId,
+                userName: membersMap.get(userId) || "Unknown",
+              })),
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+          
+          return {
+            totalSymptoms,
+            avgSeverity: Math.round(avgSeverity * 10) / 10,
+            commonSymptoms,
+          };
+        } catch (fallbackError) {
+          // Return empty stats if fallback also fails
+          return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
+        }
+      }
+      // Return empty stats on other errors
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
@@ -414,8 +579,48 @@ export const symptomService = {
         avgSeverity: Math.round(avgSeverity * 10) / 10,
         commonSymptoms,
       };
-    } catch (error) {
-      // Silently handle error getting symptom stats:", error);
+    } catch (error: any) {
+      // Check if it's an index error and use fallback
+      if (error?.code === "failed-precondition") {
+        try {
+          // Fallback: fetch all user symptoms and filter by date in memory
+          // This uses the existing index that works (userId + orderBy timestamp)
+          const allSymptoms = await this.getUserSymptoms(userId, 1000); // Get more than needed
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - days);
+          
+          // Filter by date in memory
+          const symptoms = allSymptoms.filter(
+            (s) => s.timestamp.getTime() >= startDate.getTime()
+          );
+
+          const totalSymptoms = symptoms.length;
+          const avgSeverity =
+            totalSymptoms > 0
+              ? symptoms.reduce((sum, s) => sum + s.severity, 0) / totalSymptoms
+              : 0;
+
+          // Count symptom types
+          const symptomCounts: { [key: string]: number } = {};
+          symptoms.forEach((s) => {
+            symptomCounts[s.type] = (symptomCounts[s.type] || 0) + 1;
+          });
+
+          const commonSymptoms = Object.entries(symptomCounts)
+            .map(([type, count]) => ({ type, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+          return {
+            totalSymptoms,
+            avgSeverity: Math.round(avgSeverity * 10) / 10,
+            commonSymptoms,
+          };
+        } catch (fallbackError) {
+          // If fallback also fails, return empty stats
+          return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
+        }
+      }
       throw error;
     }
   },

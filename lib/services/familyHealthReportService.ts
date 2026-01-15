@@ -379,7 +379,318 @@ class FamilyHealthReportService {
    * Export report as JSON
    */
   async exportReportAsJSON(report: FamilyHealthReport): Promise<string> {
-    return JSON.stringify(report, null, 2);
+    try {
+      // Custom replacer function to handle Date objects and other non-serializable values
+      const replacer = (key: string, value: any): any => {
+        // Handle Date objects
+        if (value instanceof Date) {
+          return value.toISOString();
+        }
+        
+        // Handle Firestore Timestamp objects
+        if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+          try {
+            return value.toDate().toISOString();
+          } catch {
+            return null;
+          }
+        }
+        
+        // Handle undefined values
+        if (value === undefined) {
+          return null;
+        }
+        
+        return value;
+      };
+      
+      return JSON.stringify(report, replacer, 2);
+    } catch (error) {
+      console.error("Error exporting report as JSON:", error);
+      throw new Error(`Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+
+  /**
+   * Format report as HTML for PDF generation
+   */
+  formatReportAsHTML(report: FamilyHealthReport, isRTL: boolean = false): string {
+    // Helper function to safely format dates
+    const formatDate = (date: Date | string | any): string => {
+      try {
+        let dateObj: Date;
+        if (date instanceof Date) {
+          dateObj = date;
+        } else if (typeof date === 'string') {
+          dateObj = new Date(date);
+        } else if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+          dateObj = date.toDate();
+        } else {
+          return date?.toString() || "N/A";
+        }
+        return dateObj.toLocaleDateString(isRTL ? "ar" : "en-US");
+      } catch {
+        return date?.toString() || "N/A";
+      }
+    };
+
+    // Helper function to get health score color
+    const getHealthScoreColor = (score: number): string => {
+      if (score >= 80) return "#10B981"; // Green
+      if (score >= 60) return "#F59E0B"; // Orange/Yellow
+      return "#EF4444"; // Red
+    };
+
+    const direction = isRTL ? "rtl" : "ltr";
+    const textAlign = isRTL ? "right" : "left";
+
+    let html = `
+      <!DOCTYPE html>
+      <html dir="${direction}" lang="${isRTL ? "ar" : "en"}">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            padding: 40px;
+            color: #1E293B;
+            background: #FFFFFF;
+            line-height: 1.6;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #1E3A8A;
+          }
+          .header h1 {
+            font-size: 32px;
+            color: #1E3A8A;
+            margin-bottom: 10px;
+            font-weight: bold;
+          }
+          .header-info {
+            color: #64748B;
+            font-size: 14px;
+            margin-top: 10px;
+          }
+          .section {
+            margin-bottom: 30px;
+          }
+          .section-title {
+            font-size: 24px;
+            color: #1E3A8A;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #E2E8F0;
+            font-weight: bold;
+          }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+          }
+          .summary-card {
+            background: #F8FAFC;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+          }
+          .summary-label {
+            font-size: 14px;
+            color: #64748B;
+            margin-bottom: 8px;
+          }
+          .summary-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1E293B;
+          }
+          .health-score {
+            color: ${getHealthScoreColor(report.summary.averageHealthScore)};
+          }
+          .alert-card {
+            background: #FEE2E2;
+            border: 2px solid #EF4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+          }
+          .alert-member {
+            font-weight: bold;
+            color: #1E293B;
+            margin-bottom: 5px;
+          }
+          .alert-message {
+            color: #64748B;
+            font-size: 14px;
+          }
+          .member-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .member-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-direction: ${isRTL ? "row-reverse" : "row"};
+          }
+          .member-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1E293B;
+          }
+          .member-score {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+          }
+          .member-info {
+            margin-top: 15px;
+          }
+          .member-info-item {
+            color: #64748B;
+            font-size: 14px;
+            margin-bottom: 8px;
+          }
+          .trend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            flex-direction: ${isRTL ? "row-reverse" : "row"};
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #E2E8F0;
+            text-align: center;
+            color: #64748B;
+            font-size: 12px;
+          }
+          @media print {
+            body {
+              padding: 20px;
+            }
+            .section {
+              page-break-inside: avoid;
+            }
+            .member-card {
+              page-break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${isRTL ? "تقرير الصحة العائلية" : "Family Health Report"}</h1>
+          <div class="header-info">
+            <div>${isRTL ? "تاريخ الإنشاء" : "Generated"}: ${formatDate(report.generatedAt)}</div>
+            <div>${isRTL ? "الفترة" : "Period"}: ${formatDate(report.period.startDate)} - ${formatDate(report.period.endDate)}</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">${isRTL ? "الملخص" : "Summary"}</h2>
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-label">${isRTL ? "إجمالي الأعضاء" : "Total Members"}</div>
+              <div class="summary-value">${report.summary.totalMembers}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">${isRTL ? "متوسط النقاط الصحية" : "Average Health Score"}</div>
+              <div class="summary-value health-score">${report.summary.averageHealthScore}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">${isRTL ? "الأدوية النشطة" : "Active Medications"}</div>
+              <div class="summary-value">${report.summary.totalActiveMedications}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">${isRTL ? "إجمالي الأعراض" : "Total Symptoms"}</div>
+              <div class="summary-value">${report.summary.totalSymptoms}</div>
+            </div>
+          </div>
+        </div>
+    `;
+
+    // Alerts section
+    if (report.summary.alerts.length > 0) {
+      html += `
+        <div class="section">
+          <h2 class="section-title">${isRTL ? "التنبيهات" : "Alerts"}</h2>
+      `;
+      report.summary.alerts.forEach((alert) => {
+        html += `
+          <div class="alert-card">
+            <div class="alert-member">${alert.member}</div>
+            <div class="alert-message">${alert.message}</div>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    // Member details
+    html += `
+      <div class="section">
+        <h2 class="section-title">${isRTL ? "تفاصيل أفراد العائلة" : "Member Details"}</h2>
+    `;
+
+    report.members.forEach((memberReport) => {
+      const scoreColor = getHealthScoreColor(memberReport.healthScore);
+      html += `
+        <div class="member-card">
+          <div class="member-header">
+            <div class="member-name">${memberReport.member.firstName} ${memberReport.member.lastName}</div>
+            <div class="member-score" style="background: ${scoreColor}20; border-color: ${scoreColor}; color: ${scoreColor};">
+              ${isRTL ? "النقاط" : "Score"}: ${memberReport.healthScore}
+            </div>
+          </div>
+          <div class="member-info">
+            <div class="member-info-item">${isRTL ? "الأعراض" : "Symptoms"}: ${memberReport.symptoms.total}</div>
+            <div class="member-info-item">${isRTL ? "الأدوية الفعالة" : "Active Medications"}: ${memberReport.medications.active}</div>
+            ${memberReport.medications.complianceRate !== undefined ? `
+              <div class="member-info-item">${isRTL ? "الالتزام بالأدوية" : "Compliance"}: ${memberReport.medications.complianceRate}%</div>
+            ` : ''}
+            <div class="trend">
+              <span>${isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}: ${
+                isRTL
+                  ? memberReport.trends.symptomTrend === "improving"
+                    ? "يتحسن"
+                    : memberReport.trends.symptomTrend === "worsening"
+                      ? "يتدهور"
+                      : "مستقر"
+                  : memberReport.trends.symptomTrend
+              }</span>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    html += `
+        </div>
+        <div class="footer">
+          ${isRTL ? "تم إنشاء هذا التقرير تلقائياً بواسطة تطبيق Maak" : "This report was automatically generated by Maak Health App"}
+        </div>
+      </body>
+      </html>
+    `;
+
+    return html;
   }
 
   /**
@@ -387,6 +698,25 @@ class FamilyHealthReportService {
    */
   formatReportAsText(report: FamilyHealthReport, isRTL: boolean = false): string {
     const lines: string[] = [];
+
+    // Helper function to safely format dates
+    const formatDate = (date: Date | string | any): string => {
+      try {
+        let dateObj: Date;
+        if (date instanceof Date) {
+          dateObj = date;
+        } else if (typeof date === 'string') {
+          dateObj = new Date(date);
+        } else if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+          dateObj = date.toDate();
+        } else {
+          return date?.toString() || "N/A";
+        }
+        return dateObj.toLocaleDateString(isRTL ? "ar" : "en-US");
+      } catch {
+        return date?.toString() || "N/A";
+      }
+    };
 
     lines.push(
       isRTL ? "تقرير الصحة العائلية" : "Family Health Report"
@@ -396,13 +726,13 @@ class FamilyHealthReportService {
 
     lines.push(
       isRTL
-        ? `تاريخ الإنشاء: ${report.generatedAt.toLocaleDateString("ar")}`
-        : `Generated: ${report.generatedAt.toLocaleDateString("en-US")}`
+        ? `تاريخ الإنشاء: ${formatDate(report.generatedAt)}`
+        : `Generated: ${formatDate(report.generatedAt)}`
     );
     lines.push(
       isRTL
-        ? `الفترة: ${report.period.startDate.toLocaleDateString("ar")} - ${report.period.endDate.toLocaleDateString("ar")}`
-        : `Period: ${report.period.startDate.toLocaleDateString("en-US")} - ${report.period.endDate.toLocaleDateString("en-US")}`
+        ? `الفترة: ${formatDate(report.period.startDate)} - ${formatDate(report.period.endDate)}`
+        : `Period: ${formatDate(report.period.startDate)} - ${formatDate(report.period.endDate)}`
     );
     lines.push("");
 

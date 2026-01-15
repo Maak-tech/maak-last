@@ -101,6 +101,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "heartrate",
       endpoint: "/wellness-api/rest/heartRate",
     },
+    oura: {
+      available: true,
+      scope: "heartrate",
+      endpoint: "/v2/usercollection/heartrate",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 11, // Pulse/Heart rate category
+    },
   },
   {
     key: "resting_heart_rate",
@@ -128,10 +138,12 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
     garmin: {
       available: true,
       scope: "heartrate",
+      endpoint: "/wellness-api/rest/dailies",
     },
     oura: {
       available: true,
       scope: "heartrate",
+      endpoint: "/v2/usercollection/daily_sleep",
     },
   },
   {
@@ -152,6 +164,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
     fitbit: {
       available: true,
       scope: "heartrate",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.heart_rate",
+      endpoint: "/users/me/health-data/heart-rate-variability/daily/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "heartrate",
+      endpoint: "/wellness-api/rest/hrv",
+    },
+    oura: {
+      available: true,
+      scope: "heartrate",
+      endpoint: "/v2/usercollection/daily_cardiovascular_age",
     },
   },
   {
@@ -219,6 +246,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: false,
       scope: "",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.blood_pressure",
+      endpoint: "/users/me/health-data/blood-pressure/{date}",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 9, // Withings diastolic blood pressure category
+    },
   },
 
   // Respiratory
@@ -240,6 +277,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "respiratory_rate",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.respiratory_rate",
+      endpoint: "/users/me/health-data/respiratory-rate/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "respiratory",
+      endpoint: "/wellness-api/rest/respiration",
+    },
+    oura: {
+      available: true,
+      scope: "daily",
+      endpoint: "/v2/usercollection/daily_sleep",
+    },
   },
   {
     key: "blood_oxygen",
@@ -259,6 +311,26 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "oxygen_saturation",
       endpoint: "/1/user/-/spo2/date/{date}.json",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.oxygen_saturation",
+      endpoint: "/users/me/health-data/oxygen-saturation/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "pulse_ox",
+      endpoint: "/wellness-api/rest/pulseOx",
+    },
+    oura: {
+      available: true,
+      scope: "daily",
+      endpoint: "/v2/usercollection/daily_spo2",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 54, // SpO2 category
     },
   },
 
@@ -281,6 +353,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "temperature",
       endpoint: "/1/user/-/temp/skin/date/{date}.json",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.body_temperature",
+      endpoint: "/users/me/health-data/body-temperature/{date}",
+    },
+    oura: {
+      available: true,
+      scope: "daily",
+      endpoint: "/v2/usercollection/daily_readiness",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 12, // Body temperature category
     },
   },
 
@@ -309,6 +396,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "user.metrics",
       category: 1, // Weight category
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.body_composition",
+      endpoint: "/users/me/health-data/body-composition/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "body_composition",
+      endpoint: "/wellness-api/rest/bodyComposition",
+    },
   },
   {
     key: "height",
@@ -327,6 +424,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
     fitbit: {
       available: false,
       scope: "",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.user_profile",
+      endpoint: "/users/me/profile",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 4, // Height category
     },
   },
   {
@@ -347,6 +454,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "weight",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.body_composition",
+      endpoint: "/users/me/health-data/body-composition/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "body_composition",
+      endpoint: "/wellness-api/rest/bodyComposition",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 1, // Calculated from weight/height
+    },
   },
   {
     key: "body_fat_percentage",
@@ -366,6 +488,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "weight",
       endpoint: "/1/user/-/body/log/fat/date/{date}/1m.json",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.body_composition",
+      endpoint: "/users/me/health-data/body-composition/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "body_composition",
+      endpoint: "/wellness-api/rest/bodyComposition",
+    },
+    withings: {
+      available: true,
+      scope: "user.metrics",
+      category: 6, // Fat ratio category
     },
   },
 
@@ -399,6 +536,11 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "activity",
       endpoint: "/wellness-api/rest/dailies",
     },
+    oura: {
+      available: true,
+      scope: "daily",
+      endpoint: "/v2/usercollection/daily_activity",
+    },
   },
   {
     key: "active_energy",
@@ -419,6 +561,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "activity",
       endpoint: "/1/user/-/activities/calories/date/{date}/1d.json",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.activity",
+      endpoint: "/users/me/health-data/activity-summary/daily/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "activity",
+      endpoint: "/wellness-api/rest/dailies",
+    },
+    oura: {
+      available: true,
+      scope: "daily",
+      endpoint: "/v2/usercollection/daily_activity",
+    },
   },
   {
     key: "basal_energy",
@@ -437,6 +594,11 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
     fitbit: {
       available: true,
       scope: "activity",
+    },
+    garmin: {
+      available: true,
+      scope: "activity",
+      endpoint: "/wellness-api/rest/dailies",
     },
   },
   {
@@ -458,6 +620,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "activity",
       endpoint: "/1/user/-/activities/distance/date/{date}/1d.json",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.activity",
+      endpoint: "/users/me/health-data/activity-summary/daily/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "activity",
+      endpoint: "/wellness-api/rest/dailies",
+    },
+    oura: {
+      available: true,
+      scope: "daily",
+      endpoint: "/v2/usercollection/daily_activity",
+    },
   },
   {
     key: "flights_climbed",
@@ -478,6 +655,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "activity",
       endpoint: "/1/user/-/activities/floors/date/{date}/1d.json",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.floors_climbed",
+      endpoint: "/users/me/health-data/floors-climbed/daily/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "activity",
+      endpoint: "/wellness-api/rest/dailies",
+    },
   },
   {
     key: "exercise_minutes",
@@ -496,6 +683,11 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
     fitbit: {
       available: true,
       scope: "activity",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.exercise",
+      endpoint: "/users/me/health-data/exercise/{date}",
     },
   },
   {
@@ -536,6 +728,21 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "activity",
       endpoint: "/1/user/-/activities/date/{date}.json",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.exercise",
+      endpoint: "/users/me/health-data/exercise/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "activity",
+      endpoint: "/wellness-api/rest/activities",
+    },
+    oura: {
+      available: true,
+      scope: "workout",
+      endpoint: "/v2/usercollection/workout",
+    },
   },
 
   // Sleep
@@ -563,6 +770,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       scope: "sleep",
       endpoint: "/v2/usercollection/sleep",
     },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.sleep",
+      endpoint: "/users/me/health-data/sleep/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "sleep",
+      endpoint: "/wellness-api/rest/sleep",
+    },
   },
 
   // Nutrition
@@ -584,6 +801,16 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
       available: true,
       scope: "nutrition",
       endpoint: "/1/user/-/foods/log/water/date/{date}.json",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.water_intake",
+      endpoint: "/users/me/health-data/water-intake/{date}",
+    },
+    garmin: {
+      available: true,
+      scope: "nutrition",
+      endpoint: "/wellness-api/rest/hydration",
     },
   },
 
@@ -609,6 +836,11 @@ export const HEALTH_METRICS_CATALOG: HealthMetric[] = [
     dexcom: {
       available: true,
       scope: "offline_access",
+    },
+    samsungHealth: {
+      available: true,
+      scope: "com.samsung.health.blood_glucose",
+      endpoint: "/users/me/health-data/blood-glucose/{date}",
     },
   },
 ];

@@ -3,8 +3,8 @@ import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 import { moodService } from "./moodService";
 import { healthScoreService } from "./healthScoreService";
-import { healthInsightsService } from "./healthInsightsService";
-import { medicationRefillService } from "./medicationRefillService";
+import { healthInsightsService, type PatternInsight } from "./healthInsightsService";
+import { medicationRefillService, type RefillPrediction } from "./medicationRefillService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import healthContextService from "./healthContextService";
 
@@ -583,29 +583,30 @@ class ProactiveHealthSuggestionsService {
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
-    const refillAlerts = medicationRefillService.checkRefillNeeds(medications);
+    const refillSummary = medicationRefillService.getRefillPredictions(medications);
+    const refillAlerts = refillSummary.predictions.filter(
+      (p) => p.urgency === "critical" || p.urgency === "high" || p.urgency === "medium"
+    );
 
     refillAlerts.forEach((alert) => {
-      if (alert.urgency === "urgent" || alert.urgency === "soon") {
-        const localizedText = getLocalizedSuggestionText("refillMedication", isArabic, { 
-          medicationName: alert.medicationName,
-          message: alert.message 
-        });
-        suggestions.push({
-          id: `refill-${alert.medicationId}`,
-          type: "medication",
-          priority: alert.urgency === "urgent" ? "high" : "medium",
-          title: localizedText.title,
-          description: localizedText.description,
-          action: {
-            label: localizedText.actionLabel || "View Medications",
-            route: "/(tabs)/medications",
-          },
-          icon: "Pill",
-          category: localizedText.category,
-          timestamp: new Date(),
-        });
-      }
+      const localizedText = getLocalizedSuggestionText("refillMedication", isArabic, { 
+        medicationName: alert.medicationName,
+        message: `Refill needed in ${alert.daysUntilRefill} day${alert.daysUntilRefill !== 1 ? "s" : ""}` 
+      });
+      suggestions.push({
+        id: `refill-${alert.medicationId}`,
+        type: "medication",
+        priority: alert.urgency === "critical" || alert.urgency === "high" ? "high" : "medium",
+        title: localizedText.title,
+        description: localizedText.description,
+        action: {
+          label: localizedText.actionLabel || "View Medications",
+          route: "/(tabs)/medications",
+        },
+        icon: "Pill",
+        category: localizedText.category,
+        timestamp: new Date(),
+      });
     });
 
     return suggestions;
@@ -882,25 +883,20 @@ class ProactiveHealthSuggestionsService {
    */
   async getPersonalizedTips(userId: string): Promise<string[]> {
     try {
-      const insights = await healthInsightsService.getHealthInsights(userId);
+      const insights = await healthInsightsService.getAllInsights(userId);
       const tips: string[] = [];
 
       // Generate tips based on insights
-      if (insights.patterns.length > 0) {
-        insights.patterns.forEach((pattern) => {
-          if (pattern.type === "temporal") {
-            tips.push(
-              `Your symptoms tend to ${pattern.description}. Consider planning activities accordingly.`
-            );
-          }
-        });
-      }
-
-      if (insights.recommendations.length > 0) {
-        insights.recommendations.forEach((rec) => {
-          tips.push(rec);
-        });
-      }
+      insights.forEach((pattern: PatternInsight) => {
+        if (pattern.type === "temporal") {
+          tips.push(
+            `Your symptoms tend to ${pattern.description}. Consider planning activities accordingly.`
+          );
+        }
+        if (pattern.recommendation) {
+          tips.push(pattern.recommendation);
+        }
+      });
 
       return tips.slice(0, 5); // Return top 5 tips
     } catch (error) {
@@ -962,7 +958,7 @@ class ProactiveHealthSuggestionsService {
       );
 
       if (recentMoods.length > 3) {
-        const avgMood = recentMoods.reduce((sum, m) => sum + m.moodRating, 0) / recentMoods.length;
+        const avgMood = recentMoods.reduce((sum, m) => sum + m.intensity, 0) / recentMoods.length;
 
         if (avgMood < 3) {
           const localizedText = getLocalizedSuggestionText("moodSupport", isArabic);
@@ -1355,7 +1351,7 @@ class ProactiveHealthSuggestionsService {
         m => new Date().getTime() - m.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
       );
 
-      const lowMoods = recentMoods.filter(m => m.moodRating < 4).length;
+      const lowMoods = recentMoods.filter(m => m.intensity < 4).length;
       const anxietySymptoms = symptoms.filter(s => s.type === "anxiety").length;
 
       if (lowMoods >= 3 || anxietySymptoms >= 2) {

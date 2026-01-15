@@ -19,5 +19,20 @@
       ],
       "runtime": "nodejs22"
     }
-  ]
+  ],
+  "hosting": {
+    "site": "maak-5caad",
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/dexcom-callback",
+        "destination": "/dexcom-callback.html"
+      }
+    ]
+  }
 }

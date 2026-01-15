@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
 import type { Symptom, User as UserType } from "@/types";
 // Design System Components
 import { Button, Card, Input } from "@/components/design-system";
@@ -92,12 +93,22 @@ export default function TrackScreen() {
   const loadSymptoms = useCallback(async (isRefresh = false) => {
     if (!user) return;
 
+    const startTime = Date.now();
+    let dataLoaded = false;
+
     try {
       if (isRefresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
+
+      logger.debug("Loading symptoms", {
+        userId: user.id,
+        filterType: selectedFilter.type,
+        isAdmin,
+        hasFamily: Boolean(user.familyId),
+      }, "SymptomsScreen");
 
       // Always load family members first if user has family
       let members: UserType[] = [];
@@ -109,43 +120,147 @@ export default function TrackScreen() {
       // Load data based on selected filter
       if (selectedFilter.type === "family" && user.familyId && isAdmin) {
         // Load family symptoms and stats (admin only)
-        const [familySymptoms, familyStats] = await Promise.all([
+        // Use Promise.allSettled to handle partial failures gracefully
+        const [symptomsResult, statsResult] = await Promise.allSettled([
           symptomService.getFamilySymptoms(user.id, user.familyId, 50),
           symptomService.getFamilySymptomStats(user.id, user.familyId, 7),
         ]);
 
-        setSymptoms(familySymptoms);
-        setStats(familyStats);
+        // Handle symptoms result
+        if (symptomsResult.status === "fulfilled") {
+          setSymptoms(symptomsResult.value);
+          dataLoaded = true;
+        } else {
+          logger.error("Failed to load family symptoms", symptomsResult.reason, "SymptomsScreen");
+          setSymptoms([]); // Set empty array on error
+        }
+
+        // Handle stats result
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          logger.error("Failed to load family stats", statsResult.reason, "SymptomsScreen");
+          setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
+        }
+
+        const durationMs = Date.now() - startTime;
+        logger.info("Family symptoms loaded", {
+          userId: user.id,
+          familyId: user.familyId,
+          symptomCount: symptomsResult.status === "fulfilled" ? symptomsResult.value.length : 0,
+          statsLoaded: statsResult.status === "fulfilled",
+          durationMs,
+        }, "SymptomsScreen");
       } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
         // Load specific member symptoms and stats (admin only)
-        const [memberSymptoms, memberStats] = await Promise.all([
+        // Use Promise.allSettled to handle partial failures gracefully
+        const [symptomsResult, statsResult] = await Promise.allSettled([
           symptomService.getMemberSymptoms(selectedFilter.memberId, 50),
           symptomService.getMemberSymptomStats(selectedFilter.memberId, 7),
         ]);
 
-        setSymptoms(memberSymptoms);
-        setStats(memberStats);
+        // Handle symptoms result
+        if (symptomsResult.status === "fulfilled") {
+          setSymptoms(symptomsResult.value);
+          dataLoaded = true;
+        } else {
+          logger.error("Failed to load member symptoms", symptomsResult.reason, "SymptomsScreen");
+          setSymptoms([]); // Set empty array on error
+        }
+
+        // Handle stats result
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          logger.error("Failed to load member stats", statsResult.reason, "SymptomsScreen");
+          setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
+        }
+
+        const durationMs = Date.now() - startTime;
+        logger.info("Member symptoms loaded", {
+          userId: user.id,
+          memberId: selectedFilter.memberId,
+          symptomCount: symptomsResult.status === "fulfilled" ? symptomsResult.value.length : 0,
+          statsLoaded: statsResult.status === "fulfilled",
+          durationMs,
+        }, "SymptomsScreen");
       } else {
         // Load personal symptoms and stats (default)
-        const [userSymptoms, symptomStats] = await Promise.all([
+        // Use Promise.allSettled to handle partial failures gracefully
+        const [symptomsResult, statsResult] = await Promise.allSettled([
           symptomService.getUserSymptoms(user.id, 50),
           symptomService.getSymptomStats(user.id, 7),
         ]);
 
-        setSymptoms(userSymptoms);
-        setStats(symptomStats);
+        // Handle symptoms result
+        if (symptomsResult.status === "fulfilled") {
+          setSymptoms(symptomsResult.value);
+          dataLoaded = true;
+        } else {
+          logger.error("Failed to load user symptoms", symptomsResult.reason, "SymptomsScreen");
+          setSymptoms([]); // Set empty array on error
+        }
+
+        // Handle stats result
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          logger.error("Failed to load symptom stats", statsResult.reason, "SymptomsScreen");
+          setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
+        }
+
+        const durationMs = Date.now() - startTime;
+        logger.info("User symptoms loaded", {
+          userId: user.id,
+          symptomCount: symptomsResult.status === "fulfilled" ? symptomsResult.value.length : 0,
+          statsLoaded: statsResult.status === "fulfilled",
+          durationMs,
+        }, "SymptomsScreen");
       }
     } catch (error) {
-      // Silently handle symptoms load error
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data"
-      );
+      const durationMs = Date.now() - startTime;
+      
+      // Check if it's a Firestore index error
+      const isIndexError = error && typeof error === 'object' && 
+        'code' in error && error.code === 'failed-precondition';
+      
+      if (isIndexError) {
+        logger.warn("Firestore index not ready for symptoms query", {
+          userId: user.id,
+          filterType: selectedFilter.type,
+          durationMs,
+        }, "SymptomsScreen");
+        
+        // Only show alert if no data was loaded (fallback should have handled it)
+        if (!dataLoaded) {
+          Alert.alert(
+            isRTL ? "خطأ" : "Error",
+            isRTL 
+              ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
+              : "Database index not ready. Please try again in a moment."
+          );
+        }
+      } else {
+        logger.error("Failed to load symptoms", error, "SymptomsScreen");
+        
+        // Only show alert if no data was loaded
+        if (!dataLoaded) {
+          // Provide more specific error message
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
+          
+          Alert.alert(
+            isRTL ? "خطأ" : "Error",
+            errorMessage
+          );
+        }
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, selectedFilter, isRTL]);
+  }, [user, selectedFilter, isAdmin, isRTL]);
 
   // Refresh data when tab is focused
   useFocusEffect(
@@ -579,9 +694,11 @@ export default function TrackScreen() {
                       {/* Show member name for family/admin views */}
                       {(selectedFilter.type === "family" ||
                         selectedFilter.type === "member") && (
-                        <Badge variant="info" size="small" style={styles.memberBadge}>
-                          {getMemberName(symptom.userId)}
-                        </Badge>
+                        <View style={styles.memberBadge}>
+                          <Text style={styles.memberBadgeText}>
+                            {getMemberName(symptom.userId)}
+                          </Text>
+                        </View>
                       )}
                     </View>
                   </View>
@@ -995,14 +1112,15 @@ const styles = StyleSheet.create({
   },
   memberBadge: {
     backgroundColor: "#EEF2FF",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginStart: 8,
   },
   memberBadgeText: {
-    fontSize: 10,
-    fontFamily: "Geist-Medium",
-    color: "#6366F1",
+    fontSize: 12,
+    fontFamily: "Geist-SemiBold",
+    color: "#4F46E5",
   },
   symptomActions: {
     flexDirection: "row",

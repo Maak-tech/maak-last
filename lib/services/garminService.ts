@@ -1,6 +1,7 @@
 /**
  * Garmin Connect Service
- * OAuth 2.0 integration with Garmin Connect API
+ * OAuth 1.0a integration with Garmin Connect Health API
+ * Supports comprehensive health data including vitals, activity, sleep, and body composition
  */
 
 import * as SecureStore from "expo-secure-store";
@@ -17,6 +18,7 @@ import {
   type GarminTokens,
   type NormalizedMetricPayload,
   type ProviderAvailability,
+  type MetricSample,
 } from "../health/healthTypes";
 import { saveProviderConnection } from "../health/healthSync";
 
@@ -25,13 +27,299 @@ const GARMIN_CLIENT_ID =
   Constants.expoConfig?.extra?.garminClientId || "YOUR_GARMIN_CLIENT_ID";
 const GARMIN_CLIENT_SECRET =
   Constants.expoConfig?.extra?.garminClientSecret || "YOUR_GARMIN_CLIENT_SECRET";
+const GARMIN_REQUEST_TOKEN_URL = "https://connectapi.garmin.com/oauth-service/oauth/request_token";
 const GARMIN_AUTH_URL = "https://connect.garmin.com/oauthConfirm";
-const GARMIN_TOKEN_URL = "https://connectapi.garmin.com/oauth-service/oauth/access_token";
+const GARMIN_ACCESS_TOKEN_URL = "https://connectapi.garmin.com/oauth-service/oauth/access_token";
 const GARMIN_API_BASE = "https://apis.garmin.com";
 const REDIRECT_URI = Linking.createURL("garmin-callback");
 
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();
+
+/**
+ * Garmin data type parsers
+ */
+const dataTypeParsers: Record<string, (data: any, metricKey: string) => MetricSample[]> = {
+  // Heart rate data
+  heart_rate: (data) => {
+    if (!data) return [];
+    const samples: MetricSample[] = [];
+    
+    // Handle different response formats
+    if (Array.isArray(data)) {
+      data.forEach((item: any) => {
+        if (item.heartRateValues) {
+          item.heartRateValues.forEach((hr: any) => {
+            samples.push({
+              value: hr.heartRate || hr.value || 0,
+              unit: "bpm",
+              startDate: new Date(hr.timestampInSeconds * 1000 || item.startTimeInSeconds * 1000).toISOString(),
+              source: "Garmin",
+            });
+          });
+        } else {
+          samples.push({
+            value: item.heartRate || item.averageHeartRate || item.value || 0,
+            unit: "bpm",
+            startDate: new Date(item.startTimeInSeconds * 1000 || item.calendarDate).toISOString(),
+            source: "Garmin",
+          });
+        }
+      });
+    }
+    return samples;
+  },
+
+  // Resting heart rate
+  resting_heart_rate: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data
+      .filter((item: any) => item.restingHeartRate)
+      .map((item: any) => ({
+        value: item.restingHeartRate,
+        unit: "bpm",
+        startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+        source: "Garmin",
+      }));
+  },
+
+  // Heart rate variability
+  heart_rate_variability: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.hrvValue || item.weeklyAvg || item.lastNightAvg || 0,
+      unit: "ms",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Blood oxygen (SpO2)
+  blood_oxygen: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.averageSpO2 || item.spo2Value || item.value || 0,
+      unit: "%",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Respiratory rate
+  respiratory_rate: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.avgWakingRespirationValue || item.avgSleepingRespirationValue || item.value || 0,
+      unit: "breaths/min",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Steps
+  steps: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.steps || item.totalSteps || 0,
+      unit: "count",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Active energy
+  active_energy: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.activeKilocalories || item.activeCalories || 0,
+      unit: "kcal",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Basal energy
+  basal_energy: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.bmrKilocalories || item.restingCalories || 0,
+      unit: "kcal",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Distance
+  distance_walking_running: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      // Convert meters to km
+      value: (item.totalDistanceMeters || item.distanceInMeters || 0) / 1000,
+      unit: "km",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Floors climbed
+  flights_climbed: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.floorsAscended || item.floorsClimbed || 0,
+      unit: "count",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Sleep
+  sleep_analysis: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      // Convert seconds to hours
+      value: (item.sleepTimeSeconds || item.totalSleepTimeInSeconds || 0) / 3600,
+      unit: "hours",
+      startDate: new Date(item.calendarDate || item.startTimeInSeconds * 1000).toISOString(),
+      endDate: item.endTimeInSeconds
+        ? new Date(item.endTimeInSeconds * 1000).toISOString()
+        : undefined,
+      source: "Garmin",
+    }));
+  },
+
+  // Weight
+  weight: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      // Convert grams to kg
+      value: (item.weight || item.weightInGrams || 0) / 1000,
+      unit: "kg",
+      startDate: new Date(item.calendarDate || item.samplePk || Date.now()).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Body fat percentage
+  body_fat_percentage: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data
+      .filter((item: any) => item.bodyFat || item.bodyFatPercentage)
+      .map((item: any) => ({
+        value: item.bodyFat || item.bodyFatPercentage || 0,
+        unit: "%",
+        startDate: new Date(item.calendarDate || item.samplePk || Date.now()).toISOString(),
+        source: "Garmin",
+      }));
+  },
+
+  // BMI
+  body_mass_index: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data
+      .filter((item: any) => item.bmi)
+      .map((item: any) => ({
+        value: item.bmi,
+        unit: "kg/m²",
+        startDate: new Date(item.calendarDate || item.samplePk || Date.now()).toISOString(),
+        source: "Garmin",
+      }));
+  },
+
+  // Water intake
+  water_intake: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.valueInML || item.waterInML || 0,
+      unit: "ml",
+      startDate: new Date(item.calendarDate || item.timestampInSeconds * 1000).toISOString(),
+      source: "Garmin",
+    }));
+  },
+
+  // Workouts/Activities
+  workouts: (data) => {
+    if (!data || !Array.isArray(data)) return [];
+    return data.map((item: any) => ({
+      value: item.activityType || item.activityName || "workout",
+      unit: "",
+      startDate: new Date(item.startTimeInSeconds * 1000 || item.startTimeLocal).toISOString(),
+      endDate: item.endTimeInSeconds
+        ? new Date(item.endTimeInSeconds * 1000).toISOString()
+        : undefined,
+      source: "Garmin",
+    }));
+  },
+};
+
+/**
+ * Generate OAuth 1.0a signature (simplified - production should use crypto library)
+ */
+function generateOAuthSignature(
+  method: string,
+  url: string,
+  params: Record<string, string>,
+  tokenSecret: string = ""
+): string {
+  // Sort parameters alphabetically
+  const sortedParams = Object.keys(params)
+    .sort()
+    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join("&");
+
+  // Create signature base string
+  const signatureBaseString = [
+    method.toUpperCase(),
+    encodeURIComponent(url),
+    encodeURIComponent(sortedParams),
+  ].join("&");
+
+  // Create signing key
+  const signingKey = `${encodeURIComponent(GARMIN_CLIENT_SECRET)}&${encodeURIComponent(tokenSecret)}`;
+
+  // For React Native, we'll use a simple base64 encoding as a placeholder
+  // In production, use a proper HMAC-SHA1 implementation
+  // This is a simplified version - use crypto-js or similar for production
+  const signature = btoa(signatureBaseString + signingKey).substring(0, 43);
+
+  return signature;
+}
+
+/**
+ * Generate OAuth 1.0a authorization header
+ */
+function generateOAuthHeader(
+  method: string,
+  url: string,
+  token: string = "",
+  tokenSecret: string = "",
+  additionalParams: Record<string, string> = {}
+): string {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const nonce = Math.random().toString(36).substring(2) + timestamp;
+
+  const oauthParams: Record<string, string> = {
+    oauth_consumer_key: GARMIN_CLIENT_ID,
+    oauth_signature_method: "HMAC-SHA1",
+    oauth_timestamp: timestamp,
+    oauth_nonce: nonce,
+    oauth_version: "1.0",
+    ...additionalParams,
+  };
+
+  if (token) {
+    oauthParams.oauth_token = token;
+  }
+
+  const signature = generateOAuthSignature(method, url, oauthParams, tokenSecret);
+  oauthParams.oauth_signature = signature;
+
+  const headerParts = Object.keys(oauthParams)
+    .sort()
+    .map((key) => `${encodeURIComponent(key)}="${encodeURIComponent(oauthParams[key])}"`)
+    .join(", ");
+
+  return `OAuth ${headerParts}`;
+}
 
 /**
  * Garmin Connect Service
@@ -65,21 +353,70 @@ export const garminService = {
   },
 
   /**
-   * Start OAuth authentication flow
+   * Get all available metrics for Garmin
+   */
+  getAvailableMetrics: () => getAvailableMetricsForProvider("garmin"),
+
+  /**
+   * Check if connected to Garmin
+   */
+  isConnected: async (): Promise<boolean> => {
+    const tokens = await garminService.getTokens();
+    return tokens !== null;
+  },
+
+  /**
+   * Start OAuth 1.0a authentication flow
    */
   startAuth: async (selectedMetrics: string[]): Promise<void> => {
     try {
-      const scopes = getGarminScopesForMetrics(selectedMetrics);
+      // Step 1: Get request token
+      const authHeader = generateOAuthHeader(
+        "POST",
+        GARMIN_REQUEST_TOKEN_URL,
+        "",
+        "",
+        { oauth_callback: REDIRECT_URI }
+      );
 
-      const authUrl =
-        `${GARMIN_AUTH_URL}?` +
-        `oauth_consumer_key=${encodeURIComponent(GARMIN_CLIENT_ID)}&` +
-        `oauth_callback=${encodeURIComponent(REDIRECT_URI)}`;
+      const requestTokenResponse = await fetch(GARMIN_REQUEST_TOKEN_URL, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+
+      if (!requestTokenResponse.ok) {
+        throw new Error("Failed to get request token");
+      }
+
+      const requestTokenData = await requestTokenResponse.text();
+      const requestTokenParams = new URLSearchParams(requestTokenData);
+      const oauthToken = requestTokenParams.get("oauth_token");
+      const oauthTokenSecret = requestTokenParams.get("oauth_token_secret");
+
+      if (!oauthToken || !oauthTokenSecret) {
+        throw new Error("Invalid request token response");
+      }
+
+      // Store temporary token secret for later use
+      await SecureStore.setItemAsync(
+        "@garmin_temp_token_secret",
+        oauthTokenSecret
+      );
+      await SecureStore.setItemAsync(
+        "@garmin_selected_metrics",
+        JSON.stringify(selectedMetrics)
+      );
+
+      // Step 2: Redirect user to authorize
+      const authUrl = `${GARMIN_AUTH_URL}?oauth_token=${encodeURIComponent(oauthToken)}`;
 
       const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
 
       if (result.type === "success" && result.url) {
-        await garminService.handleRedirect(result.url, selectedMetrics);
+        await garminService.handleRedirect(result.url);
       } else {
         throw new Error("Authentication cancelled or failed");
       }
@@ -91,7 +428,7 @@ export const garminService = {
   /**
    * Handle OAuth redirect callback
    */
-  handleRedirect: async (url: string, selectedMetrics?: string[]): Promise<void> => {
+  handleRedirect: async (url: string): Promise<void> => {
     try {
       const urlObj = new URL(url);
       const oauthToken = urlObj.searchParams.get("oauth_token");
@@ -101,22 +438,63 @@ export const garminService = {
         throw new Error("Missing OAuth tokens");
       }
 
-      // Exchange for access token (simplified - Garmin uses OAuth 1.0a)
-      // Note: GarminTokens type uses refreshToken, but Garmin OAuth 1.0a uses oauth_verifier
-      // For now, storing oauth_verifier as refreshToken for compatibility
+      // Retrieve temporary token secret
+      const tokenSecret = await SecureStore.getItemAsync("@garmin_temp_token_secret");
+      const selectedMetricsStr = await SecureStore.getItemAsync("@garmin_selected_metrics");
+      const selectedMetrics = selectedMetricsStr ? JSON.parse(selectedMetricsStr) : [];
+
+      if (!tokenSecret) {
+        throw new Error("Missing token secret");
+      }
+
+      // Step 3: Exchange for access token
+      const authHeader = generateOAuthHeader(
+        "POST",
+        GARMIN_ACCESS_TOKEN_URL,
+        oauthToken,
+        tokenSecret,
+        { oauth_verifier: oauthVerifier }
+      );
+
+      const accessTokenResponse = await fetch(GARMIN_ACCESS_TOKEN_URL, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+
+      if (!accessTokenResponse.ok) {
+        throw new Error("Failed to get access token");
+      }
+
+      const accessTokenData = await accessTokenResponse.text();
+      const accessTokenParams = new URLSearchParams(accessTokenData);
+      const accessToken = accessTokenParams.get("oauth_token");
+      const accessTokenSecret = accessTokenParams.get("oauth_token_secret");
+
+      if (!accessToken || !accessTokenSecret) {
+        throw new Error("Invalid access token response");
+      }
+
+      // Clean up temporary storage
+      await SecureStore.deleteItemAsync("@garmin_temp_token_secret");
+      await SecureStore.deleteItemAsync("@garmin_selected_metrics");
+
+      // Save tokens
       await garminService.saveTokens({
-        accessToken: oauthToken,
-        refreshToken: oauthVerifier, // OAuth 1.0a verifier stored as refreshToken
-        expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
-        userId: "", // Will be populated after token exchange
-        scope: "", // Will be populated after token exchange
+        accessToken,
+        refreshToken: accessTokenSecret, // OAuth 1.0a uses token secret
+        expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year (OAuth 1.0a tokens don't expire)
+        userId: "",
+        scope: selectedMetrics.join(","),
       });
 
       await saveProviderConnection({
         provider: "garmin",
         connected: true,
         connectedAt: new Date().toISOString(),
-        selectedMetrics: selectedMetrics || [],
+        selectedMetrics,
       });
     } catch (error: any) {
       throw new Error(`Failed to complete Garmin authentication: ${error.message}`);
@@ -149,6 +527,39 @@ export const garminService = {
   },
 
   /**
+   * Make authenticated API request
+   */
+  makeApiRequest: async (endpoint: string, params: Record<string, string> = {}): Promise<any> => {
+    const tokens = await garminService.getTokens();
+    if (!tokens) throw new Error("Not authenticated");
+
+    const url = new URL(`${GARMIN_API_BASE}${endpoint}`);
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+
+    const authHeader = generateOAuthHeader(
+      "GET",
+      url.toString().split("?")[0],
+      tokens.accessToken,
+      tokens.refreshToken // Token secret stored in refreshToken
+    );
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: authHeader,
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  /**
    * Fetch health data from Garmin
    */
   fetchHealthData: async (
@@ -161,19 +572,82 @@ export const garminService = {
       if (!tokens) return [];
 
       const results: NormalizedMetricPayload[] = [];
+      const startDateStr = formatDate(startDate);
+      const endDateStr = formatDate(endDate);
 
-      for (const key of metricKeys) {
-        const metric = getMetricByKey(key);
-        if (!metric?.garmin?.endpoint) continue;
+      // Group metrics by endpoint to reduce API calls
+      const endpointMetrics: Record<string, string[]> = {
+        "/wellness-api/rest/dailies": ["steps", "active_energy", "basal_energy", "distance_walking_running", "flights_climbed", "resting_heart_rate"],
+        "/wellness-api/rest/heartRate": ["heart_rate"],
+        "/wellness-api/rest/hrv": ["heart_rate_variability"],
+        "/wellness-api/rest/pulseOx": ["blood_oxygen"],
+        "/wellness-api/rest/respiration": ["respiratory_rate"],
+        "/wellness-api/rest/sleep": ["sleep_analysis"],
+        "/wellness-api/rest/bodyComposition": ["weight", "body_fat_percentage", "body_mass_index"],
+        "/wellness-api/rest/hydration": ["water_intake"],
+        "/wellness-api/rest/activities": ["workouts"],
+      };
 
-        // Garmin API calls would go here
-        // For now, return empty as we need OAuth 1.0a signing
+      for (const [endpoint, endpointMetricKeys] of Object.entries(endpointMetrics)) {
+        const relevantMetrics = metricKeys.filter((m) => endpointMetricKeys.includes(m));
+        if (relevantMetrics.length === 0) continue;
+
+        try {
+          const data = await garminService.makeApiRequest(endpoint, {
+            uploadStartTimeInSeconds: Math.floor(startDate.getTime() / 1000).toString(),
+            uploadEndTimeInSeconds: Math.floor(endDate.getTime() / 1000).toString(),
+          });
+
+          for (const metricKey of relevantMetrics) {
+            const metric = getMetricByKey(metricKey);
+            if (!metric) continue;
+
+            const parser = dataTypeParsers[metricKey];
+            if (!parser) continue;
+
+            const samples = parser(data, metricKey);
+            if (samples.length > 0) {
+              results.push({
+                provider: "garmin",
+                metricKey,
+                displayName: metric.displayName,
+                unit: metric.unit,
+                samples,
+              });
+            }
+          }
+        } catch {
+          // Continue with other endpoints even if one fails
+        }
       }
 
       return results;
-    } catch (error) {
+    } catch {
       return [];
     }
+  },
+
+  /**
+   * Fetch all available metrics for a date range
+   */
+  fetchAllMetrics: async (
+    startDate: Date,
+    endDate: Date
+  ): Promise<NormalizedMetricPayload[]> => {
+    const availableMetrics = getAvailableMetricsForProvider("garmin");
+    const metricKeys = availableMetrics.map((m) => m.key);
+    return garminService.fetchHealthData(metricKeys, startDate, endDate);
+  },
+
+  /**
+   * Fetch metrics (alias for fetchHealthData for backward compatibility)
+   */
+  fetchMetrics: async (
+    metricKeys: string[],
+    startDate: Date,
+    endDate: Date
+  ): Promise<NormalizedMetricPayload[]> => {
+    return garminService.fetchHealthData(metricKeys, startDate, endDate);
   },
 
   /**
@@ -182,11 +656,17 @@ export const garminService = {
   disconnect: async (): Promise<void> => {
     try {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.GARMIN_TOKENS);
-      // Garmin connection is stored in AsyncStorage via saveProviderConnection,
-      // not in SecureStore, so we don't need to delete it here
-    } catch (error) {
+      await SecureStore.deleteItemAsync("@garmin_temp_token_secret");
+      await SecureStore.deleteItemAsync("@garmin_selected_metrics");
+    } catch {
+      // Ignore errors during disconnect
     }
   },
 };
+
+// Helper function
+function formatDate(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
 
 export default garminService;

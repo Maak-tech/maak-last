@@ -451,7 +451,7 @@ export default function VitalsScreen() {
 
         // Automatically sync to Firestore so family members can see the data
         // This runs in background and doesn't block UI
-        const provider = Platform.OS === "ios" ? "apple_health" : "google_health_connect";
+        const provider = Platform.OS === "ios" ? "apple_health" : "health_connect";
         syncHealthData(provider).catch(() => {
           // Silently fail - sync is not critical for displaying vitals
         });

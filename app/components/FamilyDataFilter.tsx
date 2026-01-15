@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -231,17 +230,14 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
       <Animated.View
         style={[styles.filtersContainer, { height: animatedHeight }]}
       >
-        <ScrollView
-          contentContainerStyle={[
+        <View
+          style={[
             styles.filtersScrollContainer,
             isRTL && styles.filtersScrollContainerRTL,
           ]}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersScroll}
         >
           {filterOptionsContent}
-        </ScrollView>
+        </View>
       </Animated.View>
 
       {/* Selected Filter Indicator */}

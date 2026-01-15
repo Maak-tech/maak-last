@@ -126,9 +126,15 @@ const resources = {
       configurationError: "Configuration Error",
       apiKeyMissing: "Please configure your OpenAI API key in the app settings.",
       tryAsking: "Try asking:",
+      trySaying: "Try saying:",
       tipHealthSummary: "What's my health summary?",
       tipMedications: "What medications am I taking?",
       tipVitals: "How are my vitals?",
+      tipHeadache: "I have a headache",
+      tipBloodPressure: "My blood pressure is 120 over 80",
+      tipReminder: "Remind me to take my aspirin at 9am",
+      tipMoodFeeling: "I'm feeling stressed today",
+      tipTookMedication: "I took my aspirin",
 
       // Dashboard
       healthOverview: "Health Overview",
@@ -885,9 +891,15 @@ const resources = {
       configurationError: "خطأ في الإعداد",
       apiKeyMissing: "يرجى إعداد مفتاح OpenAI API في إعدادات التطبيق.",
       tryAsking: "جرب أن تسأل:",
+      trySaying: "جرب أن تقول:",
       tipHealthSummary: "ما هو ملخص صحتي؟",
       tipMedications: "ما هي الأدوية التي أتناولها؟",
       tipVitals: "كيف هي العلامات الحيوية الخاصة بي؟",
+      tipHeadache: "لدي صداع",
+      tipBloodPressure: "ضغط دمي 120 على 80",
+      tipReminder: "ذكرني بتناول الأسبرين الساعة 9 صباحاً",
+      tipMoodFeeling: "أشعر بالتوتر اليوم",
+      tipTookMedication: "تناولت الأسبرين",
 
       // Dashboard
       healthOverview: "نظرة عامة على الصحة",

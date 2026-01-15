@@ -422,7 +422,19 @@ export const medicationService = {
         return [];
       }
 
-      // Get medications for all family members
+      // Firestore 'in' queries are limited to 10 items, so we need to batch if needed
+      if (memberIds.length > 10) {
+        // If more than 10 members, fetch medications for each member separately and combine
+        const medicationPromises = memberIds.map((memberId) =>
+          this.getUserMedications(memberId).catch(() => [] as Medication[])
+        );
+        const allMedicationsArrays = await Promise.all(medicationPromises);
+        const allMedications = allMedicationsArrays.flat();
+        // Sort by startDate descending
+        return allMedications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+      }
+
+      // Get medications for all family members (works for up to 10 members)
       const medicationsQuery = query(
         collection(db, "medications"),
         where("userId", "in", memberIds),
@@ -457,8 +469,33 @@ export const medicationService = {
       });
 
       return medications;
-    } catch (error) {
-      // Silently handle error getting family medications:", error);
+    } catch (error: any) {
+      // Check if it's an index error
+      if (error?.code === "failed-precondition") {
+        // Fallback: fetch medications for each member separately
+        try {
+          const familyMembersQuery = query(
+            collection(db, "users"),
+            where("familyId", "==", familyId)
+          );
+          const familyMembersSnapshot = await getDocs(familyMembersQuery);
+          const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+
+          if (memberIds.length === 0) {
+            return [];
+          }
+
+          const medicationPromises = memberIds.map((memberId) =>
+            this.getUserMedications(memberId).catch(() => [] as Medication[])
+          );
+          const allMedicationsArrays = await Promise.all(medicationPromises);
+          const allMedications = allMedicationsArrays.flat();
+          // Sort by startDate descending
+          return allMedications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+        } catch (fallbackError) {
+          throw new Error(`Failed to load family medications: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`);
+        }
+      }
       throw error;
     }
   },

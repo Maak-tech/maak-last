@@ -259,7 +259,7 @@ class CaregiverDashboardService {
       // Create alert
       const alertId = await alertService.createAlert({
         userId,
-        type: type === "medical" ? "emergency" : type,
+        type: type === "medical" ? "emergency" : type === "other" ? "emergency" : type,
         severity: "critical",
         message,
         timestamp: new Date(),

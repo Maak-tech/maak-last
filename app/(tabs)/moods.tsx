@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { moodService } from "@/lib/services/moodService";
 import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
 import type { Mood, MoodType, User as UserType } from "@/types";
 
 const MOOD_OPTIONS = [
@@ -88,8 +89,11 @@ export default function MoodsScreen() {
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
-  const loadMoods = async (isRefresh = false) => {
+  const loadMoods = useCallback(async (isRefresh = false) => {
     if (!user) return;
+
+    const startTime = Date.now();
+    let dataLoaded = false;
 
     try {
       if (isRefresh) {
@@ -97,6 +101,13 @@ export default function MoodsScreen() {
       } else {
         setLoading(true);
       }
+
+      logger.debug("Loading moods", {
+        userId: user.id,
+        filterType: selectedFilter.type,
+        isAdmin,
+        hasFamily: Boolean(user.familyId),
+      }, "MoodsScreen");
 
       // Always load family members first if user has family
       let members: UserType[] = [];
@@ -106,124 +117,145 @@ export default function MoodsScreen() {
       }
 
       // Load data based on selected filter
-      // Load moods and stats separately to handle errors gracefully
-      let moodsError: any = null;
-      let statsError: any = null;
-      
+      // Use Promise.allSettled to handle partial failures gracefully
       if (selectedFilter.type === "family" && user.familyId && isAdmin) {
         // Load family moods and stats (admin only)
-        try {
-          const familyMoods = await moodService.getFamilyMoods(user.id, user.familyId, 50);
-          setMoods(familyMoods);
-        } catch (error: any) {
-          moodsError = error;
+        const [moodsResult, statsResult] = await Promise.allSettled([
+          moodService.getFamilyMoods(user.id, user.familyId, 50),
+          moodService.getFamilyMoodStats(user.id, user.familyId, 7),
+        ]);
+
+        if (moodsResult.status === "fulfilled") {
+          setMoods(moodsResult.value);
+          dataLoaded = true;
+        } else {
+          logger.error("Failed to load family moods", moodsResult.reason, "MoodsScreen");
           setMoods([]);
         }
 
-        try {
-          const familyStats = await moodService.getFamilyMoodStats(user.id, user.familyId, 7);
-          setStats(familyStats);
-        } catch (error: any) {
-          statsError = error;
-          // Keep default stats if stats fail, but track the error
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          logger.error("Failed to load family mood stats", statsResult.reason, "MoodsScreen");
           setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
         }
       } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
         // Load specific member moods and stats (admin only)
-        try {
-          const memberMoods = await moodService.getMemberMoods(selectedFilter.memberId, 50);
-          setMoods(memberMoods);
-        } catch (error: any) {
-          moodsError = error;
+        const [moodsResult, statsResult] = await Promise.allSettled([
+          moodService.getMemberMoods(selectedFilter.memberId, 50),
+          moodService.getMemberMoodStats(selectedFilter.memberId, 7),
+        ]);
+
+        if (moodsResult.status === "fulfilled") {
+          setMoods(moodsResult.value);
+          dataLoaded = true;
+        } else {
+          logger.error("Failed to load member moods", moodsResult.reason, "MoodsScreen");
           setMoods([]);
         }
 
-        try {
-          const memberStats = await moodService.getMemberMoodStats(selectedFilter.memberId, 7);
-          setStats(memberStats);
-        } catch (error: any) {
-          statsError = error;
-          // Keep default stats if stats fail, but track the error
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          logger.error("Failed to load member mood stats", statsResult.reason, "MoodsScreen");
           setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
         }
       } else {
         // Load personal moods and stats (default)
-        try {
-          const userMoods = await moodService.getUserMoods(user.id, 50);
-          setMoods(userMoods);
-        } catch (error: any) {
-          moodsError = error;
+        const [moodsResult, statsResult] = await Promise.allSettled([
+          moodService.getUserMoods(user.id, 50),
+          moodService.getMoodStats(user.id, 7),
+        ]);
+
+        if (moodsResult.status === "fulfilled") {
+          setMoods(moodsResult.value);
+          dataLoaded = true;
+        } else {
+          logger.error("Failed to load user moods", moodsResult.reason, "MoodsScreen");
           setMoods([]);
         }
-        
-        try {
-          const moodStats = await moodService.getMoodStats(user.id, 7);
-          setStats(moodStats);
-        } catch (error: any) {
-          statsError = error;
-          // Keep default stats if stats fail, but track the error
+
+        if (statsResult.status === "fulfilled") {
+          setStats(statsResult.value);
+        } else {
+          logger.error("Failed to load mood stats", statsResult.reason, "MoodsScreen");
           setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
         }
       }
-      
-      // Handle errors: prioritize moods error, but also report stats errors
-      if (moodsError) {
-        // If moods failed, throw the error (this is critical)
-        throw moodsError;
-      } else if (statsError) {
-        // If only stats failed, show a warning but don't throw (partial data is still useful)
-        // This allows moods to display even if stats couldn't be loaded
-        const statsErrorMessage = isRTL
-          ? "تم تحميل المزاجات بنجاح، لكن تعذر تحميل الإحصائيات. قد لا تكون البيانات الإحصائية دقيقة."
-          : "Moods loaded successfully, but statistics could not be loaded. Statistics may be incomplete.";
-        
-        // Show a non-blocking warning
-        Alert.alert(
-          isRTL ? "تحذير" : "Warning",
-          statsErrorMessage
-        );
-      }
+
+      const durationMs = Date.now() - startTime;
+      logger.info("Moods loaded", {
+        userId: user.id,
+        filterType: selectedFilter.type,
+        moodCount: moods.length,
+        statsLoaded: stats.totalMoods > 0 || stats.avgIntensity > 0,
+        durationMs,
+      }, "MoodsScreen");
     } catch (error: any) {
-      // Provide more specific error messages
-      let errorMessage = isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
+      const durationMs = Date.now() - startTime;
       
-      if (error?.message) {
-        if (error.message.includes("index") || error.message.includes("indexes")) {
-          errorMessage = isRTL
-            ? "خطأ في قاعدة البيانات. يرجى المحاولة مرة أخرى."
-            : "Database error. Please try again.";
-        } else if (error.message.includes("permission") || error.message.includes("Permission")) {
-          errorMessage = isRTL
-            ? "ليس لديك صلاحية لعرض البيانات. يرجى التحقق من إعدادات الحساب."
-            : "You don't have permission to view data. Please check your account settings.";
-        } else if (error.message.includes("network") || error.message.includes("Network")) {
-          errorMessage = isRTL
-            ? "خطأ في الاتصال بالإنترنت. يرجى المحاولة مرة أخرى."
-            : "Network error. Please try again.";
-        } else {
-          errorMessage = isRTL
-            ? `حدث خطأ في تحميل البيانات: ${error.message}`
-            : `Error loading data: ${error.message}`;
+      // Check if it's a Firestore index error
+      const isIndexError = error && typeof error === 'object' && 
+        'code' in error && error.code === 'failed-precondition';
+      
+      if (isIndexError) {
+        logger.warn("Firestore index not ready for moods query", {
+          userId: user.id,
+          filterType: selectedFilter.type,
+          durationMs,
+        }, "MoodsScreen");
+        
+        // Only show alert if no data was loaded (fallback should have handled it)
+        if (!dataLoaded) {
+          Alert.alert(
+            isRTL ? "خطأ" : "Error",
+            isRTL 
+              ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
+              : "Database index not ready. Please try again in a moment."
+          );
+        }
+      } else {
+        logger.error("Failed to load moods", error, "MoodsScreen");
+        
+        // Only show alert if no data was loaded
+        if (!dataLoaded) {
+          let errorMessage = isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
+          
+          if (error?.message) {
+            if (error.message.includes("permission") || error.message.includes("Permission")) {
+              errorMessage = isRTL
+                ? "ليس لديك صلاحية لعرض البيانات. يرجى التحقق من إعدادات الحساب."
+                : "You don't have permission to view data. Please check your account settings.";
+            } else if (error.message.includes("network") || error.message.includes("Network")) {
+              errorMessage = isRTL
+                ? "خطأ في الاتصال بالإنترنت. يرجى المحاولة مرة أخرى."
+                : "Network error. Please try again.";
+            } else {
+              errorMessage = isRTL
+                ? `حدث خطأ في تحميل البيانات: ${error.message}`
+                : `Error loading data: ${error.message}`;
+            }
+          }
+          
+          Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
         }
       }
-      
-      Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [user, selectedFilter, isAdmin, isRTL]);
 
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
       loadMoods();
-    }, [user, selectedFilter])
+    }, [loadMoods])
   );
 
   useEffect(() => {
     loadMoods();
-  }, [user, selectedFilter]);
+  }, [loadMoods]);
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);

@@ -175,23 +175,25 @@ export default function TimelineScreen() {
     timelineLine: {
       width: 2,
       backgroundColor: theme.colors.border.light,
-      marginLeft: isRTL ? 0 : theme.spacing.base + 11,
-      marginRight: isRTL ? theme.spacing.base + 11 : 0,
+      marginLeft: isRTL ? 0 : theme.spacing.base + 15,
+      marginRight: isRTL ? theme.spacing.base + 15 : 0,
       minHeight: 20,
     },
     eventItem: {
       flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
       marginBottom: theme.spacing.base,
     },
     eventDot: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       borderWidth: 3,
       borderColor: theme.colors.background.primary,
       marginLeft: isRTL ? 0 : theme.spacing.base,
       marginRight: isRTL ? theme.spacing.base : 0,
-      marginTop: 2,
+      justifyContent: "center",
+      alignItems: "center",
     },
     eventContent: {
       flex: 1,
@@ -600,7 +602,7 @@ export default function TimelineScreen() {
                           ]}
                         >
                           <IconComponent
-                            size={12}
+                            size={18}
                             color={theme.colors.neutral.white}
                           />
                         </View>

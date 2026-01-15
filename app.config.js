@@ -191,6 +191,7 @@ export default {
       ouraClientSecret: process.env.OURA_CLIENT_SECRET || "",
       dexcomClientId: process.env.DEXCOM_CLIENT_ID || "",
       dexcomClientSecret: process.env.DEXCOM_CLIENT_SECRET || "",
+      dexcomRedirectUri: process.env.DEXCOM_REDIRECT_URI || "https://maak-5caad.web.app/dexcom-callback",
       // Both regular and premium users use the same OpenAI API key
       openaiApiKey: process.env.OPENAI_API_KEY || "",
       zeinaApiKey: process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY || "", // Prefer ZEINA_API_KEY if set

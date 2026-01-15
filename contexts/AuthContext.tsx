@@ -12,10 +12,12 @@ import {
   ConfirmationResult,
   signOut,
   updatePassword,
+  RecaptchaVerifier,
+  type RecaptchaVerifier as RecaptchaVerifierType,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Alert, Platform } from "react-native";
 import { auth, db } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
@@ -93,6 +95,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  // Store reCAPTCHA verifier for web phone auth
+  const recaptchaVerifierRef = useRef<RecaptchaVerifierType | null>(null);
 
   // Helper function to create/get user document from Firestore
   const getUserDocument = async (
@@ -588,15 +592,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logger.info("Verification code sent successfully via RN Firebase", { formattedPhone }, "AuthContext");
         setLoading(false);
         return confirmation;
-      } else {
-        // Use web SDK for web platform
+      } else if (Platform.OS === "web") {
+        // Use web SDK for web platform - requires reCAPTCHA verifier
+        // Create reCAPTCHA verifier if it doesn't exist
+        if (!recaptchaVerifierRef.current) {
+          if (typeof document === "undefined") {
+            throw new Error("reCAPTCHA verifier cannot be created - document is not available");
+          }
+          
+          try {
+            // Create invisible reCAPTCHA verifier
+            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
+              size: "invisible",
+              callback: () => {
+                // reCAPTCHA solved, will proceed automatically
+              },
+              "expired-callback": () => {
+                // reCAPTCHA expired, user needs to retry
+                recaptchaVerifierRef.current = null;
+              },
+            });
+          } catch (error: any) {
+            // If container doesn't exist, create it dynamically
+            if (typeof document !== "undefined") {
+              let container = document.getElementById("recaptcha-container");
+              if (!container) {
+                container = document.createElement("div");
+                container.id = "recaptcha-container";
+                container.style.display = "none";
+                document.body.appendChild(container);
+              }
+              recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
+                size: "invisible",
+                callback: () => {
+                  // reCAPTCHA solved
+                },
+                "expired-callback": () => {
+                  recaptchaVerifierRef.current = null;
+                },
+              });
+            } else {
+              throw new Error("reCAPTCHA verifier cannot be created in this environment");
+            }
+          }
+        }
+
+        // Ensure verifier was created successfully before proceeding
+        if (!recaptchaVerifierRef.current) {
+          throw new Error("Failed to create reCAPTCHA verifier. Please refresh the page and try again.");
+        }
+
         const confirmationResult = await signInWithPhoneNumber(
           auth,
-          formattedPhone
+          formattedPhone,
+          recaptchaVerifierRef.current
         );
         logger.info("Verification code sent successfully via web SDK", { formattedPhone }, "AuthContext");
         setLoading(false);
         return confirmationResult;
+      } else {
+        // Fallback: native platform but RN Firebase not available
+        // Check if we're in Expo Go
+        let isExpoGo = false;
+        try {
+          const Constants = await import("expo-constants");
+          isExpoGo = Constants.default.appOwnership === "expo";
+        } catch {
+          // Could not determine, assume not Expo Go
+        }
+        
+        if (isExpoGo) {
+          throw new Error("Phone authentication is not available in Expo Go. Please use a development build (run 'eas build --profile development' or 'expo run:android'/'expo run:ios').");
+        } else {
+          throw new Error("Phone authentication requires React Native Firebase. Please ensure @react-native-firebase/auth is properly installed and rebuild the app.");
+        }
       }
     } catch (error: any) {
       setLoading(false);
@@ -610,9 +679,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       let errorMessage = "Failed to send verification code. Please try again.";
 
-      // Check for the specific reCAPTCHA/verify error which means native SDK not available
-      if (error.message?.includes("verify") || error.message?.includes("undefined")) {
-        errorMessage = "Phone authentication requires a native build. Please rebuild the app with EAS Build.";
+      // Check for the specific reCAPTCHA/verify error
+      if (error.message?.includes("verify") || error.message?.includes("undefined") || error.message?.includes("cannot read property")) {
+        if (Platform.OS === "web") {
+          errorMessage = "reCAPTCHA verification failed. Please refresh the page and try again.";
+        } else {
+          errorMessage = "Phone authentication requires React Native Firebase. Please rebuild the app with EAS Build or ensure @react-native-firebase/auth is properly installed.";
+        }
       } else if (error.code === "auth/invalid-phone-number") {
         errorMessage = "Invalid phone number format. Please include country code (e.g., +1234567890).";
       } else if (error.code === "auth/too-many-requests") {
@@ -755,23 +828,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logger.info("Verification code sent successfully via RN Firebase", { formattedPhone }, "AuthContext");
         setLoading(false);
         return confirmation;
-      } else {
-        // Use web SDK for web platform
+      } else if (Platform.OS === "web") {
+        // Use web SDK for web platform - requires reCAPTCHA verifier
+        // Create reCAPTCHA verifier if it doesn't exist
+        if (!recaptchaVerifierRef.current) {
+          if (typeof document === "undefined") {
+            throw new Error("reCAPTCHA verifier cannot be created - document is not available");
+          }
+          
+          try {
+            // Create invisible reCAPTCHA verifier
+            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
+              size: "invisible",
+              callback: () => {
+                // reCAPTCHA solved, will proceed automatically
+              },
+              "expired-callback": () => {
+                // reCAPTCHA expired, user needs to retry
+                recaptchaVerifierRef.current = null;
+              },
+            });
+          } catch (error: any) {
+            // If container doesn't exist, create it dynamically
+            if (typeof document !== "undefined") {
+              let container = document.getElementById("recaptcha-container");
+              if (!container) {
+                container = document.createElement("div");
+                container.id = "recaptcha-container";
+                container.style.display = "none";
+                document.body.appendChild(container);
+              }
+              recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
+                size: "invisible",
+                callback: () => {
+                  // reCAPTCHA solved
+                },
+                "expired-callback": () => {
+                  recaptchaVerifierRef.current = null;
+                },
+              });
+            } else {
+              throw new Error("reCAPTCHA verifier cannot be created in this environment");
+            }
+          }
+        }
+
+        // Ensure verifier was created successfully before proceeding
+        if (!recaptchaVerifierRef.current) {
+          throw new Error("Failed to create reCAPTCHA verifier. Please refresh the page and try again.");
+        }
+
         const confirmationResult = await signInWithPhoneNumber(
           auth,
-          formattedPhone
+          formattedPhone,
+          recaptchaVerifierRef.current
         );
         logger.info("Verification code sent successfully via web SDK", { formattedPhone }, "AuthContext");
         setLoading(false);
         return confirmationResult;
+      } else {
+        // Fallback: native platform but RN Firebase not available
+        // Check if we're in Expo Go
+        let isExpoGo = false;
+        try {
+          const Constants = await import("expo-constants");
+          isExpoGo = Constants.default.appOwnership === "expo";
+        } catch {
+          // Could not determine, assume not Expo Go
+        }
+        
+        if (isExpoGo) {
+          throw new Error("Phone authentication is not available in Expo Go. Please use a development build (run 'eas build --profile development' or 'expo run:android'/'expo run:ios').");
+        } else {
+          throw new Error("Phone authentication requires React Native Firebase. Please ensure @react-native-firebase/auth is properly installed and rebuild the app.");
+        }
       }
     } catch (error: any) {
       setLoading(false);
       let errorMessage = "Failed to send verification code. Please try again.";
 
-      // Check for the specific reCAPTCHA/verify error which means native SDK not available
-      if (error.message?.includes("verify") || error.message?.includes("undefined")) {
-        errorMessage = "Phone authentication requires a native build. Please rebuild the app with EAS Build.";
+      // Check for the specific reCAPTCHA/verify error
+      if (error.message?.includes("verify") || error.message?.includes("undefined") || error.message?.includes("cannot read property")) {
+        if (Platform.OS === "web") {
+          errorMessage = "reCAPTCHA verification failed. Please refresh the page and try again.";
+        } else {
+          errorMessage = "Phone authentication requires React Native Firebase. Please rebuild the app with EAS Build or ensure @react-native-firebase/auth is properly installed.";
+        }
       } else if (error.code === "auth/invalid-phone-number") {
         errorMessage = "Invalid phone number format.";
       } else if (error.code === "auth/user-not-found") {

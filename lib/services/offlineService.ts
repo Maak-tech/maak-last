@@ -79,8 +79,14 @@ class OfflineService {
       }
 
       // Notify listeners if status changed
-      if (wasOnline !== this.isOnline) {
-        this.syncListeners.forEach((listener) => listener(this.isOnline));
+      if (wasOnline !== this.isOnline && this.syncListeners && Array.isArray(this.syncListeners)) {
+        this.syncListeners.forEach((listener) => {
+          try {
+            listener(this.isOnline);
+          } catch (error) {
+            console.error("Error in sync listener:", error);
+          }
+        });
       }
     }, 10000); // Check every 10 seconds
   }
@@ -92,6 +98,10 @@ class OfflineService {
     if (this.networkCheckInterval) {
       clearInterval(this.networkCheckInterval);
       this.networkCheckInterval = null;
+    }
+    // Clear listeners to prevent memory leaks
+    if (this.syncListeners) {
+      this.syncListeners = [];
     }
   }
 
@@ -106,9 +116,14 @@ class OfflineService {
    * Subscribe to network status changes
    */
   onNetworkStatusChange(listener: (isOnline: boolean) => void): () => void {
+    if (!this.syncListeners) {
+      this.syncListeners = [];
+    }
     this.syncListeners.push(listener);
     return () => {
-      this.syncListeners = this.syncListeners.filter((l) => l !== listener);
+      if (this.syncListeners && Array.isArray(this.syncListeners)) {
+        this.syncListeners = this.syncListeners.filter((l) => l !== listener);
+      }
     };
   }
 

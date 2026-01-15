@@ -79,6 +79,7 @@ import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
 import { revenueCatService, PLAN_LIMITS } from "@/lib/services/revenueCatService";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import * as Print from "expo-print";
 import {
   familyHealthReportService,
   type FamilyHealthReport,
@@ -196,7 +197,7 @@ export default function FamilyScreen() {
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
   const isRTL = i18n.language === "ar";
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "caregiver";
   const hasFamily = Boolean(user?.familyId);
   const viewModeInitialized = useRef(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
@@ -587,7 +588,7 @@ export default function FamilyScreen() {
 
   // Load caregiver dashboard data
   const loadCaregiverDashboard = useCallback(async () => {
-    if (!user || !user.familyId || user.role !== "admin") {
+    if (!user || !user.familyId || (user.role !== "admin" && user.role !== "caregiver")) {
       setCaregiverOverview(null);
       return;
     }
@@ -753,13 +754,28 @@ export default function FamilyScreen() {
   };
 
   const getFilteredMedicationEntries = () => {
+    let entries;
     if (medicationScheduleViewMode === "today" && todaySchedule) {
-      return todaySchedule.entries;
+      entries = todaySchedule.entries;
+    } else if (medicationScheduleViewMode === "upcoming") {
+      entries = upcomingSchedule.flatMap((day) => day.entries);
+    } else {
+      entries = medicationScheduleEntries;
     }
-    if (medicationScheduleViewMode === "upcoming") {
-      return upcomingSchedule.flatMap((day) => day.entries);
+
+    // Filter entries based on selectedFilter
+    if (selectedFilter.type === "personal") {
+      // Show only current user's medications
+      return entries.filter((entry) => entry.member.id === user?.id);
+    } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+      // Show only selected member's medications
+      return entries.filter((entry) => entry.member.id === selectedFilter.memberId);
+    } else if (selectedFilter.type === "family") {
+      // Show all family members' medications
+      return entries;
     }
-    return medicationScheduleEntries;
+    // Default to personal
+    return entries.filter((entry) => entry.member.id === user?.id);
   };
 
   const handleInviteMember = async () => {
@@ -906,8 +922,8 @@ export default function FamilyScreen() {
   };
 
   const handleEditMember = (member: User) => {
-    // Check permissions: admins can edit anyone, members can only edit themselves
-    const canEdit = user?.role === "admin" || user?.id === member.id;
+    // Check permissions: admins/caregivers can edit anyone, members can only edit themselves
+    const canEdit = (user?.role === "admin" || user?.role === "caregiver") || user?.id === member.id;
 
     if (!canEdit) {
       Alert.alert(
@@ -948,11 +964,12 @@ export default function FamilyScreen() {
         lastName: editMemberForm.lastName.trim(),
       };
 
-      // Only admins can change roles and only for other users (not themselves)
-      if (user.role === "admin" && user.id !== editMemberForm.id) {
+      // Only admins/caregivers can change roles and only for other users (not themselves)
+      if ((user.role === "admin" || user.role === "caregiver") && user.id !== editMemberForm.id) {
         if (
           editMemberForm.role !== "admin" &&
-          editMemberForm.role !== "member"
+          editMemberForm.role !== "member" &&
+          editMemberForm.role !== "caregiver"
         ) {
           Alert.alert(
             isRTL ? "خطأ" : "Error",
@@ -1201,51 +1218,25 @@ export default function FamilyScreen() {
     }
   };
 
-  const handleExportJSON = async () => {
+  const handleExportPDF = async () => {
     if (!healthReport) return;
 
     try {
-      const jsonContent = await familyHealthReportService.exportReportAsJSON(
-        healthReport
-      );
-      const fileName = `family-health-report-${Date.now()}.json`;
-      const documentDir = (FileSystem as any).documentDirectory || "";
-      const fileUri = `${documentDir}${fileName}`;
-
-      await FileSystem.writeAsStringAsync(fileUri, jsonContent);
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri);
-      } else {
-        Alert.alert(
-          isRTL ? "خطأ" : "Error",
-          isRTL ? "مشاركة الملف غير متاحة" : "File sharing not available"
-        );
-      }
-    } catch (error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل تصدير التقرير" : "Failed to export report"
-      );
-    }
-  };
-
-  const handleExportText = async () => {
-    if (!healthReport) return;
-
-    try {
-      const textContent = familyHealthReportService.formatReportAsText(
+      // Generate HTML content for PDF
+      const htmlContent = familyHealthReportService.formatReportAsHTML(
         healthReport,
         isRTL
       );
-      const fileName = `family-health-report-${Date.now()}.txt`;
-      const documentDir = (FileSystem as any).documentDirectory || "";
-      const fileUri = `${documentDir}${fileName}`;
 
-      await FileSystem.writeAsStringAsync(fileUri, textContent);
+      // Generate PDF using expo-print
+      const { uri } = await Print.printToFileAsync({
+        html: htmlContent,
+        base64: false,
+      });
 
+      // Share the PDF file
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri);
+        await Sharing.shareAsync(uri);
       } else {
         Alert.alert(
           isRTL ? "خطأ" : "Error",
@@ -1253,25 +1244,28 @@ export default function FamilyScreen() {
         );
       }
     } catch (error) {
+      console.error("Failed to export PDF report:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل تصدير التقرير" : "Failed to export report"
+        isRTL 
+          ? `فشل تصدير التقرير: ${error instanceof Error ? error.message : "خطأ غير معروف"}`
+          : `Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   };
 
   const getHealthScoreColor = (score: number) => {
-    if (score >= 80) return "#10B981"; // Green
-    if (score >= 60) return "#F59E0B"; // Orange
-    return "#EF4444"; // Red
+    if (score >= 80) return theme.colors.health.excellent; // Green
+    if (score >= 60) return theme.colors.health.fair; // Orange/Yellow
+    return theme.colors.health.critical; // Red
   };
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "improving":
-        return <TrendingUp size={16} color="#10B981" />;
+        return <TrendingUp size={16} color={theme.colors.health.excellent} />;
       case "worsening":
-        return <TrendingDown size={16} color="#EF4444" />;
+        return <TrendingDown size={16} color={theme.colors.health.critical} />;
       default:
         return null;
     }
@@ -1616,16 +1610,35 @@ export default function FamilyScreen() {
     }
   };
 
+  // Filter member metrics based on selected filter
+  const getFilteredMemberMetrics = () => {
+    if (selectedFilter.type === "personal") {
+      // Show only current user's data
+      return memberMetrics.filter((metric) => metric.user.id === user?.id);
+    } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+      // Show only selected member's data
+      return memberMetrics.filter((metric) => metric.user.id === selectedFilter.memberId);
+    } else if (selectedFilter.type === "family") {
+      // Show all family members' data
+      return memberMetrics;
+    }
+    // Default to personal
+    return memberMetrics.filter((metric) => metric.user.id === user?.id);
+  };
+
+  const filteredMemberMetrics = getFilteredMemberMetrics();
+
   const getFamilyStats = () => {
-    const totalMembers = familyMembers.length;
-    const activeMembers = familyMembers.length; // All loaded members are active
+    const metricsToUse = filteredMemberMetrics;
+    const totalMembers = metricsToUse.length;
+    const activeMembers = metricsToUse.length; // All loaded members are active
     
-    // Calculate total alerts from member metrics
-    const totalAlerts = memberMetrics.reduce((sum, member) => sum + member.alertsCount, 0);
+    // Calculate total alerts from filtered member metrics
+    const totalAlerts = metricsToUse.reduce((sum, member) => sum + member.alertsCount, 0);
     
-    // Calculate average health score from member metrics
-    const avgHealthScore = memberMetrics.length > 0
-      ? Math.round(memberMetrics.reduce((sum, member) => sum + member.healthScore, 0) / memberMetrics.length)
+    // Calculate average health score from filtered member metrics
+    const avgHealthScore = metricsToUse.length > 0
+      ? Math.round(metricsToUse.reduce((sum, member) => sum + member.healthScore, 0) / metricsToUse.length)
       : 100; // Default to 100 if no members
 
     return { totalMembers, activeMembers, totalAlerts, avgHealthScore };
@@ -1673,9 +1686,10 @@ export default function FamilyScreen() {
     return false;
   };
 
-  // Get items that need attention
+  // Get items that need attention (filtered based on selectedFilter)
   const getItemsNeedingAttention = () => {
-    if (memberMetrics.length === 0) {
+    const metricsToUse = filteredMemberMetrics;
+    if (metricsToUse.length === 0) {
       return [];
     }
 
@@ -1688,7 +1702,7 @@ export default function FamilyScreen() {
       trend?: "up" | "down" | "stable";
     }> = [];
 
-    memberMetrics.forEach((metric) => {
+    metricsToUse.forEach((metric) => {
       const fullName =
         metric.user.firstName && metric.user.lastName
           ? `${metric.user.firstName} ${metric.user.lastName}`
@@ -1852,7 +1866,9 @@ export default function FamilyScreen() {
         {/* Family Overview */}
         <View style={styles.overviewCard}>
           <Text style={[styles.overviewTitle, isRTL && styles.rtlText]}>
-            {isRTL ? "نظرة عامة على العائلة" : "Family Overview"}
+            {selectedFilter.type === "personal"
+              ? isRTL ? "نظرة عامة" : "My Overview"
+              : isRTL ? "نظرة عامة على العائلة" : "Family Overview"}
           </Text>
 
           <View style={styles.statsGrid}>
@@ -2045,72 +2061,105 @@ export default function FamilyScreen() {
                 </View>
               ) : caregiverOverview ? (
                 <View>
-                  {/* Summary Section */}
-                  <Card variant="elevated" style={{ marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                    <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.base }]}>
-                      {isRTL ? "الملخص" : "Overview"}
-                    </Heading>
-                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: theme.spacing.base }}>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                        <Users size={32} color={theme.colors.primary.main} />
-                        <Text 
-                          numberOfLines={1}
-                          adjustsFontSizeToFit={true}
-                          minimumFontScale={0.7}
-                          style={[getTextStyle(theme, "heading", "bold", theme.colors.text.primary), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
-                          {caregiverOverview.totalMembers}
-                        </Text>
-                        <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
-                          {isRTL ? "إجمالي الأعضاء" : "Total Members"}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                        <AlertTriangle size={32} color={theme.colors.accent.error} />
-                        <Text 
-                          numberOfLines={1}
-                          adjustsFontSizeToFit={true}
-                          minimumFontScale={0.7}
-                          style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.error), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
-                          {caregiverOverview.membersNeedingAttention}
-                        </Text>
-                        <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
-                          {isRTL ? "يحتاجون انتباه" : "Need Attention"}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                        <AlertTriangle size={32} color={theme.colors.accent.warning} />
-                        <Text 
-                          numberOfLines={1}
-                          adjustsFontSizeToFit={true}
-                          minimumFontScale={0.7}
-                          style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.warning), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
-                          {caregiverOverview.totalActiveAlerts}
-                        </Text>
-                        <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
-                          {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                        <Heart size={32} color={caregiverOverview.averageHealthScore >= 80 ? "#10B981" : caregiverOverview.averageHealthScore >= 60 ? "#F59E0B" : "#EF4444"} />
-                        <Text 
-                          numberOfLines={1}
-                          adjustsFontSizeToFit={true}
-                          minimumFontScale={0.7}
-                          style={[getTextStyle(theme, "heading", "bold", caregiverOverview.averageHealthScore >= 80 ? "#10B981" : caregiverOverview.averageHealthScore >= 60 ? "#F59E0B" : "#EF4444"), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
-                          {caregiverOverview.averageHealthScore}
-                        </Text>
-                        <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
-                          {isRTL ? "متوسط النقاط" : "Avg Health Score"}
-                        </Text>
-                      </View>
-                    </View>
-                  </Card>
+                  {/* Calculate filtered stats */}
+                  {(() => {
+                    const filteredMembers = caregiverOverview.members.filter((memberData) => {
+                      if (selectedFilter.type === "personal") {
+                        return memberData.member.id === user?.id;
+                      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+                        return memberData.member.id === selectedFilter.memberId;
+                      } else if (selectedFilter.type === "family") {
+                        return true;
+                      }
+                      return memberData.member.id === user?.id;
+                    });
+                    
+                    const filteredTotalMembers = filteredMembers.length;
+                    const filteredMembersNeedingAttention = filteredMembers.filter(m => m.needsAttention).length;
+                    const filteredTotalActiveAlerts = filteredMembers.reduce((sum, m) => sum + m.recentAlerts.filter(a => !a.resolved).length, 0);
+                    const filteredAverageHealthScore = filteredMembers.length > 0
+                      ? Math.round(filteredMembers.reduce((sum, m) => sum + m.healthScore, 0) / filteredMembers.length)
+                      : 0;
+                    
+                    return (
+                      <Card variant="elevated" style={{ marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
+                        <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.base }]}>
+                          {isRTL ? "الملخص" : "Overview"}
+                        </Heading>
+                        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: theme.spacing.base }}>
+                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
+                            <Users size={32} color={theme.colors.primary.main} />
+                            <Text 
+                              numberOfLines={1}
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.7}
+                              style={[getTextStyle(theme, "heading", "bold", theme.colors.text.primary), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              {filteredTotalMembers}
+                            </Text>
+                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                              {isRTL ? "إجمالي الأعضاء" : "Total Members"}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
+                            <AlertTriangle size={32} color={theme.colors.accent.error} />
+                            <Text 
+                              numberOfLines={1}
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.7}
+                              style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.error), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              {filteredMembersNeedingAttention}
+                            </Text>
+                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                              {isRTL ? "يحتاجون انتباه" : "Need Attention"}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
+                            <AlertTriangle size={32} color={theme.colors.accent.warning} />
+                            <Text 
+                              numberOfLines={1}
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.7}
+                              style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.warning), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              {filteredTotalActiveAlerts}
+                            </Text>
+                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                              {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
+                            <Heart size={32} color={filteredAverageHealthScore >= 80 ? "#10B981" : filteredAverageHealthScore >= 60 ? "#F59E0B" : "#EF4444"} />
+                            <Text 
+                              numberOfLines={1}
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.7}
+                              style={[getTextStyle(theme, "heading", "bold", filteredAverageHealthScore >= 80 ? "#10B981" : filteredAverageHealthScore >= 60 ? "#F59E0B" : "#EF4444"), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              {filteredAverageHealthScore}
+                            </Text>
+                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                              {isRTL ? "متوسط النقاط" : "Avg Health Score"}
+                            </Text>
+                          </View>
+                        </View>
+                      </Card>
+                    );
+                  })()}
 
                   {/* Member Details */}
                   <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.base, marginTop: theme.spacing.base }]}>
                     {isRTL ? "تفاصيل الأعضاء" : "Member Details"}
                   </Heading>
-                  {caregiverOverview.members.map((memberData) => (
+                  {caregiverOverview.members
+                    .filter((memberData) => {
+                      if (selectedFilter.type === "personal") {
+                        return memberData.member.id === user?.id;
+                      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+                        return memberData.member.id === selectedFilter.memberId;
+                      } else if (selectedFilter.type === "family") {
+                        return true;
+                      }
+                      return memberData.member.id === user?.id;
+                    })
+                    .map((memberData) => (
                     <Card
                       key={memberData.member.id}
                       variant="elevated"
@@ -2258,7 +2307,7 @@ export default function FamilyScreen() {
                 </View>
               ) : (
                 <View style={styles.dashboardGrid}>
-                {memberMetrics.map((metric) => {
+                {filteredMemberMetrics.map((metric) => {
                   const fullName =
                     metric.user.firstName && metric.user.lastName
                       ? `${metric.user.firstName} ${metric.user.lastName}`
@@ -3682,9 +3731,9 @@ export default function FamilyScreen() {
           setHealthReport(null);
         }}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
+        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background.primary }]}>
+          <View style={[styles.modalHeader, { backgroundColor: theme.colors.background.secondary, borderBottomColor: theme.colors.border.medium }]}>
+            <Text style={[styles.modalTitle, isRTL && styles.rtlText, { color: theme.colors.text.primary }]}>
               {isRTL ? "تقارير الصحة العائلية" : "Family Health Reports"}
             </Text>
             <TouchableOpacity
@@ -3694,17 +3743,17 @@ export default function FamilyScreen() {
               }}
               style={styles.closeButton}
             >
-              <X color="#64748B" size={24} />
+              <X color={theme.colors.text.secondary} size={24} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={[styles.modalContent, { backgroundColor: theme.colors.background.primary }]}>
             {/* Generate Report Card */}
-            <Card variant="elevated" style={{ marginBottom: 20 }} onPress={undefined} contentStyle={undefined}>
-              <Heading level={6} style={{ marginBottom: 12 }}>
+            <Card variant="elevated" style={{ marginBottom: 20, backgroundColor: theme.colors.background.secondary }} onPress={undefined} contentStyle={undefined}>
+              <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
                 {isRTL ? "إنشاء تقرير جديد" : "Generate New Report"}
               </Heading>
-              <Caption style={{ marginBottom: 16 }} numberOfLines={2}>
+              <Caption style={{ marginBottom: 16, color: theme.colors.text.secondary }} numberOfLines={2}>
                 {isRTL
                   ? "اختر إعدادات الخصوصية والفترة الزمنية لإنشاء تقرير شامل عن صحة العائلة"
                   : "Select privacy settings and time period to generate a comprehensive family health report"}
@@ -3734,39 +3783,39 @@ export default function FamilyScreen() {
               <>
                 {/* Summary Section */}
                 <View style={{ marginBottom: 24 }}>
-                  <Heading level={6} style={{ marginBottom: 12 }}>
+                  <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
                     {isRTL ? "الملخص" : "Summary"}
                   </Heading>
                   <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: "#F3F4F6", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" }}>
-                      <Caption style={{ marginBottom: 4 }} numberOfLines={1}>
+                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
+                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
                         {isRTL ? "إجمالي الأعضاء" : "Total Members"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: "Geist-Bold", color: "#111827" }}>
+                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: theme.colors.text.primary }}>
                         {healthReport.summary.totalMembers}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: "#F3F4F6", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" }}>
-                      <Caption style={{ marginBottom: 4 }} numberOfLines={1}>
+                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
+                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
                         {isRTL ? "متوسط النقاط الصحية" : "Avg Health Score"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: "Geist-Bold", color: getHealthScoreColor(healthReport.summary.averageHealthScore) }}>
+                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: getHealthScoreColor(healthReport.summary.averageHealthScore) }}>
                         {healthReport.summary.averageHealthScore}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: "#F3F4F6", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" }}>
-                      <Caption style={{ marginBottom: 4 }} numberOfLines={1}>
+                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
+                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
                         {isRTL ? "الأدوية النشطة" : "Active Medications"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: "Geist-Bold", color: "#111827" }}>
+                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: theme.colors.text.primary }}>
                         {healthReport.summary.totalActiveMedications}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: "#F3F4F6", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" }}>
-                      <Caption style={{ marginBottom: 4 }} numberOfLines={1}>
+                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
+                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
                         {isRTL ? "إجمالي الأعراض" : "Total Symptoms"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: "Geist-Bold", color: "#111827" }}>
+                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: theme.colors.text.primary }}>
                         {healthReport.summary.totalSymptoms}
                       </Text>
                     </View>
@@ -3775,42 +3824,34 @@ export default function FamilyScreen() {
                   {/* Alerts */}
                   {healthReport.summary.alerts.length > 0 && (
                     <View style={{ marginTop: 12 }}>
-                      <Heading level={6} style={{ marginBottom: 12 }}>
+                      <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
                         {isRTL ? "التنبيهات" : "Alerts"}
                       </Heading>
                       {healthReport.summary.alerts.map((alert, index) => (
                         <Card
                           key={index}
                           variant="elevated"
-                          style={{ backgroundColor: "#FEE2E2", borderColor: "#EF4444", marginBottom: 8 }}
+                          style={{ backgroundColor: theme.colors.accent.error + "20", borderColor: theme.colors.accent.error, marginBottom: 8 }}
                           onPress={undefined}
                           contentStyle={undefined}
                         >
-                          <Heading level={6} style={{}}>
+                          <Heading level={6} style={{ color: theme.colors.text.primary }}>
                             {alert.member}
                           </Heading>
-                          <Caption style={{}} numberOfLines={2}>{alert.message}</Caption>
+                          <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={2}>{alert.message}</Caption>
                         </Card>
                       ))}
                     </View>
                   )}
 
-                  {/* Export Buttons */}
-                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, marginTop: 12 }}>
+                  {/* Export Button */}
+                  <View style={{ marginTop: 12 }}>
                     <Button
                       variant="outline"
-                      onPress={handleExportJSON}
-                      style={{ flex: 1 }}
+                      onPress={handleExportPDF}
+                      style={{ width: "100%" }}
                       textStyle={{}}
-                      title="JSON"
-                      icon={null}
-                    />
-                    <Button
-                      variant="outline"
-                      onPress={handleExportText}
-                      style={{ flex: 1 }}
-                      textStyle={{}}
-                      title={isRTL ? "نص" : "Text"}
+                      title={isRTL ? "تصدير التقرير كـ PDF" : "Export Report as PDF"}
                       icon={null}
                     />
                   </View>
@@ -3818,20 +3859,20 @@ export default function FamilyScreen() {
 
                 {/* Member Details */}
                 <View style={{ marginBottom: 24 }}>
-                  <Heading level={6} style={{ marginBottom: 12 }}>
+                  <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
                     {isRTL ? "تفاصيل أفراد العائلة" : "Member Details"}
                   </Heading>
                   {healthReport.members.map((memberReport) => (
                     <Card
                       key={memberReport.member.id}
                       variant="elevated"
-                      style={{ marginBottom: 12 }}
+                      style={{ marginBottom: 12, backgroundColor: theme.colors.background.secondary }}
                       onPress={undefined}
                       contentStyle={undefined}
                     >
                       <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                         <View style={{ flex: 1 }}>
-                          <Heading level={6} style={{}}>
+                          <Heading level={6} style={{ color: theme.colors.text.primary }}>
                             {memberReport.member.firstName} {memberReport.member.lastName}
                           </Heading>
                         </View>
@@ -3850,14 +3891,14 @@ export default function FamilyScreen() {
                       </View>
 
                       <View style={{ marginTop: 8 }}>
-                        <Caption style={{}} numberOfLines={1}>
+                        <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
                           {isRTL ? "الأعراض" : "Symptoms"}: {memberReport.symptoms.total}
                         </Caption>
-                        <Caption style={{}} numberOfLines={1}>
+                        <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
                           {isRTL ? "الأدوية الفعالة" : "Active Medications"}: {memberReport.medications.active}
                         </Caption>
                         {memberReport.medications.complianceRate !== undefined && (
-                          <Caption style={{}} numberOfLines={1}>
+                          <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
                             {isRTL ? "الالتزام بالأدوية" : "Compliance"}: {memberReport.medications.complianceRate}%
                           </Caption>
                         )}
@@ -3866,7 +3907,7 @@ export default function FamilyScreen() {
                       {/* Trends */}
                       <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, marginTop: 8 }}>
                         {getTrendIcon(memberReport.trends.symptomTrend)}
-                        <Caption style={{}} numberOfLines={1}>
+                        <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
                           {isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}:{" "}
                           {isRTL
                             ? memberReport.trends.symptomTrend === "improving"
@@ -3885,8 +3926,8 @@ export default function FamilyScreen() {
 
             {!healthReport && !generatingReport && (
               <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 40 }}>
-                <FileText size={64} color="#9CA3AF" />
-                <Text style={{ marginTop: 16, textAlign: "center", color: "#6B7280" }}>
+                <FileText size={64} color={theme.colors.text.tertiary} />
+                <Text style={{ marginTop: 16, textAlign: "center", color: theme.colors.text.secondary }}>
                   {isRTL
                     ? "قم بإنشاء تقرير صحي للعائلة لعرض الملخص والإحصائيات"
                     : "Generate a family health report to view summary and statistics"}
@@ -3904,11 +3945,11 @@ export default function FamilyScreen() {
           >
             <SafeAreaView style={styles.modalContainer}>
               <View style={styles.modalHeader}>
-                <Heading level={5} style={{}}>
+                <Heading level={5} style={{ color: theme.colors.text.primary }}>
                   {isRTL ? "إعدادات الخصوصية" : "Privacy Settings"}
                 </Heading>
                 <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
-                  <Text style={{ fontSize: 18, color: "#2563EB" }}>
+                  <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
                     {isRTL ? "إغلاق" : "Close"}
                   </Text>
                 </TouchableOpacity>

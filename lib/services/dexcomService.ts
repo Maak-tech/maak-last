@@ -29,7 +29,16 @@ const DEXCOM_CLIENT_SECRET =
 const DEXCOM_AUTH_URL = "https://api.dexcom.com/v2/oauth2/login";
 const DEXCOM_TOKEN_URL = "https://api.dexcom.com/v2/oauth2/token";
 const DEXCOM_API_BASE = "https://api.dexcom.com";
-const REDIRECT_URI = Linking.createURL("dexcom-callback");
+
+// Redirect URI: Use HTTPS for Dexcom (required)
+// Set dexcomRedirectUri in app.config.js extra config to use a custom HTTPS redirect URI
+// Default uses Firebase Hosting: https://maak-5caad.web.app/dexcom-callback
+const DEXCOM_REDIRECT_URI_HTTPS =
+  Constants.expoConfig?.extra?.dexcomRedirectUri ||
+  "https://maak-5caad.web.app/dexcom-callback";
+const REDIRECT_URI_DEEP_LINK = Linking.createURL("dexcom-callback");
+// Use HTTPS redirect URI for Dexcom registration (required by Dexcom)
+const REDIRECT_URI = DEXCOM_REDIRECT_URI_HTTPS;
 
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();
@@ -80,6 +89,7 @@ export const dexcomService = {
         `scope=${encodeURIComponent(scopes.join(" "))}&` +
         `state=${encodeURIComponent("dexcom_auth")}`;
 
+      // Use HTTPS redirect URI for Dexcom (required), expo-web-browser handles HTTPS redirects
       const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
 
       if (result.type === "success" && result.url) {

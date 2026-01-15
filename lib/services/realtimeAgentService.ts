@@ -89,8 +89,9 @@ export interface RealtimeEventHandlers {
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
-// Health Assistant Tool Definitions
+// Health Assistant Tool Definitions - Expanded for Siri-like automation
 const healthAssistantTools: RealtimeTool[] = [
+  // ===== INFORMATION RETRIEVAL TOOLS =====
   {
     type: "function",
     name: "get_health_summary",
@@ -117,29 +118,6 @@ const healthAssistantTools: RealtimeTool[] = [
   },
   {
     type: "function",
-    name: "log_symptom",
-    description: "Log a symptom the user is experiencing",
-    parameters: {
-      type: "object",
-      properties: {
-        symptom_name: {
-          type: "string",
-          description: "The name of the symptom",
-        },
-        severity: {
-          type: "number",
-          description: "Severity on a scale of 1-10",
-        },
-        notes: {
-          type: "string",
-          description: "Additional notes about the symptom",
-        },
-      },
-      required: ["symptom_name"],
-    },
-  },
-  {
-    type: "function",
     name: "get_recent_vitals",
     description: "Get recent vital sign measurements like blood pressure, heart rate, temperature",
     parameters: {
@@ -147,7 +125,7 @@ const healthAssistantTools: RealtimeTool[] = [
       properties: {
         vital_type: {
           type: "string",
-          enum: ["blood_pressure", "heart_rate", "temperature", "oxygen_saturation", "weight", "all"],
+          enum: ["blood_pressure", "heart_rate", "temperature", "oxygen_saturation", "weight", "blood_glucose", "all"],
           description: "Type of vital to retrieve",
         },
         days: {
@@ -173,33 +151,6 @@ const healthAssistantTools: RealtimeTool[] = [
   },
   {
     type: "function",
-    name: "schedule_reminder",
-    description: "Schedule a medication or health-related reminder",
-    parameters: {
-      type: "object",
-      properties: {
-        reminder_type: {
-          type: "string",
-          enum: ["medication", "appointment", "vital_check", "exercise", "custom"],
-        },
-        title: {
-          type: "string",
-          description: "Title of the reminder",
-        },
-        time: {
-          type: "string",
-          description: "Time for the reminder in ISO 8601 format",
-        },
-        recurring: {
-          type: "boolean",
-          description: "Whether the reminder should repeat",
-        },
-      },
-      required: ["reminder_type", "title", "time"],
-    },
-  },
-  {
-    type: "function",
     name: "emergency_contact",
     description: "Get emergency contact information or trigger emergency protocols. Only use when explicitly requested by user or in genuine emergency situations.",
     parameters: {
@@ -213,26 +164,294 @@ const healthAssistantTools: RealtimeTool[] = [
       required: ["action"],
     },
   },
+  
+  // ===== AUTOMATED ACTION TOOLS =====
+  {
+    type: "function",
+    name: "log_symptom",
+    description: "Log a symptom the user is experiencing. Use this when the user mentions they have a symptom like headache, fever, nausea, pain, etc. This will automatically save to their symptoms tab.",
+    parameters: {
+      type: "object",
+      properties: {
+        symptom_name: {
+          type: "string",
+          description: "The name/type of the symptom (e.g., headache, fever, nausea, stomach pain, dizziness, fatigue, cough, etc.)",
+        },
+        severity: {
+          type: "number",
+          description: "Severity on a scale of 1-10 (1=very mild, 5=moderate, 10=severe). Infer from context if not specified.",
+        },
+        notes: {
+          type: "string",
+          description: "Additional details about the symptom",
+        },
+        body_part: {
+          type: "string",
+          description: "Body part affected (e.g., head, chest, stomach, back, etc.)",
+        },
+        duration: {
+          type: "string",
+          description: "How long the symptom has been present (e.g., '2 hours', 'since yesterday', 'all day')",
+        },
+      },
+      required: ["symptom_name"],
+    },
+  },
+  {
+    type: "function",
+    name: "add_medication",
+    description: "Add a new medication to the user's medication list. Use when user mentions they started taking a new medication.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Name of the medication",
+        },
+        dosage: {
+          type: "string",
+          description: "Dosage amount (e.g., '500mg', '10ml', '1 tablet')",
+        },
+        frequency: {
+          type: "string",
+          description: "How often to take it (e.g., 'once daily', 'twice a day', 'every 8 hours', 'as needed')",
+        },
+        notes: {
+          type: "string",
+          description: "Additional instructions or notes",
+        },
+      },
+      required: ["name", "dosage", "frequency"],
+    },
+  },
+  {
+    type: "function",
+    name: "log_vital_sign",
+    description: "Log a vital sign measurement that the user reports. Use when user tells you their blood pressure, heart rate, temperature, blood sugar, weight, etc.",
+    parameters: {
+      type: "object",
+      properties: {
+        vital_type: {
+          type: "string",
+          enum: ["heartRate", "bloodPressure", "bodyTemperature", "bloodGlucose", "weight", "oxygenSaturation"],
+          description: "Type of vital sign being recorded",
+        },
+        value: {
+          type: "number",
+          description: "The numeric value of the measurement",
+        },
+        unit: {
+          type: "string",
+          description: "Unit of measurement (e.g., 'bpm', 'mmHg', '°F', 'mg/dL', 'lbs', '%')",
+        },
+        systolic: {
+          type: "number",
+          description: "For blood pressure: the systolic (top) number",
+        },
+        diastolic: {
+          type: "number",
+          description: "For blood pressure: the diastolic (bottom) number",
+        },
+      },
+      required: ["vital_type", "value"],
+    },
+  },
+  {
+    type: "function",
+    name: "set_medication_reminder",
+    description: "Set a reminder for a medication. Use when user asks to be reminded about a medication at a specific time.",
+    parameters: {
+      type: "object",
+      properties: {
+        medication_name: {
+          type: "string",
+          description: "Name of the medication to set reminder for",
+        },
+        time: {
+          type: "string",
+          description: "Time for the reminder (e.g., '8:00 AM', '14:00', '9pm')",
+        },
+        recurring: {
+          type: "boolean",
+          description: "Whether this should repeat daily (default true)",
+        },
+      },
+      required: ["medication_name", "time"],
+    },
+  },
+  {
+    type: "function",
+    name: "alert_family",
+    description: "Send an alert or notification to family members. Use when user explicitly asks to notify or alert their family about something.",
+    parameters: {
+      type: "object",
+      properties: {
+        alert_type: {
+          type: "string",
+          enum: ["check_in", "symptom_alert", "medication_reminder", "emergency"],
+          description: "Type of alert to send",
+        },
+        message: {
+          type: "string",
+          description: "Message to send to family members",
+        },
+      },
+      required: ["alert_type", "message"],
+    },
+  },
+  {
+    type: "function",
+    name: "schedule_reminder",
+    description: "Schedule a general health-related reminder (not medication-specific)",
+    parameters: {
+      type: "object",
+      properties: {
+        reminder_type: {
+          type: "string",
+          enum: ["appointment", "vital_check", "exercise", "water", "custom"],
+        },
+        title: {
+          type: "string",
+          description: "Title/description of the reminder",
+        },
+        time: {
+          type: "string",
+          description: "Time for the reminder",
+        },
+        recurring: {
+          type: "boolean",
+          description: "Whether the reminder should repeat",
+        },
+      },
+      required: ["reminder_type", "title", "time"],
+    },
+  },
+  {
+    type: "function",
+    name: "request_check_in",
+    description: "Request a wellness check-in from the user, or acknowledge their current state",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: {
+          type: "string",
+          description: "Reason for the check-in or wellness note",
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    name: "log_mood",
+    description: "Log the user's current mood/emotional state. Use when user expresses how they're feeling emotionally (happy, sad, anxious, stressed, tired, etc.)",
+    parameters: {
+      type: "object",
+      properties: {
+        mood_type: {
+          type: "string",
+          description: "The mood/emotion (e.g., 'happy', 'sad', 'anxious', 'stressed', 'tired', 'calm', 'frustrated', 'grateful')",
+        },
+        intensity: {
+          type: "number",
+          description: "Intensity of the mood on a scale of 1-10 (1=barely noticeable, 10=overwhelming)",
+        },
+        notes: {
+          type: "string",
+          description: "Additional context about the mood",
+        },
+        activities: {
+          type: "array",
+          items: { type: "string" },
+          description: "Activities that may have contributed to this mood",
+        },
+      },
+      required: ["mood_type"],
+    },
+  },
+  {
+    type: "function",
+    name: "mark_medication_taken",
+    description: "Mark a medication as taken. Use when user says they took their medication or confirms taking a pill.",
+    parameters: {
+      type: "object",
+      properties: {
+        medication_name: {
+          type: "string",
+          description: "Name of the medication that was taken",
+        },
+      },
+      required: ["medication_name"],
+    },
+  },
+  {
+    type: "function",
+    name: "navigate_to",
+    description: "Help user navigate to a section of the app. Use when user asks to see or go to a specific section.",
+    parameters: {
+      type: "object",
+      properties: {
+        target: {
+          type: "string",
+          enum: ["medications", "symptoms", "family", "profile", "dashboard", "calendar", "vitals", "allergies", "history"],
+          description: "The app section to navigate to",
+        },
+      },
+      required: ["target"],
+    },
+  },
 ];
 
-// Default instructions for the health assistant
+// Default instructions for the health assistant - Siri-like proactive assistant
 const healthAssistantInstructions = `
 # Personality and Tone
 
 ## Identity
-You are Zeina, a warm, knowledgeable, and compassionate health assistant specializing in elderly care and chronic health management. You have years of experience helping patients understand their health conditions, medications, and daily wellness routines. You speak with the wisdom of a trusted family nurse while maintaining professional medical knowledge.
+You are Zeina, a warm, knowledgeable, and proactive health assistant - like Siri but specialized for health management. You help elderly patients and those with chronic conditions manage their health through natural conversation. You don't just answer questions - you take action and help automate health tracking.
+
+## Core Capability: Automated Task Execution
+**You are designed to automatically complete tasks for users.** When a user mentions something actionable, DO IT immediately using your tools:
+
+### Symptom Detection & Logging
+When a user says anything like:
+- "I have a headache" → Use log_symptom to record it
+- "My stomach hurts" → Use log_symptom with stomach pain
+- "I'm feeling tired/exhausted" → Use log_symptom with fatigue
+- "I have a fever" → Use log_symptom and ask if they've checked their temperature
+
+### Vital Sign Recording
+When a user mentions measurements:
+- "My blood pressure is 120/80" → Use log_vital_sign immediately
+- "My blood sugar is 140" → Use log_vital_sign with bloodGlucose
+- "I weigh 150 pounds" → Use log_vital_sign with weight
+- "My heart rate is 75" → Use log_vital_sign with heartRate
+
+### Medication Management
+When a user mentions medications:
+- "I started taking aspirin" → Use add_medication to record it
+- "Remind me to take my pills at 9am" → Use set_medication_reminder
+
+### Family Alerts
+When explicitly requested:
+- "Tell my family I'm not feeling well" → Use alert_family
+- "Let my kids know I'm okay" → Use alert_family with check_in
 
 ## Task
-Help users manage their health by answering questions about their medications, symptoms, vital signs, and overall wellness. You have access to their health data through specialized tools and can provide personalized guidance.
+Help users manage their health by TAKING ACTION, not just answering questions. You have access to their health data and can create, update, and manage their health records through voice commands.
 
 ## Demeanor
-Patient, reassuring, and caring. You understand that health concerns can be worrying, especially for elderly users or those managing chronic conditions.
+Patient, reassuring, and proactive. You understand that health concerns can be worrying, especially for elderly users or those managing chronic conditions.
 
 ## Tone
-Warm and conversational, like talking to a trusted healthcare friend. Professional but never cold or clinical.
+Warm and conversational, like a helpful family member who also happens to be a nurse. Professional but never cold or clinical.
+
+## Response Style
+After completing an action, confirm what you did in a natural way:
+- "I've logged your headache. Is this your first one today, or has it been ongoing?"
+- "Got it, I've recorded your blood sugar at 140. That's a bit elevated - have you eaten recently?"
+- "I've added aspirin to your medications. What dosage are you taking?"
 
 ## Level of Enthusiasm
-Calm and measured, with genuine warmth. You celebrate small health wins without being overly excitable.
+Calm and measured, with genuine warmth. Celebrate small health wins without being overly excitable.
 
 ## Level of Formality
 Moderately casual - you're professional but approachable. Use simple language and avoid medical jargon when possible. When you must use medical terms, explain them clearly.
@@ -247,19 +466,21 @@ Occasionally use gentle affirmations like "I see," "I understand," "Of course"
 Steady and clear. Give users time to process information. Don't rush through important health information.
 
 ## Language Support
-You can communicate fluently in both English and Arabic. Respond in the same language the user speaks to you.
+You can communicate fluently in both English and Arabic. Respond in the same language the user speaks to you. If speaking Arabic, use proper Arabic medical terms when appropriate.
 
 # Instructions
-- Always prioritize user safety. If someone describes serious symptoms, recommend seeking professional medical care.
-- Use the available health tools to access the user's specific health data before giving personalized advice.
-- When discussing medications, always mention the importance of following their doctor's prescribed regimen.
-- Be proactive about checking for medication interactions when discussing medications.
-- If you detect signs of distress or emergency, calmly offer to help contact family or provide emergency information.
-- Keep responses concise for voice - people can't read long text responses when listening.
-- If a user provides a name, medication, or something you need to spell correctly, always repeat it back to confirm.
-- If the caller corrects any detail, acknowledge the correction and confirm the new information.
-- Never provide specific medical diagnoses. Suggest consulting with healthcare providers for medical decisions.
-- Celebrate health wins! If vitals are improving or medication adherence is good, acknowledge it warmly.
+1. **BE PROACTIVE**: When a user mentions a symptom, medication, or vital sign - LOG IT IMMEDIATELY using the appropriate tool.
+2. Always prioritize user safety. If someone describes serious symptoms, recommend seeking professional medical care.
+3. Use the available health tools to access the user's specific health data before giving personalized advice.
+4. When discussing medications, always mention the importance of following their doctor's prescribed regimen.
+5. Be proactive about checking for medication interactions when discussing medications.
+6. If you detect signs of distress or emergency, calmly offer to help contact family or provide emergency information.
+7. Keep responses concise for voice - people can't read long text responses when listening.
+8. If a user provides a name, medication, or something you need to spell correctly, always repeat it back to confirm.
+9. If the caller corrects any detail, acknowledge the correction and confirm the new information.
+10. Never provide specific medical diagnoses. Suggest consulting with healthcare providers for medical decisions.
+11. Celebrate health wins! If vitals are improving or medication adherence is good, acknowledge it warmly.
+12. After completing an action, provide helpful follow-up questions or suggestions related to the logged information.
 `;
 
 class RealtimeAgentService {

@@ -16,7 +16,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { allergyService } from "@/lib/services/allergyService";
-import type { Allergy } from "@/types";
+import { userService } from "@/lib/services/userService";
+import type { Allergy, User as UserType } from "@/types";
 // Design System Components
 import { Button, Card, Input } from "@/components/design-system";
 import { Heading, Text, Caption } from "@/components/design-system/Typography";
@@ -68,8 +69,12 @@ export default function AllergiesScreen() {
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [editingAllergy, setEditingAllergy] = useState<Allergy | null>(null);
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
+  const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
+  const [selectedTargetUser, setSelectedTargetUser] = useState<string>("");
 
   const isRTL = i18n.language === "ar";
+  const isAdmin = user?.role === "admin";
+  const hasFamily = Boolean(user?.familyId);
 
   const loadAllergies = useCallback(async (isRefresh = false) => {
     if (!user) return;
@@ -79,6 +84,12 @@ export default function AllergiesScreen() {
         setRefreshing(true);
       } else {
         setLoading(true);
+      }
+
+      // Load family members if user has family
+      if (user.familyId) {
+        const members = await userService.getFamilyMembers(user.familyId);
+        setFamilyMembers(members);
       }
 
       const userAllergies = await allergyService.getUserAllergies(user.id, 50);
@@ -153,6 +164,8 @@ export default function AllergiesScreen() {
     try {
       setLoading(true);
 
+      const targetUserId = selectedTargetUser || user.id;
+
       if (editingAllergy) {
         await allergyService.updateAllergy(editingAllergy.id, {
           name: allergyName, // Save the key for common allergies, custom text for custom allergies
@@ -161,11 +174,11 @@ export default function AllergiesScreen() {
           notes: notes.trim() || undefined,
           discoveredDate,
           timestamp: editingAllergy.timestamp,
-          userId: user.id,
+          userId: targetUserId,
         });
       } else {
         await allergyService.addAllergy({
-          userId: user.id,
+          userId: targetUserId,
           name: allergyName, // Save the key for common allergies, custom text for custom allergies
           severity,
           reaction: reaction.trim() || undefined,
@@ -226,6 +239,7 @@ export default function AllergiesScreen() {
     setSeverity(allergy.severity);
     setReaction(allergy.reaction || "");
     setNotes(allergy.notes || "");
+    setSelectedTargetUser(allergy.userId);
     // Safely convert discoveredDate to Date object
     let discoveredDate: Date;
     if (allergy.discoveredDate) {
@@ -292,6 +306,7 @@ export default function AllergiesScreen() {
     setReaction("");
     setNotes("");
     setDiscoveredDate(new Date());
+    setSelectedTargetUser("");
   };
 
   const formatDate = (date: Date | undefined | any) => {
@@ -394,6 +409,7 @@ export default function AllergiesScreen() {
       alignItems: "center",
     },
     statValue: {
+      fontSize: 32,
       color: theme.colors.text.primary,
       marginBottom: theme.spacing.xs,
     },
@@ -585,6 +601,32 @@ export default function AllergiesScreen() {
     },
     rtlText: {
       textAlign: "right",
+    },
+    memberSelectionContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
+    },
+    memberOption: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border.light,
+      backgroundColor: theme.colors.background.primary,
+    },
+    memberOptionSelected: {
+      backgroundColor: theme.colors.primary.main,
+      borderColor: theme.colors.primary.main,
+    },
+    memberOptionText: {
+      fontSize: 14,
+      fontFamily: "Geist-Medium",
+      color: theme.colors.text.primary,
+    },
+    memberOptionTextSelected: {
+      color: theme.colors.neutral.white,
     },
   });
 
@@ -792,6 +834,45 @@ export default function AllergiesScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Target User Selector (for admins) */}
+              {isAdmin && hasFamily && familyMembers.length > 0 && (
+                <View style={styles.fieldGroup}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+                    {isRTL ? "إضافة الحساسية لـ" : "Add allergy for"}
+                  </Text>
+                  <View style={styles.memberSelectionContainer}>
+                    {familyMembers.map((member) => (
+                      <TouchableOpacity
+                        key={member.id}
+                        onPress={() => setSelectedTargetUser(member.id)}
+                        style={[
+                          styles.memberOption,
+                          selectedTargetUser === member.id &&
+                            styles.memberOptionSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.memberOptionText,
+                            selectedTargetUser === member.id &&
+                              styles.memberOptionTextSelected,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {member.id === user.id
+                            ? isRTL
+                              ? "أنت"
+                              : "You"
+                            : member.firstName && member.lastName
+                              ? `${member.firstName} ${member.lastName}`
+                              : member.firstName || "User"}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {t("allergyName")}
               </Text>
@@ -910,8 +991,13 @@ export default function AllergiesScreen() {
                     : "Add"}
                 onPress={handleAddAllergy}
                 loading={loading}
-                style={{ marginTop: theme.spacing.lg }}
-                textStyle={undefined}
+                style={{
+                  marginTop: theme.spacing.lg,
+                  backgroundColor: theme.colors.primary.main,
+                }}
+                textStyle={{
+                  color: theme.colors.neutral.white,
+                }}
               />
             </ScrollView>
           </View>

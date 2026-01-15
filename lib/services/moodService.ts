@@ -294,28 +294,52 @@ export const moodService = {
       // Get moods for all family members (query each chunk)
       const moods: Mood[] = [];
       for (const chunk of chunks) {
-        const moodsQuery = query(
-          collection(db, "moods"),
-          where("userId", "in", chunk),
-          where("timestamp", ">=", Timestamp.fromDate(startDate))
-        );
+        try {
+          const moodsQuery = query(
+            collection(db, "moods"),
+            where("userId", "in", chunk),
+            where("timestamp", ">=", Timestamp.fromDate(startDate))
+          );
 
-        const querySnapshot = await getDocs(moodsQuery);
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          moods.push({
-            id: doc.id,
-            ...data,
-            timestamp: data.timestamp.toDate(),
-          } as Mood);
-        });
+          const querySnapshot = await getDocs(moodsQuery);
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            moods.push({
+              id: doc.id,
+              ...data,
+              timestamp: data.timestamp.toDate(),
+            } as Mood);
+          });
+        } catch (chunkError: any) {
+          // If chunk query fails (e.g., index error), fallback to individual member queries
+          if (chunkError?.code === "failed-precondition") {
+            // Fetch moods for each member separately
+            const moodPromises = chunk.map((memberId) =>
+              this.getUserMoods(memberId, 1000).catch(() => [] as Mood[])
+            );
+            const allMoodsArrays = await Promise.all(moodPromises);
+            const chunkMoods = allMoodsArrays.flat();
+            // Filter by date
+            const filteredChunkMoods = chunkMoods.filter(
+              (m) => m.timestamp.getTime() >= startDate.getTime()
+            );
+            moods.push(...filteredChunkMoods);
+          } else {
+            throw chunkError;
+          }
+        }
       }
 
+      // Filter moods by date (in case fallback was used)
+      const filteredMoods = moods.filter(
+        (m) => m.timestamp.getTime() >= startDate.getTime()
+      );
+
       // Calculate stats
-      const totalMoods = moods.length;
+      const totalMoods = filteredMoods.length;
       const avgIntensity =
         totalMoods > 0
-          ? moods.reduce((sum, m) => sum + m.intensity, 0) / totalMoods
+          ? filteredMoods.reduce((sum, m) => sum + m.intensity, 0) / totalMoods
           : 0;
 
       // Count mood distribution
@@ -323,7 +347,7 @@ export const moodService = {
         string,
         { count: number; users: Set<string> }
       >();
-      moods.forEach((mood) => {
+      filteredMoods.forEach((mood) => {
         const key = mood.mood;
         if (!moodCounts.has(key)) {
           moodCounts.set(key, { count: 0, users: new Set() });
@@ -351,8 +375,81 @@ export const moodService = {
         avgIntensity: Math.round(avgIntensity * 10) / 10,
         moodDistribution,
       };
-    } catch (error) {
-      // Return default values on error
+    } catch (error: any) {
+      // Check if it's an index error and use fallback
+      if (error?.code === "failed-precondition") {
+        try {
+          // Fallback: fetch stats for each member separately and combine
+          const familyMembersQuery = query(
+            collection(db, "users"),
+            where("familyId", "==", familyId)
+          );
+          const familyMembersSnapshot = await getDocs(familyMembersQuery);
+          const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+          const membersMap = new Map<string, string>();
+          familyMembersSnapshot.docs.forEach((doc) => {
+            const userData = doc.data();
+            const userName = userData.firstName && userData.lastName
+              ? `${userData.firstName} ${userData.lastName}`
+              : userData.firstName || userData.lastName || "Unknown";
+            membersMap.set(doc.id, userName);
+          });
+
+          if (memberIds.length === 0) {
+            return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
+          }
+
+          const statsPromises = memberIds.map((memberId) =>
+            this.getMoodStats(memberId, days).catch(() => ({
+              totalMoods: 0,
+              avgIntensity: 0,
+              moodDistribution: [] as { mood: string; count: number }[],
+            }))
+          );
+          const allStats = await Promise.all(statsPromises);
+          
+          // Combine stats
+          const totalMoods = allStats.reduce((sum, stat) => sum + stat.totalMoods, 0);
+          const totalIntensity = allStats.reduce((sum, stat) => sum + (stat.avgIntensity * stat.totalMoods), 0);
+          const avgIntensity = totalMoods > 0 ? totalIntensity / totalMoods : 0;
+          
+          // Combine mood distribution
+          const moodCounts = new Map<string, { count: number; users: Set<string> }>();
+          allStats.forEach((stat, index) => {
+            stat.moodDistribution.forEach((dist) => {
+              const key = dist.mood;
+              if (!moodCounts.has(key)) {
+                moodCounts.set(key, { count: 0, users: new Set() });
+              }
+              const entry = moodCounts.get(key)!;
+              entry.count += dist.count;
+              entry.users.add(memberIds[index]);
+            });
+          });
+          
+          const moodDistribution = Array.from(moodCounts.entries())
+            .map(([mood, data]) => ({
+              mood,
+              count: data.count,
+              affectedMembers: data.users.size,
+              users: Array.from(data.users).map((userId) => ({
+                userId,
+                userName: membersMap.get(userId) || "Unknown",
+              })),
+            }))
+            .sort((a, b) => b.count - a.count);
+          
+          return {
+            totalMoods,
+            avgIntensity: Math.round(avgIntensity * 10) / 10,
+            moodDistribution,
+          };
+        } catch (fallbackError) {
+          // Return default values if fallback also fails
+          return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
+        }
+      }
+      // Return default values on other errors
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },
@@ -431,7 +528,47 @@ export const moodService = {
         avgIntensity: Math.round(avgIntensity * 10) / 10,
         moodDistribution,
       };
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's an index error and use fallback
+      if (error?.code === "failed-precondition") {
+        try {
+          // Fallback: fetch all user moods and filter by date in memory
+          // This uses the existing index that works (userId + orderBy timestamp)
+          const allMoods = await this.getUserMoods(userId, 1000); // Get more than needed
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - days);
+          
+          // Filter by date in memory
+          const moods = allMoods.filter(
+            (m) => m.timestamp.getTime() >= startDate.getTime()
+          );
+
+          const totalMoods = moods.length;
+          const avgIntensity =
+            totalMoods > 0
+              ? moods.reduce((sum, m) => sum + m.intensity, 0) / totalMoods
+              : 0;
+
+          // Count mood types
+          const moodCounts: { [key: string]: number } = {};
+          moods.forEach((m) => {
+            moodCounts[m.mood] = (moodCounts[m.mood] || 0) + 1;
+          });
+
+          const moodDistribution = Object.entries(moodCounts)
+            .map(([mood, count]) => ({ mood, count }))
+            .sort((a, b) => b.count - a.count);
+
+          return {
+            totalMoods,
+            avgIntensity: Math.round(avgIntensity * 10) / 10,
+            moodDistribution,
+          };
+        } catch (fallbackError) {
+          // If fallback also fails, return empty stats
+          return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
+        }
+      }
       throw error;
     }
   },
@@ -519,8 +656,18 @@ export const moodService = {
         avgIntensity: Math.round(avgIntensity * 10) / 10,
         moodDistribution,
       };
-    } catch (error) {
-      // Return default values on error
+    } catch (error: any) {
+      // Check if it's an index error and use fallback
+      if (error?.code === "failed-precondition") {
+        try {
+          // Fallback: use getMoodStats which has its own fallback
+          return await this.getMoodStats(memberId, days);
+        } catch (fallbackError) {
+          // Return default values if fallback also fails
+          return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
+        }
+      }
+      // Return default values on other errors
       return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
     }
   },

@@ -89,6 +89,24 @@ export default function MedicalHistoryScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
 
+  // Helper function to translate condition based on current language
+  const translateCondition = (condition: string): string => {
+    if (!condition) return condition;
+    
+    // Find the condition in examples
+    const example = MEDICAL_HISTORY_EXAMPLES.find(
+      (ex) => ex.en === condition || ex.ar === condition
+    );
+    
+    if (example) {
+      // Return the appropriate language version
+      return isRTL ? example.ar : example.en;
+    }
+    
+    // If not found in examples, return as-is (custom condition)
+    return condition;
+  };
+
   useEffect(() => {
     loadMedicalHistory();
   }, [user]);
@@ -406,7 +424,7 @@ export default function MedicalHistoryScreen() {
                             isRTL && { textAlign: "left" },
                           ]}
                         >
-                          {record.condition}
+                          {translateCondition(record.condition)}
                         </Text>
                         <View style={styles.recordMeta}>
                           <View

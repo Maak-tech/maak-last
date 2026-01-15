@@ -620,7 +620,7 @@ ${
           (med) =>
             `• ${med.name}: ${med.dosage}, ${med.frequency}
   ${isArabic ? 'بدء' : 'Started'}: ${med.startDate}${med.endDate ? `, ${isArabic ? 'ينتهي' : 'Ends'}: ${med.endDate}` : " (${isArabic ? 'مستمر' : 'ongoing'})"}
-  ${med.reminders && med.reminders.length > 0 ? `${isArabic ? 'تذكيرات' : 'Reminders'}: ${med.reminders.join(", ")}` : ""}
+  ${med.reminders && med.reminders.length > 0 ? `${isArabic ? 'تذكيرات' : 'Reminders'}: ${med.reminders.map((r: any) => typeof r === 'string' ? r : r.time).join(", ")}` : ""}
   ${med.notes ? `${isArabic ? 'ملاحظات' : 'Notes'}: ${med.notes}` : ""}`
         )
         .join("\n")
@@ -779,9 +779,10 @@ Remember: You are an AI assistant providing information and support, not a repla
   async getMedications(activeOnly: boolean = true): Promise<any> {
     try {
       const context = await this.getUserHealthContext();
+      const allMedications = context.medications || [];
       const medications = activeOnly 
-        ? context.medications.filter(m => m.isActive)
-        : context.medications;
+        ? allMedications.filter(m => m.isActive)
+        : allMedications;
 
       return {
         medications: medications.map(med => ({
@@ -792,10 +793,10 @@ Remember: You are an AI assistant providing information and support, not a repla
           endDate: med.endDate,
           notes: med.notes,
           isActive: med.isActive,
-          reminders: med.reminders,
+          reminders: med.reminders || [],
         })),
         totalCount: medications.length,
-        activeCount: context.medications.filter(m => m.isActive).length,
+        activeCount: allMedications.filter(m => m.isActive).length,
       };
     } catch (error) {
       return { error: "Unable to fetch medications", medications: [] };
@@ -803,25 +804,27 @@ Remember: You are an AI assistant providing information and support, not a repla
   }
 
   /**
-   * Log a new symptom
-   * Note: In production, this would save to Firestore
+   * Log a new symptom using the Zeina Actions Service
+   * This actually saves the symptom to Firestore
    */
   async logSymptom(symptomName: string, severity?: number, notes?: string): Promise<any> {
     try {
-      // In a full implementation, this would save to Firestore
-      // For now, we return a success response
+      // Use the Zeina Actions Service to log symptoms properly
+      const { zeinaActionsService } = await import("./zeinaActionsService");
+      const result = await zeinaActionsService.logSymptom(symptomName, severity, notes);
+      
       return {
-        success: true,
-        message: `Symptom "${symptomName}" logged successfully`,
-        data: {
-          name: symptomName,
-          severity: severity || 5,
-          notes: notes || "",
-          timestamp: new Date().toISOString(),
-        },
+        success: result.success,
+        message: result.message,
+        speakableResponse: result.speakableResponse,
+        data: result.data,
       };
     } catch (error) {
-      return { success: false, error: "Failed to log symptom" };
+      return { 
+        success: false, 
+        error: "Failed to log symptom",
+        speakableResponse: "I'm sorry, I couldn't log that symptom right now. Please try again later.",
+      };
     }
   }
 

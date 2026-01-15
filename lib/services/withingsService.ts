@@ -1,6 +1,7 @@
 /**
  * Withings Service
  * OAuth 2.0 integration with Withings API
+ * Supports comprehensive health data including body measurements, vitals, and activity
  */
 
 import * as SecureStore from "expo-secure-store";
@@ -35,6 +36,35 @@ const REDIRECT_URI = Linking.createURL("withings-callback");
 WebBrowser.maybeCompleteAuthSession();
 
 /**
+ * Withings measurement types mapping
+ * See: https://developer.withings.com/api-reference/#tag/measure
+ */
+const WITHINGS_MEASURE_TYPES = {
+  1: { key: "weight", unit: "kg", divisor: 1000 }, // Weight in grams -> kg
+  4: { key: "height", unit: "m", divisor: 100 }, // Height in cm -> m (we'll convert to cm)
+  5: { key: "fat_free_mass", unit: "kg", divisor: 1000 },
+  6: { key: "body_fat_percentage", unit: "%", divisor: 1 },
+  8: { key: "fat_mass_weight", unit: "kg", divisor: 1000 },
+  9: { key: "blood_pressure_diastolic", unit: "mmHg", divisor: 1 },
+  10: { key: "blood_pressure_systolic", unit: "mmHg", divisor: 1 },
+  11: { key: "heart_rate", unit: "bpm", divisor: 1 },
+  12: { key: "body_temperature", unit: "°C", divisor: 1 },
+  54: { key: "blood_oxygen", unit: "%", divisor: 1 },
+  71: { key: "body_temperature", unit: "°C", divisor: 1 }, // Also body temperature
+  73: { key: "skin_temperature", unit: "°C", divisor: 1 },
+  76: { key: "muscle_mass", unit: "kg", divisor: 1000 },
+  77: { key: "hydration", unit: "kg", divisor: 1000 },
+  88: { key: "bone_mass", unit: "kg", divisor: 1000 },
+  91: { key: "pulse_wave_velocity", unit: "m/s", divisor: 1 },
+  123: { key: "vo2max", unit: "ml/kg/min", divisor: 1 },
+  135: { key: "qrs_interval", unit: "ms", divisor: 1 },
+  136: { key: "pr_interval", unit: "ms", divisor: 1 },
+  137: { key: "qt_interval", unit: "ms", divisor: 1 },
+  138: { key: "corrected_qt_interval", unit: "ms", divisor: 1 },
+  139: { key: "atrial_fibrillation", unit: "", divisor: 1 },
+} as const;
+
+/**
  * Withings Service
  */
 export const withingsService = {
@@ -63,6 +93,19 @@ export const withingsService = {
         reason: error?.message || "Unknown error",
       };
     }
+  },
+
+  /**
+   * Get all available metrics for Withings
+   */
+  getAvailableMetrics: () => getAvailableMetricsForProvider("withings"),
+
+  /**
+   * Check if connected to Withings
+   */
+  isConnected: async (): Promise<boolean> => {
+    const tokens = await withingsService.getTokens();
+    return tokens !== null && tokens.expiresAt > Date.now();
   },
 
   /**
@@ -137,7 +180,7 @@ export const withingsService = {
         refreshToken: tokens.refresh_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
         scope: tokens.scope,
-        userId: tokens.userid,
+        userId: tokens.userid?.toString() || "",
       });
 
       await saveProviderConnection({
@@ -184,6 +227,7 @@ export const withingsService = {
       const tokens = await withingsService.getTokens();
       if (!tokens) return null;
 
+      // Return existing token if still valid (with 5 min buffer)
       if (tokens.expiresAt > Date.now() + 5 * 60 * 1000) {
         return tokens.accessToken;
       }
@@ -215,11 +259,11 @@ export const withingsService = {
         refreshToken: newTokens.refresh_token || tokens.refreshToken,
         expiresAt: Date.now() + newTokens.expires_in * 1000,
         scope: newTokens.scope || tokens.scope,
-        userId: newTokens.userid || tokens.userId,
+        userId: newTokens.userid?.toString() || tokens.userId,
       });
 
       return newTokens.access_token;
-    } catch (error) {
+    } catch {
       return null;
     }
   },
@@ -239,8 +283,8 @@ export const withingsService = {
       const results: NormalizedMetricPayload[] = [];
       const samplesByMetric: Record<string, MetricSample[]> = {};
 
-      // Fetch measurements
-      const response = await fetch(`${WITHINGS_API_BASE}/measure`, {
+      // Fetch body measurements (weight, body fat, etc.)
+      const measureResponse = await fetch(`${WITHINGS_API_BASE}/measure`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -253,26 +297,190 @@ export const withingsService = {
         }).toString(),
       });
 
-      const data = await response.json();
+      const measureData = await measureResponse.json();
 
-      if (data.status === 0 && data.body?.measuregrps) {
-        for (const group of data.body.measuregrps) {
+      if (measureData.status === 0 && measureData.body?.measuregrps) {
+        for (const group of measureData.body.measuregrps) {
           const timestamp = new Date(group.date * 1000);
           for (const measure of group.measures) {
-            const metricKey = mapWithingsMeasureType(measure.type);
-            if (metricKey && metricKeys.includes(metricKey)) {
-              if (!samplesByMetric[metricKey]) {
-                samplesByMetric[metricKey] = [];
+            const measureType = WITHINGS_MEASURE_TYPES[measure.type as keyof typeof WITHINGS_MEASURE_TYPES];
+            if (!measureType) continue;
+
+            const metricKey = measureType.key;
+            if (!metricKeys.includes(metricKey)) continue;
+
+            if (!samplesByMetric[metricKey]) {
+              samplesByMetric[metricKey] = [];
+            }
+
+            // Calculate actual value using the unit (power of 10)
+            const value = measure.value * Math.pow(10, measure.unit);
+
+            // Convert height from meters to cm if needed
+            let finalValue = value;
+            let unit = measureType.unit;
+            if (metricKey === "height") {
+              finalValue = value * 100; // m to cm
+              unit = "cm";
+            }
+
+            samplesByMetric[metricKey].push({
+              value: finalValue,
+              unit,
+              startDate: timestamp.toISOString(),
+              source: "Withings",
+            });
+          }
+        }
+      }
+
+      // Fetch heart rate data from heart endpoint
+      if (metricKeys.some((k) => ["heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic"].includes(k))) {
+        try {
+          const heartResponse = await fetch(`${WITHINGS_API_BASE}/v2/heart`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: new URLSearchParams({
+              action: "list",
+              startdate: Math.floor(startDate.getTime() / 1000).toString(),
+              enddate: Math.floor(endDate.getTime() / 1000).toString(),
+            }).toString(),
+          });
+
+          const heartData = await heartResponse.json();
+
+          if (heartData.status === 0 && heartData.body?.series) {
+            for (const item of heartData.body.series) {
+              const timestamp = new Date(item.timestamp * 1000);
+
+              // Heart rate from ECG
+              if (metricKeys.includes("heart_rate") && item.heart_rate) {
+                if (!samplesByMetric["heart_rate"]) {
+                  samplesByMetric["heart_rate"] = [];
+                }
+                samplesByMetric["heart_rate"].push({
+                  value: item.heart_rate,
+                  unit: "bpm",
+                  startDate: timestamp.toISOString(),
+                  source: "Withings ECG",
+                });
               }
-              const sample: MetricSample = {
-                value: measure.value * Math.pow(10, measure.unit),
-                unit: getUnitForMetric(metricKey),
-                startDate: timestamp.toISOString(),
-                source: "Withings",
-              };
-              samplesByMetric[metricKey].push(sample);
             }
           }
+        } catch {
+          // Heart endpoint may not be available for all users
+        }
+      }
+
+      // Fetch sleep data
+      if (metricKeys.includes("sleep_analysis")) {
+        try {
+          const sleepResponse = await fetch(`${WITHINGS_API_BASE}/v2/sleep`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: new URLSearchParams({
+              action: "getsummary",
+              startdateymd: formatDate(startDate),
+              enddateymd: formatDate(endDate),
+            }).toString(),
+          });
+
+          const sleepData = await sleepResponse.json();
+
+          if (sleepData.status === 0 && sleepData.body?.series) {
+            if (!samplesByMetric["sleep_analysis"]) {
+              samplesByMetric["sleep_analysis"] = [];
+            }
+
+            for (const item of sleepData.body.series) {
+              // Total sleep in hours
+              const totalSleep = (
+                (item.data?.lightsleepduration || 0) +
+                (item.data?.deepsleepduration || 0) +
+                (item.data?.remsleepduration || 0)
+              ) / 3600;
+
+              samplesByMetric["sleep_analysis"].push({
+                value: totalSleep,
+                unit: "hours",
+                startDate: item.date || new Date(item.startdate * 1000).toISOString(),
+                endDate: item.enddate ? new Date(item.enddate * 1000).toISOString() : undefined,
+                source: "Withings Sleep",
+              });
+            }
+          }
+        } catch {
+          // Sleep endpoint may not be available
+        }
+      }
+
+      // Fetch activity data (steps, calories)
+      if (metricKeys.some((k) => ["steps", "active_energy", "distance_walking_running"].includes(k))) {
+        try {
+          const activityResponse = await fetch(`${WITHINGS_API_BASE}/v2/measure`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: new URLSearchParams({
+              action: "getactivity",
+              startdateymd: formatDate(startDate),
+              enddateymd: formatDate(endDate),
+            }).toString(),
+          });
+
+          const activityData = await activityResponse.json();
+
+          if (activityData.status === 0 && activityData.body?.activities) {
+            for (const activity of activityData.body.activities) {
+              const timestamp = activity.date;
+
+              if (metricKeys.includes("steps") && activity.steps) {
+                if (!samplesByMetric["steps"]) {
+                  samplesByMetric["steps"] = [];
+                }
+                samplesByMetric["steps"].push({
+                  value: activity.steps,
+                  unit: "count",
+                  startDate: timestamp,
+                  source: "Withings",
+                });
+              }
+
+              if (metricKeys.includes("active_energy") && activity.calories) {
+                if (!samplesByMetric["active_energy"]) {
+                  samplesByMetric["active_energy"] = [];
+                }
+                samplesByMetric["active_energy"].push({
+                  value: activity.calories,
+                  unit: "kcal",
+                  startDate: timestamp,
+                  source: "Withings",
+                });
+              }
+
+              if (metricKeys.includes("distance_walking_running") && activity.distance) {
+                if (!samplesByMetric["distance_walking_running"]) {
+                  samplesByMetric["distance_walking_running"] = [];
+                }
+                samplesByMetric["distance_walking_running"].push({
+                  value: activity.distance / 1000, // meters to km
+                  unit: "km",
+                  startDate: timestamp,
+                  source: "Withings",
+                });
+              }
+            }
+          }
+        } catch {
+          // Activity endpoint may not be available
         }
       }
 
@@ -284,16 +492,39 @@ export const withingsService = {
             provider: "withings",
             metricKey,
             displayName: metric.displayName,
-            unit: getUnitForMetric(metricKey),
+            unit: metric.unit || samples[0].unit,
             samples,
           });
         }
       }
 
       return results;
-    } catch (error) {
+    } catch {
       return [];
     }
+  },
+
+  /**
+   * Fetch all available metrics for a date range
+   */
+  fetchAllMetrics: async (
+    startDate: Date,
+    endDate: Date
+  ): Promise<NormalizedMetricPayload[]> => {
+    const availableMetrics = getAvailableMetricsForProvider("withings");
+    const metricKeys = availableMetrics.map((m) => m.key);
+    return withingsService.fetchHealthData(metricKeys, startDate, endDate);
+  },
+
+  /**
+   * Fetch metrics (alias for fetchHealthData for backward compatibility)
+   */
+  fetchMetrics: async (
+    metricKeys: string[],
+    startDate: Date,
+    endDate: Date
+  ): Promise<NormalizedMetricPayload[]> => {
+    return withingsService.fetchHealthData(metricKeys, startDate, endDate);
   },
 
   /**
@@ -302,44 +533,42 @@ export const withingsService = {
   disconnect: async (): Promise<void> => {
     try {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS);
-      // Withings connection is stored in AsyncStorage via saveProviderConnection,
-      // not in SecureStore, so we don't need to delete it here
-    } catch (error) {
+    } catch {
+      // Ignore errors during disconnect
+    }
+  },
+
+  /**
+   * Revoke access
+   */
+  revokeAccess: async (): Promise<boolean> => {
+    try {
+      const tokens = await withingsService.getTokens();
+      if (!tokens) return true;
+
+      // Notify Withings to revoke the token
+      await fetch(`${WITHINGS_API_BASE}/v2/user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${tokens.accessToken}`,
+        },
+        body: new URLSearchParams({
+          action: "unlink",
+        }).toString(),
+      });
+
+      await withingsService.disconnect();
+      return true;
+    } catch {
+      return false;
     }
   },
 };
 
-// Helper functions
-function mapWithingsMeasureType(type: number): string | null {
-  const typeMap: Record<number, string> = {
-    1: "weight",
-    4: "height",
-    5: "fatFreeMass",
-    6: "fatRatio",
-    8: "fatMassWeight",
-    9: "blood_pressure_diastolic",
-    10: "blood_pressure_systolic",
-    11: "heart_rate",
-    12: "body_temperature",
-    54: "blood_oxygen",
-    71: "body_temperature",
-    73: "skin_temperature",
-  };
-  return typeMap[type] || null;
-}
-
-function getUnitForMetric(metricKey: string): string {
-  const unitMap: Record<string, string> = {
-    weight: "kg",
-    height: "m",
-    fatRatio: "%",
-    blood_pressure_diastolic: "mmHg",
-    blood_pressure_systolic: "mmHg",
-    heart_rate: "bpm",
-    body_temperature: "°C",
-    blood_oxygen: "%",
-  };
-  return unitMap[metricKey] || "";
+// Helper function
+function formatDate(date: Date): string {
+  return date.toISOString().split("T")[0];
 }
 
 export default withingsService;
