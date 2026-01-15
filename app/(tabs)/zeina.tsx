@@ -32,6 +32,7 @@ import {
   type RealtimeEventHandlers,
 } from "@/lib/services/realtimeAgentService";
 import healthContextService from "@/lib/services/healthContextService";
+import { zeinaActionsService } from "@/lib/services/zeinaActionsService";
 
 // Audio imports
 let Audio: any = null;
@@ -269,15 +270,21 @@ export default function ZeinaScreen() {
       onToolCall: async (toolCall) => {
         // Execute health tools silently
         try {
-          const result = await executeHealthTool(
-            toolCall.name,
-            JSON.parse(toolCall.arguments)
-          );
+          // Safely parse arguments, defaulting to empty object
+          let args = {};
+          try {
+            args = toolCall.arguments ? JSON.parse(toolCall.arguments) : {};
+          } catch (parseError) {
+            console.warn("Failed to parse tool arguments:", parseError);
+          }
+          
+          const result = await executeHealthTool(toolCall.name, args);
           realtimeAgentService.submitToolOutput(
             toolCall.call_id,
             JSON.stringify(result)
           );
         } catch (error) {
+          console.error("Tool execution error:", error);
           realtimeAgentService.submitToolOutput(
             toolCall.call_id,
             JSON.stringify({ error: "Tool execution failed" })
@@ -329,29 +336,97 @@ export default function ZeinaScreen() {
     realtimeAgentService.setEventHandlers(handlers);
   }, [t, isActive, connectionState]);
 
-  // Execute health-related tools
-  const executeHealthTool = async (name: string, args: any): Promise<any> => {
+  // Execute health-related tools - routes to appropriate service
+  const executeHealthTool = async (name: string, args: any = {}): Promise<any> => {
+    // Ensure args is always an object
+    const safeArgs = args || {};
+    
     switch (name) {
+      // ===== INFORMATION RETRIEVAL TOOLS =====
       case "get_health_summary":
         return await healthContextService.getHealthSummary();
+      
       case "get_medications":
-        return await healthContextService.getMedications(args.active_only);
-      case "log_symptom":
-        return await healthContextService.logSymptom(
-          args.symptom_name,
-          args.severity,
-          args.notes
-        );
+        return await healthContextService.getMedications(safeArgs.active_only ?? true);
+      
       case "get_recent_vitals":
-        return await healthContextService.getRecentVitals(args.vital_type, args.days);
+        return await healthContextService.getRecentVitals(safeArgs.vital_type, safeArgs.days);
+      
       case "check_medication_interactions":
-        return await healthContextService.checkMedicationInteractions(args.new_medication);
-      case "schedule_reminder":
-        return { success: true, message: "Reminder scheduled" };
+        return await healthContextService.checkMedicationInteractions(safeArgs.new_medication);
+      
       case "emergency_contact":
-        return await healthContextService.getEmergencyContacts(args.action);
+        return await healthContextService.getEmergencyContacts(safeArgs.action);
+      
+      // ===== AUTOMATED ACTION TOOLS (via ZeinaActionsService) =====
+      case "log_symptom":
+        return await zeinaActionsService.logSymptom(
+          safeArgs.symptom_name || "unknown",
+          safeArgs.severity,
+          safeArgs.notes,
+          safeArgs.body_part,
+          safeArgs.duration
+        );
+      
+      case "add_medication":
+        return await zeinaActionsService.addMedication(
+          safeArgs.name || "unknown",
+          safeArgs.dosage,
+          safeArgs.frequency,
+          safeArgs.notes
+        );
+      
+      case "log_vital_sign": {
+        // Handle blood pressure specially (has systolic/diastolic)
+        const metadata = safeArgs.systolic && safeArgs.diastolic 
+          ? { systolic: safeArgs.systolic, diastolic: safeArgs.diastolic }
+          : undefined;
+        return await zeinaActionsService.logVitalSign(
+          safeArgs.vital_type || "unknown",
+          safeArgs.value ?? 0,
+          safeArgs.unit,
+          metadata
+        );
+      }
+      
+      case "set_medication_reminder":
+        return await zeinaActionsService.setMedicationReminder(
+          safeArgs.medication_name || "unknown",
+          safeArgs.time || "09:00",
+          safeArgs.recurring ?? true
+        );
+      
+      case "alert_family":
+        return await zeinaActionsService.alertFamily(
+          safeArgs.alert_type || "check_in",
+          safeArgs.message
+        );
+      
+      case "schedule_reminder":
+        // For general reminders, create a check-in with the reason
+        return await zeinaActionsService.requestCheckIn(
+          `Reminder: ${safeArgs.title || "reminder"} at ${safeArgs.time || "later"}`
+        );
+      
+      case "request_check_in":
+        return await zeinaActionsService.requestCheckIn(safeArgs.reason);
+      
+      case "log_mood":
+        return await zeinaActionsService.logMood(
+          safeArgs.mood_type || "neutral",
+          safeArgs.intensity,
+          safeArgs.notes,
+          safeArgs.activities
+        );
+      
+      case "mark_medication_taken":
+        return await zeinaActionsService.markMedicationTaken(safeArgs.medication_name || "");
+      
+      case "navigate_to":
+        return zeinaActionsService.getNavigationTarget(safeArgs.target || "home");
+      
       default:
-        return { error: "Unknown tool" };
+        return { error: "Unknown tool", message: `Tool "${name}" is not supported` };
     }
   };
 
@@ -723,15 +798,18 @@ export default function ZeinaScreen() {
           {/* Quick tips when inactive */}
           {!isActive && (
             <View style={styles.tipsContainer}>
-              <Text style={styles.tipsTitle}>{t("tryAsking", "Try asking:")}</Text>
+              <Text style={styles.tipsTitle}>{t("trySaying", "Try saying:")}</Text>
               <Text style={styles.tipText}>
-                "{t("tipHealthSummary", "What's my health summary?")}"
+                "{t("tipHeadache", "I have a headache")}"
               </Text>
               <Text style={styles.tipText}>
-                "{t("tipMedications", "What medications am I taking?")}"
+                "{t("tipBloodPressure", "My blood pressure is 120 over 80")}"
               </Text>
               <Text style={styles.tipText}>
-                "{t("tipVitals", "How are my vitals?")}"
+                "{t("tipMoodFeeling", "I'm feeling stressed today")}"
+              </Text>
+              <Text style={styles.tipText}>
+                "{t("tipTookMedication", "I took my aspirin")}"
               </Text>
             </View>
           )}

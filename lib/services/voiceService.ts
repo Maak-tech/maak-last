@@ -22,12 +22,26 @@ import openaiService from "./openaiService";
 
 // Dynamic import for expo-av with proper error handling
 // Type declaration for Audio namespace
+type RecordingInstance = {
+  stopAndUnloadAsync: () => Promise<void>;
+  getStatusAsync: () => Promise<any>;
+  setOnRecordingStatusUpdate: (callback: (status: any) => void) => void;
+  prepareToRecordAsync: (options?: any) => Promise<void>;
+  startAsync: () => Promise<void>;
+  getURI: () => string | null;
+};
+
 type AudioNamespace = {
   Recording: {
-    createAsync: (options?: any) => Promise<any>;
-    stopAndUnloadAsync: () => Promise<void>;
-    getStatusAsync: () => Promise<any>;
-    setOnRecordingStatusUpdate: (callback: (status: any) => void) => void;
+    createAsync: (options?: any) => Promise<{ recording: RecordingInstance }>;
+  };
+  requestPermissionsAsync: () => Promise<{ status: string }>;
+  getPermissionsAsync: () => Promise<{ status: string }>;
+  setAudioModeAsync: (options: any) => Promise<void>;
+  INTERRUPTION_MODE_IOS_DO_NOT_MIX: number;
+  INTERRUPTION_MODE_ANDROID_DO_NOT_MIX: number;
+  RecordingOptionsPresets: {
+    HIGH_QUALITY: any;
   };
   [key: string]: any;
 };
@@ -64,7 +78,7 @@ class VoiceService {
   private isListening = false;
   private recognitionCallbacks: Array<(result: SpeechRecognitionResult) => void> = [];
   private recognitionErrorCallbacks: Array<(error: Error) => void> = [];
-  private recording: Audio.Recording | null = null;
+  private recording: RecordingInstance | null = null;
 
   /**
    * Speak text using text-to-speech
@@ -228,15 +242,17 @@ class VoiceService {
       });
 
       // Create and start recording
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await recording.startAsync();
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      this.recording = recording;
 
       // Wait for a moment to capture some audio (you might want to make this configurable)
       await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Stop recording
       await recording.stopAndUnloadAsync();
+      this.recording = null;
 
       // Get the recorded URI
       const uri = recording.getURI();
