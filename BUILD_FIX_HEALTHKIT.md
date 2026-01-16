@@ -31,15 +31,24 @@ Enhanced `expo-build-properties` configuration:
 
 ## How It Works
 The `withFollyFix` plugin runs during `expo prebuild` and modifies the generated Podfile to:
-1. Comment out the problematic `Bridge.h` import in the umbrella header (it's not needed there)
-2. Add the ReactNativeHealthkit source directory to its own header search paths
-3. Add comprehensive React Native header search paths for all pod targets
-4. Enable `CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES`
-5. Set `USER_HEADER_SEARCH_PATHS` specifically for ReactNativeHealthkit target
+1. Comment out internal C++ headers from the ReactNativeHealthkit umbrella header:
+   - `Bridge.h`
+   - `ExceptionCatcher.h`
+   - `AggregationStyle.hpp`
+   - `AuthDataTypes.hpp`
+   - `QueryDataTypes.hpp`
+2. Add comprehensive header search paths for ReactNativeHealthkit (including recursive paths with `/**`)
+3. Add React Native header search paths for all pod targets (for static frameworks)
+4. Enable `CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES` for all targets
+5. Set `USER_HEADER_SEARCH_PATHS` specifically for ReactNativeHealthkit
+6. Enable `USE_HEADERMAP` and `ALWAYS_SEARCH_USER_PATHS` for ReactNativeHealthkit
 
-The key fix is that `Bridge.h` is a file within the ReactNativeHealthkit library itself, but the umbrella header was trying to import it before the paths were set up correctly. We fix this by:
-- Commenting it out in the umbrella header (where it's not needed)
-- Ensuring the ReactNativeHealthkit target can find its own source files
+The key fix is that the umbrella header was trying to import internal C++ implementation headers that:
+- Should not be in a public umbrella header
+- Cause build failures when using static frameworks
+- Are only needed internally by the module's implementation files
+
+By commenting out these imports in the umbrella header and ensuring proper header search paths, the module can build successfully.
 
 ## Testing
 After these changes:

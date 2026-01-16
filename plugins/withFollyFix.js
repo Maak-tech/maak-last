@@ -50,13 +50,24 @@ const withFollyFix = (config) => {
     File.open(file, "w") { |f| f.puts new_contents }
   end
   
-  # Fix for ReactNativeHealthkit umbrella header Bridge.h issue
-  # The umbrella header tries to import Bridge.h which is in the library's own source
+  # Fix for ReactNativeHealthkit umbrella header internal headers issue
+  # The umbrella header tries to import internal C++ headers which causes build failures
   umbrella_header = "Pods/Target Support Files/ReactNativeHealthkit/ReactNativeHealthkit-umbrella.h"
   if File.exist?(umbrella_header)
     text = File.read(umbrella_header)
-    # Comment out the Bridge.h import since it's not needed in the umbrella header
-    new_contents = text.gsub('#import "Bridge.h"', '// #import "Bridge.h" // Commented out - not needed in umbrella header')
+    # Comment out all internal headers that are not needed in the umbrella header
+    # These are C++ implementation headers that should not be in the public umbrella
+    internal_headers = [
+      'Bridge.h',
+      'ExceptionCatcher.h',
+      'AggregationStyle.hpp',
+      'AuthDataTypes.hpp',
+      'QueryDataTypes.hpp'
+    ]
+    new_contents = text
+    internal_headers.each do |header|
+      new_contents = new_contents.gsub("#import \"#{header}\"", "// #import \"#{header}\" // Commented out - internal header")
+    end
     File.open(umbrella_header, "w") { |f| f.puts new_contents }
   end
   
@@ -82,11 +93,16 @@ const withFollyFix = (config) => {
         '$(SRCROOT)/../node_modules/react-native/ReactCommon'
       ]
       
-      # For ReactNativeHealthkit specifically, add its source directory
+      # For ReactNativeHealthkit specifically, add its source directory and subdirectories
       if target.name == 'ReactNativeHealthkit'
         healthkit_paths = [
+          '\${PODS_ROOT}/ReactNativeHealthkit',
           '\${PODS_ROOT}/ReactNativeHealthkit/ios',
-          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit/ios'
+          '\${PODS_ROOT}/ReactNativeHealthkit/ios/**',
+          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit',
+          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit/ios',
+          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit/ios/**',
+          '$(SRCROOT)/../node_modules/@kingstinct/react-native-healthkit/ios'
         ]
         react_paths.concat(healthkit_paths)
       end
@@ -101,11 +117,22 @@ const withFollyFix = (config) => {
       # Allow non-modular includes in framework modules (required for Bridge.h)
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       
-      # For ReactNativeHealthkit, also set USER_HEADER_SEARCH_PATHS
+      # For ReactNativeHealthkit, also set USER_HEADER_SEARCH_PATHS and allow recursive search
       if target.name == 'ReactNativeHealthkit'
         user_paths = config.build_settings['USER_HEADER_SEARCH_PATHS'] || ['$(inherited)']
-        user_paths << '\${PODS_ROOT}/ReactNativeHealthkit/ios' unless user_paths.include?('\${PODS_ROOT}/ReactNativeHealthkit/ios')
+        healthkit_user_paths = [
+          '\${PODS_ROOT}/ReactNativeHealthkit/ios',
+          '\${PODS_ROOT}/ReactNativeHealthkit/ios/**',
+          '$(SRCROOT)/../node_modules/@kingstinct/react-native-healthkit/ios'
+        ]
+        healthkit_user_paths.each do |path|
+          user_paths << path unless user_paths.include?(path)
+        end
         config.build_settings['USER_HEADER_SEARCH_PATHS'] = user_paths
+        
+        # Enable recursive header search for ReactNativeHealthkit
+        config.build_settings['USE_HEADERMAP'] = 'YES'
+        config.build_settings['ALWAYS_SEARCH_USER_PATHS'] = 'YES'
       end
     end
   end
