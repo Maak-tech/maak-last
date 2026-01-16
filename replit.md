@@ -65,6 +65,12 @@ The app includes a comprehensive observability system in `lib/observability/`:
 - `escalations` - Active alert escalations
 
 ## Recent Changes
+- 2026-01-16: Fixed PPG Vitals Monitor to use real camera measurement
+  - ppg-measure.tsx: Now loads PPGVitalMonitorVisionCamera for real camera PPG
+  - PPGPixelExtractor.ts: Improved frame data extraction with multiple access methods
+  - Added extraction success rate tracking for quality monitoring
+  - Green banner shows "Real Camera PPG Measurement" when using actual camera
+  - Falls back to simulated component only if VisionCamera fails to load
 - 2026-01-16: Added Arabic localization to Zeina voice assistant responses
   - zeinaActionsService.ts: Vital names, vital advice, symptom advice fully localized
   - logSymptom and logVitalSign methods now accept isArabic parameter

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Platform, View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { Info, Sparkles } from "lucide-react-native";
+import { Info, Heart } from "lucide-react-native";
 
 // This screen is isolated - TextImpl errors only affect this route
 export default function PPGMeasureScreen() {
@@ -12,6 +12,7 @@ export default function PPGMeasureScreen() {
   const isRTL = i18n.language === "ar";
   const [PPGComponent, setPPGComponent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [useRealCamera, setUseRealCamera] = useState(true);
 
   useEffect(() => {
     // Redirect if not authenticated
@@ -22,13 +23,21 @@ export default function PPGMeasureScreen() {
 
     // Load PPG component after mount to isolate any errors
     const loadComponent = () => {
-      // For now, use simulated version to avoid camera conflicts
-      // expo-camera (PPGVitalMonitor) conflicts with react-native-vision-camera (PPGVitalMonitorVisionCamera)
-      // Until React 19 + Reanimated compatibility is fixed, use simulated only
       try {
-        const simulatedModule = require("@/components/PPGVitalMonitor");
-        setPPGComponent(() => simulatedModule.default);
+        // Use real VisionCamera PPG component for actual camera-based measurement
+        // This uses react-native-vision-camera with frame processors for real PPG signal extraction
+        const visionCameraModule = require("@/components/PPGVitalMonitorVisionCamera");
+        setPPGComponent(() => visionCameraModule.default);
+        setUseRealCamera(true);
       } catch (error) {
+        // Fallback to simulated version if VisionCamera fails to load
+        try {
+          const simulatedModule = require("@/components/PPGVitalMonitor");
+          setPPGComponent(() => simulatedModule.default);
+          setUseRealCamera(false);
+        } catch (fallbackError) {
+          // Both failed
+        }
       } finally {
         setLoading(false);
       }
@@ -58,20 +67,37 @@ export default function PPGMeasureScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Coming Soon Banner */}
-      <View style={styles.comingSoonBanner}>
-        <View style={styles.bannerIconContainer}>
-          <Sparkles color="#F59E0B" size={20} />
+      {/* Real Camera PPG Info Banner */}
+      {useRealCamera && (
+        <View style={styles.realCameraBanner}>
+          <View style={styles.bannerIconContainer}>
+            <Heart color="#10B981" size={20} />
+          </View>
+          <View style={styles.bannerTextContainer}>
+            <Text style={styles.realBannerTitle}>{isRTL ? "قياس PPG بالكاميرا الحقيقية" : "Real Camera PPG Measurement"}</Text>
+            <Text style={styles.realBannerSubtitle}>
+              {isRTL ? "استخدم الكاميرا الأمامية وإصبعك لقياس معدل ضربات القلب" : "Using front camera and fingertip for heart rate measurement"}
+            </Text>
+          </View>
         </View>
-        <View style={styles.bannerTextContainer}>
-          <Text style={styles.bannerTitle}>{isRTL ? "PPG الكاميرا الحقيقية قريباً!" : "Real Camera PPG Coming Soon!"}</Text>
-          <Text style={styles.bannerSubtitle}>
-            {isRTL ? "في انتظار React Native Reanimated 4.0 لدعم الكاميرا الكامل" : "Waiting for React Native Reanimated 4.0 for full camera support"}
-          </Text>
-        </View>
-      </View>
+      )}
 
-      {/* Current PPG Component (Simulated) */}
+      {/* Fallback Banner if using simulated */}
+      {!useRealCamera && (
+        <View style={styles.comingSoonBanner}>
+          <View style={styles.bannerIconContainer}>
+            <Info color="#F59E0B" size={20} />
+          </View>
+          <View style={styles.bannerTextContainer}>
+            <Text style={styles.bannerTitle}>{isRTL ? "وضع المحاكاة" : "Simulation Mode"}</Text>
+            <Text style={styles.bannerSubtitle}>
+              {isRTL ? "الكاميرا الحقيقية غير متوفرة - استخدام بيانات محاكاة" : "Real camera unavailable - using simulated data"}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* PPG Component */}
       <View style={{ flex: 1 }}>
         <PPGComponent
           visible={true}
@@ -109,6 +135,27 @@ const styles = StyleSheet.create({
     textAlign: "center",
     padding: 20,
   },
+  realCameraBanner: {
+    backgroundColor: "#D1FAE5",
+    borderBottomWidth: 2,
+    borderBottomColor: "#10B981",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  realBannerTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#065F46",
+    marginBottom: 2,
+  },
+  realBannerSubtitle: {
+    fontSize: 11,
+    color: "#047857",
+    lineHeight: 14,
+  },
   comingSoonBanner: {
     backgroundColor: "#FEF3C7",
     borderBottomWidth: 2,
@@ -123,7 +170,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#FCD34D",
+    backgroundColor: "#34D399",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
