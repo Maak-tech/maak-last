@@ -14,7 +14,10 @@ export interface PushNotificationData {
       | "medication_reminder"
       | "symptom_alert"
       | "medication_alert"
-      | "emergency_alert";
+      | "emergency_alert"
+      | "caregiver_alert"
+      | "vital_alert"
+      | "escalation_alert";
     alertId?: string;
     userId?: string;
     medicationId?: string;
@@ -22,6 +25,8 @@ export interface PushNotificationData {
     symptomType?: string;
     severity?: "low" | "medium" | "high" | "critical";
     clickAction?: string;
+    caregiverId?: string;
+    familyId?: string;
   };
   sound?: "default" | "alarm" | "reminder" | "emergency";
   priority?: "normal" | "high";
