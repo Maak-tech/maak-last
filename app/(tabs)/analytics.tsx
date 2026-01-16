@@ -1,4 +1,4 @@
-import { Calendar, TrendingUp } from "lucide-react-native";
+import { Calendar, TrendingUp, Brain } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,11 +18,13 @@ import { chartsService } from "@/lib/services/chartsService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { healthDataService } from "@/lib/services/healthDataService";
+import { useAIInsights } from "@/hooks/useAIInsights";
 import type { Symptom, Medication, VitalSign } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import HealthChart from "@/app/components/HealthChart";
 import CorrelationChart from "@/app/components/CorrelationChart";
 import TrendPredictionChart from "@/app/components/TrendPredictionChart";
+import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Button, Card } from "@/components/design-system";
 import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
@@ -43,6 +45,13 @@ export default function AnalyticsScreen() {
   const [vitals, setVitals] = useState<VitalSign[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [comparisonRange, setComparisonRange] = useState<DateRange | null>(null);
+  const [showAIInsights, setShowAIInsights] = useState(false);
+
+  // AI Insights hook
+  const aiInsights = useAIInsights(user?.id, {
+    autoLoad: false, // Load on demand to avoid slowing down analytics
+    includeNarrative: true
+  });
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -114,6 +123,12 @@ export default function AnalyticsScreen() {
     } as TextStyle & ViewStyle,
     rtlText: {
       textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
+    } as TextStyle,
+    text: {
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+    } as TextStyle,
+    mt2: {
+      marginTop: theme.spacing.xs,
     } as TextStyle,
   }))(theme);
 
@@ -426,6 +441,71 @@ export default function AnalyticsScreen() {
               </Card>
             </View>
           )}
+
+          {/* AI Insights Section */}
+          <View style={styles.section as ViewStyle}>
+            <View style={styles.sectionHeader as ViewStyle}>
+              <Heading level={6} style={styles.rtlText as TextStyle}>
+                {isRTL ? "رؤى الذكاء الاصطناعي" : "AI Insights"}
+              </Heading>
+              <TouchableOpacity
+                onPress={() => setShowAIInsights(!showAIInsights)}
+                style={styles.comparisonToggle as ViewStyle}
+              >
+                <Brain size={16} color={showAIInsights ? theme.colors.primary.main : theme.colors.text.secondary} />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: showAIInsights
+                      ? theme.colors.primary.main
+                      : theme.colors.text.secondary,
+                  }}
+                >
+                  {isRTL ? (showAIInsights ? "إخفاء" : "عرض") : (showAIInsights ? "Hide" : "Show")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {showAIInsights && (
+              <View style={{ marginHorizontal: 16 }}>
+                {aiInsights.loading ? (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={theme.colors.primary.main} />
+                    <Text style={{
+                      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+                      marginTop: theme.spacing.xs,
+                    }}>
+                      {isRTL ? "تحليل بياناتك..." : "Analyzing your data..."}
+                    </Text>
+                  </View>
+                ) : aiInsights.error ? (
+                  <Card variant="elevated" style={{ marginBottom: 8 }} onPress={() => {}} contentStyle={undefined}>
+                    <View style={{ padding: 16 }}>
+                      <Text style={{
+                        ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+                        color: theme.colors.accent.error,
+                      }}>
+                        {isRTL ? "فشل في تحميل الرؤى الذكية" : "Failed to load AI insights"}
+                      </Text>
+                      <Button
+                        title={isRTL ? "إعادة المحاولة" : "Retry"}
+                        onPress={aiInsights.refresh}
+                        style={{ marginTop: 8 }}
+                      />
+                    </View>
+                  </Card>
+                ) : (
+                  <AIInsightsDashboard
+                    compact={true}
+                    onInsightPress={(insight: any) => {
+                      // Handle insight press - could navigate to detailed view
+                      console.log('Insight pressed:', insight);
+                    }}
+                  />
+                )}
+              </View>
+            )}
+          </View>
 
           {/* Summary Stats */}
           <View style={styles.section as ViewStyle}>

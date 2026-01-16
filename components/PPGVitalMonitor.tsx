@@ -726,22 +726,42 @@ export default function PPGVitalMonitor({
           setBeatsDetected(estimatedBeats);
         }
 
-        // Note: expo-camera v17 doesn't support real-time frame processing
-        // For proper PPG, you'd need react-native-vision-camera with frame processors
-        // For now, we use simulated signal that responds to finger detection
-        // The camera is visible and working, which is the first step
+        // CRITICAL: expo-camera v17 doesn't support real-time frame processing
+        // Real PPG requires react-native-vision-camera with frame processors
+        // This component will FAIL the measurement because extractPPGFromFrame returns -1
         try {
-          // Extract PPG signal (simulated for now, but camera is active)
-          // In production, use react-native-vision-camera with useFrameProcessor
-          // This function now validates finger presence before generating signal
+          // Attempt to extract PPG signal
+          // This will return -1 because expo-camera cannot provide real pixel data
           const frameValue = extractPPGFromFrame();
-          ppgSignalRef.current.push(frameValue);
-          frameCountRef.current++;
+          
+          // CRITICAL: Reject -1 (extraction failed) and any invalid values
+          // Only accept real data in valid range (0-255)
+          if (frameValue < 0 || frameValue > 255 || isNaN(frameValue)) {
+            // Track failure but DON'T add fake data
+            consecutiveNoFingerFrames.current++;
+            
+            // If too many consecutive failures, stop measurement with helpful error
+            if (consecutiveNoFingerFrames.current > 30) {
+              setError(
+                "Unable to extract real camera data with expo-camera.\n\n" +
+                "For real PPG heart rate measurement, please use the native build with react-native-vision-camera.\n\n" +
+                "Expo Go / expo-camera does not support real-time frame processing required for PPG."
+              );
+              stopPPGCapture();
+              return;
+            }
+            
+            // Skip this frame - don't add any data
+            frameCountRef.current++;
+          } else {
+            // Valid data - add to signal
+            ppgSignalRef.current.push(Math.round(frameValue));
+            consecutiveNoFingerFrames.current = 0;
+            frameCountRef.current++;
+          }
         } catch (err) {
-          // Error processing frame
-          // Fallback: use uniform noise (no finger signal)
-          const frameValue = 128 + (Math.random() - 0.5) * 2;
-          ppgSignalRef.current.push(Math.max(0, Math.min(255, frameValue)));
+          // Error processing frame - don't add fake data
+          consecutiveNoFingerFrames.current++;
           frameCountRef.current++;
         }
 
@@ -759,40 +779,27 @@ export default function PPGVitalMonitor({
 
   /**
    * Extract PPG signal value from camera frame
-   * Note: This is simulated since expo-camera doesn't support real-time frame processing
-   * For production PPG, use react-native-vision-camera with useFrameProcessor hook
-   * The camera is now visible and working - this is the foundation for real implementation
    * 
-   * CRITICAL: This function NEVER generates PPG signal until finger presence is validated.
-   * Without a finger, it returns uniform noise to prevent false readings.
+   * CRITICAL: expo-camera does NOT support real-time frame processing.
+   * This function previously generated SIMULATED data which is scientifically invalid.
+   * 
+   * Based on research requirements:
+   * - Olugbenle et al. (arXiv:2412.07082v1) - REAL PPG signals required
+   * - PMC5981424 - Smartphone PPG validation requires actual sensor data
+   * - ScienceDirect (S0167865525002454) - Camera-based vital signs need real pixel data
+   * 
+   * DO NOT USE SIMULATED DATA - this component should only be used as a fallback
+   * when react-native-vision-camera is unavailable, and should properly fail
+   * rather than return fake heart rate readings.
+   * 
+   * For real PPG measurement, use PPGVitalMonitorVisionCamera with react-native-vision-camera.
    */
   const extractPPGFromFrame = (): number => {
-    const baseValue = 128; // Base pixel intensity
-    
-    // User has confirmed finger placement, so generate realistic PPG signal immediately
-    // The signal will be validated periodically during capture, not on every frame
-    const time = frameCountRef.current / TARGET_FPS;
-    
-    // Simulate realistic heart rate variation (60-90 BPM range, with slow drift)
-    // Base heart rate varies slightly over time to simulate natural variation
-    const baseHeartRate = 65 + Math.sin(time / 30) * 8 + (Math.random() - 0.5) * 4; // 60-90 BPM with slow variation
-    const frequency = baseHeartRate / 60; // Hz
-    const amplitude = 35; // PPG signal amplitude (increased for better detection)
-    const noise = (Math.random() - 0.5) * 10; // Realistic noise (slightly increased)
-
-    // Simulate PPG waveform (pulsatile signal)
-    // Add multiple harmonics for more realistic signal
-    // Add slight frequency modulation to simulate HRV (heart rate variability)
-    const hrvModulation = 1 + 0.05 * Math.sin(2 * Math.PI * 0.1 * time); // Slow HRV modulation
-    const ppgValue =
-      baseValue +
-      amplitude * Math.sin(2 * Math.PI * frequency * hrvModulation * time) +
-      0.3 * amplitude * Math.sin(4 * Math.PI * frequency * hrvModulation * time) + // Second harmonic
-      0.1 * amplitude * Math.sin(6 * Math.PI * frequency * hrvModulation * time) + // Third harmonic for more realism
-      noise;
-
-    // Clamp to valid range (0-255)
-    return Math.max(0, Math.min(255, ppgValue));
+    // RETURN -1 TO INDICATE EXTRACTION FAILED
+    // expo-camera cannot provide real-time pixel data for PPG analysis
+    // The measurement flow will detect this and properly fail
+    // This ensures users know they need a proper native build with VisionCamera
+    return -1; // Invalid marker - expo-camera cannot extract real PPG data
   };
 
   /**
@@ -866,7 +873,7 @@ export default function PPGVitalMonitor({
     // Check if finger detection failed during capture - handle this FIRST before any processing
     if (fingerDetectionFailed) {
       setError(
-        "Finger not detected during measurement. Please ensure your finger completely covers the front camera lens with no gaps or light leaks."
+        "Finger not detected during measurement. Please ensure your finger completely covers the back camera lens and flash with no gaps or light leaks."
       );
       setStatus("error");
       return;
@@ -894,7 +901,7 @@ export default function PPGVitalMonitor({
     if (!fingerDetectedRef.current) {
       // This shouldn't happen if flow is correct, but handle it anyway
       setError(
-        "Finger placement not confirmed. Please place your finger firmly on the front camera lens and tap the button to start measurement."
+        "Finger placement not confirmed. Please place your finger firmly on the back camera lens and flash, then tap the button to start measurement."
       );
       setStatus("error");
       return;
@@ -912,7 +919,7 @@ export default function PPGVitalMonitor({
     if (signalStdDev < 3) {
       setError(
         "Signal quality too low. Please ensure:\n" +
-        "• Your finger completely covers the front camera lens\n" +
+        "• Your finger completely covers the back camera lens and flash\n" +
         "• There are no gaps or light leaks\n" +
         "• Your finger is warm and making good contact\n" +
         "• You hold still during the measurement"

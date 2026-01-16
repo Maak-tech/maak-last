@@ -21,6 +21,14 @@ import { auth } from "@/lib/firebase";
 import { PhoneAuthProvider, signInWithCredential } from "firebase/auth";
 import type { ConfirmationResult } from "firebase/auth";
 
+// Type for React Native Firebase confirmation result
+interface RNFirebaseConfirmationResult {
+  confirm: (code: string) => Promise<any>;
+}
+
+// Combined confirmation result type (matches AuthContext)
+type PhoneConfirmationResult = ConfirmationResult | RNFirebaseConfirmationResult;
+
 export default function LoginScreen() {
   const { t, i18n } = useTranslation();
   const { signIn, signInWithPhone, verifyPhoneCode, loading, user } = useAuth();
@@ -30,7 +38,7 @@ export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [confirmationResult, setConfirmationResult] = useState<PhoneConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);
@@ -183,11 +191,18 @@ export default function LoginScreen() {
 
     try {
       // Verify OTP - this will sign in the user
-      const credential = PhoneAuthProvider.credential(
-        confirmationResult.verificationId,
-        otpCode.trim()
-      );
-      await signInWithCredential(auth, credential);
+      // Check if it's a web SDK ConfirmationResult (has verificationId) or RN Firebase (has confirm method)
+      if ('verificationId' in confirmationResult) {
+        // Web SDK path
+        const credential = PhoneAuthProvider.credential(
+          confirmationResult.verificationId,
+          otpCode.trim()
+        );
+        await signInWithCredential(auth, credential);
+      } else {
+        // React Native Firebase path - use confirm method
+        await confirmationResult.confirm(otpCode.trim());
+      }
 
       // Show success message for family code
       if (familyCode.trim()) {

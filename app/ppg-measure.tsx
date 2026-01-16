@@ -25,19 +25,21 @@ export default function PPGMeasureScreen() {
     const loadComponent = () => {
       try {
         // Use real VisionCamera PPG component for actual camera-based measurement
-        // This uses react-native-vision-camera with frame processors for real PPG signal extraction
+        // This uses react-native-vision-camera with frame processors for REAL PPG signal extraction
+        // CRITICAL: Only real camera data is used - no simulated data
         const visionCameraModule = require("@/components/PPGVitalMonitorVisionCamera");
         setPPGComponent(() => visionCameraModule.default);
         setUseRealCamera(true);
       } catch (error) {
-        // Fallback to simulated version if VisionCamera fails to load
-        try {
-          const simulatedModule = require("@/components/PPGVitalMonitor");
-          setPPGComponent(() => simulatedModule.default);
-          setUseRealCamera(false);
-        } catch (fallbackError) {
-          // Both failed
-        }
+        // VisionCamera failed to load - NO FALLBACK ALLOWED
+        // Simulated data is scientifically invalid and completely disabled
+        // Show error to user - this is the ONLY acceptable outcome
+        console.error("Failed to load VisionCamera PPG component:", error);
+        console.error("NO FALLBACK TO SIMULATED DATA - Real PPG measurement requires VisionCamera");
+
+        // Set component to null - will show error message
+        setPPGComponent(null);
+        setUseRealCamera(false);
       } finally {
         setLoading(false);
       }
@@ -60,7 +62,29 @@ export default function PPGMeasureScreen() {
   if (!PPGComponent) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>{isRTL ? "تعذر تحميل مكون PPG" : "Unable to load PPG component"}</Text>
+        <View style={styles.errorContainer}>
+          <Heart color="#EF4444" size={48} />
+          <Text style={styles.errorTitle}>
+            {isRTL ? "قياس PPG غير متاح" : "PPG Measurement Unavailable"}
+          </Text>
+          <Text style={styles.errorText}>
+            {isRTL 
+              ? "يتطلب قياس معدل ضربات القلب بالكاميرا إصدارًا أصليًا مع react-native-vision-camera.\n\nلا يمكن استخدام Expo Go لهذه الميزة لأنها تتطلب معالجة إطارات الكاميرا في الوقت الفعلي."
+              : "Real camera heart rate measurement requires a native build with react-native-vision-camera.\n\nExpo Go cannot be used for this feature as it requires real-time camera frame processing for accurate PPG readings."
+            }
+          </Text>
+          <Text style={styles.errorSubtext}>
+            {isRTL
+              ? "يرجى استخدام إصدار التطبيق الأصلي للحصول على قياسات حقيقية."
+              : "Please use a native app build for real measurements."
+            }
+          </Text>
+          <TouchableOpacity style={styles.backButtonLarge} onPress={() => router.back()}>
+            <Text style={styles.backButtonLargeText}>
+              {isRTL ? "العودة" : "Go Back"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -82,20 +106,7 @@ export default function PPGMeasureScreen() {
         </View>
       )}
 
-      {/* Fallback Banner if using simulated */}
-      {!useRealCamera && (
-        <View style={styles.comingSoonBanner}>
-          <View style={styles.bannerIconContainer}>
-            <Info color="#F59E0B" size={20} />
-          </View>
-          <View style={styles.bannerTextContainer}>
-            <Text style={styles.bannerTitle}>{isRTL ? "وضع المحاكاة" : "Simulation Mode"}</Text>
-            <Text style={styles.bannerSubtitle}>
-              {isRTL ? "الكاميرا الحقيقية غير متوفرة - استخدام بيانات محاكاة" : "Real camera unavailable - using simulated data"}
-            </Text>
-          </View>
-        </View>
-      )}
+      {/* No fallback banner - if VisionCamera fails, show error screen only */}
 
       {/* PPG Component */}
       <View style={{ flex: 1 }}>
@@ -129,11 +140,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
   },
-  errorText: {
-    fontSize: 16,
-    color: "#EF4444",
+  errorContainer: {
+    alignItems: "center",
+    paddingHorizontal: 32,
+    maxWidth: 400,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginTop: 16,
+    marginBottom: 12,
     textAlign: "center",
-    padding: 20,
+  },
+  errorText: {
+    fontSize: 15,
+    color: "#4B5563",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  errorSubtext: {
+    fontSize: 13,
+    color: "#6B7280",
+    textAlign: "center",
+    fontStyle: "italic",
+    marginBottom: 24,
+  },
+  backButtonLarge: {
+    backgroundColor: "#2563EB",
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    minWidth: 160,
+    alignItems: "center",
+  },
+  backButtonLargeText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
   realCameraBanner: {
     backgroundColor: "#D1FAE5",
@@ -155,16 +200,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#047857",
     lineHeight: 14,
-  },
-  comingSoonBanner: {
-    backgroundColor: "#FEF3C7",
-    borderBottomWidth: 2,
-    borderBottomColor: "#F59E0B",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    zIndex: 9999,
   },
   bannerIconContainer: {
     width: 36,

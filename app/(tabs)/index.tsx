@@ -47,6 +47,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import DashboardWidgetSettings from "@/app/components/DashboardWidgetSettings";
 import HealthInsightsCard from "@/app/components/HealthInsightsCard";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
+import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import { Button, Card } from "@/components/design-system";
 import { Heading, Text, Caption } from "@/components/design-system/Typography";
 import { Badge } from "@/components/design-system/AdditionalComponents";
@@ -1079,6 +1080,13 @@ export default function DashboardScreen() {
           <View key="healthInsights" style={styles.section as ViewStyle}>
             <HealthInsightsCard />
             <ProactiveHealthSuggestions maxSuggestions={5} />
+            <AIInsightsDashboard
+              compact={true}
+              onInsightPress={(insight) => {
+                // Navigate to analytics tab for detailed view
+                router.push("/analytics");
+              }}
+            />
           </View>
         );
 

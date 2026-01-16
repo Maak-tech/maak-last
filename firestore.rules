@@ -315,5 +315,29 @@ service cloud.firestore {
     match /dashboardConfigs/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Observability collections - system metrics and events
+    // Allow authenticated users to write metrics/events (for client-side observability)
+    // Read access restricted to prevent data leakage
+    match /observability_metrics/{metricId} {
+      allow create: if isSignedIn();
+      // Read access can be restricted further if needed (e.g., admin-only)
+      allow read: if false; // No read access for now
+    }
+
+    match /observability_events/{eventId} {
+      allow create: if isSignedIn();
+      // Read access can be restricted further if needed (e.g., admin-only)
+      allow read: if false; // No read access for now
+    }
+
+    match /alert_audits/{auditId} {
+      allow create: if isSignedIn();
+      // Allow read only if user can read the related alert
+      allow read: if isSignedIn() && (
+        resource.data.actorId == request.auth.uid || // User can read audits they created
+        canReadPHI(resource.data.userId) // User can read audits for alerts they have access to
+      );
+    }
   }
 } 

@@ -4,7 +4,7 @@
  * 
  * Based on research:
  * - Olugbenle et al. (arXiv:2412.07082v1) - Low frame-rate PPG heart rate measurement
- * - 14 fps capture rate for optimal accuracy
+ * - Dynamic FPS (14-60) based on camera capabilities, preferring higher for better accuracy
  * - 60 second measurement for HRV and respiratory rate
  */
 
@@ -52,6 +52,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 import {
   Camera,
   useCameraDevice,
+  useCameraFormat,
   useCameraPermission,
   useFrameProcessor,
 } from "react-native-vision-camera";
@@ -84,6 +85,17 @@ export default function PPGVitalMonitorVisionCamera({
   const { t } = useTranslation();
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice("back"); // Back camera has flash for PPG illumination
+  
+  // Select camera format with optimal frame rate for PPG
+  // Research shows higher fps (30-60) improves peak detection and HRV accuracy
+  // We prefer 30 fps as it balances accuracy with battery life
+  const PREFERRED_FPS = 30;
+  const MIN_ACCEPTABLE_FPS = 14; // Minimum from Olugbenle et al. research
+  
+  const format = useCameraFormat(device, [
+    { fps: { ideal: PREFERRED_FPS, min: MIN_ACCEPTABLE_FPS } },
+    { videoResolution: { width: 640, height: 480 } }, // Lower resolution is fine for PPG (faster processing)
+  ]);
   
   const [status, setStatus] = useState<
     "idle" | "instructions" | "measuring" | "processing" | "success" | "error"
@@ -122,11 +134,24 @@ export default function PPGVitalMonitorVisionCamera({
   const consecutiveNoFingerFrames = useRef(0);
   const consecutiveFrameFailures = useRef(0); // Track consecutive frame extraction failures
   const totalFrameFailures = useRef(0); // Track total failures
+  const frameProcessorInitialized = useRef(false); // Track if frame processor has been called
+  const hasLoggedFrameProcessor = useRef(false); // Track if we've logged frame processor status
   
-  const TARGET_FPS = 14; // 14 fps as per research
-  const FRAME_INTERVAL_MS = 1000 / TARGET_FPS; // ~71.4ms per frame
-  const MEASUREMENT_DURATION = 60; // 60 seconds
-  const TARGET_FRAMES = TARGET_FPS * MEASUREMENT_DURATION; // 840 frames
+  // Debug flags - set to false in production to reduce console spam
+  const DEBUG_FRAME_PROCESSOR = __DEV__; // Only debug in development mode
+  const DEBUG_PPG = __DEV__; // Control PPG signal quality logging
+  
+  // Frame rate optimization following research guidance
+  // Higher frame rates (30-60 fps) improve:
+  // - Peak detection accuracy for heart rate
+  // - HRV calculation precision (better R-R interval resolution)
+  // - Signal quality assessment
+  // We use the camera's actual supported fps, preferring 30 fps when available
+  const actualFps = format?.maxFps ?? PREFERRED_FPS;
+  const TARGET_FPS = Math.max(MIN_ACCEPTABLE_FPS, Math.min(actualFps, 60)); // Clamp between 14-60 fps
+  const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
+  const MEASUREMENT_DURATION = 60; // 60 seconds - clinical standard for comprehensive vitals
+  const TARGET_FRAMES = TARGET_FPS * MEASUREMENT_DURATION;
 
   // Progress milestones for 60s capture
   const progressMilestones: Record<
@@ -514,6 +539,8 @@ export default function PPGVitalMonitorVisionCamera({
 
   useEffect(() => {
     if (visible && status === "idle") {
+      // Show instructions first - don't auto-start camera
+      // User needs to explicitly start measurement after reviewing instructions
       setStatus("instructions");
     } else if (!visible) {
       resetState();
@@ -867,17 +894,21 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
     
-    // Check for excessive frame processing errors
-    // If more than 20% of frames failed, we don't have enough real data
-    const failureRate = totalFrameFailures.current / (ppgSignalRef.current.length + totalFrameFailures.current);
-    if (failureRate > 0.2) {
+    // CRITICAL: Check for excessive frame processing errors
+    // If more than 15% of frames failed, we don't have enough real camera data
+    // This is stricter because we must ensure only REAL data is used
+    const totalAttempts = ppgSignalRef.current.length + totalFrameFailures.current;
+    const failureRate = totalAttempts > 0 ? totalFrameFailures.current / totalAttempts : 1;
+    if (failureRate > 0.15) {
       setError(
-        "Too many frame processing errors detected. Unable to extract sufficient real camera data.\n\n" +
+        `Unable to extract sufficient real camera data.\n\n` +
+        `Success rate: ${Math.round((1 - failureRate) * 100)}% (${ppgSignalRef.current.length}/${totalAttempts} frames)\n\n` +
         "This may indicate:\n" +
         "• Camera permission issues\n" +
-        "• Camera hardware problems\n" +
-        "• Another app is using the camera\n\n" +
-        "Please restart the app and try again."
+        "• Camera frame access not working\n" +
+        "• Another app is using the camera\n" +
+        "• Device camera compatibility issues\n\n" +
+        "Please ensure you're using a development build (not Expo Go) and try again."
       );
       setStatus("error");
       return;
@@ -909,7 +940,8 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
 
-    // Process PPG signal
+    // Process PPG signal using enhanced pipeline following research guidance
+    // Includes multi-order filtering, detrending, and advanced quality assessment
     const ppgResult = processPPGSignalEnhanced(ppgSignalRef.current, TARGET_FPS);
 
     if (ppgResult.success && ppgResult.heartRate) {
@@ -955,7 +987,7 @@ export default function PPGVitalMonitorVisionCamera({
     // If too many consecutive failures, stop measurement early
     // This prevents continuing with insufficient real data
     if (consecutiveFrameFailures.current > 30) {
-      // More than 30 consecutive failures (~2 seconds at 14fps) - stop measurement
+      // More than 30 consecutive failures (~1-2 seconds depending on fps) - stop measurement
       setError(
         "Unable to extract camera data. Please ensure:\n" +
         "• Camera permission is granted\n" +
@@ -975,7 +1007,13 @@ export default function PPGVitalMonitorVisionCamera({
   // Frame processor for real-time PPG signal extraction
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet';
-    
+
+    // Log first frame processor call for debugging
+    if (!frameProcessorInitialized.current) {
+      frameProcessorInitialized.current = true;
+      console.log('[PPG] Frame processor initialized and receiving frames');
+    }
+
     // Only process frames if we're capturing
     if (!isCapturingRef.current) {
       return;
@@ -983,7 +1021,7 @@ export default function PPGVitalMonitorVisionCamera({
 
     const now = Date.now();
     
-    // Throttle to 14 fps
+    // Throttle to TARGET_FPS (dynamically set based on camera capabilities)
     if (now - lastFrameTimeRef.current < FRAME_INTERVAL_MS) {
       return;
     }
@@ -999,16 +1037,19 @@ export default function PPGVitalMonitorVisionCamera({
       }
       
       // Extract red channel average from center of frame using pixel extractor
+      // CRITICAL: extractRedChannelAverage returns -1 if extraction fails
       const redAverage = extractRedChannelAverage(frame);
       
-      // Validate extracted value - must be valid real data
-      if (isNaN(redAverage) || redAverage < 0 || redAverage > 255) {
+      // Validate extracted value - must be valid real data (0-255 range)
+      // -1 indicates extraction failure - DO NOT treat as valid data
+      if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
         // Invalid value - track failure and skip (don't add fake data)
+        // This includes -1 (extraction failed) and any out-of-range values
         runOnJS(handleFrameProcessingError)(frameCountRef.current);
         return; // Skip this frame - don't add any data
       }
       
-      // Only process if we have valid real data
+      // Only process if we have REAL valid data from the camera
       // Reset failure counter on success
       runOnJS(resetFrameFailureCounter)();
       
@@ -1029,38 +1070,51 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
 
-    // Validate that we have real data - reject invalid values
-    if (isNaN(redAverage) || redAverage < 0 || redAverage > 255) {
-      // Invalid data - don't add to signal, track as failure
+    // CRITICAL: Validate that we have REAL data from the camera
+    // Reject -1 (extraction failed) and any invalid values
+    // This ensures we ONLY use actual camera pixel data, never simulated
+    if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
+      // Invalid data (including -1 which indicates extraction failure)
+      // Don't add to signal, track as failure
       handleFrameProcessingError(frameIndex);
       return;
     }
     
-    // Only add valid real data to signal
-    const clampedValue = Math.max(0, Math.min(255, redAverage));
-    ppgSignalRef.current.push(clampedValue);
+    // Only add REAL valid data from camera to signal
+    // Do not clamp to hide errors - if value is out of range, it's rejected above
+    const validValue = Math.round(redAverage);
+    ppgSignalRef.current.push(validValue);
 
     // Update progress
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
     setProgress(Math.min(1, elapsed / MEASUREMENT_DURATION));
 
-    // Real-time signal quality validation (every 30 frames)
+    // Enhanced real-time signal quality validation following research guidance
     if (ppgSignalRef.current.length >= 30 && ppgSignalRef.current.length % 30 === 0) {
-      const recentSignal = ppgSignalRef.current.slice(-30);
-      const mean = recentSignal.reduce((a, b) => a + b, 0) / recentSignal.length;
-      const variance = recentSignal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentSignal.length;
-      const stdDev = Math.sqrt(variance);
-      
-      // Check for signal quality issues
-      if (stdDev < 2) {
+      const recentSignal = ppgSignalRef.current.slice(-(TARGET_FPS * 5)); // Use last 5 seconds for quality assessment
+
+      // Calculate comprehensive signal quality metrics
+      const signalQuality = calculateRealTimeSignalQuality(recentSignal);
+
+      // Update signal quality state
+      setSignalQuality(signalQuality);
+
+      // Check for signal quality issues with research-based thresholds
+      if (signalQuality < 0.3) { // Research suggests minimum 0.3 quality threshold
         consecutiveNoFingerFrames.current += 30;
-        if (consecutiveNoFingerFrames.current > 180) {
+        if (consecutiveNoFingerFrames.current > 180) { // ~12 seconds of poor quality
           setFingerDetectionFailed(true);
           stopPPGCapture();
           return;
         }
       } else {
         consecutiveNoFingerFrames.current = 0;
+      }
+
+      // Log quality for debugging (controlled by DEBUG_PPG flag)
+      if (DEBUG_PPG && ppgSignalRef.current.length % 300 === 0) {
+        // Log every 300 frames (~every 10 seconds at 30fps)
+        console.log(`[PPG] Signal quality: ${(signalQuality * 100).toFixed(1)}%, frames: ${ppgSignalRef.current.length}/${TARGET_FRAMES}`);
       }
     }
 
@@ -1178,52 +1232,6 @@ export default function PPGVitalMonitorVisionCamera({
   // Ensure visible is a boolean to prevent null/undefined issues
   const modalVisible = visible === true;
 
-  // Check if device is available - if not, show error (but only on mobile)
-  if (!device && Platform.OS !== 'web') {
-    return (
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={onClose}
-      >
-        <SafeAreaView style={styles.modal as ViewStyle}>
-          <TouchableOpacity
-            style={[styles.closeButton as ViewStyle, { zIndex: 10001, elevation: 20 }]}
-            onPress={() => {
-              resetState();
-              onClose();
-            }}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            activeOpacity={0.7}
-          >
-            <X color={theme.colors.text.primary} size={20} />
-          </TouchableOpacity>
-          <View style={styles.container as ViewStyle}>
-            <View style={styles.content as ViewStyle}>
-              <Text style={styles.title as StyleProp<TextStyle>}>
-                Camera Not Available
-              </Text>
-              <Text style={styles.errorText as StyleProp<TextStyle>}>
-                Back camera is not available on this device. Please ensure your device has a rear camera with flash.
-              </Text>
-              <TouchableOpacity
-                style={styles.button as ViewStyle}
-                onPress={() => {
-                  resetState();
-                  onClose();
-                }}
-              >
-                <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                  Close
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    );
-  }
 
   // Check if we're on web - vision camera doesn't work on web
   if (Platform.OS === 'web') {
@@ -1255,6 +1263,53 @@ export default function PPGVitalMonitorVisionCamera({
                 PPG heart rate measurement requires a mobile device with a camera.
                 Please use the iOS or Android app.
               </Text>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
+
+  // Check if device is available - if not, show error
+  if (!device && Platform.OS !== 'web') {
+    return (
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={onClose}
+      >
+        <SafeAreaView style={styles.modal as ViewStyle}>
+          <TouchableOpacity
+            style={[styles.closeButton as ViewStyle, { zIndex: 10001, elevation: 20 }]}
+            onPress={() => {
+              resetState();
+              onClose();
+            }}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            activeOpacity={0.7}
+          >
+            <X color={theme.colors.text.primary} size={20} />
+          </TouchableOpacity>
+          <View style={styles.container as ViewStyle}>
+            <View style={styles.content as ViewStyle}>
+              <Text style={styles.title as StyleProp<TextStyle>}>
+                Camera Not Available
+              </Text>
+              <Text style={styles.errorText as StyleProp<TextStyle>}>
+                Back camera is not available on this device. Please ensure your device has a rear camera with flash for PPG measurements.
+              </Text>
+              <TouchableOpacity
+                style={styles.button as ViewStyle}
+                onPress={() => {
+                  resetState();
+                  onClose();
+                }}
+              >
+                <Text style={styles.buttonText as StyleProp<TextStyle>}>
+                  Close
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </SafeAreaView>
@@ -1331,7 +1386,7 @@ export default function PPGVitalMonitorVisionCamera({
             </Text>
           </View>
 
-          {status === "measuring" && hasPermission && device && (
+          {status === "measuring" && device && hasPermission && (
             <View style={styles.cameraContainer as ViewStyle}>
               {/* Camera preview container - flash provides illumination for PPG */}
               <View style={{
@@ -1345,12 +1400,40 @@ export default function PPGVitalMonitorVisionCamera({
               <Camera
                 style={styles.camera as ViewStyle}
                 device={device}
+                format={format}
                 isActive={status === "measuring"}
                 frameProcessor={frameProcessor}
                 pixelFormat="yuv"
                 fps={TARGET_FPS}
                 torch={status === "measuring" ? "on" : "off"}
+                onError={(error) => {
+                  console.error("Camera error:", error);
+                  setError(`Camera error: ${error.message}`);
+                  setStatus("error");
+                }}
               />
+            </View>
+          )}
+
+          {/* Debug info for troubleshooting */}
+          {__DEV__ && (
+            <View style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              backgroundColor: 'rgba(0,0,0,0.7)',
+              padding: 5,
+              borderRadius: 5,
+            }}>
+              <Text style={{ color: 'white', fontSize: 10 }}>
+                Status: {status}
+                {'\n'}Permission: {hasPermission ? 'Yes' : 'No'}
+                {'\n'}Device: {device ? 'Yes' : 'No'}
+                {'\n'}Format: {format ? `${format.videoWidth}x${format.videoHeight}` : 'None'}
+                {'\n'}FPS: {TARGET_FPS} (device max: {format?.maxFps ?? 'N/A'})
+                {'\n'}Finger: {fingerDetected ? 'Yes' : 'No'}
+                {'\n'}Capturing: {isCapturing ? 'Yes' : 'No'}
+              </Text>
             </View>
           )}
 
@@ -1443,7 +1526,7 @@ export default function PPGVitalMonitorVisionCamera({
                       <Lightbulb color={theme.colors.secondary.main} size={18} />
                     </View>
                     <Text style={styles.tipsTitle as StyleProp<TextStyle>}>
-                      {t("tipsForBestResults")}
+                      Research-Based Tips for Best PPG Signal
                     </Text>
                   </View>
 
@@ -1465,6 +1548,13 @@ export default function PPGVitalMonitorVisionCamera({
                     <View style={styles.tipBullet as ViewStyle} />
                     <Text style={styles.tipText as StyleProp<TextStyle>}>
                       {t("tipFingerWarm")}
+                    </Text>
+                  </View>
+
+                  <View style={styles.tipItem as ViewStyle}>
+                    <View style={styles.tipBullet as ViewStyle} />
+                    <Text style={styles.tipText as StyleProp<TextStyle>}>
+                      Breathe calmly and avoid movement for accurate readings
                     </Text>
                   </View>
                 </View>
@@ -1574,8 +1664,10 @@ export default function PPGVitalMonitorVisionCamera({
                     <TouchableOpacity
                       style={[styles.button as ViewStyle, { marginTop: 30 }]}
                       onPress={() => {
+                        console.log("Start Measurement button tapped");
                         setFingerDetected(true);
                         fingerDetectedRef.current = true;
+                        handleFingerPlacement();
                       }}
                     >
                       <Text style={styles.buttonText as StyleProp<TextStyle>}>

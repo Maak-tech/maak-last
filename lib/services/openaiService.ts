@@ -206,6 +206,41 @@ class OpenAIService {
       { trackLatency: true }
     );
   }
+
+  async generateHealthInsights(prompt: string, usePremiumKey = false): Promise<any> {
+    try {
+      const messages: ChatMessage[] = [
+        {
+          id: `msg-${Date.now()}`,
+          role: "system",
+          content: "You are a helpful health AI assistant. Always respond with valid JSON format.",
+          timestamp: new Date(),
+        },
+        {
+          id: `msg-${Date.now()}-1`,
+          role: "user",
+          content: prompt,
+          timestamp: new Date(),
+        },
+      ];
+
+      const response = await this.createChatCompletion(messages, usePremiumKey);
+      
+      // Try to parse JSON from the response
+      try {
+        // Extract JSON from markdown code blocks if present
+        const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+        const jsonString = jsonMatch ? jsonMatch[1] : response.trim();
+        return JSON.parse(jsonString);
+      } catch (parseError) {
+        // If parsing fails, return the raw response wrapped in a narrative property
+        return { narrative: response };
+      }
+    } catch (error) {
+      console.error('generateHealthInsights error:', error);
+      throw error;
+    }
+  }
 }
 
 export default new OpenAIService();

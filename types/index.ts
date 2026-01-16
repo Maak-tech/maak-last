@@ -191,6 +191,21 @@ export interface EmergencyAlert {
   metadata?: Record<string, unknown>;
 }
 
+export interface MedicationInteractionAlert {
+  id: string;
+  userId: string;
+  type: "medication_interaction" | "new_medication_interaction";
+  severity: "major" | "moderate" | "minor";
+  title: string;
+  message: string;
+  medications: string[];
+  effects: string[];
+  recommendations: string[];
+  timestamp: Date;
+  acknowledged: boolean;
+  actionable: boolean;
+}
+
 export interface FamilyInvitationCode {
   id: string;
   code: string;

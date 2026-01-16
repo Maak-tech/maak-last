@@ -21,6 +21,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { AvatarType } from "@/types";
 import type { ConfirmationResult } from "firebase/auth";
 
+// Type for React Native Firebase confirmation result
+interface RNFirebaseConfirmationResult {
+  confirm: (code: string) => Promise<any>;
+}
+
+// Combined confirmation result type (matches AuthContext)
+type PhoneConfirmationResult = ConfirmationResult | RNFirebaseConfirmationResult;
+
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const { signUp, signUpWithPhone, verifyPhoneCode, loading, user } = useAuth();
@@ -33,7 +41,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [confirmationResult, setConfirmationResult] = useState<PhoneConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);

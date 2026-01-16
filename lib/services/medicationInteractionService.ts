@@ -1,4 +1,4 @@
-import type { Medication } from "@/types";
+import type { Medication, MedicationInteractionAlert } from "@/types";
 import { medicationService } from "./medicationService";
 
 export interface DrugInteraction {
@@ -299,6 +299,122 @@ class MedicationInteractionService {
       minor: { en: "Minor", ar: "بسيط" },
     };
     return isRTL ? labels[severity].ar : labels[severity].en;
+  }
+
+  /**
+   * Generate real-time interaction alerts for active medications
+   */
+  async generateRealtimeAlerts(userId: string): Promise<MedicationInteractionAlert[]> {
+    try {
+      const medications = await medicationService.getUserMedications(userId);
+      const interactions = await this.checkInteractions(medications);
+
+      const alerts: MedicationInteractionAlert[] = interactions.map(interaction => ({
+        id: `interaction-alert-${Date.now()}-${Math.random()}`,
+        userId,
+        type: "medication_interaction",
+        severity: interaction.severity,
+        title: this.getInteractionAlertTitle(interaction, false),
+        message: this.getInteractionAlertMessage(interaction, false),
+        medications: interaction.medications,
+        effects: interaction.effects,
+        recommendations: interaction.recommendations,
+        timestamp: new Date(),
+        acknowledged: false,
+        actionable: true
+      }));
+
+      return alerts;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Check for new interactions when adding a medication and generate alert
+   */
+  async checkNewMedicationWithAlert(
+    userId: string,
+    newMedicationName: string
+  ): Promise<{
+    interactions: DrugInteraction[];
+    alert?: MedicationInteractionAlert;
+  }> {
+    const interactions = await this.checkNewMedicationInteraction(userId, newMedicationName);
+
+    let alert: MedicationInteractionAlert | undefined;
+
+    if (interactions.length > 0) {
+      const mostSevere = interactions.sort((a, b) => {
+        const severityOrder = { major: 0, moderate: 1, minor: 2 };
+        return severityOrder[a.severity] - severityOrder[b.severity];
+      })[0];
+
+      alert = {
+        id: `new-med-alert-${Date.now()}-${Math.random()}`,
+        userId,
+        type: "new_medication_interaction",
+        severity: mostSevere.severity,
+        title: `New Medication Interaction Detected`,
+        message: `Adding ${newMedicationName} may interact with your current medications`,
+        medications: mostSevere.medications,
+        effects: mostSevere.effects,
+        recommendations: mostSevere.recommendations,
+        timestamp: new Date(),
+        acknowledged: false,
+        actionable: true
+      };
+    }
+
+    return { interactions, alert };
+  }
+
+  /**
+   * Get interaction alert title
+   */
+  private getInteractionAlertTitle(interaction: DrugInteraction, isRTL: boolean = false): string {
+    const severity = this.getSeverityLabel(interaction.severity, isRTL);
+    return isRTL
+      ? `تحذير تفاعل أدوية ${severity}`
+      : `${severity} Medication Interaction Alert`;
+  }
+
+  /**
+   * Get interaction alert message
+   */
+  private getInteractionAlertMessage(interaction: DrugInteraction, isRTL: boolean = false): string {
+    const medNames = interaction.medications.join(" + ");
+    return isRTL
+      ? `تم اكتشاف تفاعل بين: ${medNames}. ${interaction.description}`
+      : `Interaction detected between: ${medNames}. ${interaction.description}`;
+  }
+
+  /**
+   * Get interaction summary for quick display
+   */
+  getInteractionSummary(interactions: DrugInteraction[]): {
+    total: number;
+    bySeverity: Record<string, number>;
+    mostSevere: DrugInteraction | null;
+  } {
+    const bySeverity: Record<string, number> = { major: 0, moderate: 0, minor: 0 };
+
+    interactions.forEach(interaction => {
+      bySeverity[interaction.severity]++;
+    });
+
+    const mostSevere = interactions.length > 0
+      ? interactions.sort((a, b) => {
+          const severityOrder = { major: 0, moderate: 1, minor: 2 };
+          return severityOrder[a.severity] - severityOrder[b.severity];
+        })[0]
+      : null;
+
+    return {
+      total: interactions.length,
+      bySeverity,
+      mostSevere
+    };
   }
 }
 

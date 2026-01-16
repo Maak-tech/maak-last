@@ -14,6 +14,10 @@
 
 import { Frame } from 'react-native-vision-camera';
 
+// Debug flag - set to false in production to reduce console spam
+// Set to true when troubleshooting frame extraction issues
+const DEBUG_FRAME_EXTRACTION = true;
+
 /**
  * Extract red channel average from camera frame
  * This is the core function for PPG signal extraction
@@ -35,25 +39,34 @@ export function extractRedChannelAverage(frame: Frame): number {
     const width = frame.width;
     const height = frame.height;
     
-    // Validate dimensions - return fallback instead of throwing
+    // Validate dimensions - return -1 (invalid) instead of fake data
     if (!width || !height || width <= 0 || height <= 0) {
-      return 128; // Return neutral value instead of throwing
+      if (DEBUG_FRAME_EXTRACTION) {
+        console.log('[PPG] Frame dimensions invalid:', width, height);
+      }
+      return -1; // Return invalid marker - frame dimensions invalid
     }
     
-    // Calculate center region - use larger area (20% of frame) for better signal
-    // When finger covers camera, entire frame should be similar in color
+    // Calculate center region following research guidance
+    // Use larger area (25-30% of frame) for better signal averaging
+    // When finger covers camera and flashlight, entire frame should be similar in color
     const centerX = Math.floor(width / 2);
     const centerY = Math.floor(height / 2);
-    const sampleRadius = Math.floor(Math.min(width, height) * 0.2);
+    const sampleRadius = Math.floor(Math.min(width, height) * 0.25); // Increased to 25% for better averaging
     
     // Get pixel format
     const pixelFormat = frame.pixelFormat || 'yuv';
+    
+    // Only log frame info once (first frame)
+    // Subsequent frames will use the same method
     
     // Cast frame for accessing internal properties
     const frameAny = frame as any;
     
     // Try multiple methods to access pixel data
     let extractedValue: number | null = null;
+    let extractionMethod = 'none';
+    let isFirstFrame = false; // Will be set by successful extraction
     
     // Method 1: Try getNativeBuffer() for Nitro Modules (react-native-vision-camera v4.x)
     if (extractedValue === null && typeof frameAny.getNativeBuffer === 'function') {
@@ -67,10 +80,12 @@ export function extractRedChannelAverage(frame: Frame): number {
             } else {
               extractedValue = extractRedFromBuffer(data, width, height, centerX, centerY, sampleRadius);
             }
+            extractionMethod = 'getNativeBuffer';
+            isFirstFrame = true;
           }
         }
       } catch (e) {
-        // Method not available or failed
+        // Method not available or failed - try next method
       }
     }
     
@@ -86,10 +101,12 @@ export function extractRedChannelAverage(frame: Frame): number {
             } else {
               extractedValue = extractRedFromBuffer(data, width, height, centerX, centerY, sampleRadius);
             }
+            extractionMethod = 'toArrayBuffer';
+            isFirstFrame = true;
           }
         }
       } catch (e) {
-        // Method not available or failed
+        // Method not available or failed - try next method
       }
     }
     
@@ -109,21 +126,26 @@ export function extractRedChannelAverage(frame: Frame): number {
                   const uPlane = new Uint8Array(uPlaneData);
                   const vPlane = new Uint8Array(vPlaneData);
                   extractedValue = extractRedFromYUVPlanes(yPlane, uPlane, vPlane, width, height, centerX, centerY, sampleRadius);
+                  extractionMethod = 'getPlaneData-YUV';
                 } else {
                   // Only Y plane available - use luminance
                   extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
+                  extractionMethod = 'getPlaneData-Y';
                 }
               } catch (e) {
                 // Only Y plane available - use luminance
                 extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
+                extractionMethod = 'getPlaneData-Y';
               }
             } else {
               extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
+              extractionMethod = 'getPlaneData';
             }
+            isFirstFrame = true;
           }
         }
       } catch (e) {
-        // Method not available or failed
+        // Method not available or failed - try next method
       }
     }
     
@@ -150,12 +172,16 @@ export function extractRedChannelAverage(frame: Frame): number {
                 const uPlane = new Uint8Array(frameAny.planes[1] instanceof ArrayBuffer ? frameAny.planes[1] : frameAny.planes[1].buffer || frameAny.planes[1]);
                 const vPlane = new Uint8Array(frameAny.planes[2] instanceof ArrayBuffer ? frameAny.planes[2] : frameAny.planes[2].buffer || frameAny.planes[2]);
                 extractedValue = extractRedFromYUVPlanes(yPlane, uPlane, vPlane, width, height, centerX, centerY, sampleRadius);
+                extractionMethod = 'planes-YUV';
               } catch (e) {
                 extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
+                extractionMethod = 'planes-Y';
               }
             } else {
               extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
+              extractionMethod = 'planes';
             }
+            isFirstFrame = true;
           }
         }
       } catch (e) {
@@ -166,33 +192,59 @@ export function extractRedChannelAverage(frame: Frame): number {
     // If we successfully extracted a value, return it
     // Extraction stats tracking should be done via runOnJS in the calling code
     if (extractedValue !== null && !isNaN(extractedValue) && extractedValue >= 0 && extractedValue <= 255) {
+      // Only log success on first frame or when debugging
+      if (DEBUG_FRAME_EXTRACTION && isFirstFrame) {
+        console.log('[PPG] Frame extraction working:', {
+          method: extractionMethod,
+          dimensions: `${width}x${height}`,
+          pixelFormat,
+          sampleValue: extractedValue
+        });
+      }
       return extractedValue;
     }
     
-    // Fallback: Return neutral value - signal quality check will detect this
+    // All methods failed - log details only when debugging
+    if (DEBUG_FRAME_EXTRACTION) {
+      console.log('[PPG] All extraction methods failed');
+      console.log('[PPG] Available frame properties:', Object.keys(frameAny).slice(0, 20)); // Limit output
+      console.log('[PPG] Frame has getNativeBuffer:', typeof frameAny.getNativeBuffer === 'function');
+      console.log('[PPG] Frame has toArrayBuffer:', typeof frameAny.toArrayBuffer === 'function');
+      console.log('[PPG] Frame has getPlaneData:', typeof frameAny.getPlaneData === 'function');
+      console.log('[PPG] Frame has planes:', Array.isArray(frameAny.planes));
+    }
+    
+    // Fallback: Return invalid marker
     return generateFallbackPPGSignal();
     
   } catch (error) {
+    if (DEBUG_FRAME_EXTRACTION) {
+      console.log('[PPG] Exception during extraction:', error);
+    }
     // Return fallback value that won't break the signal
     return generateFallbackPPGSignal();
   }
 }
 
 /**
- * Generate fallback PPG signal when pixel extraction fails
- * NOTE: This should only be used as a last resort - if this is called frequently,
- * it indicates a problem with camera frame access that should be addressed.
- * Returns a neutral value (128) to avoid breaking signal processing, but the
- * signal quality validation should catch that this is not real PPG data.
+ * CRITICAL: No fallback signal generation
+ * When pixel extraction fails, we MUST return -1 (invalid marker)
+ * to ensure the measurement properly fails rather than using fake data.
+ * 
+ * This is essential for scientific accuracy based on:
+ * - Olugbenle et al. (arXiv:2412.07082v1) - Real PPG signals required
+ * - PMC5981424 - Validation of smartphone PPG requires actual sensor data
+ * 
+ * DO NOT return any value that could be mistaken for valid PPG data.
  */
 function generateFallbackPPGSignal(): number {
   'worklet';
   
-  // Return a neutral value instead of generating simulated signal
-  // This ensures that if pixel extraction fails, the signal quality
-  // validation will detect poor quality and fail the measurement
-  // rather than silently using fake data
-  return 128; // Neutral gray value - signal quality check will catch this
+  // Return -1 as an invalid marker
+  // This value will be rejected by the validation in the calling code
+  // and will cause the measurement to properly fail
+  // DO NOT return 128 or any other "neutral" value that could pass validation
+  return -1; // Invalid marker - extraction failed
 }
 
 /**
@@ -522,25 +574,156 @@ export function calculateSignalQuality(values: number[]): number {
 }
 
 /**
+ * Calculate real-time signal quality for PPG following research guidance
+ * Used during measurement to provide immediate feedback on signal quality
+ *
+ * @param signal - Recent signal samples (last ~5 seconds)
+ * @returns Quality score (0-1)
+ */
+export function calculateRealTimeSignalQuality(signal: number[]): number {
+  'worklet';
+
+  if (signal.length < 30) return 0;
+
+  // Calculate basic statistics
+  const mean = signal.reduce((a, b) => a + b, 0) / signal.length;
+  const variance = signal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / signal.length;
+  const stdDev = Math.sqrt(variance);
+
+  // Check signal range (should be reasonable for PPG)
+  const min = Math.min(...signal);
+  const max = Math.max(...signal);
+  const range = max - min;
+
+  // Basic quality checks
+  if (range < 5 || stdDev < 1) return 0.1; // Very poor signal
+  if (range > 100 || stdDev > 50) return 0.2; // Too noisy
+
+  // Calculate SNR (Signal-to-Noise Ratio)
+  const signalPower = variance;
+  const noiseEstimate = estimateNoiseFromHighFreq(signal);
+  const snr = noiseEstimate > 0 ? signalPower / noiseEstimate : 0;
+  const snrScore = Math.min(snr / 5, 1); // SNR > 5 is good
+
+  // Calculate periodicity using autocorrelation
+  const periodicityScore = calculatePeriodicityFromAutocorr(signal);
+
+  // Calculate stability (variation in signal characteristics over time)
+  const stabilityScore = calculateSignalStability(signal);
+
+  // Weighted quality score
+  const quality = 0.4 * snrScore + 0.4 * periodicityScore + 0.2 * stabilityScore;
+
+  return Math.max(0, Math.min(1, quality));
+}
+
+/**
+ * Estimate noise from high-frequency components
+ */
+function estimateNoiseFromHighFreq(signal: number[]): number {
+  'worklet';
+
+  // Simple high-pass filter to isolate noise
+  const filtered: number[] = [];
+  for (let i = 2; i < signal.length; i++) {
+    // Second-order high-pass filter approximation
+    const highFreq = signal[i] - 2 * signal[i-1] + signal[i-2];
+    filtered.push(Math.abs(highFreq));
+  }
+
+  if (filtered.length === 0) return 0;
+
+  const mean = filtered.reduce((a, b) => a + b, 0) / filtered.length;
+  return mean;
+}
+
+/**
+ * Calculate periodicity using autocorrelation
+ */
+function calculatePeriodicityFromAutocorr(signal: number[]): number {
+  'worklet';
+
+  const maxLag = Math.min(50, Math.floor(signal.length / 3));
+  const autocorr: number[] = [];
+
+  // Calculate autocorrelation
+  for (let lag = 10; lag <= maxLag; lag++) { // Start from lag 10 to avoid DC component
+    let correlation = 0;
+    let count = 0;
+
+    for (let i = lag; i < signal.length; i++) {
+      correlation += signal[i] * signal[i - lag];
+      count++;
+    }
+
+    autocorr.push(count > 0 ? correlation / count : 0);
+  }
+
+  if (autocorr.length === 0) return 0;
+
+  // Find maximum correlation (excluding first few lags)
+  const maxCorr = Math.max(...autocorr.slice(5));
+  const meanCorr = autocorr.reduce((a, b) => a + b, 0) / autocorr.length;
+
+  // Periodicity score based on peak correlation
+  return Math.min(maxCorr / meanCorr, 1);
+}
+
+/**
+ * Calculate signal stability over time
+ */
+function calculateSignalStability(signal: number[]): number {
+  'worklet';
+
+  // Divide into segments and check consistency
+  const segmentSize = Math.floor(signal.length / 3);
+  if (segmentSize < 10) return 0.5;
+
+  const segments: number[][] = [];
+  for (let i = 0; i < 3; i++) {
+    const start = i * segmentSize;
+    const end = Math.min((i + 1) * segmentSize, signal.length);
+    segments.push(signal.slice(start, end));
+  }
+
+  // Calculate statistics for each segment
+  const stats = segments.map(segment => {
+    const mean = segment.reduce((a, b) => a + b, 0) / segment.length;
+    const variance = segment.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / segment.length;
+    return { mean, std: Math.sqrt(variance) };
+  });
+
+  // Check consistency
+  const meanMeans = stats.reduce((sum, stat) => sum + stat.mean, 0) / stats.length;
+  const meanVariation = stats.reduce((sum, stat) => sum + Math.pow(stat.mean - meanMeans, 2), 0) / stats.length;
+
+  // Lower variation = higher stability
+  return Math.max(0, 1 - Math.sqrt(meanVariation) / (meanMeans * 0.2));
+}
+
+/**
  * Example usage in frame processor:
- * 
+ *
  * ```typescript
- * import { extractRedChannelAverage, validateFrameForPPG } from '@/lib/utils/PPGPixelExtractor';
- * 
+ * import { extractRedChannelAverage, validateFrameForPPG, calculateRealTimeSignalQuality } from '@/lib/utils/PPGPixelExtractor';
+ *
  * const frameProcessor = useFrameProcessor((frame) => {
  *   'worklet';
- *   
+ *
  *   // Extract red channel average
  *   const redAverage = extractRedChannelAverage(frame);
- *   
+ *
  *   // Validate frame quality
  *   const isValid = validateFrameForPPG(redAverage, previousValues);
- *   
+ *
  *   if (isValid) {
  *     // Process the frame
  *     runOnJS(processPPGFrameData)(redAverage, frameIndex);
  *   }
  * }, []);
+ *
+ * // During measurement, assess real-time quality
+ * const quality = calculateRealTimeSignalQuality(recentSignal);
  * ```
  */
 

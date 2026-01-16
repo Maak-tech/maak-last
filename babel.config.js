@@ -11,6 +11,13 @@ module.exports = (api) => {
       ],
     ],
     plugins: [
+      // VisionCamera frame processor plugin - must come before reanimated
+      [
+        "react-native-worklets-core/plugin",
+        {
+          // Enable worklet support for frame processors
+        }
+      ],
       // Reanimated plugin must be last in the plugins array
       // Always include it since react-native-reanimated is installed
       "react-native-reanimated/plugin",
