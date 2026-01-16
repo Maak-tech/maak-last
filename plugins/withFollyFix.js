@@ -50,7 +50,17 @@ const withFollyFix = (config) => {
     File.open(file, "w") { |f| f.puts new_contents }
   end
   
-  # Fix for React Native modules that can't find Bridge.h when using static frameworks
+  # Fix for ReactNativeHealthkit umbrella header Bridge.h issue
+  # The umbrella header tries to import Bridge.h which is in the library's own source
+  umbrella_header = "Pods/Target Support Files/ReactNativeHealthkit/ReactNativeHealthkit-umbrella.h"
+  if File.exist?(umbrella_header)
+    text = File.read(umbrella_header)
+    # Comment out the Bridge.h import since it's not needed in the umbrella header
+    new_contents = text.gsub('#import "Bridge.h"', '// #import "Bridge.h" // Commented out - not needed in umbrella header')
+    File.open(umbrella_header, "w") { |f| f.puts new_contents }
+  end
+  
+  # Fix for React Native modules that can't find headers when using static frameworks
   # Add React Native header search paths to all pod targets
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
@@ -58,14 +68,28 @@ const withFollyFix = (config) => {
       existing_paths = config.build_settings['HEADER_SEARCH_PATHS'] || ['$(inherited)']
       
       # Add React Native header paths for static frameworks
-      # Bridge.h is typically in React-Core framework headers
       react_paths = [
         '\${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core.framework/Headers',
+        '\${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers',
         '\${PODS_ROOT}/Headers/Public/React-Core',
         '\${PODS_ROOT}/Headers/Public/React-Core/React',
+        '\${PODS_ROOT}/Headers/Private/React-Core',
         '\${PODS_CONFIGURATION_BUILD_DIR}/React/React.framework/Headers',
-        '\${PODS_ROOT}/Headers/Public/React'
+        '\${PODS_ROOT}/Headers/Public/React',
+        '\${PODS_ROOT}/../../node_modules/react-native/React',
+        '\${PODS_ROOT}/../../node_modules/react-native/ReactCommon',
+        '$(SRCROOT)/../node_modules/react-native/React',
+        '$(SRCROOT)/../node_modules/react-native/ReactCommon'
       ]
+      
+      # For ReactNativeHealthkit specifically, add its source directory
+      if target.name == 'ReactNativeHealthkit'
+        healthkit_paths = [
+          '\${PODS_ROOT}/ReactNativeHealthkit/ios',
+          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit/ios'
+        ]
+        react_paths.concat(healthkit_paths)
+      end
       
       # Add paths if not already present
       react_paths.each do |path|
@@ -76,6 +100,13 @@ const withFollyFix = (config) => {
       
       # Allow non-modular includes in framework modules (required for Bridge.h)
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      
+      # For ReactNativeHealthkit, also set USER_HEADER_SEARCH_PATHS
+      if target.name == 'ReactNativeHealthkit'
+        user_paths = config.build_settings['USER_HEADER_SEARCH_PATHS'] || ['$(inherited)']
+        user_paths << '\${PODS_ROOT}/ReactNativeHealthkit/ios' unless user_paths.include?('\${PODS_ROOT}/ReactNativeHealthkit/ios')
+        config.build_settings['USER_HEADER_SEARCH_PATHS'] = user_paths
+      end
     end
   end
 `;
