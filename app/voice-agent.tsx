@@ -32,6 +32,7 @@ import {
   type RealtimeEventHandlers,
 } from "@/lib/services/realtimeAgentService";
 import healthContextService from "@/lib/services/healthContextService";
+import { zeinaActionsService } from "@/lib/services/zeinaActionsService";
 
 // Audio recording imports
 let Audio: any = null;
@@ -400,6 +401,22 @@ export default function VoiceAgentScreen() {
 
       case "emergency_contact":
         return await healthContextService.getEmergencyContacts(args.action);
+
+      case "add_allergy":
+        return await zeinaActionsService.addAllergy(
+          args.allergen || "unknown",
+          args.reaction,
+          args.severity,
+          args.allergy_type
+        );
+      
+      case "add_medical_history":
+        return await zeinaActionsService.addMedicalHistory(
+          args.condition || "unknown",
+          args.diagnosis_date,
+          args.status,
+          args.notes
+        );
 
       default:
         return { error: "Unknown tool" };

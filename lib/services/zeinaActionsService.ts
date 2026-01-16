@@ -773,6 +773,196 @@ class ZeinaActionsService {
     return "Thanks for sharing. I'll keep track of how you're feeling over time.";
   }
 
+  /**
+   * Add an allergy to the user's profile
+   */
+  async addAllergy(
+    allergen: string,
+    reaction?: string,
+    severity?: "mild" | "moderate" | "severe" | "life-threatening",
+    allergyType?: "medication" | "food" | "environmental" | "other"
+  ): Promise<ActionResult> {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        return {
+          success: false,
+          action: "add_allergy",
+          message: "User not authenticated",
+          speakableResponse: "I couldn't add that allergy. You need to be logged in first.",
+        };
+      }
+
+      const { allergyService } = await import("./allergyService");
+
+      const allergyData = {
+        userId,
+        name: this.capitalizeFirstLetter(allergen),
+        reaction: reaction || "",
+        severity: severity || "moderate",
+        type: allergyType || this.inferAllergyType(allergen),
+        timestamp: new Date(),
+        discoveredDate: new Date(),
+      };
+
+      const allergyId = await allergyService.addAllergy(allergyData);
+
+      const severityText = severity ? ` as ${severity}` : "";
+
+      return {
+        success: true,
+        action: "add_allergy",
+        message: `Allergy to "${allergen}" added successfully`,
+        data: { id: allergyId, ...allergyData },
+        speakableResponse: `I've added your ${allergen} allergy${severityText} to your profile. ${this.getAllergyAdvice(allergen, severity)}`,
+      };
+    } catch (error) {
+      console.error("Error adding allergy:", error);
+      return {
+        success: false,
+        action: "add_allergy",
+        message: `Failed to add allergy: ${error instanceof Error ? error.message : "Unknown error"}`,
+        speakableResponse: "I'm sorry, I couldn't add that allergy right now. Please try again later.",
+      };
+    }
+  }
+
+  /**
+   * Add a medical condition to the user's medical history
+   */
+  async addMedicalHistory(
+    condition: string,
+    diagnosisDate?: string,
+    status?: "active" | "resolved" | "managed" | "in_remission",
+    notes?: string
+  ): Promise<ActionResult> {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        return {
+          success: false,
+          action: "add_medical_history",
+          message: "User not authenticated",
+          speakableResponse: "I couldn't add that to your medical history. You need to be logged in first.",
+        };
+      }
+
+      const { medicalHistoryService } = await import("./medicalHistoryService");
+
+      const historyData = {
+        userId,
+        condition: this.capitalizeFirstLetter(condition),
+        diagnosisDate: diagnosisDate ? this.parseDateString(diagnosisDate) : new Date(),
+        status: status || "active",
+        notes: notes || "",
+        severity: this.inferConditionSeverity(condition) as "mild" | "moderate" | "severe",
+        timestamp: new Date(),
+      };
+
+      const historyId = await medicalHistoryService.addMedicalHistory(historyData);
+
+      const statusText = status && status !== "active" ? ` as ${status.replace("_", " ")}` : "";
+
+      return {
+        success: true,
+        action: "add_medical_history",
+        message: `Medical history "${condition}" added successfully`,
+        data: { id: historyId, ...historyData },
+        speakableResponse: `I've added ${condition}${statusText} to your medical history. ${this.getMedicalHistoryAdvice(condition)}`,
+      };
+    } catch (error) {
+      console.error("Error adding medical history:", error);
+      return {
+        success: false,
+        action: "add_medical_history",
+        message: `Failed to add medical history: ${error instanceof Error ? error.message : "Unknown error"}`,
+        speakableResponse: "I'm sorry, I couldn't add that to your medical history right now. Please try again later.",
+      };
+    }
+  }
+
+  private inferAllergyType(allergen: string): "medication" | "food" | "environmental" | "other" {
+    const lowerAllergen = allergen.toLowerCase();
+    
+    const medications = ["penicillin", "aspirin", "ibuprofen", "sulfa", "codeine", "morphine", "amoxicillin", "antibiotic"];
+    const foods = ["peanut", "shellfish", "dairy", "milk", "egg", "wheat", "soy", "fish", "tree nut", "gluten", "lactose"];
+    const environmental = ["dust", "pollen", "mold", "pet", "cat", "dog", "grass", "ragweed", "bee", "wasp"];
+    
+    if (medications.some(m => lowerAllergen.includes(m))) return "medication";
+    if (foods.some(f => lowerAllergen.includes(f))) return "food";
+    if (environmental.some(e => lowerAllergen.includes(e))) return "environmental";
+    return "other";
+  }
+
+  private getAllergyAdvice(allergen: string, severity?: string): string {
+    if (severity === "severe" || severity === "life-threatening") {
+      return "This is important - make sure your family and doctors know about this allergy. Do you have an EpiPen if needed?";
+    }
+    if (this.inferAllergyType(allergen) === "medication") {
+      return "I'll make sure to flag this when you add new medications.";
+    }
+    return "I'll keep this in your records for reference.";
+  }
+
+  private inferConditionSeverity(condition: string): string {
+    const lowerCondition = condition.toLowerCase();
+    const severeConditions = ["cancer", "heart disease", "stroke", "kidney failure", "liver failure"];
+    const moderateConditions = ["diabetes", "hypertension", "asthma", "arthritis", "copd"];
+    
+    if (severeConditions.some(c => lowerCondition.includes(c))) return "severe";
+    if (moderateConditions.some(c => lowerCondition.includes(c))) return "moderate";
+    return "mild";
+  }
+
+  private getMedicalHistoryAdvice(condition: string): string {
+    const lowerCondition = condition.toLowerCase();
+    
+    if (lowerCondition.includes("diabetes")) {
+      return "I'll help you track your blood sugar levels regularly.";
+    }
+    if (lowerCondition.includes("hypertension") || lowerCondition.includes("blood pressure")) {
+      return "Regular blood pressure monitoring is important. Let me know when you check it.";
+    }
+    if (lowerCondition.includes("heart")) {
+      return "Heart health is important. I'll help you track your vitals.";
+    }
+    return "I'll keep this in your medical records.";
+  }
+
+  private parseDateString(dateStr: string): Date {
+    const lowerDate = dateStr.toLowerCase();
+    const now = new Date();
+    
+    if (lowerDate.includes("year")) {
+      const match = lowerDate.match(/(\d+)/);
+      if (match) {
+        const years = parseInt(match[1]);
+        return new Date(now.getFullYear() - years, now.getMonth(), now.getDate());
+      }
+    }
+    if (lowerDate.includes("month")) {
+      const match = lowerDate.match(/(\d+)/);
+      if (match) {
+        const months = parseInt(match[1]);
+        return new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+      }
+    }
+    if (lowerDate.includes("last year")) {
+      return new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    }
+    if (lowerDate.includes("yesterday")) {
+      return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+    
+    const yearMatch = lowerDate.match(/^(\d{4})$/);
+    if (yearMatch) {
+      return new Date(parseInt(yearMatch[1]), 0, 1);
+    }
+    
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? now : parsed;
+  }
+
   // =========== Helper Methods ===========
 
   private toSymptomType(name: string): string {

@@ -47,4 +47,9 @@ The app uses environment variables for API keys and configuration. Key variables
 This project uses **bun** as the package manager. Use `bun install` for dependencies.
 
 ## Recent Changes
+- 2026-01-16: Added allergy and medical history tracking to Zeina voice assistant
+  - Zeina now automatically logs allergies when users mention them (e.g., "I'm allergic to penicillin")
+  - Zeina tracks medical history conditions (e.g., "I have diabetes", "I had surgery last year")
+  - Tool definitions added to realtimeAgentService.ts with smart type inference
+  - Action implementations in zeinaActionsService.ts with natural language date parsing
 - 2026-01-16: Configured Replit environment with tunnel mode for mobile development

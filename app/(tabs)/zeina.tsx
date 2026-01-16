@@ -425,6 +425,22 @@ export default function ZeinaScreen() {
       case "navigate_to":
         return zeinaActionsService.getNavigationTarget(safeArgs.target || "home");
       
+      case "add_allergy":
+        return await zeinaActionsService.addAllergy(
+          safeArgs.allergen || "unknown",
+          safeArgs.reaction,
+          safeArgs.severity,
+          safeArgs.allergy_type
+        );
+      
+      case "add_medical_history":
+        return await zeinaActionsService.addMedicalHistory(
+          safeArgs.condition || "unknown",
+          safeArgs.diagnosis_date,
+          safeArgs.status,
+          safeArgs.notes
+        );
+      
       default:
         return { error: "Unknown tool", message: `Tool "${name}" is not supported` };
     }

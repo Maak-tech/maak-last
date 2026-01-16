@@ -399,6 +399,63 @@ const healthAssistantTools: RealtimeTool[] = [
       required: ["target"],
     },
   },
+  {
+    type: "function",
+    name: "add_allergy",
+    description: "Add a new allergy to the user's profile. Use when user mentions they are allergic to something (food, medication, environmental allergen, etc.).",
+    parameters: {
+      type: "object",
+      properties: {
+        allergen: {
+          type: "string",
+          description: "The substance the user is allergic to (e.g., 'penicillin', 'peanuts', 'dust', 'shellfish')",
+        },
+        reaction: {
+          type: "string",
+          description: "The allergic reaction they experience (e.g., 'rash', 'swelling', 'difficulty breathing', 'hives')",
+        },
+        severity: {
+          type: "string",
+          enum: ["mild", "moderate", "severe", "life-threatening"],
+          description: "How severe the allergic reaction is",
+        },
+        allergy_type: {
+          type: "string",
+          enum: ["medication", "food", "environmental", "other"],
+          description: "Category of the allergy",
+        },
+      },
+      required: ["allergen"],
+    },
+  },
+  {
+    type: "function",
+    name: "add_medical_history",
+    description: "Add a medical condition to the user's medical history. Use when user mentions they have or had a medical condition (diabetes, hypertension, heart disease, surgery, etc.).",
+    parameters: {
+      type: "object",
+      properties: {
+        condition: {
+          type: "string",
+          description: "The medical condition or diagnosis (e.g., 'diabetes', 'hypertension', 'asthma', 'heart surgery')",
+        },
+        diagnosis_date: {
+          type: "string",
+          description: "When the condition was diagnosed (e.g., '2020', 'last year', '5 years ago')",
+        },
+        status: {
+          type: "string",
+          enum: ["active", "resolved", "managed", "in_remission"],
+          description: "Current status of the condition",
+        },
+        notes: {
+          type: "string",
+          description: "Additional details about the condition",
+        },
+      },
+      required: ["condition"],
+    },
+  },
 ];
 
 // Default instructions for the health assistant - Siri-like proactive assistant
@@ -429,6 +486,20 @@ When a user mentions measurements:
 When a user mentions medications:
 - "I started taking aspirin" → Use add_medication to record it
 - "Remind me to take my pills at 9am" → Use set_medication_reminder
+
+### Allergy Tracking
+When a user mentions allergies:
+- "I'm allergic to penicillin" → Use add_allergy to record it
+- "I have a peanut allergy" → Use add_allergy with food type
+- "I can't take aspirin, it gives me hives" → Use add_allergy with reaction details
+- "Dust makes me sneeze" → Use add_allergy with environmental type
+
+### Medical History
+When a user mentions medical conditions:
+- "I have diabetes" → Use add_medical_history to record it
+- "I was diagnosed with high blood pressure" → Use add_medical_history
+- "I had heart surgery last year" → Use add_medical_history with date
+- "I used to have asthma but it's under control now" → Use add_medical_history with managed status
 
 ### Family Alerts
 When explicitly requested:
