@@ -5,28 +5,18 @@
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
-    "start": "npm run shell",
+    "start": "node lib/index.js",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "node lib/modules/alerts/engine.test.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios"
+    "test": "node lib/modules/alerts/engine.test.js"
   },
   "engines": {
     "node": "22"
   },
   "main": "lib/index.js",
   "dependencies": {
-    "expo": "~53.0.20",
-    "expo-dev-client": "~5.2.4",
-    "expo-file-system": "~18.1.11",
-    "expo-image-picker": "^17.0.10",
-    "expo-print": "~14.1.4",
-    "expo-sharing": "~13.1.5",
     "firebase-admin": "^12.7.0",
-    "firebase-functions": "^6.0.1",
-    "react": "19.0.0",
-    "react-native": "0.79.5"
+    "firebase-functions": "^6.0.1"
   },
   "devDependencies": {
     "firebase-functions-test": "^3.1.0",

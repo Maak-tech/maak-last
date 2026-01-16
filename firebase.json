@@ -15,7 +15,7 @@
         "*.local"
       ],
       "predeploy": [
-        "cd \"$RESOURCE_DIR\" && bun run build"
+        "cd \"$RESOURCE_DIR\" && npm run build"
       ],
       "runtime": "nodejs22"
     }

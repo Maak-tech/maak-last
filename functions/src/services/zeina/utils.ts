@@ -178,9 +178,9 @@ export async function testPHISanitization(): Promise<{
  * Print current metrics summary
  */
 export function printMetrics(): void {
-  const metrics = getMetrics();
-  
   // Metrics printing disabled for production
+  // Call getMetrics() to ensure metrics are tracked
+  void getMetrics();
 }
 
 /**
