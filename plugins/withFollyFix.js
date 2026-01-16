@@ -50,6 +50,34 @@ const withFollyFix = (config) => {
     File.open(file, "w") { |f| f.puts new_contents }
   end
   
+  # Fix for React Native modules that can't find Bridge.h when using static frameworks
+  # Add React Native header search paths to all pod targets
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # Get existing header search paths or initialize
+      existing_paths = config.build_settings['HEADER_SEARCH_PATHS'] || ['$(inherited)']
+      
+      # Add React Native header paths for static frameworks
+      # Bridge.h is typically in React-Core framework headers
+      react_paths = [
+        '${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core.framework/Headers',
+        '${PODS_ROOT}/Headers/Public/React-Core',
+        '${PODS_ROOT}/Headers/Public/React-Core/React',
+        '${PODS_CONFIGURATION_BUILD_DIR}/React/React.framework/Headers',
+        '${PODS_ROOT}/Headers/Public/React'
+      ]
+      
+      # Add paths if not already present
+      react_paths.each do |path|
+        existing_paths << path unless existing_paths.include?(path)
+      end
+      
+      config.build_settings['HEADER_SEARCH_PATHS'] = existing_paths
+      
+      # Allow non-modular includes in framework modules (required for Bridge.h)
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+    end
+  end
 `;
 
       if (hasPostInstall && postInstallMatch) {
