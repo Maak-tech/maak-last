@@ -83,7 +83,7 @@ export default function PPGVitalMonitorVisionCamera({
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { hasPermission, requestPermission } = useCameraPermission();
-  const device = useCameraDevice("front");
+  const device = useCameraDevice("back"); // Back camera has flash for PPG illumination
   
   const [status, setStatus] = useState<
     "idle" | "instructions" | "measuring" | "processing" | "success" | "error"
@@ -1205,7 +1205,7 @@ export default function PPGVitalMonitorVisionCamera({
                 Camera Not Available
               </Text>
               <Text style={styles.errorText as StyleProp<TextStyle>}>
-                Front camera is not available on this device. Please ensure your device has a front-facing camera.
+                Back camera is not available on this device. Please ensure your device has a rear camera with flash.
               </Text>
               <TouchableOpacity
                 style={styles.button as ViewStyle}
@@ -1333,7 +1333,7 @@ export default function PPGVitalMonitorVisionCamera({
 
           {status === "measuring" && hasPermission && device && (
             <View style={styles.cameraContainer as ViewStyle}>
-              {/* White background for illumination - provides light source for front camera */}
+              {/* Camera preview container - flash provides illumination for PPG */}
               <View style={{
                 position: 'absolute',
                 top: 0,
@@ -1349,6 +1349,7 @@ export default function PPGVitalMonitorVisionCamera({
                 frameProcessor={frameProcessor}
                 pixelFormat="yuv"
                 fps={TARGET_FPS}
+                torch={status === "measuring" ? "on" : "off"}
               />
             </View>
           )}
