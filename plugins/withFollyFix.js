@@ -56,7 +56,7 @@ const withFollyFix = (config) => {
   if File.exist?(umbrella_header)
     text = File.read(umbrella_header)
     # Comment out C++ headers that cause build failures in the umbrella header
-    # ExceptionCatcher.h is needed by Swift files, so we keep it
+    # ExceptionCatcher.h is needed by Swift files, but we'll ensure it can be found via paths
     # Only C++ (.hpp) headers and Bridge.h (C++ bridge) are commented out
     internal_headers = [
       'Bridge.h',
@@ -68,6 +68,14 @@ const withFollyFix = (config) => {
     internal_headers.each do |header|
       new_contents = new_contents.gsub('#import "' + header + '"', '// #import "' + header + '" // Commented out - internal header')
     end
+    
+    # If ExceptionCatcher.h import exists, ensure it uses a path that can be found
+    # Replace relative import with explicit path if needed
+    if new_contents.include?('#import "ExceptionCatcher.h"')
+      # Keep the import but ensure paths are set up correctly (done below)
+      # The import stays as-is, we just ensure the paths include the ios directory
+    end
+    
     File.open(umbrella_header, "w") { |f| f.puts new_contents }
   end
   
@@ -80,15 +88,15 @@ const withFollyFix = (config) => {
       
       # Add React Native header paths for static frameworks
       react_paths = [
-        '\${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core.framework/Headers',
-        '\${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React_Core.framework/Headers',
-        '\${PODS_ROOT}/Headers/Public/React-Core',
-        '\${PODS_ROOT}/Headers/Public/React-Core/React',
-        '\${PODS_ROOT}/Headers/Private/React-Core',
-        '\${PODS_CONFIGURATION_BUILD_DIR}/React/React.framework/Headers',
-        '\${PODS_ROOT}/Headers/Public/React',
-        '\${PODS_ROOT}/../../node_modules/react-native/React',
-        '\${PODS_ROOT}/../../node_modules/react-native/ReactCommon',
+        '$(PODS_CONFIGURATION_BUILD_DIR)/React-Core/React-Core.framework/Headers',
+        '$(PODS_CONFIGURATION_BUILD_DIR)/React-Core/React_Core.framework/Headers',
+        '$(PODS_ROOT)/Headers/Public/React-Core',
+        '$(PODS_ROOT)/Headers/Public/React-Core/React',
+        '$(PODS_ROOT)/Headers/Private/React-Core',
+        '$(PODS_CONFIGURATION_BUILD_DIR)/React/React.framework/Headers',
+        '$(PODS_ROOT)/Headers/Public/React',
+        '$(PODS_ROOT)/../../node_modules/react-native/React',
+        '$(PODS_ROOT)/../../node_modules/react-native/ReactCommon',
         '$(SRCROOT)/../node_modules/react-native/React',
         '$(SRCROOT)/../node_modules/react-native/ReactCommon'
       ]
@@ -96,13 +104,16 @@ const withFollyFix = (config) => {
       # For ReactNativeHealthkit specifically, add its source directory and subdirectories
       if target.name == 'ReactNativeHealthkit'
         healthkit_paths = [
-          '\${PODS_ROOT}/ReactNativeHealthkit',
-          '\${PODS_ROOT}/ReactNativeHealthkit/ios',
-          '\${PODS_ROOT}/ReactNativeHealthkit/ios/**',
-          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit',
-          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit/ios',
-          '\${PODS_ROOT}/../node_modules/@kingstinct/react-native-healthkit/ios/**',
-          '$(SRCROOT)/../node_modules/@kingstinct/react-native-healthkit/ios'
+          '$(PODS_ROOT)/ReactNativeHealthkit',
+          '$(PODS_ROOT)/ReactNativeHealthkit/ios',
+          '$(PODS_ROOT)/../node_modules/@kingstinct/react-native-healthkit',
+          '$(PODS_ROOT)/../node_modules/@kingstinct/react-native-healthkit/ios',
+          '$(SRCROOT)/../node_modules/@kingstinct/react-native-healthkit',
+          '$(SRCROOT)/../node_modules/@kingstinct/react-native-healthkit/ios',
+          '$(SRCROOT)/../../node_modules/@kingstinct/react-native-healthkit/ios',
+          '$(PODS_CONFIGURATION_BUILD_DIR)/ReactNativeHealthkit',
+          '$(PODS_ROOT)/Headers/Private/ReactNativeHealthkit',
+          '$(PODS_ROOT)/Headers/Public/ReactNativeHealthkit'
         ]
         react_paths.concat(healthkit_paths)
       end
@@ -121,9 +132,10 @@ const withFollyFix = (config) => {
       if target.name == 'ReactNativeHealthkit'
         user_paths = config.build_settings['USER_HEADER_SEARCH_PATHS'] || ['$(inherited)']
         healthkit_user_paths = [
-          '\${PODS_ROOT}/ReactNativeHealthkit/ios',
-          '\${PODS_ROOT}/ReactNativeHealthkit/ios/**',
-          '$(SRCROOT)/../node_modules/@kingstinct/react-native-healthkit/ios'
+          '$(PODS_ROOT)/ReactNativeHealthkit/ios',
+          '$(SRCROOT)/../node_modules/@kingstinct/react-native-healthkit/ios',
+          '$(SRCROOT)/../../node_modules/@kingstinct/react-native-healthkit/ios',
+          '$(PODS_ROOT)/../node_modules/@kingstinct/react-native-healthkit/ios'
         ]
         healthkit_user_paths.each do |path|
           user_paths << path unless user_paths.include?(path)
@@ -133,6 +145,12 @@ const withFollyFix = (config) => {
         # Enable recursive header search for ReactNativeHealthkit
         config.build_settings['USE_HEADERMAP'] = 'YES'
         config.build_settings['ALWAYS_SEARCH_USER_PATHS'] = 'YES'
+        
+        # Also ensure the pod's own source directory is in the header search paths
+        config.build_settings['HEADER_SEARCH_PATHS'] = existing_paths
+        
+        # Set the public headers path explicitly
+        config.build_settings['PUBLIC_HEADERS_FOLDER_PATH'] = '$(PODS_ROOT)/ReactNativeHealthkit/ios'
       end
     end
   end
