@@ -717,7 +717,7 @@ export default function PPGVitalMonitorVisionCamera({
       }
 
       if (!device) {
-        setError("Front camera not available");
+        setError("Back camera not available");
         setStatus("error");
         return;
       }
@@ -807,7 +807,7 @@ export default function PPGVitalMonitorVisionCamera({
 
     if (fingerDetectionFailed) {
       setError(
-        "Finger not detected during measurement. Please ensure your finger completely covers the front camera lens with no gaps or light leaks."
+        "Finger not detected during measurement. Please ensure your finger completely covers the back camera lens and flash with no gaps or light leaks."
       );
       setStatus("error");
       return;
@@ -828,7 +828,7 @@ export default function PPGVitalMonitorVisionCamera({
 
     if (!fingerDetectedRef.current) {
       setError(
-        "Finger placement not confirmed. Please place your finger firmly on the front camera lens and tap the button to start measurement."
+        "Finger placement not confirmed. Please place your finger firmly on the back camera lens and flash, then tap the button to start measurement."
       );
       setStatus("error");
       return;
@@ -858,7 +858,7 @@ export default function PPGVitalMonitorVisionCamera({
     if (signalStdDev < 3) {
       setError(
         "Signal quality too low. Please ensure:\n" +
-          "• Your finger completely covers the front camera lens\n" +
+          "• Your finger completely covers the back camera lens and flash\n" +
           "• There are no gaps or light leaks\n" +
           "• Your finger is warm and making good contact\n" +
           "• You hold still during the measurement"
@@ -1572,12 +1572,14 @@ export default function PPGVitalMonitorVisionCamera({
                       {t("onceFingerInPlace")}
                     </Text>
                     <TouchableOpacity
-                      style={[styles.button as ViewStyle, { marginTop: 30, opacity: 0.5 }]}
-                      disabled={true}
-                      onPress={() => {}}
+                      style={[styles.button as ViewStyle, { marginTop: 30 }]}
+                      onPress={() => {
+                        setFingerDetected(true);
+                        fingerDetectedRef.current = true;
+                      }}
                     >
                       <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                        {t("comingSoon")}
+                        {t("startMeasurement")}
                       </Text>
                     </TouchableOpacity>
                   </>

@@ -76,7 +76,7 @@ export default function PPGMeasureScreen() {
           <View style={styles.bannerTextContainer}>
             <Text style={styles.realBannerTitle}>{isRTL ? "قياس PPG بالكاميرا الحقيقية" : "Real Camera PPG Measurement"}</Text>
             <Text style={styles.realBannerSubtitle}>
-              {isRTL ? "استخدم الكاميرا الأمامية وإصبعك لقياس معدل ضربات القلب" : "Using front camera and fingertip for heart rate measurement"}
+              {isRTL ? "استخدم الكاميرا الخلفية والفلاش لقياس معدل ضربات القلب" : "Using back camera and flash for heart rate measurement"}
             </Text>
           </View>
         </View>
