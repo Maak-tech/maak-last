@@ -65,6 +65,10 @@ The app includes a comprehensive observability system in `lib/observability/`:
 - `escalations` - Active alert escalations
 
 ## Recent Changes
+- 2026-01-16: Fixed Arabic localization for health insights and summaries
+  - Added Arabic translations to healthSummaryService.ts for insights, patterns, and recommendations
+  - Updated health-summary.tsx to pass language preference to summary generation
+  - Added Arabic support to getPersonalizedTips in proactiveHealthSuggestionsService.ts
 - 2026-01-16: Added comprehensive observability infrastructure
   - Event emitter with PHI redaction and allowlist filtering
   - Health rules engine for vital threshold/trend detection

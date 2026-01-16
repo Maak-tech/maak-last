@@ -4,6 +4,194 @@ import { symptomService } from "./symptomService";
 import { moodService } from "./moodService";
 import { healthScoreService } from "./healthScoreService";
 
+const getLocalizedText = (key: string, isArabic: boolean, params?: Record<string, string | number>): string => {
+  const texts: Record<string, { en: string; ar: string }> = {
+    symptomImprovement: {
+      en: "Symptom Improvement",
+      ar: "تحسن الأعراض",
+    },
+    symptomImprovementDesc: {
+      en: `Your average symptom severity decreased compared to last ${params?.period || "period"}`,
+      ar: `انخفضت شدة أعراضك المتوسطة مقارنة بـ ${params?.period === "weekly" ? "الأسبوع الماضي" : "الشهر الماضي"}`,
+    },
+    increasedSymptoms: {
+      en: "Increased Symptoms",
+      ar: "زيادة الأعراض",
+    },
+    increasedSymptomsDesc: {
+      en: `Your symptoms were more severe than last ${params?.period || "period"}`,
+      ar: `كانت أعراضك أكثر شدة من ${params?.period === "weekly" ? "الأسبوع الماضي" : "الشهر الماضي"}`,
+    },
+    newMedications: {
+      en: "New Medications",
+      ar: "أدوية جديدة",
+    },
+    newMedicationsDesc: {
+      en: `You started ${params?.count || 0} new medication${(params?.count || 0) !== 1 ? "s" : ""} this ${params?.period || "period"}`,
+      ar: `بدأت ${params?.count || 0} دواء${(params?.count || 0) !== 1 ? " جديد" : ""} هذا ${params?.period === "weekly" ? "الأسبوع" : "الشهر"}`,
+    },
+    improvedMood: {
+      en: "Improved Mood",
+      ar: "تحسن المزاج",
+    },
+    improvedMoodDesc: {
+      en: "Your mood has been better than last period",
+      ar: "كان مزاجك أفضل من الفترة الماضية",
+    },
+    moodChanges: {
+      en: "Mood Changes",
+      ar: "تغيرات المزاج",
+    },
+    moodChangesDesc: {
+      en: "Your mood has been lower than usual",
+      ar: "كان مزاجك أقل من المعتاد",
+    },
+    weekdayWeekendPattern: {
+      en: "Weekday vs Weekend Pattern",
+      ar: "نمط أيام العمل مقابل عطلة نهاية الأسبوع",
+    },
+    weekendSeverity: {
+      en: "Your symptoms tend to be more severe on weekends",
+      ar: "تميل أعراضك إلى أن تكون أكثر شدة في عطلات نهاية الأسبوع",
+    },
+    weekendRecommendation: {
+      en: "Consider maintaining consistent routines on weekends",
+      ar: "فكر في الحفاظ على روتين ثابت في عطلات نهاية الأسبوع",
+    },
+    weekdaySeverity: {
+      en: "Your symptoms tend to be more severe during weekdays",
+      ar: "تميل أعراضك إلى أن تكون أكثر شدة خلال أيام الأسبوع",
+    },
+    weekdayRecommendation: {
+      en: "Weekdays may be triggering factors - consider stress management techniques",
+      ar: "قد تكون أيام الأسبوع عوامل مسببة - فكر في تقنيات إدارة التوتر",
+    },
+    noSignificantDifference: {
+      en: "No significant difference between weekday and weekend symptoms",
+      ar: "لا يوجد فرق كبير بين أعراض أيام الأسبوع وعطلة نهاية الأسبوع",
+    },
+    weekdayAvgSeverity: {
+      en: `Weekday average severity: ${params?.value || 0}`,
+      ar: `متوسط شدة أيام الأسبوع: ${params?.value || 0}`,
+    },
+    weekendAvgSeverity: {
+      en: `Weekend average severity: ${params?.value || 0}`,
+      ar: `متوسط شدة عطلة نهاية الأسبوع: ${params?.value || 0}`,
+    },
+    symptomPattern: {
+      en: `${params?.timeOfDay || ""} Symptom Pattern`,
+      ar: `نمط أعراض ${params?.timeOfDay || ""}`,
+    },
+    symptomPatternDesc: {
+      en: `You experience more symptoms during ${params?.timeOfDay || ""} hours (${params?.hour || ""})`,
+      ar: `تعاني من المزيد من الأعراض خلال ساعات ${params?.timeOfDay || ""} (${params?.hour || ""})`,
+    },
+    symptomPatternRecommendation: {
+      en: `Consider adjusting your routine during ${params?.timeOfDay || ""} hours`,
+      ar: `فكر في تعديل روتينك خلال ساعات ${params?.timeOfDay || ""}`,
+    },
+    symptomCorrelation: {
+      en: "Symptom Correlation",
+      ar: "ارتباط الأعراض",
+    },
+    symptomCorrelationDesc: {
+      en: `${params?.symptom1 || ""} and ${params?.symptom2 || ""} frequently occur together`,
+      ar: `${params?.symptom1 || ""} و ${params?.symptom2 || ""} يحدثان معًا بشكل متكرر`,
+    },
+    symptomCorrelationRecommendation: {
+      en: "These symptoms may be related - consult your healthcare provider about comprehensive treatment",
+      ar: "قد تكون هذه الأعراض مرتبطة - استشر مقدم الرعاية الصحية حول العلاج الشامل",
+    },
+    medicationEffectiveness: {
+      en: "Medication Effectiveness",
+      ar: "فعالية الأدوية",
+    },
+    medicationEffectivenessDesc: {
+      en: "Continue monitoring your symptoms while on current medications",
+      ar: "استمر في مراقبة أعراضك أثناء تناول الأدوية الحالية",
+    },
+    medicationEffectivenessRecommendation: {
+      en: "Keep track of how your symptoms change with your current medication regimen",
+      ar: "تتبع كيف تتغير أعراضك مع نظام الأدوية الحالي",
+    },
+    keepUpGoodWork: {
+      en: `Keep up the good work with ${params?.topic || "your health"}`,
+      ar: `استمر في العمل الجيد مع ${params?.topic || "صحتك"}`,
+    },
+    consultProvider: {
+      en: `Consider consulting your healthcare provider about ${params?.topic || "your symptoms"}`,
+      ar: `فكر في استشارة مقدم الرعاية الصحية حول ${params?.topic || "أعراضك"}`,
+    },
+    setReminders: {
+      en: "Consider setting medication reminders to improve adherence",
+      ar: "فكر في ضبط تذكيرات الأدوية لتحسين الالتزام",
+    },
+    symptomDiary: {
+      en: "Consider keeping a symptom diary to identify triggers",
+      ar: "فكر في الاحتفاظ بمذكرة أعراض لتحديد المحفزات",
+    },
+    boostMood: {
+      en: "Consider activities that boost your mood and well-being",
+      ar: "فكر في الأنشطة التي تعزز مزاجك ورفاهيتك",
+    },
+    continueMonitoring: {
+      en: "Continue monitoring your health regularly",
+      ar: "استمر في مراقبة صحتك بانتظام",
+    },
+    stayConsistent: {
+      en: "Stay consistent with your medication schedule",
+      ar: "حافظ على ثبات جدول الأدوية",
+    },
+    speakWithProvider: {
+      en: "Consider speaking with your healthcare provider about your progress",
+      ar: "فكر في التحدث مع مقدم الرعاية الصحية حول تقدمك",
+    },
+    unableToGenerate: {
+      en: "Unable to generate summary due to data loading issues",
+      ar: "تعذر إنشاء الملخص بسبب مشاكل تحميل البيانات",
+    },
+    morning: {
+      en: "Morning",
+      ar: "الصباح",
+    },
+    afternoon: {
+      en: "Afternoon",
+      ar: "بعد الظهر",
+    },
+    evening: {
+      en: "Evening",
+      ar: "المساء",
+    },
+    night: {
+      en: "Night",
+      ar: "الليل",
+    },
+    coOccurred: {
+      en: `Co-occurred ${params?.count || 0} times`,
+      ar: `حدث معًا ${params?.count || 0} مرات`,
+    },
+    symptomsRecorded: {
+      en: `${params?.count || 0} symptoms recorded between ${params?.startHour || ""} and ${params?.endHour || ""}`,
+      ar: `${params?.count || 0} أعراض مسجلة بين ${params?.startHour || ""} و ${params?.endHour || ""}`,
+    },
+    averageSeverity: {
+      en: `Average severity: ${params?.value || 0}`,
+      ar: `متوسط الشدة: ${params?.value || 0}`,
+    },
+    activeMedications: {
+      en: `${params?.count || 0} active medications`,
+      ar: `${params?.count || 0} أدوية نشطة`,
+    },
+    symptomsRecordedCount: {
+      en: `${params?.count || 0} symptoms recorded`,
+      ar: `${params?.count || 0} أعراض مسجلة`,
+    },
+  };
+
+  const locale = isArabic ? "ar" : "en";
+  return texts[key]?.[locale] || texts[key]?.en || key;
+};
+
 export interface HealthSummary {
   period: "weekly" | "monthly";
   startDate: Date;
@@ -52,24 +240,24 @@ class HealthSummaryService {
   /**
    * Generate weekly health summary
    */
-  async generateWeeklySummary(userId: string, weekStart?: Date): Promise<HealthSummary> {
+  async generateWeeklySummary(userId: string, weekStart?: Date, isArabic = false): Promise<HealthSummary> {
     const startDate = weekStart || this.getWeekStart(new Date());
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 6);
 
-    return this.generateSummary(userId, "weekly", startDate, endDate);
+    return this.generateSummary(userId, "weekly", startDate, endDate, isArabic);
   }
 
   /**
    * Generate monthly health summary
    */
-  async generateMonthlySummary(userId: string, monthStart?: Date): Promise<HealthSummary> {
+  async generateMonthlySummary(userId: string, monthStart?: Date, isArabic = false): Promise<HealthSummary> {
     const startDate = monthStart || this.getMonthStart(new Date());
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + 1);
     endDate.setDate(0); // Last day of the month
 
-    return this.generateSummary(userId, "monthly", startDate, endDate);
+    return this.generateSummary(userId, "monthly", startDate, endDate, isArabic);
   }
 
   /**
@@ -79,7 +267,8 @@ class HealthSummaryService {
     userId: string,
     period: "weekly" | "monthly",
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    isArabic = false
   ): Promise<HealthSummary> {
     try {
       // Fetch all relevant data for the period
@@ -99,13 +288,13 @@ class HealthSummaryService {
       const overview = this.calculateOverviewMetrics(symptoms, medications, moods);
 
       // Generate insights
-      const insights = this.generateInsights(symptoms, medications, moods, previousPeriodData, period);
+      const insights = this.generateInsights(symptoms, medications, moods, previousPeriodData, period, isArabic);
 
       // Detect patterns
-      const patterns = this.detectPatterns(symptoms, medications, moods, period);
+      const patterns = this.detectPatterns(symptoms, medications, moods, period, isArabic);
 
       // Generate recommendations
-      const recommendations = this.generateRecommendations(insights, patterns, overview);
+      const recommendations = this.generateRecommendations(insights, patterns, overview, isArabic);
 
       // Calculate trends
       const trends = this.calculateTrends(symptoms, medications, moods, previousPeriodData, period);
@@ -135,7 +324,7 @@ class HealthSummaryService {
         },
         insights: [],
         patterns: [],
-        recommendations: ["Unable to generate summary due to data loading issues"],
+        recommendations: [getLocalizedText("unableToGenerate", isArabic)],
         trends: [],
       };
     }
@@ -280,7 +469,8 @@ class HealthSummaryService {
     medications: Medication[],
     moods: Mood[],
     previousData: any,
-    period: string
+    period: string,
+    isArabic = false
   ): HealthInsight[] {
     const insights: HealthInsight[] = [];
 
@@ -294,8 +484,8 @@ class HealthSummaryService {
       if (avgSeverity < prevAvgSeverity) {
         insights.push({
           type: "positive",
-          title: "Symptom Improvement",
-          description: `Your average symptom severity decreased compared to last ${period}`,
+          title: getLocalizedText("symptomImprovement", isArabic),
+          description: getLocalizedText("symptomImprovementDesc", isArabic, { period }),
           metric: "severity",
           change: prevAvgSeverity - avgSeverity,
           trend: "improving",
@@ -303,8 +493,8 @@ class HealthSummaryService {
       } else if (avgSeverity > prevAvgSeverity) {
         insights.push({
           type: "concerning",
-          title: "Increased Symptoms",
-          description: `Your symptoms were more severe than last ${period}`,
+          title: getLocalizedText("increasedSymptoms", isArabic),
+          description: getLocalizedText("increasedSymptomsDesc", isArabic, { period }),
           metric: "severity",
           change: avgSeverity - prevAvgSeverity,
           trend: "declining",
@@ -319,8 +509,8 @@ class HealthSummaryService {
     if (activeMeds > prevActiveMeds) {
       insights.push({
         type: "neutral",
-        title: "New Medications",
-        description: `You started ${activeMeds - prevActiveMeds} new medication${activeMeds - prevActiveMeds !== 1 ? 's' : ''} this ${period}`,
+        title: getLocalizedText("newMedications", isArabic),
+        description: getLocalizedText("newMedicationsDesc", isArabic, { count: activeMeds - prevActiveMeds, period }),
       });
     }
 
@@ -334,15 +524,15 @@ class HealthSummaryService {
       if (avgMood > prevAvgMood + 0.5) {
         insights.push({
           type: "positive",
-          title: "Improved Mood",
-          description: "Your mood has been better than last period",
+          title: getLocalizedText("improvedMood", isArabic),
+          description: getLocalizedText("improvedMoodDesc", isArabic),
           trend: "improving",
         });
       } else if (avgMood < prevAvgMood - 0.5) {
         insights.push({
           type: "concerning",
-          title: "Mood Changes",
-          description: "Your mood has been lower than usual",
+          title: getLocalizedText("moodChanges", isArabic),
+          description: getLocalizedText("moodChangesDesc", isArabic),
           trend: "declining",
         });
       }
@@ -358,30 +548,31 @@ class HealthSummaryService {
     symptoms: Symptom[],
     medications: Medication[],
     moods: Mood[],
-    period: string
+    period: string,
+    isArabic = false
   ): HealthPattern[] {
     const patterns: HealthPattern[] = [];
 
     // Temporal patterns (weekdays vs weekends)
-    const weekdayVsWeekend = this.detectWeekdayWeekendPatterns(symptoms);
+    const weekdayVsWeekend = this.detectWeekdayWeekendPatterns(symptoms, isArabic);
     if (weekdayVsWeekend.confidence > 0.6) {
       patterns.push(weekdayVsWeekend);
     }
 
     // Time of day patterns
-    const timeOfDayPatterns = this.detectTimeOfDayPatterns(symptoms);
+    const timeOfDayPatterns = this.detectTimeOfDayPatterns(symptoms, isArabic);
     if (timeOfDayPatterns.length > 0) {
       patterns.push(...timeOfDayPatterns);
     }
 
     // Symptom correlations
-    const symptomCorrelations = this.detectSymptomCorrelations(symptoms);
+    const symptomCorrelations = this.detectSymptomCorrelations(symptoms, isArabic);
     if (symptomCorrelations.length > 0) {
       patterns.push(...symptomCorrelations);
     }
 
     // Medication effectiveness patterns
-    const medicationPatterns = this.detectMedicationPatterns(symptoms, medications);
+    const medicationPatterns = this.detectMedicationPatterns(symptoms, medications, isArabic);
     if (medicationPatterns.length > 0) {
       patterns.push(...medicationPatterns);
     }
@@ -392,7 +583,7 @@ class HealthSummaryService {
   /**
    * Detect weekday vs weekend symptom patterns
    */
-  private detectWeekdayWeekendPatterns(symptoms: Symptom[]): HealthPattern {
+  private detectWeekdayWeekendPatterns(symptoms: Symptom[], isArabic = false): HealthPattern {
     const weekdaySymptoms = symptoms.filter(s => {
       const day = s.timestamp.getDay();
       return day >= 1 && day <= 5; // Monday to Friday
@@ -418,23 +609,23 @@ class HealthSummaryService {
     let recommendation = "";
 
     if (weekendAvgSeverity > weekdayAvgSeverity + 0.5) {
-      description = "Your symptoms tend to be more severe on weekends";
-      recommendation = "Consider maintaining consistent routines on weekends";
+      description = getLocalizedText("weekendSeverity", isArabic);
+      recommendation = getLocalizedText("weekendRecommendation", isArabic);
     } else if (weekdayAvgSeverity > weekendAvgSeverity + 0.5) {
-      description = "Your symptoms tend to be more severe during weekdays";
-      recommendation = "Weekdays may be triggering factors - consider stress management techniques";
+      description = getLocalizedText("weekdaySeverity", isArabic);
+      recommendation = getLocalizedText("weekdayRecommendation", isArabic);
     } else {
-      description = "No significant difference between weekday and weekend symptoms";
+      description = getLocalizedText("noSignificantDifference", isArabic);
     }
 
     return {
       type: "temporal",
-      title: "Weekday vs Weekend Pattern",
+      title: getLocalizedText("weekdayWeekendPattern", isArabic),
       description,
       confidence,
       examples: [
-        `Weekday average severity: ${weekdayAvgSeverity.toFixed(1)}`,
-        `Weekend average severity: ${weekendAvgSeverity.toFixed(1)}`,
+        getLocalizedText("weekdayAvgSeverity", isArabic, { value: weekdayAvgSeverity.toFixed(1) }),
+        getLocalizedText("weekendAvgSeverity", isArabic, { value: weekendAvgSeverity.toFixed(1) }),
       ],
       recommendation,
     };
@@ -443,7 +634,7 @@ class HealthSummaryService {
   /**
    * Detect time of day patterns
    */
-  private detectTimeOfDayPatterns(symptoms: Symptom[]): HealthPattern[] {
+  private detectTimeOfDayPatterns(symptoms: Symptom[], isArabic = false): HealthPattern[] {
     const patterns: HealthPattern[] = [];
     const hourGroups = symptoms.reduce((acc, symptom) => {
       const hour = symptom.timestamp.getHours();
@@ -461,18 +652,25 @@ class HealthSummaryService {
 
     if (hourStats.length > 0 && hourStats[0].count >= 3) {
       const peakHour = hourStats[0].hour;
-      const timeOfDay = this.getTimeOfDayLabel(peakHour);
+      const timeOfDay = this.getTimeOfDayLabel(peakHour, isArabic);
 
       patterns.push({
         type: "temporal",
-        title: `${timeOfDay} Symptom Pattern`,
-        description: `You experience more symptoms during ${timeOfDay.toLowerCase()} hours (${this.formatHour(peakHour)})`,
+        title: getLocalizedText("symptomPattern", isArabic, { timeOfDay }),
+        description: getLocalizedText("symptomPatternDesc", isArabic, { 
+          timeOfDay: timeOfDay.toLowerCase(), 
+          hour: this.formatHour(peakHour) 
+        }),
         confidence: Math.min(hourStats[0].count / 10, 1),
         examples: [
-          `${hourStats[0].count} symptoms recorded between ${this.formatHour(peakHour)} and ${this.formatHour(peakHour + 1)}`,
-          `Average severity: ${hourStats[0].avgSeverity.toFixed(1)}`,
+          getLocalizedText("symptomsRecorded", isArabic, { 
+            count: hourStats[0].count, 
+            startHour: this.formatHour(peakHour), 
+            endHour: this.formatHour(peakHour + 1) 
+          }),
+          getLocalizedText("averageSeverity", isArabic, { value: hourStats[0].avgSeverity.toFixed(1) }),
         ],
-        recommendation: `Consider adjusting your routine during ${timeOfDay.toLowerCase()} hours`,
+        recommendation: getLocalizedText("symptomPatternRecommendation", isArabic, { timeOfDay: timeOfDay.toLowerCase() }),
       });
     }
 
@@ -482,9 +680,8 @@ class HealthSummaryService {
   /**
    * Detect symptom correlations
    */
-  private detectSymptomCorrelations(symptoms: Symptom[]): HealthPattern[] {
+  private detectSymptomCorrelations(symptoms: Symptom[], isArabic = false): HealthPattern[] {
     const patterns: HealthPattern[] = [];
-    const symptomTypes = [...new Set(symptoms.map(s => s.type))];
 
     // Find frequently co-occurring symptoms
     const coOccurrences: Record<string, Record<string, number>> = {};
@@ -508,14 +705,13 @@ class HealthSummaryService {
         if (count >= 3) {
           patterns.push({
             type: "symptom",
-            title: "Symptom Correlation",
-            description: `${symptom} and ${coSymptom} frequently occur together`,
+            title: getLocalizedText("symptomCorrelation", isArabic),
+            description: getLocalizedText("symptomCorrelationDesc", isArabic, { symptom1: symptom, symptom2: coSymptom }),
             confidence: Math.min(count / 10, 1),
             examples: [
-              `Co-occurred ${count} times`,
-              `Consider addressing both symptoms together`,
+              getLocalizedText("coOccurred", isArabic, { count }),
             ],
-            recommendation: `These symptoms may be related - consult your healthcare provider about comprehensive treatment`,
+            recommendation: getLocalizedText("symptomCorrelationRecommendation", isArabic),
           });
         }
       });
@@ -527,7 +723,7 @@ class HealthSummaryService {
   /**
    * Detect medication effectiveness patterns
    */
-  private detectMedicationPatterns(symptoms: Symptom[], medications: Medication[]): HealthPattern[] {
+  private detectMedicationPatterns(symptoms: Symptom[], medications: Medication[], isArabic = false): HealthPattern[] {
     const patterns: HealthPattern[] = [];
 
     // This is a simplified analysis - in practice, you'd need more sophisticated
@@ -537,14 +733,14 @@ class HealthSummaryService {
     if (activeMedications.length > 0 && symptoms.length > 5) {
       patterns.push({
         type: "medication",
-        title: "Medication Effectiveness",
-        description: "Continue monitoring your symptoms while on current medications",
+        title: getLocalizedText("medicationEffectiveness", isArabic),
+        description: getLocalizedText("medicationEffectivenessDesc", isArabic),
         confidence: 0.7,
         examples: [
-          `${activeMedications.length} active medications`,
-          `${symptoms.length} symptoms recorded`,
+          getLocalizedText("activeMedications", isArabic, { count: activeMedications.length }),
+          getLocalizedText("symptomsRecordedCount", isArabic, { count: symptoms.length }),
         ],
-        recommendation: "Keep track of how your symptoms change with your current medication regimen",
+        recommendation: getLocalizedText("medicationEffectivenessRecommendation", isArabic),
       });
     }
 
@@ -557,16 +753,17 @@ class HealthSummaryService {
   private generateRecommendations(
     insights: HealthInsight[],
     patterns: HealthPattern[],
-    overview: any
+    overview: any,
+    isArabic = false
   ): string[] {
     const recommendations: string[] = [];
 
     // Based on insights
     insights.forEach(insight => {
       if (insight.type === "positive") {
-        recommendations.push(`Keep up the good work with ${insight.title.toLowerCase()}`);
+        recommendations.push(getLocalizedText("keepUpGoodWork", isArabic, { topic: insight.title.toLowerCase() }));
       } else if (insight.type === "concerning") {
-        recommendations.push(`Consider consulting your healthcare provider about ${insight.title.toLowerCase()}`);
+        recommendations.push(getLocalizedText("consultProvider", isArabic, { topic: insight.title.toLowerCase() }));
       }
     });
 
@@ -579,22 +776,22 @@ class HealthSummaryService {
 
     // Based on overview metrics
     if (overview.medicationAdherence < 80) {
-      recommendations.push("Consider setting medication reminders to improve adherence");
+      recommendations.push(getLocalizedText("setReminders", isArabic));
     }
 
     if (overview.totalSymptoms > 10) {
-      recommendations.push("Consider keeping a symptom diary to identify triggers");
+      recommendations.push(getLocalizedText("symptomDiary", isArabic));
     }
 
     if (overview.moodScore < 3) {
-      recommendations.push("Consider activities that boost your mood and well-being");
+      recommendations.push(getLocalizedText("boostMood", isArabic));
     }
 
     // Default recommendations if none generated
     if (recommendations.length === 0) {
-      recommendations.push("Continue monitoring your health regularly");
-      recommendations.push("Stay consistent with your medication schedule");
-      recommendations.push("Consider speaking with your healthcare provider about your progress");
+      recommendations.push(getLocalizedText("continueMonitoring", isArabic));
+      recommendations.push(getLocalizedText("stayConsistent", isArabic));
+      recommendations.push(getLocalizedText("speakWithProvider", isArabic));
     }
 
     return [...new Set(recommendations)]; // Remove duplicates
@@ -687,11 +884,11 @@ class HealthSummaryService {
   /**
    * Helper: Get time of day label
    */
-  private getTimeOfDayLabel(hour: number): string {
-    if (hour >= 5 && hour < 12) return "Morning";
-    if (hour >= 12 && hour < 17) return "Afternoon";
-    if (hour >= 17 && hour < 21) return "Evening";
-    return "Night";
+  private getTimeOfDayLabel(hour: number, isArabic = false): string {
+    if (hour >= 5 && hour < 12) return getLocalizedText("morning", isArabic);
+    if (hour >= 12 && hour < 17) return getLocalizedText("afternoon", isArabic);
+    if (hour >= 17 && hour < 21) return getLocalizedText("evening", isArabic);
+    return getLocalizedText("night", isArabic);
   }
 
   /**

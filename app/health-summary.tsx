@@ -199,9 +199,9 @@ export default function HealthSummaryScreen() {
     try {
       let summaryData: HealthSummary;
       if (period === "weekly") {
-        summaryData = await healthSummaryService.generateWeeklySummary(user.id);
+        summaryData = await healthSummaryService.generateWeeklySummary(user.id, undefined, isRTL);
       } else {
-        summaryData = await healthSummaryService.generateMonthlySummary(user.id);
+        summaryData = await healthSummaryService.generateMonthlySummary(user.id, undefined, isRTL);
       }
       setSummary(summaryData);
     } catch (error) {

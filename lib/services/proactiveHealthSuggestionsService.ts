@@ -1336,7 +1336,7 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get personalized health tips
    */
-  async getPersonalizedTips(userId: string): Promise<string[]> {
+  async getPersonalizedTips(userId: string, isArabic = false): Promise<string[]> {
     try {
       const insights = await healthInsightsService.getAllInsights(userId);
       const tips: string[] = [];
@@ -1344,9 +1344,10 @@ class ProactiveHealthSuggestionsService {
       // Generate tips based on insights
       insights.forEach((pattern: PatternInsight) => {
         if (pattern.type === "temporal") {
-          tips.push(
-            `Your symptoms tend to ${pattern.description}. Consider planning activities accordingly.`
-          );
+          const tipText = isArabic 
+            ? `تميل أعراضك إلى ${pattern.description}. فكر في التخطيط للأنشطة وفقاً لذلك.`
+            : `Your symptoms tend to ${pattern.description}. Consider planning activities accordingly.`;
+          tips.push(tipText);
         }
         if (pattern.recommendation) {
           tips.push(pattern.recommendation);
