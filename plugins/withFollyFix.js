@@ -60,11 +60,11 @@ const withFollyFix = (config) => {
       # Add React Native header paths for static frameworks
       # Bridge.h is typically in React-Core framework headers
       react_paths = [
-        '${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core.framework/Headers',
-        '${PODS_ROOT}/Headers/Public/React-Core',
-        '${PODS_ROOT}/Headers/Public/React-Core/React',
-        '${PODS_CONFIGURATION_BUILD_DIR}/React/React.framework/Headers',
-        '${PODS_ROOT}/Headers/Public/React'
+        '\${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core.framework/Headers',
+        '\${PODS_ROOT}/Headers/Public/React-Core',
+        '\${PODS_ROOT}/Headers/Public/React-Core/React',
+        '\${PODS_CONFIGURATION_BUILD_DIR}/React/React.framework/Headers',
+        '\${PODS_ROOT}/Headers/Public/React'
       ]
       
       # Add paths if not already present
