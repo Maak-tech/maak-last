@@ -63,7 +63,6 @@ try {
   const config = Constants.default?.expoConfig?.extra;
   
   console.log(`   OPENAI_API_KEY: ${config?.openaiApiKey ? '✓ Set' : '✗ Not set'}`);
-  console.log(`   ZEINA_API_KEY: ${config?.zeinaApiKey ? '✓ Set' : '✗ Not set'}`);
   
   if (!config?.openaiApiKey && !config?.zeinaApiKey) {
     console.log();
