@@ -46,7 +46,32 @@ The app uses environment variables for API keys and configuration. Key variables
 ## Package Manager
 This project uses **bun** as the package manager. Use `bun install` for dependencies.
 
+## Observability Infrastructure
+
+The app includes a comprehensive observability system in `lib/observability/`:
+
+- **Event Emitter** (`eventEmitter.ts`): Buffered event logging with PHI redaction, app lifecycle handling
+- **Rules Engine** (`rulesEngine.ts`): Patient health threshold and trend detection for vitals
+- **Escalation Service** (`escalationService.ts`): Alert escalation workflow with configurable policies
+- **Circuit Breaker** (`circuitBreaker.ts`): Resilience pattern for external service calls
+- **Health Timeline** (`healthTimeline.ts`): Family-level health events aggregation
+- **Platform Instrumentation** (`platformInstrumentation.ts`): Pre-built instrumenters for API, sync, AI, auth, payment services
+
+### Firestore Collections
+- `observability_events` - All observability events
+- `observability_metrics` - Platform metrics
+- `alert_audits` - Alert lifecycle audit trail
+- `health_timeline` - Family health timeline events
+- `escalations` - Active alert escalations
+
 ## Recent Changes
+- 2026-01-16: Added comprehensive observability infrastructure
+  - Event emitter with PHI redaction and allowlist filtering
+  - Health rules engine for vital threshold/trend detection
+  - Alert escalation workflow with caregiver → secondary → emergency levels
+  - Circuit breaker pattern for service resilience
+  - Health timeline for family-level event aggregation
+  - Platform instrumentation helpers with metrics and latency tracking
 - 2026-01-16: Enhanced health suggestions to use user's trends, alerts, and events
   - Suggestions now consider logged alerts (especially unresolved high-priority ones)
   - Upcoming calendar events (appointments, medication schedules) trigger reminders

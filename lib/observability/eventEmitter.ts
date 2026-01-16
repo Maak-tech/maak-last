@@ -4,6 +4,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
+import { AppState, type AppStateStatus } from "react-native";
 import { db } from "@/lib/firebase";
 import { logger } from "@/lib/utils/logger";
 import type {
@@ -21,15 +22,89 @@ const EVENTS_COLLECTION = "observability_events";
 const METRICS_COLLECTION = "observability_metrics";
 const ALERT_AUDITS_COLLECTION = "alert_audits";
 
+const ALLOWED_METADATA_KEYS = new Set([
+  "vitalType",
+  "unit",
+  "isAbnormal",
+  "thresholdBreached",
+  "recommendedAction",
+  "alertType",
+  "escalationLevel",
+  "policyId",
+  "action",
+  "serviceName",
+  "operationName",
+  "status",
+  "timeout",
+  "failureCount",
+  "previousState",
+  "interactionType",
+  "eventType",
+  "source",
+  "domain",
+  "severity",
+  "count",
+  "retryCount",
+  "latencyMs",
+]);
+
+const PHI_PATTERNS = [
+  /\b\d{3}[-.]?\d{2}[-.]?\d{4}\b/g,
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  /\b\d{10,}\b/g,
+  /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+];
+
 function generateCorrelationId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function redactPHI(text: string): string {
+  let redacted = text;
+  for (const pattern of PHI_PATTERNS) {
+    redacted = redacted.replace(pattern, "[REDACTED]");
+  }
+  return redacted;
+}
+
+function sanitizeMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!metadata) return undefined;
+  
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!ALLOWED_METADATA_KEYS.has(key)) continue;
+    
+    if (typeof value === "string") {
+      sanitized[key] = redactPHI(value);
+    } else if (typeof value === "number" || typeof value === "boolean") {
+      sanitized[key] = value;
+    }
+  }
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeError(error: { code?: string; message: string; stack?: string } | undefined): { code?: string; message: string } | undefined {
+  if (!error) return undefined;
+  
+  return {
+    code: error.code,
+    message: redactPHI(error.message).substring(0, 200),
+  };
 }
 
 function sanitizeForFirestore(data: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (value === undefined) continue;
-    if (value instanceof Date) {
+    if (key === "metadata") {
+      const sanitizedMeta = sanitizeMetadata(value as Record<string, unknown>);
+      if (sanitizedMeta) sanitized[key] = sanitizedMeta;
+    } else if (key === "error") {
+      const sanitizedErr = sanitizeError(value as any);
+      if (sanitizedErr) sanitized[key] = sanitizedErr;
+    } else if (key === "message" && typeof value === "string") {
+      sanitized[key] = redactPHI(value).substring(0, 500);
+    } else if (value instanceof Date) {
       sanitized[key] = Timestamp.fromDate(value);
     } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
       sanitized[key] = sanitizeForFirestore(value as Record<string, unknown>);
@@ -46,13 +121,32 @@ class ObservabilityEventEmitter {
   private maxBufferSize = 50;
   private flushIntervalMs = 10000;
   private isEnabled = true;
+  private appStateSubscription: { remove: () => void } | null = null;
 
   constructor() {
     this.startFlushInterval();
+    this.setupAppStateListener();
   }
 
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
+  }
+
+  private setupAppStateListener(): void {
+    try {
+      this.appStateSubscription = AppState.addEventListener(
+        "change",
+        this.handleAppStateChange.bind(this)
+      );
+    } catch (error) {
+      logger.warn("Failed to setup app state listener", error, "ObservabilityEmitter");
+    }
+  }
+
+  private handleAppStateChange(nextAppState: AppStateStatus): void {
+    if (nextAppState === "background" || nextAppState === "inactive") {
+      this.flush();
+    }
   }
 
   private startFlushInterval(): void {
@@ -270,6 +364,10 @@ class ObservabilityEventEmitter {
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
       this.flushInterval = null;
+    }
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
     }
     this.flush();
   }
