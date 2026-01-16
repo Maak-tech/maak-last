@@ -22,28 +22,10 @@ const withFollyFix = (config) => {
 
       let podfileContent = fs.readFileSync(podfilePath, "utf-8");
 
-      // Add use_modular_headers! for Firebase Swift pods
-      // This must be added before the target block
-      if (!podfileContent.includes("use_modular_headers!")) {
-        // Find the platform line and add use_modular_headers! after it
-        const platformRegex = /(platform\s+:ios[^\n]*)/;
-        if (platformRegex.test(podfileContent)) {
-          podfileContent = podfileContent.replace(
-            platformRegex,
-            "$1\nuse_modular_headers!"
-          );
-        } else {
-          // If no platform line found, add at the top after any comments
-          const lines = podfileContent.split("\n");
-          let insertIndex = 0;
-          // Skip initial comments
-          while (insertIndex < lines.length && lines[insertIndex].trim().startsWith("#")) {
-            insertIndex++;
-          }
-          lines.splice(insertIndex, 0, "use_modular_headers!");
-          podfileContent = lines.join("\n");
-        }
-      }
+      // Remove global use_modular_headers! if present to avoid module redefinition errors
+      // Modular headers should be configured per-pod via expo-build-properties if needed
+      // Global modular headers cause "Redefinition of module 'react_runtime'" errors
+      podfileContent = podfileContent.replace(/^\s*use_modular_headers!\s*$/gm, "");
 
       // Check if the folly fix is already applied
       if (podfileContent.includes("FOLLY_HAS_COROUTINES")) {

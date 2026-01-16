@@ -206,9 +206,10 @@ export default {
         "expo-build-properties",
         {
           ios: {
-            // Build React Native from source to avoid module redefinition errors
-            // This fixes "Redefinition of module 'react_runtime'" errors in React Native 0.81.5
-            buildReactNativeFromSource: true
+            // Build React Native from source with modular headers disabled
+            // This combination fixes "Redefinition of module 'react_runtime'" errors
+            buildReactNativeFromSource: true,
+            modular_headers: false
           }
         }
       ],
