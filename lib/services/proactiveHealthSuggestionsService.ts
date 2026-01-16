@@ -682,7 +682,7 @@ class ProactiveHealthSuggestionsService {
         description: localizedText.description,
         action: {
           label: localizedText.actionLabel || "View",
-          route: "/(tabs)/",
+          route: "/(tabs)/family",
         },
         icon: "AlertTriangle",
         category: localizedText.category,
@@ -703,7 +703,7 @@ class ProactiveHealthSuggestionsService {
         description: localizedText.description,
         action: {
           label: localizedText.actionLabel || "View Alerts",
-          route: "/(tabs)/",
+          route: "/(tabs)/family",
         },
         icon: "Bell",
         category: localizedText.category,
@@ -813,7 +813,7 @@ class ProactiveHealthSuggestionsService {
           description: localizedText.description,
           action: {
             label: localizedText.actionLabel || "View Vitals",
-            route: "/(tabs)/",
+            route: "/(tabs)/vitals",
           },
           icon: "Activity",
           category: localizedText.category,
@@ -861,7 +861,7 @@ class ProactiveHealthSuggestionsService {
           description: localizedText.description,
           action: {
             label: localizedText.actionLabel || "View Allergies",
-            route: "/(tabs)/profile",
+            route: "/(tabs)/allergies",
           },
           icon: "AlertCircle",
           category: localizedText.category,
@@ -1214,7 +1214,7 @@ class ProactiveHealthSuggestionsService {
         description: localizedText.description,
         action: {
           label: localizedText.actionLabel || "View Dashboard",
-          route: "/(tabs)/",
+          route: "/health-summary",
         },
         icon: "Heart",
         category: localizedText.category,
@@ -1230,7 +1230,7 @@ class ProactiveHealthSuggestionsService {
         description: localizedText.description,
         action: {
           label: localizedText.actionLabel || "View Insights",
-          route: "/(tabs)/",
+          route: "/health-summary",
         },
         icon: "TrendingUp",
         category: localizedText.category,
