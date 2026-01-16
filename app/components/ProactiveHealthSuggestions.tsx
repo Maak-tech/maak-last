@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   Text,
@@ -153,11 +154,27 @@ export default function ProactiveHealthSuggestions({
     setSuggestions((prev) => prev.filter((s) => s.id !== suggestionId));
   };
 
+  const comingSoonRoutes = [
+    "/(tabs)/calendar",
+    "/(tabs)/calendar/add",
+    "/(tabs)/resources",
+  ];
+
   const handleSuggestionTap = (suggestion: HealthSuggestion) => {
     if (onSuggestionTap) {
       onSuggestionTap(suggestion);
     } else if (suggestion.action?.route) {
-      router.push(suggestion.action.route as any);
+      if (comingSoonRoutes.some(route => suggestion.action?.route?.includes(route))) {
+        Alert.alert(
+          isRTL ? "قريباً" : "Coming Soon",
+          isRTL 
+            ? "هذه الميزة قيد التطوير وستكون متاحة قريباً."
+            : "This feature is under development and will be available soon.",
+          [{ text: isRTL ? "حسناً" : "OK" }]
+        );
+      } else {
+        router.push(suggestion.action.route as any);
+      }
     } else if (suggestion.action?.action) {
       suggestion.action.action();
     }
