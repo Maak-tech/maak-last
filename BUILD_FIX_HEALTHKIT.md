@@ -31,12 +31,13 @@ Enhanced `expo-build-properties` configuration:
 
 ## How It Works
 The `withFollyFix` plugin runs during `expo prebuild` and modifies the generated Podfile to:
-1. Comment out internal C++ headers from the ReactNativeHealthkit umbrella header:
-   - `Bridge.h`
-   - `ExceptionCatcher.h`
-   - `AggregationStyle.hpp`
-   - `AuthDataTypes.hpp`
-   - `QueryDataTypes.hpp`
+1. Comment out C++ headers from the ReactNativeHealthkit umbrella header (these cause build failures):
+   - `Bridge.h` (C++ bridge header)
+   - `AggregationStyle.hpp` (C++ header)
+   - `AuthDataTypes.hpp` (C++ header)
+   - `QueryDataTypes.hpp` (C++ header)
+   
+   **Note**: `ExceptionCatcher.h` is kept in the umbrella header because it's needed by Swift files (`Helpers.swift` uses `HKUnitFromStringCatchingExceptions`).
 2. Add comprehensive header search paths for ReactNativeHealthkit (including recursive paths with `/**`)
 3. Add React Native header search paths for all pod targets (for static frameworks)
 4. Enable `CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES` for all targets

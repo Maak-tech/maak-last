@@ -55,18 +55,18 @@ const withFollyFix = (config) => {
   umbrella_header = "Pods/Target Support Files/ReactNativeHealthkit/ReactNativeHealthkit-umbrella.h"
   if File.exist?(umbrella_header)
     text = File.read(umbrella_header)
-    # Comment out all internal headers that are not needed in the umbrella header
-    # These are C++ implementation headers that should not be in the public umbrella
+    # Comment out C++ headers that cause build failures in the umbrella header
+    # ExceptionCatcher.h is needed by Swift files, so we keep it
+    # Only C++ (.hpp) headers and Bridge.h (C++ bridge) are commented out
     internal_headers = [
       'Bridge.h',
-      'ExceptionCatcher.h',
       'AggregationStyle.hpp',
       'AuthDataTypes.hpp',
       'QueryDataTypes.hpp'
     ]
     new_contents = text
     internal_headers.each do |header|
-      new_contents = new_contents.gsub("#import \"#{header}\"", "// #import \"#{header}\" // Commented out - internal header")
+      new_contents = new_contents.gsub('#import "' + header + '"', '// #import "' + header + '" // Commented out - internal header')
     end
     File.open(umbrella_header, "w") { |f| f.puts new_contents }
   end
