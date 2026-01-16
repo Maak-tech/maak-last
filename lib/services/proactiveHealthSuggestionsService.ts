@@ -1,4 +1,4 @@
-import type { Medication, Symptom, Mood, User } from "@/types";
+import type { Medication, Symptom, Mood, User, EmergencyAlert, CalendarEvent, Allergy, MedicalHistory } from "@/types";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 import { moodService } from "./moodService";
@@ -7,6 +7,12 @@ import { healthInsightsService, type PatternInsight } from "./healthInsightsServ
 import { medicationRefillService, type RefillPrediction } from "./medicationRefillService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import healthContextService from "./healthContextService";
+import { alertService } from "./alertService";
+import { calendarService } from "./calendarService";
+import { allergyService } from "./allergyService";
+import { medicalHistoryService } from "./medicalHistoryService";
+import { collection, getDocs, query, where, orderBy, limit as firestoreLimit, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export interface HealthSuggestion {
   id: string;
@@ -393,6 +399,90 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
         category: "العافية",
       },
     },
+    upcomingAppointment: {
+      en: {
+        title: "Upcoming Appointment",
+        description: `You have an appointment "${params?.eventTitle || ""}" coming up ${params?.timeFrame || "soon"}. Make sure to prepare any questions for your healthcare provider.`,
+        actionLabel: "View Calendar",
+        category: "Appointments",
+      },
+      ar: {
+        title: "موعد قادم",
+        description: `لديك موعد "${params?.eventTitle || ""}" قادم ${params?.timeFrame || "قريباً"}. تأكد من تحضير أي أسئلة لمقدم الرعاية الصحية.`,
+        actionLabel: "عرض التقويم",
+        category: "المواعيد",
+      },
+    },
+    unresolvedAlert: {
+      en: {
+        title: "Unresolved Health Alert",
+        description: `You have ${Number(params?.count) || 1} unresolved health alert${(Number(params?.count) || 1) > 1 ? "s" : ""} that need attention.`,
+        actionLabel: "View Alerts",
+        category: "Alerts",
+      },
+      ar: {
+        title: "تنبيه صحي غير محلول",
+        description: `لديك ${Number(params?.count) || 1} تنبيه${(Number(params?.count) || 1) > 1 ? "ات" : ""} صحية تحتاج إلى اهتمام.`,
+        actionLabel: "عرض التنبيهات",
+        category: "التنبيهات",
+      },
+    },
+    vitalTrend: {
+      en: {
+        title: "Vital Signs Trend",
+        description: `Your ${params?.vitalType || "vital signs"} have been ${params?.trend || "changing"}. ${params?.advice || "Consider monitoring more closely."}`,
+        actionLabel: "View Vitals",
+        category: "Vitals",
+      },
+      ar: {
+        title: "اتجاه العلامات الحيوية",
+        description: `${params?.vitalType || "علاماتك الحيوية"} كانت ${params?.trend || "تتغير"}. ${params?.advice || "فكر في المراقبة عن كثب."}`,
+        actionLabel: "عرض العلامات الحيوية",
+        category: "العلامات الحيوية",
+      },
+    },
+    allergyMedicationWarning: {
+      en: {
+        title: "Allergy Alert",
+        description: `Remember you have an allergy to ${params?.allergen || "a substance"}. Always verify new medications with your healthcare provider.`,
+        actionLabel: "View Allergies",
+        category: "Safety",
+      },
+      ar: {
+        title: "تنبيه حساسية",
+        description: `تذكر أن لديك حساسية من ${params?.allergen || "مادة"}. تحقق دائماً من الأدوية الجديدة مع مقدم الرعاية الصحية.`,
+        actionLabel: "عرض الحساسية",
+        category: "السلامة",
+      },
+    },
+    conditionManagement: {
+      en: {
+        title: "Condition Management",
+        description: `For your ${params?.condition || "health condition"}, consider ${params?.advice || "regular monitoring and following your care plan"}.`,
+        actionLabel: "View History",
+        category: "Medical History",
+      },
+      ar: {
+        title: "إدارة الحالة",
+        description: `لحالتك ${params?.condition || "الصحية"}، فكر في ${params?.advice || "المراقبة المنتظمة واتباع خطة الرعاية"}.`,
+        actionLabel: "عرض التاريخ",
+        category: "التاريخ الطبي",
+      },
+    },
+    highSeverityAlert: {
+      en: {
+        title: "High Priority Alert",
+        description: `You have a ${params?.alertType || "health"} alert that requires immediate attention: ${params?.message || "Please review."}`,
+        actionLabel: "View Alert",
+        category: "Urgent",
+      },
+      ar: {
+        title: "تنبيه عالي الأولوية",
+        description: `لديك تنبيه ${params?.alertType || "صحي"} يتطلب اهتماماً فورياً: ${params?.message || "يرجى المراجعة."}`,
+        actionLabel: "عرض التنبيه",
+        category: "عاجل",
+      },
+    },
   };
 
   const locale = isArabic ? "ar" : "en";
@@ -407,17 +497,27 @@ class ProactiveHealthSuggestionsService {
     const suggestions: HealthSuggestion[] = [];
 
     try {
-      // Load user data
+      // Load user data including trends, alerts, and events
       const [
         medications,
         symptoms,
         moods,
         healthContext,
+        alerts,
+        upcomingEvents,
+        allergies,
+        medicalHistory,
+        vitals,
       ] = await Promise.all([
         medicationService.getUserMedications(userId),
         symptomService.getUserSymptoms(userId, 30),
         moodService.getUserMoods(userId, 30),
         healthContextService.getUserHealthContext(userId),
+        alertService.getUserAlerts(userId, 20).catch(() => [] as EmergencyAlert[]),
+        calendarService.getUpcomingEvents(userId, 7).catch(() => [] as CalendarEvent[]),
+        allergyService.getUserAllergies(userId, 100).catch(() => [] as Allergy[]),
+        medicalHistoryService.getUserMedicalHistory(userId).catch(() => [] as MedicalHistory[]),
+        this.getRecentVitals(userId).catch(() => []),
       ]);
 
       const activeMedications = medications.filter((m) => m.isActive);
@@ -492,16 +592,371 @@ class ProactiveHealthSuggestionsService {
       );
       suggestions.push(...wellnessSuggestions);
 
+      // 11. Alert-based suggestions (from logged alerts)
+      const alertSuggestions = await this.getAlertBasedSuggestions(alerts, isArabic);
+      suggestions.push(...alertSuggestions);
+
+      // 12. Upcoming event suggestions (appointments, checkups)
+      const eventSuggestions = await this.getEventBasedSuggestions(upcomingEvents, isArabic);
+      suggestions.push(...eventSuggestions);
+
+      // 13. Vital trends suggestions
+      const vitalSuggestions = await this.getVitalTrendSuggestions(vitals, isArabic);
+      suggestions.push(...vitalSuggestions);
+
+      // 14. Allergy-aware suggestions
+      const allergySuggestions = await this.getAllergyAwareSuggestions(allergies, activeMedications, isArabic);
+      suggestions.push(...allergySuggestions);
+
+      // 15. Medical history-based suggestions
+      const historySuggestions = await this.getMedicalHistorySuggestions(medicalHistory, symptoms, isArabic);
+      suggestions.push(...historySuggestions);
+
       // Sort by priority (high first)
       suggestions.sort((a, b) => {
         const priorityOrder = { high: 0, medium: 1, low: 2 };
         return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
 
-      return suggestions.slice(0, 10); // Return top 10 suggestions
+      return suggestions.slice(0, 15); // Return top 15 suggestions
     } catch (error) {
       return [];
     }
+  }
+
+  /**
+   * Get recent vitals for trend analysis
+   */
+  private async getRecentVitals(userId: string): Promise<any[]> {
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const q = query(
+        collection(db, "vitals"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", Timestamp.fromDate(thirtyDaysAgo)),
+        orderBy("timestamp", "desc"),
+        firestoreLimit(100)
+      );
+      
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate?.() || new Date(),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Get suggestions based on user alerts
+   */
+  private async getAlertBasedSuggestions(
+    alerts: EmergencyAlert[],
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    // Filter unresolved alerts
+    const unresolvedAlerts = alerts.filter(a => !a.resolved);
+    
+    // High severity alerts get immediate attention
+    const highSeverityAlerts = unresolvedAlerts.filter(
+      a => a.severity === "critical" || a.severity === "high"
+    );
+    
+    if (highSeverityAlerts.length > 0) {
+      const alert = highSeverityAlerts[0];
+      const localizedText = getLocalizedSuggestionText("highSeverityAlert", isArabic, {
+        alertType: alert.type,
+        message: alert.message?.substring(0, 50) || "",
+      });
+      suggestions.push({
+        id: `alert-high-${alert.id}`,
+        type: "symptom",
+        priority: "high",
+        title: localizedText.title,
+        description: localizedText.description,
+        action: {
+          label: localizedText.actionLabel || "View",
+          route: "/(tabs)/",
+        },
+        icon: "AlertTriangle",
+        category: localizedText.category,
+        timestamp: new Date(),
+      });
+    }
+    
+    // Unresolved alerts reminder
+    if (unresolvedAlerts.length > 1) {
+      const localizedText = getLocalizedSuggestionText("unresolvedAlert", isArabic, {
+        count: unresolvedAlerts.length,
+      });
+      suggestions.push({
+        id: "alerts-unresolved",
+        type: "symptom",
+        priority: "medium",
+        title: localizedText.title,
+        description: localizedText.description,
+        action: {
+          label: localizedText.actionLabel || "View Alerts",
+          route: "/(tabs)/",
+        },
+        icon: "Bell",
+        category: localizedText.category,
+        timestamp: new Date(),
+      });
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get suggestions based on upcoming calendar events
+   */
+  private async getEventBasedSuggestions(
+    events: CalendarEvent[],
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    // Find health-related appointments
+    const healthAppointments = events.filter(
+      e => e.type === "appointment" || e.type === "medication" || e.type === "vaccination"
+    );
+
+    // Upcoming appointment reminders
+    for (const event of healthAppointments.slice(0, 2)) {
+      const daysUntil = Math.ceil(
+        (event.startDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+      );
+      
+      if (daysUntil >= 0 && daysUntil <= 7) {
+        const timeFrame = daysUntil === 0 ? "today" : 
+                          daysUntil === 1 ? "tomorrow" : 
+                          `in ${daysUntil} days`;
+        
+        const localizedText = getLocalizedSuggestionText("upcomingAppointment", isArabic, {
+          eventTitle: event.title,
+          timeFrame,
+        });
+        
+        suggestions.push({
+          id: `event-${event.id}`,
+          type: "appointment",
+          priority: daysUntil <= 1 ? "high" : "medium",
+          title: localizedText.title,
+          description: localizedText.description,
+          action: {
+            label: localizedText.actionLabel || "View Calendar",
+            route: "/(tabs)/events",
+          },
+          icon: "Calendar",
+          category: localizedText.category,
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get suggestions based on vital sign trends
+   */
+  private async getVitalTrendSuggestions(
+    vitals: any[],
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    if (vitals.length < 3) return suggestions;
+
+    // Group vitals by type
+    const vitalsByType: Record<string, any[]> = {};
+    vitals.forEach(v => {
+      const type = v.type || "unknown";
+      if (!vitalsByType[type]) vitalsByType[type] = [];
+      vitalsByType[type].push(v);
+    });
+
+    // Analyze trends for each vital type
+    for (const [type, readings] of Object.entries(vitalsByType)) {
+      if (readings.length < 3) continue;
+
+      const values = readings.map(r => r.value).filter(v => typeof v === "number");
+      if (values.length < 3) continue;
+
+      const recentAvg = values.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
+      const olderAvg = values.slice(-3).reduce((a, b) => a + b, 0) / 3;
+      
+      const percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
+      
+      if (Math.abs(percentChange) > 10) {
+        const trend = percentChange > 0 ? "increasing" : "decreasing";
+        const advice = this.getVitalAdvice(type, trend, recentAvg);
+        
+        const localizedText = getLocalizedSuggestionText("vitalTrend", isArabic, {
+          vitalType: this.getVitalDisplayName(type),
+          trend,
+          advice,
+        });
+        
+        suggestions.push({
+          id: `vital-trend-${type}`,
+          type: "symptom",
+          priority: Math.abs(percentChange) > 20 ? "high" : "medium",
+          title: localizedText.title,
+          description: localizedText.description,
+          action: {
+            label: localizedText.actionLabel || "View Vitals",
+            route: "/(tabs)/",
+          },
+          icon: "Activity",
+          category: localizedText.category,
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get allergy-aware medication suggestions
+   */
+  private async getAllergyAwareSuggestions(
+    allergies: Allergy[],
+    medications: Medication[],
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    // Severe allergies reminder (severity can be "severe" or "severe-life-threatening")
+    const severeAllergies = allergies.filter(
+      a => a.severity === "severe" || a.severity === "severe-life-threatening"
+    );
+
+    // Check if allergy name suggests medication type
+    const medicationKeywords = ["penicillin", "aspirin", "ibuprofen", "sulfa", "codeine", "amoxicillin", "antibiotic"];
+    
+    for (const allergy of severeAllergies.slice(0, 2)) {
+      const isMedicationAllergy = medicationKeywords.some(
+        keyword => allergy.name.toLowerCase().includes(keyword)
+      );
+      
+      if (isMedicationAllergy) {
+        const localizedText = getLocalizedSuggestionText("allergyMedicationWarning", isArabic, {
+          allergen: allergy.name,
+        });
+        
+        suggestions.push({
+          id: `allergy-warning-${allergy.id}`,
+          type: "medication",
+          priority: "high",
+          title: localizedText.title,
+          description: localizedText.description,
+          action: {
+            label: localizedText.actionLabel || "View Allergies",
+            route: "/(tabs)/profile",
+          },
+          icon: "AlertCircle",
+          category: localizedText.category,
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    return suggestions;
+  }
+
+  /**
+   * Get suggestions based on medical history
+   */
+  private async getMedicalHistorySuggestions(
+    history: MedicalHistory[],
+    symptoms: Symptom[],
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
+    const suggestions: HealthSuggestion[] = [];
+
+    // All conditions from medical history (MedicalHistory doesn't have status, use all)
+    const activeConditions = history;
+
+    for (const condition of activeConditions.slice(0, 2)) {
+      const conditionLower = condition.condition.toLowerCase();
+      
+      // Check for symptom correlations with conditions
+      let advice = "";
+      if (conditionLower.includes("diabetes")) {
+        advice = "monitoring blood sugar levels regularly";
+      } else if (conditionLower.includes("hypertension") || conditionLower.includes("blood pressure")) {
+        advice = "checking blood pressure daily and managing stress";
+      } else if (conditionLower.includes("heart")) {
+        advice = "maintaining heart-healthy habits and monitoring symptoms";
+      } else if (conditionLower.includes("asthma")) {
+        advice = "keeping your inhaler nearby and avoiding triggers";
+      } else {
+        continue; // Skip if no specific advice
+      }
+
+      const localizedText = getLocalizedSuggestionText("conditionManagement", isArabic, {
+        condition: condition.condition,
+        advice,
+      });
+
+      suggestions.push({
+        id: `history-${condition.id}`,
+        type: "preventive",
+        priority: "medium",
+        title: localizedText.title,
+        description: localizedText.description,
+        action: {
+          label: localizedText.actionLabel || "View History",
+          route: "/(tabs)/profile",
+        },
+        icon: "FileText",
+        category: localizedText.category,
+        timestamp: new Date(),
+      });
+    }
+
+    return suggestions;
+  }
+
+  private getVitalDisplayName(type: string): string {
+    const names: Record<string, string> = {
+      heartRate: "heart rate",
+      bloodPressure: "blood pressure",
+      bloodGlucose: "blood sugar",
+      oxygenSaturation: "oxygen level",
+      weight: "weight",
+      temperature: "temperature",
+    };
+    return names[type] || type;
+  }
+
+  private getVitalAdvice(type: string, trend: string, value: number): string {
+    if (type === "bloodGlucose") {
+      if (trend === "increasing" && value > 140) {
+        return "Consider reviewing your diet and consulting with your healthcare provider.";
+      }
+      if (trend === "decreasing" && value < 80) {
+        return "Monitor for low blood sugar symptoms and have snacks available.";
+      }
+    }
+    if (type === "heartRate") {
+      if (trend === "increasing" && value > 90) {
+        return "High resting heart rate may indicate stress or dehydration.";
+      }
+    }
+    if (type === "bloodPressure") {
+      return "Blood pressure changes should be discussed with your healthcare provider.";
+    }
+    return "Consider discussing this trend with your healthcare provider.";
   }
 
   /**

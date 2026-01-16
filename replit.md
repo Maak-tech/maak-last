@@ -47,6 +47,12 @@ The app uses environment variables for API keys and configuration. Key variables
 This project uses **bun** as the package manager. Use `bun install` for dependencies.
 
 ## Recent Changes
+- 2026-01-16: Enhanced health suggestions to use user's trends, alerts, and events
+  - Suggestions now consider logged alerts (especially unresolved high-priority ones)
+  - Upcoming calendar events (appointments, medication schedules) trigger reminders
+  - Vital sign trends analyzed over 30 days to detect significant changes
+  - Allergy-aware suggestions warn about medication interactions
+  - Medical history conditions inform personalized health advice
 - 2026-01-16: Added allergy and medical history tracking to Zeina voice assistant
   - Zeina now automatically logs allergies when users mention them (e.g., "I'm allergic to penicillin")
   - Zeina tracks medical history conditions (e.g., "I have diabetes", "I had surgery last year")
