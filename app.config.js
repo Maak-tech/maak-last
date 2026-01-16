@@ -206,11 +206,11 @@ export default {
         "expo-build-properties",
         {
           ios: {
-            // Build React Native from source with modular headers disabled globally
-            // This combination fixes "Redefinition of module 'react_runtime'" errors
-            // Modular headers for specific Firebase pods are configured in withFollyFix.js plugin
+            // Build React Native from source
             buildReactNativeFromSource: true,
-            modular_headers: false
+            // Use static frameworks instead of modular headers
+            // This satisfies Firebase Swift pod requirements without causing React Native module redefinition
+            useFrameworks: "static"
           }
         }
       ],

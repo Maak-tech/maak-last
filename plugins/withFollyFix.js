@@ -22,17 +22,11 @@ const withFollyFix = (config) => {
 
       let podfileContent = fs.readFileSync(podfilePath, "utf-8");
 
-      // Enable modular headers globally for Firebase pods
-      // We'll disable them for React Native pods in post_install to avoid redefinition errors
-      if (!podfileContent.includes('use_modular_headers!')) {
-        const platformRegex = /(platform\s+:ios[^\n]*)/;
-        if (platformRegex.test(podfileContent)) {
-          podfileContent = podfileContent.replace(
-            platformRegex,
-            "$1\nuse_modular_headers!"
-          );
-        }
-      }
+      // Remove global use_modular_headers! if present (we're using static frameworks instead)
+      podfileContent = podfileContent.replace(/^\s*use_modular_headers!\s*$/gm, "");
+      
+      // expo-build-properties handles use_frameworks! :linkage => :static configuration
+      // No need to add it here
 
       // Check if the folly fix is already applied
       if (podfileContent.includes("FOLLY_HAS_COROUTINES")) {
@@ -56,29 +50,6 @@ const withFollyFix = (config) => {
     File.open(file, "w") { |f| f.puts new_contents }
   end
   
-  # Disable modular headers for React Native pods to avoid "Redefinition of module 'react_runtime'" errors
-  # Firebase pods will still have modular headers enabled globally
-  react_native_pods_to_exclude = [
-    'React',
-    'React-Core',
-    'React-RCTAppDelegate',
-    'React-RCTFabric',
-    'React-RCTText',
-    'React-RCTImage',
-    'ReactCommon',
-    'React-RuntimeHermes',
-    'React-RuntimeCore',
-    'React-RuntimeCore-DevSupport'
-  ]
-  
-  installer.pods_project.targets.each do |target|
-    if react_native_pods_to_exclude.include?(target.name)
-      target.build_configurations.each do |config|
-        config.build_settings['DEFINES_MODULE'] = 'NO'
-        config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
-      end
-    end
-  end
 `;
 
       if (hasPostInstall && postInstallMatch) {

@@ -119,7 +119,8 @@
     "xmldom": "npm:@xmldom/xmldom@^0.8.10"
   },
   "overrides": {
-    "xmldom": "npm:@xmldom/xmldom@^0.8.10"
+    "xmldom": "npm:@xmldom/xmldom@^0.8.10",
+    "expo-constants": "~18.0.13"
   },
   "expo": {
     "doctor": {
