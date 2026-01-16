@@ -212,13 +212,7 @@ export default {
             // This satisfies Firebase Swift pod requirements without causing React Native module redefinition
             useFrameworks: "static",
             // Enable non-modular includes for frameworks (fixes Bridge.h not found issue)
-            deploymentTarget: "15.1",
-            extraPods: [
-              {
-                name: "React",
-                configurations: ["Debug", "Release"]
-              }
-            ]
+            deploymentTarget: "15.1"
           }
         }
       ],

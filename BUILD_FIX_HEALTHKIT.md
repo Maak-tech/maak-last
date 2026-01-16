@@ -22,7 +22,8 @@ Added more comprehensive React Native header search paths:
 ### 2. Updated `app.config.js`
 Enhanced `expo-build-properties` configuration:
 - Set explicit deployment target (`15.1`)
-- Added React pod reference to ensure proper linking
+- Configured `useFrameworks: "static"` for Firebase compatibility
+- Enabled `buildReactNativeFromSource: true`
 
 ## Files Modified
 1. `plugins/withFollyFix.js` - Enhanced header search paths
