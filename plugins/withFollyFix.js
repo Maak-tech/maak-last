@@ -3,8 +3,9 @@ const fs = require("fs");
 const path = require("path");
 
 /**
- * Expo config plugin to fix folly coroutines issue with react-native-reanimated
- * This disables FOLLY_HAS_COROUTINES in the Podfile post_install hook
+ * Expo config plugin to fix:
+ * 1. Folly coroutines issue with react-native-reanimated
+ * 2. Firebase Swift pods modular headers requirement
  */
 const withFollyFix = (config) => {
   return withDangerousMod(config, [
@@ -21,8 +22,32 @@ const withFollyFix = (config) => {
 
       let podfileContent = fs.readFileSync(podfilePath, "utf-8");
 
-      // Check if the fix is already applied
+      // Add use_modular_headers! for Firebase Swift pods
+      // This must be added before the target block
+      if (!podfileContent.includes("use_modular_headers!")) {
+        // Find the platform line and add use_modular_headers! after it
+        const platformRegex = /(platform\s+:ios[^\n]*)/;
+        if (platformRegex.test(podfileContent)) {
+          podfileContent = podfileContent.replace(
+            platformRegex,
+            "$1\nuse_modular_headers!"
+          );
+        } else {
+          // If no platform line found, add at the top after any comments
+          const lines = podfileContent.split("\n");
+          let insertIndex = 0;
+          // Skip initial comments
+          while (insertIndex < lines.length && lines[insertIndex].trim().startsWith("#")) {
+            insertIndex++;
+          }
+          lines.splice(insertIndex, 0, "use_modular_headers!");
+          podfileContent = lines.join("\n");
+        }
+      }
+
+      // Check if the folly fix is already applied
       if (podfileContent.includes("FOLLY_HAS_COROUTINES")) {
+        fs.writeFileSync(podfilePath, podfileContent);
         return config;
       }
 

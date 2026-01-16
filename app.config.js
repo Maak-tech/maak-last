@@ -2,21 +2,55 @@
 require("dotenv").config();
 
 // Restore Google Services files from EAS environment variables during build
+// Skip restoration during config introspection to avoid parsing corrupted files
 const fs = require('fs');
-if (process.env.GOOGLE_SERVICES_JSON) {
+const path = require('path');
+
+// Check if we're in config introspection mode (EAS Build uses this)
+const isConfigIntrospection = process.env.EXPO_CONFIG_TYPE === 'introspect' || 
+  (process.argv.includes('--type') && process.argv.includes('introspect'));
+
+// Helper to validate plist file
+function isValidPlist(filePath) {
   try {
-    const decoded = Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64');
-    fs.writeFileSync('./google-services.json', decoded);
-  } catch (error) {
-    // Silently handle restore error
+    if (!fs.existsSync(filePath)) return false;
+    const content = fs.readFileSync(filePath, 'utf8');
+    return content.includes('<?xml') || content.includes('<!DOCTYPE plist') || content.includes('<plist');
+  } catch {
+    return false;
   }
 }
-if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
+
+if (!isConfigIntrospection) {
+  if (process.env.GOOGLE_SERVICES_JSON) {
+    try {
+      const decoded = Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64');
+      fs.writeFileSync('./google-services.json', decoded);
+    } catch (error) {
+      // Silently handle restore error
+    }
+  }
+  if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
+    try {
+      const decoded = Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST, 'base64');
+      // Validate it's valid XML/plist before writing
+      const decodedStr = decoded.toString('utf8');
+      if (decodedStr.includes('<?xml') || decodedStr.includes('<!DOCTYPE plist') || decodedStr.includes('<plist')) {
+        fs.writeFileSync('./GoogleService-Info.plist', decoded);
+      }
+    } catch (error) {
+      // Silently handle restore error
+    }
+  }
+}
+
+// Remove corrupted plist file if it exists and is invalid
+const plistPath = path.join(__dirname, 'GoogleService-Info.plist');
+if (fs.existsSync(plistPath) && !isValidPlist(plistPath)) {
   try {
-    const decoded = Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST, 'base64');
-    fs.writeFileSync('./GoogleService-Info.plist', decoded);
-  } catch (error) {
-    // Silently handle restore error
+    fs.unlinkSync(plistPath);
+  } catch {
+    // Ignore deletion errors
   }
 }
 
@@ -40,7 +74,9 @@ export default {
       bundleIdentifier: "com.maak.health",
       buildNumber: "27",
       jsEngine: "hermes",
-      googleServicesFile: "./GoogleService-Info.plist",
+      ...(fs.existsSync('./GoogleService-Info.plist') && isValidPlist('./GoogleService-Info.plist') 
+        ? { googleServicesFile: "./GoogleService-Info.plist" } 
+        : {}),
       splash: {
         image: "./assets/images/generated_image.png",
         resizeMode: "contain",
