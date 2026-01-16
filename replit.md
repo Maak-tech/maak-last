@@ -107,8 +107,28 @@ The app implements a comprehensive Health Companion feature with two observabili
 - **Escalation Workflow**: Starts caregiver notifications with 3 escalation levels
 - **Health Timeline**: All health events (vitals, symptoms, meds) logged for family view
 
+### Advanced Health Analytics (`lib/observability/healthAnalytics.ts`)
+- **Personalized Baselines**: Learn individual patient normal ranges from historical data (mean, std dev, percentiles)
+- **Statistical Anomaly Detection**: Z-score based detection that adapts to personal baselines
+- **Composite Health Score**: 0-100 score with cardiovascular, respiratory, metabolic, and activity components
+- **Vital Correlations**: Detect relationships between different vital signs (e.g., sleep affects heart rate)
+- **Predictive Risk Assessment**: Calculate risk scores based on anomalies and trends with recommendations
+- **Alert Fatigue Prevention**: Smart throttling with cooldowns (30 min) and hourly limits (5 alerts/hour)
+
+### Family Health Dashboard (`lib/observability/familyDashboard.ts`)
+- **Family-level Overview**: Aggregate health status of all family members
+- **Member Summaries**: Health score, risk level, active alerts, last vitals for each member
+- **Alert History**: Track alerts over time with daily counts and severity
+- **Health Score Trends**: Track health score improvement/decline over 30 days
+
 ### Services Integration
 - `vitalSyncService.ts` → `rulesEngine` → `alertService` → `escalationService`
+- `rulesEngine.ts` → `healthAnalytics` (personalized baseline evaluation, alert throttling)
 - `medicationService.ts` → `healthTimeline` (medication taken/missed events)
 - `symptomService.ts` → `healthTimeline` (symptom logged events)
 - `alertService.ts` → `escalationService` + `healthTimeline` + `observabilityEmitter`
+
+### Firestore Collections (Health Analytics)
+- `patient_baselines` - Personalized vital thresholds per user/vital type
+- `health_scores` - Historical health scores with component breakdown
+- `risk_assessments` - Risk evaluations with factors and recommendations

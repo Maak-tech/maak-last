@@ -1,5 +1,6 @@
 import { logger } from "@/lib/utils/logger";
 import { observabilityEmitter } from "./eventEmitter";
+import { healthAnalytics, type PersonalizedBaseline } from "./healthAnalytics";
 import type { HealthThreshold, EventSeverity } from "./types";
 
 export interface VitalReading {
@@ -16,6 +17,8 @@ export interface RuleEvaluation {
   thresholdBreached?: string;
   message?: string;
   recommendedAction?: string;
+  isPersonalizedAnomaly?: boolean;
+  zScore?: number;
 }
 
 const DEFAULT_THRESHOLDS: HealthThreshold[] = [
@@ -45,6 +48,9 @@ class HealthRulesEngine {
   private thresholds: HealthThreshold[] = DEFAULT_THRESHOLDS;
   private recentReadings: Map<string, VitalReading[]> = new Map();
   private maxReadingsPerUser = 100;
+  private baselineCache: Map<string, PersonalizedBaseline> = new Map();
+  private baselineCacheExpiry: Map<string, number> = new Map();
+  private CACHE_TTL_MS = 5 * 60 * 1000;
 
   setThresholds(thresholds: HealthThreshold[]): void {
     this.thresholds = thresholds;
@@ -52,6 +58,63 @@ class HealthRulesEngine {
 
   addThreshold(threshold: HealthThreshold): void {
     this.thresholds.push(threshold);
+  }
+
+  async evaluateVitalWithPersonalization(reading: VitalReading): Promise<RuleEvaluation> {
+    const baseResult = this.evaluateVital(reading);
+    
+    const cacheKey = `${reading.userId}_${reading.type}`;
+    let baseline = this.baselineCache.get(cacheKey);
+    const cacheTime = this.baselineCacheExpiry.get(cacheKey) || 0;
+    
+    if (!baseline || Date.now() > cacheTime) {
+      baseline = await healthAnalytics.getPersonalizedBaseline(reading.userId, reading.type) || undefined;
+      if (baseline) {
+        this.baselineCache.set(cacheKey, baseline);
+        this.baselineCacheExpiry.set(cacheKey, Date.now() + this.CACHE_TTL_MS);
+      }
+    }
+
+    if (baseline) {
+      const anomaly = healthAnalytics.detectAnomaly(reading, baseline);
+      
+      if (anomaly.isAnomaly && !baseResult.triggered) {
+        const absZScore = Math.abs(anomaly.zScore);
+        let severity: EventSeverity;
+        let recommendedAction: string;
+        
+        if (absZScore > 5) {
+          severity = "critical";
+          recommendedAction = "Seek immediate medical attention. This reading is extremely unusual for you.";
+        } else if (absZScore > 4) {
+          severity = "error";
+          recommendedAction = "Contact your healthcare provider soon. This reading is significantly outside your normal range.";
+        } else {
+          severity = "warn";
+          recommendedAction = "This reading is outside your normal range. Monitor closely and consult healthcare provider if it persists.";
+        }
+        
+        return {
+          triggered: true,
+          severity,
+          thresholdBreached: `${reading.type}_personalized_anomaly`,
+          message: anomaly.message || `${this.formatVitalName(reading.type)} is unusual for your personal baseline`,
+          recommendedAction,
+          isPersonalizedAnomaly: true,
+          zScore: anomaly.zScore,
+        };
+      }
+      
+      if (baseResult.triggered) {
+        return {
+          ...baseResult,
+          isPersonalizedAnomaly: anomaly.isAnomaly,
+          zScore: anomaly.zScore,
+        };
+      }
+    }
+
+    return baseResult;
   }
 
   evaluateVital(reading: VitalReading): RuleEvaluation {
@@ -206,10 +269,32 @@ class HealthRulesEngine {
       `Monitor your ${this.formatVitalName(vitalType)} and consult healthcare provider if abnormal readings persist.`;
   }
 
-  async processVitalAndEmit(reading: VitalReading): Promise<RuleEvaluation> {
-    const result = this.evaluateVital(reading);
+  async processVitalAndEmit(reading: VitalReading, usePersonalization = true): Promise<RuleEvaluation> {
+    const result = usePersonalization 
+      ? await this.evaluateVitalWithPersonalization(reading)
+      : this.evaluateVital(reading);
 
     if (result.triggered) {
+      const isCriticalSeverity = result.severity === "critical" || result.severity === "error";
+      
+      if (!isCriticalSeverity) {
+        const throttle = healthAnalytics.shouldThrottleAlert(
+          reading.userId,
+          result.thresholdBreached || reading.type,
+          30,
+          5
+        );
+
+        if (throttle.shouldThrottle) {
+          logger.info("Alert throttled", { 
+            userId: reading.userId, 
+            vitalType: reading.type, 
+            reason: throttle.reason 
+          }, "RulesEngine");
+          return { ...result, triggered: false };
+        }
+      }
+
       await observabilityEmitter.emitHealthEvent(
         "vital_threshold_breach",
         result.message || "Vital sign outside normal range",
@@ -224,6 +309,8 @@ class HealthRulesEngine {
           status: "pending",
           metadata: {
             recommendedAction: result.recommendedAction,
+            isPersonalizedAnomaly: result.isPersonalizedAnomaly,
+            zScore: result.zScore,
           },
         }
       );
@@ -244,6 +331,25 @@ class HealthRulesEngine {
     }
 
     return result;
+  }
+
+  async updateUserBaseline(userId: string, vitalType: string): Promise<void> {
+    const userKey = `${userId}_${vitalType}`;
+    const readings = this.recentReadings.get(userKey);
+    
+    if (readings && readings.length >= 20) {
+      await healthAnalytics.updateBaseline(userId, vitalType, readings);
+      logger.info("Updated baseline from accumulated readings", { userId, vitalType, count: readings.length }, "RulesEngine");
+    }
+  }
+
+  getRecentReadings(userId: string, vitalType: string): VitalReading[] {
+    const userKey = `${userId}_${vitalType}`;
+    return this.recentReadings.get(userKey) || [];
+  }
+
+  clearAlertThrottle(userId: string, alertType: string): void {
+    healthAnalytics.resetAlertThrottle(userId, alertType);
   }
 }
 
