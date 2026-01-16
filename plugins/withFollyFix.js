@@ -22,10 +22,17 @@ const withFollyFix = (config) => {
 
       let podfileContent = fs.readFileSync(podfilePath, "utf-8");
 
-      // Remove global use_modular_headers! if present to avoid module redefinition errors
-      // Modular headers should be configured per-pod via expo-build-properties if needed
-      // Global modular headers cause "Redefinition of module 'react_runtime'" errors
-      podfileContent = podfileContent.replace(/^\s*use_modular_headers!\s*$/gm, "");
+      // Enable modular headers globally for Firebase pods
+      // We'll disable them for React Native pods in post_install to avoid redefinition errors
+      if (!podfileContent.includes('use_modular_headers!')) {
+        const platformRegex = /(platform\s+:ios[^\n]*)/;
+        if (platformRegex.test(podfileContent)) {
+          podfileContent = podfileContent.replace(
+            platformRegex,
+            "$1\nuse_modular_headers!"
+          );
+        }
+      }
 
       // Check if the folly fix is already applied
       if (podfileContent.includes("FOLLY_HAS_COROUTINES")) {
@@ -47,6 +54,30 @@ const withFollyFix = (config) => {
     text = File.read(file)
     new_contents = text.gsub('#define FOLLY_HAS_COROUTINES 1', '#define FOLLY_HAS_COROUTINES 0')
     File.open(file, "w") { |f| f.puts new_contents }
+  end
+  
+  # Disable modular headers for React Native pods to avoid "Redefinition of module 'react_runtime'" errors
+  # Firebase pods will still have modular headers enabled globally
+  react_native_pods_to_exclude = [
+    'React',
+    'React-Core',
+    'React-RCTAppDelegate',
+    'React-RCTFabric',
+    'React-RCTText',
+    'React-RCTImage',
+    'ReactCommon',
+    'React-RuntimeHermes',
+    'React-RuntimeCore',
+    'React-RuntimeCore-DevSupport'
+  ]
+  
+  installer.pods_project.targets.each do |target|
+    if react_native_pods_to_exclude.include?(target.name)
+      target.build_configurations.each do |config|
+        config.build_settings['DEFINES_MODULE'] = 'NO'
+        config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
+      end
+    end
   end
 `;
 
