@@ -6,10 +6,17 @@
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { MetricSample } from "@/lib/health/healthTypes";
-// import { evaluateVitals, requiresHealthEvent } from "../../src/health/rules/evaluateVitals";
-// import { createVitalAlertEvent } from "../../src/health/events/createHealthEvent";
 import { dexcomService } from "./dexcomService";
 import { freestyleLibreService } from "./freestyleLibreService";
+import {
+  healthRulesEngine,
+  observabilityEmitter,
+  healthTimelineService,
+  escalationService,
+  type VitalReading,
+} from "@/lib/observability";
+import { alertService } from "./alertService";
+import { userService } from "./userService";
 
 /**
  * Map metric keys to vital types for Firestore
@@ -109,8 +116,21 @@ async function saveVitalSample(
 }
 
 /**
- * Evaluate collected vitals and create health event if needed
- * This is a simplified implementation - in production you'd want more sophisticated batching
+ * Map internal vital types to rules engine format
+ */
+const VITAL_TYPE_TO_RULES_FORMAT: Record<string, string> = {
+  heartRate: "heart_rate",
+  restingHeartRate: "heart_rate",
+  oxygenSaturation: "blood_oxygen",
+  bloodPressure: "systolic_bp",
+  bodyTemperature: "temperature",
+  bloodGlucose: "blood_glucose",
+  respiratoryRate: "respiratory_rate",
+};
+
+/**
+ * Evaluate collected vitals using the health rules engine
+ * Creates alerts and timeline events when thresholds are breached
  */
 async function evaluateAndCreateHealthEventIfNeeded(
   userId: string,
@@ -121,56 +141,114 @@ async function evaluateAndCreateHealthEventIfNeeded(
   metadata?: Record<string, any>
 ): Promise<void> {
   try {
-    // Map vital types to evaluation format
-    const vitalValues: any = {};
-
-    switch (vitalType) {
-      case "heartRate":
-        vitalValues.heartRate = value;
-        break;
-      case "oxygenSaturation":
-        vitalValues.spo2 = value;
-        break;
-      case "bloodPressure":
-        if (metadata?.systolic && metadata?.diastolic) {
-          vitalValues.systolic = metadata.systolic;
-          vitalValues.diastolic = metadata.diastolic;
-        }
-        break;
-      case "bodyTemperature":
-        vitalValues.temp = value;
-        break;
-      default:
-        // Skip evaluation for non-critical vitals
-        return;
-    }
-
-    // Only evaluate if we have at least one critical vital
-    if (Object.keys(vitalValues).length === 0) {
+    const rulesVitalType = VITAL_TYPE_TO_RULES_FORMAT[vitalType];
+    if (!rulesVitalType) {
       return;
     }
 
-    // NOTE: Automatic health event creation disabled to prevent event stimulation
-    // evaluateVitals is not available - evaluation functionality has been disabled
-    // const evaluation = evaluateVitals({
-    //   ...vitalValues,
-    //   timestamp,
-    // });
-    // Events should be manually managed through the family tab interface
-    // if (requiresHealthEvent(evaluation)) {
-    //   const sourceType = source.includes("apple") || source.includes("fitbit") || source.includes("google")
-    //     ? "wearable" as const
-    //     : source === "manual" ? "manual" as const : "clinic" as const;
-    //
-    //   await createVitalAlertEvent(
-    //     userId,
-    //     evaluation,
-    //     vitalValues,
-    //     sourceType
-    //   );
-    // }
+    const reading: VitalReading = {
+      type: rulesVitalType,
+      value,
+      unit: getVitalUnit(vitalType),
+      timestamp,
+      userId,
+    };
+
+    const evaluation = healthRulesEngine.evaluateVital(reading);
+
+    await healthTimelineService.addEvent({
+      userId,
+      eventType: evaluation.triggered ? "vital_abnormal" : "vital_recorded",
+      title: evaluation.triggered 
+        ? evaluation.message || `Abnormal ${vitalType} detected`
+        : `${vitalType} recorded`,
+      description: evaluation.triggered
+        ? evaluation.recommendedAction
+        : `${value} ${reading.unit} from ${source}`,
+      timestamp,
+      severity: evaluation.triggered 
+        ? (evaluation.severity === "critical" ? "critical" : evaluation.severity === "error" ? "error" : "warn")
+        : "info",
+      icon: evaluation.triggered ? "alert-circle" : "heart-pulse",
+      metadata: {
+        vitalType,
+        value,
+        unit: reading.unit,
+        source,
+        thresholdBreached: evaluation.thresholdBreached,
+      },
+      actorType: "system",
+    });
+
+    if (evaluation.triggered && (evaluation.severity === "error" || evaluation.severity === "critical")) {
+      await observabilityEmitter.emitHealthEvent(
+        "vital_threshold_breach",
+        evaluation.message || `${vitalType} out of range`,
+        {
+          userId,
+          vitalType: rulesVitalType,
+          value,
+          unit: reading.unit,
+          isAbnormal: true,
+          thresholdBreached: evaluation.thresholdBreached,
+        }
+      );
+
+      const alertType = evaluation.severity === "critical" ? "vital_critical" : "vital_error";
+      
+      const alertId = await alertService.createAlert({
+        userId,
+        type: alertType as any,
+        severity: evaluation.severity === "critical" ? "critical" : "high",
+        message: evaluation.message || `Abnormal ${vitalType} detected: ${value} ${reading.unit}`,
+        timestamp: new Date(),
+        resolved: false,
+        responders: [],
+        metadata: {
+          vitalType,
+          value,
+          unit: reading.unit,
+          source,
+          thresholdBreached: evaluation.thresholdBreached,
+          recommendedAction: evaluation.recommendedAction,
+        },
+      });
+
+      const user = await userService.getUser(userId);
+      await escalationService.startEscalation(
+        alertId,
+        alertType,
+        userId,
+        user?.familyId
+      );
+    }
+
+    if (evaluation.triggered && evaluation.severity === "warn") {
+      await observabilityEmitter.emitHealthEvent(
+        "vital_warning",
+        evaluation.message || `${vitalType} slightly abnormal`,
+        {
+          userId,
+          vitalType: rulesVitalType,
+          value,
+          unit: reading.unit,
+          isAbnormal: true,
+          thresholdBreached: evaluation.thresholdBreached,
+        }
+      );
+    }
   } catch (error) {
-    // Silently fail health event creation to avoid breaking vital saving
+    observabilityEmitter.emit({
+      domain: "health_data",
+      source: "vitalSyncService",
+      message: "Failed to evaluate vital for health event",
+      severity: "error",
+      status: "failure",
+      error: {
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      metadata: { userId, vitalType, value },
+    });
   }
 }
 

@@ -15,6 +15,7 @@ import { db } from "@/lib/firebase";
 import type { Symptom } from "@/types";
 import { offlineService } from "./offlineService";
 import { userService } from "./userService";
+import { healthTimelineService, observabilityEmitter } from "@/lib/observability";
 
 export const symptomService = {
   // Add new symptom (offline-first)
@@ -36,6 +37,27 @@ export const symptomService = {
         const newSymptom = { id: docRef.id, ...symptomData };
         const currentSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
         await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
+
+        await healthTimelineService.addEvent({
+          userId: symptomData.userId,
+          eventType: "symptom_logged",
+          title: `Symptom logged: ${symptomData.type}`,
+          description: symptomData.description || `Severity: ${symptomData.severity}/5`,
+          timestamp: symptomData.timestamp,
+          severity: symptomData.severity >= 4 ? "error" : symptomData.severity >= 3 ? "warn" : "info",
+          icon: "thermometer",
+          metadata: {
+            symptomId: docRef.id,
+            symptomType: symptomData.type,
+            severity: symptomData.severity,
+            location: symptomData.location,
+            triggers: symptomData.triggers,
+          },
+          relatedEntityId: docRef.id,
+          relatedEntityType: "symptom",
+          actorType: "user",
+        });
+
         return docRef.id;
       } else {
         // Offline - queue the operation

@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import type { Medication } from "@/types";
 import { userService } from "./userService";
 import { offlineService } from "./offlineService";
+import { healthTimelineService } from "@/lib/observability";
 
 export const medicationService = {
   // Add new medication (offline-first)
@@ -188,19 +189,16 @@ export const medicationService = {
     reminderId: string
   ): Promise<void> {
     try {
-      // Get the current medication to update the specific reminder
       const medication = await this.getMedication(medicationId);
       if (!medication) {
         throw new Error("Medication not found");
       }
 
-      // Find the reminder to toggle
       const reminder = medication.reminders.find((r) => r.id === reminderId);
       if (!reminder) {
         throw new Error("Reminder not found");
       }
 
-      // Toggle the taken state and update takenAt accordingly
       const newTakenState = !reminder.taken;
       const updatedReminders = medication.reminders.map((reminder) =>
         reminder.id === reminderId
@@ -215,8 +213,29 @@ export const medicationService = {
       await updateDoc(doc(db, "medications", medicationId), {
         reminders: updatedReminders,
       });
+
+      await healthTimelineService.addEvent({
+        userId: medication.userId,
+        eventType: newTakenState ? "medication_taken" : "medication_missed",
+        title: newTakenState 
+          ? `Medication taken: ${medication.name}` 
+          : `Medication unmarked: ${medication.name}`,
+        description: `${medication.dosage} at ${reminder.time}`,
+        timestamp: new Date(),
+        severity: "info",
+        icon: newTakenState ? "check-circle" : "circle",
+        metadata: {
+          medicationId,
+          medicationName: medication.name,
+          dosage: medication.dosage,
+          reminderId,
+          scheduledTime: reminder.time,
+        },
+        relatedEntityId: medicationId,
+        relatedEntityType: "medication",
+        actorType: "user",
+      });
     } catch (error) {
-      // Silently handle error marking medication as taken:", error);
       throw error;
     }
   },

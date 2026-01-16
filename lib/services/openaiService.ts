@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { aiInstrumenter } from "@/lib/observability";
 
 export interface ChatMessage {
   id: string;
@@ -133,79 +134,77 @@ class OpenAIService {
   }
 
   async createChatCompletion(messages: ChatMessage[], usePremiumKey = false): Promise<string> {
-    // Get the appropriate API key (will fail explicitly if wrong type requested)
-    const activeApiKey = await this.getApiKey(usePremiumKey);
-    
-    if (!activeApiKey) {
-      throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
-    }
-
-    try {
-      const response = await fetch(`${this.baseURL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${activeApiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: messages.map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-          temperature: 0.7,
-          max_tokens: 1000,
-          stream: false,
-        }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = "";
-        try {
-          const errorData = await response.text();
-          const errorJson = JSON.parse(errorData);
-          errorMessage = errorJson.error?.message || errorData;
-        } catch {
-          errorMessage = `HTTP ${response.status}`;
+    return aiInstrumenter.track(
+      "chat_completion",
+      async () => {
+        const activeApiKey = await this.getApiKey(usePremiumKey);
+        
+        if (!activeApiKey) {
+          throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
         }
 
-        // Silently handle error
+        const response = await fetch(`${this.baseURL}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${activeApiKey}`,
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages: messages.map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+            })),
+            temperature: 0.7,
+            max_tokens: 1000,
+            stream: false,
+          }),
+        });
 
-        if (response.status === 429) {
-          throw new Error(
-            "API quota exceeded. Please add billing to your OpenAI account or switch to GPT-3.5 Turbo (cheaper model)."
-          );
+        if (!response.ok) {
+          let errorMessage = "";
+          try {
+            const errorData = await response.text();
+            const errorJson = JSON.parse(errorData);
+            errorMessage = errorJson.error?.message || errorData;
+          } catch {
+            errorMessage = `HTTP ${response.status}`;
+          }
+
+          if (response.status === 429) {
+            throw new Error(
+              "API quota exceeded. Please add billing to your OpenAI account or switch to GPT-3.5 Turbo (cheaper model)."
+            );
+          }
+          if (response.status === 401) {
+            throw new Error(
+              "Invalid API key. Please check your OpenAI API key in settings."
+            );
+          }
+          if (response.status === 404) {
+            throw new Error(
+              `Model ${this.model} not found. Please select a different model in settings.`
+            );
+          }
+          if (response.status === 400) {
+            throw new Error(
+              `Bad request: ${errorMessage}. Please check your API key and selected model.`
+            );
+          }
+
+          throw new Error(`OpenAI API error: ${errorMessage}`);
         }
-        if (response.status === 401) {
-          throw new Error(
-            "Invalid API key. Please check your OpenAI API key in settings."
-          );
-        }
-        if (response.status === 404) {
-          throw new Error(
-            `Model ${this.model} not found. Please select a different model in settings.`
-          );
-        }
-        if (response.status === 400) {
-          throw new Error(
-            `Bad request: ${errorMessage}. Please check your API key and selected model.`
-          );
+
+        const data = await response.json();
+
+        if (!(data.choices && data.choices[0] && data.choices[0].message)) {
+          throw new Error("Invalid response format from OpenAI API");
         }
 
-        throw new Error(`OpenAI API error: ${errorMessage}`);
-      }
-
-      const data = await response.json();
-
-      if (!(data.choices && data.choices[0] && data.choices[0].message)) {
-        throw new Error("Invalid response format from OpenAI API");
-      }
-
-      return data.choices[0].message.content;
-    } catch (error) {
-      // Silently handle error
-      throw error;
-    }
+        return data.choices[0].message.content;
+      },
+      { trackLatency: true }
+    );
   }
 }
 

@@ -180,12 +180,15 @@ export interface VitalSign {
 export interface EmergencyAlert {
   id: string;
   userId: string;
-  type: "fall" | "emergency" | "medication" | "vitals";
+  type: "fall" | "emergency" | "medication" | "vitals" | "vital_critical" | "vital_error";
   severity: "low" | "medium" | "high" | "critical";
   message: string;
   timestamp: Date;
   resolved: boolean;
   responders?: string[];
+  resolvedAt?: Date;
+  resolvedBy?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface FamilyInvitationCode {

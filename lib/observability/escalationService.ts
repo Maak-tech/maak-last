@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -13,6 +14,8 @@ import { db } from "@/lib/firebase";
 import { logger } from "@/lib/utils/logger";
 import { observabilityEmitter } from "./eventEmitter";
 import type { EscalationPolicy, EscalationLevel } from "./types";
+import { pushNotificationService } from "@/lib/services/pushNotificationService";
+import { userService } from "@/lib/services/userService";
 
 interface ActiveEscalation {
   id?: string;
@@ -243,57 +246,65 @@ class EscalationService {
   }
 
   async resolveEscalation(
-    escalationId: string,
+    alertId: string,
     resolvedBy: string,
     notes?: string
   ): Promise<boolean> {
     try {
-      const escalationRef = doc(db, ESCALATIONS_COLLECTION, escalationId);
-      const escalationDoc = await getDoc(escalationRef);
-
-      if (!escalationDoc.exists()) {
+      const q = query(
+        collection(db, ESCALATIONS_COLLECTION),
+        where("alertId", "==", alertId),
+        where("status", "in", ["active", "acknowledged"])
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
         return false;
       }
 
-      const data = escalationDoc.data() as ActiveEscalation;
+      for (const escalationDoc of querySnapshot.docs) {
+        const escalationRef = doc(db, ESCALATIONS_COLLECTION, escalationDoc.id);
+        const data = escalationDoc.data() as ActiveEscalation;
 
-      await updateDoc(escalationRef, {
-        status: "resolved",
-        resolvedBy,
-        resolvedAt: Timestamp.now(),
-        nextEscalationAt: null,
-      });
-
-      await observabilityEmitter.emitAlertEvent(
-        "escalation_resolved",
-        data.alertId,
-        data.alertType,
-        `Escalation resolved by ${resolvedBy}`,
-        {
-          userId: data.userId,
-          familyId: data.familyId,
-          escalationLevel: data.currentLevel,
+        await updateDoc(escalationRef, {
+          status: "resolved",
           resolvedBy,
-          severity: "info",
-          status: "success",
-        }
-      );
+          resolvedAt: Timestamp.now(),
+          nextEscalationAt: null,
+        });
 
-      await observabilityEmitter.recordAlertAudit(
-        data.alertId,
-        "resolved",
-        "resolved",
-        {
-          actorId: resolvedBy,
-          actorType: "user",
-          previousState: data.status,
-          notes,
-        }
-      );
+        await observabilityEmitter.emitAlertEvent(
+          "escalation_resolved",
+          data.alertId,
+          data.alertType,
+          `Escalation resolved by ${resolvedBy}`,
+          {
+            userId: data.userId,
+            familyId: data.familyId,
+            escalationLevel: data.currentLevel,
+            resolvedBy,
+            severity: "info",
+            status: "success",
+          }
+        );
+
+        await observabilityEmitter.recordAlertAudit(
+          data.alertId,
+          "resolved",
+          "resolved",
+          {
+            actorId: resolvedBy,
+            actorType: "user",
+            previousState: data.status,
+            notes,
+          }
+        );
+      }
 
       return true;
     } catch (error) {
-      logger.error("Failed to resolve escalation", { escalationId, error }, "EscalationService");
+      logger.error("Failed to resolve escalation", { alertId, error }, "EscalationService");
       return false;
     }
   }
@@ -385,7 +396,7 @@ class EscalationService {
 
   private async executeEscalationLevel(
     escalationId: string,
-    escalation: ActiveEscalation,
+    escalation: Omit<ActiveEscalation, "id">,
     level: EscalationLevel
   ): Promise<void> {
     logger.info(
@@ -398,6 +409,94 @@ class EscalationService {
       },
       "EscalationService"
     );
+
+    try {
+      if (!escalation.familyId) {
+        logger.warn("No familyId for escalation, cannot notify caregivers", { escalationId }, "EscalationService");
+        return;
+      }
+
+      const familyMembers = await userService.getFamilyMembers(escalation.familyId);
+      const user = await userService.getUser(escalation.userId);
+      const userName = user 
+        ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Family member"
+        : "Family member";
+
+      const recipientsToNotify: string[] = [];
+
+      for (const role of level.notifyRoles) {
+        if (role === "caregiver") {
+          const caregivers = familyMembers.filter(
+            (m) => m.role === "caregiver" || m.role === "admin"
+          );
+          recipientsToNotify.push(...caregivers.map((c) => c.id));
+        } else if (role === "secondary_contact") {
+          const secondaryContacts = familyMembers.filter(
+            (m) => m.role === "member" && m.id !== escalation.userId
+          );
+          recipientsToNotify.push(...secondaryContacts.map((c) => c.id));
+        } else if (role === "emergency") {
+          recipientsToNotify.push(...familyMembers.map((m) => m.id));
+        }
+      }
+
+      const uniqueRecipients = [...new Set(recipientsToNotify)].filter(
+        (id) => id !== escalation.userId
+      );
+
+      const notificationTitle = this.getNotificationTitle(escalation.alertType, level.level);
+      const notificationBody = level.message.replace("{userName}", userName);
+      const sound = level.level >= 3 ? "emergency" as const : 
+                    level.level >= 2 ? "alarm" as const : "default" as const;
+      const priority = level.level >= 2 ? "high" as const : "normal" as const;
+
+      for (const recipientId of uniqueRecipients) {
+        await pushNotificationService.sendToUser(recipientId, {
+          title: notificationTitle,
+          body: notificationBody,
+          data: {
+            type: "escalation_alert",
+            alertId: escalation.alertId,
+            userId: escalation.userId,
+            severity: level.level >= 3 ? "critical" : level.level >= 2 ? "high" : "medium",
+            familyId: escalation.familyId,
+          },
+          sound,
+          priority,
+        });
+      }
+
+      await updateDoc(doc(db, ESCALATIONS_COLLECTION, escalationId), {
+        notificationsSent: arrayUnion(...uniqueRecipients),
+      });
+
+      logger.info(
+        `Sent escalation notifications to ${uniqueRecipients.length} recipients`,
+        { escalationId, level: level.level, recipients: uniqueRecipients.length },
+        "EscalationService"
+      );
+    } catch (error) {
+      logger.error("Failed to execute escalation level", { escalationId, error }, "EscalationService");
+    }
+  }
+
+  private getNotificationTitle(alertType: string, level: number): string {
+    const urgencyPrefix = level >= 3 ? "🚨 EMERGENCY: " : level >= 2 ? "⚠️ URGENT: " : "📋 ";
+    
+    switch (alertType) {
+      case "vital_critical":
+        return `${urgencyPrefix}Critical Vital Sign Alert`;
+      case "vital_error":
+        return `${urgencyPrefix}Abnormal Vital Signs`;
+      case "fall_detected":
+        return `${urgencyPrefix}Fall Detected`;
+      case "emergency_button":
+        return `${urgencyPrefix}Emergency Alert`;
+      case "medication_missed":
+        return `${urgencyPrefix}Missed Medication`;
+      default:
+        return `${urgencyPrefix}Health Alert`;
+    }
   }
 
   private calculateNextEscalation(

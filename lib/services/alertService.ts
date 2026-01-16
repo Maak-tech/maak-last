@@ -15,6 +15,11 @@ import { db } from "@/lib/firebase";
 import type { EmergencyAlert } from "@/types";
 import { pushNotificationService } from "./pushNotificationService";
 import { userService } from "./userService";
+import {
+  observabilityEmitter,
+  healthTimelineService,
+  escalationService,
+} from "@/lib/observability";
 
 export const alertService = {
   async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
@@ -23,8 +28,54 @@ export const alertService = {
         ...alertData,
         timestamp: Timestamp.fromDate(alertData.timestamp),
       });
+
+      await healthTimelineService.addEvent({
+        userId: alertData.userId,
+        eventType: "alert_created",
+        title: `Alert: ${alertData.type}`,
+        description: alertData.message,
+        timestamp: alertData.timestamp,
+        severity: alertData.severity === "critical" ? "critical" : 
+                  alertData.severity === "high" ? "error" : "warn",
+        icon: alertData.type === "fall" ? "alert-triangle" : 
+              alertData.type === "medication" ? "pill" : "heart-pulse",
+        metadata: {
+          alertId: docRef.id,
+          alertType: alertData.type,
+          alertSeverity: alertData.severity,
+        },
+        relatedEntityId: docRef.id,
+        relatedEntityType: "alert",
+        actorType: "system",
+      });
+
+      observabilityEmitter.emit({
+        domain: "alerts",
+        source: "alertService",
+        message: `Alert created: ${alertData.type}`,
+        severity: alertData.severity === "critical" ? "critical" : 
+                  alertData.severity === "high" ? "error" : "warn",
+        status: "success",
+        metadata: {
+          alertId: docRef.id,
+          alertType: alertData.type,
+          userId: alertData.userId,
+        },
+      });
+
       return docRef.id;
     } catch (error) {
+      observabilityEmitter.emit({
+        domain: "alerts",
+        source: "alertService",
+        message: "Failed to create alert",
+        severity: "error",
+        status: "failure",
+        error: {
+          message: error instanceof Error ? error.message : "Unknown error",
+        },
+        metadata: { alertType: alertData.type, userId: alertData.userId },
+      });
       throw error;
     }
   },
@@ -94,28 +145,71 @@ export const alertService = {
     try {
       const alertRef = doc(db, "alerts", alertId);
 
-      // Verify the document exists
       const alertDoc = await getDoc(alertRef);
       if (!alertDoc.exists()) {
         throw new Error(`Alert ${alertId} does not exist`);
       }
 
-      // Update the document
+      const alertData = alertDoc.data();
+
       await updateDoc(alertRef, {
         resolved: true,
         resolvedAt: Timestamp.now(),
         resolvedBy: resolverId,
       });
 
-      // Verify the update worked
       const updatedDoc = await getDoc(alertRef);
       const updatedData = updatedDoc.data();
 
       if (!updatedData?.resolved) {
         throw new Error(`Alert ${alertId} was not marked as resolved`);
       }
+
+      await healthTimelineService.addEvent({
+        userId: alertData.userId,
+        eventType: "alert_resolved",
+        title: `Alert resolved: ${alertData.type}`,
+        description: `Alert was resolved`,
+        timestamp: new Date(),
+        severity: "info",
+        icon: "check-circle",
+        metadata: {
+          alertId,
+          alertType: alertData.type,
+          resolvedBy: resolverId,
+        },
+        relatedEntityId: alertId,
+        relatedEntityType: "alert",
+        actorId: resolverId,
+        actorType: "user",
+      });
+
+      await escalationService.resolveEscalation(alertId, resolverId);
+
+      observabilityEmitter.emit({
+        domain: "alerts",
+        source: "alertService",
+        message: `Alert resolved: ${alertData.type}`,
+        severity: "info",
+        status: "success",
+        metadata: {
+          alertId,
+          alertType: alertData.type,
+          resolvedBy: resolverId,
+        },
+      });
     } catch (error: any) {
-      // Silently handle error
+      observabilityEmitter.emit({
+        domain: "alerts",
+        source: "alertService",
+        message: "Failed to resolve alert",
+        severity: "error",
+        status: "failure",
+        error: {
+          message: error.message || "Unknown error",
+        },
+        metadata: { alertId, resolverId },
+      });
       throw new Error(
         `Failed to resolve alert: ${error.message || "Unknown error"}`
       );
@@ -144,12 +238,34 @@ export const alertService = {
         timestamp: new Date(),
         resolved: false,
         responders: [],
+        metadata: { location },
       };
 
       const alertId = await this.createAlert(alertData);
+      const user = await userService.getUser(userId);
+
+      await healthTimelineService.addEvent({
+        userId,
+        eventType: "fall_detected",
+        title: "Fall detected",
+        description: location ? `Location: ${location}` : "Fall detected - location unknown",
+        timestamp: new Date(),
+        severity: "critical",
+        icon: "alert-triangle",
+        metadata: { alertId, location },
+        relatedEntityId: alertId,
+        relatedEntityType: "alert",
+        actorType: "system",
+      });
+
+      await escalationService.startEscalation(
+        alertId,
+        "fall_detected",
+        userId,
+        user?.familyId
+      );
 
       try {
-        const user = await userService.getUser(userId);
         if (user && user.familyId) {
           const userName =
             user.firstName && user.lastName
@@ -173,7 +289,17 @@ export const alertService = {
           );
         }
       } catch (notificationError) {
-        // Silently fail
+        observabilityEmitter.emit({
+          domain: "notifications",
+          source: "alertService",
+          message: "Failed to send fall alert notification",
+          severity: "warn",
+          status: "failure",
+          error: {
+            message: notificationError instanceof Error ? notificationError.message : "Unknown error",
+          },
+          metadata: { alertId, userId },
+        });
       }
 
       return alertId;

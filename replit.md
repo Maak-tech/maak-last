@@ -65,6 +65,13 @@ The app includes a comprehensive observability system in `lib/observability/`:
 - `escalations` - Active alert escalations
 
 ## Recent Changes
+- 2026-01-16: Integrated Health Companion observability with core health services
+  - Vitals ingestion now triggers rules engine for automatic threshold/trend detection
+  - Alert creation automatically starts escalation workflows and emits observability events
+  - Health timeline receives events from vitals, medications, symptoms, and alerts
+  - Caregiver notification flow with 3-level escalation (caregiver → secondary → emergency)
+  - OpenAI service instrumented with latency tracking via aiInstrumenter
+  - EmergencyAlert type extended to support vital_critical/vital_error types and metadata
 - 2026-01-16: Fixed Arabic localization for health insights and summaries
   - Added Arabic translations to healthSummaryService.ts for insights, patterns, and recommendations
   - Updated health-summary.tsx to pass language preference to summary generation
@@ -88,3 +95,20 @@ The app includes a comprehensive observability system in `lib/observability/`:
   - Tool definitions added to realtimeAgentService.ts with smart type inference
   - Action implementations in zeinaActionsService.ts with natural language date parsing
 - 2026-01-16: Configured Replit environment with tunnel mode for mobile development
+
+## Health Companion Integration
+
+The app implements a comprehensive Health Companion feature with two observability layers:
+
+### Patient Health Observability
+- **Vitals Ingestion**: When vitals are synced from HealthKit/wearables, they are evaluated by the rules engine
+- **Rules Engine**: Detects threshold breaches (e.g., heart rate > 120bpm) and trends (e.g., rising blood pressure)
+- **Automatic Alerts**: Creates EmergencyAlert records when thresholds are breached
+- **Escalation Workflow**: Starts caregiver notifications with 3 escalation levels
+- **Health Timeline**: All health events (vitals, symptoms, meds) logged for family view
+
+### Services Integration
+- `vitalSyncService.ts` → `rulesEngine` → `alertService` → `escalationService`
+- `medicationService.ts` → `healthTimeline` (medication taken/missed events)
+- `symptomService.ts` → `healthTimeline` (symptom logged events)
+- `alertService.ts` → `escalationService` + `healthTimeline` + `observabilityEmitter`
