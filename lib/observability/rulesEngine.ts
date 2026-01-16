@@ -3,6 +3,113 @@ import { observabilityEmitter } from "./eventEmitter";
 import { healthAnalytics, type PersonalizedBaseline } from "./healthAnalytics";
 import type { HealthThreshold, EventSeverity } from "./types";
 
+const getLocalizedRulesText = (key: string, isArabic: boolean): string => {
+  const texts: Record<string, { en: string; ar: string }> = {
+    seekImmediateMedical: {
+      en: "Seek immediate medical attention. This reading is extremely unusual for you.",
+      ar: "اطلب الرعاية الطبية الفورية. هذه القراءة غير عادية للغاية بالنسبة لك.",
+    },
+    contactProviderSoon: {
+      en: "Contact your healthcare provider soon. This reading is significantly outside your normal range.",
+      ar: "اتصل بمقدم الرعاية الصحية قريبًا. هذه القراءة خارج نطاقك الطبيعي بشكل ملحوظ.",
+    },
+    monitorClosely: {
+      en: "This reading is outside your normal range. Monitor closely and consult healthcare provider if it persists.",
+      ar: "هذه القراءة خارج نطاقك الطبيعي. راقب عن كثب واستشر مقدم الرعاية الصحية إذا استمرت.",
+    },
+    unusualForBaseline: {
+      en: "is unusual for your personal baseline",
+      ar: "غير عادي بالنسبة لمستواك الأساسي الشخصي",
+    },
+    seekImmediateEmergency: {
+      en: "Seek immediate medical attention. Contact emergency services if symptoms are severe.",
+      ar: "اطلب الرعاية الطبية الفورية. اتصل بخدمات الطوارئ إذا كانت الأعراض شديدة.",
+    },
+    contactProviderMonitor: {
+      en: "Contact your healthcare provider soon. Monitor for worsening symptoms.",
+      ar: "اتصل بمقدم الرعاية الصحية قريبًا. راقب أي تفاقم في الأعراض.",
+    },
+    isBelow: {
+      en: "is below",
+      ar: "أقل من",
+    },
+    isAbove: {
+      en: "is above",
+      ar: "أعلى من",
+    },
+    normalRange: {
+      en: "normal range",
+      ar: "النطاق الطبيعي",
+    },
+    rapidlyIncreasing: {
+      en: "is rapidly increasing",
+      ar: "يزداد بسرعة",
+    },
+    rapidlyDecreasing: {
+      en: "is rapidly decreasing",
+      ar: "يتناقص بسرعة",
+    },
+    monitorAndContact: {
+      en: "Monitor closely. Contact caregiver if trend continues.",
+      ar: "راقب عن كثب. اتصل بمقدم الرعاية إذا استمر الاتجاه.",
+    },
+    restCalmHydrate: {
+      en: "Rest and stay calm. Stay hydrated. If symptoms persist, consult a doctor.",
+      ar: "استرح وابقَ هادئًا. ابقَ رطبًا. إذا استمرت الأعراض، استشر طبيبًا.",
+    },
+    sitRestBreathing: {
+      en: "Sit down and rest. Practice deep breathing. Avoid caffeine.",
+      ar: "اجلس واسترح. مارس التنفس العميق. تجنب الكافيين.",
+    },
+    sitUprightBreathe: {
+      en: "Sit upright or stand. Take deep breaths. If below 90%, seek medical attention.",
+      ar: "اجلس منتصبًا أو قف. خذ أنفاسًا عميقة. إذا كانت أقل من 90%، اطلب الرعاية الطبية.",
+    },
+    highOxygenOk: {
+      en: "No action needed - high oxygen levels are typically not concerning.",
+      ar: "لا حاجة لأي إجراء - مستويات الأكسجين العالية عادة ليست مقلقة.",
+    },
+    consumeSugar: {
+      en: "Consume fast-acting sugar (juice, glucose tablets). Recheck in 15 minutes.",
+      ar: "تناول سكرًا سريع المفعول (عصير، أقراص جلوكوز). أعد الفحص بعد 15 دقيقة.",
+    },
+    drinkWaterMeds: {
+      en: "Drink water. Check for missed medications. Contact healthcare provider if very high.",
+      ar: "اشرب الماء. تحقق من الأدوية الفائتة. اتصل بمقدم الرعاية الصحية إذا كانت القراءة مرتفعة جدًا.",
+    },
+    warmUpGradually: {
+      en: "Warm up gradually. Drink warm fluids. Seek help if severely cold.",
+      ar: "سخّن جسمك تدريجيًا. اشرب سوائل دافئة. اطلب المساعدة إذا كنت باردًا جدًا.",
+    },
+    restHydrateFever: {
+      en: "Rest, stay hydrated. Take fever-reducing medication if appropriate.",
+      ar: "استرح، ابقَ رطبًا. تناول أدوية خافضة للحرارة إذا كان ذلك مناسبًا.",
+    },
+    monitorConsultProvider: {
+      en: "Monitor and consult healthcare provider if abnormal readings persist.",
+      ar: "راقب واستشر مقدم الرعاية الصحية إذا استمرت القراءات غير الطبيعية.",
+    },
+  };
+  return texts[key]?.[isArabic ? "ar" : "en"] || texts[key]?.en || key;
+};
+
+const getLocalizedVitalName = (type: string, isArabic: boolean): string => {
+  const names: Record<string, { en: string; ar: string }> = {
+    heart_rate: { en: "Heart Rate", ar: "معدل ضربات القلب" },
+    blood_oxygen: { en: "Blood Oxygen", ar: "أكسجين الدم" },
+    systolic_bp: { en: "Systolic Blood Pressure", ar: "ضغط الدم الانقباضي" },
+    diastolic_bp: { en: "Diastolic Blood Pressure", ar: "ضغط الدم الانبساطي" },
+    temperature: { en: "Body Temperature", ar: "درجة حرارة الجسم" },
+    blood_glucose: { en: "Blood Glucose", ar: "سكر الدم" },
+    respiratory_rate: { en: "Respiratory Rate", ar: "معدل التنفس" },
+  };
+  const name = names[type];
+  if (name) {
+    return isArabic ? name.ar : name.en;
+  }
+  return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+};
+
 export interface VitalReading {
   type: string;
   value: number;
@@ -60,8 +167,8 @@ class HealthRulesEngine {
     this.thresholds.push(threshold);
   }
 
-  async evaluateVitalWithPersonalization(reading: VitalReading): Promise<RuleEvaluation> {
-    const baseResult = this.evaluateVital(reading);
+  async evaluateVitalWithPersonalization(reading: VitalReading, isArabic = false): Promise<RuleEvaluation> {
+    const baseResult = this.evaluateVital(reading, isArabic);
     
     const cacheKey = `${reading.userId}_${reading.type}`;
     let baseline = this.baselineCache.get(cacheKey);
@@ -85,20 +192,21 @@ class HealthRulesEngine {
         
         if (absZScore > 5) {
           severity = "critical";
-          recommendedAction = "Seek immediate medical attention. This reading is extremely unusual for you.";
+          recommendedAction = getLocalizedRulesText("seekImmediateMedical", isArabic);
         } else if (absZScore > 4) {
           severity = "error";
-          recommendedAction = "Contact your healthcare provider soon. This reading is significantly outside your normal range.";
+          recommendedAction = getLocalizedRulesText("contactProviderSoon", isArabic);
         } else {
           severity = "warn";
-          recommendedAction = "This reading is outside your normal range. Monitor closely and consult healthcare provider if it persists.";
+          recommendedAction = getLocalizedRulesText("monitorClosely", isArabic);
         }
         
+        const unusualText = getLocalizedRulesText("unusualForBaseline", isArabic);
         return {
           triggered: true,
           severity,
           thresholdBreached: `${reading.type}_personalized_anomaly`,
-          message: anomaly.message || `${this.formatVitalName(reading.type)} is unusual for your personal baseline`,
+          message: anomaly.message || `${this.formatVitalName(reading.type, isArabic)} ${unusualText}`,
           recommendedAction,
           isPersonalizedAnomaly: true,
           zScore: anomaly.zScore,
@@ -117,7 +225,7 @@ class HealthRulesEngine {
     return baseResult;
   }
 
-  evaluateVital(reading: VitalReading): RuleEvaluation {
+  evaluateVital(reading: VitalReading, isArabic = false): RuleEvaluation {
     const userKey = `${reading.userId}_${reading.type}`;
     
     if (!this.recentReadings.has(userKey)) {
@@ -131,12 +239,12 @@ class HealthRulesEngine {
       readings.shift();
     }
 
-    const thresholdResult = this.checkThresholds(reading);
+    const thresholdResult = this.checkThresholds(reading, isArabic);
     if (thresholdResult.triggered) {
       return thresholdResult;
     }
 
-    const trendResult = this.checkTrends(reading, readings);
+    const trendResult = this.checkTrends(reading, readings, isArabic);
     if (trendResult.triggered) {
       return trendResult;
     }
@@ -147,7 +255,7 @@ class HealthRulesEngine {
     };
   }
 
-  private checkThresholds(reading: VitalReading): RuleEvaluation {
+  private checkThresholds(reading: VitalReading, isArabic = false): RuleEvaluation {
     const applicableThresholds = this.thresholds
       .filter((t) => t.vitalType === reading.type)
       .sort((a, b) => {
@@ -162,13 +270,15 @@ class HealthRulesEngine {
       if (belowMin || aboveMax) {
         const direction = belowMin ? "below" : "above";
         const limit = belowMin ? threshold.min : threshold.max;
+        const directionText = getLocalizedRulesText(belowMin ? "isBelow" : "isAbove", isArabic);
+        const normalRangeText = getLocalizedRulesText("normalRange", isArabic);
         
         return {
           triggered: true,
           severity: threshold.severity,
           thresholdBreached: `${reading.type}_${direction}_${limit}`,
-          message: `${this.formatVitalName(reading.type)} is ${direction} normal range (${reading.value} ${reading.unit})`,
-          recommendedAction: this.getRecommendedAction(reading.type, threshold.severity, direction),
+          message: `${this.formatVitalName(reading.type, isArabic)} ${directionText} ${normalRangeText} (${reading.value} ${reading.unit})`,
+          recommendedAction: this.getRecommendedAction(reading.type, threshold.severity, direction, isArabic),
         };
       }
     }
@@ -176,7 +286,7 @@ class HealthRulesEngine {
     return { triggered: false, severity: "info" };
   }
 
-  private checkTrends(reading: VitalReading, history: VitalReading[]): RuleEvaluation {
+  private checkTrends(reading: VitalReading, history: VitalReading[], isArabic = false): RuleEvaluation {
     if (history.length < 5) {
       return { triggered: false, severity: "info" };
     }
@@ -191,12 +301,15 @@ class HealthRulesEngine {
 
     if (changePercent > 20 && Math.abs(trend) > 0.5) {
       const direction = trend > 0 ? "increasing" : "decreasing";
+      const directionText = getLocalizedRulesText(trend > 0 ? "rapidlyIncreasing" : "rapidlyDecreasing", isArabic);
+      const changeText = isArabic ? `(${changePercent.toFixed(1)}% تغيير)` : `(${changePercent.toFixed(1)}% change)`;
+      
       return {
         triggered: true,
         severity: "warn",
         thresholdBreached: `${reading.type}_rapid_${direction}`,
-        message: `${this.formatVitalName(reading.type)} is rapidly ${direction} (${changePercent.toFixed(1)}% change)`,
-        recommendedAction: `Monitor ${this.formatVitalName(reading.type)} closely. Contact caregiver if trend continues.`,
+        message: `${this.formatVitalName(reading.type, isArabic)} ${directionText} ${changeText}`,
+        recommendedAction: getLocalizedRulesText("monitorAndContact", isArabic),
       };
     }
 
@@ -220,53 +333,48 @@ class HealthRulesEngine {
     return slope;
   }
 
-  private formatVitalName(type: string): string {
-    const names: Record<string, string> = {
-      heart_rate: "Heart Rate",
-      blood_oxygen: "Blood Oxygen",
-      systolic_bp: "Systolic Blood Pressure",
-      diastolic_bp: "Diastolic Blood Pressure",
-      temperature: "Body Temperature",
-      blood_glucose: "Blood Glucose",
-      respiratory_rate: "Respiratory Rate",
-    };
-    return names[type] || type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  private formatVitalName(type: string, isArabic = false): string {
+    return getLocalizedVitalName(type, isArabic);
   }
 
   private getRecommendedAction(
     vitalType: string,
     severity: EventSeverity,
-    direction: string
+    direction: string,
+    isArabic = false
   ): string {
     if (severity === "critical") {
-      return "Seek immediate medical attention. Contact emergency services if symptoms are severe.";
+      return getLocalizedRulesText("seekImmediateEmergency", isArabic);
     }
     
     if (severity === "error") {
-      return "Contact your healthcare provider soon. Monitor for worsening symptoms.";
+      return getLocalizedRulesText("contactProviderMonitor", isArabic);
     }
 
-    const actions: Record<string, Record<string, string>> = {
+    const actionKeys: Record<string, Record<string, string>> = {
       heart_rate: {
-        below: "Rest and stay calm. Stay hydrated. If symptoms persist, consult a doctor.",
-        above: "Sit down and rest. Practice deep breathing. Avoid caffeine.",
+        below: "restCalmHydrate",
+        above: "sitRestBreathing",
       },
       blood_oxygen: {
-        below: "Sit upright or stand. Take deep breaths. If below 90%, seek medical attention.",
-        above: "No action needed - high oxygen levels are typically not concerning.",
+        below: "sitUprightBreathe",
+        above: "highOxygenOk",
       },
       blood_glucose: {
-        below: "Consume fast-acting sugar (juice, glucose tablets). Recheck in 15 minutes.",
-        above: "Drink water. Check for missed medications. Contact healthcare provider if very high.",
+        below: "consumeSugar",
+        above: "drinkWaterMeds",
       },
       temperature: {
-        below: "Warm up gradually. Drink warm fluids. Seek help if severely cold.",
-        above: "Rest, stay hydrated. Take fever-reducing medication if appropriate.",
+        below: "warmUpGradually",
+        above: "restHydrateFever",
       },
     };
 
-    return actions[vitalType]?.[direction] || 
-      `Monitor your ${this.formatVitalName(vitalType)} and consult healthcare provider if abnormal readings persist.`;
+    const actionKey = actionKeys[vitalType]?.[direction];
+    if (actionKey) {
+      return getLocalizedRulesText(actionKey, isArabic);
+    }
+    return getLocalizedRulesText("monitorConsultProvider", isArabic);
   }
 
   async processVitalAndEmit(reading: VitalReading, usePersonalization = true): Promise<RuleEvaluation> {

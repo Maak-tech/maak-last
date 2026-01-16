@@ -15,6 +15,132 @@ import { db } from "@/lib/firebase";
 import { logger } from "@/lib/utils/logger";
 import type { VitalReading } from "./rulesEngine";
 
+const getLocalizedText = (key: string, isArabic: boolean): string => {
+  const texts: Record<string, { en: string; ar: string }> = {
+    elevatedHeartRate: {
+      en: "Elevated resting heart rate",
+      ar: "ارتفاع معدل ضربات القلب أثناء الراحة",
+    },
+    lowHeartRate: {
+      en: "Low resting heart rate",
+      ar: "انخفاض معدل ضربات القلب أثناء الراحة",
+    },
+    elevatedBloodPressure: {
+      en: "Elevated blood pressure",
+      ar: "ارتفاع ضغط الدم",
+    },
+    lowBloodPressure: {
+      en: "Low blood pressure",
+      ar: "انخفاض ضغط الدم",
+    },
+    lowOxygenSaturation: {
+      en: "Below-normal oxygen saturation",
+      ar: "انخفاض نسبة الأكسجين في الدم",
+    },
+    highGlucoseVariability: {
+      en: "High blood glucose variability",
+      ar: "تقلب كبير في مستوى السكر في الدم",
+    },
+    seekImmediateMedical: {
+      en: "Seek immediate medical attention",
+      ar: "اطلب الرعاية الطبية الفورية",
+    },
+    contactProviderUrgently: {
+      en: "Contact your healthcare provider urgently",
+      ar: "اتصل بمقدم الرعاية الصحية على الفور",
+    },
+    scheduleConsultation: {
+      en: "Schedule a consultation with your healthcare provider soon",
+      ar: "حدد موعدًا للاستشارة مع مقدم الرعاية الصحية قريبًا",
+    },
+    monitorVitalsFrequently: {
+      en: "Monitor your vitals more frequently",
+      ar: "راقب علاماتك الحيوية بشكل متكرر",
+    },
+    avoidCaffeineActivity: {
+      en: "Avoid caffeine and strenuous activity",
+      ar: "تجنب الكافيين والنشاط الشاق",
+    },
+    practiceDeepBreathing: {
+      en: "Practice deep breathing exercises",
+      ar: "مارس تمارين التنفس العميق",
+    },
+    reduceSodiumIntake: {
+      en: "Reduce sodium intake",
+      ar: "قلل من تناول الصوديوم",
+    },
+    takeBPAtRest: {
+      en: "Take blood pressure readings at rest",
+      ar: "قس ضغط الدم أثناء الراحة",
+    },
+    checkMealTiming: {
+      en: "Check your meal timing and carbohydrate intake",
+      ar: "تحقق من توقيت وجباتك وكمية الكربوهيدرات",
+    },
+    monitorGlucose: {
+      en: "Monitor blood glucose before and after meals",
+      ar: "راقب مستوى السكر في الدم قبل وبعد الوجبات",
+    },
+    ensureVentilation: {
+      en: "Ensure good ventilation in your environment",
+      ar: "تأكد من التهوية الجيدة في بيئتك",
+    },
+    pursedLipBreathing: {
+      en: "Practice pursed-lip breathing",
+      ar: "مارس تقنية التنفس بالشفاه المزمومة",
+    },
+    insufficientData: {
+      en: "Insufficient data for trend analysis",
+      ar: "بيانات غير كافية لتحليل الاتجاه",
+    },
+    stableReadings: {
+      en: "Stable readings",
+      ar: "قراءات مستقرة",
+    },
+    rapidlyIncreasing: {
+      en: "Rapidly increasing",
+      ar: "يزداد بسرعة",
+    },
+    rapidlyDecreasing: {
+      en: "Rapidly decreasing",
+      ar: "يتناقص بسرعة",
+    },
+    significantlyIncreasing: {
+      en: "Significantly increasing",
+      ar: "يزداد بشكل ملحوظ",
+    },
+    significantlyDecreasing: {
+      en: "Significantly decreasing",
+      ar: "يتناقص بشكل ملحوظ",
+    },
+    slightlyIncreasing: {
+      en: "Slightly increasing",
+      ar: "يزداد قليلاً",
+    },
+    slightlyDecreasing: {
+      en: "Slightly decreasing",
+      ar: "يتناقص قليلاً",
+    },
+    anomaly: {
+      en: "anomaly",
+      ar: "شذوذ",
+    },
+    trend: {
+      en: "trend",
+      ar: "اتجاه",
+    },
+    abnormalReading: {
+      en: "Abnormal reading detected",
+      ar: "تم اكتشاف قراءة غير طبيعية",
+    },
+    changePercent: {
+      en: "change",
+      ar: "تغيير",
+    },
+  };
+  return texts[key]?.[isArabic ? "ar" : "en"] || texts[key]?.en || key;
+};
+
 export interface PersonalizedBaseline {
   userId: string;
   vitalType: string;
@@ -211,7 +337,8 @@ class HealthAnalyticsService {
 
   async calculateHealthScore(
     userId: string,
-    recentVitals: Map<string, VitalReading[]>
+    recentVitals: Map<string, VitalReading[]>,
+    isArabic = false
   ): Promise<HealthScore> {
     const now = new Date();
     
@@ -252,7 +379,7 @@ class HealthAnalyticsService {
     
     const overallScore = Math.max(0, Math.min(100, Math.round(rawScore)));
 
-    const riskFactors = this.identifyRiskFactors(recentVitals);
+    const riskFactors = this.identifyRiskFactors(recentVitals, isArabic);
     const trend = await this.calculateScoreTrend(userId, overallScore);
 
     const healthScore: HealthScore = {
@@ -333,34 +460,34 @@ class HealthAnalyticsService {
     return Math.round(100 - normalizedDistance * 25);
   }
 
-  private identifyRiskFactors(vitals: Map<string, VitalReading[]>): string[] {
+  private identifyRiskFactors(vitals: Map<string, VitalReading[]>, isArabic = false): string[] {
     const riskFactors: string[] = [];
 
     const hrReadings = vitals.get("heart_rate");
     if (hrReadings && hrReadings.length > 0) {
       const avgHR = hrReadings.reduce((a, b) => a + b.value, 0) / hrReadings.length;
-      if (avgHR > 100) riskFactors.push("Elevated resting heart rate");
-      if (avgHR < 50) riskFactors.push("Low resting heart rate");
+      if (avgHR > 100) riskFactors.push(getLocalizedText("elevatedHeartRate", isArabic));
+      if (avgHR < 50) riskFactors.push(getLocalizedText("lowHeartRate", isArabic));
     }
 
     const bpReadings = vitals.get("systolic_bp");
     if (bpReadings && bpReadings.length > 0) {
       const avgBP = bpReadings.reduce((a, b) => a + b.value, 0) / bpReadings.length;
-      if (avgBP > 140) riskFactors.push("Elevated blood pressure");
-      if (avgBP < 90) riskFactors.push("Low blood pressure");
+      if (avgBP > 140) riskFactors.push(getLocalizedText("elevatedBloodPressure", isArabic));
+      if (avgBP < 90) riskFactors.push(getLocalizedText("lowBloodPressure", isArabic));
     }
 
     const o2Readings = vitals.get("blood_oxygen");
     if (o2Readings && o2Readings.length > 0) {
       const avgO2 = o2Readings.reduce((a, b) => a + b.value, 0) / o2Readings.length;
-      if (avgO2 < 95) riskFactors.push("Below-normal oxygen saturation");
+      if (avgO2 < 95) riskFactors.push(getLocalizedText("lowOxygenSaturation", isArabic));
     }
 
     const glucoseReadings = vitals.get("blood_glucose");
     if (glucoseReadings && glucoseReadings.length > 0) {
       const values = glucoseReadings.map(r => r.value);
       const variance = this.calculateVariance(values);
-      if (variance > 500) riskFactors.push("High blood glucose variability");
+      if (variance > 500) riskFactors.push(getLocalizedText("highGlucoseVariability", isArabic));
     }
 
     return riskFactors;
@@ -495,7 +622,8 @@ class HealthAnalyticsService {
   async assessRisk(
     userId: string,
     recentVitals: Map<string, VitalReading[]>,
-    baselines: Map<string, PersonalizedBaseline>
+    baselines: Map<string, PersonalizedBaseline>,
+    isArabic = false
   ): Promise<RiskAssessment> {
     const factors: RiskFactor[] = [];
     let totalRiskScore = 0;
@@ -512,20 +640,22 @@ class HealthAnalyticsService {
                         Math.abs(anomaly.zScore) > 3 ? "moderate" : "low";
         const contribution = Math.min(Math.abs(anomaly.zScore) * 10, 30);
         
+        const anomalyLabel = isArabic ? "شذوذ" : "anomaly";
         factors.push({
-          name: `${this.formatVitalName(vitalType)} anomaly`,
+          name: `${this.formatVitalName(vitalType, isArabic)} ${anomalyLabel}`,
           contribution,
           severity,
-          description: anomaly.message || `Abnormal ${vitalType} reading detected`,
+          description: anomaly.message || (isArabic ? `تم اكتشاف قراءة غير طبيعية في ${this.formatVitalName(vitalType, isArabic)}` : `Abnormal ${vitalType} reading detected`),
         });
         
         totalRiskScore += contribution;
       }
 
-      const trend = this.calculateShortTermTrend(readings);
+      const trend = this.calculateShortTermTrend(readings, isArabic);
       if (trend.concernLevel > 0) {
+        const trendLabel = isArabic ? "اتجاه" : "trend";
         factors.push({
-          name: `${this.formatVitalName(vitalType)} trend`,
+          name: `${this.formatVitalName(vitalType, isArabic)} ${trendLabel}`,
           contribution: trend.concernLevel * 10,
           severity: trend.concernLevel >= 2 ? "high" : trend.concernLevel >= 1 ? "moderate" : "low",
           description: trend.description,
@@ -541,7 +671,7 @@ class HealthAnalyticsService {
     else if (riskScore >= 25) overallRisk = "moderate";
     else overallRisk = "low";
 
-    const recommendations = this.generateRiskRecommendations(factors, overallRisk);
+    const recommendations = this.generateRiskRecommendations(factors, overallRisk, isArabic);
 
     const assessment: RiskAssessment = {
       userId,
@@ -564,9 +694,9 @@ class HealthAnalyticsService {
     return assessment;
   }
 
-  private calculateShortTermTrend(readings: VitalReading[]): { concernLevel: number; description: string } {
+  private calculateShortTermTrend(readings: VitalReading[], isArabic = false): { concernLevel: number; description: string } {
     if (readings.length < 5) {
-      return { concernLevel: 0, description: "Insufficient data for trend analysis" };
+      return { concernLevel: 0, description: getLocalizedText("insufficientData", isArabic) };
     }
 
     const recentValues = readings.slice(-10).map(r => r.value);
@@ -578,75 +708,81 @@ class HealthAnalyticsService {
     const changePercent = ((secondAvg - firstAvg) / firstAvg) * 100;
 
     if (Math.abs(changePercent) < 5) {
-      return { concernLevel: 0, description: "Stable readings" };
+      return { concernLevel: 0, description: getLocalizedText("stableReadings", isArabic) };
     }
 
-    const direction = changePercent > 0 ? "increasing" : "decreasing";
-    if (Math.abs(changePercent) >= 20) {
-      return { 
-        concernLevel: 3, 
-        description: `Rapidly ${direction} (${Math.abs(changePercent).toFixed(1)}% change)` 
-      };
+    const changeText = isArabic ? `(${Math.abs(changePercent).toFixed(1)}% تغيير)` : `(${Math.abs(changePercent).toFixed(1)}% change)`;
+    
+    if (changePercent > 0) {
+      if (Math.abs(changePercent) >= 20) {
+        return { concernLevel: 3, description: `${getLocalizedText("rapidlyIncreasing", isArabic)} ${changeText}` };
+      }
+      if (Math.abs(changePercent) >= 10) {
+        return { concernLevel: 2, description: `${getLocalizedText("significantlyIncreasing", isArabic)} ${changeText}` };
+      }
+      return { concernLevel: 1, description: `${getLocalizedText("slightlyIncreasing", isArabic)} ${changeText}` };
+    } else {
+      if (Math.abs(changePercent) >= 20) {
+        return { concernLevel: 3, description: `${getLocalizedText("rapidlyDecreasing", isArabic)} ${changeText}` };
+      }
+      if (Math.abs(changePercent) >= 10) {
+        return { concernLevel: 2, description: `${getLocalizedText("significantlyDecreasing", isArabic)} ${changeText}` };
+      }
+      return { concernLevel: 1, description: `${getLocalizedText("slightlyDecreasing", isArabic)} ${changeText}` };
     }
-    if (Math.abs(changePercent) >= 10) {
-      return { 
-        concernLevel: 2, 
-        description: `Significantly ${direction} (${Math.abs(changePercent).toFixed(1)}% change)` 
-      };
-    }
-    return { 
-      concernLevel: 1, 
-      description: `Slightly ${direction} (${Math.abs(changePercent).toFixed(1)}% change)` 
-    };
   }
 
-  private generateRiskRecommendations(factors: RiskFactor[], overallRisk: string): string[] {
+  private generateRiskRecommendations(factors: RiskFactor[], overallRisk: string, isArabic = false): string[] {
     const recommendations: string[] = [];
 
     if (overallRisk === "critical") {
-      recommendations.push("Seek immediate medical attention");
-      recommendations.push("Contact your healthcare provider urgently");
+      recommendations.push(getLocalizedText("seekImmediateMedical", isArabic));
+      recommendations.push(getLocalizedText("contactProviderUrgently", isArabic));
     } else if (overallRisk === "high") {
-      recommendations.push("Schedule a consultation with your healthcare provider soon");
-      recommendations.push("Monitor your vitals more frequently");
+      recommendations.push(getLocalizedText("scheduleConsultation", isArabic));
+      recommendations.push(getLocalizedText("monitorVitalsFrequently", isArabic));
     }
 
     for (const factor of factors) {
       if (factor.name.includes("heart_rate") && factor.severity !== "low") {
-        recommendations.push("Avoid caffeine and strenuous activity");
-        recommendations.push("Practice deep breathing exercises");
+        recommendations.push(getLocalizedText("avoidCaffeineActivity", isArabic));
+        recommendations.push(getLocalizedText("practiceDeepBreathing", isArabic));
       }
       if (factor.name.includes("blood_pressure") && factor.severity !== "low") {
-        recommendations.push("Reduce sodium intake");
-        recommendations.push("Take blood pressure readings at rest");
+        recommendations.push(getLocalizedText("reduceSodiumIntake", isArabic));
+        recommendations.push(getLocalizedText("takeBPAtRest", isArabic));
       }
       if (factor.name.includes("blood_glucose") && factor.severity !== "low") {
-        recommendations.push("Check your meal timing and carbohydrate intake");
-        recommendations.push("Monitor blood glucose before and after meals");
+        recommendations.push(getLocalizedText("checkMealTiming", isArabic));
+        recommendations.push(getLocalizedText("monitorGlucose", isArabic));
       }
       if (factor.name.includes("blood_oxygen") && factor.severity !== "low") {
-        recommendations.push("Ensure good ventilation in your environment");
-        recommendations.push("Practice pursed-lip breathing");
+        recommendations.push(getLocalizedText("ensureVentilation", isArabic));
+        recommendations.push(getLocalizedText("pursedLipBreathing", isArabic));
       }
     }
 
     return [...new Set(recommendations)].slice(0, 5);
   }
 
-  private formatVitalName(type: string): string {
-    const names: Record<string, string> = {
-      heart_rate: "Heart Rate",
-      systolic_bp: "Systolic Blood Pressure",
-      diastolic_bp: "Diastolic Blood Pressure",
-      blood_oxygen: "Blood Oxygen",
-      respiratory_rate: "Respiratory Rate",
-      blood_glucose: "Blood Glucose",
-      temperature: "Body Temperature",
-      steps: "Steps",
-      active_minutes: "Active Minutes",
-      sleep_hours: "Sleep Duration",
+  private formatVitalName(type: string, isArabic = false): string {
+    const names: Record<string, { en: string; ar: string }> = {
+      heart_rate: { en: "Heart Rate", ar: "معدل ضربات القلب" },
+      systolic_bp: { en: "Systolic Blood Pressure", ar: "ضغط الدم الانقباضي" },
+      diastolic_bp: { en: "Diastolic Blood Pressure", ar: "ضغط الدم الانبساطي" },
+      blood_oxygen: { en: "Blood Oxygen", ar: "أكسجين الدم" },
+      respiratory_rate: { en: "Respiratory Rate", ar: "معدل التنفس" },
+      blood_glucose: { en: "Blood Glucose", ar: "سكر الدم" },
+      temperature: { en: "Body Temperature", ar: "درجة حرارة الجسم" },
+      steps: { en: "Steps", ar: "الخطوات" },
+      active_minutes: { en: "Active Minutes", ar: "دقائق النشاط" },
+      sleep_hours: { en: "Sleep Duration", ar: "مدة النوم" },
     };
-    return names[type] || type.replace(/_/g, " ");
+    const name = names[type];
+    if (name) {
+      return isArabic ? name.ar : name.en;
+    }
+    return type.replace(/_/g, " ");
   }
 
   shouldThrottleAlert(

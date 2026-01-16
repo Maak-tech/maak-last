@@ -65,6 +65,10 @@ The app includes a comprehensive observability system in `lib/observability/`:
 - `escalations` - Active alert escalations
 
 ## Recent Changes
+- 2026-01-16: Added Arabic localization to health observability services
+  - healthAnalytics.ts: Risk factors, recommendations, trends, vital names fully localized
+  - rulesEngine.ts: Threshold messages, recommended actions, vital names fully localized
+  - All analytics methods now accept optional isArabic parameter
 - 2026-01-16: Integrated Health Companion observability with core health services
   - Vitals ingestion now triggers rules engine for automatic threshold/trend detection
   - Alert creation automatically starts escalation workflows and emits observability events
