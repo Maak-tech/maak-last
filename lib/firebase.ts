@@ -4,6 +4,8 @@ import {
   type Auth,
   browserLocalPersistence,
   getAuth,
+  // @ts-ignore: getReactNativePersistence exists in the RN bundle but is missing from TypeScript definitions
+  getReactNativePersistence,
   initializeAuth,
   setPersistence,
 } from "firebase/auth";
@@ -11,6 +13,7 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
+import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 
 // Default Firebase configuration
 // Note: For native iOS/Android, GoogleService-Info.plist and google-services.json
@@ -156,9 +159,19 @@ try {
       }
     }
   } else {
-    // For React Native (iOS/Android), Firebase Auth automatically handles persistence
-    // using AsyncStorage, so we can use getAuth directly
-    auth = getAuth(app);
+    // For React Native (iOS/Android), use initializeAuth with AsyncStorage persistence
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+      });
+    } catch (error: any) {
+      // If auth is already initialized (e.g., during hot reload), use getAuth instead
+      if (error.code === "auth/already-initialized") {
+        auth = getAuth(app);
+      } else {
+        auth = getAuth(app);
+      }
+    }
   }
 } catch (error) {
   // Final fallback: use getAuth
