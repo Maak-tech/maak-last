@@ -65,6 +65,14 @@ The app includes a comprehensive observability system in `lib/observability/`:
 - `escalations` - Active alert escalations
 
 ## Recent Changes
+- 2026-01-16: Added Arabic localization to Zeina voice assistant responses
+  - zeinaActionsService.ts: Vital names, vital advice, symptom advice fully localized
+  - logSymptom and logVitalSign methods now accept isArabic parameter
+  - Severity text, symptom-specific advice, and vital-specific insights in Arabic
+  - healthContextService.ts updated to pass language parameter
+- 2026-01-16: Fixed health suggestions navigation routes
+  - View Vitals → /(tabs)/vitals, View Allergies → /(tabs)/allergies
+  - View Alerts → /(tabs)/family, View Dashboard → /health-summary
 - 2026-01-16: Added Arabic localization to health observability services
   - healthAnalytics.ts: Risk factors, recommendations, trends, vital names fully localized
   - rulesEngine.ts: Threshold messages, recommended actions, vital names fully localized

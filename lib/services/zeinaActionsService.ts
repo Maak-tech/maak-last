@@ -140,7 +140,8 @@ class ZeinaActionsService {
     severity?: number,
     notes?: string,
     bodyPart?: string,
-    duration?: string
+    duration?: string,
+    isArabic = false
   ): Promise<ActionResult> {
     try {
       const userId = auth.currentUser?.uid;
@@ -149,7 +150,9 @@ class ZeinaActionsService {
           success: false,
           action: "log_symptom",
           message: "User not authenticated",
-          speakableResponse: "I'm sorry, but I couldn't log that symptom. You need to be logged in first.",
+          speakableResponse: isArabic 
+            ? "عذراً، لم أتمكن من تسجيل هذا العرض. تحتاج إلى تسجيل الدخول أولاً."
+            : "I'm sorry, but I couldn't log that symptom. You need to be logged in first.",
         };
       }
 
@@ -180,7 +183,8 @@ class ZeinaActionsService {
       // Save to Firestore
       const symptomId = await symptomService.addSymptom(symptomData);
 
-      const severityText = this.getSeverityText(symptomData.severity);
+      const severityText = this.getSeverityText(symptomData.severity, isArabic);
+      const symptomAdvice = this.getSymptomAdvice(symptomType, symptomData.severity * 2, isArabic);
       
       return {
         success: true,
@@ -190,7 +194,9 @@ class ZeinaActionsService {
           id: symptomId,
           ...symptomData,
         },
-        speakableResponse: `I've logged your ${symptomName}${severityText}. ${this.getSymptomAdvice(symptomType, symptomData.severity * 2)}`, // Convert back to 1-10 for advice
+        speakableResponse: isArabic
+          ? `تم تسجيل ${symptomName}${severityText}. ${symptomAdvice}`
+          : `I've logged your ${symptomName}${severityText}. ${symptomAdvice}`,
       };
     } catch (error) {
       console.error("Error logging symptom:", error);
@@ -330,7 +336,8 @@ class ZeinaActionsService {
     vitalType: string,
     value: number,
     unit?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
+    isArabic = false
   ): Promise<ActionResult> {
     try {
       const userId = auth.currentUser?.uid;
@@ -339,7 +346,9 @@ class ZeinaActionsService {
           success: false,
           action: "log_vital",
           message: "User not authenticated",
-          speakableResponse: "I couldn't log that vital sign. You need to be logged in first.",
+          speakableResponse: isArabic
+            ? "لم أتمكن من تسجيل هذا القياس. تحتاج إلى تسجيل الدخول أولاً."
+            : "I couldn't log that vital sign. You need to be logged in first.",
         };
       }
 
@@ -361,14 +370,17 @@ class ZeinaActionsService {
 
       await addDoc(collection(db, "vitals"), vitalData);
 
-      const vitalName = this.getVitalName(vitalType);
+      const vitalName = this.getVitalName(vitalType, isArabic);
+      const vitalAdvice = this.getVitalAdvice(vitalType, value, isArabic);
 
       return {
         success: true,
         action: "log_vital",
         message: `${vitalName} logged: ${value} ${displayUnit}`,
         data: { vitalType, value, unit: displayUnit },
-        speakableResponse: `I've recorded your ${vitalName} at ${value} ${displayUnit}. ${this.getVitalAdvice(vitalType, value)}`,
+        speakableResponse: isArabic
+          ? `تم تسجيل ${vitalName} عند ${value} ${displayUnit}. ${vitalAdvice}`
+          : `I've recorded your ${vitalName} at ${value} ${displayUnit}. ${vitalAdvice}`,
       };
     } catch (error) {
       console.error("Error logging vital:", error);
@@ -996,8 +1008,14 @@ class ZeinaActionsService {
     return bodyPartInference[symptomType] || "";
   }
 
-  private getSeverityText(severity: number): string {
-    // Severity is on 1-5 scale
+  private getSeverityText(severity: number, isArabic = false): string {
+    if (isArabic) {
+      if (severity <= 1) return " كـخفيف جداً";
+      if (severity <= 2) return " كـخفيف";
+      if (severity <= 3) return " كـمتوسط";
+      if (severity <= 4) return " كـشديد";
+      return " كـشديد جداً";
+    }
     if (severity <= 1) return " as very mild";
     if (severity <= 2) return " as mild";
     if (severity <= 3) return " as moderate";
@@ -1005,24 +1023,59 @@ class ZeinaActionsService {
     return " as severe";
   }
 
-  private getSymptomAdvice(symptomType: string, severity: number): string {
+  private getSymptomAdvice(symptomType: string, severity: number, isArabic = false): string {
     if (severity >= 8) {
-      return "This seems quite severe. Would you like me to alert your family or provide emergency contact information?";
+      return isArabic 
+        ? "يبدو هذا شديداً جداً. هل تريد مني تنبيه عائلتك أو تقديم معلومات الاتصال للطوارئ؟"
+        : "This seems quite severe. Would you like me to alert your family or provide emergency contact information?";
     }
 
-    const adviceMap: Record<string, string> = {
-      headache: "Make sure to stay hydrated and rest. Let me know if it gets worse.",
-      fever: "Please monitor your temperature. I recommend staying hydrated and resting.",
-      cough: "Try to rest your voice and stay hydrated. I'll keep track of this for you.",
-      nausea: "I recommend resting and avoiding heavy foods for now.",
-      fatigue: "Make sure you're getting enough rest. I'll note this for your records.",
-      anxiety: "Remember to take deep breaths. Would you like me to guide you through a breathing exercise?",
-      insomnia: "I'll track this pattern. Consistent sleep difficulties should be discussed with your doctor.",
-      dizziness: "Please sit down and stay safe. If this persists, you should seek medical attention.",
-      chestPain: "Chest pain can be serious. If you're experiencing severe pain, please seek immediate medical attention.",
+    const adviceMap: Record<string, { en: string; ar: string }> = {
+      headache: {
+        en: "Make sure to stay hydrated and rest. Let me know if it gets worse.",
+        ar: "تأكد من شرب الماء والراحة. أخبرني إذا ساء الأمر.",
+      },
+      fever: {
+        en: "Please monitor your temperature. I recommend staying hydrated and resting.",
+        ar: "يرجى مراقبة درجة حرارتك. أنصح بشرب السوائل والراحة.",
+      },
+      cough: {
+        en: "Try to rest your voice and stay hydrated. I'll keep track of this for you.",
+        ar: "حاول إراحة صوتك وشرب السوائل. سأتابع هذا لك.",
+      },
+      nausea: {
+        en: "I recommend resting and avoiding heavy foods for now.",
+        ar: "أنصح بالراحة وتجنب الأطعمة الثقيلة الآن.",
+      },
+      fatigue: {
+        en: "Make sure you're getting enough rest. I'll note this for your records.",
+        ar: "تأكد من حصولك على راحة كافية. سأدون هذا في سجلاتك.",
+      },
+      anxiety: {
+        en: "Remember to take deep breaths. Would you like me to guide you through a breathing exercise?",
+        ar: "تذكر أن تأخذ نفساً عميقاً. هل تريد مني إرشادك في تمرين التنفس؟",
+      },
+      insomnia: {
+        en: "I'll track this pattern. Consistent sleep difficulties should be discussed with your doctor.",
+        ar: "سأتابع هذا النمط. يجب مناقشة صعوبات النوم المستمرة مع طبيبك.",
+      },
+      dizziness: {
+        en: "Please sit down and stay safe. If this persists, you should seek medical attention.",
+        ar: "يرجى الجلوس والبقاء بأمان. إذا استمر هذا، يجب طلب الرعاية الطبية.",
+      },
+      chestPain: {
+        en: "Chest pain can be serious. If you're experiencing severe pain, please seek immediate medical attention.",
+        ar: "آلام الصدر قد تكون خطيرة. إذا كنت تعاني من ألم شديد، يرجى طلب الرعاية الطبية فوراً.",
+      },
     };
 
-    return adviceMap[symptomType] || "I'll keep tracking this for you. Let me know if anything changes.";
+    const advice = adviceMap[symptomType];
+    if (advice) {
+      return isArabic ? advice.ar : advice.en;
+    }
+    return isArabic 
+      ? "سأستمر في متابعة هذا لك. أخبرني إذا تغير شيء."
+      : "I'll keep tracking this for you. Let me know if anything changes.";
   }
 
   private getVitalUnit(vitalType: string): string {
@@ -1038,35 +1091,62 @@ class ZeinaActionsService {
     return units[vitalType] || "";
   }
 
-  private getVitalName(vitalType: string): string {
-    const names: Record<string, string> = {
-      heartRate: "heart rate",
-      bloodPressure: "blood pressure",
-      temperature: "temperature",
-      oxygenSaturation: "oxygen level",
-      weight: "weight",
-      bloodGlucose: "blood sugar",
-      steps: "step count",
+  private getVitalName(vitalType: string, isArabic = false): string {
+    const names: Record<string, { en: string; ar: string }> = {
+      heartRate: { en: "heart rate", ar: "معدل نبضات القلب" },
+      bloodPressure: { en: "blood pressure", ar: "ضغط الدم" },
+      temperature: { en: "temperature", ar: "درجة الحرارة" },
+      oxygenSaturation: { en: "oxygen level", ar: "مستوى الأكسجين" },
+      weight: { en: "weight", ar: "الوزن" },
+      bloodGlucose: { en: "blood sugar", ar: "سكر الدم" },
+      steps: { en: "step count", ar: "عدد الخطوات" },
     };
-    return names[vitalType] || vitalType;
+    const name = names[vitalType];
+    if (name) {
+      return isArabic ? name.ar : name.en;
+    }
+    return vitalType;
   }
 
-  private getVitalAdvice(vitalType: string, value: number): string {
-    // Provide contextual advice based on vital type and value
+  private getVitalAdvice(vitalType: string, value: number, isArabic = false): string {
     switch (vitalType) {
       case "heartRate":
-        if (value < 60) return "Your heart rate is a bit low. Are you feeling okay?";
-        if (value > 100) return "Your heart rate is elevated. Try to rest and stay calm.";
-        return "Your heart rate looks good.";
+        if (value < 60) {
+          return isArabic 
+            ? "معدل نبضات قلبك منخفض قليلاً. هل تشعر بأنك بخير؟"
+            : "Your heart rate is a bit low. Are you feeling okay?";
+        }
+        if (value > 100) {
+          return isArabic
+            ? "معدل نبضات قلبك مرتفع. حاول الراحة والهدوء."
+            : "Your heart rate is elevated. Try to rest and stay calm.";
+        }
+        return isArabic ? "معدل نبضات قلبك جيد." : "Your heart rate looks good.";
       case "bloodGlucose":
-        if (value < 70) return "Your blood sugar is low. You might want to have a small snack.";
-        if (value > 180) return "Your blood sugar is high. Please monitor closely and follow your care plan.";
-        return "Your blood sugar level is in a normal range.";
+        if (value < 70) {
+          return isArabic
+            ? "سكر الدم منخفض. قد ترغب في تناول وجبة خفيفة."
+            : "Your blood sugar is low. You might want to have a small snack.";
+        }
+        if (value > 180) {
+          return isArabic
+            ? "سكر الدم مرتفع. يرجى المراقبة عن كثب واتباع خطة الرعاية."
+            : "Your blood sugar is high. Please monitor closely and follow your care plan.";
+        }
+        return isArabic 
+          ? "مستوى سكر الدم في النطاق الطبيعي."
+          : "Your blood sugar level is in a normal range.";
       case "oxygenSaturation":
-        if (value < 95) return "Your oxygen level is a bit low. If you feel short of breath, please seek medical attention.";
-        return "Your oxygen level looks good.";
+        if (value < 95) {
+          return isArabic
+            ? "مستوى الأكسجين منخفض قليلاً. إذا شعرت بضيق في التنفس، يرجى طلب الرعاية الطبية."
+            : "Your oxygen level is a bit low. If you feel short of breath, please seek medical attention.";
+        }
+        return isArabic ? "مستوى الأكسجين جيد." : "Your oxygen level looks good.";
       default:
-        return "I've recorded this measurement for you.";
+        return isArabic 
+          ? "تم تسجيل هذا القياس لك."
+          : "I've recorded this measurement for you.";
     }
   }
 }

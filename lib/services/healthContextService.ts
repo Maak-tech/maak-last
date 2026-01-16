@@ -807,11 +807,11 @@ Remember: You are an AI assistant providing information and support, not a repla
    * Log a new symptom using the Zeina Actions Service
    * This actually saves the symptom to Firestore
    */
-  async logSymptom(symptomName: string, severity?: number, notes?: string): Promise<any> {
+  async logSymptom(symptomName: string, severity?: number, notes?: string, isArabic = false): Promise<any> {
     try {
       // Use the Zeina Actions Service to log symptoms properly
       const { zeinaActionsService } = await import("./zeinaActionsService");
-      const result = await zeinaActionsService.logSymptom(symptomName, severity, notes);
+      const result = await zeinaActionsService.logSymptom(symptomName, severity, notes, undefined, undefined, isArabic);
       
       return {
         success: result.success,
@@ -823,7 +823,9 @@ Remember: You are an AI assistant providing information and support, not a repla
       return { 
         success: false, 
         error: "Failed to log symptom",
-        speakableResponse: "I'm sorry, I couldn't log that symptom right now. Please try again later.",
+        speakableResponse: isArabic 
+          ? "عذراً، لم أتمكن من تسجيل هذا العرض الآن. يرجى المحاولة مرة أخرى لاحقاً."
+          : "I'm sorry, I couldn't log that symptom right now. Please try again later.",
       };
     }
   }
