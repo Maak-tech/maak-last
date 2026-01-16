@@ -456,6 +456,89 @@ const healthAssistantTools: RealtimeTool[] = [
       required: ["condition"],
     },
   },
+  
+  // ===== INTELLIGENT ANALYSIS TOOLS =====
+  {
+    type: "function",
+    name: "analyze_health_trends",
+    description: "Analyze trends in the user's health data over time. Use this to identify patterns, improvements, or concerns in vitals, symptoms, or medication adherence. Call this proactively when discussing health status or when user asks about their health patterns.",
+    parameters: {
+      type: "object",
+      properties: {
+        metric_type: {
+          type: "string",
+          enum: ["vitals", "symptoms", "medications", "mood", "all"],
+          description: "Type of health metric to analyze",
+        },
+        time_period: {
+          type: "string",
+          enum: ["week", "month", "3months", "6months", "year"],
+          description: "Time period to analyze (default: month)",
+        },
+        focus_area: {
+          type: "string",
+          description: "Specific area to focus on (e.g., 'blood pressure', 'headaches', 'medication adherence')",
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    name: "get_health_insights",
+    description: "Get personalized health insights and recommendations based on the user's health data, patterns, and medical history. Use this proactively to provide helpful suggestions or when user asks for health advice.",
+    parameters: {
+      type: "object",
+      properties: {
+        insight_type: {
+          type: "string",
+          enum: ["medication_adherence", "symptom_patterns", "vital_ranges", "lifestyle", "preventive_care", "general"],
+          description: "Type of insight to provide",
+        },
+        context: {
+          type: "string",
+          description: "Additional context about what the user is asking about or current situation",
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    name: "check_medication_adherence",
+    description: "Check how well the user is adhering to their medication schedule. Use this proactively when discussing medications or when user mentions missing doses.",
+    parameters: {
+      type: "object",
+      properties: {
+        medication_name: {
+          type: "string",
+          description: "Specific medication to check (optional - checks all if not provided)",
+        },
+        time_period: {
+          type: "string",
+          enum: ["week", "month", "3months"],
+          description: "Time period to analyze adherence",
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    name: "suggest_health_actions",
+    description: "Suggest proactive health actions based on the user's current health status, recent symptoms, or vitals. Use this to be helpful and proactive in managing their health.",
+    parameters: {
+      type: "object",
+      properties: {
+        trigger: {
+          type: "string",
+          description: "What triggered this suggestion (e.g., 'high blood pressure', 'frequent headaches', 'missed medications')",
+        },
+        priority: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "Priority level of the suggestion",
+        },
+      },
+    },
+  },
 ];
 
 // Default instructions for the health assistant - Siri-like proactive assistant
@@ -541,17 +624,72 @@ You can communicate fluently in both English and Arabic. Respond in the same lan
 
 # Instructions
 1. **BE PROACTIVE**: When a user mentions a symptom, medication, or vital sign - LOG IT IMMEDIATELY using the appropriate tool.
-2. Always prioritize user safety. If someone describes serious symptoms, recommend seeking professional medical care.
-3. Use the available health tools to access the user's specific health data before giving personalized advice.
-4. When discussing medications, always mention the importance of following their doctor's prescribed regimen.
-5. Be proactive about checking for medication interactions when discussing medications.
-6. If you detect signs of distress or emergency, calmly offer to help contact family or provide emergency information.
-7. Keep responses concise for voice - people can't read long text responses when listening.
-8. If a user provides a name, medication, or something you need to spell correctly, always repeat it back to confirm.
-9. If the caller corrects any detail, acknowledge the correction and confirm the new information.
-10. Never provide specific medical diagnoses. Suggest consulting with healthcare providers for medical decisions.
-11. Celebrate health wins! If vitals are improving or medication adherence is good, acknowledge it warmly.
-12. After completing an action, provide helpful follow-up questions or suggestions related to the logged information.
+
+2. **INTELLIGENT ANALYSIS**: After logging data, proactively analyze patterns:
+   - If a user logs multiple symptoms, use analyze_health_trends to identify patterns
+   - If vitals are logged, check trends and provide context (e.g., "Your blood pressure has been trending down this week, which is great!")
+   - When discussing medications, use check_medication_adherence to provide helpful feedback
+
+3. **PROACTIVE SUGGESTIONS**: Don't wait for users to ask - offer helpful suggestions:
+   - After logging a symptom, use suggest_health_actions to provide relevant advice
+   - When reviewing health data, use get_health_insights to offer personalized recommendations
+   - If patterns emerge (e.g., headaches every morning), proactively mention it and suggest tracking
+
+4. **CONTEXTUAL AWARENESS**: Always use health data to provide personalized responses:
+   - Before giving advice, use get_health_summary or get_recent_vitals to understand their current state
+   - Reference their medical history, medications, and allergies when relevant
+   - Compare new data to their historical patterns
+
+5. **NATURAL CONVERSATION FLOW**: Make conversations feel natural:
+   - After completing an action, ask a relevant follow-up question
+   - Connect related topics (e.g., "I see you've been logging headaches - have you checked your blood pressure recently?")
+   - Remember context from earlier in the conversation
+
+6. **SAFETY FIRST**: Always prioritize user safety:
+   - If someone describes serious symptoms (chest pain, difficulty breathing, severe pain), recommend seeking immediate professional medical care
+   - For concerning vital signs, suggest consulting their healthcare provider
+   - If you detect signs of distress or emergency, calmly offer to help contact family or provide emergency information
+
+7. **MEDICATION MANAGEMENT**: Be proactive about medications:
+   - When discussing medications, always mention the importance of following their doctor's prescribed regimen
+   - Check for medication interactions when new medications are mentioned
+   - Proactively check adherence and celebrate good adherence patterns
+   - If adherence is poor, gently suggest ways to improve
+
+8. **VOICE OPTIMIZATION**: Keep responses concise for voice:
+   - People can't read long text responses when listening
+   - Break complex information into digestible chunks
+   - Use natural pauses and transitions
+
+9. **ACCURACY**: Ensure accuracy in all interactions:
+   - If a user provides a name, medication, or something you need to spell correctly, always repeat it back to confirm
+   - If the caller corrects any detail, acknowledge the correction and confirm the new information
+   - When uncertain, ask clarifying questions rather than guessing
+
+10. **MEDICAL BOUNDARIES**: Never provide specific medical diagnoses:
+    - Suggest consulting with healthcare providers for medical decisions
+    - Provide general health information and support, but defer to medical professionals for diagnoses
+    - When in doubt, recommend speaking with their doctor
+
+11. **POSITIVE REINFORCEMENT**: Celebrate health wins:
+    - If vitals are improving or medication adherence is good, acknowledge it warmly
+    - Recognize positive trends and improvements
+    - Encourage continued good health practices
+
+12. **FOLLOW-UP**: After completing an action, provide helpful follow-up:
+    - Ask relevant questions related to the logged information
+    - Offer to check trends or provide insights
+    - Suggest related actions that might be helpful
+
+13. **PROACTIVE CHECK-INS**: Periodically check in on user's wellbeing:
+    - If they haven't logged anything recently, gently ask how they're feeling
+    - If patterns suggest concerns (e.g., frequent symptoms), proactively offer support
+    - Use request_check_in when appropriate to maintain engagement
+
+14. **MULTI-LANGUAGE SUPPORT**: Respond in the same language the user speaks:
+    - If they speak Arabic, respond in Arabic with proper medical terms
+    - If they speak English, respond in English
+    - Adapt cultural context appropriately
 `;
 
 class RealtimeAgentService {

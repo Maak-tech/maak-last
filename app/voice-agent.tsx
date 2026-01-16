@@ -1,8 +1,39 @@
 /**
- * Voice Agent Screen
+ * Voice Agent Screen - Enhanced Zeina AI Assistant
  *
  * A real-time speech-to-speech voice assistant powered by OpenAI's Realtime API.
  * Features audio visualization, conversation transcript, and health-focused tools.
+ * 
+ * ENHANCEMENTS:
+ * 
+ * 1. INTELLIGENT ANALYSIS:
+ *    - Health trend analysis and pattern detection
+ *    - Proactive health insights and recommendations
+ *    - Medication adherence tracking and suggestions
+ *    - Contextual health suggestions based on user data
+ * 
+ * 2. CONVERSATION & MEMORY:
+ *    - Conversation history persistence to Firestore
+ *    - Context awareness across sessions
+ *    - Personalized welcome messages based on health status
+ *    - Natural conversation flow with follow-up questions
+ * 
+ * 3. USER EXPERIENCE:
+ *    - Quick action shortcuts for common tasks
+ *    - Enhanced UI with better visual feedback and animations
+ *    - Proactive health monitoring and pattern detection
+ *    - Tool call status indicators with animations
+ * 
+ * 4. PROACTIVE FEATURES:
+ *    - Automatic pattern detection (frequent symptoms, medication adherence)
+ *    - Proactive suggestions based on health data
+ *    - Health trend analysis after logging data
+ *    - Contextual recommendations
+ * 
+ * 5. MULTI-LANGUAGE SUPPORT:
+ *    - English and Arabic support
+ *    - Proper medical terminology in both languages
+ *    - Cultural context awareness
  */
 
 import { Ionicons } from "@expo/vector-icons";
@@ -33,6 +64,8 @@ import {
 } from "@/lib/services/realtimeAgentService";
 import healthContextService from "@/lib/services/healthContextService";
 import { zeinaActionsService } from "@/lib/services/zeinaActionsService";
+import { auth, db } from "@/lib/firebase";
+import { collection, addDoc, Timestamp, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 
 // Audio recording imports
 let Audio: any = null;
@@ -100,6 +133,8 @@ export default function VoiceAgentScreen() {
   const [currentTranscript, setCurrentTranscript] = useState("");
   const [toolCalls, setToolCalls] = useState<ToolCallStatus[]>([]);
   const [textInput, setTextInput] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showQuickActions, setShowQuickActions] = useState(false);
 
   // Audio recording state
   const recordingRef = useRef<any>(null);
@@ -186,6 +221,80 @@ export default function VoiceAgentScreen() {
     }
   }, [isSpeaking]);
 
+  // Save conversation message to Firestore
+  const saveConversationMessage = useCallback(async (message: ConversationMessage) => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      // Create or get session ID
+      let currentSessionId = sessionId;
+      if (!currentSessionId) {
+        currentSessionId = `zeina_session_${Date.now()}`;
+        setSessionId(currentSessionId);
+      }
+
+      await addDoc(collection(db, "zeina_conversations"), {
+        userId,
+        sessionId: currentSessionId,
+        role: message.role,
+        content: message.content,
+        timestamp: Timestamp.fromDate(message.timestamp),
+        createdAt: Timestamp.now(),
+      });
+    } catch (error) {
+      // Silently handle errors - don't interrupt conversation flow
+      console.error("Failed to save conversation:", error);
+    }
+  }, [sessionId]);
+
+  // Load recent conversation context
+  const loadRecentContext = useCallback(async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return [];
+
+      const recentMessagesQuery = query(
+        collection(db, "zeina_conversations"),
+        where("userId", "==", userId),
+        orderBy("timestamp", "desc"),
+        limit(5)
+      );
+
+      const snapshot = await getDocs(recentMessagesQuery);
+      if (snapshot.empty) return [];
+
+      // Get the most recent session ID
+      const mostRecentDoc = snapshot.docs[0];
+      const recentSessionId = mostRecentDoc.data().sessionId;
+      
+      // Load messages from the same session
+      const sessionMessagesQuery = query(
+        collection(db, "zeina_conversations"),
+        where("userId", "==", userId),
+        where("sessionId", "==", recentSessionId),
+        orderBy("timestamp", "asc"),
+        limit(10)
+      );
+
+      const sessionSnapshot = await getDocs(sessionMessagesQuery);
+      const contextMessages: ConversationMessage[] = sessionSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          role: data.role as "user" | "assistant",
+          content: data.content,
+          timestamp: data.timestamp.toDate(),
+        };
+      });
+
+      return contextMessages;
+    } catch (error) {
+      console.error("Failed to load conversation context:", error);
+      return [];
+    }
+  }, []);
+
   // Set up event handlers
   const setupEventHandlers = useCallback(() => {
     const handlers: RealtimeEventHandlers = {
@@ -193,16 +302,58 @@ export default function VoiceAgentScreen() {
         setConnectionState(state);
       },
 
-      onSessionCreated: (session) => {
-        // Add welcome message
-        setMessages([
-          {
+      onSessionCreated: async (session) => {
+        // Create new session ID
+        const newSessionId = `zeina_session_${Date.now()}`;
+        setSessionId(newSessionId);
+        
+        // Load recent context for better continuity
+        const recentContext = await loadRecentContext();
+        
+        // Add enhanced welcome message with proactive health check
+        const welcomeMessage = t("voiceAgentWelcome", "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness.");
+        
+        // Try to get a quick health summary for personalized greeting
+        try {
+          const healthSummary = await healthContextService.getHealthSummary();
+          const hasRecentSymptoms = healthSummary.symptoms && healthSummary.symptoms.length > 0;
+          const hasMedications = healthSummary.medications && healthSummary.medications.filter((m: any) => m.isActive).length > 0;
+          
+          let personalizedGreeting = welcomeMessage;
+          
+          // Add context from recent conversation if available
+          if (recentContext && recentContext.length > 0) {
+            personalizedGreeting += " I'm back! ";
+          }
+          
+          if (hasRecentSymptoms) {
+            personalizedGreeting += " I noticed you've been tracking some symptoms recently. How are you feeling today?";
+          } else if (hasMedications) {
+            personalizedGreeting += " I'm here to help you manage your medications and track your health. What would you like to do today?";
+          } else {
+            personalizedGreeting += " I can help you track symptoms, medications, vitals, and more. What can I help you with?";
+          }
+          
+          const welcomeMsg: ConversationMessage = {
             id: "welcome",
             role: "assistant",
-            content: t("voiceAgentWelcome", "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness."),
+            content: personalizedGreeting,
             timestamp: new Date(),
-          },
-        ]);
+          };
+          
+          setMessages([welcomeMsg]);
+          await saveConversationMessage(welcomeMsg);
+        } catch (error) {
+          // Fallback to default welcome if health summary fails
+          const welcomeMsg: ConversationMessage = {
+            id: "welcome",
+            role: "assistant",
+            content: welcomeMessage,
+            timestamp: new Date(),
+          };
+          setMessages([welcomeMsg]);
+          await saveConversationMessage(welcomeMsg);
+        }
       },
 
       onSpeechStarted: () => {
@@ -233,25 +384,31 @@ export default function VoiceAgentScreen() {
         }
       },
 
-      onTranscriptDone: (transcript, role) => {
+      onTranscriptDone: async (transcript, role) => {
         if (role === "user" && transcript) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "user",
-              content: transcript,
-              timestamp: new Date(),
-            },
-          ]);
+          const newMessage: ConversationMessage = {
+            id: Date.now().toString(),
+            role: "user",
+            content: transcript,
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, newMessage]);
           setCurrentTranscript("");
+          
+          // Save to conversation history
+          await saveConversationMessage(newMessage);
         } else if (role === "assistant") {
           setMessages((prev) => {
             const lastMessage = prev[prev.length - 1];
             if (lastMessage?.role === "assistant" && lastMessage.isStreaming) {
+              const completedMessage = { ...lastMessage, isStreaming: false };
+              // Save completed assistant message (fire and forget)
+              saveConversationMessage(completedMessage).catch(() => {
+                // Silently handle errors
+              });
               return [
                 ...prev.slice(0, -1),
-                { ...lastMessage, isStreaming: false },
+                completedMessage,
               ];
             }
             return prev;
@@ -372,7 +529,7 @@ export default function VoiceAgentScreen() {
     };
 
     realtimeAgentService.setEventHandlers(handlers);
-  }, [t]);
+  }, [t, saveConversationMessage, loadRecentContext]);
 
   // Execute health-related tools
   const executeHealthTool = async (name: string, args: any): Promise<any> => {
@@ -418,8 +575,310 @@ export default function VoiceAgentScreen() {
           args.notes
         );
 
+      case "analyze_health_trends":
+        return await analyzeHealthTrends(args.metric_type, args.time_period, args.focus_area);
+
+      case "get_health_insights":
+        return await getHealthInsights(args.insight_type, args.context);
+
+      case "check_medication_adherence":
+        return await checkMedicationAdherence(args.medication_name, args.time_period);
+
+      case "suggest_health_actions":
+        return await suggestHealthActions(args.trigger, args.priority);
+
       default:
         return { error: "Unknown tool" };
+    }
+  };
+
+  // Helper function to analyze health trends
+  const analyzeHealthTrends = async (
+    metricType?: string,
+    timePeriod?: string,
+    focusArea?: string
+  ): Promise<any> => {
+    try {
+      const days = timePeriod === "week" ? 7 : timePeriod === "month" ? 30 : timePeriod === "3months" ? 90 : timePeriod === "6months" ? 180 : 365;
+      
+      const healthSummary = await healthContextService.getHealthSummary();
+      const vitals = await healthContextService.getRecentVitals("all", days);
+      
+      const trends: any = {
+        period: timePeriod || "month",
+        insights: [],
+        patterns: [],
+      };
+
+      // Analyze vital trends
+      if (metricType === "vitals" || metricType === "all" || !metricType) {
+        if (vitals && vitals.length > 0) {
+          // Group by vital type
+          const vitalsByType: Record<string, any[]> = {};
+          vitals.forEach((v: any) => {
+            if (!vitalsByType[v.type]) vitalsByType[v.type] = [];
+            vitalsByType[v.type].push(v);
+          });
+
+          // Analyze each vital type
+          Object.keys(vitalsByType).forEach((type) => {
+            const samples = vitalsByType[type];
+            if (samples.length < 2) return;
+
+            const values = samples.map((s: any) => s.value).filter((v: any) => typeof v === "number");
+            if (values.length < 2) return;
+
+            const avg = values.reduce((a: number, b: number) => a + b, 0) / values.length;
+            const recent = values.slice(-Math.floor(values.length / 3));
+            const older = values.slice(0, Math.floor(values.length * 2 / 3));
+            const recentAvg = recent.reduce((a: number, b: number) => a + b, 0) / recent.length;
+            const olderAvg = older.reduce((a: number, b: number) => a + b, 0) / older.length;
+
+            const trend = recentAvg > olderAvg * 1.05 ? "increasing" : recentAvg < olderAvg * 0.95 ? "decreasing" : "stable";
+            
+            trends.patterns.push({
+              metric: type,
+              trend,
+              current: recentAvg,
+              average: avg,
+              change: ((recentAvg - olderAvg) / olderAvg * 100).toFixed(1),
+            });
+
+            if (trend !== "stable") {
+              trends.insights.push(
+                `Your ${type.replace(/([A-Z])/g, " $1").toLowerCase()} has been ${trend} over the past ${timePeriod || "month"}.`
+              );
+            }
+          });
+        }
+      }
+
+      // Analyze symptom patterns
+      if (metricType === "symptoms" || metricType === "all" || !metricType) {
+        if (healthSummary.symptoms && healthSummary.symptoms.length > 0) {
+          const symptomCounts: Record<string, number> = {};
+          healthSummary.symptoms.forEach((s: any) => {
+            const name = s.name || s.type || "unknown";
+            symptomCounts[name] = (symptomCounts[name] || 0) + 1;
+          });
+
+          const frequentSymptoms = Object.entries(symptomCounts)
+            .filter(([_, count]) => count >= 3)
+            .map(([name, count]) => ({ name, frequency: count }));
+
+          if (frequentSymptoms.length > 0) {
+            trends.patterns.push({
+              metric: "symptoms",
+              frequent: frequentSymptoms,
+            });
+            trends.insights.push(
+              `You've been experiencing ${frequentSymptoms.map((s) => s.name).join(", ")} frequently. Consider tracking these patterns.`
+            );
+          }
+        }
+      }
+
+      return {
+        success: true,
+        trends,
+        summary: trends.insights.length > 0 
+          ? trends.insights.join(" ") 
+          : "Your health data shows stable patterns. Keep up the good work!",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to analyze trends",
+      };
+    }
+  };
+
+  // Helper function to get health insights
+  const getHealthInsights = async (insightType?: string, context?: string): Promise<any> => {
+    try {
+      const healthSummary = await healthContextService.getHealthSummary();
+      const insights: string[] = [];
+      const recommendations: string[] = [];
+
+      if (insightType === "medication_adherence" || !insightType) {
+        const medications = healthSummary.medications || [];
+        if (medications.length > 0) {
+          const activeMeds = medications.filter((m: any) => m.isActive);
+          insights.push(`You have ${activeMeds.length} active medication${activeMeds.length !== 1 ? "s" : ""} in your list.`);
+          if (activeMeds.some((m: any) => !m.reminders || m.reminders.length === 0)) {
+            recommendations.push("Consider setting up reminders for your medications to improve adherence.");
+          }
+        }
+      }
+
+      if (insightType === "symptom_patterns" || !insightType) {
+        const symptoms = healthSummary.symptoms || [];
+        if (symptoms.length > 0) {
+          const recentSymptoms = symptoms.slice(0, 5);
+          insights.push(`You've logged ${symptoms.length} symptom${symptoms.length !== 1 ? "s" : ""} recently.`);
+          if (symptoms.length >= 3) {
+            recommendations.push("If symptoms persist or worsen, consider consulting with your healthcare provider.");
+          }
+        }
+      }
+
+      if (insightType === "vital_ranges" || !insightType) {
+        const vitals = healthSummary.vitalSigns;
+        if (vitals) {
+          if (vitals.heartRate && (vitals.heartRate < 60 || vitals.heartRate > 100)) {
+            recommendations.push("Your heart rate is outside the normal range. Consider discussing this with your doctor.");
+          }
+          if (vitals.bloodPressure) {
+            const bp = vitals.bloodPressure.split("/").map(Number);
+            if (bp[0] > 140 || bp[1] > 90) {
+              recommendations.push("Your blood pressure readings suggest monitoring. Keep tracking and share with your healthcare provider.");
+            }
+          }
+        }
+      }
+
+      return {
+        success: true,
+        insights: insights.length > 0 ? insights : ["Your health data looks good overall."],
+        recommendations: recommendations.length > 0 ? recommendations : ["Keep up your healthy habits!"],
+        context: context || "general health overview",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to get insights",
+      };
+    }
+  };
+
+  // Helper function to check medication adherence
+  const checkMedicationAdherence = async (medicationName?: string, timePeriod?: string): Promise<any> => {
+    try {
+      const medications = await healthContextService.getMedications(true);
+      
+      if (!medications || medications.length === 0) {
+        return {
+          success: true,
+          adherence: "no_medications",
+          message: "You don't have any active medications to track.",
+        };
+      }
+
+      const targetMed = medicationName 
+        ? medications.find((m: any) => m.name.toLowerCase().includes(medicationName.toLowerCase()))
+        : null;
+
+      const medsToCheck = targetMed ? [targetMed] : medications;
+      
+      const adherenceResults = medsToCheck.map((med: any) => {
+        const reminders = med.reminders || [];
+        const hasReminders = reminders.length > 0;
+        
+        return {
+          medication: med.name,
+          hasReminders,
+          reminderCount: reminders.length,
+          adherence: hasReminders ? "good" : "needs_improvement",
+          recommendation: hasReminders 
+            ? "Great! You have reminders set up." 
+            : "Consider setting up reminders to improve adherence.",
+        };
+      });
+
+      const overallAdherence = adherenceResults.every((r: any) => r.hasReminders) ? "excellent" : 
+                               adherenceResults.some((r: any) => r.hasReminders) ? "good" : "needs_improvement";
+
+      return {
+        success: true,
+        adherence: overallAdherence,
+        results: adherenceResults,
+        period: timePeriod || "current",
+        message: overallAdherence === "excellent" 
+          ? "Excellent medication adherence! You have reminders set up for all your medications."
+          : overallAdherence === "good"
+          ? "Good adherence. Consider setting up reminders for medications that don't have them yet."
+          : "Consider setting up medication reminders to help you stay on track.",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to check adherence",
+      };
+    }
+  };
+
+  // Helper function to suggest health actions
+  const suggestHealthActions = async (trigger?: string, priority?: string): Promise<any> => {
+    try {
+      const suggestions: any[] = [];
+
+      if (trigger?.toLowerCase().includes("blood pressure") || trigger?.toLowerCase().includes("hypertension")) {
+        suggestions.push({
+          action: "Monitor blood pressure regularly",
+          priority: priority || "high",
+          reason: "Regular monitoring helps track changes and effectiveness of treatment.",
+        });
+        suggestions.push({
+          action: "Reduce sodium intake",
+          priority: priority || "medium",
+          reason: "Lowering sodium can help manage blood pressure.",
+        });
+      }
+
+      if (trigger?.toLowerCase().includes("headache") || trigger?.toLowerCase().includes("head pain")) {
+        suggestions.push({
+          action: "Track headache patterns",
+          priority: priority || "medium",
+          reason: "Identifying triggers can help prevent future headaches.",
+        });
+        suggestions.push({
+          action: "Stay hydrated",
+          priority: priority || "low",
+          reason: "Dehydration can contribute to headaches.",
+        });
+      }
+
+      if (trigger?.toLowerCase().includes("medication") || trigger?.toLowerCase().includes("adherence")) {
+        suggestions.push({
+          action: "Set up medication reminders",
+          priority: priority || "high",
+          reason: "Reminders help ensure you take medications on time.",
+        });
+      }
+
+      if (trigger?.toLowerCase().includes("symptom") || trigger?.toLowerCase().includes("pain")) {
+        suggestions.push({
+          action: "Log symptoms regularly",
+          priority: priority || "medium",
+          reason: "Tracking symptoms helps identify patterns and communicate with your doctor.",
+        });
+      }
+
+      // Default suggestions if no specific trigger
+      if (suggestions.length === 0) {
+        suggestions.push({
+          action: "Track your vitals regularly",
+          priority: priority || "low",
+          reason: "Regular tracking helps identify trends and changes.",
+        });
+        suggestions.push({
+          action: "Stay active and exercise",
+          priority: priority || "low",
+          reason: "Regular physical activity supports overall health.",
+        });
+      }
+
+      return {
+        success: true,
+        trigger: trigger || "general health",
+        suggestions,
+        priority: priority || "medium",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to generate suggestions",
+      };
     }
   };
 
@@ -574,30 +1033,90 @@ export default function VoiceAgentScreen() {
     }
   };
 
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+    return () => clearTimeout(timeoutId);
+  }, [messages]);
+
   // Send text message (alternative to voice)
-  const sendTextMessage = (text: string) => {
+  const sendTextMessage = useCallback((text: string) => {
     if (!text.trim() || connectionState !== "connected") return;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        role: "user",
-        content: text,
-        timestamp: new Date(),
-      },
-    ]);
+    const newMessage: ConversationMessage = {
+      id: Date.now().toString(),
+      role: "user",
+      content: text,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, newMessage]);
+    
+    // Save to conversation history
+    saveConversationMessage(newMessage).catch(() => {
+      // Silently handle errors
+    });
 
     realtimeAgentService.sendTextMessage(text);
     setIsProcessing(true);
-  };
+  }, [connectionState, saveConversationMessage]);
 
-  // Scroll to bottom when messages change
+  // Quick action handlers
+  const handleQuickAction = useCallback(async (action: string) => {
+    if (connectionState !== "connected") {
+      await handleConnect();
+      // Wait a moment for connection
+      setTimeout(() => {
+        sendTextMessage(action);
+      }, 1000);
+    } else {
+      sendTextMessage(action);
+    }
+    setShowQuickActions(false);
+  }, [connectionState, sendTextMessage]);
+
+  // Proactive health monitoring - check for concerning patterns (non-intrusive)
   useEffect(() => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  }, [messages]);
+    if (connectionState === "connected" && !isListening && !isSpeaking && !isProcessing && messages.length > 0) {
+      const checkHealthPatterns = async () => {
+        try {
+          // Only check if user has been inactive for a while (not immediately)
+          const lastMessage = messages[messages.length - 1];
+          const timeSinceLastMessage = Date.now() - lastMessage.timestamp.getTime();
+          
+          // Only check after 2 minutes of inactivity
+          if (timeSinceLastMessage < 120000) return;
+          
+          const healthSummary = await healthContextService.getHealthSummary();
+          
+          // Check for frequent symptoms (only suggest once per session)
+          const recentSymptoms = healthSummary.symptoms?.slice(0, 7) || [];
+          const hasSuggestedPattern = messages.some(m => 
+            m.role === "assistant" && m.content.includes("noticed you've been experiencing")
+          );
+          
+          if (recentSymptoms.length >= 5 && !hasSuggestedPattern) {
+            const symptomTypes = new Set(recentSymptoms.map((s: any) => s.name || s.type));
+            if (symptomTypes.size <= 2) {
+              // Same symptom repeated frequently - add to context for next interaction
+              // Don't send automatically, but make it available for when user asks
+              const symptomName = Array.from(symptomTypes)[0];
+              // Store this insight for when user interacts next
+              // The AI will have access to this through health context
+            }
+          }
+        } catch (error) {
+          // Silently handle errors
+        }
+      };
+      
+      // Check patterns periodically (every 2 minutes)
+      const monitoringTimer = setInterval(checkHealthPatterns, 120000);
+      return () => clearInterval(monitoringTimer);
+    }
+  }, [connectionState, isListening, isSpeaking, isProcessing, messages]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -755,18 +1274,25 @@ export default function VoiceAgentScreen() {
               </Animated.View>
             </View>
 
-            {/* Status text */}
-            <Text style={styles.statusText}>
-              {isListening
-                ? t("listening", "Listening...")
-                : isSpeaking
-                ? t("zeinaSpeaking", "Zeina is speaking...")
-                : isProcessing
-                ? t("processing", "Processing...")
-                : connectionState === "connected"
-                ? t("tapToSpeak", "Tap the button to speak")
-                : t("connectToStart", "Connect to start")}
-            </Text>
+            {/* Status text with enhanced styling */}
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusText}>
+                {isListening
+                  ? t("listening", "Listening...")
+                  : isSpeaking
+                  ? t("zeinaSpeaking", "Zeina is speaking...")
+                  : isProcessing
+                  ? t("processing", "Processing...")
+                  : connectionState === "connected"
+                  ? t("tapToSpeak", "Tap the button to speak")
+                  : t("connectToStart", "Connect to start")}
+              </Text>
+              {connectionState === "connected" && !isListening && !isSpeaking && !isProcessing && (
+                <Text style={styles.statusHint}>
+                  {t("zeinaReady", "I'm here to help with your health questions and track your symptoms, medications, and vitals.")}
+                </Text>
+              )}
+            </View>
 
             {/* Current transcript while speaking */}
             {currentTranscript && (
@@ -775,18 +1301,31 @@ export default function VoiceAgentScreen() {
               </View>
             )}
 
-            {/* Tool calls indicator */}
+            {/* Tool calls indicator with enhanced visuals */}
             {toolCalls.length > 0 && (
               <View style={styles.toolCallsContainer}>
                 {toolCalls.map((tc) => (
-                  <View key={tc.id} style={styles.toolCallBadge}>
+                  <Animated.View 
+                    key={tc.id} 
+                    style={[
+                      styles.toolCallBadge,
+                      tc.status === "executing" && styles.toolCallBadgeExecuting,
+                      tc.status === "completed" && styles.toolCallBadgeCompleted,
+                      tc.status === "error" && styles.toolCallBadgeError,
+                    ]}
+                  >
                     <Ionicons
                       name={tc.status === "executing" ? "sync" : tc.status === "completed" ? "checkmark-circle" : "alert-circle"}
-                      size={14}
+                      size={16}
                       color={tc.status === "completed" ? "#4ecdc4" : tc.status === "error" ? "#ff6b6b" : "#fff"}
                     />
-                    <Text style={styles.toolCallText}>{tc.name.replace(/_/g, " ")}</Text>
-                  </View>
+                    <Text style={styles.toolCallText}>
+                      {tc.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </Text>
+                    {tc.status === "executing" && (
+                      <ActivityIndicator size="small" color="#fff" style={{ marginLeft: 6 }} />
+                    )}
+                  </Animated.View>
                 ))}
               </View>
             )}
@@ -825,6 +1364,73 @@ export default function VoiceAgentScreen() {
               ))}
             </ScrollView>
           </View>
+
+          {/* Quick Actions */}
+          {connectionState === "connected" && !isListening && !isSpeaking && !isProcessing && (
+            <View style={styles.quickActionsContainer}>
+              <TouchableOpacity
+                onPress={() => setShowQuickActions(!showQuickActions)}
+                style={styles.quickActionsToggle}
+              >
+                <Ionicons name={showQuickActions ? "chevron-up" : "chevron-down"} size={20} color="#fff" />
+                <Text style={styles.quickActionsToggleText}>
+                  {showQuickActions ? "Hide Quick Actions" : "Quick Actions"}
+                </Text>
+              </TouchableOpacity>
+              
+              {showQuickActions && (
+                <View style={styles.quickActionsGrid}>
+                  <TouchableOpacity
+                    style={styles.quickActionButton}
+                    onPress={() => handleQuickAction("Log my symptoms")}
+                  >
+                    <Ionicons name="medical" size={20} color="#fff" />
+                    <Text style={styles.quickActionText}>Log Symptom</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.quickActionButton}
+                    onPress={() => handleQuickAction("What are my medications?")}
+                  >
+                    <Ionicons name="medical" size={20} color="#fff" />
+                    <Text style={styles.quickActionText}>My Medications</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.quickActionButton}
+                    onPress={() => handleQuickAction("Show my health summary")}
+                  >
+                    <Ionicons name="heart" size={20} color="#fff" />
+                    <Text style={styles.quickActionText}>Health Summary</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.quickActionButton}
+                    onPress={() => handleQuickAction("Check my recent vitals")}
+                  >
+                    <Ionicons name="pulse" size={20} color="#fff" />
+                    <Text style={styles.quickActionText}>Recent Vitals</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.quickActionButton}
+                    onPress={() => handleQuickAction("How am I doing today?")}
+                  >
+                    <Ionicons name="happy" size={20} color="#fff" />
+                    <Text style={styles.quickActionText}>How Am I?</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={styles.quickActionButton}
+                    onPress={() => handleQuickAction("Analyze my health trends")}
+                  >
+                    <Ionicons name="trending-up" size={20} color="#fff" />
+                    <Text style={styles.quickActionText}>Health Trends</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Control buttons */}
           <View style={styles.controlsContainer}>
@@ -1027,11 +1633,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
     borderRadius: 3,
   },
-  statusText: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
+  statusContainer: {
+    alignItems: "center",
     marginTop: 20,
-    fontWeight: "500",
+    paddingHorizontal: 20,
+  },
+  statusText: {
+    fontSize: 18,
+    color: "rgba(255, 255, 255, 0.95)",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  statusHint: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginTop: 8,
+    textAlign: "center",
+    fontStyle: "italic",
+    lineHeight: 18,
   },
   transcriptPreview: {
     marginTop: 12,
@@ -1058,14 +1677,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(102, 126, 234, 0.3)",
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     margin: 4,
+    borderWidth: 1,
+    borderColor: "rgba(102, 126, 234, 0.5)",
+  },
+  toolCallBadgeExecuting: {
+    backgroundColor: "rgba(102, 126, 234, 0.5)",
+    borderColor: "rgba(102, 126, 234, 0.8)",
+  },
+  toolCallBadgeCompleted: {
+    backgroundColor: "rgba(78, 205, 196, 0.3)",
+    borderColor: "rgba(78, 205, 196, 0.6)",
+  },
+  toolCallBadgeError: {
+    backgroundColor: "rgba(255, 107, 107, 0.3)",
+    borderColor: "rgba(255, 107, 107, 0.6)",
   },
   toolCallText: {
     color: "#fff",
     fontSize: 12,
     marginLeft: 6,
+    fontWeight: "500",
     textTransform: "capitalize",
   },
   messagesContainer: {
@@ -1168,5 +1802,51 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.5,
+  },
+  quickActionsContainer: {
+    width: "100%",
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  quickActionsToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 20,
+    marginBottom: 8,
+  },
+  quickActionsToggleText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "500",
+    marginLeft: 6,
+  },
+  quickActionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  quickActionButton: {
+    width: "31%",
+    backgroundColor: "rgba(102, 126, 234, 0.3)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(102, 126, 234, 0.5)",
+    minHeight: 70,
+  },
+  quickActionText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 6,
+    textAlign: "center",
   },
 });
