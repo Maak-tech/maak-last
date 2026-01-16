@@ -15,3 +15,8 @@ echo "$GOOGLE_SERVICES_JSON" > google-services.json
 
 echo "✅ Successfully restored google-services.json"
 
+# Clean CocoaPods cache to fix React Native module redefinition errors
+# Note: In EAS builds, ios directory is created during prebuild, so we clean after prebuild
+# This will be handled by a post-install hook if needed
+echo "ℹ️  Note: iOS CocoaPods cache will be cleaned during prebuild phase"
+

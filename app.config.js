@@ -202,6 +202,16 @@ export default {
       "expo-local-authentication",
       "expo-secure-store",
       "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          ios: {
+            // Build React Native from source to avoid module redefinition errors
+            // This fixes "Redefinition of module 'react_runtime'" errors in React Native 0.81.5
+            buildReactNativeFromSource: true
+          }
+        }
+      ],
       "./plugins/withFollyFix.js"
     ],
     experiments: {
