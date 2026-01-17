@@ -909,6 +909,22 @@ export default function VoiceAgentScreen() {
     setCurrentTranscript("");
   };
 
+  // Ensure realtime connection before recording/sending audio
+  const ensureConnected = useCallback(async (): Promise<boolean> => {
+    if (connectionState === "connected" && realtimeAgentService.isConnected()) {
+      return true;
+    }
+
+    try {
+      setIsProcessing(true);
+      await handleConnect();
+    } finally {
+      setIsProcessing(false);
+    }
+
+    return realtimeAgentService.isConnected();
+  }, [connectionState, handleConnect]);
+
   // Convert audio file to PCM16 base64 for the Realtime API
   const convertAudioToBase64PCM = async (uri: string): Promise<string | null> => {
     try {
@@ -960,10 +976,18 @@ export default function VoiceAgentScreen() {
           recordingRef.current = null;
           
           if (uri) {
+            // If we're not connected, we can't send the audio anywhere.
+            if (!realtimeAgentService.isConnected()) {
+              Alert.alert(
+                t("notConnected", "Not Connected"),
+                t("pleaseConnectFirst", "Please connect Zeina (tap the radio icon) and try again.")
+              );
+            } else {
             // Read and send the audio to the API
             const audioBase64 = await convertAudioToBase64PCM(uri);
             if (audioBase64) {
               realtimeAgentService.sendAudioData(audioBase64);
+            }
             }
             
             // Clean up the temporary file
@@ -976,6 +1000,7 @@ export default function VoiceAgentScreen() {
           
           // Commit the audio buffer to trigger response
           realtimeAgentService.commitAudioBuffer();
+          setIsProcessing(true);
         }
         setIsListening(false);
       } catch (error) {
@@ -985,6 +1010,16 @@ export default function VoiceAgentScreen() {
     } else {
       // Start recording
       try {
+        // Auto-connect if needed so we don't record with nowhere to send audio
+        const connected = await ensureConnected();
+        if (!connected) {
+          Alert.alert(
+            t("connectionFailed", "Connection Failed"),
+            t("unableToConnect", "Unable to connect to voice service")
+          );
+          return;
+        }
+
         // Request permissions
         const permission = await Audio.requestPermissionsAsync();
         if (permission.status !== "granted") {
