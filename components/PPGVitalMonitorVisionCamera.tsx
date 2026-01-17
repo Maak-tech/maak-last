@@ -1203,6 +1203,7 @@ export default function PPGVitalMonitorVisionCamera({
     markFrameProcessorCalledOnJS,
     processPPGFrameDataOnJS,
     resetFrameFailureCounterOnJS,
+    setFrameMetaOnJS,
   ]);
 
   const saveVitalToFirestore = async (
