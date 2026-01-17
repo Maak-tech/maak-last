@@ -11,6 +11,48 @@ const withFollyFix = (config) => {
   return withDangerousMod(config, [
     "ios",
     async (config) => {
+      // --- Patch @kingstinct/react-native-healthkit podspec to avoid umbrella importing Bridge.h ---
+      // CocoaPods generates `ReactNativeHealthkit-umbrella.h` importing all public headers with:
+      //   #import "Header.h"
+      // When `Bridge.h` is exported as public, it gets pulled into the umbrella. In some static
+      // frameworks setups, that import fails, breaking the module build. `Bridge.h` is internal
+      // (and currently empty), so we exclude it from public headers at the podspec level.
+      try {
+        const projectRoot = config.modRequest.projectRoot;
+        const healthkitPodspecPath = path.join(
+          projectRoot,
+          "node_modules",
+          "@kingstinct",
+          "react-native-healthkit",
+          "ReactNativeHealthkit.podspec"
+        );
+
+        if (fs.existsSync(healthkitPodspecPath)) {
+          const podspec = fs.readFileSync(healthkitPodspecPath, "utf-8");
+
+          // Skip if already patched
+          if (!podspec.includes("public_headers -= Dir[\"ios/Bridge.h\"]")) {
+            const patched = podspec.replace(
+              /s\.public_header_files\s*=\s*["']ios\/\*\*\/\*\.h["']\s*\n/g,
+              [
+                '  # Patch: exclude Bridge.h from public headers to prevent umbrella import failures',
+                '  public_headers = Dir["ios/**/*.h"]',
+                '  public_headers -= Dir["ios/Bridge.h"]',
+                "  s.public_header_files = public_headers",
+                '  s.private_header_files = Dir["ios/Bridge.h"]',
+                "",
+              ].join("\n") + "\n"
+            );
+
+            if (patched !== podspec) {
+              fs.writeFileSync(healthkitPodspecPath, patched);
+            }
+          }
+        }
+      } catch (e) {
+        // Best-effort patch; don't fail the build if node_modules isn't present at this phase.
+      }
+
       const podfilePath = path.join(
         config.modRequest.platformProjectRoot,
         "Podfile"

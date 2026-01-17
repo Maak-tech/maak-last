@@ -13,11 +13,10 @@ When using `use_frameworks! :linkage => :static` in the Podfile (required for Fi
 ## Solution Applied
 
 ### 1. Updated `plugins/withFollyFix.js`
-Added more comprehensive React Native header search paths:
-- Added `React_Core.framework/Headers` path (alternative naming)
-- Added Private headers path
-- Added direct node_modules paths as fallback
-- Added SRCROOT-relative paths
+Patch the HealthKit podspec during prebuild so CocoaPods stops exporting/importing internal headers:
+- Patch `node_modules/@kingstinct/react-native-healthkit/ReactNativeHealthkit.podspec`
+- Exclude `ios/Bridge.h` from `public_header_files` and mark it as `private_header_files`
+- This prevents CocoaPods from generating an umbrella header that tries to `#import "Bridge.h"` (which was failing in EAS)
 
 ### 2. Updated `app.config.js`
 Enhanced `expo-build-properties` configuration:
@@ -31,25 +30,10 @@ Enhanced `expo-build-properties` configuration:
 
 ## How It Works
 The `withFollyFix` plugin runs during `expo prebuild` and modifies the generated Podfile to:
-1. Comment out C++ headers from the ReactNativeHealthkit umbrella header (these cause build failures):
-   - `Bridge.h` (C++ bridge header)
-   - `AggregationStyle.hpp` (C++ header)
-   - `AuthDataTypes.hpp` (C++ header)
-   - `QueryDataTypes.hpp` (C++ header)
-   
-   **Note**: `ExceptionCatcher.h` is kept in the umbrella header because it's needed by Swift files (`Helpers.swift` uses `HKUnitFromStringCatchingExceptions`).
-2. Add comprehensive header search paths for ReactNativeHealthkit (including recursive paths with `/**`)
-3. Add React Native header search paths for all pod targets (for static frameworks)
-4. Enable `CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES` for all targets
-5. Set `USER_HEADER_SEARCH_PATHS` specifically for ReactNativeHealthkit
-6. Enable `USE_HEADERMAP` and `ALWAYS_SEARCH_USER_PATHS` for ReactNativeHealthkit
+1. Patch the HealthKit podspec before CocoaPods runs so the generated umbrella header no longer imports `Bridge.h`
+2. Apply the folly coroutine fix for `react-native-reanimated`
 
-The key fix is that the umbrella header was trying to import internal C++ implementation headers that:
-- Should not be in a public umbrella header
-- Cause build failures when using static frameworks
-- Are only needed internally by the module's implementation files
-
-By commenting out these imports in the umbrella header and ensuring proper header search paths, the module can build successfully.
+The key fix is that CocoaPods was generating `ReactNativeHealthkit-umbrella.h` with `#import "Bridge.h"`. By excluding `Bridge.h` from the pod’s public headers, CocoaPods stops including it in the umbrella header and the module can compile under EAS.
 
 ## Testing
 After these changes:
