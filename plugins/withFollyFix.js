@@ -26,6 +26,16 @@ const withFollyFix = (config) => {
           "react-native-healthkit",
           "ReactNativeHealthkit.podspec"
         );
+        const healthkitNitroAutolinkingPath = path.join(
+          projectRoot,
+          "node_modules",
+          "@kingstinct",
+          "react-native-healthkit",
+          "nitrogen",
+          "generated",
+          "ios",
+          "ReactNativeHealthkit+autolinking.rb"
+        );
 
         if (fs.existsSync(healthkitPodspecPath)) {
           const podspec = fs.readFileSync(healthkitPodspecPath, "utf-8");
@@ -36,6 +46,8 @@ const withFollyFix = (config) => {
               /s\.public_header_files\s*=\s*["']ios\/\*\*\/\*\.h["']\s*\n/g,
               [
                 '  # Patch: exclude Bridge.h from public headers to prevent umbrella import failures',
+                '  # Also set header_mappings_dir so umbrella imports like `#import "ExceptionCatcher.h"` resolve.',
+                '  s.header_mappings_dir = "ios"',
                 '  public_headers = Dir["ios/**/*.h"]',
                 '  public_headers -= Dir["ios/Bridge.h"]',
                 "  s.public_header_files = public_headers",
@@ -46,6 +58,70 @@ const withFollyFix = (config) => {
 
             if (patched !== podspec) {
               fs.writeFileSync(healthkitPodspecPath, patched);
+            }
+          }
+
+          // Ensure the pod target can always resolve its own ios headers (ExceptionCatcher.h) from the umbrella.
+          // Add HEADER_SEARCH_PATHS to pod_target_xcconfig if missing.
+          const latestPodspec = fs.readFileSync(healthkitPodspecPath, "utf-8");
+          if (
+            latestPodspec.includes("s.pod_target_xcconfig") &&
+            !latestPodspec.includes('"HEADER_SEARCH_PATHS"') &&
+            !latestPodspec.includes("'HEADER_SEARCH_PATHS'")
+          ) {
+            const withHeaderSearch = latestPodspec.replace(
+              /("GCC_PREPROCESSOR_DEFINITIONS"\s*=>\s*["'][^"']*["']\s*)\n(\s*}\s*)/,
+              [
+                "$1,",
+                '    "HEADER_SEARCH_PATHS" => "$(inherited) \\"$(PODS_TARGET_SRCROOT)/ios\\""',
+                "$2",
+              ].join("\n")
+            );
+            if (withHeaderSearch !== latestPodspec) {
+              fs.writeFileSync(healthkitPodspecPath, withHeaderSearch);
+            }
+          }
+        }
+
+        // Patch Nitrogen autolinking so it does NOT add generated .hpp headers as public headers.
+        // When public, CocoaPods' umbrella header imports them and breaks module compilation under
+        // static frameworks.
+        if (fs.existsSync(healthkitNitroAutolinkingPath)) {
+          const rb = fs.readFileSync(healthkitNitroAutolinkingPath, "utf-8");
+          if (!rb.includes("Treat Nitrogen-generated headers as PRIVATE")) {
+            let patchedRb = rb;
+            // Remove the block that appends generated headers to public_header_files
+            patchedRb = patchedRb.replace(
+              /current_public_header_files = Array\(spec\.attributes_hash\['public_header_files'\]\)\s*\n\s*spec\.public_header_files = current_public_header_files \+ \[\s*[\s\S]*?\n\s*\]\s*\n/m,
+              [
+                "  # IMPORTANT:",
+                "  # Treat Nitrogen-generated headers as PRIVATE.",
+                "  # When these headers are public, CocoaPods generates an umbrella header that imports them",
+                "  # (including C++ .hpp files). In some static-framework setups this breaks module compilation.",
+                "  current_public_header_files = Array(spec.attributes_hash['public_header_files'])",
+                "  spec.public_header_files = current_public_header_files",
+                "",
+              ].join("\n")
+            );
+
+            // Ensure the generated headers are included as private headers
+            if (!patchedRb.includes('\"nitrogen/generated/shared/**/*.{h,hpp}\"')) {
+              patchedRb = patchedRb.replace(
+                /spec\.private_header_files = current_private_header_files \+ \[\s*\n/m,
+                (m) =>
+                  m +
+                  [
+                    "    # Generated specs (kept private to avoid umbrella/modulemap issues)",
+                    '    "nitrogen/generated/shared/**/*.{h,hpp}",',
+                    "    # Swift to C++ bridging helpers (private)",
+                    '    "nitrogen/generated/ios/ReactNativeHealthkit-Swift-Cxx-Bridge.hpp",',
+                  ].join("\n") +
+                  "\n"
+              );
+            }
+
+            if (patchedRb !== rb) {
+              fs.writeFileSync(healthkitNitroAutolinkingPath, patchedRb);
             }
           }
         }
