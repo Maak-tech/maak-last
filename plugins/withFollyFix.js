@@ -83,35 +83,38 @@ const withFollyFix = (config) => {
           }
         }
 
-        // Ensure Nitrogen autolinking keeps generated headers PUBLIC (Swift needs the C++ interop symbols).
-        // If someone previously patched it to make headers private, restore the original behavior.
+        // Patch Nitrogen autolinking to keep ONLY the Swift-Cxx bridge public.
+        // The generated shared C++ headers are still required, but keeping them public causes CocoaPods
+        // to add them to the umbrella header, which then leads to duplicate includes/redefinitions
+        // in some static-framework + header-symlink setups.
         if (fs.existsSync(healthkitNitroAutolinkingPath)) {
           const rb = fs.readFileSync(healthkitNitroAutolinkingPath, "utf-8");
-          if (rb.includes("Treat Nitrogen-generated headers as PRIVATE")) {
-            const restored = rb
-              // Replace the "private" override with the original public header list
-              .replace(
-                /current_public_header_files = Array\(spec\.attributes_hash\['public_header_files'\]\)[\s\S]*?spec\.public_header_files = current_public_header_files\s*\n/m,
-                [
-                  "  current_public_header_files = Array(spec.attributes_hash['public_header_files'])",
-                  "  spec.public_header_files = current_public_header_files + [",
-                  "    # Generated specs",
-                  '    "nitrogen/generated/shared/**/*.{h,hpp}",',
-                  "    # Swift to C++ bridging helpers",
-                  '    "nitrogen/generated/ios/ReactNativeHealthkit-Swift-Cxx-Bridge.hpp"',
-                  "  ]",
-                  "",
-                ].join("\n")
-              )
-              // Remove the extra private header entries we injected earlier (if present)
-              .replace(
-                /# Generated specs \(kept private[\s\S]*?"nitrogen\/generated\/ios\/ReactNativeHealthkit-Swift-Cxx-Bridge\.hpp",\s*\n/m,
-                ""
-              );
+          let patched = rb;
 
-            if (restored !== rb) {
-              fs.writeFileSync(healthkitNitroAutolinkingPath, restored);
-            }
+          // Ensure the public_header_files list contains ONLY the bridge header (no shared/**/*.{h,hpp})
+          patched = patched.replace(
+            /spec\.public_header_files = current_public_header_files \+ \[\s*[\s\S]*?\]\s*\n/m,
+            [
+              "  spec.public_header_files = current_public_header_files + [",
+              "    # Swift to C++ bridging helpers",
+              '    "nitrogen/generated/ios/ReactNativeHealthkit-Swift-Cxx-Bridge.hpp"',
+              "  ]",
+              "",
+            ].join("\n")
+          );
+
+          // Ensure generated shared headers are private (so they are available for includes, but not in umbrella)
+          if (!patched.includes('"nitrogen/generated/shared/**/*.{h,hpp}"')) {
+            patched = patched.replace(
+              /spec\.private_header_files = current_private_header_files \+ \[\s*\n/m,
+              (m) =>
+                m +
+                '    "nitrogen/generated/shared/**/*.{h,hpp}",\n'
+            );
+          }
+
+          if (patched !== rb) {
+            fs.writeFileSync(healthkitNitroAutolinkingPath, patched);
           }
         }
       } catch (e) {
