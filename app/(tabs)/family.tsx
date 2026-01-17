@@ -3115,13 +3115,17 @@ export default function FamilyScreen() {
                             onPress={() => handleAcknowledgeEvent(event.id!)}
                             style={[styles.eventActionButton, styles.acknowledgeButton]}
                           >
-                            <Text style={styles.actionButtonText}>Ack</Text>
+                            <Text style={styles.actionButtonText}>
+                              {t("acknowledge", "Ack")}
+                            </Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => handleEscalateEvent(event.id!)}
                             style={[styles.eventActionButton, styles.escalateButton]}
                           >
-                            <Text style={styles.actionButtonText}>Esc</Text>
+                            <Text style={styles.actionButtonText}>
+                              {t("escalate", "Esc")}
+                            </Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -3131,7 +3135,9 @@ export default function FamilyScreen() {
                           onPress={() => handleResolveEvent(event.id!)}
                           style={[styles.eventActionButton, styles.resolveButton]}
                         >
-                          <Text style={styles.actionButtonText}>Resolve</Text>
+                          <Text style={styles.actionButtonText}>
+                            {t("resolve", "Resolve")}
+                          </Text>
                         </TouchableOpacity>
                       )}
                     </View>

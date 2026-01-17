@@ -1,5 +1,6 @@
 import { LineChart } from "react-native-chart-kit";
 import { Dimensions, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { useTheme } from "@/contexts/ThemeContext";
 import { chartsService, type TrendPrediction } from "@/lib/services/chartsService";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
@@ -22,15 +23,21 @@ export default function TrendPredictionChart({
   height = 220,
 }: TrendPredictionChartProps) {
   const { theme } = useTheme();
+  const { t, i18n } = useTranslation();
   const screenWidth = Dimensions.get("window").width;
+  const locale = i18n.language === "ar" ? "ar" : "en-US";
 
   // Combine historical and predicted data
   const allLabels = [
     ...prediction.historical.map((p) =>
-      typeof p.x === "string" ? new Date(p.x).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(p.x)
+      typeof p.x === "string"
+        ? new Date(p.x).toLocaleDateString(locale, { month: "short", day: "numeric" })
+        : String(p.x)
     ),
     ...prediction.predicted.map((p) =>
-      typeof p.x === "string" ? new Date(p.x).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(p.x)
+      typeof p.x === "string"
+        ? new Date(p.x).toLocaleDateString(locale, { month: "short", day: "numeric" })
+        : String(p.x)
     ),
   ];
 
@@ -158,8 +165,14 @@ export default function TrendPredictionChart({
           />
         </View>
         <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Caption style={{}} numberOfLines={1}>Historical</Caption>
-          <Caption style={{}} numberOfLines={1}>Predicted ({(prediction.confidence * 100).toFixed(0)}% confidence)</Caption>
+          <Caption style={{}} numberOfLines={1}>
+            {t("historical", "Historical")}
+          </Caption>
+          <Caption style={{}} numberOfLines={1}>
+            {t("predictedWithConfidence", "Predicted ({{percent}}% confidence)", {
+              percent: (prediction.confidence * 100).toFixed(0),
+            })}
+          </Caption>
         </View>
       </View>
     </View>

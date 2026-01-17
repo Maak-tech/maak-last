@@ -1,9 +1,9 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { Platform, View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import { Info, Heart } from "lucide-react-native";
+import { Heart } from "lucide-react-native";
 
 // This screen is isolated - TextImpl errors only affect this route
 export default function PPGMeasureScreen() {
@@ -54,7 +54,9 @@ export default function PPGMeasureScreen() {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>{isRTL ? "جاري تحميل مراقب PPG..." : "Loading PPG Monitor..."}</Text>
+        <Text style={styles.loadingText}>
+          {t("loadingPPGMonitor", "Loading PPG Monitor...")}
+        </Text>
       </View>
     );
   }
@@ -65,23 +67,23 @@ export default function PPGMeasureScreen() {
         <View style={styles.errorContainer}>
           <Heart color="#EF4444" size={48} />
           <Text style={styles.errorTitle}>
-            {isRTL ? "قياس PPG غير متاح" : "PPG Measurement Unavailable"}
+            {t("ppgMeasurementUnavailable", "PPG Measurement Unavailable")}
           </Text>
           <Text style={styles.errorText}>
-            {isRTL 
-              ? "يتطلب قياس معدل ضربات القلب بالكاميرا إصدارًا أصليًا مع react-native-vision-camera.\n\nلا يمكن استخدام Expo Go لهذه الميزة لأنها تتطلب معالجة إطارات الكاميرا في الوقت الفعلي."
-              : "Real camera heart rate measurement requires a native build with react-native-vision-camera.\n\nExpo Go cannot be used for this feature as it requires real-time camera frame processing for accurate PPG readings."
-            }
+            {t(
+              "ppgRequiresNativeBuild",
+              "Real camera heart rate measurement requires a native build with react-native-vision-camera.\n\nExpo Go cannot be used for this feature as it requires real-time camera frame processing for accurate PPG readings."
+            )}
           </Text>
           <Text style={styles.errorSubtext}>
-            {isRTL
-              ? "يرجى استخدام إصدار التطبيق الأصلي للحصول على قياسات حقيقية."
-              : "Please use a native app build for real measurements."
-            }
+            {t(
+              "ppgUseNativeBuild",
+              "Please use a native app build for real measurements."
+            )}
           </Text>
           <TouchableOpacity style={styles.backButtonLarge} onPress={() => router.back()}>
             <Text style={styles.backButtonLargeText}>
-              {isRTL ? "العودة" : "Go Back"}
+              {t("goBack", "Go Back")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -98,9 +100,14 @@ export default function PPGMeasureScreen() {
             <Heart color="#10B981" size={20} />
           </View>
           <View style={styles.bannerTextContainer}>
-            <Text style={styles.realBannerTitle}>{isRTL ? "قياس PPG بالكاميرا الحقيقية" : "Real Camera PPG Measurement"}</Text>
+            <Text style={styles.realBannerTitle}>
+              {t("realCameraPPGMeasurement", "Real Camera PPG Measurement")}
+            </Text>
             <Text style={styles.realBannerSubtitle}>
-              {isRTL ? "استخدم الكاميرا الخلفية والفلاش لقياس معدل ضربات القلب" : "Using back camera and flash for heart rate measurement"}
+              {t(
+                "usingBackCameraAndFlash",
+                "Using back camera and flash for heart rate measurement"
+              )}
             </Text>
           </View>
         </View>
@@ -113,10 +120,9 @@ export default function PPGMeasureScreen() {
         <PPGComponent
           visible={true}
           userId={user.id}
-          onMeasurementComplete={(result: any) => {
-            // Navigate back to track tab after completion
-            // Track screen will auto-reload data with useFocusEffect
-            router.back();
+          onMeasurementComplete={() => {
+            // Keep this route mounted so the PPG modal can show the success UI + score.
+            // The user can tap "Done" which triggers `onClose` and navigates back.
           }}
           onClose={() => {
             // Navigate back when closed

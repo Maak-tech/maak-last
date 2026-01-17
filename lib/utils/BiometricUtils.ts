@@ -34,6 +34,7 @@ export interface PPGResult {
   respiratoryRate?: number; // breaths per minute
   oxygenSaturation?: number; // SpO2 percentage (requires dual-wavelength)
   signalQuality: number; // 0-1, where 1 is perfect
+  isEstimate?: boolean; // true when a BPM was produced from low-confidence signal quality
   error?: string;
 }
 
@@ -198,11 +199,14 @@ export function processPPGSignalEnhanced(
     const max = Math.max(...validSignal);
     const range = max - min;
     
-    if (range < 5) {
+    // Raw pixel averages can have small amplitude even with usable PPG after filtering.
+    // Only reject when the range is so tiny that normalization becomes unstable.
+    const MIN_RAW_RANGE_FOR_NORMALIZATION = 1;
+    if (range < MIN_RAW_RANGE_FOR_NORMALIZATION) {
       return {
         success: false,
         signalQuality: 0,
-        error: "Signal variation too low",
+        error: "Signal quality too low",
       };
     }
     
@@ -211,14 +215,51 @@ export function processPPGSignalEnhanced(
     // Apply optimized filtering
     const filtered = applyOptimizedFilter(normalized, frameRate);
 
-    // Calculate heart rate using improved peak detection
-    const heartRate = calculateHeartRateOptimized(filtered, frameRate);
+    // Calculate heart rate using two estimators:
+    // - Peak-based (can run high if noise causes double-counted peaks)
+    // - Autocorrelation-based (often more stable for low-quality/low-amplitude signals)
+    const heartRatePeak = calculateHeartRateOptimized(filtered, frameRate);
+    const heartRateAuto = estimateHeartRateFromPeriod(filtered, frameRate);
 
     // Calculate signal quality
     const signalQuality = calculateSignalQualityOptimized(filtered);
 
+    // Quality gating:
+    // - We still want to return a BPM when the signal is "good enough"
+    // - But we must reject inflated BPM caused by noise (motion / light leaks) unless quality is high
+    const MIN_SIGNAL_QUALITY_FOR_ANY_HR = 0.2;
+    if (signalQuality < MIN_SIGNAL_QUALITY_FOR_ANY_HR) {
+      // Return an estimate instead of blocking the user with "no score".
+      // UI can display a "low confidence" warning and optionally avoid saving it.
+      // Prefer autocorrelation estimate to reduce false-high BPM from noisy peaks.
+      const estimate = Number.isFinite(heartRateAuto) ? heartRateAuto : heartRatePeak;
+      return {
+        success: true,
+        heartRate: Math.round(estimate),
+        signalQuality,
+        isEstimate: true,
+        error: "Signal quality too low",
+      };
+    }
+
+    const HIGH_BPM_THRESHOLD = 110;
+    const MIN_SIGNAL_QUALITY_FOR_HIGH_BPM = 0.55;
+    const heartRateSelected = heartRatePeak;
+    if (heartRateSelected >= HIGH_BPM_THRESHOLD && signalQuality < MIN_SIGNAL_QUALITY_FOR_HIGH_BPM) {
+      // Still return an estimate (but mark it low confidence) so the user gets a BPM.
+      // Prefer autocorrelation estimate to reduce false-high BPM from noisy peaks.
+      const estimate = Number.isFinite(heartRateAuto) ? heartRateAuto : heartRateSelected;
+      return {
+        success: true,
+        heartRate: Math.round(estimate),
+        signalQuality,
+        isEstimate: true,
+        error: "Signal quality too low",
+      };
+    }
+
     // Validate heart rate (normal range: 40-200 BPM)
-    if (heartRate < 40 || heartRate > 200) {
+    if (heartRateSelected < 40 || heartRateSelected > 200) {
       return {
         success: false,
         signalQuality,
@@ -232,7 +273,7 @@ export function processPPGSignalEnhanced(
 
     return {
       success: true,
-      heartRate: Math.round(heartRate),
+      heartRate: Math.round(heartRateSelected),
       heartRateVariability: hrv ? Math.round(hrv) : undefined,
       respiratoryRate: respiratoryRate ? Math.round(respiratoryRate) : undefined,
       signalQuality,

@@ -17,6 +17,15 @@ import Constants from "expo-constants";
 import { createWebSocketWithHeaders, getWebSocketSetupGuidance } from "@/lib/polyfills/websocketWithHeaders";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "@/lib/utils/base64";
 
+let SecureStore: any = null;
+try {
+  SecureStore = require("expo-secure-store");
+} catch {
+  SecureStore = null;
+}
+
+const RUNTIME_OPENAI_KEY_STORAGE = "@openai_api_key";
+
 // Dynamic import for expo-av and expo-file-system
 let Audio: any = null;
 let FileSystem: any = null;
@@ -25,7 +34,12 @@ try {
   if (Platform.OS === "ios" || Platform.OS === "android") {
     const expoAv = require("expo-av");
     Audio = expoAv.Audio;
-    FileSystem = require("expo-file-system");
+    // Expo SDK 54+: prefer legacy import path to avoid deprecation warnings
+    try {
+      FileSystem = require("expo-file-system/legacy");
+    } catch {
+      FileSystem = require("expo-file-system");
+    }
   }
 } catch (error) {
   // expo-av or expo-file-system not available
@@ -720,6 +734,15 @@ class RealtimeAgentService {
 
   private async loadApiKey() {
     try {
+      // 1) Prefer a runtime key saved on the device (so dev client builds don't require rebuilds).
+      if (SecureStore?.getItemAsync) {
+        const storedKey = await SecureStore.getItemAsync(RUNTIME_OPENAI_KEY_STORAGE);
+        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+          this.apiKey = storedKey.trim();
+          return;
+        }
+      }
+
       const config = Constants.expoConfig?.extra;
       
       // Use zeinaApiKey first (for Zeina voice agent), then fall back to openaiApiKey
@@ -733,6 +756,18 @@ class RealtimeAgentService {
       }
     } catch (error) {
       this.apiKey = null;
+    }
+  }
+
+  async setApiKey(apiKey: string): Promise<void> {
+    const trimmed = apiKey.trim();
+    this.apiKey = trimmed === "" ? null : trimmed;
+    if (SecureStore?.setItemAsync && this.apiKey) {
+      try {
+        await SecureStore.setItemAsync(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -761,7 +796,9 @@ class RealtimeAgentService {
     if (!this.apiKey) {
       await this.loadApiKey();
       if (!this.apiKey) {
-        throw new Error("Zeina API key not configured. Please set OPENAI_API_KEY in your .env file.");
+        throw new Error(
+          "Zeina API key not configured. Set it in the app settings (OpenAI API Key) or provide OPENAI_API_KEY / ZEINA_API_KEY at build time."
+        );
       }
     }
 

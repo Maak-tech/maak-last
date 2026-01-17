@@ -613,10 +613,10 @@ export default function MoodsScreen() {
       </View>
       <View style={styles.intensityLabels}>
         <Text style={[styles.intensityLabel, isRTL && styles.rtlText]}>
-          {isRTL ? "خفيف" : "Mild"}
+          {t("mild", "Mild")}
         </Text>
         <Text style={[styles.intensityLabel, isRTL && styles.rtlText]}>
-          {isRTL ? "شديد جداً" : "Very Intense"}
+          {t("veryIntense", "Very Intense")}
         </Text>
       </View>
     </View>
@@ -626,7 +626,9 @@ export default function MoodsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Please log in to track moods</Text>
+          <Text style={styles.errorText}>
+            {t("pleaseLogInToTrackMoods", "Please log in to track moods")}
+          </Text>
         </View>
       </SafeAreaView>
     );

@@ -427,6 +427,19 @@ const resources = {
       keepFingerStill: "Keep your finger still for {{seconds}} seconds...",
       processingHeartRate: "Processing heart rate measurement...",
       measurementComplete: "Measurement complete!",
+      ppgSignalQualityTooLow:
+        "Signal quality too low. Please ensure:\n" +
+        "• Your finger completely covers the back camera lens and flash\n" +
+        "• There are no gaps or light leaks\n" +
+        "• Your finger is warm and making good contact\n" +
+        "• You hold still during the measurement",
+      ppgFailedToProcess: "Failed to process PPG signal. Please try again.",
+      ppgErrorInsufficientSignalData: "Insufficient signal data.",
+      ppgErrorTooManyInvalidSignalValues: "Too many invalid signal values.",
+      ppgErrorSignalVariationTooLow: "Signal variation too low.",
+      ppgErrorHeartRateOutOfNormalRange: "Heart rate out of normal range.",
+      ppgErrorProcessingError: "PPG processing error.",
+      ppgEstimateWarning: "Low confidence reading — shown as an estimate. Please retry with your finger fully covering the back camera and flash, and hold still.",
       readyToMeasureHeartRate: "Ready to measure heart rate",
       howToMeasure: "How to Measure",
       instructionFindComfortablePlace: "Find a comfortable place to sit",
@@ -768,6 +781,119 @@ const resources = {
         water_intake: "Water Intake",
         blood_glucose: "Blood Glucose",
       },
+
+      // App UI (general)
+      setupRequired: "Setup Required",
+      configure: "Configure",
+      openSettings: "Open Settings",
+      goBack: "Go Back",
+
+      // Voice Agent - Quick Actions UI
+      quickActions: "Quick Actions",
+      hideQuickActions: "Hide Quick Actions",
+      quickActionLogSymptom: "Log Symptom",
+      quickActionMyMedications: "My Medications",
+      quickActionHealthSummary: "Health Summary",
+      quickActionRecentVitals: "Recent Vitals",
+      quickActionHowAmI: "How Am I?",
+      quickActionHealthTrends: "Health Trends",
+
+      // AI Assistant
+      aiAssistant: "AI Assistant",
+      aiAssistantWelcome:
+        "Hello! I'm your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?",
+      aiAssistantApiKeyRequiredMessage:
+        "Please configure your OpenAI API key to use the AI assistant.\n\nYou can get an API key from platform.openai.com",
+      healthChat: "Health Chat",
+      quotaExceeded: "Quota Exceeded",
+      openAIQuotaExceededMessage:
+        "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing.",
+      invalidApiKey: "Invalid API Key",
+      invalidApiKeyMessage: "The API key appears to be invalid. Please check and update it.",
+      pleaseEnterValidApiKey: "Please enter a valid API key",
+      settingsSavedSuccessfully: "Settings saved successfully!",
+      openAIApiKey: "OpenAI API Key",
+      getApiKeyFromOpenAI: "Get your API key from platform.openai.com",
+      aiModel: "AI Model",
+      aiModelRecommendationHint:
+        "GPT-3.5 Turbo is recommended for best cost/performance balance",
+      voiceSettings: "Voice Settings",
+      voiceOutput: "Voice Output",
+      voiceOutputDescription: "Enable text-to-speech for AI responses",
+      voiceInput: "Voice Input",
+      voiceInputDescription: "Enable speech-to-text for voice commands",
+      voiceLanguage: "Voice Language",
+      voiceLanguageDescription: "Language for voice input/output",
+      saveSettings: "Save Settings",
+      quotaExceededHelpTitle: "⚠️ Quota Exceeded?",
+      quotaExceededHelpSteps:
+        "1. Visit platform.openai.com\n2. Add payment method ($5 minimum)\n3. Or use GPT-3.5 Turbo (cheapest option)",
+
+      // AI Insights Dashboard
+      failedToLoadInsights: "Failed to load insights. Please try again.",
+      aiInsightsAnalyzing: "Analyzing your health data...",
+      aiInsightsUnableToLoad: "Unable to load insights",
+      healthInsightsSubtitle: "Personalized analysis of your health patterns and recommendations",
+      totalInsights: "Total Insights",
+      highPriority: "High Priority",
+      riskLevel: "Risk Level",
+      insightsOverview: "Overview",
+      insightsCorrelations: "Correlations",
+      insightsPatterns: "Patterns",
+      insightsRiskAssessment: "Risk Assessment",
+      recommendations: "Recommendations",
+      insightsHealthDataCorrelationsTitle: "Health Data Correlations",
+      insightsNoSignificantCorrelations: "No significant correlations found in your recent health data.",
+      insightsSymptomPatternsTitle: "Symptom Patterns & Diagnosis",
+      insightsNoSignificantSymptomPatterns: "No significant symptom patterns detected.",
+      insightsRiskAssessmentTitle: "Health Risk Assessment",
+      overallRiskLabel: "Overall Risk",
+      scoreLabel: "Score",
+      nextAssessmentLabel: "Next Assessment",
+      keyRiskFactors: "Key Risk Factors",
+      insightsMedicationInsightsTitle: "Medication Insights",
+      insightsNoMedicationConcerns: "No medication interaction concerns detected.",
+      insightsPersonalizedRecommendationsTitle: "Personalized Recommendations",
+      insightsNoRecommendationsYet: "No specific recommendations at this time. Keep tracking your health!",
+      healthActionPlan: "Health Action Plan",
+      generateActionPlan: "Generate Action Plan",
+      immediateActions: "Immediate Actions",
+      shortTermGoals: "Short-term Goals",
+      longTermGoals: "Long-term Goals",
+
+      // Auth-required messages
+      pleaseLogInToTrackMoods: "Please log in to track moods",
+      pleaseLogInToTrackAllergies: "Please log in to track allergies",
+      pleaseLogInToTrackSymptoms: "Please log in to track symptoms",
+
+      // Mood intensity
+      veryIntense: "Very Intense",
+
+      // PPG Measure
+      loadingPPGMonitor: "Loading PPG Monitor...",
+      ppgMeasurementUnavailable: "PPG Measurement Unavailable",
+      ppgRequiresNativeBuild:
+        "Real camera heart rate measurement requires a native build with react-native-vision-camera.\n\nExpo Go cannot be used for this feature as it requires real-time camera frame processing for accurate PPG readings.",
+      ppgUseNativeBuild: "Please use a native app build for real measurements.",
+      realCameraPPGMeasurement: "Real Camera PPG Measurement",
+      usingBackCameraAndFlash: "Using back camera and flash for heart rate measurement",
+
+      // Integrations
+      syncNow: "Sync Now",
+
+      // Not Found
+      oops: "Oops!",
+      screenDoesNotExist: "This screen doesn't exist.",
+      goToHomeScreen: "Go to home screen!",
+
+      // Charts
+      historical: "Historical",
+      predictedWithConfidence: "Predicted ({{percent}}% confidence)",
+
+      // Family Events
+      acknowledge: "Ack",
+      escalate: "Esc",
+      resolve: "Resolve",
     },
   },
   ar: {
@@ -1088,7 +1214,7 @@ const resources = {
       calendar: "التقويم",
       healthResources: "المصادر التعليمية",
       arabic: "العربية",
-      english: "English",
+      english: "الإنجليزية",
       memberSince: "عضو منذ",
       healthSummary: "ملخص الصحة",
       chooseYourAvatar: "اختر الصورة الرمزية",
@@ -1192,6 +1318,19 @@ const resources = {
       keepFingerStill: "أبقِ إصبعك ثابتاً لمدة {{seconds}} ثانية...",
       processingHeartRate: "جاري معالجة قياس معدل ضربات القلب...",
       measurementComplete: "اكتمل القياس!",
+      ppgSignalQualityTooLow:
+        "جودة الإشارة منخفضة جداً. يرجى التأكد من:\n" +
+        "• أن إصبعك يغطي عدسة الكاميرا الخلفية والفلاش بالكامل\n" +
+        "• عدم وجود فجوات أو تسرب للضوء\n" +
+        "• أن إصبعك دافئ ويلامس الكاميرا جيداً\n" +
+        "• أن تبقى ثابتاً أثناء القياس",
+      ppgFailedToProcess: "فشل في معالجة إشارة PPG. يرجى المحاولة مرة أخرى.",
+      ppgErrorInsufficientSignalData: "بيانات الإشارة غير كافية.",
+      ppgErrorTooManyInvalidSignalValues: "توجد قيم غير صالحة كثيرة في الإشارة.",
+      ppgErrorSignalVariationTooLow: "تغير الإشارة منخفض جداً.",
+      ppgErrorHeartRateOutOfNormalRange: "معدل ضربات القلب خارج النطاق الطبيعي.",
+      ppgErrorProcessingError: "حدث خطأ أثناء معالجة إشارة PPG.",
+      ppgEstimateWarning: "قراءة منخفضة الثقة — يتم عرضها كتقدير. يرجى إعادة المحاولة مع تغطية عدسة الكاميرا الخلفية والفلاش بالكامل والثبات دون حركة.",
       readyToMeasureHeartRate: "جاهز لقياس معدل ضربات القلب",
       howToMeasure: "كيفية القياس",
       instructionFindComfortablePlace: "ابحث عن مكان مريح للجلوس",
@@ -1398,7 +1537,7 @@ const resources = {
       quickActionViewFamily: "👨‍👩‍👧‍👦 عرض العائلة",
       quickActionCheckAlerts: "🚨 فحص التنبيهات",
       quickActionSendReminders: "📱 إرسال تذكيرات",
-      pleaseLogInToViewDashboard: "Please log in to view your dashboard",
+      pleaseLogInToViewDashboard: "يرجى تسجيل الدخول لعرض لوحة التحكم",
       familyAdmin: "مدير العائلة",
       member: "عضو",
       manageFamilyAndSettings: "إدارة العائلة والإعدادات",
@@ -1533,6 +1672,118 @@ const resources = {
         water_intake: "استهلاك الماء",
         blood_glucose: "سكر الدم",
       },
+
+      // App UI (general)
+      setupRequired: "الإعداد مطلوب",
+      configure: "إعداد",
+      openSettings: "فتح الإعدادات",
+      goBack: "العودة",
+
+      // Voice Agent - Quick Actions UI
+      quickActions: "إجراءات سريعة",
+      hideQuickActions: "إخفاء الإجراءات السريعة",
+      quickActionLogSymptom: "تسجيل عرض",
+      quickActionMyMedications: "أدويتي",
+      quickActionHealthSummary: "ملخص الصحة",
+      quickActionRecentVitals: "المؤشرات الحيوية الأخيرة",
+      quickActionHowAmI: "كيف حالي؟",
+      quickActionHealthTrends: "اتجاهات الصحة",
+
+      // AI Assistant
+      aiAssistant: "المساعد الذكي",
+      aiAssistantWelcome:
+        "مرحباً! أنا مساعدك الصحي الذكي. لدي إمكانية الوصول إلى ملفك الصحي، الأدوية، الأعراض، ومعلومات العائلة. كيف يمكنني مساعدتك اليوم؟",
+      aiAssistantApiKeyRequiredMessage:
+        "يرجى إعداد مفتاح OpenAI API لاستخدام المساعد الذكي.\n\nيمكنك الحصول على مفتاح API من platform.openai.com",
+      healthChat: "محادثة صحية",
+      quotaExceeded: "تم تجاوز الحصة",
+      openAIQuotaExceededMessage:
+        "لقد تجاوز حساب OpenAI الخاص بك حصة الاستخدام.\n\nالخيارات:\n1. إضافة الدفع إلى حساب OpenAI\n2. التبديل إلى GPT-3.5 Turbo (أرخص)\n3. انتظار إعادة تعيين الحصة\n\nقم بزيارة platform.openai.com لإدارة الفوترة.",
+      invalidApiKey: "مفتاح API غير صالح",
+      invalidApiKeyMessage: "يبدو أن مفتاح API غير صالح. يرجى التحقق منه وتحديثه.",
+      pleaseEnterValidApiKey: "يرجى إدخال مفتاح API صالح",
+      settingsSavedSuccessfully: "تم حفظ الإعدادات بنجاح!",
+      openAIApiKey: "مفتاح OpenAI API",
+      getApiKeyFromOpenAI: "احصل على مفتاح API من platform.openai.com",
+      aiModel: "نموذج الذكاء الاصطناعي",
+      aiModelRecommendationHint: "يوصى بـ GPT-3.5 Turbo لتحقيق أفضل توازن بين التكلفة والأداء",
+      voiceSettings: "إعدادات الصوت",
+      voiceOutput: "إخراج صوتي",
+      voiceOutputDescription: "تفعيل تحويل النص إلى كلام لردود الذكاء الاصطناعي",
+      voiceInput: "إدخال صوتي",
+      voiceInputDescription: "تفعيل تحويل الكلام إلى نص للأوامر الصوتية",
+      voiceLanguage: "لغة الصوت",
+      voiceLanguageDescription: "لغة الإدخال/الإخراج الصوتي",
+      saveSettings: "حفظ الإعدادات",
+      quotaExceededHelpTitle: "⚠️ تم تجاوز الحصة؟",
+      quotaExceededHelpSteps:
+        "1. قم بزيارة platform.openai.com\n2. أضف وسيلة دفع (حد أدنى 5$)\n3. أو استخدم GPT-3.5 Turbo (الخيار الأرخص)",
+
+      // AI Insights Dashboard
+      failedToLoadInsights: "فشل تحميل الرؤى. يرجى المحاولة مرة أخرى.",
+      aiInsightsAnalyzing: "جاري تحليل بياناتك الصحية...",
+      aiInsightsUnableToLoad: "تعذر تحميل الرؤى",
+      healthInsightsSubtitle: "تحليل مخصص لأنماط صحتك والتوصيات",
+      totalInsights: "إجمالي الرؤى",
+      highPriority: "أولوية عالية",
+      riskLevel: "مستوى المخاطر",
+      insightsOverview: "نظرة عامة",
+      insightsCorrelations: "الارتباطات",
+      insightsPatterns: "الأنماط",
+      insightsRiskAssessment: "تقييم المخاطر",
+      recommendations: "التوصيات",
+      insightsHealthDataCorrelationsTitle: "ارتباطات البيانات الصحية",
+      insightsNoSignificantCorrelations: "لم يتم العثور على ارتباطات مهمة في بيانات صحتك الأخيرة.",
+      insightsSymptomPatternsTitle: "أنماط الأعراض والتشخيص",
+      insightsNoSignificantSymptomPatterns: "لم يتم اكتشاف أنماط أعراض مهمة.",
+      insightsRiskAssessmentTitle: "تقييم مخاطر الصحة",
+      overallRiskLabel: "المخاطر الإجمالية",
+      scoreLabel: "النتيجة",
+      nextAssessmentLabel: "التقييم القادم",
+      keyRiskFactors: "عوامل الخطر الرئيسية",
+      insightsMedicationInsightsTitle: "رؤى الأدوية",
+      insightsNoMedicationConcerns: "لم يتم اكتشاف مخاوف تداخلات دوائية.",
+      insightsPersonalizedRecommendationsTitle: "توصيات مخصصة",
+      insightsNoRecommendationsYet: "لا توجد توصيات محددة حالياً. استمر في تتبع صحتك!",
+      healthActionPlan: "خطة العمل الصحية",
+      generateActionPlan: "إنشاء خطة عمل",
+      immediateActions: "إجراءات فورية",
+      shortTermGoals: "أهداف قصيرة المدى",
+      longTermGoals: "أهداف طويلة المدى",
+
+      // Auth-required messages
+      pleaseLogInToTrackMoods: "يرجى تسجيل الدخول لتتبع الحالة النفسية",
+      pleaseLogInToTrackAllergies: "يرجى تسجيل الدخول لتتبع الحساسية",
+      pleaseLogInToTrackSymptoms: "يرجى تسجيل الدخول لتتبع الأعراض",
+
+      // Mood intensity
+      veryIntense: "شديد جداً",
+
+      // PPG Measure
+      loadingPPGMonitor: "جاري تحميل مراقب PPG...",
+      ppgMeasurementUnavailable: "قياس PPG غير متاح",
+      ppgRequiresNativeBuild:
+        "يتطلب قياس معدل ضربات القلب بالكاميرا إصدارًا أصليًا مع react-native-vision-camera.\n\nلا يمكن استخدام Expo Go لهذه الميزة لأنها تتطلب معالجة إطارات الكاميرا في الوقت الفعلي للحصول على قراءات PPG دقيقة.",
+      ppgUseNativeBuild: "يرجى استخدام إصدار التطبيق الأصلي للحصول على قياسات حقيقية.",
+      realCameraPPGMeasurement: "قياس PPG بالكاميرا الحقيقية",
+      usingBackCameraAndFlash: "استخدام الكاميرا الخلفية والفلاش لقياس معدل ضربات القلب",
+
+      // Integrations
+      syncNow: "مزامنة الآن",
+
+      // Not Found
+      oops: "عذراً!",
+      screenDoesNotExist: "هذه الشاشة غير موجودة.",
+      goToHomeScreen: "اذهب إلى الشاشة الرئيسية!",
+
+      // Charts
+      historical: "السجل",
+      predictedWithConfidence: "متوقع (ثقة {{percent}}٪)",
+
+      // Family Events
+      acknowledge: "تأكيد",
+      escalate: "تصعيد",
+      resolve: "حل",
     },
   },
 };

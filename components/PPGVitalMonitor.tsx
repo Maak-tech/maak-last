@@ -84,6 +84,27 @@ export default function PPGVitalMonitor({
   const consecutiveNoFingerFrames = useRef(0);
   const MIN_FINGER_DETECTION_FRAMES = 10; // Need at least 10 frames showing finger presence
 
+  const getPPGErrorMessage = (message?: string | null): string => {
+    if (!message) return t("ppgFailedToProcess");
+
+    switch (message) {
+      case "Signal quality too low":
+        return t("ppgSignalQualityTooLow");
+      case "Insufficient signal data":
+        return t("ppgErrorInsufficientSignalData");
+      case "Too many invalid signal values":
+        return t("ppgErrorTooManyInvalidSignalValues");
+      case "Signal variation too low":
+        return t("ppgErrorSignalVariationTooLow");
+      case "Heart rate out of normal range":
+        return t("ppgErrorHeartRateOutOfNormalRange");
+      case "PPG processing error":
+        return t("ppgErrorProcessingError");
+      default:
+        return message;
+    }
+  };
+
   const cameraRef = useRef<CameraView | null>(null);
   const frameCountRef = useRef(0);
   const ppgSignalRef = useRef<number[]>([]);
@@ -898,14 +919,7 @@ export default function PPGVitalMonitor({
     // STRICT VALIDATION: Check if finger is actually present by analyzing signal
     // Don't trust button press alone - validate actual signal characteristics
     
-    if (!fingerDetectedRef.current) {
-      // This shouldn't happen if flow is correct, but handle it anyway
-      setError(
-        "Finger placement not confirmed. Please place your finger firmly on the back camera lens and flash, then tap the button to start measurement."
-      );
-      setStatus("error");
-      return;
-    }
+    // Do not hard-fail on this flag: if frames are being captured, we have data to process.
     
     // Validate signal quality - check if signal has sufficient variation
     // Since user confirmed finger placement, we're more lenient here
@@ -914,19 +928,9 @@ export default function PPGVitalMonitor({
     const signalVariance = ppgSignalRef.current.reduce((sum, val) => sum + Math.pow(val - signalMean, 2), 0) / ppgSignalRef.current.length;
     const signalStdDev = Math.sqrt(signalVariance);
     
-    // Require minimum signal variation (stdDev > 3) to ensure we have actual PPG signal
-    // This is more lenient than strict finger detection but still validates signal quality
-    if (signalStdDev < 3) {
-      setError(
-        "Signal quality too low. Please ensure:\n" +
-        "• Your finger completely covers the back camera lens and flash\n" +
-        "• There are no gaps or light leaks\n" +
-        "• Your finger is warm and making good contact\n" +
-        "• You hold still during the measurement"
-      );
-      setStatus("error");
-      return;
-    }
+    // Do not gate on raw std-dev of 0-255 frame averages.
+    // Real fingertip PPG often has small amplitude in raw pixel averages; we rely on
+    // `processPPGSignalEnhanced()` for quality gating after normalization/filtering.
 
     // Process PPG signal using multi-order filtering (2nd-6th order)
     // As per guide: "Processes with multi-order filtering (2nd-6th)"
@@ -935,19 +939,21 @@ export default function PPGVitalMonitor({
       TARGET_FPS
     );
 
-    if (ppgResult.success && ppgResult.heartRate) {
-      setHeartRate(ppgResult.heartRate);
+    if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
+      setHeartRate(ppgResult.heartRate as number);
       setHeartRateVariability(ppgResult.heartRateVariability || null);
       setRespiratoryRate(ppgResult.respiratoryRate || null);
       setSignalQuality(ppgResult.signalQuality);
 
-      // Save to Firestore
-      await saveVitalToFirestore(
-        ppgResult.heartRate,
-        ppgResult.signalQuality,
-        ppgResult.heartRateVariability,
-        ppgResult.respiratoryRate
-      );
+      // Save to Firestore (skip saving if this is a low-confidence estimate)
+      if (!ppgResult.isEstimate) {
+        await saveVitalToFirestore(
+          ppgResult.heartRate,
+          ppgResult.signalQuality,
+          ppgResult.heartRateVariability,
+          ppgResult.respiratoryRate
+        );
+      }
 
       setStatus("success");
       onMeasurementComplete?.({
@@ -955,7 +961,7 @@ export default function PPGVitalMonitor({
         heartRate: ppgResult.heartRate,
       } as ExtendedPPGResult);
     } else {
-      setError(ppgResult.error || "Failed to process PPG signal");
+      setError(getPPGErrorMessage(ppgResult.error));
       setStatus("error");
     }
   };

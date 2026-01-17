@@ -73,7 +73,10 @@ export function extractRedChannelAverage(frame: Frame): number {
     // access module-scope helper functions reliably (they may be undefined).
     // Keep RGB sampling logic self-contained here to avoid "is not a function" errors.
     const sampleRGB = (data: Uint8Array, bytesPerRow: number): number => {
-      // VisionCamera docs: pixelFormat="rgb" is RGBA or BGRA (8-bit) -> 4 bytes per pixel
+      // VisionCamera docs: pixelFormat="rgb" is RGBA or BGRA (8-bit) -> 4 bytes per pixel.
+      // IMPORTANT: Do not average RGBA and BGRA interpretations: that can wash out the true
+      // red channel (and reduce PPG amplitude/SNR), causing persistent "low quality".
+      // Instead, take the stronger candidate per pixel.
       const bpp = 4;
       const stride = bytesPerRow > 0 ? bytesPerRow : width * bpp;
 
@@ -97,8 +100,8 @@ export function extractRedChannelAverage(frame: Frame): number {
           // RGBA: [R, G, B, A] -> red at +0
           const redRGBA = data[idx + 0];
 
-          // Average both interpretations to avoid branching inside the worklet.
-          sum += (redBGRA + redRGBA) * 0.5;
+          // Pick the stronger candidate channel per pixel.
+          sum += redBGRA > redRGBA ? redBGRA : redRGBA;
           count++;
         }
       }
@@ -670,7 +673,9 @@ export function calculateRealTimeSignalQuality(signal: number[]): number {
   const range = max - min;
 
   // Basic quality checks
-  if (range < 5 || stdDev < 1) return 0.1; // Very poor signal
+  // IMPORTANT: Smartphone PPG can have small amplitude in raw pixel averages (often 1-4 units).
+  // Do not treat "range < 5" as automatically unusable; instead only reject near-flat signals.
+  if (range < 1 || stdDev < 0.2) return 0.1; // Very poor / near-flat signal
   if (range > 100 || stdDev > 50) return 0.2; // Too noisy
 
   // Calculate SNR (Signal-to-Noise Ratio)

@@ -127,6 +127,27 @@ export default function PPGVitalMonitorVisionCamera({
   const [saveFailed, setSaveFailed] = useState(false);
   const [originalBrightness, setOriginalBrightness] = useState<number | null>(null);
 
+  const getPPGErrorMessage = (message?: string | null): string => {
+    if (!message) return t("ppgFailedToProcess");
+
+    switch (message) {
+      case "Signal quality too low":
+        return t("ppgSignalQualityTooLow");
+      case "Insufficient signal data":
+        return t("ppgErrorInsufficientSignalData");
+      case "Too many invalid signal values":
+        return t("ppgErrorTooManyInvalidSignalValues");
+      case "Signal variation too low":
+        return t("ppgErrorSignalVariationTooLow");
+      case "Heart rate out of normal range":
+        return t("ppgErrorHeartRateOutOfNormalRange");
+      case "PPG processing error":
+        return t("ppgErrorProcessingError");
+      default:
+        return message;
+    }
+  };
+
   // NOTE: Do not use React refs inside VisionCamera frame processor worklets.
   // Worklets run on a separate runtime and cannot safely read/write React refs.
   const frameCountRef = useRef(0);
@@ -873,13 +894,7 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
 
-    if (!fingerDetectedRef.current) {
-      setError(
-        "Finger placement not confirmed. Please place your finger firmly on the back camera lens and flash, then tap the button to start measurement."
-      );
-      setStatus("error");
-      return;
-    }
+    // Do not hard-fail on this flag: if frames are being captured, we have data to process.
 
     // Validate signal quality with enhanced checks
     const signalMean =
@@ -901,18 +916,9 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
 
-    // Check signal quality
-    if (signalStdDev < 3) {
-      setError(
-        "Signal quality too low. Please ensure:\n" +
-          "• Your finger completely covers the back camera lens and flash\n" +
-          "• There are no gaps or light leaks\n" +
-          "• Your finger is warm and making good contact\n" +
-          "• You hold still during the measurement"
-      );
-      setStatus("error");
-      return;
-    }
+    // Do not gate on raw std-dev of 0-255 frame averages.
+    // Real fingertip PPG often has small amplitude in raw pixel averages; we rely on
+    // `processPPGSignalEnhanced()` for quality gating after normalization/filtering.
     
     // CRITICAL: Check for excessive frame processing errors
     // If more than 15% of frames failed, we don't have enough real camera data
@@ -949,35 +955,30 @@ export default function PPGVitalMonitorVisionCamera({
       return;
     }
     
-    // Check signal range (should be reasonable for PPG)
-    const signalMin = Math.min(...ppgSignalRef.current);
-    const signalMax = Math.max(...ppgSignalRef.current);
-    if (signalMax - signalMin < 10) {
-      setError(
-        "Signal variation too low. Please ensure your finger is properly placed and the camera lens is clean."
-      );
-      setStatus("error");
-      return;
-    }
-
     // Process PPG signal using enhanced pipeline following research guidance
     // Includes multi-order filtering, detrending, and advanced quality assessment
     const ppgResult = processPPGSignalEnhanced(ppgSignalRef.current, TARGET_FPS);
 
-    if (ppgResult.success && ppgResult.heartRate) {
-      setHeartRate(ppgResult.heartRate);
+    if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
+      setHeartRate(ppgResult.heartRate as number);
       setHeartRateVariability(ppgResult.heartRateVariability || null);
       setRespiratoryRate(ppgResult.respiratoryRate || null);
       setSignalQuality(ppgResult.signalQuality);
 
-      const saveSuccess = await saveVitalToFirestore(
-        ppgResult.heartRate,
-        ppgResult.signalQuality,
-        ppgResult.heartRateVariability,
-        ppgResult.respiratoryRate
-      );
+      const shouldSave = !ppgResult.isEstimate;
+      const saveSuccess = shouldSave
+        ? await saveVitalToFirestore(
+            ppgResult.heartRate,
+            ppgResult.signalQuality,
+            ppgResult.heartRateVariability,
+            ppgResult.respiratoryRate
+          )
+        : true;
 
-      if (!saveSuccess) {
+      if (ppgResult.isEstimate) {
+        setSaveFailed(true);
+        setError(t("ppgEstimateWarning"));
+      } else if (!saveSuccess) {
         // Measurement succeeded but save failed - show warning but still show success
         setSaveFailed(true);
         setError(
@@ -993,7 +994,7 @@ export default function PPGVitalMonitorVisionCamera({
         heartRate: ppgResult.heartRate,
       } as ExtendedPPGResult);
     } else {
-      setError(ppgResult.error || "Failed to process PPG signal");
+      setError(getPPGErrorMessage(ppgResult.error));
       setStatus("error");
     }
   }, [fingerDetectionFailed, frameProcessingErrors, onMeasurementComplete]);
@@ -1073,14 +1074,11 @@ export default function PPGVitalMonitorVisionCamera({
       // Update signal quality state
       setSignalQuality(signalQuality);
 
-      // Check for signal quality issues with research-based thresholds
-      if (signalQuality < 0.3) { // Research suggests minimum 0.3 quality threshold
+      // Do not stop the measurement early based on real-time quality heuristics.
+      // Real signals can be low-amplitude but still recoverable after filtering; early-stop was
+      // preventing users from ever reaching a score.
+      if (signalQuality < 0.3) {
         consecutiveNoFingerFrames.current += 30;
-        if (consecutiveNoFingerFrames.current > 180) { // ~12 seconds of poor quality
-          setFingerDetectionFailed(true);
-          stopPPGCapture();
-          return;
-        }
       } else {
         consecutiveNoFingerFrames.current = 0;
       }
@@ -1203,7 +1201,7 @@ export default function PPGVitalMonitorVisionCamera({
     markFrameProcessorCalledOnJS,
     processPPGFrameDataOnJS,
     resetFrameFailureCounterOnJS,
-    setFrameMetaOnJS,
+    setFrameMetaOnJS, // IMPORTANT: Included to prevent stale closures when setFrameMetaFromWorklet changes
   ]);
 
   const saveVitalToFirestore = async (

@@ -65,7 +65,15 @@ export interface VoiceConfig {
   pitch?: number;
   rate?: number;
   volume?: number;
+  voiceId?: string;
 }
+
+type AvailableVoice = {
+  identifier: string;
+  name: string;
+  language: string;
+  quality?: string;
+};
 
 export interface SpeechRecognitionResult {
   text: string;
@@ -79,6 +87,43 @@ class VoiceService {
   private recognitionCallbacks: Array<(result: SpeechRecognitionResult) => void> = [];
   private recognitionErrorCallbacks: Array<(error: Error) => void> = [];
   private recording: RecordingInstance | null = null;
+
+  async getAvailableVoices(): Promise<AvailableVoice[]> {
+    try {
+      if (!Speech?.getAvailableVoicesAsync) return [];
+      const voices = await Speech.getAvailableVoicesAsync();
+      if (!Array.isArray(voices)) return [];
+      return voices as AvailableVoice[];
+    } catch {
+      return [];
+    }
+  }
+
+  async getPreferredVoiceId(language: string): Promise<string | undefined> {
+    const voices = await this.getAvailableVoices();
+    if (voices.length === 0) return undefined;
+
+    const langPrefix = language.split("-")[0];
+    const candidates = voices.filter((v) => v.language?.startsWith(language) || v.language?.startsWith(langPrefix));
+    if (candidates.length === 0) return undefined;
+
+    const femaleHints = ["female", "woman", "zira", "samantha", "victoria", "karen", "tessa", "ava", "siri"];
+
+    const score = (v: AvailableVoice): number => {
+      const name = (v.name || "").toLowerCase();
+      const quality = (v.quality || "").toLowerCase();
+      let s = 0;
+      if (quality.includes("enhanced")) s += 20;
+      if (quality.includes("premium")) s += 15;
+      if (quality.includes("default")) s += 5;
+      if (femaleHints.some((h) => name.includes(h))) s += 10;
+      if (name.includes("male")) s -= 10;
+      return s;
+    };
+
+    candidates.sort((a, b) => score(b) - score(a));
+    return candidates[0]?.identifier;
+  }
 
   /**
    * Speak text using text-to-speech
@@ -98,10 +143,14 @@ class VoiceService {
 
       const defaultConfig: VoiceConfig = {
         language: config.language || "en-US",
-        pitch: config.pitch ?? 1.0,
-        rate: config.rate ?? 0.9,
+        // Less robotic + more feminine by default
+        pitch: config.pitch ?? 1.15,
+        rate: config.rate ?? 1.0,
         volume: config.volume ?? 1.0,
+        voiceId: config.voiceId,
       };
+
+      const voiceId = defaultConfig.voiceId ?? (await this.getPreferredVoiceId(defaultConfig.language));
 
       return new Promise((resolve, reject) => {
         this.isSpeaking = true;
@@ -109,6 +158,7 @@ class VoiceService {
 
         Speech.speak(text, {
           language: defaultConfig.language,
+          ...(voiceId ? { voice: voiceId } : {}),
           pitch: defaultConfig.pitch,
           rate: defaultConfig.rate,
           volume: defaultConfig.volume,

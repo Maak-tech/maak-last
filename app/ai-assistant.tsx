@@ -222,11 +222,14 @@ export default function AIAssistant() {
         setTempModel(model);
       } else {
         Alert.alert(
-          "Setup Required",
-          "Please configure your OpenAI API key to use the AI assistant.\n\nYou can get a free API key from platform.openai.com",
+          t("setupRequired", "Setup Required"),
+          t(
+            "aiAssistantApiKeyRequiredMessage",
+            "Please configure your OpenAI API key to use the AI assistant.\n\nYou can get an API key from platform.openai.com"
+          ),
           [
-            { text: "Cancel", style: "cancel" },
-            { text: "Configure", onPress: () => setShowSettings(true) },
+            { text: t("cancel", "Cancel"), style: "cancel" },
+            { text: t("configure", "Configure"), onPress: () => setShowSettings(true) },
           ]
         );
       }
@@ -249,7 +252,10 @@ export default function AIAssistant() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content:
-          "Hello! I'm your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?",
+          t(
+            "aiAssistantWelcome",
+            "Hello! I'm your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?"
+          ),
         timestamp: new Date(),
       };
 
@@ -271,14 +277,14 @@ export default function AIAssistant() {
     try {
       // Generate a title based on the conversation topic
       const firstUserMessage = initialMessages.find((m) => m.role === "user");
-      let title = "Health Chat";
+      let title = t("healthChat", "Health Chat");
 
       if (firstUserMessage) {
         // Create a short title from the first user message
         const words = firstUserMessage.content.split(" ").slice(0, 5);
         title = words.join(" ") + (words.length >= 5 ? "..." : "");
       } else {
-        title = "Health Chat " + new Date().toLocaleDateString();
+        title = `${t("healthChat", "Health Chat")} ${new Date().toLocaleDateString()}`;
       }
 
       const sessionData = {
@@ -442,26 +448,33 @@ export default function AIAssistant() {
         // More user-friendly error messages
         if (error.message.includes("quota exceeded")) {
           Alert.alert(
-            "Quota Exceeded",
-            "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing.",
+            t("quotaExceeded", "Quota Exceeded"),
+            t(
+              "openAIQuotaExceededMessage",
+              "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing."
+            ),
             [
-              { text: "Open Settings", onPress: () => setShowSettings(true) },
-              { text: "OK", style: "cancel" },
+              { text: t("openSettings", "Open Settings"), onPress: () => setShowSettings(true) },
+              { text: t("ok", "OK"), style: "cancel" },
             ]
           );
         } else if (error.message.includes("Invalid API key")) {
           Alert.alert(
-            "Invalid API Key",
-            "The API key appears to be invalid. Please check and update it.",
+            t("invalidApiKey", "Invalid API Key"),
+            t(
+              "invalidApiKeyMessage",
+              "The API key appears to be invalid. Please check and update it."
+            ),
             [
-              { text: "Open Settings", onPress: () => setShowSettings(true) },
-              { text: "Cancel", style: "cancel" },
+              { text: t("openSettings", "Open Settings"), onPress: () => setShowSettings(true) },
+              { text: t("cancel", "Cancel"), style: "cancel" },
             ]
           );
         } else {
           Alert.alert(
-            "Error",
-            error.message || "Failed to get response. Please try again."
+            t("error", "Error"),
+            error.message ||
+              t("failedToGetResponse", "Failed to get response. Please try again.")
           );
         }
       }
@@ -470,7 +483,10 @@ export default function AIAssistant() {
 
   const handleSaveSettings = async () => {
     if (!tempApiKey.trim()) {
-      Alert.alert("Error", "Please enter a valid API key");
+      Alert.alert(
+        t("error", "Error"),
+        t("pleaseEnterValidApiKey", "Please enter a valid API key")
+      );
       return;
     }
 
@@ -492,7 +508,10 @@ export default function AIAssistant() {
     setSelectedModel(tempModel);
     setTempApiKey(""); // Clear the temp key after saving
     setShowSettings(false);
-    Alert.alert("Success", "Settings saved successfully!");
+    Alert.alert(
+      t("success", "Success"),
+      t("settingsSavedSuccessfully", "Settings saved successfully!")
+    );
   };
 
   const handleNewChat = async () => {
@@ -520,12 +539,13 @@ export default function AIAssistant() {
 
         sessions.push({
           id: doc.id,
-          title: data.title || "Chat Session",
+          title: data.title || t("chatSession", "Chat Session"),
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
           messageCount: messages.length,
-          preview:
-            lastUserMessage?.content?.substring(0, 50) + "..." || "No messages",
+          preview: lastUserMessage?.content
+            ? `${lastUserMessage.content.substring(0, 50)}...`
+            : t("noMessages", "No messages"),
         });
       });
 
@@ -609,7 +629,10 @@ export default function AIAssistant() {
               }
             } catch (error) {
               // Silently handle error
-              Alert.alert("Error", "Failed to delete chat session");
+              Alert.alert(
+                t("error", "Error"),
+                t("failedToDeleteSession", "Failed to delete chat session")
+              );
             }
           },
         },
@@ -626,7 +649,7 @@ export default function AIAssistant() {
         >
           <Ionicons color="#333" name="arrow-back" size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>AI Assistant</Text>
+        <Text style={styles.headerTitle}>{t("aiAssistant", "AI Assistant")}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={handleNewChat}
@@ -676,7 +699,7 @@ export default function AIAssistant() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator color="#007AFF" size="large" />
               <Text style={styles.loadingText}>
-                Loading your health context...
+                {t("loadingHealthContext", "Loading your health context...")}
               </Text>
             </View>
           ) : (
@@ -734,7 +757,7 @@ export default function AIAssistant() {
             editable={!isStreaming}
             multiline
             onChangeText={setInputText}
-            placeholder="Ask about your health, medications, symptoms..."
+            placeholder={t("askZeina", "Ask Zeina about your health, medications, symptoms...")}
             placeholderTextColor="#999"
             scrollEnabled
             style={styles.textInput}
@@ -767,13 +790,13 @@ export default function AIAssistant() {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Settings</Text>
+              <Text style={styles.modalTitle}>{t("settings", "Settings")}</Text>
               <TouchableOpacity onPress={() => setShowSettings(false)}>
                 <Ionicons color="#333" name="close" size={24} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalLabel}>OpenAI API Key</Text>
+            <Text style={styles.modalLabel}>{t("openAIApiKey", "OpenAI API Key")}</Text>
             <TextInput
               autoCapitalize="none"
               onChangeText={setTempApiKey}
@@ -785,10 +808,12 @@ export default function AIAssistant() {
             />
 
             <Text style={styles.modalHint}>
-              Get your API key from platform.openai.com
+              {t("getApiKeyFromOpenAI", "Get your API key from platform.openai.com")}
             </Text>
 
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>AI Model</Text>
+            <Text style={[styles.modalLabel, { marginTop: 16 }]}>
+              {t("aiModel", "AI Model")}
+            </Text>
             <View style={styles.modelSelector}>
               {Object.entries(AI_MODELS).map(([modelKey, modelName]) => (
                 <TouchableOpacity
@@ -808,21 +833,26 @@ export default function AIAssistant() {
                     {modelName}
                   </Text>
                   {modelKey === "gpt-3.5-turbo" && (
-                    <Text style={styles.recommendedBadge}>RECOMMENDED</Text>
+                    <Text style={styles.recommendedBadge}>
+                      {t("recommended", "Recommended")}
+                    </Text>
                   )}
                 </TouchableOpacity>
               ))}
             </View>
 
             <Text style={styles.modalHint}>
-              GPT-3.5 Turbo is recommended for best cost/performance balance
+              {t(
+                "aiModelRecommendationHint",
+                "GPT-3.5 Turbo is recommended for best cost/performance balance"
+              )}
             </Text>
 
             {/* Voice Settings */}
             {(voiceEnabled || recognitionAvailable) && (
               <>
                 <Text style={[styles.modalLabel, { marginTop: 20 }]}>
-                  Voice Settings
+                  {t("voiceSettings", "Voice Settings")}
                 </Text>
 
                 {voiceEnabled && (
@@ -830,9 +860,14 @@ export default function AIAssistant() {
                     <View style={styles.voiceSettingInfo}>
                       <Volume2 size={20} color="#007AFF" />
                       <View style={{ marginStart: 12, flex: 1 }}>
-                        <Text style={styles.voiceSettingTitle}>Voice Output</Text>
+                        <Text style={styles.voiceSettingTitle}>
+                          {t("voiceOutput", "Voice Output")}
+                        </Text>
                         <Text style={styles.voiceSettingDescription}>
-                          Enable text-to-speech for AI responses
+                          {t(
+                            "voiceOutputDescription",
+                            "Enable text-to-speech for AI responses"
+                          )}
                         </Text>
                       </View>
                     </View>
@@ -858,9 +893,14 @@ export default function AIAssistant() {
                     <View style={styles.voiceSettingInfo}>
                       <Mic size={20} color="#007AFF" />
                       <View style={{ marginStart: 12, flex: 1 }}>
-                        <Text style={styles.voiceSettingTitle}>Voice Input</Text>
+                        <Text style={styles.voiceSettingTitle}>
+                          {t("voiceInput", "Voice Input")}
+                        </Text>
                         <Text style={styles.voiceSettingDescription}>
-                          Enable speech-to-text for voice commands
+                          {t(
+                            "voiceInputDescription",
+                            "Enable speech-to-text for voice commands"
+                          )}
                         </Text>
                       </View>
                     </View>
@@ -885,9 +925,14 @@ export default function AIAssistant() {
                   <View style={styles.voiceSettingInfo}>
                     <Settings size={20} color="#007AFF" />
                     <View style={{ marginStart: 12, flex: 1 }}>
-                      <Text style={styles.voiceSettingTitle}>Voice Language</Text>
+                      <Text style={styles.voiceSettingTitle}>
+                        {t("voiceLanguage", "Voice Language")}
+                      </Text>
                       <Text style={styles.voiceSettingDescription}>
-                        Language for voice input/output
+                        {t(
+                          "voiceLanguageDescription",
+                          "Language for voice input/output"
+                        )}
                       </Text>
                     </View>
                   </View>
@@ -902,7 +947,9 @@ export default function AIAssistant() {
                     style={styles.languageButton}
                   >
                     <Text style={styles.languageButtonText}>
-                      {voiceLanguage === "en-US" ? "English" : "العربية"}
+                      {voiceLanguage === "en-US"
+                        ? t("english", "English")
+                        : t("arabic", "العربية")}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -913,15 +960,20 @@ export default function AIAssistant() {
               onPress={handleSaveSettings}
               style={styles.saveButton}
             >
-              <Text style={styles.saveButtonText}>Save Settings</Text>
+              <Text style={styles.saveButtonText}>
+                {t("saveSettings", "Save Settings")}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.helpSection}>
-              <Text style={styles.helpTitle}>⚠️ Quota Exceeded?</Text>
+              <Text style={styles.helpTitle}>
+                {t("quotaExceededHelpTitle", "⚠️ Quota Exceeded?")}
+              </Text>
               <Text style={styles.helpText}>
-                1. Visit platform.openai.com{"\n"}
-                2. Add payment method ($5 minimum){"\n"}
-                3. Or use GPT-3.5 Turbo (cheapest option)
+                {t(
+                  "quotaExceededHelpSteps",
+                  "1. Visit platform.openai.com\n2. Add payment method ($5 minimum)\n3. Or use GPT-3.5 Turbo (cheapest option)"
+                )}
               </Text>
             </View>
           </View>
@@ -938,7 +990,7 @@ export default function AIAssistant() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { maxHeight: "80%" }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chat History</Text>
+              <Text style={styles.modalTitle}>{t("chatHistory", "Chat History")}</Text>
               <TouchableOpacity onPress={() => setShowHistory(false)}>
                 <Ionicons color="#333" name="close" size={24} />
               </TouchableOpacity>
@@ -952,10 +1004,10 @@ export default function AIAssistant() {
                 <View style={styles.emptyHistory}>
                   <Ionicons color="#999" name="chatbubbles-outline" size={48} />
                   <Text style={styles.emptyHistoryText}>
-                    No chat history yet
+                    {t("noChatHistory", "No chat history yet")}
                   </Text>
                   <Text style={styles.emptyHistorySubtext}>
-                    Your conversations will appear here
+                    {t("conversationsWillAppear", "Your conversations will appear here")}
                   </Text>
                 </View>
               ) : (
@@ -1012,7 +1064,9 @@ export default function AIAssistant() {
                 size={20}
                 style={{ marginEnd: 8 }}
               />
-              <Text style={styles.newChatButtonText}>Start New Chat</Text>
+              <Text style={styles.newChatButtonText}>
+                {t("startNewChat", "Start New Chat")}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

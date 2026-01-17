@@ -178,7 +178,7 @@ function AIInsightsDashboard({
   compact = false
 }: AIInsightsDashboardProps) {
   const { user } = useAuth();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
   const [insights, setInsights] = useState<AIInsightsDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -199,7 +199,7 @@ function AIInsightsDashboard({
       setInsights(dashboard);
     } catch (err) {
       console.error('Failed to load AI insights:', err);
-      setError('Failed to load insights. Please try again.');
+      setError(t("failedToLoadInsights", "Failed to load insights. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -209,7 +209,9 @@ function AIInsightsDashboard({
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={[styles.text, styles.mt2]}>Analyzing your health data...</Text>
+        <Text style={[styles.text, styles.mt2]}>
+          {t("aiInsightsAnalyzing", "Analyzing your health data...")}
+        </Text>
       </View>
     );
   }
@@ -219,10 +221,10 @@ function AIInsightsDashboard({
       <View style={styles.center}>
         <AlertTriangle size={48} color="#EF4444" />
         <Text style={[styles.text, styles.mt2, styles.textCenter]}>
-          {error || 'Unable to load insights'}
+          {error || t("aiInsightsUnableToLoad", "Unable to load insights")}
         </Text>
         <Button
-          title="Retry"
+          title={t("retry", "Retry")}
           onPress={loadInsights}
           style={styles.mt4}
         />
@@ -240,30 +242,33 @@ function AIInsightsDashboard({
         <View style={styles.p4}>
           {/* Header */}
           <View style={styles.mb4}>
-            <Text style={[styles.title, styles.mb2]}>{isRTL ? "الرؤى الصحية" : "Health Insights"}</Text>
+            <Text style={[styles.title, styles.mb2]}>
+              {t("healthInsights", "Health Insights")}
+            </Text>
             <Text style={[styles.subtitle, styles.textMuted]}>
-              {isRTL 
-                ? "تحليل مخصص لأنماط صحتك والتوصيات"
-                : "Personalized analysis of your health patterns and recommendations"}
+              {t(
+                "healthInsightsSubtitle",
+                "Personalized analysis of your health patterns and recommendations"
+              )}
             </Text>
           </View>
 
           {/* Summary Cards */}
           <View style={[styles.row, styles.mb4]}>
             <SummaryCard
-              title="Total Insights"
+              title={t("totalInsights", "Total Insights")}
               value={insights.insightsSummary.totalInsights.toString()}
               icon="Brain"
               color="#3B82F6"
             />
             <SummaryCard
-              title="High Priority"
+              title={t("highPriority", "High Priority")}
               value={insights.insightsSummary.highPriorityItems.toString()}
               icon="AlertTriangle"
               color="#EF4444"
             />
             <SummaryCard
-              title="Risk Level"
+              title={t("riskLevel", "Risk Level")}
               value={insights.riskAssessment.riskLevel}
               icon="Shield"
               color={getRiskColor(insights.riskAssessment.riskLevel)}
@@ -277,12 +282,12 @@ function AIInsightsDashboard({
             style={styles.mb4}
           >
             {[
-              { key: 'overview', label: 'Overview', icon: 'Home' },
-              { key: 'correlations', label: 'Correlations', icon: 'TrendingUp' },
-              { key: 'patterns', label: 'Patterns', icon: 'Activity' },
-              { key: 'risk', label: 'Risk Assessment', icon: 'Shield' },
-              { key: 'medications', label: 'Medications', icon: 'Pill' },
-              { key: 'suggestions', label: 'Recommendations', icon: 'Lightbulb' }
+              { key: 'overview', label: t("insightsOverview", "Overview"), icon: 'Home' },
+              { key: 'correlations', label: t("insightsCorrelations", "Correlations"), icon: 'TrendingUp' },
+              { key: 'patterns', label: t("insightsPatterns", "Patterns"), icon: 'Activity' },
+              { key: 'risk', label: t("insightsRiskAssessment", "Risk Assessment"), icon: 'Shield' },
+              { key: 'medications', label: t("medications", "Medications"), icon: 'Pill' },
+              { key: 'suggestions', label: t("recommendations", "Recommendations"), icon: 'Lightbulb' }
             ].map(category => (
               <TouchableOpacity
                 key={category.key}
@@ -315,7 +320,9 @@ function AIInsightsDashboard({
             <Card style={styles.mb4} onPress={() => {}} contentStyle={undefined}>
               <View style={styles.row}>
                 {getIcon("Bot", 20, "#3B82F6")}
-                <Text style={[styles.cardTitle, styles.ml2]}>{isRTL ? "ملخص الصحة" : "Health Summary"}</Text>
+                <Text style={[styles.cardTitle, styles.ml2]}>
+                  {t("healthSummary", "Health Summary")}
+                </Text>
               </View>
               <Text style={[styles.text, styles.mt2, styles.lineHeight]}>
                 {insights.aiNarrative}
@@ -420,10 +427,11 @@ function CorrelationsContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View>
       <Text style={[styles.sectionTitle, styles.mb3]}>
-        Health Data Correlations
+        {t("insightsHealthDataCorrelationsTitle", "Health Data Correlations")}
       </Text>
       {insights.correlationAnalysis.correlationResults.map((correlation: any, index: number) => (
         <CorrelationCard
@@ -433,7 +441,12 @@ function CorrelationsContent({
         />
       ))}
       {insights.correlationAnalysis.correlationResults.length === 0 && (
-        <EmptyState message="No significant correlations found in your recent health data." />
+        <EmptyState
+          message={t(
+            "insightsNoSignificantCorrelations",
+            "No significant correlations found in your recent health data."
+          )}
+        />
       )}
     </View>
   );
@@ -447,10 +460,11 @@ function PatternsContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View>
       <Text style={[styles.sectionTitle, styles.mb3]}>
-        Symptom Patterns & Diagnosis
+        {t("insightsSymptomPatternsTitle", "Symptom Patterns & Diagnosis")}
       </Text>
       {insights.symptomAnalysis.diagnosisSuggestions.map((diagnosis: any, index: number) => (
         <DiagnosisCard
@@ -468,7 +482,12 @@ function PatternsContent({
       ))}
       {insights.symptomAnalysis.diagnosisSuggestions.length === 0 &&
        insights.symptomAnalysis.patterns.length === 0 && (
-        <EmptyState message="No significant symptom patterns detected." />
+        <EmptyState
+          message={t(
+            "insightsNoSignificantSymptomPatterns",
+            "No significant symptom patterns detected."
+          )}
+        />
       )}
     </View>
   );
@@ -482,12 +501,13 @@ function RiskContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
 }) {
+  const { t } = useTranslation();
   const risk = insights.riskAssessment;
 
   return (
     <View>
       <Text style={[styles.sectionTitle, styles.mb3]}>
-        Health Risk Assessment
+        {t("insightsRiskAssessmentTitle", "Health Risk Assessment")}
       </Text>
 
       <Card style={styles.mb3} onPress={() => {}} contentStyle={undefined}>
@@ -495,20 +515,22 @@ function RiskContent({
           {getIcon("Shield", 24, getRiskColor(risk.riskLevel))}
           <View style={styles.ml3}>
             <Text style={styles.cardTitle}>
-              Overall Risk: {risk.riskLevel.toUpperCase()}
+              {t("overallRiskLabel", "Overall Risk")}: {risk.riskLevel.toUpperCase()}
             </Text>
             <Text style={[styles.text, styles.mt1]}>
-              Score: {risk.overallRiskScore}/100
+              {t("scoreLabel", "Score")}: {risk.overallRiskScore}/100
             </Text>
           </View>
         </View>
 
         <Text style={[styles.text, styles.mt3]}>
-          Next Assessment: {risk.nextAssessmentDate.toLocaleDateString()}
+          {t("nextAssessmentLabel", "Next Assessment")}: {risk.nextAssessmentDate.toLocaleDateString()}
         </Text>
       </Card>
 
-      <Text style={[styles.subtitle, styles.mb2]}>Key Risk Factors</Text>
+      <Text style={[styles.subtitle, styles.mb2]}>
+        {t("keyRiskFactors", "Key Risk Factors")}
+      </Text>
       {risk.riskFactors.slice(0, 5).map((factor: any, index: number) => (
         <RiskFactorCard
           key={`risk-factor-${index}`}
@@ -517,7 +539,9 @@ function RiskContent({
         />
       ))}
 
-      <Text style={[styles.subtitle, styles.mb2, styles.mt4]}>Recommendations</Text>
+      <Text style={[styles.subtitle, styles.mb2, styles.mt4]}>
+        {t("recommendations", "Recommendations")}
+      </Text>
       {risk.preventiveRecommendations.map((rec: any, index: number) => (
         <RecommendationCard
           key={`rec-${index}`}
@@ -537,10 +561,11 @@ function MedicationsContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View>
       <Text style={[styles.sectionTitle, styles.mb3]}>
-        Medication Insights
+        {t("insightsMedicationInsightsTitle", "Medication Insights")}
       </Text>
       {insights.medicationAlerts.map((alert: any, index: number) => (
         <MedicationAlertCard
@@ -550,7 +575,12 @@ function MedicationsContent({
         />
       ))}
       {insights.medicationAlerts.length === 0 && (
-        <EmptyState message="No medication interaction concerns detected." />
+        <EmptyState
+          message={t(
+            "insightsNoMedicationConcerns",
+            "No medication interaction concerns detected."
+          )}
+        />
       )}
     </View>
   );
@@ -564,10 +594,11 @@ function SuggestionsContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View>
       <Text style={[styles.sectionTitle, styles.mb3]}>
-        Personalized Recommendations
+        {t("insightsPersonalizedRecommendationsTitle", "Personalized Recommendations")}
       </Text>
       {insights.healthSuggestions.map((suggestion: any, index: number) => (
         <SuggestionCard
@@ -584,7 +615,12 @@ function SuggestionsContent({
         />
       ))}
       {insights.healthSuggestions.length === 0 && insights.personalizedTips.length === 0 && (
-        <EmptyState message="No specific recommendations at this time. Keep tracking your health!" />
+        <EmptyState
+          message={t(
+            "insightsNoRecommendationsYet",
+            "No specific recommendations at this time. Keep tracking your health!"
+          )}
+        />
       )}
     </View>
   );
@@ -592,6 +628,7 @@ function SuggestionsContent({
 
 // Action Plan Section
 function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) {
+  const { t } = useTranslation();
   const [actionPlan, setActionPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -613,12 +650,14 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
     <Card style={styles.mb4} onPress={() => {}} contentStyle={undefined}>
       <View style={styles.row}>
         {getIcon("Target", 20, "#3B82F6")}
-        <Text style={[styles.cardTitle, styles.ml2]}>Health Action Plan</Text>
+        <Text style={[styles.cardTitle, styles.ml2]}>
+          {t("healthActionPlan", "Health Action Plan")}
+        </Text>
       </View>
 
       {!actionPlan ? (
         <Button
-          title="Generate Action Plan"
+          title={t("generateActionPlan", "Generate Action Plan")}
           onPress={loadActionPlan}
           loading={loading}
           style={styles.mt3}
@@ -628,7 +667,7 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
           {actionPlan.immediate.length > 0 && (
             <View style={styles.mb3}>
               <Text style={[styles.textSm, styles.fontBold, { color: '#EF4444' }]}>
-                Immediate Actions
+                {t("immediateActions", "Immediate Actions")}
               </Text>
               {actionPlan.immediate.map((action: string, index: number) => (
                 <Text key={`immediate-${index}`} style={[styles.text, styles.mt1]}>
@@ -641,7 +680,7 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
           {actionPlan.shortTerm.length > 0 && (
             <View style={styles.mb3}>
               <Text style={[styles.textSm, styles.fontBold, { color: '#F59E0B' }]}>
-                Short-term Goals
+                {t("shortTermGoals", "Short-term Goals")}
               </Text>
               {actionPlan.shortTerm.map((action: string, index: number) => (
                 <Text key={`short-${index}`} style={[styles.text, styles.mt1]}>
@@ -654,7 +693,7 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
           {actionPlan.longTerm.length > 0 && (
             <View style={styles.mb3}>
               <Text style={[styles.textSm, styles.fontBold, { color: '#10B981' }]}>
-                Long-term Goals
+                {t("longTermGoals", "Long-term Goals")}
               </Text>
               {actionPlan.longTerm.map((action: string, index: number) => (
                 <Text key={`long-${index}`} style={[styles.text, styles.mt1]}>

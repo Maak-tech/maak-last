@@ -77,7 +77,12 @@ try {
   if (Platform.OS === "ios" || Platform.OS === "android") {
     const expoAv = require("expo-av");
     Audio = expoAv.Audio;
-    FileSystem = require("expo-file-system");
+    // Expo SDK 54+: prefer legacy import path to avoid deprecation warnings
+    try {
+      FileSystem = require("expo-file-system/legacy");
+    } catch {
+      FileSystem = require("expo-file-system");
+    }
     isAudioAvailable = !!Audio && !!FileSystem;
     
     if (!Audio) {
@@ -903,10 +908,22 @@ export default function VoiceAgentScreen() {
 
   // Disconnect from the service
   const handleDisconnect = () => {
+    // Stop any active recording to ensure the UI can't remain "stuck listening"
+    if (recordingRef.current) {
+      recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      recordingRef.current = null;
+    }
+
+    // Clear any pending audio/response state on the service side
+    realtimeAgentService.cancelResponse();
+    realtimeAgentService.clearAudioBuffer();
     realtimeAgentService.disconnect();
     setMessages([]);
     setToolCalls([]);
     setCurrentTranscript("");
+    setIsListening(false);
+    setIsSpeaking(false);
+    setIsProcessing(false);
   };
 
   // Ensure realtime connection before recording/sending audio
@@ -1014,6 +1031,9 @@ export default function VoiceAgentScreen() {
             }
 
             // Commit the audio buffer to trigger response (only if we actually appended audio)
+            // IMPORTANT: Only commit if audio was successfully sent. If connection check failed
+            // (line 999) or audio conversion failed (line 1007), didAppendAudio remains false
+            // and commitAudioBuffer() is not called, preventing empty buffer commits.
             if (didAppendAudio) {
               realtimeAgentService.commitAudioBuffer();
               setIsProcessing(true);
@@ -1435,7 +1455,9 @@ export default function VoiceAgentScreen() {
               >
                 <Ionicons name={showQuickActions ? "chevron-up" : "chevron-down"} size={20} color="#fff" />
                 <Text style={styles.quickActionsToggleText}>
-                  {showQuickActions ? "Hide Quick Actions" : "Quick Actions"}
+                  {showQuickActions
+                    ? t("hideQuickActions", "Hide Quick Actions")
+                    : t("quickActions", "Quick Actions")}
                 </Text>
               </TouchableOpacity>
               
@@ -1446,7 +1468,9 @@ export default function VoiceAgentScreen() {
                     onPress={() => handleQuickAction("Log my symptoms")}
                   >
                     <Ionicons name="medical" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>Log Symptom</Text>
+                    <Text style={styles.quickActionText}>
+                      {t("quickActionLogSymptom", "Log Symptom")}
+                    </Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
@@ -1454,7 +1478,9 @@ export default function VoiceAgentScreen() {
                     onPress={() => handleQuickAction("What are my medications?")}
                   >
                     <Ionicons name="medical" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>My Medications</Text>
+                    <Text style={styles.quickActionText}>
+                      {t("quickActionMyMedications", "My Medications")}
+                    </Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
@@ -1462,7 +1488,9 @@ export default function VoiceAgentScreen() {
                     onPress={() => handleQuickAction("Show my health summary")}
                   >
                     <Ionicons name="heart" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>Health Summary</Text>
+                    <Text style={styles.quickActionText}>
+                      {t("quickActionHealthSummary", "Health Summary")}
+                    </Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
@@ -1470,7 +1498,9 @@ export default function VoiceAgentScreen() {
                     onPress={() => handleQuickAction("Check my recent vitals")}
                   >
                     <Ionicons name="pulse" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>Recent Vitals</Text>
+                    <Text style={styles.quickActionText}>
+                      {t("quickActionRecentVitals", "Recent Vitals")}
+                    </Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
@@ -1478,7 +1508,9 @@ export default function VoiceAgentScreen() {
                     onPress={() => handleQuickAction("How am I doing today?")}
                   >
                     <Ionicons name="happy" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>How Am I?</Text>
+                    <Text style={styles.quickActionText}>
+                      {t("quickActionHowAmI", "How Am I?")}
+                    </Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
@@ -1486,7 +1518,9 @@ export default function VoiceAgentScreen() {
                     onPress={() => handleQuickAction("Analyze my health trends")}
                   >
                     <Ionicons name="trending-up" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>Health Trends</Text>
+                    <Text style={styles.quickActionText}>
+                      {t("quickActionHealthTrends", "Health Trends")}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}

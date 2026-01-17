@@ -1254,7 +1254,7 @@ export default function DashboardScreen() {
       <SafeAreaView style={styles.container as ViewStyle}>
         <View style={styles.centerContainer as ViewStyle}>
           <Text color={theme.colors.accent.error} style={styles.errorText as TextStyle}>
-            Please log in to view your dashboard
+            {t("pleaseLogInToViewDashboard", "Please log in to view your dashboard")}
           </Text>
         </View>
       </SafeAreaView>

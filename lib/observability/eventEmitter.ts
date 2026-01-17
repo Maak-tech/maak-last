@@ -1,7 +1,6 @@
 import {
   addDoc,
   collection,
-  serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
 import { AppState, type AppStateStatus } from "react-native";
@@ -321,8 +320,14 @@ class ObservabilityEventEmitter {
     };
 
     try {
-      await addDoc(collection(db, METRICS_COLLECTION), sanitizeForFirestore(metric as any));
+      await addDoc(
+        collection(db, METRICS_COLLECTION),
+        sanitizeForFirestore(metric as any)
+      );
     } catch (error) {
+      // Firestore client can occasionally retry a successful "create" and get ALREADY_EXISTS.
+      // This is safe to ignore because the metric doc was already written.
+      if ((error as any)?.code === "already-exists") return;
       logger.error("Failed to record metric", { metricName, error }, "ObservabilityEmitter");
     }
   }

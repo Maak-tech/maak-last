@@ -167,7 +167,9 @@ export default function AppleHealthConnectedScreen() {
               { backgroundColor: theme.colors.primary.main },
             ]}
           >
-            <Text style={styles.primaryButtonText}>Connect Apple Health</Text>
+            <Text style={styles.primaryButtonText}>
+              {t("connectAppleHealth", "Connect Apple Health")}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -293,7 +295,9 @@ export default function AppleHealthConnectedScreen() {
                 ) : (
                   <>
                     <RefreshCw color="#FFFFFF" size={18} />
-                    <Text style={styles.syncButtonText}>Sync Now</Text>
+                    <Text style={styles.syncButtonText}>
+                      {t("syncNow", "Sync Now")}
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>

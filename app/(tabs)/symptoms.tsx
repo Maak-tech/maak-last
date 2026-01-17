@@ -556,7 +556,9 @@ export default function TrackScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
-          <Text color="#EF4444" style={styles.errorText}>Please log in to track symptoms</Text>
+          <Text color="#EF4444" style={styles.errorText}>
+            {t("pleaseLogInToTrackSymptoms", "Please log in to track symptoms")}
+          </Text>
         </View>
       </SafeAreaView>
     );
