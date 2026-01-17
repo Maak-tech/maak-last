@@ -932,6 +932,12 @@ export default function VoiceAgentScreen() {
       const base64Audio = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
+      // Basic sanity check: WAV files start with "RIFF" which base64-encodes to "UklG".
+      // If we send non-PCM audio (e.g. AAC/M4A) to the Realtime API while configured for PCM16,
+      // the assistant can appear "stuck listening" with no transcript.
+      if (!base64Audio || !base64Audio.startsWith("UklG")) {
+        return null;
+      }
       return base64Audio;
     } catch (error) {
       return null;
@@ -976,6 +982,7 @@ export default function VoiceAgentScreen() {
           recordingRef.current = null;
           
           if (uri) {
+            let didAppendAudio = false;
             // If we're not connected, we can't send the audio anywhere.
             if (!realtimeAgentService.isConnected()) {
               Alert.alert(
@@ -987,6 +994,15 @@ export default function VoiceAgentScreen() {
             const audioBase64 = await convertAudioToBase64PCM(uri);
             if (audioBase64) {
               realtimeAgentService.sendAudioData(audioBase64);
+              didAppendAudio = true;
+            } else {
+              Alert.alert(
+                t("unsupportedAudioFormat", "Unsupported audio format"),
+                t(
+                  "unsupportedAudioFormatBody",
+                  "Zeina couldn't read the recording as a PCM WAV file. This can happen if the device records AAC/M4A instead of PCM. Try again on a physical iOS device, or use text input."
+                )
+              );
             }
             }
             
@@ -996,11 +1012,13 @@ export default function VoiceAgentScreen() {
             } catch {
               // Ignore cleanup errors
             }
+
+            // Commit the audio buffer to trigger response (only if we actually appended audio)
+            if (didAppendAudio) {
+              realtimeAgentService.commitAudioBuffer();
+              setIsProcessing(true);
+            }
           }
-          
-          // Commit the audio buffer to trigger response
-          realtimeAgentService.commitAudioBuffer();
-          setIsProcessing(true);
         }
         setIsListening(false);
       } catch (error) {
@@ -1035,8 +1053,15 @@ export default function VoiceAgentScreen() {
           playThroughEarpieceAndroid: false,
         });
 
-        // Start recording in WAV/PCM format for better compatibility
+        // Start recording in WAV/PCM format for compatibility with Realtime API (expects PCM16)
         const recording = new Audio.Recording();
+
+        // expo-av supports different constant names across versions; pick the best available.
+        const iosLinearPcmOutputFormat =
+          Audio?.IOSOutputFormat?.LINEARPCM ??
+          Audio?.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM ??
+          null;
+
         await recording.prepareToRecordAsync({
           android: {
             extension: ".wav",
@@ -1048,6 +1073,7 @@ export default function VoiceAgentScreen() {
           },
           ios: {
             extension: ".wav",
+            ...(iosLinearPcmOutputFormat != null ? { outputFormat: iosLinearPcmOutputFormat } : {}),
             audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
             sampleRate: 24000,
             numberOfChannels: 1,

@@ -478,6 +478,13 @@ export default function ZeinaScreen() {
         try {
           // Create a short recording
           const recording = new Audio.Recording();
+
+          // expo-av supports different constant names across versions; pick the best available.
+          const iosLinearPcmOutputFormat =
+            Audio?.IOSOutputFormat?.LINEARPCM ??
+            Audio?.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM ??
+            null;
+
           await recording.prepareToRecordAsync({
             android: {
               extension: ".wav",
@@ -489,6 +496,7 @@ export default function ZeinaScreen() {
             },
             ios: {
               extension: ".wav",
+              ...(iosLinearPcmOutputFormat != null ? { outputFormat: iosLinearPcmOutputFormat } : {}),
               audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
               sampleRate: 24000,
               numberOfChannels: 1,
@@ -514,7 +522,9 @@ export default function ZeinaScreen() {
               encoding: FileSystem.EncodingType.Base64,
             });
 
-            if (base64Audio) {
+            // Basic sanity check: WAV files start with "RIFF" which base64-encodes to "UklG".
+            // If we stream non-PCM audio while the session expects PCM16, VAD/transcription can appear stuck.
+            if (base64Audio && base64Audio.startsWith("UklG")) {
               realtimeAgentService.sendAudioData(base64Audio);
             }
 

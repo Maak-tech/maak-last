@@ -29,6 +29,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
 import { useNotifications } from "@/hooks/useNotifications";
+import { pushNotificationService } from "@/lib/services/pushNotificationService";
 
 interface NotificationSettings {
   enabled: boolean;
@@ -67,6 +68,7 @@ export default function NotificationSettingsScreen() {
   });
 
   const isRTL = i18n.language === "ar";
+  const isAdmin = user?.role === "admin";
 
   // Hide the default header to prevent duplicate headers
   useLayoutEffect(() => {
@@ -486,6 +488,43 @@ export default function NotificationSettingsScreen() {
                 : "Clear All Medication Reminders"}
             </Text>
           </TouchableOpacity>
+
+          {isAdmin && user?.familyId && (
+            <TouchableOpacity
+              style={[styles.clearButton, { marginTop: 12, borderColor: "#DBEAFE" }]}
+              onPress={async () => {
+                try {
+                  await pushNotificationService.sendFamilyUpdateToAdmins({
+                    familyId: user.familyId,
+                    actorUserId: user.id,
+                    title: isRTL ? "👨‍👩‍👧‍👦 تحديث عائلي (اختبار)" : "👨‍👩‍👧‍👦 Family Update (Test)",
+                    body: isRTL
+                      ? "إذا رأيت هذا الإشعار، فـ Family Updates تعمل لحساب الأدمن."
+                      : "If you see this, Family Updates are working for the admin account.",
+                    data: {
+                      actorUserId: user.id,
+                    },
+                  });
+                  Alert.alert(
+                    isRTL ? "تم الإرسال" : "Sent",
+                    isRTL
+                      ? "تم إرسال إشعار اختبار للأدمن."
+                      : "Test family update sent to admin(s)."
+                  );
+                } catch {
+                  Alert.alert(
+                    isRTL ? "خطأ" : "Error",
+                    isRTL ? "فشل إرسال إشعار الاختبار" : "Failed to send test notification"
+                  );
+                }
+              }}
+            >
+              <Users color="#2563EB" size={20} />
+              <Text style={[styles.clearButtonText, { color: "#2563EB" }]}>
+                {isRTL ? "إرسال تحديث عائلي (اختبار للأدمن)" : "Send Family Update (Admin Test)"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Info Card */}

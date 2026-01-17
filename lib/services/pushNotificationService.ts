@@ -456,6 +456,71 @@ export const pushNotificationService = {
     await this.sendToAdmins(familyId, notification, userId);
   },
 
+  // Send a non-critical "family update" notification to family admins (respects familyUpdates preference on the backend)
+  async sendFamilyUpdateToAdmins(options: {
+    familyId: string;
+    title: string;
+    body: string;
+    actorUserId?: string; // user that triggered the update (to exclude from recipients if they are admin)
+    data?: Record<string, any>;
+  }): Promise<void> {
+    try {
+      const isFCMAvailable = await fcmService.isFCMAvailable();
+      if (isFCMAvailable) {
+        const functions = await getAuthenticatedFunctions();
+        const sendPushFunc = httpsCallable(functions, "sendPushNotification");
+
+        const familyMembers = await userService.getFamilyMembers(options.familyId);
+        const adminIds = familyMembers
+          .filter((m) => m.role === "admin" && m.id !== options.actorUserId)
+          .map((m) => m.id);
+
+        if (adminIds.length === 0) {
+          return;
+        }
+
+        const { auth } = await import("@/lib/firebase");
+        const currentUser = auth.currentUser;
+
+        await sendPushFunc({
+          userIds: adminIds,
+          notification: {
+            title: options.title,
+            body: options.body,
+            data: {
+              type: "family_update",
+              ...options.data,
+            },
+            priority: "normal",
+            sound: "default",
+            color: "#2563EB",
+          },
+          notificationType: "family",
+          senderId: currentUser?.uid || options.actorUserId,
+        });
+
+        return;
+      }
+    } catch {
+      // Silently fallback
+    }
+
+    // Fallback to local notification broadcast to admins (best effort)
+    const notification: PushNotificationData = {
+      title: options.title,
+      body: options.body,
+      data: {
+        type: "caregiver_alert",
+        ...options.data,
+      } as any,
+      priority: "normal",
+      sound: "default",
+      notificationType: "family",
+    };
+
+    await this.sendToAdmins(options.familyId, notification, options.actorUserId);
+  },
+
   // Test notification functionality
   async sendTestNotification(
     userId: string,

@@ -67,6 +67,44 @@ export function extractRedChannelAverage(frame: Frame): number {
     let extractedValue: number | null = null;
     let extractionMethod = 'none';
     let isFirstFrame = false; // Will be set by successful extraction
+
+    // IMPORTANT:
+    // This function runs inside a Frame Processor worklet. Some runtimes cannot
+    // access module-scope helper functions reliably (they may be undefined).
+    // Keep RGB sampling logic self-contained here to avoid "is not a function" errors.
+    const sampleRGB = (data: Uint8Array, bytesPerRow: number): number => {
+      // VisionCamera docs: pixelFormat="rgb" is RGBA or BGRA (8-bit) -> 4 bytes per pixel
+      const bpp = 4;
+      const stride = bytesPerRow > 0 ? bytesPerRow : width * bpp;
+
+      const minX = Math.max(0, centerX - sampleRadius);
+      const maxX = Math.min(width - 1, centerX + sampleRadius);
+      const minY = Math.max(0, centerY - sampleRadius);
+      const maxY = Math.min(height - 1, centerY + sampleRadius);
+
+      let sum = 0;
+      let count = 0;
+      const step = 4;
+
+      for (let y = minY; y <= maxY; y += step) {
+        const rowStart = y * stride;
+        for (let x = minX; x <= maxX; x += step) {
+          const idx = rowStart + x * bpp;
+          if (idx + 3 >= data.length) continue;
+
+          // BGRA: [B, G, R, A] -> red at +2
+          const redBGRA = data[idx + 2];
+          // RGBA: [R, G, B, A] -> red at +0
+          const redRGBA = data[idx + 0];
+
+          // Average both interpretations to avoid branching inside the worklet.
+          sum += (redBGRA + redRGBA) * 0.5;
+          count++;
+        }
+      }
+
+      return count > 0 ? sum / count : NaN;
+    };
     
     // Method 1: Try toArrayBuffer()
     if (extractedValue === null && typeof frameAny.toArrayBuffer === 'function') {
@@ -79,7 +117,7 @@ export function extractRedChannelAverage(frame: Frame): number {
             if (pixelFormat === 'yuv') {
               extractedValue = extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
             } else {
-              extractedValue = extractRedFromRGBAorBGRA(data, width, height, frame.bytesPerRow, centerX, centerY, sampleRadius);
+              extractedValue = sampleRGB(data, frame.bytesPerRow);
             }
             extractionMethod = 'toArrayBuffer';
             isFirstFrame = true;
@@ -196,14 +234,14 @@ export function extractRedChannelAverage(frame: Frame): number {
     }
     
     // Fallback: Return invalid marker
-    return generateFallbackPPGSignal();
+    return -1;
     
   } catch (error) {
     if (DEBUG_FRAME_EXTRACTION) {
       console.log('[PPG] Exception during extraction:', String(error));
     }
     // Return fallback value that won't break the signal
-    return generateFallbackPPGSignal();
+    return -1;
   }
 }
 
