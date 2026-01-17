@@ -145,6 +145,16 @@ export default function AnalyticsScreen() {
     }
   };
 
+  const buildIsoDateSeries = (days: number): string[] => {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    return Array.from({ length: days }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      return d.toISOString();
+    });
+  };
+
   const loadAnalyticsData = useCallback(async (isRefresh = false) => {
     if (!user) return;
 
@@ -204,33 +214,40 @@ export default function AnalyticsScreen() {
     getDaysFromRange(dateRange)
   );
 
+  const symptomIsoDates = buildIsoDateSeries(getDaysFromRange(dateRange));
   const symptomTrend = chartsService.predictTrend(
-    symptomChartData.labels.map((label, index) => ({
-      x: label,
+    symptomIsoDates.map((iso, index) => ({
+      x: iso,
       y: symptomChartData.datasets[0].data[index],
     })),
     7
   );
 
   // Prepare comparison data if comparison is enabled
-  const symptomComparisonData = showComparison && comparisonRange
-    ? chartsService.prepareComparisonData(
-        symptomChartData.labels.map((label, index) => ({
-          x: label,
-          y: symptomChartData.datasets[0].data[index],
-        })),
-        chartsService.prepareSymptomTimeSeries(
-          symptoms,
-          getDaysFromRange(comparisonRange)
-        ).labels.map((label, index) => ({
-          x: label,
-          y: chartsService.prepareSymptomTimeSeries(
+  const symptomComparisonData =
+    showComparison && comparisonRange
+      ? (() => {
+          const currentDays = getDaysFromRange(dateRange);
+          const previousDays = getDaysFromRange(comparisonRange);
+          const previousSymptomChartData = chartsService.prepareSymptomTimeSeries(
             symptoms,
-            getDaysFromRange(comparisonRange)
-          ).datasets[0].data[index],
-        }))
-      )
-    : null;
+            previousDays
+          );
+          const currentIsoDates = buildIsoDateSeries(currentDays);
+          const previousIsoDates = buildIsoDateSeries(previousDays);
+
+          return chartsService.prepareComparisonData(
+            currentIsoDates.map((iso, index) => ({
+              x: iso,
+              y: symptomChartData.datasets[0].data[index],
+            })),
+            previousIsoDates.map((iso, index) => ({
+              x: iso,
+              y: previousSymptomChartData.datasets[0].data[index],
+            }))
+          );
+        })()
+      : null;
 
   if (!user) {
     return (

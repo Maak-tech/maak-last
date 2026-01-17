@@ -56,7 +56,7 @@ import {
   useCameraPermission,
   useFrameProcessor,
 } from "react-native-vision-camera";
-import { runOnJS } from "react-native-reanimated";
+import { runOnJS, useSharedValue } from "react-native-reanimated";
 import { extractRedChannelAverage } from "@/lib/utils/PPGPixelExtractor";
 
 interface PPGVitalMonitorProps {
@@ -111,6 +111,8 @@ export default function PPGVitalMonitorVisionCamera({
   const [signalQuality, setSignalQuality] = useState<number | null>(null);
   const [fingerDetected, setFingerDetected] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [framesCaptured, setFramesCaptured] = useState(0);
+  const [frameProcessorCalled, setFrameProcessorCalled] = useState(false);
   const [beatsDetected, setBeatsDetected] = useState(0);
   const [currentMilestone, setCurrentMilestone] = useState<{
     title: string;
@@ -124,18 +126,24 @@ export default function PPGVitalMonitorVisionCamera({
   const [saveFailed, setSaveFailed] = useState(false);
   const [originalBrightness, setOriginalBrightness] = useState<number | null>(null);
 
+  // NOTE: Do not use React refs inside VisionCamera frame processor worklets.
+  // Worklets run on a separate runtime and cannot safely read/write React refs.
   const frameCountRef = useRef(0);
   const ppgSignalRef = useRef<number[]>([]);
   const startTimeRef = useRef<number>(0);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCapturingRef = useRef(false);
   const fingerDetectedRef = useRef(false);
-  const lastFrameTimeRef = useRef<number>(0);
   const consecutiveNoFingerFrames = useRef(0);
   const consecutiveFrameFailures = useRef(0); // Track consecutive frame extraction failures
   const totalFrameFailures = useRef(0); // Track total failures
-  const frameProcessorInitialized = useRef(false); // Track if frame processor has been called
   const hasLoggedFrameProcessor = useRef(false); // Track if we've logged frame processor status
+
+  // Worklet-safe state for the frame processor.
+  const isCapturingSV = useSharedValue(false);
+  const lastFrameTimeSV = useSharedValue(0);
+  const frameCountSV = useSharedValue(0);
+  const frameProcessorInitializedSV = useSharedValue(false);
   
   // Debug flags - set to false in production to reduce console spam
   const DEBUG_FRAME_PROCESSOR = __DEV__; // Only debug in development mode
@@ -582,6 +590,7 @@ export default function PPGVitalMonitorVisionCamera({
         if (status === "measuring" && isCapturingRef.current) {
           isCapturingRef.current = false;
           setIsCapturing(false);
+          isCapturingSV.value = false;
           if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
@@ -614,8 +623,12 @@ export default function PPGVitalMonitorVisionCamera({
     fingerDetectedRef.current = false;
     setIsCapturing(false);
     isCapturingRef.current = false;
+    isCapturingSV.value = false;
     frameCountRef.current = 0;
+    frameCountSV.value = 0;
     ppgSignalRef.current = [];
+    setFramesCaptured(0);
+    setFrameProcessorCalled(false);
     setBeatsDetected(0);
     setCurrentMilestone(null);
     setRecordingTime(0);
@@ -626,6 +639,8 @@ export default function PPGVitalMonitorVisionCamera({
     consecutiveNoFingerFrames.current = 0;
     consecutiveFrameFailures.current = 0;
     totalFrameFailures.current = 0;
+    lastFrameTimeSV.value = 0;
+    frameProcessorInitializedSV.value = false;
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
@@ -791,15 +806,18 @@ export default function PPGVitalMonitorVisionCamera({
     }
 
     frameCountRef.current = 0;
+    frameCountSV.value = 0;
     ppgSignalRef.current = [];
     startTimeRef.current = Date.now();
-    lastFrameTimeRef.current = Date.now();
+    lastFrameTimeSV.value = Date.now();
     setProgress(0);
     setRecordingTime(0);
     setBeatsDetected(0);
     setCurrentMilestone(progressMilestones[0]);
     setIsCapturing(true);
     isCapturingRef.current = true;
+    isCapturingSV.value = true;
+    setFramesCaptured(0);
 
     // Start timer for recording time and milestones
     timerIntervalRef.current = setInterval(() => {
@@ -826,6 +844,7 @@ export default function PPGVitalMonitorVisionCamera({
   const stopPPGCapture = useCallback(async () => {
     setIsCapturing(false);
     isCapturingRef.current = false;
+    isCapturingSV.value = false;
 
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -1004,35 +1023,39 @@ export default function PPGVitalMonitorVisionCamera({
     consecutiveFrameFailures.current = 0;
   }, []);
 
+  const markFrameProcessorCalled = useCallback(() => {
+    setFrameProcessorCalled(true);
+  }, []);
+
   // Frame processor for real-time PPG signal extraction
   const frameProcessor = useFrameProcessor((frame) => {
     'worklet';
 
     // Log first frame processor call for debugging
-    if (!frameProcessorInitialized.current) {
-      frameProcessorInitialized.current = true;
-      console.log('[PPG] Frame processor initialized and receiving frames');
+    if (!frameProcessorInitializedSV.value) {
+      frameProcessorInitializedSV.value = true;
+      runOnJS(markFrameProcessorCalled)();
     }
 
     // Only process frames if we're capturing
-    if (!isCapturingRef.current) {
+    if (!isCapturingSV.value) {
       return;
     }
 
     const now = Date.now();
     
     // Throttle to TARGET_FPS (dynamically set based on camera capabilities)
-    if (now - lastFrameTimeRef.current < FRAME_INTERVAL_MS) {
+    if (now - lastFrameTimeSV.value < FRAME_INTERVAL_MS) {
       return;
     }
     
-    lastFrameTimeRef.current = now;
+    lastFrameTimeSV.value = now;
 
     try {
       // Validate frame dimensions
       if (!frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) {
         // Invalid frame - track failure and skip (don't add fake data)
-        runOnJS(handleFrameProcessingError)(frameCountRef.current);
+        runOnJS(handleFrameProcessingError)(frameCountSV.value);
         return; // Skip this frame - don't add any data
       }
       
@@ -1045,7 +1068,7 @@ export default function PPGVitalMonitorVisionCamera({
       if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
         // Invalid value - track failure and skip (don't add fake data)
         // This includes -1 (extraction failed) and any out-of-range values
-        runOnJS(handleFrameProcessingError)(frameCountRef.current);
+        runOnJS(handleFrameProcessingError)(frameCountSV.value);
         return; // Skip this frame - don't add any data
       }
       
@@ -1054,16 +1077,21 @@ export default function PPGVitalMonitorVisionCamera({
       runOnJS(resetFrameFailureCounter)();
       
       // Call JS function to process the frame data
-      runOnJS(processPPGFrameData)(redAverage, frameCountRef.current);
-      
-      frameCountRef.current++;
+      runOnJS(processPPGFrameData)(redAverage, frameCountSV.value);
+      frameCountSV.value = frameCountSV.value + 1;
     } catch (error) {
       // Handle frame processing errors - track failure but don't add fake data
-      runOnJS(handleFrameProcessingError)(frameCountRef.current);
+      runOnJS(handleFrameProcessingError)(frameCountSV.value);
       // Don't add any data - skip this frame entirely
       return;
     }
-  }, []);
+  }, [
+    FRAME_INTERVAL_MS,
+    handleFrameProcessingError,
+    markFrameProcessorCalled,
+    processPPGFrameData,
+    resetFrameFailureCounter,
+  ]);
 
   const processPPGFrameData = useCallback((redAverage: number, frameIndex: number) => {
     if (!isCapturingRef.current) {
@@ -1084,6 +1112,12 @@ export default function PPGVitalMonitorVisionCamera({
     // Do not clamp to hide errors - if value is out of range, it's rejected above
     const validValue = Math.round(redAverage);
     ppgSignalRef.current.push(validValue);
+    frameCountRef.current = frameIndex + 1;
+
+    // Update UI counter at ~1Hz to avoid re-rendering at 30fps
+    if (frameIndex % Math.max(1, Math.round(TARGET_FPS)) === 0) {
+      setFramesCaptured(ppgSignalRef.current.length);
+    }
 
     // Update progress
     const elapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -1433,6 +1467,8 @@ export default function PPGVitalMonitorVisionCamera({
                 {'\n'}FPS: {TARGET_FPS} (device max: {format?.maxFps ?? 'N/A'})
                 {'\n'}Finger: {fingerDetected ? 'Yes' : 'No'}
                 {'\n'}Capturing: {isCapturing ? 'Yes' : 'No'}
+                {'\n'}Frames: {framesCaptured}/{TARGET_FRAMES}
+                {'\n'}FrameProc: {frameProcessorCalled ? 'Called' : 'Not called'}
               </Text>
             </View>
           )}
@@ -1706,7 +1742,7 @@ export default function PPGVitalMonitorVisionCamera({
                         ] as StyleProp<TextStyle>
                       }
                     >
-                      Capturing {frameCountRef.current}/{TARGET_FRAMES} frames at{" "}
+                      Capturing {framesCaptured}/{TARGET_FRAMES} frames at{" "}
                       {TARGET_FPS} fps • {recordingTime}s/{MEASUREMENT_DURATION}s
                     </Text>
                   </>

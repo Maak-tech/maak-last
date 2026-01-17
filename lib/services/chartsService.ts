@@ -324,10 +324,21 @@ class ChartsService {
 
     // Generate predictions
     const predicted: ChartDataPoint[] = [];
-    const lastDate = dataPoints[dataPoints.length - 1].x;
-    const lastDateObj = typeof lastDate === "string"
-      ? new Date(lastDate)
-      : new Date(lastDate);
+    const toValidDate = (value: ChartDataPoint["x"]): Date | null => {
+      const d = typeof value === "number" ? new Date(value) : new Date(value);
+      return Number.isFinite(d.getTime()) ? d : null;
+    };
+
+    let baseDate: Date | null = null;
+    for (let i = dataPoints.length - 1; i >= 0; i--) {
+      const d = toValidDate(dataPoints[i].x);
+      if (d) {
+        baseDate = d;
+        break;
+      }
+    }
+    const hasDateAxis = baseDate !== null;
+    const lastDateObj = baseDate ?? new Date();
 
     for (let i = 1; i <= futureDays; i++) {
       const futureDate = new Date(lastDateObj);
@@ -336,7 +347,7 @@ class ChartsService {
       const predictedY = slope * futureX + intercept;
 
       predicted.push({
-        x: futureDate.toISOString(),
+        x: hasDateAxis ? futureDate.toISOString() : futureX,
         y: Math.max(0, predictedY), // Ensure non-negative
       });
     }
