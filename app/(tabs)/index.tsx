@@ -84,7 +84,12 @@ export default function DashboardScreen() {
   const hasFamily = Boolean(user?.familyId);
 
   // Initialize daily notification scheduler
-  useDailyNotificationScheduler(true);
+  const notificationPrefs = (user as any)?.preferences?.notifications;
+  const notificationsEnabled =
+    typeof notificationPrefs === "object"
+      ? notificationPrefs?.enabled !== false
+      : notificationPrefs !== false;
+  useDailyNotificationScheduler(notificationsEnabled);
 
   // Create themed styles
   const styles = createThemedStyles((theme) => ({

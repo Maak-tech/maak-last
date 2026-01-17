@@ -16,7 +16,7 @@ import { Frame } from 'react-native-vision-camera';
 
 // Debug flag - set to false in production to reduce console spam
 // Set to true when troubleshooting frame extraction issues
-const DEBUG_FRAME_EXTRACTION = true;
+const DEBUG_FRAME_EXTRACTION = __DEV__;
 
 /**
  * Extract red channel average from camera frame
@@ -55,12 +55,12 @@ export function extractRedChannelAverage(frame: Frame): number {
     const sampleRadius = Math.floor(Math.min(width, height) * 0.25); // Increased to 25% for better averaging
     
     // Get pixel format
-    const pixelFormat = frame.pixelFormat || 'yuv';
+    const pixelFormat = frame.pixelFormat;
     
     // Only log frame info once (first frame)
     // Subsequent frames will use the same method
     
-    // Cast frame for accessing internal properties
+    // Cast frame for accessing internal properties (JSI HostObjects can be fragile - avoid enumerating keys)
     const frameAny = frame as any;
     
     // Try multiple methods to access pixel data
@@ -68,49 +68,32 @@ export function extractRedChannelAverage(frame: Frame): number {
     let extractionMethod = 'none';
     let isFirstFrame = false; // Will be set by successful extraction
     
-    // Method 1: Try getNativeBuffer() for Nitro Modules (react-native-vision-camera v4.x)
-    if (extractedValue === null && typeof frameAny.getNativeBuffer === 'function') {
-      try {
-        const buffer = frameAny.getNativeBuffer();
-        if (buffer) {
-          const data = new Uint8Array(buffer);
-          if (data.length > 0) {
-            if (pixelFormat === 'yuv') {
-              extractedValue = extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
-            } else {
-              extractedValue = extractRedFromBuffer(data, width, height, centerX, centerY, sampleRadius);
-            }
-            extractionMethod = 'getNativeBuffer';
-            isFirstFrame = true;
-          }
-        }
-      } catch (e) {
-        // Method not available or failed - try next method
-      }
-    }
-    
-    // Method 2: Try toArrayBuffer() (legacy API)
+    // Method 1: Try toArrayBuffer()
     if (extractedValue === null && typeof frameAny.toArrayBuffer === 'function') {
       try {
         const buffer = frameAny.toArrayBuffer();
         if (buffer) {
+          // buffer can be ArrayBuffer (expected). If it's not, this will throw and get logged below.
           const data = new Uint8Array(buffer);
           if (data.length > 0) {
             if (pixelFormat === 'yuv') {
               extractedValue = extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
             } else {
-              extractedValue = extractRedFromBuffer(data, width, height, centerX, centerY, sampleRadius);
+              extractedValue = extractRedFromRGBAorBGRA(data, width, height, frame.bytesPerRow, centerX, centerY, sampleRadius);
             }
             extractionMethod = 'toArrayBuffer';
             isFirstFrame = true;
           }
         }
       } catch (e) {
+        if (DEBUG_FRAME_EXTRACTION) {
+          console.log('[PPG] toArrayBuffer() threw:', String(e));
+        }
         // Method not available or failed - try next method
       }
     }
     
-    // Method 3: Try getPlaneData() for plane-based access (v4 API)
+    // Method 2: Try getPlaneData() (some builds expose this non-typed API)
     if (extractedValue === null && typeof frameAny.getPlaneData === 'function') {
       try {
         const yPlaneData = frameAny.getPlaneData(0);
@@ -149,7 +132,7 @@ export function extractRedChannelAverage(frame: Frame): number {
       }
     }
     
-    // Method 4: Try planes array property
+    // Method 3: Try planes array property (some builds expose this non-typed API)
     if (extractedValue === null && frameAny.planes && Array.isArray(frameAny.planes) && frameAny.planes.length > 0) {
       try {
         const plane0 = frameAny.planes[0];
@@ -207,8 +190,6 @@ export function extractRedChannelAverage(frame: Frame): number {
     // All methods failed - log details only when debugging
     if (DEBUG_FRAME_EXTRACTION) {
       console.log('[PPG] All extraction methods failed');
-      console.log('[PPG] Available frame properties:', Object.keys(frameAny).slice(0, 20)); // Limit output
-      console.log('[PPG] Frame has getNativeBuffer:', typeof frameAny.getNativeBuffer === 'function');
       console.log('[PPG] Frame has toArrayBuffer:', typeof frameAny.toArrayBuffer === 'function');
       console.log('[PPG] Frame has getPlaneData:', typeof frameAny.getPlaneData === 'function');
       console.log('[PPG] Frame has planes:', Array.isArray(frameAny.planes));
@@ -219,7 +200,7 @@ export function extractRedChannelAverage(frame: Frame): number {
     
   } catch (error) {
     if (DEBUG_FRAME_EXTRACTION) {
-      console.log('[PPG] Exception during extraction:', error);
+      console.log('[PPG] Exception during extraction:', String(error));
     }
     // Return fallback value that won't break the signal
     return generateFallbackPPGSignal();
@@ -245,6 +226,61 @@ function generateFallbackPPGSignal(): number {
   // and will cause the measurement to properly fail
   // DO NOT return 128 or any other "neutral" value that could pass validation
   return -1; // Invalid marker - extraction failed
+}
+
+/**
+ * Extract red channel from RGB frames in VisionCamera.
+ * VisionCamera's `pixelFormat="rgb"` is documented as "RGBA or BGRA (8-bit)".
+ *
+ * This implementation:
+ * - Assumes 4 bytes per pixel.
+ * - Uses `bytesPerRow` stride to support padding.
+ * - Treats the frame as BGRA (iOS) by default but also works for RGBA by sampling both and averaging.
+ *
+ * @returns Average red channel intensity (0-255), or NaN if sampling fails.
+ */
+function extractRedFromRGBAorBGRA(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  bytesPerRow: number,
+  centerX: number,
+  centerY: number,
+  radius: number
+): number {
+  'worklet';
+
+  const bpp = 4;
+  const stride = bytesPerRow > 0 ? bytesPerRow : width * bpp;
+
+  const minX = Math.max(0, centerX - radius);
+  const maxX = Math.min(width - 1, centerX + radius);
+  const minY = Math.max(0, centerY - radius);
+  const maxY = Math.min(height - 1, centerY + radius);
+
+  let sum = 0;
+  let count = 0;
+  const step = 4;
+
+  for (let y = minY; y <= maxY; y += step) {
+    const rowStart = y * stride;
+    for (let x = minX; x <= maxX; x += step) {
+      const idx = rowStart + x * bpp;
+      if (idx + 3 >= data.length) continue;
+
+      // BGRA: [B, G, R, A] -> red at +2
+      const redBGRA = data[idx + 2];
+      // RGBA: [R, G, B, A] -> red at +0
+      const redRGBA = data[idx + 0];
+
+      // Average the two interpretations. One will be correct; the other will be correlated but wrong.
+      // This avoids hard-coding platform branching inside the worklet.
+      sum += (redBGRA + redRGBA) * 0.5;
+      count++;
+    }
+  }
+
+  return count > 0 ? sum / count : NaN;
 }
 
 /**

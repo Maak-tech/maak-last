@@ -113,6 +113,7 @@ export default function PPGVitalMonitorVisionCamera({
   const [isCapturing, setIsCapturing] = useState(false);
   const [framesCaptured, setFramesCaptured] = useState(0);
   const [frameProcessorCalled, setFrameProcessorCalled] = useState(false);
+  const [frameMeta, setFrameMeta] = useState<string | null>(null);
   const [beatsDetected, setBeatsDetected] = useState(0);
   const [currentMilestone, setCurrentMilestone] = useState<{
     title: string;
@@ -1027,85 +1028,10 @@ export default function PPGVitalMonitorVisionCamera({
     setFrameProcessorCalled(true);
   }, []);
 
-  const markFrameProcessorCalledOnJS = useRunOnJS(
-    markFrameProcessorCalled,
-    [markFrameProcessorCalled]
-  );
-  const handleFrameProcessingErrorOnJS = useRunOnJS(
-    handleFrameProcessingError,
-    [handleFrameProcessingError]
-  );
-  const resetFrameFailureCounterOnJS = useRunOnJS(
-    resetFrameFailureCounter,
-    [resetFrameFailureCounter]
-  );
-  const processPPGFrameDataOnJS = useRunOnJS(processPPGFrameData, [processPPGFrameData]);
-
-  // Frame processor for real-time PPG signal extraction
-  const frameProcessor = useFrameProcessor((frame) => {
-    'worklet';
-
-    // Log first frame processor call for debugging
-    if (!frameProcessorInitializedSV.value) {
-      frameProcessorInitializedSV.value = true;
-      markFrameProcessorCalledOnJS();
-    }
-
-    // Only process frames if we're capturing
-    if (!isCapturingSV.value) {
-      return;
-    }
-
-    const now = Date.now();
-    
-    // Throttle to TARGET_FPS (dynamically set based on camera capabilities)
-    if (now - lastFrameTimeSV.value < FRAME_INTERVAL_MS) {
-      return;
-    }
-    
-    lastFrameTimeSV.value = now;
-
-    try {
-      // Validate frame dimensions
-      if (!frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) {
-        // Invalid frame - track failure and skip (don't add fake data)
-        handleFrameProcessingErrorOnJS(frameCountSV.value);
-        return; // Skip this frame - don't add any data
-      }
-      
-      // Extract red channel average from center of frame using pixel extractor
-      // CRITICAL: extractRedChannelAverage returns -1 if extraction fails
-      const redAverage = extractRedChannelAverage(frame);
-      
-      // Validate extracted value - must be valid real data (0-255 range)
-      // -1 indicates extraction failure - DO NOT treat as valid data
-      if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
-        // Invalid value - track failure and skip (don't add fake data)
-        // This includes -1 (extraction failed) and any out-of-range values
-        handleFrameProcessingErrorOnJS(frameCountSV.value);
-        return; // Skip this frame - don't add any data
-      }
-      
-      // Only process if we have REAL valid data from the camera
-      // Reset failure counter on success
-      resetFrameFailureCounterOnJS();
-      
-      // Call JS function to process the frame data
-      processPPGFrameDataOnJS(redAverage, frameCountSV.value);
-      frameCountSV.value = frameCountSV.value + 1;
-    } catch (error) {
-      // Handle frame processing errors - track failure but don't add fake data
-      handleFrameProcessingErrorOnJS(frameCountSV.value);
-      // Don't add any data - skip this frame entirely
-      return;
-    }
-  }, [
-    FRAME_INTERVAL_MS,
-    handleFrameProcessingErrorOnJS,
-    markFrameProcessorCalledOnJS,
-    processPPGFrameDataOnJS,
-    resetFrameFailureCounterOnJS,
-  ]);
+  const setFrameMetaFromWorklet = useCallback((meta: string) => {
+    // capture once so we don't spam re-renders
+    setFrameMeta((prev) => prev ?? meta);
+  }, []);
 
   const processPPGFrameData = useCallback((redAverage: number, frameIndex: number) => {
     if (!isCapturingRef.current) {
@@ -1190,6 +1116,94 @@ export default function PPGVitalMonitorVisionCamera({
       }
     }
   }, [stopPPGCapture, handleFrameProcessingError]);
+
+  // Create worklet-safe "hop back to JS" wrappers AFTER the callbacks exist.
+  const markFrameProcessorCalledOnJS = useRunOnJS(
+    markFrameProcessorCalled,
+    [markFrameProcessorCalled]
+  );
+  const handleFrameProcessingErrorOnJS = useRunOnJS(
+    handleFrameProcessingError,
+    [handleFrameProcessingError]
+  );
+  const resetFrameFailureCounterOnJS = useRunOnJS(
+    resetFrameFailureCounter,
+    [resetFrameFailureCounter]
+  );
+  const processPPGFrameDataOnJS = useRunOnJS(
+    processPPGFrameData,
+    [processPPGFrameData]
+  );
+  const setFrameMetaOnJS = useRunOnJS(setFrameMetaFromWorklet, [setFrameMetaFromWorklet]);
+
+  // Frame processor for real-time PPG signal extraction
+  const frameProcessor = useFrameProcessor((frame) => {
+    "worklet";
+
+    // Log first frame processor call for debugging
+    if (!frameProcessorInitializedSV.value) {
+      frameProcessorInitializedSV.value = true;
+      markFrameProcessorCalledOnJS();
+      setFrameMetaOnJS(
+        `isValid=${String(frame.isValid)} ${frame.width}x${frame.height} ${String(frame.pixelFormat)} bytesPerRow=${String(frame.bytesPerRow)}`
+      );
+    }
+
+    // Only process frames if we're capturing
+    if (!isCapturingSV.value) {
+      return;
+    }
+
+    const now = Date.now();
+
+    // Throttle to TARGET_FPS (dynamically set based on camera capabilities)
+    if (now - lastFrameTimeSV.value < FRAME_INTERVAL_MS) {
+      return;
+    }
+
+    lastFrameTimeSV.value = now;
+
+    try {
+      // Validate frame dimensions
+      if (!frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) {
+        // Invalid frame - track failure and skip (don't add fake data)
+        handleFrameProcessingErrorOnJS(frameCountSV.value);
+        return; // Skip this frame - don't add any data
+      }
+
+      // Extract red channel average from center of frame using pixel extractor
+      // CRITICAL: extractRedChannelAverage returns -1 if extraction fails
+      const redAverage = extractRedChannelAverage(frame);
+
+      // Validate extracted value - must be valid real data (0-255 range)
+      // -1 indicates extraction failure - DO NOT treat as valid data
+      if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
+        // Invalid value - track failure and skip (don't add fake data)
+        // This includes -1 (extraction failed) and any out-of-range values
+        handleFrameProcessingErrorOnJS(frameCountSV.value);
+        return; // Skip this frame - don't add any data
+      }
+
+      // Only process if we have REAL valid data from the camera
+      // Reset failure counter on success
+      resetFrameFailureCounterOnJS();
+
+      // Call JS function to process the frame data
+      processPPGFrameDataOnJS(redAverage, frameCountSV.value);
+      frameCountSV.value = frameCountSV.value + 1;
+    } catch (error) {
+      // Handle frame processing errors - track failure but don't add fake data
+      handleFrameProcessingErrorOnJS(frameCountSV.value);
+      // Don't add any data - skip this frame entirely
+      return;
+    }
+  }, [
+    FRAME_INTERVAL_MS,
+    handleFrameProcessingErrorOnJS,
+    markFrameProcessorCalledOnJS,
+    processPPGFrameDataOnJS,
+    resetFrameFailureCounterOnJS,
+  ]);
 
   const saveVitalToFirestore = async (
     heartRate: number,
@@ -1451,7 +1465,8 @@ export default function PPGVitalMonitorVisionCamera({
                 format={format}
                 isActive={status === "measuring"}
                 frameProcessor={frameProcessor}
-                pixelFormat="yuv"
+                frameProcessorFps={TARGET_FPS}
+                pixelFormat="rgb"
                 fps={TARGET_FPS}
                 torch={status === "measuring" ? "on" : "off"}
                 onError={(error) => {
@@ -1483,6 +1498,7 @@ export default function PPGVitalMonitorVisionCamera({
                 {'\n'}Capturing: {isCapturing ? 'Yes' : 'No'}
                 {'\n'}Frames: {framesCaptured}/{TARGET_FRAMES}
                 {'\n'}FrameProc: {frameProcessorCalled ? 'Called' : 'Not called'}
+                {frameMeta ? `\n${frameMeta}` : ''}
               </Text>
             </View>
           )}

@@ -33,6 +33,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 interface NotificationSettings {
   enabled: boolean;
   fallAlerts: boolean;
+  wellnessCheckins: boolean;
   medicationReminders: boolean;
   symptomAlerts: boolean;
   familyUpdates: boolean;
@@ -54,6 +55,7 @@ export default function NotificationSettingsScreen() {
   const [settings, setSettings] = useState<NotificationSettings>({
     enabled: true,
     fallAlerts: true,
+    wellnessCheckins: true,
     medicationReminders: true,
     symptomAlerts: true,
     familyUpdates: true,
@@ -162,6 +164,39 @@ export default function NotificationSettingsScreen() {
         await cancelAllMedicationNotifications();
       } catch (error) {
         // Silently handle error
+      }
+    }
+
+    // If wellness check-ins are disabled, cancel scheduled check-ins to stop immediate noise
+    if (
+      (key === "wellnessCheckins" && newValue === false) ||
+      (key === "enabled" && newValue === false)
+    ) {
+      try {
+        const { Platform } = await import("react-native");
+        if (Platform.OS !== "web") {
+          const Notifications = await import("expo-notifications");
+          const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+
+          for (const notification of allScheduled as any[]) {
+            const data = notification?.content?.data;
+            const dataType = typeof data?.type === "string" ? data.type : "";
+            const isCheckin =
+              dataType.includes("checkin") ||
+              dataType.includes("reflection") ||
+              dataType.includes("wellness");
+
+            if (isCheckin) {
+              try {
+                await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+              } catch {
+                // Silently handle individual cancellation error
+              }
+            }
+          }
+        }
+      } catch {
+        // Silently handle cancellation error
       }
     }
   };
@@ -289,6 +324,16 @@ export default function NotificationSettingsScreen() {
               : "Immediate notifications when a fall is detected",
             "fallAlerts",
             "#EF4444"
+          )}
+
+          {renderToggleItem(
+            <Bell color="#2563EB" size={20} />,
+            isRTL ? "تحديثات العافية اليومية" : "Wellness Check-ins",
+            isRTL
+              ? "تذكيرات يومية بسيطة لمتابعة الصحة"
+              : "Light daily check-ins to track wellbeing",
+            "wellnessCheckins",
+            "#2563EB"
           )}
 
           {renderToggleItem(

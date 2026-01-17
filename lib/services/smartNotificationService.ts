@@ -75,6 +75,143 @@ export interface SmartNotification {
 }
 
 class SmartNotificationService {
+  private static readonly DEDUPE_WINDOW_MS = 30 * 60 * 1000;
+
+  private getDedupeWindowId(date: Date): number {
+    return Math.floor(date.getTime() / SmartNotificationService.DEDUPE_WINDOW_MS);
+  }
+
+  private extractTriggerDateFromScheduledRequest(request: any): Date | null {
+    try {
+      const trigger = request?.trigger;
+      if (!trigger) return null;
+
+      const rawDate = (trigger as any).date ?? (trigger as any).value;
+      if (!rawDate) return null;
+
+      const parsed = new Date(rawDate);
+      if (Number.isNaN(parsed.getTime())) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private getSchedulingKeyFromSmartNotification(notification: SmartNotification): string {
+    const userId =
+      typeof notification.data?.userId === "string" && notification.data.userId.length > 0
+        ? notification.data.userId
+        : "unknown";
+
+    const medicationName =
+      typeof (notification.data as any)?.medicationName === "string"
+        ? (notification.data as any).medicationName
+        : undefined;
+    const reminderTime =
+      typeof (notification.data as any)?.reminderTime === "string"
+        ? (notification.data as any).reminderTime
+        : undefined;
+    if (medicationName && reminderTime) {
+      return `medication_reminder:${userId}:${medicationName}:${reminderTime}`;
+    }
+
+    const dataType =
+      typeof notification.data?.type === "string" && notification.data.type.length > 0
+        ? notification.data.type
+        : notification.title;
+
+    const windowId = this.getDedupeWindowId(notification.scheduledTime);
+    return `${dataType}:${userId}:${windowId}`;
+  }
+
+  private getSchedulingKeyFromScheduledRequest(request: any): string | null {
+    try {
+      const content = request?.content;
+      if (!content) return null;
+
+      const data = content?.data ?? {};
+      const userId = typeof data.userId === "string" && data.userId.length > 0 ? data.userId : "unknown";
+
+      const medicationName = typeof data.medicationName === "string" ? data.medicationName : undefined;
+      const reminderTime = typeof data.reminderTime === "string" ? data.reminderTime : undefined;
+      if (medicationName && reminderTime) {
+        return `medication_reminder:${userId}:${medicationName}:${reminderTime}`;
+      }
+
+      const dataType =
+        typeof data.type === "string" && data.type.length > 0
+          ? data.type
+          : typeof content.title === "string"
+            ? content.title
+            : "";
+
+      const triggerDate = this.extractTriggerDateFromScheduledRequest(request) ?? new Date();
+      const windowId = this.getDedupeWindowId(triggerDate);
+      return `${dataType}:${userId}:${windowId}`;
+    } catch {
+      return null;
+    }
+  }
+
+  private async getUserNotificationSettings(userId: string): Promise<any | null> {
+    try {
+      const { userService } = await import("./userService");
+      const user = await userService.getUser(userId);
+      return user?.preferences?.notifications ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private normalizeNotificationSettings(settings: any | null): any | null {
+    if (settings === null || settings === undefined) return null;
+    if (typeof settings === "boolean") {
+      return { enabled: settings };
+    }
+    if (typeof settings === "object") {
+      return settings;
+    }
+    return null;
+  }
+
+  private isAllowedByUserPreferences(notification: SmartNotification, rawSettings: any | null): boolean {
+    const settings = this.normalizeNotificationSettings(rawSettings);
+    if (!settings) return true;
+
+    if (settings.enabled === false) return false;
+
+    const dataType = typeof notification.data?.type === "string" ? notification.data.type : "";
+
+    if (
+      settings.wellnessCheckins === false &&
+      (notification.type === "wellness_checkin" ||
+        dataType.includes("checkin") ||
+        dataType.includes("reflection") ||
+        dataType.includes("wellness"))
+    ) {
+      return false;
+    }
+
+    if (
+      settings.medicationReminders === false &&
+      (notification.type === "medication" ||
+        notification.type === "medication_confirmation" ||
+        dataType.includes("medication") ||
+        dataType.includes("refill"))
+    ) {
+      return false;
+    }
+
+    if (settings.symptomAlerts === false && (notification.type === "alert" || dataType.includes("symptom"))) {
+      return false;
+    }
+
+    if (settings.familyUpdates === false && (notification.type === "family_update" || dataType.includes("family"))) {
+      return false;
+    }
+
+    return true;
+  }
   /**
    * Get current time context
    */
@@ -356,10 +493,11 @@ class SmartNotificationService {
     const achievementCelebrations = this.generateAchievementCelebrations(userStats);
     notifications.push(...achievementCelebrations.slice(0, 1)); // Max 1 achievement
 
-    // Remove duplicates and apply final limit
-    const uniqueNotifications = notifications.filter((notification, index, self) =>
-      index === self.findIndex(n => n.id === notification.id)
-    );
+    // Remove duplicates and apply final limit (ids often include Date.now(), so dedupe via stable key instead)
+    const uniqueNotifications = notifications.filter((notification, index, self) => {
+      const key = this.getSchedulingKeyFromSmartNotification(notification);
+      return index === self.findIndex(n => this.getSchedulingKeyFromSmartNotification(n) === key);
+    });
 
     return uniqueNotifications.slice(0, maxNotifications);
   }
@@ -387,15 +525,28 @@ class SmartNotificationService {
         return { scheduled: 0, failed: notifications.length, suppressed: 0 };
       }
 
-      // Step 0: Clear existing notifications of the same types to prevent duplicates
-      await this.clearExistingNotificationsOfTypes(notifications, Notifications);
+      // Respect user preferences (best-effort)
+      const inferredUserId = notifications.find(n => typeof n.data?.userId === "string")?.data?.userId as
+        | string
+        | undefined;
+      const rawSettings = inferredUserId ? await this.getUserNotificationSettings(inferredUserId) : null;
+      const settings = this.normalizeNotificationSettings(rawSettings);
+
+      if (settings?.enabled === false) {
+        return { scheduled: 0, failed: 0, suppressed: notifications.length };
+      }
+
+      const preferenceFiltered = notifications.filter(n => this.isAllowedByUserPreferences(n, settings));
+
+      // Step 0: Clear existing notifications that match what we're about to schedule (prevents duplicates on reopen)
+      await this.clearExistingNotificationsOfTypes(preferenceFiltered, Notifications);
 
       // Step 1: Optimize and prioritize notifications
-      const optimizedNotifications = await this.optimizeNotificationSchedule(notifications);
+      const optimizedNotifications = await this.optimizeNotificationSchedule(preferenceFiltered);
 
       // Step 2: Suppress overlapping/duplicate notifications
       const filteredNotifications = this.suppressDuplicateNotifications(optimizedNotifications);
-      suppressed = notifications.length - filteredNotifications.length;
+      suppressed = preferenceFiltered.length - filteredNotifications.length;
 
       // Step 3: Schedule with intelligent timing
       for (const notification of filteredNotifications) {
@@ -435,28 +586,44 @@ class SmartNotificationService {
         return;
       }
 
-      // Get the types of notifications we're about to schedule
       const newNotificationTypes = new Set(newNotifications.map(n => n.type));
       const newUserIds = new Set(newNotifications.map(n => n.data?.userId).filter(Boolean));
+      const keysToSchedule = new Set(newNotifications.map(n => this.getSchedulingKeyFromSmartNotification(n)));
 
-      // Find notifications to cancel - those with matching types and user IDs
-      const notificationsToCancel = scheduledNotifications.filter((scheduled: any) => {
-        const notificationData = scheduled.content.data || {};
-        const notificationType = notificationData.type;
+      const identifiersToCancel: string[] = [];
 
-        // Cancel if it's a wellness check-in type and matches our user IDs
-        if (newNotificationTypes.has('wellness_checkin') && notificationType?.includes('checkin')) {
-          const scheduledUserId = notificationData.userId;
-          return !scheduledUserId || newUserIds.has(scheduledUserId);
+      for (const scheduled of scheduledNotifications) {
+        const identifier = scheduled?.identifier;
+        if (typeof identifier !== "string" || identifier.length === 0) continue;
+
+        const scheduledKey = this.getSchedulingKeyFromScheduledRequest(scheduled);
+        if (scheduledKey && keysToSchedule.has(scheduledKey)) {
+          identifiersToCancel.push(identifier);
+          continue;
         }
 
-        return false;
-      });
+        // Legacy cleanup: if we're scheduling wellness check-ins, cancel any existing check-ins for the same user
+        if (newNotificationTypes.has("wellness_checkin")) {
+          const notificationData = scheduled?.content?.data || {};
+          const notificationType = notificationData.type;
+          const scheduledUserId = notificationData.userId;
 
-      // Cancel the matching notifications
-      if (notificationsToCancel.length > 0) {
-        const identifiersToCancel = notificationsToCancel.map((n: any) => n.identifier);
-        await Notifications.cancelScheduledNotificationAsync(identifiersToCancel);
+          if (
+            typeof notificationType === "string" &&
+            notificationType.includes("checkin") &&
+            (!scheduledUserId || newUserIds.has(scheduledUserId))
+          ) {
+            identifiersToCancel.push(identifier);
+          }
+        }
+      }
+
+      for (const id of identifiersToCancel) {
+        try {
+          await Notifications.cancelScheduledNotificationAsync(id);
+        } catch {
+          // Silently handle individual cancellation error
+        }
       }
     } catch (error) {
       // Silently handle errors when clearing notifications
@@ -476,21 +643,22 @@ class SmartNotificationService {
     const normal = notifications.filter(n => n.priority === 'normal');
     const low = notifications.filter(n => n.priority === 'low');
 
-    // Always schedule critical notifications immediately
+    // Critical/high should NOT be pulled earlier than intended; only nudge truly-immediate items
     critical.forEach(notification => {
-      optimized.push({
-        ...notification,
-        scheduledTime: new Date(now.getTime() + 1000) // 1 second from now
-      });
+      const scheduledTime =
+        notification.scheduledTime.getTime() <= now.getTime() + 60_000
+          ? new Date(now.getTime() + 1_000)
+          : notification.scheduledTime;
+      optimized.push({ ...notification, scheduledTime });
     });
 
-    // Schedule high priority with minimal delay
     high.forEach((notification, index) => {
-      const delay = Math.min(index * 30000, 300000); // Stagger by 30s, max 5min
-      optimized.push({
-        ...notification,
-        scheduledTime: new Date(now.getTime() + delay)
-      });
+      const staggerMs = Math.min(index * 30_000, 5 * 60_000);
+      const base =
+        notification.scheduledTime.getTime() <= now.getTime() + 60_000
+          ? new Date(now.getTime() + 30_000)
+          : notification.scheduledTime;
+      optimized.push({ ...notification, scheduledTime: new Date(base.getTime() + staggerMs) });
     });
 
     // Optimize normal priority timing
@@ -636,10 +804,14 @@ class SmartNotificationService {
         },
       });
     } else if (isImmediate && isImportant) {
-      // Schedule important notifications immediately
+      // Important notifications: schedule ~immediately but as a DATE trigger so they can be deduped/cancelled
+      const soon = new Date(now + 1_000);
       await Notifications.scheduleNotificationAsync({
         content,
-        trigger: null,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: soon,
+        },
       });
     } else {
       // Schedule for future time
@@ -3217,7 +3389,13 @@ class SmartNotificationService {
    */
   async scheduleDailyNotifications(userId: string): Promise<{ scheduled: number; failed: number; suppressed: number }> {
     const notifications = await this.generateDailyInteractiveNotifications(userId);
-    return await this.scheduleSmartNotifications(notifications);
+
+    // Keep daily volume reasonable by default: prioritize morning + evening only
+    const prioritized = notifications.filter(
+      n => n.id.includes("morning-checkin") || n.id.includes("evening-reflection")
+    );
+
+    return await this.scheduleSmartNotifications(prioritized.length > 0 ? prioritized : notifications);
   }
 
   /**
