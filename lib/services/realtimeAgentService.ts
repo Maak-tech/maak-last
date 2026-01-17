@@ -15,6 +15,7 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { createWebSocketWithHeaders, getWebSocketSetupGuidance } from "@/lib/polyfills/websocketWithHeaders";
+import { base64ToUint8Array, uint8ArrayToBase64 } from "@/lib/utils/base64";
 
 // Dynamic import for expo-av and expo-file-system
 let Audio: any = null;
@@ -708,6 +709,10 @@ class RealtimeAgentService {
   private audioQueue: string[] = [];
   private audioPlaybackQueue: Array<{ data: Uint8Array; timestamp: number }> = [];
   private isPlayingAudio = false;
+  private lastAudioCommitAt = 0;
+  private lastResponseCreateAt = 0;
+  private readonly responseCreateCooldownMs = 300;
+  private readonly audioCommitCooldownMs = 300;
 
   constructor() {
     this.loadApiKey();
@@ -923,24 +928,28 @@ class RealtimeAgentService {
    */
   sendAudioData(audioBase64: string) {
     try {
-      // Decode base64 to check if it's WAV format
-      const binaryString = atob(audioBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
-      // Check for WAV header (RIFF)
-      const isWav = bytes[0] === 0x52 && bytes[1] === 0x49 && 
-                    bytes[2] === 0x46 && bytes[3] === 0x46;
-      
+      // Decode base64 to check if it's WAV format (don't rely on atob/btoa in RN)
+      const bytes = base64ToUint8Array(audioBase64);
+
+      // Check for WAV header (RIFF....WAVE)
+      const isWav =
+        bytes.length >= 12 &&
+        bytes[0] === 0x52 &&
+        bytes[1] === 0x49 &&
+        bytes[2] === 0x46 &&
+        bytes[3] === 0x46 &&
+        bytes[8] === 0x57 &&
+        bytes[9] === 0x41 &&
+        bytes[10] === 0x56 &&
+        bytes[11] === 0x45;
+
       let pcmData: string;
       if (isWav) {
-        // Extract PCM data from WAV (skip 44-byte header)
-        const pcmBytes = bytes.slice(44);
-        pcmData = this.arrayBufferToBase64(pcmBytes.buffer.slice(pcmBytes.byteOffset, pcmBytes.byteOffset + pcmBytes.length));
+        // Extract PCM bytes from WAV (find "data" chunk; don't assume a fixed 44-byte header)
+        const pcmBytes = this.extractWavDataChunk(bytes);
+        pcmData = uint8ArrayToBase64(pcmBytes);
       } else {
-        // Assume it's already raw PCM or other format
+        // Assume it's already raw PCM16 (base64)
         pcmData = audioBase64;
       }
       
@@ -961,9 +970,8 @@ class RealtimeAgentService {
    * Commit the audio buffer (signal end of speech)
    */
   commitAudioBuffer() {
-    this.sendMessage({
-      type: "input_audio_buffer.commit",
-    });
+    this.commitAudioBufferIfNeeded("manual_commit");
+    this.requestResponseIfNeeded("manual_commit");
   }
 
   /**
@@ -973,6 +981,26 @@ class RealtimeAgentService {
     this.sendMessage({
       type: "input_audio_buffer.clear",
     });
+  }
+
+  /**
+   * Request a model response, with a small cooldown to avoid duplicates
+   */
+  private requestResponseIfNeeded(source: "speech_stopped" | "manual_commit") {
+    const now = Date.now();
+    if (now - this.lastResponseCreateAt < this.responseCreateCooldownMs) return;
+    this.lastResponseCreateAt = now;
+    this.sendMessage({ type: "response.create" });
+  }
+
+  /**
+   * Commit the input audio buffer, with a small cooldown to avoid duplicates
+   */
+  private commitAudioBufferIfNeeded(source: "speech_stopped" | "manual_commit") {
+    const now = Date.now();
+    if (now - this.lastAudioCommitAt < this.audioCommitCooldownMs) return;
+    this.lastAudioCommitAt = now;
+    this.sendMessage({ type: "input_audio_buffer.commit" });
   }
 
   /**
@@ -1089,6 +1117,10 @@ class RealtimeAgentService {
 
         case "input_audio_buffer.speech_stopped":
           this.eventHandlers.onSpeechStopped?.();
+          // For voice input, commit + request a response when the user stops speaking.
+          // Without this, the UI can show "Listening/Thinking" forever with no assistant reply.
+          this.commitAudioBufferIfNeeded("speech_stopped");
+          this.requestResponseIfNeeded("speech_stopped");
           break;
 
         case "input_audio_buffer.committed":
@@ -1145,12 +1177,8 @@ class RealtimeAgentService {
     }
 
     try {
-      // Decode base64 to binary
-      const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
+      // Decode base64 to bytes (RN-safe)
+      const bytes = base64ToUint8Array(base64Audio);
 
       // Queue the audio data
       this.audioPlaybackQueue.push({
@@ -1325,15 +1353,54 @@ class RealtimeAgentService {
   }
 
   /**
+   * Extract PCM data bytes from a WAV file, returning the "data" chunk.
+   * Falls back to a 44-byte header skip if parsing fails.
+   */
+  private extractWavDataChunk(wavBytes: Uint8Array): Uint8Array {
+    try {
+      if (wavBytes.length < 44) return wavBytes;
+
+      // WAV layout: RIFF(0..3) size(4..7) WAVE(8..11), then chunks.
+      // Each chunk: 4-byte id, 4-byte little-endian size, then data.
+      let offset = 12;
+      while (offset + 8 <= wavBytes.length) {
+        const id0 = wavBytes[offset];
+        const id1 = wavBytes[offset + 1];
+        const id2 = wavBytes[offset + 2];
+        const id3 = wavBytes[offset + 3];
+        const size =
+          wavBytes[offset + 4] |
+          (wavBytes[offset + 5] << 8) |
+          (wavBytes[offset + 6] << 16) |
+          (wavBytes[offset + 7] << 24);
+
+        const dataStart = offset + 8;
+        const dataEnd = dataStart + Math.max(0, size);
+
+        // "data"
+        if (id0 === 0x64 && id1 === 0x61 && id2 === 0x74 && id3 === 0x61) {
+          if (dataStart <= wavBytes.length) {
+            return wavBytes.slice(dataStart, Math.min(dataEnd, wavBytes.length));
+          }
+          break;
+        }
+
+        // Chunks are word-aligned (pad to even)
+        offset = dataEnd + (size % 2);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Typical PCM WAV header is 44 bytes; fallback to that if we can't parse.
+    return wavBytes.length > 44 ? wavBytes.slice(44) : wavBytes;
+  }
+
+  /**
    * Convert ArrayBuffer to base64
    */
   private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
+    return uint8ArrayToBase64(new Uint8Array(buffer));
   }
 
   /**
