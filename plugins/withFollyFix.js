@@ -83,45 +83,34 @@ const withFollyFix = (config) => {
           }
         }
 
-        // Patch Nitrogen autolinking so it does NOT add generated .hpp headers as public headers.
-        // When public, CocoaPods' umbrella header imports them and breaks module compilation under
-        // static frameworks.
+        // Ensure Nitrogen autolinking keeps generated headers PUBLIC (Swift needs the C++ interop symbols).
+        // If someone previously patched it to make headers private, restore the original behavior.
         if (fs.existsSync(healthkitNitroAutolinkingPath)) {
           const rb = fs.readFileSync(healthkitNitroAutolinkingPath, "utf-8");
-          if (!rb.includes("Treat Nitrogen-generated headers as PRIVATE")) {
-            let patchedRb = rb;
-            // Remove the block that appends generated headers to public_header_files
-            patchedRb = patchedRb.replace(
-              /current_public_header_files = Array\(spec\.attributes_hash\['public_header_files'\]\)\s*\n\s*spec\.public_header_files = current_public_header_files \+ \[\s*[\s\S]*?\n\s*\]\s*\n/m,
-              [
-                "  # IMPORTANT:",
-                "  # Treat Nitrogen-generated headers as PRIVATE.",
-                "  # When these headers are public, CocoaPods generates an umbrella header that imports them",
-                "  # (including C++ .hpp files). In some static-framework setups this breaks module compilation.",
-                "  current_public_header_files = Array(spec.attributes_hash['public_header_files'])",
-                "  spec.public_header_files = current_public_header_files",
-                "",
-              ].join("\n")
-            );
-
-            // Ensure the generated headers are included as private headers
-            if (!patchedRb.includes('\"nitrogen/generated/shared/**/*.{h,hpp}\"')) {
-              patchedRb = patchedRb.replace(
-                /spec\.private_header_files = current_private_header_files \+ \[\s*\n/m,
-                (m) =>
-                  m +
-                  [
-                    "    # Generated specs (kept private to avoid umbrella/modulemap issues)",
-                    '    "nitrogen/generated/shared/**/*.{h,hpp}",',
-                    "    # Swift to C++ bridging helpers (private)",
-                    '    "nitrogen/generated/ios/ReactNativeHealthkit-Swift-Cxx-Bridge.hpp",',
-                  ].join("\n") +
-                  "\n"
+          if (rb.includes("Treat Nitrogen-generated headers as PRIVATE")) {
+            const restored = rb
+              // Replace the "private" override with the original public header list
+              .replace(
+                /current_public_header_files = Array\(spec\.attributes_hash\['public_header_files'\]\)[\s\S]*?spec\.public_header_files = current_public_header_files\s*\n/m,
+                [
+                  "  current_public_header_files = Array(spec.attributes_hash['public_header_files'])",
+                  "  spec.public_header_files = current_public_header_files + [",
+                  "    # Generated specs",
+                  '    "nitrogen/generated/shared/**/*.{h,hpp}",',
+                  "    # Swift to C++ bridging helpers",
+                  '    "nitrogen/generated/ios/ReactNativeHealthkit-Swift-Cxx-Bridge.hpp"',
+                  "  ]",
+                  "",
+                ].join("\n")
+              )
+              // Remove the extra private header entries we injected earlier (if present)
+              .replace(
+                /# Generated specs \(kept private[\s\S]*?"nitrogen\/generated\/ios\/ReactNativeHealthkit-Swift-Cxx-Bridge\.hpp",\s*\n/m,
+                ""
               );
-            }
 
-            if (patchedRb !== rb) {
-              fs.writeFileSync(healthkitNitroAutolinkingPath, patchedRb);
+            if (restored !== rb) {
+              fs.writeFileSync(healthkitNitroAutolinkingPath, restored);
             }
           }
         }
