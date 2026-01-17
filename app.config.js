@@ -208,10 +208,8 @@ export default {
           ios: {
             // Build React Native from source
             buildReactNativeFromSource: true,
-            // Use static frameworks instead of modular headers
-            // This satisfies Firebase Swift pod requirements without causing React Native module redefinition
-            useFrameworks: "static",
-            // Enable non-modular includes for frameworks (fixes Bridge.h not found issue)
+            // Don't use static frameworks - allows HealthKit library to work
+            // Firebase should work without static frameworks in newer versions
             deploymentTarget: "15.1"
           }
         }

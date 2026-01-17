@@ -19,6 +19,7 @@
     "firebase-functions": "^6.0.1"
   },
   "devDependencies": {
+    "@expo/metro-config": "0.20.18",
     "firebase-functions-test": "^3.1.0",
     "typescript": "^5.7.3"
   },
