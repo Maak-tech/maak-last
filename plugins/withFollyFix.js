@@ -22,14 +22,21 @@ const withFollyFix = (config) => {
 
       let podfileContent = fs.readFileSync(podfilePath, "utf-8");
 
-      // Add modular headers for Firebase pods that need it
-      // This allows both Firebase and HealthKit to work together
-      if (!podfileContent.includes("use_modular_headers!")) {
-        // Find the target block and add use_modular_headers! before it
+      // Add modular headers for specific Firebase dependencies that need it
+      // This is required because Firebase Swift pods depend on pods that don't define modules
+      if (!podfileContent.includes("pod 'GoogleUtilities', :modular_headers => true")) {
         const targetMatch = podfileContent.match(/target\s+['"][\w-]+['"]\s+do/);
         if (targetMatch) {
           const insertPoint = podfileContent.indexOf(targetMatch[0]);
-          podfileContent = podfileContent.slice(0, insertPoint) + "use_modular_headers!\n\n" + podfileContent.slice(insertPoint);
+          const firebaseModularHeaders = `# Enable modular headers for Firebase dependencies
+pod 'GoogleUtilities', :modular_headers => true
+pod 'FirebaseAuthInterop', :modular_headers => true
+pod 'FirebaseAppCheckInterop', :modular_headers => true
+pod 'RecaptchaInterop', :modular_headers => true
+pod 'FirebaseCoreInternal', :modular_headers => true
+
+`;
+          podfileContent = podfileContent.slice(0, insertPoint) + firebaseModularHeaders + podfileContent.slice(insertPoint);
         }
       }
 

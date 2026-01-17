@@ -208,8 +208,8 @@ export default {
           ios: {
             // Build React Native from source
             buildReactNativeFromSource: true,
-            // Don't use static frameworks - allows HealthKit library to work
-            // Firebase should work without static frameworks in newer versions
+            // Use static frameworks for Firebase compatibility
+            useFrameworks: "static",
             deploymentTarget: "15.1"
           }
         }
