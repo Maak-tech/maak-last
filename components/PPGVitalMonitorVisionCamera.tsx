@@ -316,8 +316,11 @@ export default function PPGVitalMonitorVisionCamera({
     heartRateText: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.accent.error),
       fontSize: 56,
+      lineHeight: 64,
       marginVertical: theme.spacing.lg,
       letterSpacing: -1,
+      textAlign: "center",
+      includeFontPadding: false,
     },
     heartRateContainer: {
       backgroundColor: theme.colors.background.secondary,

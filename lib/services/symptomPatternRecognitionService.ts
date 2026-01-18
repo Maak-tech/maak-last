@@ -501,6 +501,7 @@ class SymptomPatternRecognitionService {
       `;
 
       const aiResponse = await openaiService.generateHealthInsights(prompt);
+      if (!aiResponse) return [];
 
       if (aiResponse && aiResponse.suggestions) {
         return aiResponse.suggestions.map((suggestion: any) => ({
@@ -515,7 +516,8 @@ class SymptomPatternRecognitionService {
         }));
       }
     } catch (error) {
-      console.error('AI diagnosis generation failed:', error);
+      // Missing API key or network errors should not spam logs; fallback is fine.
+      if (__DEV__) console.warn("AI diagnosis generation failed", error);
     }
 
     return [];

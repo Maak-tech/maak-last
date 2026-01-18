@@ -171,9 +171,11 @@ class AIInsightsService {
       `;
 
       const narrative = await openaiService.generateHealthInsights(prompt);
+      if (!narrative) return this.generateFallbackNarrative(context);
       return narrative?.narrative || this.generateFallbackNarrative(context);
     } catch (error) {
-      console.error('AI narrative generation failed:', error);
+      // Missing API key or network errors should not spam logs; fallback is fine.
+      if (__DEV__) console.warn("AI narrative generation failed", error);
       return this.generateFallbackNarrative({
         correlations: [],
         symptomPatterns: [],

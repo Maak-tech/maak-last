@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Mic, MicOff, Volume2, VolumeX, Settings } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   addDoc,
   collection,
@@ -33,6 +33,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "../lib/firebase";
 import healthContextService from "../lib/services/healthContextService";
 import { voiceService } from "../lib/services/voiceService";
+import realtimeAgentService from "../lib/services/realtimeAgentService";
 import openaiService, {
   AI_MODELS,
   type ChatMessage as AIMessage,
@@ -58,6 +59,7 @@ interface SavedSession {
 
 export default function AIAssistant() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ openSettings?: string }>();
   const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
@@ -81,6 +83,13 @@ export default function AIAssistant() {
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
+
+  // Allow other screens (e.g. Zeina) to deep-link into Settings directly.
+  useEffect(() => {
+    if (params?.openSettings === "1") {
+      setShowSettings(true);
+    }
+  }, [params?.openSettings]);
 
   useEffect(() => {
     initializeChat();
@@ -491,6 +500,7 @@ export default function AIAssistant() {
     }
 
     await openaiService.setApiKey(tempApiKey);
+    await realtimeAgentService.setApiKey(tempApiKey);
     await openaiService.setModel(tempModel);
 
     // Save voice settings

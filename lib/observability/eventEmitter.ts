@@ -82,13 +82,18 @@ function sanitizeMetadata(metadata: Record<string, unknown> | undefined): Record
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
-function sanitizeError(error: { code?: string; message: string; stack?: string } | undefined): { code?: string; message: string } | undefined {
+function sanitizeError(
+  error: { code?: string; message: string; stack?: string } | undefined
+): { code?: string; message: string } | undefined {
   if (!error) return undefined;
   
-  return {
-    code: error.code,
+  const sanitized: { code?: string; message: string } = {
     message: redactPHI(error.message).substring(0, 200),
   };
+  if (typeof error.code === "string" && error.code.trim() !== "") {
+    sanitized.code = error.code;
+  }
+  return sanitized;
 }
 
 function sanitizeForFirestore(data: Record<string, unknown>): Record<string, unknown> {

@@ -231,11 +231,14 @@ export function processPPGSignalEnhanced(
     if (signalQuality < MIN_SIGNAL_QUALITY_FOR_ANY_HR) {
       // Return an estimate instead of blocking the user with "no score".
       // UI can display a "low confidence" warning and optionally avoid saving it.
-      // Prefer autocorrelation estimate to reduce false-high BPM from noisy peaks.
-      const estimate = Number.isFinite(heartRateAuto) ? heartRateAuto : heartRatePeak;
+      // Blend autocorrelation + peak estimates to avoid swinging too high or too low.
+      const estimate =
+        Number.isFinite(heartRateAuto) && Number.isFinite(heartRatePeak)
+          ? 0.6 * heartRateAuto + 0.4 * heartRatePeak
+          : (Number.isFinite(heartRateAuto) ? heartRateAuto : heartRatePeak);
       return {
         success: true,
-        heartRate: Math.round(estimate),
+        heartRate: Math.round(Math.max(40, Math.min(200, estimate))),
         signalQuality,
         isEstimate: true,
         error: "Signal quality too low",
@@ -248,10 +251,13 @@ export function processPPGSignalEnhanced(
     if (heartRateSelected >= HIGH_BPM_THRESHOLD && signalQuality < MIN_SIGNAL_QUALITY_FOR_HIGH_BPM) {
       // Still return an estimate (but mark it low confidence) so the user gets a BPM.
       // Prefer autocorrelation estimate to reduce false-high BPM from noisy peaks.
-      const estimate = Number.isFinite(heartRateAuto) ? heartRateAuto : heartRateSelected;
+      const estimate =
+        Number.isFinite(heartRateAuto) && Number.isFinite(heartRateSelected)
+          ? 0.6 * heartRateAuto + 0.4 * heartRateSelected
+          : (Number.isFinite(heartRateAuto) ? heartRateAuto : heartRateSelected);
       return {
         success: true,
-        heartRate: Math.round(estimate),
+        heartRate: Math.round(Math.max(40, Math.min(200, estimate))),
         signalQuality,
         isEstimate: true,
         error: "Signal quality too low",
@@ -788,29 +794,36 @@ function calculateRespiratoryRateOptimized(
  * Estimate heart rate from signal period
  */
 function estimateHeartRateFromPeriod(signal: number[], frameRate: number): number {
-  // Find autocorrelation to detect periodicity
+  // Autocorrelation-based estimator (mean-centered + normalized).
+  // This avoids bias toward longer periods that can happen with unnormalized dot products.
   const n = signal.length;
-  const minPeriod = Math.floor(frameRate * 0.5); // 0.5 seconds minimum
-  const maxPeriod = Math.floor(frameRate * 1.5); // 1.5 seconds maximum
+  const minPeriod = Math.floor(frameRate * 0.5); // 0.5 seconds minimum (~120 BPM max)
+  const maxPeriod = Math.floor(frameRate * 1.5); // 1.5 seconds maximum (~40 BPM min)
 
-  let maxCorrelation = 0;
+  const mean = signal.reduce((a, b) => a + b, 0) / n;
+  const variance = signal.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
+  if (variance <= 0) return 60; // fallback
+
+  let maxCorrelation = -Infinity;
   let bestPeriod = frameRate; // Default to 1 second (60 BPM)
 
   for (let period = minPeriod; period <= maxPeriod && period < n / 2; period++) {
     let correlation = 0;
-    for (let i = 0; i < n - period; i++) {
-      correlation += signal[i] * signal[i + period];
-    }
-    correlation /= n - period;
+    let count = 0;
 
-    if (correlation > maxCorrelation) {
-      maxCorrelation = correlation;
+    for (let i = 0; i < n - period; i++) {
+      correlation += (signal[i] - mean) * (signal[i + period] - mean);
+      count++;
+    }
+
+    const normalized = count > 0 ? correlation / (count * variance) : 0;
+    if (normalized > maxCorrelation) {
+      maxCorrelation = normalized;
       bestPeriod = period;
     }
   }
 
-  const heartRate = (60 * frameRate) / bestPeriod;
-  return heartRate;
+  return (60 * frameRate) / bestPeriod;
 }
 
 

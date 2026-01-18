@@ -1,6 +1,22 @@
 import Constants from "expo-constants";
 import { aiInstrumenter } from "@/lib/observability";
 
+let SecureStore: any = null;
+try {
+  SecureStore = require("expo-secure-store");
+} catch {
+  SecureStore = null;
+}
+
+let AsyncStorage: any = null;
+try {
+  AsyncStorage = require("@react-native-async-storage/async-storage").default;
+} catch {
+  AsyncStorage = null;
+}
+
+const RUNTIME_OPENAI_KEY_STORAGE = "@openai_api_key";
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -38,6 +54,28 @@ class OpenAIService {
 
   async initialize(usePremiumKey = false) {
     try {
+      // Prefer runtime key stored on device.
+      if (SecureStore?.getItemAsync) {
+        const storedKey = await SecureStore.getItemAsync(RUNTIME_OPENAI_KEY_STORAGE);
+        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+          const trimmed = storedKey.trim();
+          this.apiKey = trimmed;
+          this.zeinaApiKey = trimmed;
+          return;
+        }
+      }
+
+      // Fallback: some environments/dev-clients can fail SecureStore; keep a non-secure fallback for dev reliability.
+      if (AsyncStorage?.getItem) {
+        const storedKey = await AsyncStorage.getItem(RUNTIME_OPENAI_KEY_STORAGE);
+        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+          const trimmed = storedKey.trim();
+          this.apiKey = trimmed;
+          this.zeinaApiKey = trimmed;
+          return;
+        }
+      }
+
       // Get API keys from app config (server-side, not user-provided)
       // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
@@ -77,12 +115,16 @@ class OpenAIService {
     // Return the requested key type, fail explicitly if not available
     if (shouldUseZeinaKey) {
       if (!this.zeinaApiKey || (typeof this.zeinaApiKey === 'string' && this.zeinaApiKey.trim() === "")) {
-        throw new Error("Zeina API key not configured. Please set OPENAI_API_KEY in your .env file.");
+        throw new Error(
+          "Zeina API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY / ZEINA_API_KEY at build time."
+        );
       }
       return this.zeinaApiKey;
     } else {
       if (!this.apiKey || (typeof this.apiKey === 'string' && this.apiKey.trim() === "")) {
-        throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
+        throw new Error(
+          "OpenAI API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY at build time."
+        );
       }
       return this.apiKey;
     }
@@ -93,7 +135,24 @@ class OpenAIService {
   }
 
   async setApiKey(apiKey: string): Promise<void> {
-    this.apiKey = apiKey;
+    const trimmed = apiKey.trim();
+    this.apiKey = trimmed === "" ? null : trimmed;
+    // Keep Zeina key in sync for apps that reuse the same key.
+    this.zeinaApiKey = this.apiKey;
+    if (SecureStore?.setItemAsync && this.apiKey) {
+      try {
+        await SecureStore.setItemAsync(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
+      } catch {
+        // ignore
+      }
+    }
+    if (AsyncStorage?.setItem && this.apiKey) {
+      try {
+        await AsyncStorage.setItem(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
+      } catch {
+        // ignore
+      }
+    }
   }
 
   async setModel(model: string): Promise<void> {
@@ -140,7 +199,9 @@ class OpenAIService {
         const activeApiKey = await this.getApiKey(usePremiumKey);
         
         if (!activeApiKey) {
-          throw new Error("OpenAI API key not configured. Please set OPENAI_API_KEY in your .env file.");
+          throw new Error(
+            "OpenAI API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY at build time."
+          );
         }
 
         const response = await fetch(`${this.baseURL}/chat/completions`, {
@@ -209,6 +270,14 @@ class OpenAIService {
 
   async generateHealthInsights(prompt: string, usePremiumKey = false): Promise<any> {
     try {
+      // Avoid noisy stack traces when the app hasn't been configured with an API key yet.
+      // Let callers fall back gracefully.
+      try {
+        await this.getApiKey(usePremiumKey);
+      } catch {
+        return null;
+      }
+
       const messages: ChatMessage[] = [
         {
           id: `msg-${Date.now()}`,
@@ -237,8 +306,9 @@ class OpenAIService {
         return { narrative: response };
       }
     } catch (error) {
-      console.error('generateHealthInsights error:', error);
-      throw error;
+      // Keep console noise low; callers already handle fallbacks.
+      if (__DEV__) console.warn("generateHealthInsights failed", error);
+      return null;
     }
   }
 }

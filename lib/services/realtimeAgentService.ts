@@ -24,6 +24,13 @@ try {
   SecureStore = null;
 }
 
+let AsyncStorage: any = null;
+try {
+  AsyncStorage = require("@react-native-async-storage/async-storage").default;
+} catch {
+  AsyncStorage = null;
+}
+
 const RUNTIME_OPENAI_KEY_STORAGE = "@openai_api_key";
 
 // Dynamic import for expo-av and expo-file-system
@@ -743,6 +750,15 @@ class RealtimeAgentService {
         }
       }
 
+      // 2) Fallback: AsyncStorage (dev reliability if SecureStore is unavailable).
+      if (AsyncStorage?.getItem) {
+        const storedKey = await AsyncStorage.getItem(RUNTIME_OPENAI_KEY_STORAGE);
+        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+          this.apiKey = storedKey.trim();
+          return;
+        }
+      }
+
       const config = Constants.expoConfig?.extra;
       
       // Use zeinaApiKey first (for Zeina voice agent), then fall back to openaiApiKey
@@ -765,6 +781,13 @@ class RealtimeAgentService {
     if (SecureStore?.setItemAsync && this.apiKey) {
       try {
         await SecureStore.setItemAsync(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
+      } catch {
+        // ignore
+      }
+    }
+    if (AsyncStorage?.setItem && this.apiKey) {
+      try {
+        await AsyncStorage.setItem(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
       } catch {
         // ignore
       }

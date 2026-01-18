@@ -9,18 +9,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Device from "expo-device";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  KeyboardAvoidingView,
   Dimensions,
   Easing,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -33,6 +36,7 @@ import {
   type RealtimeEventHandlers,
 } from "@/lib/services/realtimeAgentService";
 import healthContextService from "@/lib/services/healthContextService";
+import openaiService from "@/lib/services/openaiService";
 import { voiceService } from "@/lib/services/voiceService";
 import { zeinaActionsService } from "@/lib/services/zeinaActionsService";
 
@@ -79,6 +83,7 @@ interface ConversationMessage {
 }
 
 export default function ZeinaScreen() {
+  const router = useRouter();
   const { t, i18n } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -90,6 +95,9 @@ export default function ZeinaScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
   const isActiveRef = useRef(false);
   const didAutoWelcomeRef = useRef(false);
   const isAutoWelcomingRef = useRef(false);
@@ -248,10 +256,30 @@ export default function ZeinaScreen() {
       setIsActive(false);
       const msg = error instanceof Error ? error.message : t("unableToConnect", "Unable to connect");
       setLastError(msg);
-      Alert.alert(
-        t("connectionFailed", "Connection Failed"),
-        msg
-      );
+      const needsApiKey =
+        msg.toLowerCase().includes("api key") ||
+        msg.toLowerCase().includes("authentication") ||
+        msg.toLowerCase().includes("missing authentication") ||
+        msg.toLowerCase().includes("invalid api key");
+      if (needsApiKey) {
+        Alert.alert(
+          t("connectionFailed", "Connection Failed"),
+          msg,
+          [
+            {
+              text: t("pasteApiKey", "Paste API key"),
+              onPress: () => setShowApiKeyModal(true),
+            },
+            {
+              text: t("openSettings", "Open Settings"),
+              onPress: () => router.push("/ai-assistant?openSettings=1"),
+            },
+            { text: t("ok", "OK"), style: "cancel" },
+          ]
+        );
+      } else {
+        Alert.alert(t("connectionFailed", "Connection Failed"), msg);
+      }
     }
   }, [i18n.language, setupEventHandlers, t]);
 
@@ -286,6 +314,30 @@ export default function ZeinaScreen() {
     setIsSpeaking(false);
     setIsProcessing(false);
   }, [stopContinuousListening]);
+
+  const saveApiKeyAndReconnect = useCallback(async () => {
+    const key = apiKeyDraft.trim();
+    if (!key) {
+      Alert.alert(t("error", "Error"), t("pleaseEnterValidApiKey", "Please enter a valid API key"));
+      return;
+    }
+    setIsSavingApiKey(true);
+    try {
+      await Promise.all([openaiService.setApiKey(key), realtimeAgentService.setApiKey(key)]);
+      setApiKeyDraft("");
+      setShowApiKeyModal(false);
+      setLastError(null);
+      // Give the modal time to close before reconnecting.
+      setTimeout(() => {
+        startZeina().catch(() => {});
+      }, 150);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert(t("error", "Error"), msg);
+    } finally {
+      setIsSavingApiKey(false);
+    }
+  }, [apiKeyDraft, startZeina, t]);
 
   // Side-effect only stop (NO setState). Used for focus/blur/unmount cleanup to avoid update loops.
   const stopZeinaSideEffects = useCallback(() => {
@@ -735,7 +787,30 @@ export default function ZeinaScreen() {
               ? String(error.message)
               : String(error);
         setLastError(msg);
-        Alert.alert(t("error", "Error"), msg);
+        const needsApiKey =
+          msg.toLowerCase().includes("api key") ||
+          msg.toLowerCase().includes("authentication") ||
+          msg.toLowerCase().includes("missing authentication") ||
+          msg.toLowerCase().includes("invalid api key") ||
+          msg.includes("1006");
+        if (needsApiKey) {
+          Alert.alert(
+            t("error", "Error"),
+            `${msg}\n\n${t(
+              "configureApiKeyHint",
+              "Fix: open AI Assistant → Settings → OpenAI API Key, paste your key, Save, then return to Zeina."
+            )}`,
+            [
+              {
+                text: t("openSettings", "Open Settings"),
+                onPress: () => router.push("/ai-assistant?openSettings=1"),
+              },
+              { text: t("ok", "OK"), style: "cancel" },
+            ]
+          );
+        } else {
+          Alert.alert(t("error", "Error"), msg);
+        }
       },
     };
 
@@ -1480,6 +1555,67 @@ export default function ZeinaScreen() {
               </Text>
             </View>
           )}
+
+          {/* API key modal (in-place fix if Zeina can't authenticate) */}
+          <Modal
+            animationType="slide"
+            transparent
+            visible={showApiKeyModal}
+            onRequestClose={() => {
+              if (!isSavingApiKey) setShowApiKeyModal(false);
+            }}
+          >
+            <View style={styles.modalBackdrop}>
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+                style={styles.modalCard}
+              >
+                <Text style={styles.modalTitle}>{t("configureApiKey", "Configure API Key")}</Text>
+                <Text style={styles.modalSubtitle}>
+                  {t(
+                    "configureApiKeyBody",
+                    "Paste your OpenAI API key (sk-...) so Zeina can connect."
+                  )}
+                </Text>
+
+                <TextInput
+                  value={apiKeyDraft}
+                  onChangeText={setApiKeyDraft}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="sk-..."
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  secureTextEntry
+                  style={styles.modalInput}
+                  editable={!isSavingApiKey}
+                />
+
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    onPress={() => setShowApiKeyModal(false)}
+                    disabled={isSavingApiKey}
+                    style={[styles.modalButton, styles.modalButtonSecondary]}
+                  >
+                    <Text style={styles.modalButtonText}>
+                      {t("cancel", "Cancel")}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={saveApiKeyAndReconnect}
+                    disabled={isSavingApiKey}
+                    style={[styles.modalButton, styles.modalButtonPrimary]}
+                  >
+                    {isSavingApiKey ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.modalButtonText}>{t("save", "Save")}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
         </SafeAreaView>
       </LinearGradient>
     </View>
@@ -1602,6 +1738,65 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.7)",
     fontWeight: "500",
     textAlign: "center",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: "rgba(18,18,26,0.98)",
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  modalTitle: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 14,
+    marginBottom: 14,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalButtonPrimary: {
+    backgroundColor: "rgba(102,126,234,0.95)",
+  },
+  modalButtonSecondary: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+  },
+  modalButtonText: {
+    color: "rgba(255,255,255,0.92)",
+    fontWeight: "600",
   },
   debugText: {
     marginTop: 10,
