@@ -4,14 +4,14 @@
  */
 
 import type {
-  User,
-  Patient,
-  CareLink,
   Alert,
-  Vital,
-  Medication,
   AuditLog,
-} from './firestore';
+  CareLink,
+  Medication,
+  Patient,
+  User,
+  Vital,
+} from "./firestore";
 
 // ============================================================================
 // User Converter
@@ -34,35 +34,37 @@ export const userConverter: FirebaseFirestore.FirestoreDataConverter<User> = {
 // Patient Converter
 // ============================================================================
 
-export const patientConverter: FirebaseFirestore.FirestoreDataConverter<Patient> = {
-  toFirestore(patient: Patient): FirebaseFirestore.DocumentData {
-    const { id, ...data } = patient;
-    return data;
-  },
-  fromFirestore(snapshot: FirebaseFirestore.QueryDocumentSnapshot): Patient {
-    return {
-      id: snapshot.id,
-      ...snapshot.data(),
-    } as Patient;
-  },
-};
+export const patientConverter: FirebaseFirestore.FirestoreDataConverter<Patient> =
+  {
+    toFirestore(patient: Patient): FirebaseFirestore.DocumentData {
+      const { id, ...data } = patient;
+      return data;
+    },
+    fromFirestore(snapshot: FirebaseFirestore.QueryDocumentSnapshot): Patient {
+      return {
+        id: snapshot.id,
+        ...snapshot.data(),
+      } as Patient;
+    },
+  };
 
 // ============================================================================
 // CareLink Converter
 // ============================================================================
 
-export const careLinkConverter: FirebaseFirestore.FirestoreDataConverter<CareLink> = {
-  toFirestore(careLink: CareLink): FirebaseFirestore.DocumentData {
-    const { id, ...data } = careLink;
-    return data;
-  },
-  fromFirestore(snapshot: FirebaseFirestore.QueryDocumentSnapshot): CareLink {
-    return {
-      id: snapshot.id,
-      ...snapshot.data(),
-    } as CareLink;
-  },
-};
+export const careLinkConverter: FirebaseFirestore.FirestoreDataConverter<CareLink> =
+  {
+    toFirestore(careLink: CareLink): FirebaseFirestore.DocumentData {
+      const { id, ...data } = careLink;
+      return data;
+    },
+    fromFirestore(snapshot: FirebaseFirestore.QueryDocumentSnapshot): CareLink {
+      return {
+        id: snapshot.id,
+        ...snapshot.data(),
+      } as CareLink;
+    },
+  };
 
 // ============================================================================
 // Alert Converter
@@ -102,32 +104,36 @@ export const vitalConverter: FirebaseFirestore.FirestoreDataConverter<Vital> = {
 // Medication Converter
 // ============================================================================
 
-export const medicationConverter: FirebaseFirestore.FirestoreDataConverter<Medication> = {
-  toFirestore(medication: Medication): FirebaseFirestore.DocumentData {
-    const { id, ...data } = medication;
-    return data;
-  },
-  fromFirestore(snapshot: FirebaseFirestore.QueryDocumentSnapshot): Medication {
-    return {
-      id: snapshot.id,
-      ...snapshot.data(),
-    } as Medication;
-  },
-};
+export const medicationConverter: FirebaseFirestore.FirestoreDataConverter<Medication> =
+  {
+    toFirestore(medication: Medication): FirebaseFirestore.DocumentData {
+      const { id, ...data } = medication;
+      return data;
+    },
+    fromFirestore(
+      snapshot: FirebaseFirestore.QueryDocumentSnapshot
+    ): Medication {
+      return {
+        id: snapshot.id,
+        ...snapshot.data(),
+      } as Medication;
+    },
+  };
 
 // ============================================================================
 // Audit Log Converter
 // ============================================================================
 
-export const auditLogConverter: FirebaseFirestore.FirestoreDataConverter<AuditLog> = {
-  toFirestore(auditLog: AuditLog): FirebaseFirestore.DocumentData {
-    const { id, ...data } = auditLog;
-    return data;
-  },
-  fromFirestore(snapshot: FirebaseFirestore.QueryDocumentSnapshot): AuditLog {
-    return {
-      id: snapshot.id,
-      ...snapshot.data(),
-    } as AuditLog;
-  },
-};
+export const auditLogConverter: FirebaseFirestore.FirestoreDataConverter<AuditLog> =
+  {
+    toFirestore(auditLog: AuditLog): FirebaseFirestore.DocumentData {
+      const { id, ...data } = auditLog;
+      return data;
+    },
+    fromFirestore(snapshot: FirebaseFirestore.QueryDocumentSnapshot): AuditLog {
+      return {
+        id: snapshot.id,
+        ...snapshot.data(),
+      } as AuditLog;
+    },
+  };

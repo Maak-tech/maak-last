@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import type { CustomerInfo, PurchasesOffering, PurchasesPackage } from "react-native-purchases";
+import type {
+  CustomerInfo,
+  PurchasesOffering,
+  PurchasesPackage,
+} from "react-native-purchases";
 import {
   revenueCatService,
   type SubscriptionStatus,
@@ -16,7 +20,9 @@ export interface UseRevenueCatReturn {
   hasIndividualPlan: boolean;
   refreshCustomerInfo: () => Promise<void>;
   refreshOfferings: () => Promise<void>;
-  purchasePackage: (packageToPurchase: PurchasesPackage) => Promise<CustomerInfo>;
+  purchasePackage: (
+    packageToPurchase: PurchasesPackage
+  ) => Promise<CustomerInfo>;
   restorePurchases: () => Promise<CustomerInfo>;
 }
 
@@ -157,4 +163,3 @@ export function useRevenueCat(): UseRevenueCatReturn {
     restorePurchases,
   };
 }
-

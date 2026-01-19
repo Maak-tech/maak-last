@@ -59,7 +59,11 @@ class HealthTimelineService {
       });
       return docRef.id;
     } catch (error) {
-      logger.error("Failed to add timeline event", { event, error }, "HealthTimeline");
+      logger.error(
+        "Failed to add timeline event",
+        { event, error },
+        "HealthTimeline"
+      );
       throw error;
     }
   }
@@ -74,7 +78,7 @@ class HealthTimelineService {
     } = {}
   ): Promise<HealthTimelineEvent[]> {
     try {
-      let q = query(
+      const q = query(
         collection(db, TIMELINE_COLLECTION),
         where("userId", "==", userId),
         orderBy("timestamp", "desc"),
@@ -95,12 +99,18 @@ class HealthTimelineService {
         events = events.filter((e) => e.timestamp <= options.endDate!);
       }
       if (options.eventTypes && options.eventTypes.length > 0) {
-        events = events.filter((e) => options.eventTypes!.includes(e.eventType));
+        events = events.filter((e) =>
+          options.eventTypes!.includes(e.eventType)
+        );
       }
 
       return events;
     } catch (error) {
-      logger.error("Failed to get timeline events", { userId, error }, "HealthTimeline");
+      logger.error(
+        "Failed to get timeline events",
+        { userId, error },
+        "HealthTimeline"
+      );
       return [];
     }
   }
@@ -140,17 +150,27 @@ class HealthTimelineService {
 
       let filteredEvents = allEvents;
       if (options.startDate) {
-        filteredEvents = filteredEvents.filter((e) => e.timestamp >= options.startDate!);
+        filteredEvents = filteredEvents.filter(
+          (e) => e.timestamp >= options.startDate!
+        );
       }
       if (options.endDate) {
-        filteredEvents = filteredEvents.filter((e) => e.timestamp <= options.endDate!);
+        filteredEvents = filteredEvents.filter(
+          (e) => e.timestamp <= options.endDate!
+        );
       }
 
-      filteredEvents.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      filteredEvents.sort(
+        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+      );
 
       return filteredEvents.slice(0, options.limitCount || 100);
     } catch (error) {
-      logger.error("Failed to get family timeline events", { userIds, error }, "HealthTimeline");
+      logger.error(
+        "Failed to get family timeline events",
+        { userIds, error },
+        "HealthTimeline"
+      );
       return [];
     }
   }
@@ -167,7 +187,9 @@ class HealthTimelineService {
       userId,
       familyId,
       eventType: isAbnormal ? "vital_abnormal" : "vital_recorded",
-      title: isAbnormal ? `Abnormal ${this.formatVitalName(vitalType)}` : `${this.formatVitalName(vitalType)} Recorded`,
+      title: isAbnormal
+        ? `Abnormal ${this.formatVitalName(vitalType)}`
+        : `${this.formatVitalName(vitalType)} Recorded`,
       description: `${value} ${unit}`,
       timestamp: new Date(),
       severity: isAbnormal ? "warn" : "info",
@@ -184,15 +206,23 @@ class HealthTimelineService {
     action: "taken" | "missed" | "scheduled",
     familyId?: string
   ): Promise<string> {
-    const eventType = action === "taken" ? "medication_taken" : 
-                      action === "missed" ? "medication_missed" : "medication_scheduled";
-    
+    const eventType =
+      action === "taken"
+        ? "medication_taken"
+        : action === "missed"
+          ? "medication_missed"
+          : "medication_scheduled";
+
     return this.addEvent({
       userId,
       familyId,
       eventType,
-      title: action === "taken" ? `${medicationName} Taken` :
-             action === "missed" ? `${medicationName} Missed` : `${medicationName} Scheduled`,
+      title:
+        action === "taken"
+          ? `${medicationName} Taken`
+          : action === "missed"
+            ? `${medicationName} Missed`
+            : `${medicationName} Scheduled`,
       timestamp: new Date(),
       severity: action === "missed" ? "warn" : "info",
       icon: "Pill",
@@ -231,15 +261,23 @@ class HealthTimelineService {
     actorId?: string,
     familyId?: string
   ): Promise<string> {
-    const eventType = action === "created" ? "alert_created" :
-                      action === "acknowledged" ? "alert_acknowledged" : "alert_resolved";
-    
+    const eventType =
+      action === "created"
+        ? "alert_created"
+        : action === "acknowledged"
+          ? "alert_acknowledged"
+          : "alert_resolved";
+
     return this.addEvent({
       userId,
       familyId,
       eventType,
-      title: action === "created" ? `Alert: ${alertType}` :
-             action === "acknowledged" ? "Alert Acknowledged" : "Alert Resolved",
+      title:
+        action === "created"
+          ? `Alert: ${alertType}`
+          : action === "acknowledged"
+            ? "Alert Acknowledged"
+            : "Alert Resolved",
       timestamp: new Date(),
       severity: action === "created" ? "error" : "info",
       icon: "AlertTriangle",
@@ -305,7 +343,10 @@ class HealthTimelineService {
       weight: "Weight",
       steps: "Steps",
     };
-    return names[type] || type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    return (
+      names[type] ||
+      type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+    );
   }
 
   private getIconForVital(type: string): string {

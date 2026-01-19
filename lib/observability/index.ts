@@ -1,30 +1,38 @@
-export * from "./types";
-export { observabilityEmitter } from "./eventEmitter";
-export { healthRulesEngine, type VitalReading, type RuleEvaluation } from "./rulesEngine";
-export { escalationService } from "./escalationService";
 export { circuitBreaker, withCircuitBreaker } from "./circuitBreaker";
-export { healthTimelineService, type HealthTimelineEvent, type TimelineEventType } from "./healthTimeline";
+export { escalationService } from "./escalationService";
+export { observabilityEmitter } from "./eventEmitter";
 export {
-  healthAnalytics,
-  type PersonalizedBaseline,
-  type HealthScore,
-  type AnomalyDetection,
-  type VitalCorrelation,
-  type RiskAssessment,
-  type RiskFactor,
-} from "./healthAnalytics";
-export {
-  familyDashboard,
-  type FamilyMemberSummary,
   type FamilyHealthDashboard,
+  type FamilyMemberSummary,
+  familyDashboard,
 } from "./familyDashboard";
 export {
-  instrumentAsync,
-  createServiceInstrumenter,
-  apiInstrumenter,
-  syncInstrumenter,
-  notificationInstrumenter,
+  type AnomalyDetection,
+  type HealthScore,
+  healthAnalytics,
+  type PersonalizedBaseline,
+  type RiskAssessment,
+  type RiskFactor,
+  type VitalCorrelation,
+} from "./healthAnalytics";
+export {
+  type HealthTimelineEvent,
+  healthTimelineService,
+  type TimelineEventType,
+} from "./healthTimeline";
+export {
   aiInstrumenter,
+  apiInstrumenter,
   authInstrumenter,
+  createServiceInstrumenter,
+  instrumentAsync,
+  notificationInstrumenter,
   paymentInstrumenter,
+  syncInstrumenter,
 } from "./platformInstrumentation";
+export {
+  healthRulesEngine,
+  type RuleEvaluation,
+  type VitalReading,
+} from "./rulesEngine";
+export * from "./types";

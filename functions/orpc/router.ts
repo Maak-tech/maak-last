@@ -3,7 +3,7 @@
  * Start here - add routes as needed
  */
 
-import { ingestVital } from '../src/api/vitals';
+import { ingestVital } from "../src/api/vitals";
 
 export const appRouter = {
   vitals: {

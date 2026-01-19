@@ -1,9 +1,9 @@
-import { Dimensions, View, ScrollView } from "react-native";
-import { useTheme } from "@/contexts/ThemeContext";
-import { chartsService, type CorrelationData } from "@/lib/services/chartsService";
-import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import { Dimensions, ScrollView, View } from "react-native";
+import Svg, { Circle, G, Line, Text as SvgText } from "react-native-svg";
 import { Badge } from "@/components/design-system/AdditionalComponents";
-import Svg, { Circle, Line, Text as SvgText, G } from "react-native-svg";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import { useTheme } from "@/contexts/ThemeContext";
+import type { CorrelationData } from "@/lib/services/chartsService";
 
 interface CorrelationChartProps {
   data: CorrelationData;
@@ -56,7 +56,9 @@ export default function CorrelationChart({
   const getCorrelationColor = () => {
     const absCorr = Math.abs(data.correlation);
     if (absCorr > 0.4) {
-      return data.correlation > 0 ? theme.colors.accent.error : theme.colors.accent.success;
+      return data.correlation > 0
+        ? theme.colors.accent.error
+        : theme.colors.accent.success;
     }
     return theme.colors.text.secondary;
   };
@@ -64,18 +66,34 @@ export default function CorrelationChart({
   return (
     <View style={{ marginVertical: 16 }}>
       {title && (
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 8 }}>
-          <Heading level={6} style={undefined}>{title}</Heading>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            marginBottom: 8,
+          }}
+        >
+          <Heading level={6} style={undefined}>
+            {title}
+          </Heading>
           <Badge
-            variant={Math.abs(data.correlation) > 0.4 ? (data.correlation > 0 ? "error" : "success") : "outline"}
             size="small"
             style={undefined}
+            variant={
+              Math.abs(data.correlation) > 0.4
+                ? data.correlation > 0
+                  ? "error"
+                  : "success"
+                : "outline"
+            }
           >
             {getCorrelationLabel()} ({data.correlation.toFixed(2)})
           </Badge>
         </View>
       )}
-      
+
       <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
         <Caption numberOfLines={undefined} style={{ textAlign: "center" }}>
           {data.xLabel} vs {data.yLabel}
@@ -98,27 +116,30 @@ export default function CorrelationChart({
           }}
         >
           {data.dataPoints.length > 0 ? (
-            <Svg width={Dimensions.get("window").width - 64} height={height - 32}>
+            <Svg
+              height={height - 32}
+              width={Dimensions.get("window").width - 64}
+            >
               {/* Calculate scales */}
               <G>
                 {/* Y-axis label */}
                 <SvgText
+                  fill={theme.colors.text.secondary}
+                  fontSize="12"
+                  transform={`rotate(-90, 20, ${height / 2 - 80})`}
                   x={20}
                   y={height / 2 - 80}
-                  fontSize="12"
-                  fill={theme.colors.text.secondary}
-                  transform={`rotate(-90, 20, ${height / 2 - 80})`}
                 >
                   {data.yLabel}
                 </SvgText>
 
                 {/* X-axis label */}
                 <SvgText
+                  fill={theme.colors.text.secondary}
+                  fontSize="12"
+                  textAnchor="middle"
                   x={(Dimensions.get("window").width - 64) / 2}
                   y={height - 40}
-                  fontSize="12"
-                  fill={theme.colors.text.secondary}
-                  textAnchor="middle"
                 >
                   {data.xLabel}
                 </SvgText>
@@ -139,59 +160,73 @@ export default function CorrelationChart({
 
                   const normalizedX =
                     padding +
-                    ((point.x - xMin) / (xMax - xMin || 1)) * (chartWidth - padding * 2);
+                    ((point.x - xMin) / (xMax - xMin || 1)) *
+                      (chartWidth - padding * 2);
                   const normalizedY =
                     padding +
-                    (1 - (point.y - yMin) / (yMax - yMin || 1)) * (chartHeight - padding * 2);
+                    (1 - (point.y - yMin) / (yMax - yMin || 1)) *
+                      (chartHeight - padding * 2);
 
                   return (
                     <Circle
-                      key={index}
                       cx={normalizedX}
                       cy={normalizedY}
-                      r="4"
                       fill={theme.colors.primary.main}
+                      key={index}
                       opacity={0.6}
+                      r="4"
                     />
                   );
                 })}
 
                 {/* Draw trend line if correlation is significant */}
-                {Math.abs(data.correlation) > 0.3 && data.dataPoints.length > 1 && (
-                  <Line
-                    x1={40}
-                    y1={
-                      40 +
-                      (1 -
-                        (data.dataPoints[0].y -
-                          Math.min(...data.dataPoints.map((p) => p.y))) /
-                          (Math.max(...data.dataPoints.map((p) => p.y)) -
-                            Math.min(...data.dataPoints.map((p) => p.y)) ||
-                            1)) *
-                        (height - 120)
-                    }
-                    x2={Dimensions.get("window").width - 64 - 40}
-                    y2={
-                      40 +
-                      (1 -
-                        (data.dataPoints[data.dataPoints.length - 1].y -
-                          Math.min(...data.dataPoints.map((p) => p.y))) /
-                          (Math.max(...data.dataPoints.map((p) => p.y)) -
-                            Math.min(...data.dataPoints.map((p) => p.y)) ||
-                            1)) *
-                        (height - 120)
-                    }
-                    stroke={theme.colors.primary.main}
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
-                    opacity={0.5}
-                  />
-                )}
+                {Math.abs(data.correlation) > 0.3 &&
+                  data.dataPoints.length > 1 && (
+                    <Line
+                      opacity={0.5}
+                      stroke={theme.colors.primary.main}
+                      strokeDasharray="5,5"
+                      strokeWidth="2"
+                      x1={40}
+                      x2={Dimensions.get("window").width - 64 - 40}
+                      y1={
+                        40 +
+                        (1 -
+                          (data.dataPoints[0].y -
+                            Math.min(...data.dataPoints.map((p) => p.y))) /
+                            (Math.max(...data.dataPoints.map((p) => p.y)) -
+                              Math.min(...data.dataPoints.map((p) => p.y)) ||
+                              1)) *
+                          (height - 120)
+                      }
+                      y2={
+                        40 +
+                        (1 -
+                          (data.dataPoints[data.dataPoints.length - 1].y -
+                            Math.min(...data.dataPoints.map((p) => p.y))) /
+                            (Math.max(...data.dataPoints.map((p) => p.y)) -
+                              Math.min(...data.dataPoints.map((p) => p.y)) ||
+                              1)) *
+                          (height - 120)
+                      }
+                    />
+                  )}
               </G>
             </Svg>
           ) : (
-            <View style={{ justifyContent: "center", alignItems: "center", flex: 1 }}>
-              <Text style={{ textAlign: "center", color: theme.colors.text.secondary }}>
+            <View
+              style={{
+                justifyContent: "center",
+                alignItems: "center",
+                flex: 1,
+              }}
+            >
+              <Text
+                style={{
+                  textAlign: "center",
+                  color: theme.colors.text.secondary,
+                }}
+              >
                 No data available for correlation analysis
               </Text>
             </View>

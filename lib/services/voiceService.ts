@@ -14,10 +14,9 @@ try {
   // expo-speech not available, will use fallback
 }
 
-import { Platform } from "react-native";
-import * as FileSystem from "expo-file-system";
-import Constants from "expo-constants";
 import * as Device from "expo-device";
+import * as FileSystem from "expo-file-system";
+import { Platform } from "react-native";
 import openaiService from "./openaiService";
 
 // Dynamic import for expo-av with proper error handling
@@ -49,7 +48,7 @@ type AudioNamespace = {
 let Audio: AudioNamespace | null = null;
 try {
   // Only load expo-av on native platforms (iOS/Android)
-  if (Platform.OS === 'ios' || Platform.OS === 'android') {
+  if (Platform.OS === "ios" || Platform.OS === "android") {
     // Use require instead of import to avoid TypeScript module resolution issues
     const expoAv = require("expo-av");
     Audio = expoAv.Audio;
@@ -84,7 +83,9 @@ class VoiceService {
   private isSpeaking = false;
   private currentSpeechId: string | null = null;
   private isListening = false;
-  private recognitionCallbacks: Array<(result: SpeechRecognitionResult) => void> = [];
+  private recognitionCallbacks: Array<
+    (result: SpeechRecognitionResult) => void
+  > = [];
   private recognitionErrorCallbacks: Array<(error: Error) => void> = [];
   private recording: RecordingInstance | null = null;
 
@@ -101,13 +102,26 @@ class VoiceService {
 
   async getPreferredVoiceId(language: string): Promise<string | undefined> {
     const voices = await this.getAvailableVoices();
-    if (voices.length === 0) return undefined;
+    if (voices.length === 0) return;
 
     const langPrefix = language.split("-")[0];
-    const candidates = voices.filter((v) => v.language?.startsWith(language) || v.language?.startsWith(langPrefix));
-    if (candidates.length === 0) return undefined;
+    const candidates = voices.filter(
+      (v) =>
+        v.language?.startsWith(language) || v.language?.startsWith(langPrefix)
+    );
+    if (candidates.length === 0) return;
 
-    const femaleHints = ["female", "woman", "zira", "samantha", "victoria", "karen", "tessa", "ava", "siri"];
+    const femaleHints = [
+      "female",
+      "woman",
+      "zira",
+      "samantha",
+      "victoria",
+      "karen",
+      "tessa",
+      "ava",
+      "siri",
+    ];
 
     const score = (v: AvailableVoice): number => {
       const name = (v.name || "").toLowerCase();
@@ -128,14 +142,13 @@ class VoiceService {
   /**
    * Speak text using text-to-speech
    */
-  async speak(
-    text: string,
-    config: Partial<VoiceConfig> = {}
-  ): Promise<void> {
+  async speak(text: string, config: Partial<VoiceConfig> = {}): Promise<void> {
     try {
       if (!Speech) {
         // Fallback: Show alert if speech is not available
-        throw new Error("Text-to-speech not available. Please install expo-speech.");
+        throw new Error(
+          "Text-to-speech not available. Please install expo-speech."
+        );
       }
 
       // Stop any ongoing speech
@@ -150,7 +163,9 @@ class VoiceService {
         voiceId: config.voiceId,
       };
 
-      const voiceId = defaultConfig.voiceId ?? (await this.getPreferredVoiceId(defaultConfig.language));
+      const voiceId =
+        defaultConfig.voiceId ??
+        (await this.getPreferredVoiceId(defaultConfig.language));
 
       return new Promise((resolve, reject) => {
         this.isSpeaking = true;
@@ -236,7 +251,12 @@ class VoiceService {
   async isAvailable(): Promise<boolean> {
     try {
       // Speech is available on web and native platforms
-      return Speech !== null && (Platform.OS === "ios" || Platform.OS === "android" || Platform.OS === "web");
+      return (
+        Speech !== null &&
+        (Platform.OS === "ios" ||
+          Platform.OS === "android" ||
+          Platform.OS === "web")
+      );
     } catch (error) {
       return false;
     }
@@ -249,7 +269,7 @@ class VoiceService {
   async startListening(
     onResult?: (result: SpeechRecognitionResult) => void,
     onError?: (error: Error) => void,
-    language: string = "en-US"
+    language = "en-US"
   ): Promise<void> {
     if (this.isListening) {
       throw new Error("Already listening for speech");
@@ -267,17 +287,21 @@ class VoiceService {
     try {
       // Check if Audio is available
       if (!Audio) {
-        throw new Error("Audio recording not available. Please ensure expo-av is properly installed.");
+        throw new Error(
+          "Audio recording not available. Please ensure expo-av is properly installed."
+        );
       }
 
       // Check if running on simulator (audio recording doesn't work on simulators)
       if (!Device.isDevice) {
-        throw new Error("Audio recording is not available on Simulator. Please use a physical device for voice features.");
+        throw new Error(
+          "Audio recording is not available on Simulator. Please use a physical device for voice features."
+        );
       }
 
       // Request audio permissions
       const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
+      if (permission.status !== "granted") {
         throw new Error("Microphone permission denied");
       }
 
@@ -298,7 +322,7 @@ class VoiceService {
       this.recording = recording;
 
       // Wait for a moment to capture some audio (you might want to make this configurable)
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
 
       // Stop recording
       await recording.stopAndUnloadAsync();
@@ -311,17 +335,17 @@ class VoiceService {
       }
 
       // Transcribe the audio
-      const result = await this.transcribeAudio(uri, language.split('-')[0]);
+      const result = await this.transcribeAudio(uri, language.split("-")[0]);
 
       // Call success callbacks
-      this.recognitionCallbacks.forEach(callback => callback(result));
-
+      this.recognitionCallbacks.forEach((callback) => callback(result));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const errorObj = new Error(errorMessage);
 
       // Call error callbacks
-      this.recognitionErrorCallbacks.forEach(callback => callback(errorObj));
+      this.recognitionErrorCallbacks.forEach((callback) => callback(errorObj));
     } finally {
       this.isListening = false;
       this.recognitionCallbacks = [];
@@ -350,7 +374,10 @@ class VoiceService {
   /**
    * Transcribe audio file using OpenAI Whisper API
    */
-  async transcribeAudio(audioUri: string, language?: string): Promise<SpeechRecognitionResult> {
+  async transcribeAudio(
+    audioUri: string,
+    language?: string
+  ): Promise<SpeechRecognitionResult> {
     try {
       // Get OpenAI API key (try premium key first for Zeina)
       let apiKey = await openaiService.getApiKey(true);
@@ -363,17 +390,22 @@ class VoiceService {
 
       // Read audio file as base64
       const audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
-        encoding: 'base64',
+        encoding: "base64",
       });
 
       // Determine audio format based on file extension or default to m4a (expo-av default)
-      const fileExtension = audioUri.split('.').pop()?.toLowerCase() || 'm4a';
-      const mimeType = fileExtension === 'mp3' ? 'audio/mp3' :
-                      fileExtension === 'wav' ? 'audio/wav' :
-                      'audio/m4a'; // Default for expo-av recordings
+      const fileExtension = audioUri.split(".").pop()?.toLowerCase() || "m4a";
+      const mimeType =
+        fileExtension === "mp3"
+          ? "audio/mp3"
+          : fileExtension === "wav"
+            ? "audio/wav"
+            : "audio/m4a"; // Default for expo-av recordings
 
       // Convert base64 to blob format for API
-      const audioBlob = await fetch(`data:${mimeType};base64,${audioBase64}`).then((r) => r.blob());
+      const audioBlob = await fetch(
+        `data:${mimeType};base64,${audioBase64}`
+      ).then((r) => r.blob());
 
       // Create form data
       const formData = new FormData();
@@ -384,18 +416,22 @@ class VoiceService {
       }
 
       // Call OpenAI Whisper API
-      const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: formData as any,
-      });
+      const response = await fetch(
+        "https://api.openai.com/v1/audio/transcriptions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: formData as any,
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.error?.message || `Whisper API error: ${response.statusText}`
+          errorData.error?.message ||
+            `Whisper API error: ${response.statusText}`
         );
       }
 
@@ -418,7 +454,7 @@ class VoiceService {
     try {
       if (!Audio) return false;
       const permission = await Audio.requestPermissionsAsync();
-      return permission.status === 'granted';
+      return permission.status === "granted";
     } catch (error) {
       return false;
     }
@@ -431,7 +467,7 @@ class VoiceService {
     try {
       if (!Audio) return false;
       const permission = await Audio.getPermissionsAsync();
-      return permission.status === 'granted';
+      return permission.status === "granted";
     } catch (error) {
       return false;
     }
@@ -443,7 +479,7 @@ class VoiceService {
   async isRecognitionAvailable(): Promise<boolean> {
     try {
       // Speech recognition requires native platforms (expo-av)
-      if (Platform.OS === 'web') {
+      if (Platform.OS === "web") {
         return false;
       }
 
@@ -453,8 +489,15 @@ class VoiceService {
       }
 
       const hasPermissions = await this.hasMicrophonePermissions();
-      const hasApiKey = await openaiService.getApiKey(true) || await openaiService.getApiKey(false);
-      return hasPermissions && hasApiKey !== null && hasApiKey !== undefined && Audio !== null;
+      const hasApiKey =
+        (await openaiService.getApiKey(true)) ||
+        (await openaiService.getApiKey(false));
+      return (
+        hasPermissions &&
+        hasApiKey !== null &&
+        hasApiKey !== undefined &&
+        Audio !== null
+      );
     } catch {
       return false;
     }

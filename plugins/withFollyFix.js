@@ -41,11 +41,11 @@ const withFollyFix = (config) => {
           const podspec = fs.readFileSync(healthkitPodspecPath, "utf-8");
 
           // Skip if already patched
-          if (!podspec.includes("public_headers -= Dir[\"ios/Bridge.h\"]")) {
+          if (!podspec.includes('public_headers -= Dir["ios/Bridge.h"]')) {
             const patched = podspec.replace(
               /s\.public_header_files\s*=\s*["']ios\/\*\*\/\*\.h["']\s*\n/g,
               [
-                '  # Patch: exclude Bridge.h from public headers to prevent umbrella import failures',
+                "  # Patch: exclude Bridge.h from public headers to prevent umbrella import failures",
                 '  # Also set header_mappings_dir so umbrella imports like `#import "ExceptionCatcher.h"` resolve.',
                 '  s.header_mappings_dir = "ios"',
                 '  public_headers = Dir["ios/**/*.h"]',
@@ -107,9 +107,7 @@ const withFollyFix = (config) => {
           if (!patched.includes('"nitrogen/generated/shared/**/*.{h,hpp}"')) {
             patched = patched.replace(
               /spec\.private_header_files = current_private_header_files \+ \[\s*\n/m,
-              (m) =>
-                m +
-                '    "nitrogen/generated/shared/**/*.{h,hpp}",\n'
+              (m) => m + '    "nitrogen/generated/shared/**/*.{h,hpp}",\n'
             );
           }
 
@@ -134,8 +132,14 @@ const withFollyFix = (config) => {
 
       // Add modular headers for specific Firebase dependencies that need it
       // This is required because Firebase Swift pods depend on pods that don't define modules
-      if (!podfileContent.includes("pod 'GoogleUtilities', :modular_headers => true")) {
-        const targetMatch = podfileContent.match(/target\s+['"][\w-]+['"]\s+do/);
+      if (
+        !podfileContent.includes(
+          "pod 'GoogleUtilities', :modular_headers => true"
+        )
+      ) {
+        const targetMatch = podfileContent.match(
+          /target\s+['"][\w-]+['"]\s+do/
+        );
         if (targetMatch) {
           const insertPoint = podfileContent.indexOf(targetMatch[0]);
           const firebaseModularHeaders = `# Enable modular headers for Firebase dependencies
@@ -146,7 +150,10 @@ pod 'RecaptchaInterop', :modular_headers => true
 pod 'FirebaseCoreInternal', :modular_headers => true
 
 `;
-          podfileContent = podfileContent.slice(0, insertPoint) + firebaseModularHeaders + podfileContent.slice(insertPoint);
+          podfileContent =
+            podfileContent.slice(0, insertPoint) +
+            firebaseModularHeaders +
+            podfileContent.slice(insertPoint);
         }
       }
 

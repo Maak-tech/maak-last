@@ -13,7 +13,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -78,7 +77,7 @@ export default function FallDetectionSettingsScreen() {
   };
 
   const handleToggle = async (value: boolean) => {
-    if (!value && !permissionStatus?.granted) {
+    if (!(value || permissionStatus?.granted)) {
       Alert.alert(
         isRTL ? "إذن مطلوب" : "Permission Required",
         isRTL
@@ -143,7 +142,6 @@ export default function FallDetectionSettingsScreen() {
       ]
     );
   };
-
 
   if (checkingPermissions) {
     return (
@@ -305,9 +303,7 @@ export default function FallDetectionSettingsScreen() {
                 <CheckCircle color="#10B981" size={24} />
               ) : (
                 <AlertTriangle
-                  color={
-                    permissionStatus?.available ? "#F59E0B" : "#EF4444"
-                  }
+                  color={permissionStatus?.available ? "#F59E0B" : "#EF4444"}
                   size={24}
                 />
               )}

@@ -11,6 +11,7 @@ import { fitbitService } from "../services/fitbitService";
 // Lazy import to prevent early native module loading
 // import { appleHealthService } from "../services/appleHealthService";
 import { healthConnectService } from "../services/healthConnectService";
+import { saveSyncVitalsToFirestore } from "../services/vitalSyncService";
 import type { HealthProvider } from "./healthMetricsCatalog";
 import type {
   DeviceInfo,
@@ -19,7 +20,6 @@ import type {
   SyncResult,
 } from "./healthTypes";
 import { HEALTH_STORAGE_KEYS } from "./healthTypes";
-import { saveSyncVitalsToFirestore } from "../services/vitalSyncService";
 
 const BACKEND_HEALTH_SYNC_URL = "/health/sync"; // Unified endpoint
 
@@ -153,7 +153,9 @@ export const disconnectProvider = async (
       case "samsung_health":
         storageKey = HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS;
         try {
-          const { samsungHealthService } = await import("../services/samsungHealthService");
+          const { samsungHealthService } = await import(
+            "../services/samsungHealthService"
+          );
           await samsungHealthService.disconnect();
         } catch {}
         break;
@@ -167,7 +169,9 @@ export const disconnectProvider = async (
       case "withings":
         storageKey = HEALTH_STORAGE_KEYS.WITHINGS_TOKENS;
         try {
-          const { withingsService } = await import("../services/withingsService");
+          const { withingsService } = await import(
+            "../services/withingsService"
+          );
           await withingsService.disconnect();
         } catch {}
         break;
@@ -188,7 +192,9 @@ export const disconnectProvider = async (
       case "freestyle_libre":
         storageKey = HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS;
         try {
-          const { freestyleLibreService } = await import("../services/freestyleLibreService");
+          const { freestyleLibreService } = await import(
+            "../services/freestyleLibreService"
+          );
           await freestyleLibreService.disconnect();
         } catch {}
         break;
@@ -271,9 +277,7 @@ export const syncHealthData = async (
         break;
       }
       case "garmin": {
-        const { garminService } = await import(
-          "../services/garminService"
-        );
+        const { garminService } = await import("../services/garminService");
         metrics = await garminService.fetchMetrics(
           connection.selectedMetrics,
           startDate,
@@ -282,9 +286,7 @@ export const syncHealthData = async (
         break;
       }
       case "withings": {
-        const { withingsService } = await import(
-          "../services/withingsService"
-        );
+        const { withingsService } = await import("../services/withingsService");
         metrics = await withingsService.fetchMetrics(
           connection.selectedMetrics,
           startDate,
@@ -293,9 +295,7 @@ export const syncHealthData = async (
         break;
       }
       case "oura": {
-        const { ouraService } = await import(
-          "../services/ouraService"
-        );
+        const { ouraService } = await import("../services/ouraService");
         metrics = await ouraService.fetchMetrics(
           connection.selectedMetrics,
           startDate,
@@ -304,9 +304,7 @@ export const syncHealthData = async (
         break;
       }
       case "dexcom": {
-        const { dexcomService } = await import(
-          "../services/dexcomService"
-        );
+        const { dexcomService } = await import("../services/dexcomService");
         metrics = await dexcomService.fetchMetrics(
           connection.selectedMetrics,
           startDate,
@@ -363,8 +361,8 @@ export const syncHealthData = async (
     // Save vitals to Firestore for benchmark checking and admin alerts
     try {
       const savedCount = await saveSyncVitalsToFirestore({
-        provider: provider,
-        metrics: metrics,
+        provider,
+        metrics,
       });
     } catch (error) {
       // Don't fail the sync if Firestore save fails

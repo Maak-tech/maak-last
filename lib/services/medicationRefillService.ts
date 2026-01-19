@@ -29,13 +29,21 @@ class MedicationRefillService {
    */
   private calculateDailyConsumption(frequency: string, dosage: string): number {
     const frequencyLower = frequency.toLowerCase();
-    
+
     // Parse frequency to determine times per day
     let timesPerDay = 1;
-    
-    if (frequencyLower.includes("once") || frequencyLower === "1" || frequencyLower === "qd") {
+
+    if (
+      frequencyLower.includes("once") ||
+      frequencyLower === "1" ||
+      frequencyLower === "qd"
+    ) {
       timesPerDay = 1;
-    } else if (frequencyLower.includes("twice") || frequencyLower === "2" || frequencyLower === "bid") {
+    } else if (
+      frequencyLower.includes("twice") ||
+      frequencyLower === "2" ||
+      frequencyLower === "bid"
+    ) {
       timesPerDay = 2;
     } else if (
       frequencyLower.includes("three") ||
@@ -44,7 +52,11 @@ class MedicationRefillService {
       frequencyLower === "tid"
     ) {
       timesPerDay = 3;
-    } else if (frequencyLower.includes("four") || frequencyLower === "4" || frequencyLower === "qid") {
+    } else if (
+      frequencyLower.includes("four") ||
+      frequencyLower === "4" ||
+      frequencyLower === "qid"
+    ) {
       timesPerDay = 4;
     } else if (frequencyLower.includes("meal")) {
       timesPerDay = 3; // Typically with meals = 3 times
@@ -60,10 +72,12 @@ class MedicationRefillService {
     // Parse dosage to determine units per dose
     // This is a simplified parser - assumes 1 unit per dose unless specified
     let unitsPerDose = 1;
-    
+
     // Try to extract number from dosage (e.g., "2 tablets", "1 pill", "500mg")
     const dosageLower = dosage.toLowerCase();
-    const numberMatch = dosageLower.match(/(\d+)\s*(tablet|pill|cap|capsule|tab|dose|ml|mg|g)/i);
+    const numberMatch = dosageLower.match(
+      /(\d+)\s*(tablet|pill|cap|capsule|tab|dose|ml|mg|g)/i
+    );
     if (numberMatch) {
       unitsPerDose = Number.parseInt(numberMatch[1]);
     }
@@ -89,14 +103,14 @@ class MedicationRefillService {
         (new Date().getTime() - medication.lastRefillDate.getTime()) /
           (1000 * 60 * 60 * 24)
       );
-      
+
       // Estimate initial quantity (assume 30-day supply)
       const estimatedInitialQuantity = dailyConsumption * 30;
       const estimatedCurrentQuantity = Math.max(
         0,
         estimatedInitialQuantity - daysSinceRefill * dailyConsumption
       );
-      
+
       return estimatedCurrentQuantity;
     }
 
@@ -140,7 +154,9 @@ class MedicationRefillService {
 
     // Calculate estimated refill date
     const estimatedRefillDate = new Date();
-    estimatedRefillDate.setDate(estimatedRefillDate.getDate() + daysUntilRefill);
+    estimatedRefillDate.setDate(
+      estimatedRefillDate.getDate() + daysUntilRefill
+    );
 
     // Determine urgency
     let urgency: "low" | "medium" | "high" | "critical" = "low";

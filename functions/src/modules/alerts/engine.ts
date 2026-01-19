@@ -3,18 +3,18 @@
  * No Firestore dependencies - fully testable
  */
 
-export type VitalType = 
-  | 'heartRate'
-  | 'bloodPressure'
-  | 'respiratoryRate'
-  | 'oxygenSaturation'
-  | 'bodyTemperature'
-  | 'weight'
-  | 'restingHeartRate'
-  | 'heartRateVariability';
+export type VitalType =
+  | "heartRate"
+  | "bloodPressure"
+  | "respiratoryRate"
+  | "oxygenSaturation"
+  | "bodyTemperature"
+  | "weight"
+  | "restingHeartRate"
+  | "heartRateVariability";
 
-export type AlertSeverity = 'critical' | 'warning' | null;
-export type AlertDirection = 'low' | 'high' | null;
+export type AlertSeverity = "critical" | "warning" | null;
+export type AlertDirection = "low" | "high" | null;
 
 export interface VitalBenchmark {
   alertThresholds: {
@@ -120,31 +120,31 @@ export function checkVitalBenchmark(
 
   // Check critical low
   if (value <= benchmark.alertThresholds.low.critical) {
-    return { isAlert: true, severity: 'critical', direction: 'low' };
+    return { isAlert: true, severity: "critical", direction: "low" };
   }
 
   // Check critical high
   if (value >= benchmark.alertThresholds.high.critical) {
-    return { isAlert: true, severity: 'critical', direction: 'high' };
+    return { isAlert: true, severity: "critical", direction: "high" };
   }
 
   // Check warning low
   if (value <= benchmark.alertThresholds.low.warning) {
-    return { isAlert: true, severity: 'warning', direction: 'low' };
+    return { isAlert: true, severity: "warning", direction: "low" };
   }
 
   // Check warning high
   if (value >= benchmark.alertThresholds.high.warning) {
-    return { isAlert: true, severity: 'warning', direction: 'high' };
+    return { isAlert: true, severity: "warning", direction: "high" };
   }
 
   // Check if outside normal range
   if (value < benchmark.normalRange.min) {
-    return { isAlert: true, severity: 'warning', direction: 'low' };
+    return { isAlert: true, severity: "warning", direction: "low" };
   }
 
   if (value > benchmark.normalRange.max) {
-    return { isAlert: true, severity: 'warning', direction: 'high' };
+    return { isAlert: true, severity: "warning", direction: "high" };
   }
 
   return { isAlert: false, severity: null, direction: null };
@@ -153,7 +153,7 @@ export function checkVitalBenchmark(
 /**
  * Check if an alert should be suppressed due to duplicate within time window
  * Pure function - no side effects
- * 
+ *
  * @param newAlert - The new alert to potentially create
  * @param recentAlerts - Recent alerts from the same user
  * @param suppressionWindowMs - Time window in milliseconds (default 1 hour)
@@ -173,11 +173,12 @@ export function shouldSuppressAlert(
   }
 
   // Filter to relevant recent alerts
-  const relevantAlerts = recentAlerts.filter(alert => 
-    alert.userId === newAlert.userId &&
-    alert.vitalType === newAlert.vitalType &&
-    alert.severity === newAlert.severity &&
-    alert.timestamp >= (newAlert.timestamp - suppressionWindowMs)
+  const relevantAlerts = recentAlerts.filter(
+    (alert) =>
+      alert.userId === newAlert.userId &&
+      alert.vitalType === newAlert.vitalType &&
+      alert.severity === newAlert.severity &&
+      alert.timestamp >= newAlert.timestamp - suppressionWindowMs
   );
 
   // Suppress if there's a duplicate within the window
@@ -190,7 +191,7 @@ export function shouldSuppressAlert(
  * Warning alerts: 2 hours
  */
 export function getSuppressionWindow(severity: AlertSeverity): number {
-  if (severity === 'critical') {
+  if (severity === "critical") {
     return 30 * 60 * 1000; // 30 minutes
   }
   return 2 * 60 * 60 * 1000; // 2 hours
@@ -207,16 +208,16 @@ export function createAlertMessage(
   severity: AlertSeverity,
   direction: AlertDirection
 ): { title: string; message: string } {
-  const directionText = direction === 'low' ? 'below' : 'above';
-  const severityEmoji = severity === 'critical' ? '🚨' : '⚠️';
-  
+  const directionText = direction === "low" ? "below" : "above";
+  const severityEmoji = severity === "critical" ? "🚨" : "⚠️";
+
   const vitalName = vitalType
-    .replace(/([A-Z])/g, ' $1')
+    .replace(/([A-Z])/g, " $1")
     .trim()
     .toLowerCase();
 
   return {
-    title: `${severityEmoji} ${severity === 'critical' ? 'Critical' : 'Warning'} Alert`,
+    title: `${severityEmoji} ${severity === "critical" ? "Critical" : "Warning"} Alert`,
     message: `${vitalName} is ${directionText} normal range: ${value} ${unit}`,
   };
 }

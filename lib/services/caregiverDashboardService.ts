@@ -1,10 +1,10 @@
-import type { User, EmergencyAlert } from "@/types";
-import { userService } from "./userService";
+import type { EmergencyAlert, User } from "@/types";
 import { alertService } from "./alertService";
-import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import { healthScoreService } from "./healthScoreService";
-import { symptomService } from "./symptomService";
 import { medicationService } from "./medicationService";
+import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
+import { symptomService } from "./symptomService";
+import { userService } from "./userService";
 
 export interface CaregiverDashboardData {
   member: User;
@@ -52,7 +52,11 @@ class CaregiverDashboardService {
     try {
       // Verify caregiver is admin or caregiver
       const caregiver = await userService.getUser(caregiverId);
-      if (!caregiver || (caregiver.role !== "admin" && caregiver.role !== "caregiver") || caregiver.familyId !== familyId) {
+      if (
+        !caregiver ||
+        (caregiver.role !== "admin" && caregiver.role !== "caregiver") ||
+        caregiver.familyId !== familyId
+      ) {
         throw new Error("Permission denied");
       }
 
@@ -65,13 +69,16 @@ class CaregiverDashboardService {
       );
 
       // Calculate overview statistics
-      const membersNeedingAttention = memberData.filter((m) => m.needsAttention).length;
+      const membersNeedingAttention = memberData.filter(
+        (m) => m.needsAttention
+      ).length;
       const totalActiveAlerts = memberData.reduce(
         (sum, m) => sum + m.recentAlerts.filter((a) => !a.resolved).length,
         0
       );
       const averageHealthScore =
-        memberData.reduce((sum, m) => sum + m.healthScore, 0) / memberData.length;
+        memberData.reduce((sum, m) => sum + m.healthScore, 0) /
+        memberData.length;
 
       return {
         totalMembers: members.length,
@@ -116,14 +123,17 @@ class CaregiverDashboardService {
         (sum, entry) => sum + (entry.missedDoses || 0),
         0
       );
-      const nextDose = scheduleEntries.find((entry) => entry.nextDose)?.nextDose;
+      const nextDose = scheduleEntries.find(
+        (entry) => entry.nextDose
+      )?.nextDose;
 
       // Get recent symptoms
       const symptoms = await symptomService.getUserSymptoms(member.id, 10);
       const recentSymptoms = symptoms.map((s) => ({
         type: s.type,
         severity: s.severity,
-        timestamp: s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp),
+        timestamp:
+          s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp),
       }));
 
       // Get health score
@@ -197,7 +207,7 @@ class CaregiverDashboardService {
   }> {
     try {
       const user = await userService.getUser(userId);
-      if (!user || !user.familyId) {
+      if (!(user && user.familyId)) {
         throw new Error("User not found or not in family");
       }
 
@@ -252,14 +262,19 @@ class CaregiverDashboardService {
   ): Promise<void> {
     try {
       const user = await userService.getUser(userId);
-      if (!user || !user.familyId) {
+      if (!(user && user.familyId)) {
         throw new Error("User not found or not in family");
       }
 
       // Create alert
       const alertId = await alertService.createAlert({
         userId,
-        type: type === "medical" ? "emergency" : type === "other" ? "emergency" : type,
+        type:
+          type === "medical"
+            ? "emergency"
+            : type === "other"
+              ? "emergency"
+              : type,
         severity: "critical",
         message,
         timestamp: new Date(),
@@ -267,9 +282,13 @@ class CaregiverDashboardService {
       });
 
       // Notify caregivers (admins)
-      const { pushNotificationService } = await import("./pushNotificationService");
+      const { pushNotificationService } = await import(
+        "./pushNotificationService"
+      );
       const familyMembers = await userService.getFamilyMembers(user.familyId);
-      const admins = familyMembers.filter((m) => m.role === "admin" && m.id !== userId);
+      const admins = familyMembers.filter(
+        (m) => m.role === "admin" && m.id !== userId
+      );
 
       await Promise.all(
         admins.map((admin) =>

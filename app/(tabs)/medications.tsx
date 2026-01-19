@@ -1,6 +1,14 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Clock, Edit, Minus, Pill, Plus, Trash2, X } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Clock,
+  Edit,
+  Minus,
+  Pill,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -19,23 +27,28 @@ import {
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
-import MedicationRefillCard from "@/app/components/MedicationRefillCard";
 import MedicationInteractionWarning from "@/app/components/MedicationInteractionWarning";
+import MedicationRefillCard from "@/app/components/MedicationRefillCard";
 import TagInput from "@/app/components/TagInput";
 import AnimatedCheckButton from "@/components/AnimatedCheckButton";
+// Design System Components
+import { Button, Card, Input } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { allergyService } from "@/lib/services/allergyService";
-import { medicationService } from "@/lib/services/medicationService";
 import { medicationRefillService } from "@/lib/services/medicationRefillService";
+import { medicationService } from "@/lib/services/medicationService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import { convertTo12Hour, convertTo24Hour } from "@/lib/utils/timeFormat";
-import type { Allergy, Medication, MedicationReminder, User as UserType } from "@/types";
-// Design System Components
-import { Button, Card, Input } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { Badge } from "@/components/design-system/AdditionalComponents";
+import type {
+  Allergy,
+  Medication,
+  MedicationReminder,
+  User as UserType,
+} from "@/types";
 
 const FREQUENCY_OPTIONS = [
   { key: "once", labelEn: "Once daily", labelAr: "مرة واحدة يومياً" },
@@ -264,10 +277,10 @@ export default function MedicationsScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
-  const { 
-    scheduleRecurringMedicationReminder, 
+  const {
+    scheduleRecurringMedicationReminder,
     cancelMedicationNotifications,
-    clearDuplicateMedicationNotifications 
+    clearDuplicateMedicationNotifications,
   } = useNotifications();
 
   // Clear duplicate notifications on mount to fix any existing duplicates
@@ -303,12 +316,16 @@ export default function MedicationsScreen() {
         setLoading(true);
       }
 
-      logger.debug("Loading medications", {
-        userId: user.id,
-        filterType: selectedFilter.type,
-        isAdmin,
-        hasFamily: Boolean(user.familyId),
-      }, "MedicationsScreen");
+      logger.debug(
+        "Loading medications",
+        {
+          userId: user.id,
+          filterType: selectedFilter.type,
+          isAdmin,
+          hasFamily: Boolean(user.familyId),
+        },
+        "MedicationsScreen"
+      );
 
       // Always load family members first if user has family
       let members: UserType[] = [];
@@ -333,90 +350,129 @@ export default function MedicationsScreen() {
           setMedications(loadedMedications);
           dataLoaded = true;
         } else {
-          logger.error("Failed to load family medications", medicationsResult.reason, "MedicationsScreen");
+          logger.error(
+            "Failed to load family medications",
+            medicationsResult.reason,
+            "MedicationsScreen"
+          );
           setMedications([]);
         }
 
         if (refillResult.status === "fulfilled") {
-          const summary = medicationRefillService.getRefillPredictions(refillResult.value);
+          const summary = medicationRefillService.getRefillPredictions(
+            refillResult.value
+          );
           setRefillSummary(summary);
         } else {
-          logger.error("Failed to load family medications for refill", refillResult.reason, "MedicationsScreen");
+          logger.error(
+            "Failed to load family medications for refill",
+            refillResult.reason,
+            "MedicationsScreen"
+          );
           setRefillSummary(medicationRefillService.getRefillPredictions([]));
         }
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
+      } else if (
+        selectedFilter.type === "member" &&
+        selectedFilter.memberId &&
+        isAdmin
+      ) {
         // Load specific member medications (admin only)
-        const medicationsResult = await medicationService.getMemberMedications(selectedFilter.memberId).catch((error) => {
-          logger.error("Failed to load member medications", error, "MedicationsScreen");
-          return [] as Medication[];
-        });
+        const medicationsResult = await medicationService
+          .getMemberMedications(selectedFilter.memberId)
+          .catch((error) => {
+            logger.error(
+              "Failed to load member medications",
+              error,
+              "MedicationsScreen"
+            );
+            return [] as Medication[];
+          });
 
         loadedMedications = medicationsResult;
         setMedications(loadedMedications);
         dataLoaded = true;
 
         // Use the same medications for refill calculation
-        const summary = medicationRefillService.getRefillPredictions(loadedMedications);
+        const summary =
+          medicationRefillService.getRefillPredictions(loadedMedications);
         setRefillSummary(summary);
       } else {
         // Load personal medications (default)
-        const medicationsResult = await medicationService.getUserMedications(user.id).catch((error) => {
-          logger.error("Failed to load user medications", error, "MedicationsScreen");
-          return [] as Medication[];
-        });
+        const medicationsResult = await medicationService
+          .getUserMedications(user.id)
+          .catch((error) => {
+            logger.error(
+              "Failed to load user medications",
+              error,
+              "MedicationsScreen"
+            );
+            return [] as Medication[];
+          });
 
         loadedMedications = medicationsResult;
         setMedications(loadedMedications);
         dataLoaded = true;
 
         // Use the same medications for refill calculation
-        const summary = medicationRefillService.getRefillPredictions(loadedMedications);
+        const summary =
+          medicationRefillService.getRefillPredictions(loadedMedications);
         setRefillSummary(summary);
       }
 
       const durationMs = Date.now() - startTime;
-      logger.info("Medications loaded", {
-        userId: user.id,
-        filterType: selectedFilter.type,
-        medicationCount: loadedMedications.length,
-        durationMs,
-      }, "MedicationsScreen");
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      
-      // Check if it's a Firestore index error
-      const isIndexError = error && typeof error === 'object' && 
-        'code' in error && error.code === 'failed-precondition';
-      
-      if (isIndexError) {
-        logger.warn("Firestore index not ready for medications query", {
+      logger.info(
+        "Medications loaded",
+        {
           userId: user.id,
           filterType: selectedFilter.type,
+          medicationCount: loadedMedications.length,
           durationMs,
-        }, "MedicationsScreen");
-        
+        },
+        "MedicationsScreen"
+      );
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+
+      // Check if it's a Firestore index error
+      const isIndexError =
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "failed-precondition";
+
+      if (isIndexError) {
+        logger.warn(
+          "Firestore index not ready for medications query",
+          {
+            userId: user.id,
+            filterType: selectedFilter.type,
+            durationMs,
+          },
+          "MedicationsScreen"
+        );
+
         // Only show alert if no data was loaded (fallback should have handled it)
         if (!dataLoaded) {
           Alert.alert(
             isRTL ? "خطأ" : "Error",
-            isRTL 
+            isRTL
               ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
               : "Database index not ready. Please try again in a moment."
           );
         }
       } else {
         logger.error("Failed to load medications", error, "MedicationsScreen");
-        
+
         // Only show alert if no data was loaded
         if (!dataLoaded) {
-          const errorMessage = error instanceof Error 
-            ? error.message 
-            : isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
-          
-          Alert.alert(
-            isRTL ? "خطأ" : "Error",
-            errorMessage
-          );
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : isRTL
+                ? "حدث خطأ في تحميل البيانات"
+                : "Error loading data";
+
+          Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
         }
       }
     } finally {
@@ -462,7 +518,12 @@ export default function MedicationsScreen() {
 
     // Mapping of allergy translation keys to medication names/substrings
     const allergyToMedicationMap: Record<string, string[]> = {
-      allergyPenicillin: ["penicillin", "amoxicillin", "augmentin", "ampicillin"],
+      allergyPenicillin: [
+        "penicillin",
+        "amoxicillin",
+        "augmentin",
+        "ampicillin",
+      ],
       allergyAspirin: ["aspirin", "acetylsalicylic"],
       allergySulfites: ["sulfite", "sulfa", "sulfonamide"],
     };
@@ -564,7 +625,7 @@ export default function MedicationsScreen() {
     // Check for allergy conflicts
     const targetUserId = selectedTargetUser || user.id;
     let allergiesToCheck = userAllergies;
-    
+
     // If adding for another user, we should check their allergies, but for now check current user's
     // In a production system, you'd load the target user's allergies
     if (targetUserId !== user.id && isAdmin) {
@@ -582,36 +643,39 @@ export default function MedicationsScreen() {
       // Get translated allergy names
       const getTranslatedAllergyName = (allergyName: string): string => {
         const englishToKeyMap: Record<string, string> = {
-          "Peanuts": "allergyPeanuts",
+          Peanuts: "allergyPeanuts",
           "Tree Nuts": "allergyTreeNuts",
-          "Milk": "allergyMilk",
-          "Eggs": "allergyEggs",
-          "Fish": "allergyFish",
-          "Shellfish": "allergyShellfish",
-          "Soy": "allergySoy",
-          "Wheat": "allergyWheat",
-          "Pollen": "allergyPollen",
+          Milk: "allergyMilk",
+          Eggs: "allergyEggs",
+          Fish: "allergyFish",
+          Shellfish: "allergyShellfish",
+          Soy: "allergySoy",
+          Wheat: "allergyWheat",
+          Pollen: "allergyPollen",
           "Dust Mites": "allergyDustMites",
           "Pet Dander": "allergyPetDander",
-          "Mold": "allergyMold",
-          "Latex": "allergyLatex",
-          "Penicillin": "allergyPenicillin",
-          "Aspirin": "allergyAspirin",
+          Mold: "allergyMold",
+          Latex: "allergyLatex",
+          Penicillin: "allergyPenicillin",
+          Aspirin: "allergyAspirin",
           "Bee Stings": "allergyBeeStings",
-          "Sesame": "allergySesame",
-          "Sulfites": "allergySulfites",
+          Sesame: "allergySesame",
+          Sulfites: "allergySulfites",
         };
-        
+
         // Check if it's a translation key (common allergy)
-        if (allergyName.startsWith("allergy") && ALLERGY_KEYS.includes(allergyName)) {
+        if (
+          allergyName.startsWith("allergy") &&
+          ALLERGY_KEYS.includes(allergyName)
+        ) {
           return t(allergyName);
         }
-        
+
         // Check if it's an old English name that needs mapping
         if (englishToKeyMap[allergyName]) {
           return t(englishToKeyMap[allergyName]);
         }
-        
+
         // Otherwise return as-is (custom allergy)
         return allergyName;
       };
@@ -619,11 +683,14 @@ export default function MedicationsScreen() {
       const allergyNames = conflictingAllergies
         .map((a) => getTranslatedAllergyName(a.name))
         .join(", ");
-      
+
       const severityText = conflictingAllergies.some(
-        (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
+        (a) =>
+          a.severity === "severe" || a.severity === "severe-life-threatening"
       )
-        ? isRTL ? "خطيرة" : "severe"
+        ? isRTL
+          ? "خطيرة"
+          : "severe"
         : "";
 
       Alert.alert(
@@ -690,9 +757,10 @@ export default function MedicationsScreen() {
             lastRefillDate: newMedication.lastRefillDate,
           }),
           refillReminderDays: newMedication.refillReminderDays,
-          ...(newMedication.tags && newMedication.tags.length > 0 && {
-            tags: newMedication.tags,
-          }),
+          ...(newMedication.tags &&
+            newMedication.tags.length > 0 && {
+              tags: newMedication.tags,
+            }),
         };
 
         await medicationService.updateMedication(
@@ -708,7 +776,7 @@ export default function MedicationsScreen() {
           // First, cancel all existing notifications for the old medication name
           // This prevents duplicate notifications when editing
           await cancelMedicationNotifications(editingMedication.name);
-          
+
           // If the medication name changed, also cancel notifications for the new name
           if (editingMedication.name !== newMedication.name) {
             await cancelMedicationNotifications(newMedication.name);
@@ -791,9 +859,10 @@ export default function MedicationsScreen() {
             lastRefillDate: newMedication.lastRefillDate,
           }),
           refillReminderDays: newMedication.refillReminderDays,
-          ...(newMedication.tags && newMedication.tags.length > 0 && {
-            tags: newMedication.tags,
-          }),
+          ...(newMedication.tags &&
+            newMedication.tags.length > 0 && {
+              tags: newMedication.tags,
+            }),
           isActive: true,
         };
 
@@ -809,7 +878,10 @@ export default function MedicationsScreen() {
         }
 
         // Schedule notifications for reminders (only for current user's medications)
-        if (targetUserIdForSave === user.id && newMedication.reminders.length > 0) {
+        if (
+          targetUserIdForSave === user.id &&
+          newMedication.reminders.length > 0
+        ) {
           const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
             if (reminder.time && reminder.time.trim()) {
@@ -1001,12 +1073,12 @@ export default function MedicationsScreen() {
           onPress: async () => {
             try {
               setLoading(true);
-              
+
               // Cancel any scheduled notifications for this medication
               if (medication.userId === user?.id) {
                 await cancelMedicationNotifications(medication.name);
               }
-              
+
               await medicationService.deleteMedication(medication.id);
               await loadMedications();
               Alert.alert(
@@ -1148,6 +1220,7 @@ export default function MedicationsScreen() {
       </View>
 
       <ScrollView
+        contentContainerStyle={styles.contentInner}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadMedications(true)}
@@ -1157,7 +1230,6 @@ export default function MedicationsScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
-        contentContainerStyle={styles.contentInner}
       >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
@@ -1175,15 +1247,25 @@ export default function MedicationsScreen() {
         )}
 
         {/* Medication Interaction Warnings */}
-        {selectedFilter.type === "personal" && user && medications.filter((m) => m.isActive).length > 1 && (
-          <MedicationInteractionWarning
-            medications={medications.filter((m) => m.isActive)}
-          />
-        )}
+        {selectedFilter.type === "personal" &&
+          user &&
+          medications.filter((m) => m.isActive).length > 1 && (
+            <MedicationInteractionWarning
+              medications={medications.filter((m) => m.isActive)}
+            />
+          )}
 
         {/* Today's Progress */}
-        <Card variant="elevated" style={styles.progressCard} onPress={undefined} contentStyle={undefined}>
-          <Heading level={5} style={[styles.progressTitle, isRTL && styles.rtlText]}>
+        <Card
+          contentStyle={undefined}
+          onPress={undefined}
+          style={styles.progressCard}
+          variant="elevated"
+        >
+          <Heading
+            level={5}
+            style={[styles.progressTitle, isRTL && styles.rtlText]}
+          >
             {selectedFilter.type === "family"
               ? isRTL
                 ? "تقدم العائلة اليوم"
@@ -1197,7 +1279,11 @@ export default function MedicationsScreen() {
                   : "Today's Progress"}
           </Heading>
           <View style={styles.progressInfo}>
-            <Text weight="bold" size="large" style={[styles.progressText, isRTL && styles.rtlText]}>
+            <Text
+              size="large"
+              style={[styles.progressText, isRTL && styles.rtlText]}
+              weight="bold"
+            >
               {takenMeds}/{totalMeds} {isRTL ? "مأخوذة" : "taken"}
             </Text>
             <View style={styles.progressBar}>
@@ -1217,7 +1303,10 @@ export default function MedicationsScreen() {
 
         {/* Today's Medications */}
         <View style={styles.section}>
-          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading
+            level={5}
+            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+          >
             {selectedFilter.type === "family"
               ? isRTL
                 ? "أدوية العائلة"
@@ -1232,7 +1321,12 @@ export default function MedicationsScreen() {
           </Heading>
 
           {medications.length > 0 ? (
-            <Card variant="elevated" style={styles.medicationsList} onPress={undefined} contentStyle={undefined}>
+            <Card
+              contentStyle={undefined}
+              onPress={undefined}
+              style={styles.medicationsList}
+              variant="elevated"
+            >
               {medications.map((medication) => (
                 <View key={medication.id} style={styles.medicationItem}>
                   <View style={styles.medicationLeft}>
@@ -1243,29 +1337,33 @@ export default function MedicationsScreen() {
                     <View style={styles.medicationInfo}>
                       <View style={styles.medicationHeader}>
                         <Text
-                          weight="semibold"
                           size="large"
                           style={[
                             styles.medicationName,
                             isRTL && styles.rtlText,
                           ]}
+                          weight="semibold"
                         >
                           {medication.name}
                         </Text>
                         {/* Show member name for family/admin views */}
                         {(selectedFilter.type === "family" ||
                           selectedFilter.type === "member") && (
-                          <Badge variant="info" size="small" style={styles.memberBadge}>
+                          <Badge
+                            size="small"
+                            style={styles.memberBadge}
+                            variant="info"
+                          >
                             {getMemberName(medication.userId)}
                           </Badge>
                         )}
                       </View>
                       <Caption
+                        numberOfLines={undefined}
                         style={[
                           styles.medicationDosage,
                           isRTL && styles.rtlText,
                         ]}
-                        numberOfLines={undefined}
                       >
                         {medication.dosage} • {medication.frequency}
                       </Caption>
@@ -1274,15 +1372,20 @@ export default function MedicationsScreen() {
                           {medication.tags.slice(0, 3).map((tag, index) => (
                             <Badge
                               key={index}
-                              variant="outline"
                               size="small"
                               style={styles.medicationTag}
+                              variant="outline"
                             >
-                              <Text style={styles.medicationTagText}>{tag}</Text>
+                              <Text style={styles.medicationTagText}>
+                                {tag}
+                              </Text>
                             </Badge>
                           ))}
                           {medication.tags.length > 3 && (
-                            <Caption style={styles.moreTagsText} numberOfLines={1}>
+                            <Caption
+                              numberOfLines={1}
+                              style={styles.moreTagsText}
+                            >
                               +{medication.tags.length - 3}
                             </Caption>
                           )}
@@ -1291,11 +1394,11 @@ export default function MedicationsScreen() {
                       <View style={styles.medicationTime}>
                         <Clock color="#64748B" size={12} />
                         <Caption
+                          numberOfLines={undefined}
                           style={[
                             styles.medicationTimeText,
                             isRTL && styles.rtlText,
                           ]}
-                          numberOfLines={undefined}
                         >
                           {getNextDoseText(medication)}
                         </Caption>
@@ -1368,7 +1471,10 @@ export default function MedicationsScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Heading level={5} style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            <Heading
+              level={5}
+              style={[styles.modalTitle, isRTL && styles.rtlText]}
+            >
               {editingMedication
                 ? isRTL
                   ? "تحديث الدواء"
@@ -1463,7 +1569,10 @@ export default function MedicationsScreen() {
             {/* Medication Name */}
             <View style={styles.fieldContainer}>
               <Input
+                error={undefined}
+                helperText={undefined}
                 label={`${t("medicationName")} *`}
+                leftIcon={undefined}
                 onBlur={() => {
                   // Clear any existing timeout
                   if (blurTimeoutRef.current) {
@@ -1509,13 +1618,10 @@ export default function MedicationsScreen() {
                   }
                 }}
                 placeholder={isRTL ? "اسم الدواء" : "Medication name"}
+                rightIcon={undefined}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.name}
-                error={undefined}
-                helperText={undefined}
-                leftIcon={undefined}
-                rightIcon={undefined}
               />
               {showSuggestions && medicationSuggestions.length > 0 && (
                 <View style={styles.suggestionsContainer}>
@@ -1576,26 +1682,29 @@ export default function MedicationsScreen() {
             {/* Dosage */}
             <View style={styles.fieldContainer}>
               <Input
+                error={undefined}
+                helperText={undefined}
                 label={`${t("dosage")} *`}
+                leftIcon={undefined}
                 onChangeText={(text: string) =>
                   setNewMedication({ ...newMedication, dosage: text })
                 }
                 placeholder={
                   isRTL ? "مثال: 500mg, 1 كبسولة" : "e.g., 500mg, 1 tablet"
                 }
+                rightIcon={undefined}
                 style={isRTL && styles.rtlInput}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.dosage}
-                error={undefined}
-                helperText={undefined}
-                leftIcon={undefined}
-                rightIcon={undefined}
               />
             </View>
 
             {/* Frequency */}
             <View style={styles.fieldContainer}>
-              <Text weight="semibold" style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+              <Text
+                style={[styles.fieldLabel, isRTL && styles.rtlText]}
+                weight="semibold"
+              >
                 {t("frequency")} *
               </Text>
               <View style={styles.frequencyGrid}>
@@ -1631,10 +1740,16 @@ export default function MedicationsScreen() {
 
             {/* Reminders */}
             <View style={styles.fieldContainer}>
-              <Text weight="semibold" style={[styles.fieldLabel, isRTL && styles.rtlText]}>
+              <Text
+                style={[styles.fieldLabel, isRTL && styles.rtlText]}
+                weight="semibold"
+              >
                 {isRTL ? "التذكيرات" : "Reminders"} *
               </Text>
-              <Caption style={[styles.helperText, isRTL && styles.rtlText]} numberOfLines={undefined}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.helperText, isRTL && styles.rtlText]}
+              >
                 {isRTL
                   ? "أدخل الوقت واختر AM أو PM - مثال: 08:34 AM، 02:30 PM"
                   : "Enter time and select AM or PM - Examples: 08:34 AM, 02:30 PM"}
@@ -1784,13 +1899,17 @@ export default function MedicationsScreen() {
             {/* Quantity Tracking (Optional) */}
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "تتبع الكمية" : "Quantity Tracking"} ({isRTL ? "اختياري" : "Optional"})
+                {isRTL ? "تتبع الكمية" : "Quantity Tracking"} (
+                {isRTL ? "اختياري" : "Optional"})
               </Text>
               <View style={styles.quantityRow}>
                 <View style={styles.quantityInputContainer}>
                   <Input
-                    label={isRTL ? "الكمية" : "Quantity"}
+                    error={undefined}
+                    helperText={undefined}
                     keyboardType="numeric"
+                    label={isRTL ? "الكمية" : "Quantity"}
+                    leftIcon={undefined}
                     onChangeText={(text: string) => {
                       const num = text ? Number.parseInt(text) : undefined;
                       setNewMedication({
@@ -1799,6 +1918,7 @@ export default function MedicationsScreen() {
                       });
                     }}
                     placeholder={isRTL ? "30" : "30"}
+                    rightIcon={undefined}
                     style={[styles.quantityInput, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     value={
@@ -1806,15 +1926,14 @@ export default function MedicationsScreen() {
                         ? newMedication.quantity.toString()
                         : ""
                     }
-                    error={undefined}
-                    helperText={undefined}
-                    leftIcon={undefined}
-                    rightIcon={undefined}
                   />
                 </View>
                 <View style={styles.unitInputContainer}>
                   <Input
+                    error={undefined}
+                    helperText={undefined}
                     label={isRTL ? "الوحدة" : "Unit"}
+                    leftIcon={undefined}
                     onChangeText={(text: string) =>
                       setNewMedication({
                         ...newMedication,
@@ -1822,17 +1941,17 @@ export default function MedicationsScreen() {
                       })
                     }
                     placeholder={isRTL ? "حبة" : "pills"}
+                    rightIcon={undefined}
                     style={[styles.unitInput, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     value={newMedication.quantityUnit}
-                    error={undefined}
-                    helperText={undefined}
-                    leftIcon={undefined}
-                    rightIcon={undefined}
                   />
                 </View>
               </View>
-              <Caption style={[styles.helperText, isRTL && styles.rtlText]} numberOfLines={undefined}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.helperText, isRTL && styles.rtlText]}
+              >
                 {isRTL
                   ? "عدد الحبات/الكمية الحالية المتوفرة"
                   : "Current quantity available (e.g., number of pills)"}
@@ -1842,8 +1961,11 @@ export default function MedicationsScreen() {
             {/* Refill Reminder Settings */}
             <View style={styles.fieldContainer}>
               <Input
-                label={`${isRTL ? "تنبيه قبل" : "Remind me"} (${isRTL ? "أيام" : "days"})`}
+                error={undefined}
+                helperText={undefined}
                 keyboardType="numeric"
+                label={`${isRTL ? "تنبيه قبل" : "Remind me"} (${isRTL ? "أيام" : "days"})`}
+                leftIcon={undefined}
                 onChangeText={(text: string) => {
                   const num = text ? Number.parseInt(text) : 7;
                   setNewMedication({
@@ -1852,15 +1974,15 @@ export default function MedicationsScreen() {
                   });
                 }}
                 placeholder="7"
+                rightIcon={undefined}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.refillReminderDays.toString()}
-                error={undefined}
-                helperText={undefined}
-                leftIcon={undefined}
-                rightIcon={undefined}
               />
-              <Caption style={[styles.helperText, isRTL && styles.rtlText]} numberOfLines={undefined}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.helperText, isRTL && styles.rtlText]}
+              >
                 {isRTL
                   ? "عدد الأيام قبل نفاد الدواء لإرسال تنبيه"
                   : "Days before running out to send reminder"}
@@ -1873,7 +1995,7 @@ export default function MedicationsScreen() {
                 {isRTL ? "العلامات" : "Tags"} ({isRTL ? "اختياري" : "Optional"})
               </Text>
               <TagInput
-                tags={newMedication.tags}
+                maxTags={10}
                 onChangeTags={(tags) =>
                   setNewMedication({ ...newMedication, tags })
                 }
@@ -1882,37 +2004,37 @@ export default function MedicationsScreen() {
                     ? "أضف علامات للتنظيم (مثل: صباحي، مزمن، طوارئ)"
                     : "Add tags for organization (e.g., morning, chronic, emergency)"
                 }
-                maxTags={10}
                 showSuggestions={true}
+                tags={newMedication.tags}
               />
             </View>
 
             {/* Notes */}
             <View style={styles.fieldContainer}>
               <Input
+                error={undefined}
+                helperText={undefined}
                 label={`${isRTL ? "ملاحظات" : "Notes"} (${isRTL ? "اختياري" : "Optional"})`}
+                leftIcon={undefined}
                 multiline
                 numberOfLines={3}
                 onChangeText={(text: string) =>
                   setNewMedication({ ...newMedication, notes: text })
                 }
                 placeholder={isRTL ? "أضف ملاحظات..." : "Add notes..."}
+                rightIcon={undefined}
                 style={[styles.textArea, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newMedication.notes}
-                error={undefined}
-                helperText={undefined}
-                leftIcon={undefined}
-                rightIcon={undefined}
               />
             </View>
 
             {/* Submit Button */}
             <Button
               disabled={loading}
+              fullWidth
               loading={loading}
               onPress={handleAddMedication}
-              fullWidth
               style={styles.submitButton}
               textStyle={undefined}
               title={

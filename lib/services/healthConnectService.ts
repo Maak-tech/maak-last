@@ -4,6 +4,7 @@
  */
 
 import { Platform } from "react-native";
+import * as HealthConnect from "../../modules/expo-health-connect";
 import {
   getAvailableMetricsForProvider,
   getHealthConnectPermissionsForMetrics,
@@ -15,7 +16,6 @@ import type {
   NormalizedMetricPayload,
   ProviderAvailability,
 } from "../health/healthTypes";
-import * as HealthConnect from "../../modules/expo-health-connect";
 
 // Track if authorization has been requested
 let authorizationRequested = false;
@@ -37,9 +37,11 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
     if (!availability.available) {
       return {
         available: false,
-        reason: availability.reason || "Health Connect not available on this device",
+        reason:
+          availability.reason || "Health Connect not available on this device",
         requiresInstall: true,
-        installUrl: "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata",
+        installUrl:
+          "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata",
       };
     }
 
@@ -51,7 +53,8 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
       available: false,
       reason: error?.message || "Unknown error",
       requiresInstall: true,
-      installUrl: "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata",
+      installUrl:
+        "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata",
     };
   }
 };
@@ -145,16 +148,17 @@ const parseRecordValue = (
     const parts = String(record.value).split("/");
     if (parts.length === 2) {
       return {
-        value: parseFloat(parts[0]) || 0,
+        value: Number.parseFloat(parts[0]) || 0,
         unit: record.unit || "mmHg",
       };
     }
   }
 
   // Handle numeric values
-  const numValue = typeof record.value === "number" 
-    ? record.value 
-    : parseFloat(String(record.value));
+  const numValue =
+    typeof record.value === "number"
+      ? record.value
+      : Number.parseFloat(String(record.value));
 
   return {
     value: isNaN(numValue) ? String(record.value) : numValue,
@@ -234,19 +238,29 @@ const fetchMetrics = async (
         const recordType = metric.healthConnect.recordType;
 
         // Special handling for blood pressure (systolic and diastolic)
-        if (metric.key === "blood_pressure_systolic" || metric.key === "blood_pressure_diastolic") {
+        if (
+          metric.key === "blood_pressure_systolic" ||
+          metric.key === "blood_pressure_diastolic"
+        ) {
           // Fetch BloodPressureRecord and extract systolic/diastolic
-          const samples = await fetchMetricSamples("BloodPressureRecord", startDate, endDate);
-          
+          const samples = await fetchMetricSamples(
+            "BloodPressureRecord",
+            startDate,
+            endDate
+          );
+
           // Parse blood pressure values
           const bpSamples: MetricSample[] = samples.map((sample) => {
             const valueStr = String(sample.value);
             const parts = valueStr.split("/");
             if (parts.length === 2) {
-              const systolic = parseFloat(parts[0]);
-              const diastolic = parseFloat(parts[1]);
+              const systolic = Number.parseFloat(parts[0]);
+              const diastolic = Number.parseFloat(parts[1]);
               return {
-                value: metric.key === "blood_pressure_systolic" ? systolic : diastolic,
+                value:
+                  metric.key === "blood_pressure_systolic"
+                    ? systolic
+                    : diastolic,
                 unit: sample.unit || "mmHg",
                 startDate: sample.startDate,
                 endDate: sample.endDate,
@@ -267,7 +281,11 @@ const fetchMetrics = async (
           }
         } else {
           // Regular metric fetching
-          const samples = await fetchMetricSamples(recordType, startDate, endDate);
+          const samples = await fetchMetricSamples(
+            recordType,
+            startDate,
+            endDate
+          );
 
           if (samples.length > 0) {
             results.push({

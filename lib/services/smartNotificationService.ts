@@ -1,6 +1,6 @@
+import i18n from "@/lib/i18n";
 import type { Medication, MedicationReminder } from "@/types";
 import { medicationRefillService } from "./medicationRefillService";
-import i18n from "@/lib/i18n";
 
 export interface UserStats {
   currentStreak: number;
@@ -63,7 +63,18 @@ export interface SmartNotification {
   id: string;
   title: string;
   body: string;
-  type: "medication" | "refill" | "health_tip" | "reminder" | "alert" | "wellness_checkin" | "streak_reminder" | "activity_alert" | "achievement" | "family_update" | "medication_confirmation";
+  type:
+    | "medication"
+    | "refill"
+    | "health_tip"
+    | "reminder"
+    | "alert"
+    | "wellness_checkin"
+    | "streak_reminder"
+    | "activity_alert"
+    | "achievement"
+    | "family_update"
+    | "medication_confirmation";
   priority: "low" | "normal" | "high" | "critical";
   scheduledTime: Date;
   data?: Record<string, any>;
@@ -78,7 +89,9 @@ class SmartNotificationService {
   private static readonly DEDUPE_WINDOW_MS = 30 * 60 * 1000;
 
   private getDedupeWindowId(date: Date): number {
-    return Math.floor(date.getTime() / SmartNotificationService.DEDUPE_WINDOW_MS);
+    return Math.floor(
+      date.getTime() / SmartNotificationService.DEDUPE_WINDOW_MS
+    );
   }
 
   private extractTriggerDateFromScheduledRequest(request: any): Date | null {
@@ -97,9 +110,12 @@ class SmartNotificationService {
     }
   }
 
-  private getSchedulingKeyFromSmartNotification(notification: SmartNotification): string {
+  private getSchedulingKeyFromSmartNotification(
+    notification: SmartNotification
+  ): string {
     const userId =
-      typeof notification.data?.userId === "string" && notification.data.userId.length > 0
+      typeof notification.data?.userId === "string" &&
+      notification.data.userId.length > 0
         ? notification.data.userId
         : "unknown";
 
@@ -116,7 +132,8 @@ class SmartNotificationService {
     }
 
     const dataType =
-      typeof notification.data?.type === "string" && notification.data.type.length > 0
+      typeof notification.data?.type === "string" &&
+      notification.data.type.length > 0
         ? notification.data.type
         : notification.title;
 
@@ -130,10 +147,17 @@ class SmartNotificationService {
       if (!content) return null;
 
       const data = content?.data ?? {};
-      const userId = typeof data.userId === "string" && data.userId.length > 0 ? data.userId : "unknown";
+      const userId =
+        typeof data.userId === "string" && data.userId.length > 0
+          ? data.userId
+          : "unknown";
 
-      const medicationName = typeof data.medicationName === "string" ? data.medicationName : undefined;
-      const reminderTime = typeof data.reminderTime === "string" ? data.reminderTime : undefined;
+      const medicationName =
+        typeof data.medicationName === "string"
+          ? data.medicationName
+          : undefined;
+      const reminderTime =
+        typeof data.reminderTime === "string" ? data.reminderTime : undefined;
       if (medicationName && reminderTime) {
         return `medication_reminder:${userId}:${medicationName}:${reminderTime}`;
       }
@@ -145,7 +169,8 @@ class SmartNotificationService {
             ? content.title
             : "";
 
-      const triggerDate = this.extractTriggerDateFromScheduledRequest(request) ?? new Date();
+      const triggerDate =
+        this.extractTriggerDateFromScheduledRequest(request) ?? new Date();
       const windowId = this.getDedupeWindowId(triggerDate);
       return `${dataType}:${userId}:${windowId}`;
     } catch {
@@ -153,7 +178,9 @@ class SmartNotificationService {
     }
   }
 
-  private async getUserNotificationSettings(userId: string): Promise<any | null> {
+  private async getUserNotificationSettings(
+    userId: string
+  ): Promise<any | null> {
     try {
       const { userService } = await import("./userService");
       const user = await userService.getUser(userId);
@@ -174,13 +201,17 @@ class SmartNotificationService {
     return null;
   }
 
-  private isAllowedByUserPreferences(notification: SmartNotification, rawSettings: any | null): boolean {
+  private isAllowedByUserPreferences(
+    notification: SmartNotification,
+    rawSettings: any | null
+  ): boolean {
     const settings = this.normalizeNotificationSettings(rawSettings);
     if (!settings) return true;
 
     if (settings.enabled === false) return false;
 
-    const dataType = typeof notification.data?.type === "string" ? notification.data.type : "";
+    const dataType =
+      typeof notification.data?.type === "string" ? notification.data.type : "";
 
     if (
       settings.wellnessCheckins === false &&
@@ -202,11 +233,17 @@ class SmartNotificationService {
       return false;
     }
 
-    if (settings.symptomAlerts === false && (notification.type === "alert" || dataType.includes("symptom"))) {
+    if (
+      settings.symptomAlerts === false &&
+      (notification.type === "alert" || dataType.includes("symptom"))
+    ) {
       return false;
     }
 
-    if (settings.familyUpdates === false && (notification.type === "family_update" || dataType.includes("family"))) {
+    if (
+      settings.familyUpdates === false &&
+      (notification.type === "family_update" || dataType.includes("family"))
+    ) {
       return false;
     }
 
@@ -237,12 +274,9 @@ class SmartNotificationService {
   /**
    * Generate medication refill notifications
    */
-  generateRefillNotifications(
-    medications: Medication[]
-  ): SmartNotification[] {
-    const predictions = medicationRefillService.getRefillPredictions(
-      medications
-    );
+  generateRefillNotifications(medications: Medication[]): SmartNotification[] {
+    const predictions =
+      medicationRefillService.getRefillPredictions(medications);
     const notifications: SmartNotification[] = [];
 
     predictions.predictions.forEach((prediction) => {
@@ -253,7 +287,10 @@ class SmartNotificationService {
 
         // For critical/high urgency, notify immediately
         // For medium/low, schedule for next morning
-        if (prediction.urgency === "critical" || prediction.urgency === "high") {
+        if (
+          prediction.urgency === "critical" ||
+          prediction.urgency === "high"
+        ) {
           scheduledTime = new Date(now);
           scheduledTime.setMinutes(scheduledTime.getMinutes() + 5); // 5 minutes from now
         } else {
@@ -330,7 +367,10 @@ class SmartNotificationService {
     if (context.weather) {
       const { condition, temperature } = context.weather;
 
-      if (condition.toLowerCase().includes("rain") || condition.toLowerCase().includes("storm")) {
+      if (
+        condition.toLowerCase().includes("rain") ||
+        condition.toLowerCase().includes("storm")
+      ) {
         notifications.push({
           id: `health-tip-weather-${Date.now()}`,
           title: "🌧️ Weather Alert",
@@ -427,25 +467,34 @@ class SmartNotificationService {
     const maxNotifications = context?.notificationPreferences?.maxPerDay || 3;
 
     // Core daily check-ins (2-3 most important)
-    const dailyNotifications = await this.generateDailyInteractiveNotifications(userId);
+    const dailyNotifications =
+      await this.generateDailyInteractiveNotifications(userId);
     // Prioritize morning check-in and evening reflection
-    const priorityDaily = dailyNotifications.filter(n =>
-      n.id.includes('morning-checkin') || n.id.includes('evening-reflection')
+    const priorityDaily = dailyNotifications.filter(
+      (n) =>
+        n.id.includes("morning-checkin") || n.id.includes("evening-reflection")
     );
     notifications.push(...priorityDaily.slice(0, 2));
 
     // Medication reminders (if applicable)
     if (medications.length > 0) {
-      const existingNotifications = this.generateSmartNotifications(medications, context);
+      const existingNotifications = this.generateSmartNotifications(
+        medications,
+        context
+      );
       notifications.push(...existingNotifications.slice(0, 2)); // Max 2 medication notifications
 
       // Medication confirmation check-ins (ask if they took scheduled medication)
-      const confirmationNotifications = this.generateMedicationConfirmationNotifications(medications, userStats);
+      const confirmationNotifications =
+        this.generateMedicationConfirmationNotifications(
+          medications,
+          userStats
+        );
       notifications.push(...confirmationNotifications.slice(0, 1)); // Max 1 confirmation notification
     }
 
     // Key wellness reminders (1-2 based on context)
-    if (context?.timeOfDay === 'morning') {
+    if (context?.timeOfDay === "morning") {
       // Morning hydration reminder
       const hydrationNotification: SmartNotification = {
         id: `morning-hydration-${Date.now()}`,
@@ -458,14 +507,17 @@ class SmartNotificationService {
         quickActions: [
           { label: "💧 Drank Water", action: "log_water_intake" },
           { label: "☕ Coffee First", action: "log_coffee_intake" },
-          { label: "⏰ Remind Later", action: "snooze_hydration" }
-        ]
+          { label: "⏰ Remind Later", action: "snooze_hydration" },
+        ],
       };
       notifications.push(hydrationNotification);
     }
 
     // Midday wellness check (only if we have room)
-    if (notifications.length < maxNotifications && context?.timeOfDay === 'afternoon') {
+    if (
+      notifications.length < maxNotifications &&
+      context?.timeOfDay === "afternoon"
+    ) {
       const middayNotification: SmartNotification = {
         id: `midday-wellness-${Date.now()}`,
         title: "⚡ Afternoon Energy Check",
@@ -477,27 +529,36 @@ class SmartNotificationService {
         quickActions: [
           { label: "⚡ Feeling Good", action: "log_energy_good" },
           { label: "😴 Need Boost", action: "log_energy_low" },
-          { label: "💧 Drink Water", action: "log_hydration" }
-        ]
+          { label: "💧 Drink Water", action: "log_hydration" },
+        ],
       };
       notifications.push(middayNotification);
     }
 
     // Condition-specific reminders (only for users with conditions)
     if (userStats.healthConditions && userStats.healthConditions.length > 0) {
-      const conditionReminders = this.generateConditionSpecificReminders(userStats);
+      const conditionReminders =
+        this.generateConditionSpecificReminders(userStats);
       notifications.push(...conditionReminders.slice(0, 1)); // Max 1 condition reminder
     }
 
     // Achievement celebrations (only recent ones)
-    const achievementCelebrations = this.generateAchievementCelebrations(userStats);
+    const achievementCelebrations =
+      this.generateAchievementCelebrations(userStats);
     notifications.push(...achievementCelebrations.slice(0, 1)); // Max 1 achievement
 
     // Remove duplicates and apply final limit (ids often include Date.now(), so dedupe via stable key instead)
-    const uniqueNotifications = notifications.filter((notification, index, self) => {
-      const key = this.getSchedulingKeyFromSmartNotification(notification);
-      return index === self.findIndex(n => this.getSchedulingKeyFromSmartNotification(n) === key);
-    });
+    const uniqueNotifications = notifications.filter(
+      (notification, index, self) => {
+        const key = this.getSchedulingKeyFromSmartNotification(notification);
+        return (
+          index ===
+          self.findIndex(
+            (n) => this.getSchedulingKeyFromSmartNotification(n) === key
+          )
+        );
+      }
+    );
 
     return uniqueNotifications.slice(0, maxNotifications);
   }
@@ -514,7 +575,7 @@ class SmartNotificationService {
 
     try {
       // Safety check for notifications array
-      if (!notifications || !Array.isArray(notifications)) {
+      if (!(notifications && Array.isArray(notifications))) {
         return { scheduled: 0, failed: 0, suppressed: 0 };
       }
 
@@ -526,26 +587,36 @@ class SmartNotificationService {
       }
 
       // Respect user preferences (best-effort)
-      const inferredUserId = notifications.find(n => typeof n.data?.userId === "string")?.data?.userId as
-        | string
-        | undefined;
-      const rawSettings = inferredUserId ? await this.getUserNotificationSettings(inferredUserId) : null;
+      const inferredUserId = notifications.find(
+        (n) => typeof n.data?.userId === "string"
+      )?.data?.userId as string | undefined;
+      const rawSettings = inferredUserId
+        ? await this.getUserNotificationSettings(inferredUserId)
+        : null;
       const settings = this.normalizeNotificationSettings(rawSettings);
 
       if (settings?.enabled === false) {
         return { scheduled: 0, failed: 0, suppressed: notifications.length };
       }
 
-      const preferenceFiltered = notifications.filter(n => this.isAllowedByUserPreferences(n, settings));
+      const preferenceFiltered = notifications.filter((n) =>
+        this.isAllowedByUserPreferences(n, settings)
+      );
 
       // Step 0: Clear existing notifications that match what we're about to schedule (prevents duplicates on reopen)
-      await this.clearExistingNotificationsOfTypes(preferenceFiltered, Notifications);
+      await this.clearExistingNotificationsOfTypes(
+        preferenceFiltered,
+        Notifications
+      );
 
       // Step 1: Optimize and prioritize notifications
-      const optimizedNotifications = await this.optimizeNotificationSchedule(preferenceFiltered);
+      const optimizedNotifications =
+        await this.optimizeNotificationSchedule(preferenceFiltered);
 
       // Step 2: Suppress overlapping/duplicate notifications
-      const filteredNotifications = this.suppressDuplicateNotifications(optimizedNotifications);
+      const filteredNotifications = this.suppressDuplicateNotifications(
+        optimizedNotifications
+      );
       suppressed = preferenceFiltered.length - filteredNotifications.length;
 
       // Step 3: Schedule with intelligent timing
@@ -557,7 +628,6 @@ class SmartNotificationService {
           failed++;
         }
       }
-
     } catch (error) {
       failed = notifications.length;
     }
@@ -574,21 +644,28 @@ class SmartNotificationService {
   ): Promise<void> {
     try {
       // Safety check for newNotifications
-      if (!newNotifications || !Array.isArray(newNotifications)) {
+      if (!(newNotifications && Array.isArray(newNotifications))) {
         return;
       }
 
       // Get all currently scheduled notifications
-      const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+      const scheduledNotifications =
+        await Notifications.getAllScheduledNotificationsAsync();
 
       // Safety check for scheduledNotifications
-      if (!scheduledNotifications || !Array.isArray(scheduledNotifications)) {
+      if (!(scheduledNotifications && Array.isArray(scheduledNotifications))) {
         return;
       }
 
-      const newNotificationTypes = new Set(newNotifications.map(n => n.type));
-      const newUserIds = new Set(newNotifications.map(n => n.data?.userId).filter(Boolean));
-      const keysToSchedule = new Set(newNotifications.map(n => this.getSchedulingKeyFromSmartNotification(n)));
+      const newNotificationTypes = new Set(newNotifications.map((n) => n.type));
+      const newUserIds = new Set(
+        newNotifications.map((n) => n.data?.userId).filter(Boolean)
+      );
+      const keysToSchedule = new Set(
+        newNotifications.map((n) =>
+          this.getSchedulingKeyFromSmartNotification(n)
+        )
+      );
 
       const identifiersToCancel: string[] = [];
 
@@ -596,7 +673,8 @@ class SmartNotificationService {
         const identifier = scheduled?.identifier;
         if (typeof identifier !== "string" || identifier.length === 0) continue;
 
-        const scheduledKey = this.getSchedulingKeyFromScheduledRequest(scheduled);
+        const scheduledKey =
+          this.getSchedulingKeyFromScheduledRequest(scheduled);
         if (scheduledKey && keysToSchedule.has(scheduledKey)) {
           identifiersToCancel.push(identifier);
           continue;
@@ -633,21 +711,23 @@ class SmartNotificationService {
   /**
    * Optimize notification scheduling with intelligent timing
    */
-  private async optimizeNotificationSchedule(notifications: SmartNotification[]): Promise<SmartNotification[]> {
+  private async optimizeNotificationSchedule(
+    notifications: SmartNotification[]
+  ): Promise<SmartNotification[]> {
     const optimized: SmartNotification[] = [];
     const now = new Date();
 
     // Group notifications by priority
-    const critical = notifications.filter(n => n.priority === 'critical');
-    const high = notifications.filter(n => n.priority === 'high');
-    const normal = notifications.filter(n => n.priority === 'normal');
-    const low = notifications.filter(n => n.priority === 'low');
+    const critical = notifications.filter((n) => n.priority === "critical");
+    const high = notifications.filter((n) => n.priority === "high");
+    const normal = notifications.filter((n) => n.priority === "normal");
+    const low = notifications.filter((n) => n.priority === "low");
 
     // Critical/high should NOT be pulled earlier than intended; only nudge truly-immediate items
-    critical.forEach(notification => {
+    critical.forEach((notification) => {
       const scheduledTime =
         notification.scheduledTime.getTime() <= now.getTime() + 60_000
-          ? new Date(now.getTime() + 1_000)
+          ? new Date(now.getTime() + 1000)
           : notification.scheduledTime;
       optimized.push({ ...notification, scheduledTime });
     });
@@ -658,7 +738,10 @@ class SmartNotificationService {
         notification.scheduledTime.getTime() <= now.getTime() + 60_000
           ? new Date(now.getTime() + 30_000)
           : notification.scheduledTime;
-      optimized.push({ ...notification, scheduledTime: new Date(base.getTime() + staggerMs) });
+      optimized.push({
+        ...notification,
+        scheduledTime: new Date(base.getTime() + staggerMs),
+      });
     });
 
     // Optimize normal priority timing
@@ -675,7 +758,9 @@ class SmartNotificationService {
   /**
    * Optimize timing for normal priority notifications
    */
-  private optimizeNormalPriorityTiming(notifications: SmartNotification[]): SmartNotification[] {
+  private optimizeNormalPriorityTiming(
+    notifications: SmartNotification[]
+  ): SmartNotification[] {
     const optimized: SmartNotification[] = [];
     const userPreferences = this.getUserNotificationPreferences();
 
@@ -684,11 +769,14 @@ class SmartNotificationService {
 
       // Adjust timing based on user preferences
       if (userPreferences.quietHours) {
-        scheduledTime = this.adjustForQuietHours(scheduledTime, userPreferences.quietHours);
+        scheduledTime = this.adjustForQuietHours(
+          scheduledTime,
+          userPreferences.quietHours
+        );
       }
 
       // Stagger notifications to avoid overwhelming user
-      const staggerDelay = index * 60000; // 1 minute between each
+      const staggerDelay = index * 60_000; // 1 minute between each
       scheduledTime = new Date(scheduledTime.getTime() + staggerDelay);
 
       // Ensure minimum delay from now
@@ -699,7 +787,7 @@ class SmartNotificationService {
 
       optimized.push({
         ...notification,
-        scheduledTime
+        scheduledTime,
       });
     });
 
@@ -709,20 +797,25 @@ class SmartNotificationService {
   /**
    * Optimize timing for low priority notifications
    */
-  private optimizeLowPriorityTiming(notifications: SmartNotification[]): SmartNotification[] {
+  private optimizeLowPriorityTiming(
+    notifications: SmartNotification[]
+  ): SmartNotification[] {
     const optimized: SmartNotification[] = [];
 
-    notifications.forEach(notification => {
+    notifications.forEach((notification) => {
       // Schedule low priority notifications during optimal times:
       // - Morning (9-11 AM)
       // - Afternoon (2-4 PM)
       // - Evening (7-9 PM)
       const optimalTimes = this.getOptimalNotificationTimes();
-      const bestTime = this.findBestAvailableTime(notification.scheduledTime, optimalTimes);
+      const bestTime = this.findBestAvailableTime(
+        notification.scheduledTime,
+        optimalTimes
+      );
 
       optimized.push({
         ...notification,
-        scheduledTime: bestTime
+        scheduledTime: bestTime,
       });
     });
 
@@ -732,14 +825,17 @@ class SmartNotificationService {
   /**
    * Suppress duplicate and overlapping notifications
    */
-  private suppressDuplicateNotifications(notifications: SmartNotification[]): SmartNotification[] {
+  private suppressDuplicateNotifications(
+    notifications: SmartNotification[]
+  ): SmartNotification[] {
     const filtered: SmartNotification[] = [];
     const seen = new Set<string>();
 
     // Sort by priority (critical first) and then by time
     const sorted = notifications.sort((a, b) => {
       const priorityOrder = { critical: 4, high: 3, normal: 2, low: 1 };
-      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+      const priorityDiff =
+        priorityOrder[b.priority] - priorityOrder[a.priority];
       if (priorityDiff !== 0) return priorityDiff;
 
       return a.scheduledTime.getTime() - b.scheduledTime.getTime();
@@ -747,18 +843,20 @@ class SmartNotificationService {
 
     for (const notification of sorted) {
       // Create a unique key based on type, user context, and time window
-      const timeWindow = Math.floor(notification.scheduledTime.getTime() / (30 * 60 * 1000)); // 30-minute windows
-      const key = `${notification.type}-${notification.data?.userId || 'general'}-${timeWindow}`;
+      const timeWindow = Math.floor(
+        notification.scheduledTime.getTime() / (30 * 60 * 1000)
+      ); // 30-minute windows
+      const key = `${notification.type}-${notification.data?.userId || "general"}-${timeWindow}`;
 
       // Suppress if we've seen a similar notification in the same time window
-      if (!seen.has(key)) {
-        seen.add(key);
-        filtered.push(notification);
-      } else {
+      if (seen.has(key)) {
         // Keep critical notifications even if duplicates
-        if (notification.priority === 'critical') {
+        if (notification.priority === "critical") {
           filtered.push(notification);
         }
+      } else {
+        seen.add(key);
+        filtered.push(notification);
       }
     }
 
@@ -773,7 +871,7 @@ class SmartNotificationService {
     Notifications: any
   ): Promise<void> {
     // Safety check for notification
-    if (!notification || !notification.title || !notification.body) {
+    if (!(notification && notification.title && notification.body)) {
       return;
     }
 
@@ -783,13 +881,14 @@ class SmartNotificationService {
       sound: this.getNotificationSound(notification),
       data: notification.data || {},
       priority: this.getNotificationPriority(notification),
-      ...this.getAdditionalContent(notification)
+      ...this.getAdditionalContent(notification),
     };
 
     const now = Date.now();
     const scheduledTime = notification.scheduledTime.getTime();
-    const isImmediate = scheduledTime <= now + 60000; // Within 1 minute
-    const isImportant = notification.priority === 'critical' || notification.priority === 'high';
+    const isImmediate = scheduledTime <= now + 60_000; // Within 1 minute
+    const isImportant =
+      notification.priority === "critical" || notification.priority === "high";
 
     // Prevent immediate low-priority notifications from being scheduled too frequently
     // Only schedule immediately if it's important or scheduled for future
@@ -805,7 +904,7 @@ class SmartNotificationService {
       });
     } else if (isImmediate && isImportant) {
       // Important notifications: schedule ~immediately but as a DATE trigger so they can be deduped/cancelled
-      const soon = new Date(now + 1_000);
+      const soon = new Date(now + 1000);
       await Notifications.scheduleNotificationAsync({
         content,
         trigger: {
@@ -830,26 +929,28 @@ class SmartNotificationService {
    */
   private getNotificationSound(notification: SmartNotification): string {
     switch (notification.priority) {
-      case 'critical':
-        return 'alarm';
-      case 'high':
-        return 'reminder';
+      case "critical":
+        return "alarm";
+      case "high":
+        return "reminder";
       default:
-        return 'default';
+        return "default";
     }
   }
 
   /**
    * Get notification priority for native system
    */
-  private getNotificationPriority(notification: SmartNotification): 'max' | 'high' | 'default' | 'low' | 'min' {
+  private getNotificationPriority(
+    notification: SmartNotification
+  ): "max" | "high" | "default" | "low" | "min" {
     switch (notification.priority) {
-      case 'critical':
-        return 'max';
-      case 'high':
-        return 'high';
+      case "critical":
+        return "max";
+      case "high":
+        return "high";
       default:
-        return 'default';
+        return "default";
     }
   }
 
@@ -880,15 +981,18 @@ class SmartNotificationService {
     // This would load from user preferences
     // For now, return default preferences
     return {
-      quietHours: { start: '22:00', end: '08:00' }, // 10 PM to 8 AM
-      preferredTimes: ['09:00', '14:00', '19:00'] // 9 AM, 2 PM, 7 PM
+      quietHours: { start: "22:00", end: "08:00" }, // 10 PM to 8 AM
+      preferredTimes: ["09:00", "14:00", "19:00"], // 9 AM, 2 PM, 7 PM
     };
   }
 
   /**
    * Adjust notification time to avoid quiet hours
    */
-  private adjustForQuietHours(time: Date, quietHours: { start: string; end: string }): Date {
+  private adjustForQuietHours(
+    time: Date,
+    quietHours: { start: string; end: string }
+  ): Date {
     const timeString = time.toTimeString().slice(0, 5); // HH:MM format
 
     if (this.isInQuietHours(timeString, quietHours)) {
@@ -896,9 +1000,10 @@ class SmartNotificationService {
       const nextDay = new Date(time);
       nextDay.setDate(nextDay.getDate() + 1);
       nextDay.setHours(
-        parseInt(quietHours.end.split(':')[0]),
-        parseInt(quietHours.end.split(':')[1]),
-        0, 0
+        Number.parseInt(quietHours.end.split(":")[0]),
+        Number.parseInt(quietHours.end.split(":")[1]),
+        0,
+        0
       );
       return nextDay;
     }
@@ -909,7 +1014,10 @@ class SmartNotificationService {
   /**
    * Check if time is within quiet hours
    */
-  private isInQuietHours(time: string, quietHours: { start: string; end: string }): boolean {
+  private isInQuietHours(
+    time: string,
+    quietHours: { start: string; end: string }
+  ): boolean {
     const timeMinutes = this.timeToMinutes(time);
     const startMinutes = this.timeToMinutes(quietHours.start);
     const endMinutes = this.timeToMinutes(quietHours.end);
@@ -917,17 +1025,16 @@ class SmartNotificationService {
     if (startMinutes < endMinutes) {
       // Same day quiet hours (e.g., 10 PM to 6 AM next day)
       return timeMinutes >= startMinutes || timeMinutes <= endMinutes;
-    } else {
-      // Overnight quiet hours (e.g., 10 PM to 8 AM)
-      return timeMinutes >= startMinutes && timeMinutes <= endMinutes;
     }
+    // Overnight quiet hours (e.g., 10 PM to 8 AM)
+    return timeMinutes >= startMinutes && timeMinutes <= endMinutes;
   }
 
   /**
    * Convert HH:MM time string to minutes since midnight
    */
   private timeToMinutes(time: string): number {
-    const [hours, minutes] = time.split(':').map(Number);
+    const [hours, minutes] = time.split(":").map(Number);
     return hours * 60 + minutes;
   }
 
@@ -936,10 +1043,10 @@ class SmartNotificationService {
    */
   private getOptimalNotificationTimes(): Date[] {
     const today = new Date();
-    const times = ['09:00', '14:00', '19:00']; // Optimal times
+    const times = ["09:00", "14:00", "19:00"]; // Optimal times
 
-    return times.map(time => {
-      const [hours, minutes] = time.split(':').map(Number);
+    return times.map((time) => {
+      const [hours, minutes] = time.split(":").map(Number);
       const date = new Date(today);
       date.setHours(hours, minutes, 0, 0);
       return date;
@@ -949,25 +1056,32 @@ class SmartNotificationService {
   /**
    * Find the best available time for a notification
    */
-  private findBestAvailableTime(requestedTime: Date, optimalTimes: Date[]): Date {
+  private findBestAvailableTime(
+    requestedTime: Date,
+    optimalTimes: Date[]
+  ): Date {
     // Find the next optimal time after the requested time
-    const futureOptimalTimes = optimalTimes.filter(time => time > requestedTime);
+    const futureOptimalTimes = optimalTimes.filter(
+      (time) => time > requestedTime
+    );
 
     if (futureOptimalTimes.length > 0) {
       return futureOptimalTimes[0]; // Next optimal time today
-    } else {
-      // No more optimal times today, schedule for tomorrow morning
-      const tomorrow = new Date(requestedTime);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(9, 0, 0, 0); // 9 AM tomorrow
-      return tomorrow;
     }
+    // No more optimal times today, schedule for tomorrow morning
+    const tomorrow = new Date(requestedTime);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0); // 9 AM tomorrow
+    return tomorrow;
   }
 
   /**
    * Generate daily wellness check-in notifications
    */
-  generateDailyWellnessCheckin(userId: string, userStats: UserStats): SmartNotification[] {
+  generateDailyWellnessCheckin(
+    userId: string,
+    userStats: UserStats
+  ): SmartNotification[] {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n); // Translation function
 
@@ -975,7 +1089,8 @@ class SmartNotificationService {
     const morningCheckinTime = new Date();
     morningCheckinTime.setHours(9, 0, 0, 0);
 
-    if (morningCheckinTime > new Date()) { // Only schedule future notifications
+    if (morningCheckinTime > new Date()) {
+      // Only schedule future notifications
       notifications.push({
         id: `morning-checkin-${userId}-${Date.now()}`,
         title: "🌅 Good Morning Check-in",
@@ -986,14 +1101,14 @@ class SmartNotificationService {
         data: {
           type: "morning_checkin",
           userId,
-          checkinType: "morning"
+          checkinType: "morning",
         },
         quickActions: [
           { label: "😊 Feeling Great", action: "log_mood_good" },
           { label: "🤒 Have Symptoms", action: "log_symptoms" },
           { label: "💊 Check Meds", action: "check_medications" },
-          { label: "🚨 Need Help", action: "emergency" }
-        ]
+          { label: "🚨 Need Help", action: "emergency" },
+        ],
       });
     }
 
@@ -1012,14 +1127,14 @@ class SmartNotificationService {
         data: {
           type: "midday_checkin",
           userId,
-          checkinType: "midday"
+          checkinType: "midday",
         },
         quickActions: [
           { label: "⚡ High Energy", action: "log_energy_high" },
           { label: "😴 Feeling Tired", action: "log_energy_low" },
           { label: "🤒 Not Feeling Well", action: "log_symptoms" },
-          { label: "💊 Take Meds", action: "check_medications" }
-        ]
+          { label: "💊 Take Meds", action: "check_medications" },
+        ],
       });
     }
 
@@ -1038,14 +1153,14 @@ class SmartNotificationService {
         data: {
           type: "afternoon_checkin",
           userId,
-          checkinType: "afternoon"
+          checkinType: "afternoon",
         },
         quickActions: [
           { label: "😊 All Good", action: "log_afternoon_good" },
           { label: "🤒 Symptoms", action: "log_symptoms" },
           { label: "💧 Drink Water", action: "log_hydration" },
-          { label: "🧘‍♀️ Quick Break", action: "log_mindfulness" }
-        ]
+          { label: "🧘‍♀️ Quick Break", action: "log_mindfulness" },
+        ],
       });
     }
 
@@ -1064,14 +1179,14 @@ class SmartNotificationService {
         data: {
           type: "evening_reflection",
           userId,
-          currentStreak: userStats.currentStreak
+          currentStreak: userStats.currentStreak,
         },
         quickActions: [
           { label: "😊 Great Day", action: "log_evening_good" },
           { label: "📝 Log Details", action: "log_evening_details" },
           { label: "💊 Meds Taken", action: "confirm_medications" },
-          { label: "😴 Sleep Check", action: "log_sleep_quality" }
-        ]
+          { label: "😴 Sleep Check", action: "log_sleep_quality" },
+        ],
       });
     }
 
@@ -1090,14 +1205,14 @@ class SmartNotificationService {
         data: {
           type: "bedtime_checkin",
           userId,
-          checkinType: "bedtime"
+          checkinType: "bedtime",
         },
         quickActions: [
           { label: "💊 Night Meds", action: "confirm_night_medications" },
           { label: "📝 Tomorrow Prep", action: "prepare_tomorrow" },
           { label: "😌 Relax", action: "log_relaxation" },
-          { label: "📱 Screen Off", action: "screen_time_reminder" }
-        ]
+          { label: "📱 Screen Off", action: "screen_time_reminder" },
+        ],
       });
     }
 
@@ -1107,32 +1222,35 @@ class SmartNotificationService {
   /**
    * Generate medication-specific check-in notifications
    */
-  generateMedicationCheckins(medications: Medication[], userStats: UserStats): SmartNotification[] {
+  generateMedicationCheckins(
+    medications: Medication[],
+    userStats: UserStats
+  ): SmartNotification[] {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
     // Group medications by timing
-    const morningMeds = medications.filter(med =>
-      med.reminders?.some(reminder => {
-        const hour = parseInt(reminder.time.split(':')[0]);
+    const morningMeds = medications.filter((med) =>
+      med.reminders?.some((reminder) => {
+        const hour = Number.parseInt(reminder.time.split(":")[0]);
         return hour >= 6 && hour < 12; // 6 AM to 12 PM
       })
     );
-    const afternoonMeds = medications.filter(med =>
-      med.reminders?.some(reminder => {
-        const hour = parseInt(reminder.time.split(':')[0]);
+    const afternoonMeds = medications.filter((med) =>
+      med.reminders?.some((reminder) => {
+        const hour = Number.parseInt(reminder.time.split(":")[0]);
         return hour >= 12 && hour < 18; // 12 PM to 6 PM
       })
     );
-    const eveningMeds = medications.filter(med =>
-      med.reminders?.some(reminder => {
-        const hour = parseInt(reminder.time.split(':')[0]);
+    const eveningMeds = medications.filter((med) =>
+      med.reminders?.some((reminder) => {
+        const hour = Number.parseInt(reminder.time.split(":")[0]);
         return hour >= 18 && hour < 22; // 6 PM to 10 PM
       })
     );
-    const nightMeds = medications.filter(med =>
-      med.reminders?.some(reminder => {
-        const hour = parseInt(reminder.time.split(':')[0]);
+    const nightMeds = medications.filter((med) =>
+      med.reminders?.some((reminder) => {
+        const hour = Number.parseInt(reminder.time.split(":")[0]);
         return hour >= 22 || hour < 6; // 10 PM to 6 AM
       })
     );
@@ -1153,14 +1271,14 @@ class SmartNotificationService {
           data: {
             type: "medication_checkin",
             timing: "morning",
-            medications: morningMeds.map(m => ({ id: m.id, name: m.name }))
+            medications: morningMeds.map((m) => ({ id: m.id, name: m.name })),
           },
           quickActions: [
             { label: "✅ All Taken", action: "confirm_morning_meds" },
             { label: "⏰ Set Reminder", action: "remind_morning_meds" },
             { label: "📝 Log Details", action: "log_medication_taken" },
-            { label: "🤒 Feeling Off", action: "report_medication_issue" }
-          ]
+            { label: "🤒 Feeling Off", action: "report_medication_issue" },
+          ],
         });
       }
     }
@@ -1181,14 +1299,14 @@ class SmartNotificationService {
           data: {
             type: "medication_checkin",
             timing: "afternoon",
-            medications: afternoonMeds.map(m => ({ id: m.id, name: m.name }))
+            medications: afternoonMeds.map((m) => ({ id: m.id, name: m.name })),
           },
           quickActions: [
             { label: "✅ Taken", action: "confirm_afternoon_meds" },
             { label: "⏰ 15 Min Reminder", action: "remind_afternoon_meds" },
             { label: "💊 Check Schedule", action: "view_medication_schedule" },
-            { label: "🤒 Side Effects", action: "report_side_effects" }
-          ]
+            { label: "🤒 Side Effects", action: "report_side_effects" },
+          ],
         });
       }
     }
@@ -1209,14 +1327,14 @@ class SmartNotificationService {
           data: {
             type: "medication_checkin",
             timing: "evening",
-            medications: eveningMeds.map(m => ({ id: m.id, name: m.name }))
+            medications: eveningMeds.map((m) => ({ id: m.id, name: m.name })),
           },
           quickActions: [
             { label: "✅ All Done", action: "confirm_evening_meds" },
             { label: "🍽️ After Dinner", action: "remind_after_dinner" },
             { label: "📱 Set Alarm", action: "set_medication_alarm" },
-            { label: "❓ Need Help", action: "medication_assistance" }
-          ]
+            { label: "❓ Need Help", action: "medication_assistance" },
+          ],
         });
       }
     }
@@ -1237,21 +1355,22 @@ class SmartNotificationService {
           data: {
             type: "medication_checkin",
             timing: "night",
-            medications: nightMeds.map(m => ({ id: m.id, name: m.name }))
+            medications: nightMeds.map((m) => ({ id: m.id, name: m.name })),
           },
           quickActions: [
             { label: "✅ Night Meds Taken", action: "confirm_night_meds" },
             { label: "😴 Almost Sleep", action: "remind_before_bed" },
             { label: "📋 Check List", action: "view_night_medications" },
-            { label: "💤 Skip Tonight", action: "skip_night_medication" }
-          ]
+            { label: "💤 Skip Tonight", action: "skip_night_medication" },
+          ],
         });
       }
     }
 
     // Weekly medication review (Sunday 10 AM)
     const today = new Date();
-    if (today.getDay() === 0) { // Sunday
+    if (today.getDay() === 0) {
+      // Sunday
       const weeklyReviewTime = new Date();
       weeklyReviewTime.setHours(10, 0, 0, 0);
 
@@ -1265,14 +1384,17 @@ class SmartNotificationService {
           scheduledTime: weeklyReviewTime,
           data: {
             type: "medication_review",
-            totalMedications: medications.length
+            totalMedications: medications.length,
           },
           quickActions: [
-            { label: "📋 Review Schedule", action: "review_medication_schedule" },
+            {
+              label: "📋 Review Schedule",
+              action: "review_medication_schedule",
+            },
             { label: "🛒 Check Refills", action: "check_refills_needed" },
             { label: "💊 Update Meds", action: "update_medications" },
-            { label: "📞 Call Pharmacist", action: "contact_pharmacist" }
-          ]
+            { label: "📞 Call Pharmacist", action: "contact_pharmacist" },
+          ],
         });
       }
     }
@@ -1283,22 +1405,47 @@ class SmartNotificationService {
   /**
    * Generate medication confirmation notifications that ask if user took their scheduled medication
    */
-  generateMedicationConfirmationNotifications(medications: Medication[], userStats: UserStats): SmartNotification[] {
+  generateMedicationConfirmationNotifications(
+    medications: Medication[],
+    userStats: UserStats
+  ): SmartNotification[] {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
     // Group medications by timing (similar to checkins but for confirmations)
-    const morningMeds = medications.filter(med =>
-      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('morning') || reminder.time.includes('08') || reminder.time.includes('09'))
+    const morningMeds = medications.filter((med) =>
+      med.reminders?.some(
+        (reminder: MedicationReminder) =>
+          reminder.time.includes("morning") ||
+          reminder.time.includes("08") ||
+          reminder.time.includes("09")
+      )
     );
-    const afternoonMeds = medications.filter(med =>
-      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('afternoon') || reminder.time.includes('14') || reminder.time.includes('15'))
+    const afternoonMeds = medications.filter((med) =>
+      med.reminders?.some(
+        (reminder: MedicationReminder) =>
+          reminder.time.includes("afternoon") ||
+          reminder.time.includes("14") ||
+          reminder.time.includes("15")
+      )
     );
-    const eveningMeds = medications.filter(med =>
-      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('evening') || reminder.time.includes('18') || reminder.time.includes('19') || reminder.time.includes('20'))
+    const eveningMeds = medications.filter((med) =>
+      med.reminders?.some(
+        (reminder: MedicationReminder) =>
+          reminder.time.includes("evening") ||
+          reminder.time.includes("18") ||
+          reminder.time.includes("19") ||
+          reminder.time.includes("20")
+      )
     );
-    const nightMeds = medications.filter(med =>
-      med.reminders?.some((reminder: MedicationReminder) => reminder.time.includes('night') || reminder.time.includes('bedtime') || reminder.time.includes('22') || reminder.time.includes('23'))
+    const nightMeds = medications.filter((med) =>
+      med.reminders?.some(
+        (reminder: MedicationReminder) =>
+          reminder.time.includes("night") ||
+          reminder.time.includes("bedtime") ||
+          reminder.time.includes("22") ||
+          reminder.time.includes("23")
+      )
     );
 
     const now = new Date();
@@ -1308,7 +1455,10 @@ class SmartNotificationService {
       const morningConfirmationTime = new Date();
       morningConfirmationTime.setHours(9, 0, 0, 0); // 30 minutes after 8:30
 
-      if (morningConfirmationTime > now && morningConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+      if (
+        morningConfirmationTime > now &&
+        morningConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000
+      ) {
         notifications.push({
           id: `morning-med-confirmation-${Date.now()}`,
           title: "💊 Did you take your morning medication?",
@@ -1319,15 +1469,23 @@ class SmartNotificationService {
           data: {
             type: "medication_confirmation",
             timing: "morning",
-            medications: morningMeds.map(m => ({ id: m.id, name: m.name })),
-            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 30, 0, 0)
+            medications: morningMeds.map((m) => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              8,
+              30,
+              0,
+              0
+            ),
           },
           quickActions: [
             { label: "✅ Yes, I took it", action: "medication_taken_yes" },
             { label: "❌ No, I missed it", action: "medication_taken_no" },
             { label: "⏰ Remind me later", action: "remind_later" },
-            { label: "📝 Log manually", action: "log_medication_manually" }
-          ]
+            { label: "📝 Log manually", action: "log_medication_manually" },
+          ],
         });
       }
     }
@@ -1337,7 +1495,11 @@ class SmartNotificationService {
       const afternoonConfirmationTime = new Date();
       afternoonConfirmationTime.setHours(15, 0, 0, 0); // 30 minutes after 2:30
 
-      if (afternoonConfirmationTime > now && afternoonConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+      if (
+        afternoonConfirmationTime > now &&
+        afternoonConfirmationTime.getTime() - now.getTime() <
+          24 * 60 * 60 * 1000
+      ) {
         notifications.push({
           id: `afternoon-med-confirmation-${Date.now()}`,
           title: "💊 Afternoon medication check-in",
@@ -1348,15 +1510,23 @@ class SmartNotificationService {
           data: {
             type: "medication_confirmation",
             timing: "afternoon",
-            medications: afternoonMeds.map(m => ({ id: m.id, name: m.name })),
-            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 14, 30, 0, 0)
+            medications: afternoonMeds.map((m) => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              14,
+              30,
+              0,
+              0
+            ),
           },
           quickActions: [
             { label: "✅ Yes, taken", action: "medication_taken_yes" },
             { label: "❌ Not yet", action: "medication_taken_no" },
             { label: "⏰ 15 min reminder", action: "remind_15min" },
-            { label: "📱 Set alarm", action: "set_medication_alarm" }
-          ]
+            { label: "📱 Set alarm", action: "set_medication_alarm" },
+          ],
         });
       }
     }
@@ -1366,7 +1536,10 @@ class SmartNotificationService {
       const eveningConfirmationTime = new Date();
       eveningConfirmationTime.setHours(19, 0, 0, 0); // 30 minutes after 6:30
 
-      if (eveningConfirmationTime > now && eveningConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+      if (
+        eveningConfirmationTime > now &&
+        eveningConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000
+      ) {
         notifications.push({
           id: `evening-med-confirmation-${Date.now()}`,
           title: "🌆 Evening medication reminder",
@@ -1377,15 +1550,23 @@ class SmartNotificationService {
           data: {
             type: "medication_confirmation",
             timing: "evening",
-            medications: eveningMeds.map(m => ({ id: m.id, name: m.name })),
-            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 30, 0, 0)
+            medications: eveningMeds.map((m) => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              18,
+              30,
+              0,
+              0
+            ),
           },
           quickActions: [
             { label: "✅ All done", action: "medication_taken_yes" },
             { label: "❌ Still need to take", action: "medication_taken_no" },
             { label: "🍽️ After dinner", action: "remind_after_dinner" },
-            { label: "📋 Check schedule", action: "view_medication_schedule" }
-          ]
+            { label: "📋 Check schedule", action: "view_medication_schedule" },
+          ],
         });
       }
     }
@@ -1395,26 +1576,37 @@ class SmartNotificationService {
       const nightConfirmationTime = new Date();
       nightConfirmationTime.setHours(22, 0, 0, 0); // 30 minutes after 9:30
 
-      if (nightConfirmationTime > now && nightConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000) {
+      if (
+        nightConfirmationTime > now &&
+        nightConfirmationTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000
+      ) {
         notifications.push({
           id: `night-med-confirmation-${Date.now()}`,
           title: "🌙 Bedtime medication check",
-          body: `Time for your bedtime medication check-in. Did you take your night medication(s)?`,
+          body: "Time for your bedtime medication check-in. Did you take your night medication(s)?",
           type: "medication_confirmation",
           priority: "normal",
           scheduledTime: nightConfirmationTime,
           data: {
             type: "medication_confirmation",
             timing: "night",
-            medications: nightMeds.map(m => ({ id: m.id, name: m.name })),
-            scheduledTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 21, 30, 0, 0)
+            medications: nightMeds.map((m) => ({ id: m.id, name: m.name })),
+            scheduledTime: new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              21,
+              30,
+              0,
+              0
+            ),
           },
           quickActions: [
             { label: "✅ Taken before bed", action: "medication_taken_yes" },
             { label: "❌ Not yet", action: "medication_taken_no" },
             { label: "😴 Almost sleep", action: "remind_before_bed" },
-            { label: "💤 Skip tonight", action: "skip_night_medication" }
-          ]
+            { label: "💤 Skip tonight", action: "skip_night_medication" },
+          ],
         });
       }
     }
@@ -1432,9 +1624,16 @@ class SmartNotificationService {
 
     // Blood pressure check (for hypertension patients or weekly check)
     const lastBP = vitals.lastBloodPressure;
-    const daysSinceBP = lastBP ? Math.floor((new Date().getTime() - lastBP.getTime()) / (24 * 60 * 60 * 1000)) : 30;
+    const daysSinceBP = lastBP
+      ? Math.floor(
+          (new Date().getTime() - lastBP.getTime()) / (24 * 60 * 60 * 1000)
+        )
+      : 30;
 
-    if (daysSinceBP >= 7 || userStats.healthConditions?.includes('hypertension')) {
+    if (
+      daysSinceBP >= 7 ||
+      userStats.healthConditions?.includes("hypertension")
+    ) {
       const bpCheckTime = new Date();
       bpCheckTime.setHours(10, 0, 0, 0); // 10 AM
 
@@ -1442,28 +1641,35 @@ class SmartNotificationService {
         notifications.push({
           id: `bp-checkin-${Date.now()}`,
           title: "❤️ Blood Pressure Check",
-          body: daysSinceBP >= 14 ? "It's been over 2 weeks since your last blood pressure reading. Time for a check!" : "Weekly blood pressure monitoring helps track your cardiovascular health.",
+          body:
+            daysSinceBP >= 14
+              ? "It's been over 2 weeks since your last blood pressure reading. Time for a check!"
+              : "Weekly blood pressure monitoring helps track your cardiovascular health.",
           type: "reminder",
           priority: daysSinceBP >= 14 ? "high" : "normal",
           scheduledTime: bpCheckTime,
           data: {
             type: "vital_checkin",
             vitalType: "blood_pressure",
-            daysSince: daysSinceBP
+            daysSince: daysSinceBP,
           },
           quickActions: [
             { label: "📏 Check Now", action: "check_blood_pressure" },
             { label: "⏰ Remind Later", action: "remind_bp_check" },
             { label: "📊 View History", action: "view_bp_history" },
-            { label: "👨‍⚕️ Consult Doctor", action: "schedule_bp_consult" }
-          ]
+            { label: "👨‍⚕️ Consult Doctor", action: "schedule_bp_consult" },
+          ],
         });
       }
     }
 
     // Weight monitoring (monthly for general wellness)
     const lastWeight = vitals.lastWeight;
-    const daysSinceWeight = lastWeight ? Math.floor((new Date().getTime() - lastWeight.getTime()) / (24 * 60 * 60 * 1000)) : 60;
+    const daysSinceWeight = lastWeight
+      ? Math.floor(
+          (new Date().getTime() - lastWeight.getTime()) / (24 * 60 * 60 * 1000)
+        )
+      : 60;
 
     if (daysSinceWeight >= 30) {
       const weightCheckTime = new Date();
@@ -1480,14 +1686,14 @@ class SmartNotificationService {
           data: {
             type: "vital_checkin",
             vitalType: "weight",
-            daysSince: daysSinceWeight
+            daysSince: daysSinceWeight,
           },
           quickActions: [
             { label: "⚖️ Weigh Now", action: "log_weight" },
             { label: "📅 Next Month", action: "skip_weight_check" },
             { label: "📈 View Trend", action: "view_weight_trend" },
-            { label: "🎯 Set Goal", action: "set_weight_goal" }
-          ]
+            { label: "🎯 Set Goal", action: "set_weight_goal" },
+          ],
         });
       }
     }
@@ -1495,7 +1701,11 @@ class SmartNotificationService {
     // Temperature check (for elderly or when feeling unwell)
     if (userStats.userProfile?.age && userStats.userProfile.age > 65) {
       const lastTemp = vitals.lastTemperature;
-      const daysSinceTemp = lastTemp ? Math.floor((new Date().getTime() - lastTemp.getTime()) / (24 * 60 * 60 * 1000)) : 30;
+      const daysSinceTemp = lastTemp
+        ? Math.floor(
+            (new Date().getTime() - lastTemp.getTime()) / (24 * 60 * 60 * 1000)
+          )
+        : 30;
 
       if (daysSinceTemp >= 7) {
         const tempCheckTime = new Date();
@@ -1512,23 +1722,28 @@ class SmartNotificationService {
             data: {
               type: "vital_checkin",
               vitalType: "temperature",
-              daysSince: daysSinceTemp
+              daysSince: daysSinceTemp,
             },
             quickActions: [
               { label: "🌡️ Take Reading", action: "log_temperature" },
               { label: "😊 Feeling Normal", action: "temperature_normal" },
               { label: "🤒 Fever Concern", action: "report_fever" },
-              { label: "📞 Call Doctor", action: "contact_doctor_temp" }
-            ]
+              { label: "📞 Call Doctor", action: "contact_doctor_temp" },
+            ],
           });
         }
       }
     }
 
     // Blood sugar check (for diabetic patients)
-    if (userStats.healthConditions?.includes('diabetes')) {
+    if (userStats.healthConditions?.includes("diabetes")) {
       const lastBloodSugar = vitals.lastBloodSugar;
-      const daysSinceBloodSugar = lastBloodSugar ? Math.floor((new Date().getTime() - lastBloodSugar.getTime()) / (24 * 60 * 60 * 1000)) : 7;
+      const daysSinceBloodSugar = lastBloodSugar
+        ? Math.floor(
+            (new Date().getTime() - lastBloodSugar.getTime()) /
+              (24 * 60 * 60 * 1000)
+          )
+        : 7;
 
       if (daysSinceBloodSugar >= 2) {
         const bloodSugarTime = new Date();
@@ -1545,14 +1760,14 @@ class SmartNotificationService {
             data: {
               type: "vital_checkin",
               vitalType: "blood_sugar",
-              daysSince: daysSinceBloodSugar
+              daysSince: daysSinceBloodSugar,
             },
             quickActions: [
               { label: "🩸 Test Now", action: "log_blood_sugar" },
               { label: "⏰ Set Reminder", action: "remind_blood_sugar" },
               { label: "📊 View Levels", action: "view_blood_sugar_history" },
-              { label: "🍎 After Meal", action: "log_post_meal_sugar" }
-            ]
+              { label: "🍎 After Meal", action: "log_post_meal_sugar" },
+            ],
           });
         }
       }
@@ -1564,7 +1779,9 @@ class SmartNotificationService {
   /**
    * Generate hydration and nutrition check-in notifications
    */
-  generateHydrationNutritionCheckins(userStats: UserStats): SmartNotification[] {
+  generateHydrationNutritionCheckins(
+    userStats: UserStats
+  ): SmartNotification[] {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
@@ -1582,14 +1799,14 @@ class SmartNotificationService {
         scheduledTime: morningHydrationTime,
         data: {
           type: "hydration_checkin",
-          timing: "morning"
+          timing: "morning",
         },
         quickActions: [
           { label: "💧 Drank Water", action: "log_water_intake" },
           { label: "☕ Coffee First", action: "log_coffee_intake" },
           { label: "⏰ Set Reminder", action: "remind_hydration" },
-          { label: "🥤 Water Goal", action: "set_hydration_goal" }
-        ]
+          { label: "🥤 Water Goal", action: "set_hydration_goal" },
+        ],
       });
     }
 
@@ -1607,14 +1824,14 @@ class SmartNotificationService {
         scheduledTime: midMorningHydrationTime,
         data: {
           type: "hydration_checkin",
-          timing: "midmorning"
+          timing: "midmorning",
         },
         quickActions: [
           { label: "💧 Water Break", action: "log_water_break" },
           { label: "🧃 Fruit Juice", action: "log_healthy_drink" },
           { label: "🚫 Skip Today", action: "skip_hydration_reminder" },
-          { label: "📊 Track Progress", action: "view_hydration_stats" }
-        ]
+          { label: "📊 Track Progress", action: "view_hydration_stats" },
+        ],
       });
     }
 
@@ -1632,14 +1849,14 @@ class SmartNotificationService {
         scheduledTime: lunchNutritionTime,
         data: {
           type: "nutrition_checkin",
-          mealType: "lunch"
+          mealType: "lunch",
         },
         quickActions: [
           { label: "🥗 Healthy Lunch", action: "log_healthy_lunch" },
           { label: "🍕 Quick Meal", action: "log_quick_meal" },
           { label: "📝 Plan Meal", action: "plan_nutrition" },
-          { label: "🏃 Light Exercise", action: "post_meal_walk" }
-        ]
+          { label: "🏃 Light Exercise", action: "post_meal_walk" },
+        ],
       });
     }
 
@@ -1657,14 +1874,14 @@ class SmartNotificationService {
         scheduledTime: afternoonHydrationTime,
         data: {
           type: "hydration_checkin",
-          timing: "afternoon"
+          timing: "afternoon",
         },
         quickActions: [
           { label: "💧 Hydrated", action: "log_afternoon_water" },
           { label: "🍵 Herbal Tea", action: "log_tea_intake" },
           { label: "⚡ Energy Boost", action: "log_energy_drink" },
-          { label: "🎯 Daily Goal", action: "check_hydration_goal" }
-        ]
+          { label: "🎯 Daily Goal", action: "check_hydration_goal" },
+        ],
       });
     }
 
@@ -1682,14 +1899,14 @@ class SmartNotificationService {
         scheduledTime: eveningSnackTime,
         data: {
           type: "nutrition_checkin",
-          mealType: "snack"
+          mealType: "snack",
         },
         quickActions: [
           { label: "🍎 Fruit/Veggies", action: "log_healthy_snack" },
           { label: "🥜 Nuts/Seeds", action: "log_protein_snack" },
           { label: "🍪 Treat Snack", action: "log_treat_snack" },
-          { label: "⏭️ Dinner Soon", action: "skip_evening_snack" }
-        ]
+          { label: "⏭️ Dinner Soon", action: "skip_evening_snack" },
+        ],
       });
     }
 
@@ -1707,14 +1924,14 @@ class SmartNotificationService {
         scheduledTime: dinnerNutritionTime,
         data: {
           type: "nutrition_checkin",
-          mealType: "dinner"
+          mealType: "dinner",
         },
         quickActions: [
           { label: "🥗 Balanced Dinner", action: "log_balanced_dinner" },
           { label: "🍜 Light Meal", action: "log_light_dinner" },
           { label: "📝 Food Journal", action: "log_meal_details" },
-          { label: "🏃 Evening Walk", action: "post_dinner_walk" }
-        ]
+          { label: "🏃 Evening Walk", action: "post_dinner_walk" },
+        ],
       });
     }
 
@@ -1732,14 +1949,14 @@ class SmartNotificationService {
         scheduledTime: preBedHydrationTime,
         data: {
           type: "hydration_checkin",
-          timing: "prebed"
+          timing: "prebed",
         },
         quickActions: [
           { label: "💧 Final Drink", action: "log_final_water" },
           { label: "😴 No More Water", action: "log_no_more_drinks" },
           { label: "📊 Daily Summary", action: "view_hydration_summary" },
-          { label: "🎯 Tomorrow Goal", action: "set_tomorrow_hydration" }
-        ]
+          { label: "🎯 Tomorrow Goal", action: "set_tomorrow_hydration" },
+        ],
       });
     }
 
@@ -1767,14 +1984,14 @@ class SmartNotificationService {
         scheduledTime: morningExerciseTime,
         data: {
           type: "exercise_checkin",
-          timing: "morning"
+          timing: "morning",
         },
         quickActions: [
           { label: "🏃 Quick Walk", action: "log_morning_walk" },
           { label: "🧘 Stretch", action: "log_morning_stretch" },
           { label: "💪 Light Exercise", action: "log_morning_exercise" },
-          { label: "😴 Rest Day", action: "skip_morning_movement" }
-        ]
+          { label: "😴 Rest Day", action: "skip_morning_movement" },
+        ],
       });
     }
 
@@ -1792,14 +2009,14 @@ class SmartNotificationService {
         scheduledTime: middayActivityTime,
         data: {
           type: "exercise_checkin",
-          timing: "midday"
+          timing: "midday",
         },
         quickActions: [
           { label: "🚶 Short Walk", action: "log_short_walk" },
           { label: "🪑 Desk Stretches", action: "log_desk_stretches" },
           { label: "💃 Dance Break", action: "log_dance_break" },
-          { label: "⏰ 5 Min Break", action: "quick_movement_break" }
-        ]
+          { label: "⏰ 5 Min Break", action: "quick_movement_break" },
+        ],
       });
     }
 
@@ -1817,20 +2034,21 @@ class SmartNotificationService {
         scheduledTime: eveningActivityTime,
         data: {
           type: "exercise_checkin",
-          timing: "evening"
+          timing: "evening",
         },
         quickActions: [
           { label: "🚶 Evening Walk", action: "log_evening_walk" },
           { label: "🧘 Gentle Yoga", action: "log_evening_yoga" },
           { label: "🏊 Light Swim", action: "log_swimming" },
-          { label: "😌 Rest Instead", action: "choose_rest_evening" }
-        ]
+          { label: "😌 Rest Instead", action: "choose_rest_evening" },
+        ],
       });
     }
 
     // Weekly exercise goal check (Saturday 10 AM)
     const today = new Date();
-    if (today.getDay() === 6) { // Saturday
+    if (today.getDay() === 6) {
+      // Saturday
       const weeklyExerciseTime = new Date();
       weeklyExerciseTime.setHours(10, 0, 0, 0);
 
@@ -1844,14 +2062,14 @@ class SmartNotificationService {
           scheduledTime: weeklyExerciseTime,
           data: {
             type: "exercise_review",
-            timing: "weekly"
+            timing: "weekly",
           },
           quickActions: [
             { label: "✅ Goals Met", action: "log_exercise_success" },
             { label: "📈 Progress Made", action: "log_exercise_progress" },
             { label: "🎯 Set New Goals", action: "set_exercise_goals" },
-            { label: "📊 View Stats", action: "view_exercise_stats" }
-          ]
+            { label: "📊 View Stats", action: "view_exercise_stats" },
+          ],
         });
       }
     }
@@ -1861,8 +2079,11 @@ class SmartNotificationService {
     const hour = now.getHours();
     const isWorkHours = hour >= 9 && hour <= 17;
 
-    if (isWorkHours && Math.random() < 0.3) { // 30% chance during work hours
-      const sedentaryTime = new Date(now.getTime() + Math.random() * 2 * 60 * 60 * 1000); // Random time in next 2 hours
+    if (isWorkHours && Math.random() < 0.3) {
+      // 30% chance during work hours
+      const sedentaryTime = new Date(
+        now.getTime() + Math.random() * 2 * 60 * 60 * 1000
+      ); // Random time in next 2 hours
 
       notifications.push({
         id: `sedentary-reminder-${Date.now()}`,
@@ -1873,14 +2094,14 @@ class SmartNotificationService {
         scheduledTime: sedentaryTime,
         data: {
           type: "sedentary_reminder",
-          timing: "random"
+          timing: "random",
         },
         quickActions: [
           { label: "🚶 Stand & Stretch", action: "log_stand_stretch" },
           { label: "💃 Quick Dance", action: "log_quick_dance" },
           { label: "🏃 Lap Around", action: "log_quick_walk" },
-          { label: "⏰ Remind Later", action: "snooze_sedentary" }
-        ]
+          { label: "⏰ Remind Later", action: "snooze_sedentary" },
+        ],
       });
     }
 
@@ -1898,14 +2119,14 @@ class SmartNotificationService {
         scheduledTime: postLunchTime,
         data: {
           type: "post_meal_movement",
-          meal: "lunch"
+          meal: "lunch",
         },
         quickActions: [
           { label: "🚶 10-Min Walk", action: "log_post_lunch_walk" },
           { label: "🧘 Light Stretch", action: "log_post_meal_stretch" },
           { label: "💺 Stay Seated", action: "skip_post_meal_movement" },
-          { label: "⏰ 15 Min Later", action: "remind_post_meal_later" }
-        ]
+          { label: "⏰ 15 Min Later", action: "remind_post_meal_later" },
+        ],
       });
     }
 
@@ -1915,7 +2136,10 @@ class SmartNotificationService {
   /**
    * Generate context-aware notifications based on weather, time, and location
    */
-  generateContextAwareNotifications(context: NotificationContext, userStats: UserStats): SmartNotification[] {
+  generateContextAwareNotifications(
+    context: NotificationContext,
+    userStats: UserStats
+  ): SmartNotification[] {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
@@ -1924,7 +2148,8 @@ class SmartNotificationService {
       const { condition, temperature } = context.weather;
 
       // Hot weather hydration reminder
-      if (temperature > 28) { // Above 28°C/82°F
+      if (temperature > 28) {
+        // Above 28°C/82°F
         const heatTime = new Date();
         heatTime.setHours(11, 0, 0, 0); // 11 AM
 
@@ -1939,20 +2164,23 @@ class SmartNotificationService {
             data: {
               type: "weather_advice",
               weatherType: "heat",
-              temperature
+              temperature,
             },
             quickActions: [
               { label: "💧 Drink Water", action: "log_heat_hydration" },
               { label: "🧊 Cold Drink", action: "log_cold_drink" },
               { label: "🏠 Stay Cool", action: "log_heat_precautions" },
-              { label: "⚠️ Heat Alert", action: "report_heat_concern" }
-            ]
+              { label: "⚠️ Heat Alert", action: "report_heat_concern" },
+            ],
           });
         }
       }
 
       // Rainy weather indoor activity suggestion
-      if (condition.toLowerCase().includes('rain') || condition.toLowerCase().includes('storm')) {
+      if (
+        condition.toLowerCase().includes("rain") ||
+        condition.toLowerCase().includes("storm")
+      ) {
         const rainTime = new Date();
         rainTime.setHours(16, 0, 0, 0); // 4 PM
 
@@ -1967,20 +2195,21 @@ class SmartNotificationService {
             data: {
               type: "weather_advice",
               weatherType: "rain",
-              condition
+              condition,
             },
             quickActions: [
               { label: "🏠 Indoor Walk", action: "log_indoor_walk" },
               { label: "🧘 Home Yoga", action: "log_home_yoga" },
               { label: "💃 Dance Party", action: "log_dance_party" },
-              { label: "📺 Active Rest", action: "choose_rest_indoor" }
-            ]
+              { label: "📺 Active Rest", action: "choose_rest_indoor" },
+            ],
           });
         }
       }
 
       // Cold weather warmth reminder
-      if (temperature < 5) { // Below 5°C/41°F
+      if (temperature < 5) {
+        // Below 5°C/41°F
         const coldTime = new Date();
         coldTime.setHours(7, 30, 0, 0); // 7:30 AM
 
@@ -1995,14 +2224,14 @@ class SmartNotificationService {
             data: {
               type: "weather_advice",
               weatherType: "cold",
-              temperature
+              temperature,
             },
             quickActions: [
               { label: "🧥 Dress Warm", action: "log_warm_clothing" },
               { label: "☕ Warm Drink", action: "log_warm_drink" },
               { label: "🏠 Stay Indoors", action: "log_cold_precautions" },
-              { label: "🤒 Cold Symptoms", action: "report_cold_symptoms" }
-            ]
+              { label: "🤒 Cold Symptoms", action: "report_cold_symptoms" },
+            ],
           });
         }
       }
@@ -2026,21 +2255,22 @@ class SmartNotificationService {
           scheduledTime: lateNightTime,
           data: {
             type: "time_context",
-            timeContext: "late_night"
+            timeContext: "late_night",
           },
           quickActions: [
             { label: "💊 Night Meds", action: "confirm_night_medications" },
             { label: "😴 Sleep Prep", action: "log_sleep_prep" },
             { label: "📱 Screen Off", action: "log_screen_time" },
-            { label: "🧘 Wind Down", action: "log_wind_down" }
-          ]
+            { label: "🧘 Wind Down", action: "log_wind_down" },
+          ],
         });
       }
     }
 
     // Weekend wellness boost
     const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) { // Weekend
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      // Weekend
       const weekendTime = new Date();
       weekendTime.setHours(10, 0, 0, 0); // 10 AM
 
@@ -2054,20 +2284,21 @@ class SmartNotificationService {
           scheduledTime: weekendTime,
           data: {
             type: "time_context",
-            timeContext: "weekend"
+            timeContext: "weekend",
           },
           quickActions: [
             { label: "🚶 Long Walk", action: "log_weekend_walk" },
             { label: "🥗 Healthy Meal", action: "log_weekend_meal" },
             { label: "😴 Extra Rest", action: "log_weekend_rest" },
-            { label: "📝 Health Review", action: "review_weekend_health" }
-          ]
+            { label: "📝 Health Review", action: "review_weekend_health" },
+          ],
         });
       }
     }
 
     // Work/school day energy check
-    if (dayOfWeek >= 1 && dayOfWeek <= 5 && hour >= 8 && hour <= 18) { // Weekday work hours
+    if (dayOfWeek >= 1 && dayOfWeek <= 5 && hour >= 8 && hour <= 18) {
+      // Weekday work hours
       const workDayTime = new Date();
       workDayTime.setHours(14, 0, 0, 0); // 2 PM
 
@@ -2081,21 +2312,22 @@ class SmartNotificationService {
           scheduledTime: workDayTime,
           data: {
             type: "time_context",
-            timeContext: "workday_afternoon"
+            timeContext: "workday_afternoon",
           },
           quickActions: [
             { label: "⚡ High Energy", action: "log_work_energy_high" },
             { label: "😴 Need Boost", action: "log_work_energy_low" },
             { label: "💧 Water Break", action: "log_work_hydration" },
-            { label: "🚶 Quick Walk", action: "log_work_walk" }
-          ]
+            { label: "🚶 Quick Walk", action: "log_work_walk" },
+          ],
         });
       }
     }
 
     // Seasonal health reminders (simplified - could be expanded)
     const month = new Date().getMonth();
-    if (month >= 11 || month <= 2) { // Winter months
+    if (month >= 11 || month <= 2) {
+      // Winter months
       const winterTime = new Date();
       winterTime.setHours(9, 0, 0, 0); // 9 AM
 
@@ -2109,14 +2341,14 @@ class SmartNotificationService {
           scheduledTime: winterTime,
           data: {
             type: "seasonal_context",
-            season: "winter"
+            season: "winter",
           },
           quickActions: [
             { label: "🧥 Warm Layers", action: "log_winter_clothing" },
             { label: "💧 Indoor Humidity", action: "log_indoor_humidity" },
             { label: "🛏️ Sleep Check", action: "log_winter_sleep" },
-            { label: "🍊 Vitamin Boost", action: "log_vitamin_intake" }
-          ]
+            { label: "🍊 Vitamin Boost", action: "log_vitamin_intake" },
+          ],
         });
       }
     }
@@ -2145,14 +2377,14 @@ class SmartNotificationService {
         scheduledTime: windDownTime,
         data: {
           type: "sleep_checkin",
-          phase: "wind_down"
+          phase: "wind_down",
         },
         quickActions: [
           { label: "📱 Screen Off", action: "log_screen_off" },
           { label: "🧘 Relaxation", action: "log_relaxation_technique" },
           { label: "📖 Reading", action: "log_bedtime_reading" },
-          { label: "🛁 Bath Time", action: "log_bath_routine" }
-        ]
+          { label: "🛁 Bath Time", action: "log_bath_routine" },
+        ],
       });
     }
 
@@ -2171,14 +2403,14 @@ class SmartNotificationService {
         scheduledTime: sleepReflectionTime,
         data: {
           type: "sleep_checkin",
-          phase: "reflection"
+          phase: "reflection",
         },
         quickActions: [
           { label: "😴 Great Sleep", action: "log_sleep_great" },
           { label: "😐 Okay Sleep", action: "log_sleep_okay" },
           { label: "😪 Poor Sleep", action: "log_sleep_poor" },
-          { label: "📊 Sleep Tracker", action: "view_sleep_patterns" }
-        ]
+          { label: "📊 Sleep Tracker", action: "view_sleep_patterns" },
+        ],
       });
     }
 
@@ -2196,20 +2428,21 @@ class SmartNotificationService {
         scheduledTime: sleepScheduleTime,
         data: {
           type: "sleep_checkin",
-          phase: "schedule"
+          phase: "schedule",
         },
         quickActions: [
           { label: "💤 Ready for Bed", action: "log_bedtime_ready" },
           { label: "⏰ Set Alarm", action: "set_wake_alarm" },
           { label: "📝 Sleep Goals", action: "set_sleep_goals" },
-          { label: "📊 Track Sleep", action: "view_sleep_stats" }
-        ]
+          { label: "📊 Track Sleep", action: "view_sleep_stats" },
+        ],
       });
     }
 
     // Mid-week sleep check (Wednesday 9 PM)
     const today = new Date();
-    if (today.getDay() === 3) { // Wednesday
+    if (today.getDay() === 3) {
+      // Wednesday
       const midWeekSleepTime = new Date();
       midWeekSleepTime.setHours(21, 30, 0, 0);
 
@@ -2223,14 +2456,14 @@ class SmartNotificationService {
           scheduledTime: midWeekSleepTime,
           data: {
             type: "sleep_checkin",
-            phase: "weekly_review"
+            phase: "weekly_review",
           },
           quickActions: [
             { label: "✅ Sleep On Track", action: "log_sleep_on_track" },
             { label: "🔄 Needs Adjustment", action: "log_sleep_needs_work" },
             { label: "📈 View Trends", action: "view_sleep_trends" },
-            { label: "🎯 Set Goals", action: "set_sleep_improvements" }
-          ]
+            { label: "🎯 Set Goals", action: "set_sleep_improvements" },
+          ],
         });
       }
     }
@@ -2249,14 +2482,14 @@ class SmartNotificationService {
         scheduledTime: caffeineCutoffTime,
         data: {
           type: "sleep_checkin",
-          phase: "caffeine_cutoff"
+          phase: "caffeine_cutoff",
         },
         quickActions: [
           { label: "✅ No More Caffeine", action: "log_caffeine_cutoff" },
           { label: "☕ Last Cup", action: "log_final_caffeine" },
           { label: "💧 Water Instead", action: "log_water_instead" },
-          { label: "⏰ Different Time", action: "adjust_caffeine_time" }
-        ]
+          { label: "⏰ Different Time", action: "adjust_caffeine_time" },
+        ],
       });
     }
 
@@ -2281,8 +2514,8 @@ class SmartNotificationService {
         scheduledTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
         data: {
           type: "streak_celebration",
-          streak: userStats.currentStreak
-        }
+          streak: userStats.currentStreak,
+        },
       });
     }
 
@@ -2298,13 +2531,13 @@ class SmartNotificationService {
         data: {
           type: "streak_risk",
           currentStreak: userStats.currentStreak,
-          daysSinceActivity: userStats.daysSinceLastActivity
+          daysSinceActivity: userStats.daysSinceLastActivity,
         },
         quickActions: [
           { label: t("quickActionQuickLog"), action: "quick_log" },
           { label: t("quickActionCheckMeds"), action: "check_medications" },
-          { label: t("quickActionRemindLater"), action: "remind_later" }
-        ]
+          { label: t("quickActionRemindLater"), action: "remind_later" },
+        ],
       });
     }
 
@@ -2315,7 +2548,7 @@ class SmartNotificationService {
         title: t("streakRecoveryTitle"),
         body: t("streakRecoveryBody", {
           days: userStats.daysSinceLastActivity,
-          longest: userStats.longestStreak
+          longest: userStats.longestStreak,
         }),
         type: "streak_reminder",
         priority: "normal",
@@ -2323,8 +2556,8 @@ class SmartNotificationService {
         data: {
           type: "streak_recovery",
           daysSinceActivity: userStats.daysSinceLastActivity,
-          longestStreak: userStats.longestStreak
-        }
+          longestStreak: userStats.longestStreak,
+        },
       });
     }
 
@@ -2349,35 +2582,46 @@ class SmartNotificationService {
         scheduledTime: new Date(),
         data: {
           type: "missed_symptoms",
-          daysSince: userStats.daysSinceLastSymptom
+          daysSince: userStats.daysSinceLastSymptom,
         },
         quickActions: [
           { label: t("quickActionHaveSymptoms"), action: "log_symptoms" },
           { label: t("quickActionFeelingGreat"), action: "log_no_symptoms" },
-          { label: t("quickActionTomorrow"), action: "remind_tomorrow" }
-        ]
+          { label: t("quickActionTomorrow"), action: "remind_tomorrow" },
+        ],
       });
     }
 
     // Medication compliance dip
-    if (userStats.recentCompliance < 80 && userStats.daysSinceLastMedicationLog >= 1) {
+    if (
+      userStats.recentCompliance < 80 &&
+      userStats.daysSinceLastMedicationLog >= 1
+    ) {
       notifications.push({
         id: `medication-compliance-${Date.now()}`,
         title: t("medicationComplianceTitle"),
-        body: t("medicationComplianceBody", { compliance: Math.round(userStats.recentCompliance) }),
+        body: t("medicationComplianceBody", {
+          compliance: Math.round(userStats.recentCompliance),
+        }),
         type: "activity_alert",
         priority: "high",
         scheduledTime: new Date(),
         data: {
           type: "compliance_alert",
           complianceRate: userStats.recentCompliance,
-          daysSinceLog: userStats.daysSinceLastMedicationLog
+          daysSinceLog: userStats.daysSinceLastMedicationLog,
         },
         quickActions: [
-          { label: t("quickActionConfirmMedication"), action: "confirm_medication" },
+          {
+            label: t("quickActionConfirmMedication"),
+            action: "confirm_medication",
+          },
           { label: t("quickActionUpdateStatus"), action: "update_medications" },
-          { label: t("quickActionContactCaregiver"), action: "contact_caregiver" }
-        ]
+          {
+            label: t("quickActionContactCaregiver"),
+            action: "contact_caregiver",
+          },
+        ],
       });
     }
 
@@ -2392,8 +2636,8 @@ class SmartNotificationService {
         scheduledTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
         data: {
           type: "weekly_summary",
-          daysSinceActivity: userStats.daysSinceLastActivity
-        }
+          daysSinceActivity: userStats.daysSinceLastActivity,
+        },
       });
     }
 
@@ -2403,34 +2647,42 @@ class SmartNotificationService {
   /**
    * Generate achievement celebration notifications
    */
-  generateAchievementNotifications(achievements: Achievement[]): SmartNotification[] {
+  generateAchievementNotifications(
+    achievements: Achievement[]
+  ): SmartNotification[] {
     const t = i18n.t.bind(i18n); // Translation function
 
     return achievements
-      .filter(achievement => {
+      .filter((achievement) => {
         // Only show achievements unlocked in the last 24 hours
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         return achievement.unlockedAt > oneDayAgo;
       })
-      .map(achievement => ({
+      .map((achievement) => ({
         id: `achievement-${achievement.id}-${Date.now()}`,
-        title: t("achievementUnlockedTitle", { title: `🏆 ${achievement.title}` }),
-        body: t("achievementUnlockedBody", { description: achievement.description }),
+        title: t("achievementUnlockedTitle", {
+          title: `🏆 ${achievement.title}`,
+        }),
+        body: t("achievementUnlockedBody", {
+          description: achievement.description,
+        }),
         type: "achievement",
         priority: "low",
         scheduledTime: new Date(),
         data: {
           type: "achievement_unlocked",
           achievementId: achievement.id,
-          achievementType: achievement.type
-        }
+          achievementType: achievement.type,
+        },
       }));
   }
 
   /**
    * Generate daily interactive notifications for a user
    */
-  async generateDailyInteractiveNotifications(userId: string): Promise<SmartNotification[]> {
+  async generateDailyInteractiveNotifications(
+    userId: string
+  ): Promise<SmartNotification[]> {
     const notifications: SmartNotification[] = [];
 
     try {
@@ -2438,10 +2690,14 @@ class SmartNotificationService {
       const userStats = await this.getUserStats(userId);
 
       // Generate all notification types
-      notifications.push(...this.generateDailyWellnessCheckin(userId, userStats));
+      notifications.push(
+        ...this.generateDailyWellnessCheckin(userId, userStats)
+      );
       notifications.push(...this.generateStreakReminders(userStats));
       notifications.push(...this.generateMissedActivityAlerts(userStats));
-      notifications.push(...this.generateAchievementNotifications(userStats.achievements));
+      notifications.push(
+        ...this.generateAchievementNotifications(userStats.achievements)
+      );
 
       // Limit to prevent notification overload (max 5 per day)
       return notifications.slice(0, 5);
@@ -2456,19 +2712,14 @@ class SmartNotificationService {
   private async getUserStats(userId: string): Promise<UserStats> {
     try {
       // Calculate real user statistics
-      const [
-        symptoms,
-        medications,
-        moodEntries,
-        userProfile,
-        vitalSigns
-      ] = await Promise.all([
-        this.getUserSymptoms(userId),
-        this.getUserMedications(userId),
-        this.getUserMoods(userId),
-        this.getUserProfile(userId),
-        this.getUserVitalSigns(userId)
-      ]);
+      const [symptoms, medications, moodEntries, userProfile, vitalSigns] =
+        await Promise.all([
+          this.getUserSymptoms(userId),
+          this.getUserMedications(userId),
+          this.getUserMoods(userId),
+          this.getUserProfile(userId),
+          this.getUserVitalSigns(userId),
+        ]);
 
       // Calculate streaks and activity metrics
       const stats = this.calculateUserStats(symptoms, medications, moodEntries);
@@ -2483,7 +2734,7 @@ class SmartNotificationService {
         ...stats,
         userProfile,
         lastVitalChecks,
-        achievements
+        achievements,
       };
     } catch (error) {
       // Return default stats for new users (0 days inactive, no activity yet)
@@ -2494,7 +2745,7 @@ class SmartNotificationService {
         daysSinceLastSymptom: 0, // New users have no symptoms logged yet
         daysSinceLastMedicationLog: 0, // New users have no medication logs yet
         recentCompliance: 100,
-        achievements: []
+        achievements: [],
       };
     }
   }
@@ -2506,42 +2757,55 @@ class SmartNotificationService {
     symptoms: any[],
     medications: Medication[],
     moodEntries: any[]
-  ): Omit<UserStats, 'achievements'> {
+  ): Omit<UserStats, "achievements"> {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     // Calculate days since last activity (symptoms, moods, or medication logs)
-    const lastSymptomDate = symptoms.length > 0
-      ? new Date(Math.max(...symptoms.map(s => new Date(s.timestamp).getTime())))
-      : new Date(0);
+    const lastSymptomDate =
+      symptoms.length > 0
+        ? new Date(
+            Math.max(...symptoms.map((s) => new Date(s.timestamp).getTime()))
+          )
+        : new Date(0);
 
-    const lastMoodDate = moodEntries.length > 0
-      ? new Date(Math.max(...moodEntries.map(m => new Date(m.timestamp).getTime())))
-      : new Date(0);
+    const lastMoodDate =
+      moodEntries.length > 0
+        ? new Date(
+            Math.max(...moodEntries.map((m) => new Date(m.timestamp).getTime()))
+          )
+        : new Date(0);
 
-    const lastActivityDate = new Date(Math.max(
-      lastSymptomDate.getTime(),
-      lastMoodDate.getTime(),
-      // Assume medication logs are tracked separately
-      oneWeekAgo.getTime() // Placeholder - you'll need actual medication log dates
-    ));
+    const lastActivityDate = new Date(
+      Math.max(
+        lastSymptomDate.getTime(),
+        lastMoodDate.getTime(),
+        // Assume medication logs are tracked separately
+        oneWeekAgo.getTime() // Placeholder - you'll need actual medication log dates
+      )
+    );
 
-    const daysSinceLastActivity = Math.floor((now.getTime() - lastActivityDate.getTime()) / (24 * 60 * 60 * 1000));
+    const daysSinceLastActivity = Math.floor(
+      (now.getTime() - lastActivityDate.getTime()) / (24 * 60 * 60 * 1000)
+    );
 
     // Calculate medication compliance (last 7 days)
-    const recentMedications = medications.filter(med => {
+    const recentMedications = medications.filter((med) => {
       const startDate = new Date(med.startDate);
       return startDate >= oneWeekAgo && startDate <= now;
     });
 
-    const medicationCompliance = recentMedications.length > 0
-      ? (recentMedications.filter(med => med.isActive).length / recentMedications.length) * 100
-      : 100;
+    const medicationCompliance =
+      recentMedications.length > 0
+        ? (recentMedications.filter((med) => med.isActive).length /
+            recentMedications.length) *
+          100
+        : 100;
 
     // Calculate streaks (simplified - consecutive days with activity)
     const activityDates = new Set([
-      ...symptoms.map(s => new Date(s.timestamp).toDateString()),
-      ...moodEntries.map(m => new Date(m.timestamp).toDateString())
+      ...symptoms.map((s) => new Date(s.timestamp).toDateString()),
+      ...moodEntries.map((m) => new Date(m.timestamp).toDateString()),
     ]);
 
     let currentStreak = 0;
@@ -2568,18 +2832,24 @@ class SmartNotificationService {
       currentStreak: Math.max(currentStreak, tempStreak),
       longestStreak,
       daysSinceLastActivity,
-      daysSinceLastSymptom: symptoms.length > 0
-        ? Math.floor((now.getTime() - lastSymptomDate.getTime()) / (24 * 60 * 60 * 1000))
-        : 0, // New users have no symptoms logged yet
+      daysSinceLastSymptom:
+        symptoms.length > 0
+          ? Math.floor(
+              (now.getTime() - lastSymptomDate.getTime()) /
+                (24 * 60 * 60 * 1000)
+            )
+          : 0, // New users have no symptoms logged yet
       daysSinceLastMedicationLog: 0, // New users have no medication logs yet
-      recentCompliance: medicationCompliance
+      recentCompliance: medicationCompliance,
     };
   }
 
   /**
    * Check for newly unlocked achievements
    */
-  private checkForAchievements(stats: Omit<UserStats, 'achievements'>): Achievement[] {
+  private checkForAchievements(
+    stats: Omit<UserStats, "achievements">
+  ): Achievement[] {
     const achievements: Achievement[] = [];
 
     // Streak achievements
@@ -2589,7 +2859,7 @@ class SmartNotificationService {
         title: "Week Warrior",
         description: "Maintained a 7-day health tracking streak!",
         type: "streak",
-        unlockedAt: new Date()
+        unlockedAt: new Date(),
       });
     } else if (stats.currentStreak >= 30) {
       achievements.push({
@@ -2597,7 +2867,7 @@ class SmartNotificationService {
         title: "Monthly Champion",
         description: "30 consecutive days of health tracking excellence!",
         type: "streak",
-        unlockedAt: new Date()
+        unlockedAt: new Date(),
       });
     }
 
@@ -2608,7 +2878,7 @@ class SmartNotificationService {
         title: "Medication Master",
         description: "95% or higher medication compliance this week!",
         type: "compliance",
-        unlockedAt: new Date()
+        unlockedAt: new Date(),
       });
     }
 
@@ -2619,7 +2889,7 @@ class SmartNotificationService {
         title: "Health Hero",
         description: "Returned to consistent health tracking!",
         type: "consistency",
-        unlockedAt: new Date()
+        unlockedAt: new Date(),
       });
     }
 
@@ -2635,36 +2905,40 @@ class SmartNotificationService {
     if (vitalSigns.length === 0) return history;
 
     // Group by vital type and find most recent
-    const vitalGroups = vitalSigns.reduce((acc, vital) => {
-      if (!acc[vital.type]) acc[vital.type] = [];
-      acc[vital.type].push(vital);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const vitalGroups = vitalSigns.reduce(
+      (acc, vital) => {
+        if (!acc[vital.type]) acc[vital.type] = [];
+        acc[vital.type].push(vital);
+        return acc;
+      },
+      {} as Record<string, any[]>
+    );
 
     // Find latest date for each vital type
-    Object.keys(vitalGroups).forEach(vitalType => {
+    Object.keys(vitalGroups).forEach((vitalType) => {
       const vitals = vitalGroups[vitalType];
-      const latestVital = vitals.sort((a: any, b: any) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      const latestVital = vitals.sort(
+        (a: any, b: any) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       )[0];
 
       switch (vitalType) {
-        case 'bloodPressure':
+        case "bloodPressure":
           history.lastBloodPressure = new Date(latestVital.timestamp);
           break;
-        case 'heartRate':
+        case "heartRate":
           history.lastHeartRate = new Date(latestVital.timestamp);
           break;
-        case 'temperature':
+        case "temperature":
           history.lastTemperature = new Date(latestVital.timestamp);
           break;
-        case 'weight':
+        case "weight":
           history.lastWeight = new Date(latestVital.timestamp);
           break;
-        case 'bloodSugar':
+        case "bloodSugar":
           history.lastBloodSugar = new Date(latestVital.timestamp);
           break;
-        case 'respiratoryRate':
+        case "respiratoryRate":
           history.lastRespiratoryRate = new Date(latestVital.timestamp);
           break;
       }
@@ -2688,18 +2962,17 @@ class SmartNotificationService {
           age: this.calculateAge(user.createdAt), // Rough estimate
           medications: [], // We'll need to add this
           allergies: [], // We'll need to add this
-          mentalHealth: [] // We'll need to add this
+          mentalHealth: [], // We'll need to add this
         };
       }
-    } catch (error) {
-    }
+    } catch (error) {}
 
     return {
       conditions: [],
       age: 0,
       medications: [],
       allergies: [],
-      mentalHealth: []
+      mentalHealth: [],
     };
   }
 
@@ -2710,7 +2983,10 @@ class SmartNotificationService {
     const now = new Date();
     const accountAge = now.getTime() - createdAt.getTime();
     // Rough estimate: assume adults create accounts
-    return Math.max(25, Math.floor(accountAge / (365.25 * 24 * 60 * 60 * 1000)));
+    return Math.max(
+      25,
+      Math.floor(accountAge / (365.25 * 24 * 60 * 60 * 1000))
+    );
   }
 
   /**
@@ -2736,9 +3012,9 @@ class SmartNotificationService {
     try {
       const { userService } = await import("./userService");
       const user = await userService.getUser(userId);
-      return user?.role || 'member';
+      return user?.role || "member";
     } catch {
-      return 'member';
+      return "member";
     }
   }
 
@@ -2751,19 +3027,19 @@ class SmartNotificationService {
       // For now, return mock data
       return [
         {
-          id: 'member1',
-          name: 'Family Member 1',
+          id: "member1",
+          name: "Family Member 1",
           healthScore: 85,
           alertsCount: 0,
-          lastActivity: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+          lastActivity: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
         },
         {
-          id: 'member2',
-          name: 'Family Member 2',
+          id: "member2",
+          name: "Family Member 2",
           healthScore: 72,
           alertsCount: 1,
-          lastActivity: new Date(Date.now() - 6 * 60 * 60 * 1000) // 6 hours ago
-        }
+          lastActivity: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
+        },
       ];
     } catch {
       return [];
@@ -2784,7 +3060,7 @@ class SmartNotificationService {
     let upcomingMedications = 0;
     const achievements: any[] = [];
 
-    familyMembers.forEach(member => {
+    familyMembers.forEach((member) => {
       // Count members needing attention (low health score or recent alerts)
       if (member.healthScore < 75 || member.alertsCount > 0) {
         membersNeedingAttention++;
@@ -2801,7 +3077,7 @@ class SmartNotificationService {
           memberId: member.id,
           memberName: member.name,
           title: "Health Champion",
-          type: "achievement"
+          type: "achievement",
         });
       }
     });
@@ -2813,7 +3089,7 @@ class SmartNotificationService {
       membersNeedingAttention,
       criticalAlerts,
       upcomingMedications,
-      achievements
+      achievements,
     };
   }
 
@@ -2836,14 +3112,14 @@ class SmartNotificationService {
       return {
         emergencyContacts: 0, // No emergencies currently
         careHandoffNeeded: now.getHours() >= 17, // After 5 PM
-        nextHandoffTime: nextHandoffTime,
-        upcomingAppointments: Math.floor(Math.random() * 2) // 0-1 for demo
+        nextHandoffTime,
+        upcomingAppointments: Math.floor(Math.random() * 2), // 0-1 for demo
       };
     } catch {
       return {
         emergencyContacts: 0,
         careHandoffNeeded: false,
-        upcomingAppointments: 0
+        upcomingAppointments: 0,
       };
     }
   }
@@ -2884,11 +3160,13 @@ class SmartNotificationService {
   /**
    * Generate condition-specific health reminders
    */
-  generateConditionSpecificReminders(userStats: UserStats): SmartNotification[] {
+  generateConditionSpecificReminders(
+    userStats: UserStats
+  ): SmartNotification[] {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
-    if (!userStats.healthConditions || !userStats.lastVitalChecks) {
+    if (!(userStats.healthConditions && userStats.lastVitalChecks)) {
       return notifications;
     }
 
@@ -2896,17 +3174,23 @@ class SmartNotificationService {
     const vitals = userStats.lastVitalChecks;
 
     // Diabetes management
-    if (conditions.includes('diabetes')) {
+    if (conditions.includes("diabetes")) {
       const lastBloodSugarCheck = vitals.lastBloodSugar;
       const daysSinceBloodSugar = lastBloodSugarCheck
-        ? Math.floor((new Date().getTime() - lastBloodSugarCheck.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (new Date().getTime() - lastBloodSugarCheck.getTime()) /
+              (24 * 60 * 60 * 1000)
+          )
         : 30;
 
       if (daysSinceBloodSugar >= 2) {
         notifications.push({
           id: `diabetes-blood-sugar-${Date.now()}`,
           title: t("diabetesBloodSugarTitle", "🩸 Blood Sugar Check"),
-          body: t("diabetesBloodSugarBody", "Regular blood sugar monitoring is key to managing diabetes. Time for your daily check?"),
+          body: t(
+            "diabetesBloodSugarBody",
+            "Regular blood sugar monitoring is key to managing diabetes. Time for your daily check?"
+          ),
           type: "reminder",
           priority: daysSinceBloodSugar >= 7 ? "high" : "normal",
           scheduledTime: new Date(),
@@ -2914,28 +3198,40 @@ class SmartNotificationService {
             type: "condition_reminder",
             condition: "diabetes",
             vitalType: "blood_sugar",
-            daysSince: daysSinceBloodSugar
+            daysSince: daysSinceBloodSugar,
           },
           quickActions: [
-            { label: t("quickActionLogReading", "📝 Log Reading"), action: "log_blood_sugar" },
-            { label: t("quickActionRemindLater", "⏰ Remind Later"), action: "remind_later" }
-          ]
+            {
+              label: t("quickActionLogReading", "📝 Log Reading"),
+              action: "log_blood_sugar",
+            },
+            {
+              label: t("quickActionRemindLater", "⏰ Remind Later"),
+              action: "remind_later",
+            },
+          ],
         });
       }
     }
 
     // Hypertension management
-    if (conditions.includes('hypertension')) {
+    if (conditions.includes("hypertension")) {
       const lastBPCheck = vitals.lastBloodPressure;
       const daysSinceBP = lastBPCheck
-        ? Math.floor((new Date().getTime() - lastBPCheck.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (new Date().getTime() - lastBPCheck.getTime()) /
+              (24 * 60 * 60 * 1000)
+          )
         : 30;
 
       if (daysSinceBP >= 7) {
         notifications.push({
           id: `hypertension-bp-${Date.now()}`,
           title: t("hypertensionBPTitle", "❤️ Blood Pressure Check"),
-          body: t("hypertensionBPBody", "Keeping track of your blood pressure helps manage hypertension. Let's check it today."),
+          body: t(
+            "hypertensionBPBody",
+            "Keeping track of your blood pressure helps manage hypertension. Let's check it today."
+          ),
           type: "reminder",
           priority: daysSinceBP >= 14 ? "high" : "normal",
           scheduledTime: new Date(),
@@ -2943,28 +3239,40 @@ class SmartNotificationService {
             type: "condition_reminder",
             condition: "hypertension",
             vitalType: "blood_pressure",
-            daysSince: daysSinceBP
+            daysSince: daysSinceBP,
           },
           quickActions: [
-            { label: t("quickActionCheckNow", "📏 Check Now"), action: "check_blood_pressure" },
-            { label: t("quickActionSetReminder", "⏰ Set Reminder"), action: "schedule_bp_check" }
-          ]
+            {
+              label: t("quickActionCheckNow", "📏 Check Now"),
+              action: "check_blood_pressure",
+            },
+            {
+              label: t("quickActionSetReminder", "⏰ Set Reminder"),
+              action: "schedule_bp_check",
+            },
+          ],
         });
       }
     }
 
     // Asthma/Respiratory conditions
-    if (conditions.some(c => ['asthma', 'copd', 'bronchitis'].includes(c))) {
+    if (conditions.some((c) => ["asthma", "copd", "bronchitis"].includes(c))) {
       const lastRespiratoryCheck = vitals.lastRespiratoryRate;
       const daysSinceRespiratory = lastRespiratoryCheck
-        ? Math.floor((new Date().getTime() - lastRespiratoryCheck.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (new Date().getTime() - lastRespiratoryCheck.getTime()) /
+              (24 * 60 * 60 * 1000)
+          )
         : 30;
 
       if (daysSinceRespiratory >= 3) {
         notifications.push({
           id: `respiratory-check-${Date.now()}`,
           title: t("respiratoryCheckTitle", "🫁 Respiratory Check"),
-          body: t("respiratoryCheckBody", "Monitoring your breathing rate helps manage respiratory conditions. Let's do a quick check."),
+          body: t(
+            "respiratoryCheckBody",
+            "Monitoring your breathing rate helps manage respiratory conditions. Let's do a quick check."
+          ),
           type: "reminder",
           priority: "normal",
           scheduledTime: new Date(),
@@ -2972,39 +3280,59 @@ class SmartNotificationService {
             type: "condition_reminder",
             condition: "respiratory",
             vitalType: "respiratory_rate",
-            daysSince: daysSinceRespiratory
+            daysSince: daysSinceRespiratory,
           },
           quickActions: [
-            { label: t("quickActionLogSymptoms", "📝 Log Symptoms"), action: "log_respiratory_symptoms" },
-            { label: t("quickActionFeelingGood", "😊 Feeling Good"), action: "respiratory_feeling_good" }
-          ]
+            {
+              label: t("quickActionLogSymptoms", "📝 Log Symptoms"),
+              action: "log_respiratory_symptoms",
+            },
+            {
+              label: t("quickActionFeelingGood", "😊 Feeling Good"),
+              action: "respiratory_feeling_good",
+            },
+          ],
         });
       }
     }
 
     // Mental health conditions
-    if (userStats.userProfile?.mentalHealth?.includes('anxiety') ||
-        userStats.userProfile?.mentalHealth?.includes('depression')) {
+    if (
+      userStats.userProfile?.mentalHealth?.includes("anxiety") ||
+      userStats.userProfile?.mentalHealth?.includes("depression")
+    ) {
       const daysSinceMoodLog = userStats.daysSinceLastSymptom; // Assuming mood is tracked as symptoms
 
       if (daysSinceMoodLog >= 2) {
         notifications.push({
           id: `mental-health-check-${Date.now()}`,
           title: t("mentalHealthCheckTitle", "😊 Mental Health Check"),
-          body: t("mentalHealthCheckBody", "Taking a moment for your mental well-being is important. How are you feeling today?"),
+          body: t(
+            "mentalHealthCheckBody",
+            "Taking a moment for your mental well-being is important. How are you feeling today?"
+          ),
           type: "reminder",
           priority: "low",
           scheduledTime: new Date(),
           data: {
             type: "condition_reminder",
             condition: "mental_health",
-            daysSince: daysSinceMoodLog
+            daysSince: daysSinceMoodLog,
           },
           quickActions: [
-            { label: t("quickActionLogMood", "📝 Log Mood"), action: "log_mood" },
-            { label: t("quickActionTalkToZeina", "🤖 Talk to Zeina"), action: "open_zeina" },
-            { label: t("quickActionRemindTomorrow", "⏰ Tomorrow"), action: "remind_tomorrow" }
-          ]
+            {
+              label: t("quickActionLogMood", "📝 Log Mood"),
+              action: "log_mood",
+            },
+            {
+              label: t("quickActionTalkToZeina", "🤖 Talk to Zeina"),
+              action: "open_zeina",
+            },
+            {
+              label: t("quickActionRemindTomorrow", "⏰ Tomorrow"),
+              action: "remind_tomorrow",
+            },
+          ],
         });
       }
     }
@@ -3027,26 +3355,39 @@ class SmartNotificationService {
     if (userStats.userProfile?.age && userStats.userProfile.age > 50) {
       const lastWeightCheck = vitals.lastWeight;
       const daysSinceWeight = lastWeightCheck
-        ? Math.floor((new Date().getTime() - lastWeightCheck.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (new Date().getTime() - lastWeightCheck.getTime()) /
+              (24 * 60 * 60 * 1000)
+          )
         : 30;
 
-      if (daysSinceWeight >= 30) { // Monthly weight check
+      if (daysSinceWeight >= 30) {
+        // Monthly weight check
         notifications.push({
           id: `weight-check-${Date.now()}`,
           title: t("weightCheckTitle", "⚖️ Monthly Weight Check"),
-          body: t("weightCheckBody", "Regular weight monitoring is important for overall health. Let's check your weight this month."),
+          body: t(
+            "weightCheckBody",
+            "Regular weight monitoring is important for overall health. Let's check your weight this month."
+          ),
           type: "reminder",
           priority: "low",
           scheduledTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
           data: {
             type: "vital_prompt",
             vitalType: "weight",
-            daysSince: daysSinceWeight
+            daysSince: daysSinceWeight,
           },
           quickActions: [
-            { label: t("quickActionLogWeight", "📝 Log Weight"), action: "log_weight" },
-            { label: t("quickActionSkipThisMonth", "⏭️ Skip This Month"), action: "skip_weight_check" }
-          ]
+            {
+              label: t("quickActionLogWeight", "📝 Log Weight"),
+              action: "log_weight",
+            },
+            {
+              label: t("quickActionSkipThisMonth", "⏭️ Skip This Month"),
+              action: "skip_weight_check",
+            },
+          ],
         });
       }
     }
@@ -3055,26 +3396,38 @@ class SmartNotificationService {
     if (userStats.userProfile?.age && userStats.userProfile.age > 65) {
       const lastTempCheck = vitals.lastTemperature;
       const daysSinceTemp = lastTempCheck
-        ? Math.floor((new Date().getTime() - lastTempCheck.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (new Date().getTime() - lastTempCheck.getTime()) /
+              (24 * 60 * 60 * 1000)
+          )
         : 30;
 
       if (daysSinceTemp >= 7) {
         notifications.push({
           id: `temperature-check-${Date.now()}`,
           title: t("temperatureCheckTitle", "🌡️ Temperature Check"),
-          body: t("temperatureCheckBody", "Regular temperature monitoring helps catch potential issues early. Time for a quick check?"),
+          body: t(
+            "temperatureCheckBody",
+            "Regular temperature monitoring helps catch potential issues early. Time for a quick check?"
+          ),
           type: "reminder",
           priority: "low",
           scheduledTime: new Date(Date.now() + 3 * 60 * 60 * 1000), // 3 hours from now
           data: {
             type: "vital_prompt",
             vitalType: "temperature",
-            daysSince: daysSinceTemp
+            daysSince: daysSinceTemp,
           },
           quickActions: [
-            { label: t("quickActionTakeTemperature", "🌡️ Take Reading"), action: "log_temperature" },
-            { label: t("quickActionFeelingNormal", "😊 Feeling Normal"), action: "temperature_normal" }
-          ]
+            {
+              label: t("quickActionTakeTemperature", "🌡️ Take Reading"),
+              action: "log_temperature",
+            },
+            {
+              label: t("quickActionFeelingNormal", "😊 Feeling Normal"),
+              action: "temperature_normal",
+            },
+          ],
         });
       }
     }
@@ -3089,7 +3442,10 @@ class SmartNotificationService {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
-    if (!userStats.userProfile?.medications || userStats.recentCompliance >= 80) {
+    if (
+      !userStats.userProfile?.medications ||
+      userStats.recentCompliance >= 80
+    ) {
       return notifications;
     }
 
@@ -3098,20 +3454,32 @@ class SmartNotificationService {
       notifications.push({
         id: `adherence-encouragement-${Date.now()}`,
         title: t("adherenceEncouragementTitle", "💪 Medication Adherence Help"),
-        body: t("adherenceEncouragementBody", "We noticed your medication compliance is below 60%. Would you like help setting up reminders or organizing your medications?"),
+        body: t(
+          "adherenceEncouragementBody",
+          "We noticed your medication compliance is below 60%. Would you like help setting up reminders or organizing your medications?"
+        ),
         type: "reminder",
         priority: "high",
         scheduledTime: new Date(),
         data: {
           type: "adherence_nudge",
           complianceRate: userStats.recentCompliance,
-          severity: "critical"
+          severity: "critical",
         },
         quickActions: [
-          { label: t("quickActionSetupReminders", "⏰ Setup Reminders"), action: "setup_medication_reminders" },
-          { label: t("quickActionOrganizeMeds", "📦 Organize Meds"), action: "organize_medications" },
-          { label: t("quickActionTalkToCaregiver", "👨‍⚕️ Talk to Caregiver"), action: "contact_caregiver" }
-        ]
+          {
+            label: t("quickActionSetupReminders", "⏰ Setup Reminders"),
+            action: "setup_medication_reminders",
+          },
+          {
+            label: t("quickActionOrganizeMeds", "📦 Organize Meds"),
+            action: "organize_medications",
+          },
+          {
+            label: t("quickActionTalkToCaregiver", "👨‍⚕️ Talk to Caregiver"),
+            action: "contact_caregiver",
+          },
+        ],
       });
     }
 
@@ -3120,20 +3488,32 @@ class SmartNotificationService {
       notifications.push({
         id: `adherence-motivation-${Date.now()}`,
         title: t("adherenceMotivationTitle", "🎯 Stay on Track"),
-        body: t("adherenceMotivationBody", `You're at ${Math.round(userStats.recentCompliance)}% medication compliance. Let's work together to improve this!`),
+        body: t(
+          "adherenceMotivationBody",
+          `You're at ${Math.round(userStats.recentCompliance)}% medication compliance. Let's work together to improve this!`
+        ),
         type: "reminder",
         priority: "normal",
         scheduledTime: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4 hours from now
         data: {
           type: "adherence_nudge",
           complianceRate: userStats.recentCompliance,
-          severity: "moderate"
+          severity: "moderate",
         },
         quickActions: [
-          { label: t("quickActionViewSchedule", "📅 View Schedule"), action: "view_medication_schedule" },
-          { label: t("quickActionLogMeds", "💊 Log Today's Meds"), action: "log_today_medications" },
-          { label: t("quickActionSetGoal", "🎯 Set Goal"), action: "set_adherence_goal" }
-        ]
+          {
+            label: t("quickActionViewSchedule", "📅 View Schedule"),
+            action: "view_medication_schedule",
+          },
+          {
+            label: t("quickActionLogMeds", "💊 Log Today's Meds"),
+            action: "log_today_medications",
+          },
+          {
+            label: t("quickActionSetGoal", "🎯 Set Goal"),
+            action: "set_adherence_goal",
+          },
+        ],
       });
     }
 
@@ -3142,20 +3522,32 @@ class SmartNotificationService {
       notifications.push({
         id: `complex-regimen-help-${Date.now()}`,
         title: t("complexRegimenTitle", "📋 Medication Organization Help"),
-        body: t("complexRegimenBody", "With multiple medications, organization is key. Would you like help organizing your medication schedule?"),
+        body: t(
+          "complexRegimenBody",
+          "With multiple medications, organization is key. Would you like help organizing your medication schedule?"
+        ),
         type: "reminder",
         priority: "low",
         scheduledTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
         data: {
           type: "adherence_nudge",
           complexity: "high",
-          medicationCount: userStats.userProfile.medications.length
+          medicationCount: userStats.userProfile.medications.length,
         },
         quickActions: [
-          { label: t("quickActionCreateSchedule", "📅 Create Schedule"), action: "create_medication_schedule" },
-          { label: t("quickActionPillOrganizer", "📦 Pill Organizer"), action: "setup_pill_organizer" },
-          { label: t("quickActionRemindLater", "⏰ Remind Later"), action: "remind_later" }
-        ]
+          {
+            label: t("quickActionCreateSchedule", "📅 Create Schedule"),
+            action: "create_medication_schedule",
+          },
+          {
+            label: t("quickActionPillOrganizer", "📦 Pill Organizer"),
+            action: "setup_pill_organizer",
+          },
+          {
+            label: t("quickActionRemindLater", "⏰ Remind Later"),
+            action: "remind_later",
+          },
+        ],
       });
     }
 
@@ -3165,11 +3557,14 @@ class SmartNotificationService {
   /**
    * Generate family health update notifications
    */
-  async generateFamilyHealthUpdates(userId: string, userRole: string): Promise<SmartNotification[]> {
+  async generateFamilyHealthUpdates(
+    userId: string,
+    userRole: string
+  ): Promise<SmartNotification[]> {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
-    if (userRole !== 'admin') return notifications;
+    if (userRole !== "admin") return notifications;
 
     try {
       // Get family member data
@@ -3181,21 +3576,31 @@ class SmartNotificationService {
         notifications.push({
           id: `family-health-summary-${Date.now()}`,
           title: t("familyHealthSummaryTitle", "👨‍👩‍👧‍👦 Family Health Update"),
-          body: t("familyHealthSummaryBody", "{{count}} family member(s) may need attention. Check the Family tab for details.", {
-            count: familyStats.membersNeedingAttention
-          }),
+          body: t(
+            "familyHealthSummaryBody",
+            "{{count}} family member(s) may need attention. Check the Family tab for details.",
+            {
+              count: familyStats.membersNeedingAttention,
+            }
+          ),
           type: "family_update",
           priority: familyStats.criticalAlerts > 0 ? "high" : "normal",
           scheduledTime: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1 hour from now
           data: {
             type: "family_health_summary",
             membersNeedingAttention: familyStats.membersNeedingAttention,
-            criticalAlerts: familyStats.criticalAlerts
+            criticalAlerts: familyStats.criticalAlerts,
           },
           quickActions: [
-            { label: t("quickActionViewFamily", "👨‍👩‍👧‍👦 View Family"), action: "open_family_tab" },
-            { label: t("quickActionCheckAlerts", "🚨 Check Alerts"), action: "view_alerts" }
-          ]
+            {
+              label: t("quickActionViewFamily", "👨‍👩‍👧‍👦 View Family"),
+              action: "open_family_tab",
+            },
+            {
+              label: t("quickActionCheckAlerts", "🚨 Check Alerts"),
+              action: "view_alerts",
+            },
+          ],
         });
       }
 
@@ -3203,46 +3608,61 @@ class SmartNotificationService {
       if (familyStats.upcomingMedications > 0) {
         notifications.push({
           id: `family-medication-coordination-${Date.now()}`,
-          title: t("familyMedicationCoordinationTitle", "💊 Family Medication Time"),
-          body: t("familyMedicationCoordinationBody", "{{count}} family member(s) have medications due soon. Help coordinate their care.", {
-            count: familyStats.upcomingMedications
-          }),
+          title: t(
+            "familyMedicationCoordinationTitle",
+            "💊 Family Medication Time"
+          ),
+          body: t(
+            "familyMedicationCoordinationBody",
+            "{{count}} family member(s) have medications due soon. Help coordinate their care.",
+            {
+              count: familyStats.upcomingMedications,
+            }
+          ),
           type: "family_update",
           priority: "normal",
           scheduledTime: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
           data: {
             type: "family_medication_coordination",
-            upcomingMedications: familyStats.upcomingMedications
+            upcomingMedications: familyStats.upcomingMedications,
           },
           quickActions: [
-            { label: t("quickActionViewSchedule", "📅 View Schedule"), action: "view_medication_schedule" },
-            { label: t("quickActionSendReminders", "📱 Send Reminders"), action: "send_medication_reminders" }
-          ]
+            {
+              label: t("quickActionViewSchedule", "📅 View Schedule"),
+              action: "view_medication_schedule",
+            },
+            {
+              label: t("quickActionSendReminders", "📱 Send Reminders"),
+              action: "send_medication_reminders",
+            },
+          ],
         });
       }
 
       // Family member milestone celebrations
-      familyStats.achievements.forEach(achievement => {
+      familyStats.achievements.forEach((achievement) => {
         notifications.push({
           id: `family-member-achievement-${achievement.memberId}-${Date.now()}`,
           title: t("familyMemberAchievementTitle", "🎉 Family Achievement"),
-          body: t("familyMemberAchievementBody", "{{name}} reached a health milestone: {{achievement}}", {
-            name: achievement.memberName,
-            achievement: achievement.title
-          }),
+          body: t(
+            "familyMemberAchievementBody",
+            "{{name}} reached a health milestone: {{achievement}}",
+            {
+              name: achievement.memberName,
+              achievement: achievement.title,
+            }
+          ),
           type: "achievement",
           priority: "low",
           scheduledTime: new Date(),
           data: {
             type: "family_member_achievement",
             memberId: achievement.memberId,
-            achievement: achievement.title
-          }
+            achievement: achievement.title,
+          },
         });
       });
-
-    } catch (error) {
-    }
+    } catch (error) {}
 
     return notifications;
   }
@@ -3250,34 +3670,51 @@ class SmartNotificationService {
   /**
    * Generate caregiver coordination alerts
    */
-  async generateCaregiverCoordinationAlerts(userId: string, userRole: string): Promise<SmartNotification[]> {
+  async generateCaregiverCoordinationAlerts(
+    userId: string,
+    userRole: string
+  ): Promise<SmartNotification[]> {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n);
 
-    if (userRole !== 'admin') return notifications;
+    if (userRole !== "admin") return notifications;
 
     try {
-      const coordinationNeeds = await this.getCaregiverCoordinationNeeds(userId);
+      const coordinationNeeds =
+        await this.getCaregiverCoordinationNeeds(userId);
 
       // Emergency coordination
       if (coordinationNeeds.emergencyContacts > 0) {
         notifications.push({
           id: `emergency-coordination-${Date.now()}`,
-          title: t("emergencyCoordinationTitle", "🚨 Emergency Coordination Needed"),
-          body: t("emergencyCoordinationBody", "{{count}} family member(s) have triggered emergency alerts. Immediate attention required.", {
-            count: coordinationNeeds.emergencyContacts
-          }),
+          title: t(
+            "emergencyCoordinationTitle",
+            "🚨 Emergency Coordination Needed"
+          ),
+          body: t(
+            "emergencyCoordinationBody",
+            "{{count}} family member(s) have triggered emergency alerts. Immediate attention required.",
+            {
+              count: coordinationNeeds.emergencyContacts,
+            }
+          ),
           type: "family_update",
           priority: "critical",
           scheduledTime: new Date(), // Immediate
           data: {
             type: "emergency_coordination",
-            emergencyContacts: coordinationNeeds.emergencyContacts
+            emergencyContacts: coordinationNeeds.emergencyContacts,
           },
           quickActions: [
-            { label: t("quickActionEmergencyResponse", "🚑 Respond Now"), action: "emergency_response" },
-            { label: t("quickActionCallEmergency", "📞 Call Emergency"), action: "call_emergency_contacts" }
-          ]
+            {
+              label: t("quickActionEmergencyResponse", "🚑 Respond Now"),
+              action: "emergency_response",
+            },
+            {
+              label: t("quickActionCallEmergency", "📞 Call Emergency"),
+              action: "call_emergency_contacts",
+            },
+          ],
         });
       }
 
@@ -3286,18 +3723,27 @@ class SmartNotificationService {
         notifications.push({
           id: `care-handoff-${Date.now()}`,
           title: t("careHandoffTitle", "🤝 Care Coordination"),
-          body: t("careHandoffBody", "Time for care handoff. Update family members on recent health developments."),
+          body: t(
+            "careHandoffBody",
+            "Time for care handoff. Update family members on recent health developments."
+          ),
           type: "family_update",
           priority: "normal",
           scheduledTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
           data: {
             type: "care_handoff_coordination",
-            handoffTime: coordinationNeeds.nextHandoffTime
+            handoffTime: coordinationNeeds.nextHandoffTime,
           },
           quickActions: [
-            { label: t("quickActionUpdateCareNotes", "📝 Update Notes"), action: "update_care_notes" },
-            { label: t("quickActionScheduleHandoff", "📅 Schedule Handoff"), action: "schedule_care_handoff" }
-          ]
+            {
+              label: t("quickActionUpdateCareNotes", "📝 Update Notes"),
+              action: "update_care_notes",
+            },
+            {
+              label: t("quickActionScheduleHandoff", "📅 Schedule Handoff"),
+              action: "schedule_care_handoff",
+            },
+          ],
         });
       }
 
@@ -3305,26 +3751,37 @@ class SmartNotificationService {
       if (coordinationNeeds.upcomingAppointments > 0) {
         notifications.push({
           id: `appointment-coordination-${Date.now()}`,
-          title: t("appointmentCoordinationTitle", "📅 Appointment Coordination"),
-          body: t("appointmentCoordinationBody", "{{count}} upcoming appointments need coordination. Review and confirm attendance.", {
-            count: coordinationNeeds.upcomingAppointments
-          }),
+          title: t(
+            "appointmentCoordinationTitle",
+            "📅 Appointment Coordination"
+          ),
+          body: t(
+            "appointmentCoordinationBody",
+            "{{count}} upcoming appointments need coordination. Review and confirm attendance.",
+            {
+              count: coordinationNeeds.upcomingAppointments,
+            }
+          ),
           type: "family_update",
           priority: "normal",
           scheduledTime: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4 hours from now
           data: {
             type: "appointment_coordination",
-            upcomingAppointments: coordinationNeeds.upcomingAppointments
+            upcomingAppointments: coordinationNeeds.upcomingAppointments,
           },
           quickActions: [
-            { label: t("quickActionViewAppointments", "📅 View Appointments"), action: "view_appointments" },
-            { label: t("quickActionConfirmAttendance", "✅ Confirm Attendance"), action: "confirm_appointments" }
-          ]
+            {
+              label: t("quickActionViewAppointments", "📅 View Appointments"),
+              action: "view_appointments",
+            },
+            {
+              label: t("quickActionConfirmAttendance", "✅ Confirm Attendance"),
+              action: "confirm_appointments",
+            },
+          ],
         });
       }
-
-    } catch (error) {
-    }
+    } catch (error) {}
 
     return notifications;
   }
@@ -3337,28 +3794,28 @@ class SmartNotificationService {
     const t = i18n.t.bind(i18n);
 
     // Check for newly unlocked achievements (within last 24 hours)
-    const newAchievements = userStats.achievements.filter(achievement => {
+    const newAchievements = userStats.achievements.filter((achievement) => {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       return achievement.unlockedAt > oneDayAgo;
     });
 
-    newAchievements.forEach(achievement => {
-      let achievementType = '';
-      let emoji = '🏆';
+    newAchievements.forEach((achievement) => {
+      let achievementType = "";
+      let emoji = "🏆";
 
       // Determine achievement type and emoji
-      if (achievement.type === 'streak') {
+      if (achievement.type === "streak") {
         achievementType = t("achievementTypeStreak", "Streak");
-        emoji = '🔥';
-      } else if (achievement.type === 'compliance') {
+        emoji = "🔥";
+      } else if (achievement.type === "compliance") {
         achievementType = t("achievementTypeCompliance", "Compliance");
-        emoji = '💊';
-      } else if (achievement.type === 'consistency') {
+        emoji = "💊";
+      } else if (achievement.type === "consistency") {
         achievementType = t("achievementTypeConsistency", "Consistency");
-        emoji = '📅';
-      } else if (achievement.type === 'milestone') {
+        emoji = "📅";
+      } else if (achievement.type === "milestone") {
         achievementType = t("achievementTypeMilestone", "Milestone");
-        emoji = '🎯';
+        emoji = "🎯";
       }
 
       achievements.push({
@@ -3372,12 +3829,18 @@ class SmartNotificationService {
           type: "achievement_unlocked",
           achievementId: achievement.id,
           achievementType: achievement.type,
-          title: achievement.title
+          title: achievement.title,
         },
         quickActions: [
-          { label: t("quickActionShareAchievement", "📤 Share"), action: "share_achievement" },
-          { label: t("quickActionViewProgress", "📊 View Progress"), action: "view_achievements" }
-        ]
+          {
+            label: t("quickActionShareAchievement", "📤 Share"),
+            action: "share_achievement",
+          },
+          {
+            label: t("quickActionViewProgress", "📊 View Progress"),
+            action: "view_achievements",
+          },
+        ],
       });
     });
 
@@ -3387,15 +3850,21 @@ class SmartNotificationService {
   /**
    * Schedule daily notifications for a user
    */
-  async scheduleDailyNotifications(userId: string): Promise<{ scheduled: number; failed: number; suppressed: number }> {
-    const notifications = await this.generateDailyInteractiveNotifications(userId);
+  async scheduleDailyNotifications(
+    userId: string
+  ): Promise<{ scheduled: number; failed: number; suppressed: number }> {
+    const notifications =
+      await this.generateDailyInteractiveNotifications(userId);
 
     // Keep daily volume reasonable by default: prioritize morning + evening only
     const prioritized = notifications.filter(
-      n => n.id.includes("morning-checkin") || n.id.includes("evening-reflection")
+      (n) =>
+        n.id.includes("morning-checkin") || n.id.includes("evening-reflection")
     );
 
-    return await this.scheduleSmartNotifications(prioritized.length > 0 ? prioritized : notifications);
+    return await this.scheduleSmartNotifications(
+      prioritized.length > 0 ? prioritized : notifications
+    );
   }
 
   /**
@@ -3415,305 +3884,425 @@ class SmartNotificationService {
  * Handle notification response actions with comprehensive quick actions
  */
 export class NotificationResponseHandler {
-  static async handleQuickAction(action: string, data: any, userId: string): Promise<void> {
+  static async handleQuickAction(
+    action: string,
+    data: any,
+    userId: string
+  ): Promise<void> {
     try {
-
       switch (action) {
         // Phase 1: Daily Wellness Check-ins
-        case 'log_mood_good':
-          await this.logMood(userId, 'happy', 4);
-          await this.showFeedback('Mood logged successfully!');
+        case "log_mood_good":
+          await NotificationResponseHandler.logMood(userId, "happy", 4);
+          await NotificationResponseHandler.showFeedback(
+            "Mood logged successfully!"
+          );
           break;
 
-        case 'log_symptoms':
-          await this.navigateToScreen('symptoms');
+        case "log_symptoms":
+          await NotificationResponseHandler.navigateToScreen("symptoms");
           break;
 
-        case 'check_medications':
-          await this.navigateToScreen('medications');
+        case "check_medications":
+          await NotificationResponseHandler.navigateToScreen("medications");
           break;
 
-        case 'emergency':
-          await this.handleEmergency(userId);
+        case "emergency":
+          await NotificationResponseHandler.handleEmergency(userId);
           break;
 
-        case 'log_evening_good':
-          await this.logEveningCheckin(userId, 'good');
-          await this.showFeedback('Evening check-in completed!');
+        case "log_evening_good":
+          await NotificationResponseHandler.logEveningCheckin(userId, "good");
+          await NotificationResponseHandler.showFeedback(
+            "Evening check-in completed!"
+          );
           break;
 
-        case 'log_evening_details':
-          await this.navigateToScreen('profile', 'mood-logging');
+        case "log_evening_details":
+          await NotificationResponseHandler.navigateToScreen(
+            "profile",
+            "mood-logging"
+          );
           break;
 
-        case 'confirm_medications':
-          await this.confirmMedicationTaken(userId);
-          await this.showFeedback('Medications confirmed!');
+        case "confirm_medications":
+          await NotificationResponseHandler.confirmMedicationTaken(userId);
+          await NotificationResponseHandler.showFeedback(
+            "Medications confirmed!"
+          );
           break;
 
         // Phase 1: Streak & Activity Management
-        case 'quick_log':
-          await this.quickHealthLog(userId);
-          await this.showFeedback('Quick health log completed!');
+        case "quick_log":
+          await NotificationResponseHandler.quickHealthLog(userId);
+          await NotificationResponseHandler.showFeedback(
+            "Quick health log completed!"
+          );
           break;
 
-        case 'remind_later':
-          await this.rescheduleNotification(data, 4 * 60 * 60 * 1000); // 4 hours later
+        case "remind_later":
+          await NotificationResponseHandler.rescheduleNotification(
+            data,
+            4 * 60 * 60 * 1000
+          ); // 4 hours later
           break;
 
-        case 'log_no_symptoms':
-          await this.logNoSymptoms(userId);
-          await this.showFeedback('No symptoms logged!');
+        case "log_no_symptoms":
+          await NotificationResponseHandler.logNoSymptoms(userId);
+          await NotificationResponseHandler.showFeedback("No symptoms logged!");
           break;
 
-        case 'remind_tomorrow':
-          await this.rescheduleNotification(data, 24 * 60 * 60 * 1000); // Tomorrow
+        case "remind_tomorrow":
+          await NotificationResponseHandler.rescheduleNotification(
+            data,
+            24 * 60 * 60 * 1000
+          ); // Tomorrow
           break;
 
         // Phase 2: Condition-Specific Actions
-        case 'log_blood_sugar':
-          await this.navigateToScreen('vitals', 'blood-sugar');
+        case "log_blood_sugar":
+          await NotificationResponseHandler.navigateToScreen(
+            "vitals",
+            "blood-sugar"
+          );
           break;
 
-        case 'check_blood_pressure':
-          await this.navigateToScreen('vitals', 'blood-pressure');
+        case "check_blood_pressure":
+          await NotificationResponseHandler.navigateToScreen(
+            "vitals",
+            "blood-pressure"
+          );
           break;
 
-        case 'log_respiratory_symptoms':
-          await this.navigateToScreen('symptoms', 'respiratory');
+        case "log_respiratory_symptoms":
+          await NotificationResponseHandler.navigateToScreen(
+            "symptoms",
+            "respiratory"
+          );
           break;
 
-        case 'log_mood':
-          await this.navigateToScreen('profile', 'mood-logging');
+        case "log_mood":
+          await NotificationResponseHandler.navigateToScreen(
+            "profile",
+            "mood-logging"
+          );
           break;
 
-        case 'open_zeina':
-          await this.navigateToScreen('zeina');
+        case "open_zeina":
+          await NotificationResponseHandler.navigateToScreen("zeina");
           break;
 
-        case 'log_weight':
-          await this.navigateToScreen('vitals', 'weight');
+        case "log_weight":
+          await NotificationResponseHandler.navigateToScreen(
+            "vitals",
+            "weight"
+          );
           break;
 
-        case 'log_temperature':
-          await this.navigateToScreen('vitals', 'temperature');
+        case "log_temperature":
+          await NotificationResponseHandler.navigateToScreen(
+            "vitals",
+            "temperature"
+          );
           break;
 
-        case 'log_blood_pressure':
-          await this.navigateToScreen('vitals', 'blood-pressure');
+        case "log_blood_pressure":
+          await NotificationResponseHandler.navigateToScreen(
+            "vitals",
+            "blood-pressure"
+          );
           break;
 
         // Phase 2: Medication Adherence Actions
-        case 'confirm_medication':
-          await this.confirmMedicationTaken(userId);
-          await this.showFeedback('Medication confirmed!');
+        case "confirm_medication":
+          await NotificationResponseHandler.confirmMedicationTaken(userId);
+          await NotificationResponseHandler.showFeedback(
+            "Medication confirmed!"
+          );
           break;
 
         // Medication confirmation responses
-        case 'medication_taken_yes':
-          await this.logMedicationAdherence(userId, data, true);
-          await this.showFeedback('Great! Medication adherence logged.');
+        case "medication_taken_yes":
+          await NotificationResponseHandler.logMedicationAdherence(
+            userId,
+            data,
+            true
+          );
+          await NotificationResponseHandler.showFeedback(
+            "Great! Medication adherence logged."
+          );
           break;
 
-        case 'medication_taken_no':
-          await this.logMedicationAdherence(userId, data, false);
-          await this.showFeedback('Noted. Consider setting a reminder for next time.');
+        case "medication_taken_no":
+          await NotificationResponseHandler.logMedicationAdherence(
+            userId,
+            data,
+            false
+          );
+          await NotificationResponseHandler.showFeedback(
+            "Noted. Consider setting a reminder for next time."
+          );
           break;
 
-        case 'update_medications':
-          await this.navigateToScreen('medications');
+        case "update_medications":
+          await NotificationResponseHandler.navigateToScreen("medications");
           break;
 
-        case 'contact_caregiver':
-          await this.contactCaregiver(userId);
+        case "contact_caregiver":
+          await NotificationResponseHandler.contactCaregiver(userId);
           break;
 
-        case 'setup_medication_reminders':
-          await this.navigateToScreen('medications', 'reminders');
+        case "setup_medication_reminders":
+          await NotificationResponseHandler.navigateToScreen(
+            "medications",
+            "reminders"
+          );
           break;
 
-        case 'organize_medications':
-          await this.navigateToScreen('medications', 'organize');
+        case "organize_medications":
+          await NotificationResponseHandler.navigateToScreen(
+            "medications",
+            "organize"
+          );
           break;
 
-        case 'view_medication_schedule':
-          await this.navigateToScreen('medications', 'schedule');
+        case "view_medication_schedule":
+          await NotificationResponseHandler.navigateToScreen(
+            "medications",
+            "schedule"
+          );
           break;
 
-        case 'log_today_medications':
-          await this.navigateToScreen('medications', 'log-today');
+        case "log_today_medications":
+          await NotificationResponseHandler.navigateToScreen(
+            "medications",
+            "log-today"
+          );
           break;
 
-        case 'set_adherence_goal':
-          await this.navigateToScreen('profile', 'goals');
+        case "set_adherence_goal":
+          await NotificationResponseHandler.navigateToScreen(
+            "profile",
+            "goals"
+          );
           break;
 
-        case 'create_medication_schedule':
-          await this.navigateToScreen('medications', 'create-schedule');
+        case "create_medication_schedule":
+          await NotificationResponseHandler.navigateToScreen(
+            "medications",
+            "create-schedule"
+          );
           break;
 
-        case 'setup_pill_organizer':
-          await this.navigateToScreen('medications', 'pill-organizer');
+        case "setup_pill_organizer":
+          await NotificationResponseHandler.navigateToScreen(
+            "medications",
+            "pill-organizer"
+          );
           break;
 
         // Phase 3: Family & Caregiver Actions
-        case 'open_family_tab':
-          await this.navigateToScreen('family');
+        case "open_family_tab":
+          await NotificationResponseHandler.navigateToScreen("family");
           break;
 
-        case 'view_alerts':
-          await this.navigateToScreen('family', 'alerts');
+        case "view_alerts":
+          await NotificationResponseHandler.navigateToScreen(
+            "family",
+            "alerts"
+          );
           break;
 
-        case 'send_medication_reminders':
-          await this.sendFamilyMedicationReminders(userId);
-          await this.showFeedback('Reminders sent to family!');
+        case "send_medication_reminders":
+          await NotificationResponseHandler.sendFamilyMedicationReminders(
+            userId
+          );
+          await NotificationResponseHandler.showFeedback(
+            "Reminders sent to family!"
+          );
           break;
 
-        case 'emergency_response':
-          await this.handleEmergencyResponse(userId);
+        case "emergency_response":
+          await NotificationResponseHandler.handleEmergencyResponse(userId);
           break;
 
-        case 'call_emergency_contacts':
-          await this.callEmergencyContacts(userId);
+        case "call_emergency_contacts":
+          await NotificationResponseHandler.callEmergencyContacts(userId);
           break;
 
-        case 'update_care_notes':
-          await this.navigateToScreen('family', 'care-notes');
+        case "update_care_notes":
+          await NotificationResponseHandler.navigateToScreen(
+            "family",
+            "care-notes"
+          );
           break;
 
-        case 'schedule_care_handoff':
-          await this.navigateToScreen('family', 'care-handoff');
+        case "schedule_care_handoff":
+          await NotificationResponseHandler.navigateToScreen(
+            "family",
+            "care-handoff"
+          );
           break;
 
-        case 'view_appointments':
-          await this.navigateToScreen('family', 'appointments');
+        case "view_appointments":
+          await NotificationResponseHandler.navigateToScreen(
+            "family",
+            "appointments"
+          );
           break;
 
-        case 'confirm_appointments':
-          await this.confirmFamilyAppointments(userId);
-          await this.showFeedback('Appointments confirmed!');
+        case "confirm_appointments":
+          await NotificationResponseHandler.confirmFamilyAppointments(userId);
+          await NotificationResponseHandler.showFeedback(
+            "Appointments confirmed!"
+          );
           break;
 
         // Phase 3: Achievement Actions
-        case 'share_achievement':
-          await this.shareAchievement(data);
+        case "share_achievement":
+          await NotificationResponseHandler.shareAchievement(data);
           break;
 
-        case 'view_achievements':
-          await this.navigateToScreen('profile', 'achievements');
+        case "view_achievements":
+          await NotificationResponseHandler.navigateToScreen(
+            "profile",
+            "achievements"
+          );
           break;
 
         // New simplified quick actions
-        case 'log_water_intake':
-          await this.logHydration(userId, 'water');
-          await this.showFeedback('Water intake logged!');
+        case "log_water_intake":
+          await NotificationResponseHandler.logHydration(userId, "water");
+          await NotificationResponseHandler.showFeedback(
+            "Water intake logged!"
+          );
           break;
 
-        case 'log_coffee_intake':
-          await this.logHydration(userId, 'coffee');
-          await this.showFeedback('Coffee logged!');
+        case "log_coffee_intake":
+          await NotificationResponseHandler.logHydration(userId, "coffee");
+          await NotificationResponseHandler.showFeedback("Coffee logged!");
           break;
 
-        case 'snooze_hydration':
-          await this.rescheduleNotification(data, 60 * 60 * 1000); // 1 hour
+        case "snooze_hydration":
+          await NotificationResponseHandler.rescheduleNotification(
+            data,
+            60 * 60 * 1000
+          ); // 1 hour
           break;
 
-        case 'log_energy_good':
-          await this.logEnergyLevel(userId, 'good');
-          await this.showFeedback('Energy level logged!');
+        case "log_energy_good":
+          await NotificationResponseHandler.logEnergyLevel(userId, "good");
+          await NotificationResponseHandler.showFeedback(
+            "Energy level logged!"
+          );
           break;
 
-        case 'log_energy_low':
-          await this.logEnergyLevel(userId, 'low');
-          await this.showFeedback('Energy boost logged!');
+        case "log_energy_low":
+          await NotificationResponseHandler.logEnergyLevel(userId, "low");
+          await NotificationResponseHandler.showFeedback(
+            "Energy boost logged!"
+          );
           break;
 
-        case 'log_hydration':
-          await this.logHydration(userId, 'water');
-          await this.showFeedback('Hydration logged!');
+        case "log_hydration":
+          await NotificationResponseHandler.logHydration(userId, "water");
+          await NotificationResponseHandler.showFeedback("Hydration logged!");
           break;
 
         default:
       }
 
       // Log action for analytics
-      await this.logNotificationAction(action, data, userId);
-
+      await NotificationResponseHandler.logNotificationAction(
+        action,
+        data,
+        userId
+      );
     } catch (error) {
-      await this.showFeedback('Action could not be completed. Please try again.');
+      await NotificationResponseHandler.showFeedback(
+        "Action could not be completed. Please try again."
+      );
     }
   }
 
-  private static async logMood(userId: string, mood: string, intensity: number): Promise<void> {
+  private static async logMood(
+    userId: string,
+    mood: string,
+    intensity: number
+  ): Promise<void> {
     try {
-      const { moodService } = await import('./moodService');
+      const { moodService } = await import("./moodService");
       await moodService.addMood({
         userId,
         mood: mood as any,
         intensity: intensity as 1 | 2 | 3 | 4 | 5,
         timestamp: new Date(),
-        notes: 'Logged via notification'
+        notes: "Logged via notification",
       });
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async handleEmergency(userId: string): Promise<void> {
     try {
       // Trigger emergency alert
-      const { alertService } = await import('./alertService');
+      const { alertService } = await import("./alertService");
       await alertService.createAlert({
         userId,
-        type: 'emergency',
-        severity: 'high',
-        message: 'Emergency alert triggered via notification',
+        type: "emergency",
+        severity: "high",
+        message: "Emergency alert triggered via notification",
         timestamp: new Date(),
-        resolved: false
+        resolved: false,
       });
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
-  private static async logEveningCheckin(userId: string, status: string): Promise<void> {
+  private static async logEveningCheckin(
+    userId: string,
+    status: string
+  ): Promise<void> {
     try {
-      const { moodService } = await import('./moodService');
+      const { moodService } = await import("./moodService");
       await moodService.addMood({
         userId,
-        mood: status === 'good' ? 'content' : 'neutral',
-        intensity: (status === 'good' ? 4 : 3) as 1 | 2 | 3 | 4 | 5,
+        mood: status === "good" ? "content" : "neutral",
+        intensity: (status === "good" ? 4 : 3) as 1 | 2 | 3 | 4 | 5,
         timestamp: new Date(),
-        notes: 'Evening check-in via notification'
+        notes: "Evening check-in via notification",
       });
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async confirmMedicationTaken(userId: string): Promise<void> {
     try {
       // This would need to be implemented based on your medication logging system
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
-  private static async logMedicationAdherence(userId: string, data: any, taken: boolean): Promise<void> {
+  private static async logMedicationAdherence(
+    userId: string,
+    data: any,
+    taken: boolean
+  ): Promise<void> {
     try {
       // Log medication adherence to Firestore
-      const { db } = await import('@/lib/firebase');
-      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+      const { db } = await import("@/lib/firebase");
+      const { collection, addDoc, serverTimestamp } = await import(
+        "firebase/firestore"
+      );
 
       if (data?.medications && Array.isArray(data.medications)) {
         // Log adherence for each medication in the confirmation
         for (const med of data.medications) {
-          await addDoc(collection(db, 'medication_adherence'), {
+          await addDoc(collection(db, "medication_adherence"), {
             userId,
             medicationId: med.id,
             medicationName: med.name,
             taken,
             timestamp: serverTimestamp(),
             scheduledTime: data.scheduledTime || serverTimestamp(),
-            timing: data.timing || 'unspecified',
-            confirmationType: 'notification_response'
+            timing: data.timing || "unspecified",
+            confirmationType: "notification_response",
           });
         }
       }
@@ -3722,159 +4311,149 @@ export class NotificationResponseHandler {
       if (!taken) {
         // Could add logic here to schedule a follow-up reminder
       }
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async quickHealthLog(userId: string): Promise<void> {
     try {
-      const { symptomService } = await import('./symptomService');
+      const { symptomService } = await import("./symptomService");
       await symptomService.addSymptom({
         userId,
-        type: 'General',
+        type: "General",
         severity: 1,
         timestamp: new Date(),
-        description: 'Quick health check via notification - feeling good',
-        location: 'General'
+        description: "Quick health check via notification - feeling good",
+        location: "General",
       });
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async logNoSymptoms(userId: string): Promise<void> {
     try {
       // Log that user checked in with no symptoms
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async contactCaregiver(userId: string): Promise<void> {
     try {
       // This would integrate with your family/caregiver contact system
       // Could open phone dialer, send message, etc.
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   // Phase 4: Enhanced Action Handlers
-  private static async navigateToScreen(screen: string, subScreen?: string): Promise<void> {
+  private static async navigateToScreen(
+    screen: string,
+    subScreen?: string
+  ): Promise<void> {
     try {
       // This would integrate with your navigation system
       // For now, we'll use a global navigation reference
-
       // Example implementation:
       // import { router } from 'expo-router';
       // router.push(`/${screen}${subScreen ? `/${subScreen}` : ''}`);
-
       // Or use a navigation ref if using React Navigation
       // navigationRef.current?.navigate(screen, { subScreen });
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async showFeedback(message: string): Promise<void> {
     try {
       // This would show a toast, alert, or in-app notification
-
       // Example implementation:
       // import { Alert } from 'react-native';
       // Alert.alert('Success', message);
-
       // Or use a toast library
       // toast.show({ message, type: 'success' });
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
-  private static async rescheduleNotification(data: any, delayMs: number): Promise<void> {
+  private static async rescheduleNotification(
+    data: any,
+    delayMs: number
+  ): Promise<void> {
     try {
-
       // This would reschedule the notification using your notification service
       // Example:
       // const newTime = new Date(Date.now() + delayMs);
       // await notificationService.rescheduleNotification(data.id, newTime);
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
-  private static async sendFamilyMedicationReminders(userId: string): Promise<void> {
+  private static async sendFamilyMedicationReminders(
+    userId: string
+  ): Promise<void> {
     try {
-
       // This would send notifications to all family members about upcoming medications
       // Implementation would depend on your family notification system
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async handleEmergencyResponse(userId: string): Promise<void> {
     try {
-
       // This would open emergency response interface
       // Could include: calling emergency contacts, viewing emergency protocols, etc.
 
-      await this.navigateToScreen('emergency', 'response');
-
-    } catch (error) {
-    }
+      await NotificationResponseHandler.navigateToScreen(
+        "emergency",
+        "response"
+      );
+    } catch (error) {}
   }
 
   private static async callEmergencyContacts(userId: string): Promise<void> {
     try {
-
       // This would initiate calls to emergency contacts
       // Implementation would depend on device capabilities and contact permissions
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
-  private static async confirmFamilyAppointments(userId: string): Promise<void> {
+  private static async confirmFamilyAppointments(
+    userId: string
+  ): Promise<void> {
     try {
-
       // This would mark family appointments as confirmed
       // Implementation would depend on your appointment system
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   private static async shareAchievement(data: any): Promise<void> {
     try {
-
       // This would open share dialog for the achievement
       // Could share to social media, family chat, etc.
 
       const shareMessage = `🏆 I just unlocked a health achievement: ${data.title}!`;
       // Use Expo Sharing or React Native Share
       // await Sharing.shareAsync(shareMessage);
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   // Simplified helper methods for quick actions
-  private static async logHydration(userId: string, type: string): Promise<void> {
+  private static async logHydration(
+    userId: string,
+    type: string
+  ): Promise<void> {
     try {
       // Implement hydration logging logic
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
-  private static async logEnergyLevel(userId: string, level: string): Promise<void> {
+  private static async logEnergyLevel(
+    userId: string,
+    level: string
+  ): Promise<void> {
     try {
       // Implement energy logging logic
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
-  private static async logNotificationAction(action: string, data: any, userId: string): Promise<void> {
+  private static async logNotificationAction(
+    action: string,
+    data: any,
+    userId: string
+  ): Promise<void> {
     try {
       // Log notification interactions for analytics
-
       // This could be sent to your analytics service
       // Example:
       // analytics.track('notification_action', {
@@ -3882,9 +4461,7 @@ export class NotificationResponseHandler {
       //   notification_type: data?.type,
       //   user_id: userId
       // });
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 }
 

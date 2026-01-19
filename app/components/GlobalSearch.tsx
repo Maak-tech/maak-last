@@ -1,12 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Platform,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -22,16 +21,19 @@ import {
 } from "@/lib/services/globalSearchService";
 
 type SearchResultType = SearchResult["type"];
+
 import { Card } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
 import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Caption, Text } from "@/components/design-system/Typography";
 
 interface GlobalSearchProps {
   visible: boolean;
   onClose: () => void;
 }
 
-const TYPE_LABELS: Partial<Record<SearchResultType, { en: string; ar: string; icon: string }>> = {
+const TYPE_LABELS: Partial<
+  Record<SearchResultType, { en: string; ar: string; icon: string }>
+> = {
   medication: { en: "Medication", ar: "دواء", icon: "💊" },
   symptom: { en: "Symptom", ar: "أعراض صحية", icon: "🤒" },
   mood: { en: "Mood", ar: "مزاج نفسي", icon: "😊" },
@@ -78,16 +80,21 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
 
   const performSearch = useCallback(
     async (query: string) => {
-      if (!user || !query.trim()) {
+      if (!(user && query.trim())) {
         setResults([]);
         return;
       }
 
       setIsSearching(true);
       try {
-        const searchResults = await globalSearchService.search(user.id, query, {
-          types: selectedTypes,
-        }, 50);
+        const searchResults = await globalSearchService.search(
+          user.id,
+          query,
+          {
+            types: selectedTypes,
+          },
+          50
+        );
         setResults(searchResults);
       } catch (error) {
         setResults([]);
@@ -143,9 +150,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
 
   const toggleTypeFilter = (type: SearchResultType) => {
     setSelectedTypes((prev) =>
-      prev.includes(type)
-        ? prev.filter((t) => t !== type)
-        : [...prev, type]
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     );
   };
 
@@ -156,49 +161,50 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
 
     if (diffDays === 0) {
       return isRTL ? "اليوم" : "Today";
-    } else if (diffDays === 1) {
-      return isRTL ? "أمس" : "Yesterday";
-    } else if (diffDays < 7) {
-      return isRTL ? `منذ ${diffDays} أيام` : `${diffDays} days ago`;
-    } else {
-      return date.toLocaleDateString(isRTL ? "ar-SA" : "en-US", {
-        month: "short",
-        day: "numeric",
-        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-      });
     }
+    if (diffDays === 1) {
+      return isRTL ? "أمس" : "Yesterday";
+    }
+    if (diffDays < 7) {
+      return isRTL ? `منذ ${diffDays} أيام` : `${diffDays} days ago`;
+    }
+    return date.toLocaleDateString(isRTL ? "ar-SA" : "en-US", {
+      month: "short",
+      day: "numeric",
+      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    });
   };
 
   return (
     <Modal
-      visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={onClose}
+      presentationStyle="pageSheet"
+      visible={visible}
     >
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.searchContainer}>
             <Ionicons
+              color={theme.colors.text.secondary}
               name="search"
               size={20}
-              color={theme.colors.text.secondary}
               style={styles.searchIcon}
             />
             <TextInput
-              ref={inputRef}
-              style={styles.searchInput}
+              autoFocus
+              onChangeText={setSearchQuery}
               placeholder={
                 isRTL
                   ? "ابحث في جميع بياناتك الصحية..."
                   : "Search all your health data..."
               }
               placeholderTextColor={theme.colors.text.secondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
+              ref={inputRef}
               returnKeyType="search"
+              style={styles.searchInput}
+              value={searchQuery}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity
@@ -206,18 +212,18 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
                 style={styles.clearButton}
               >
                 <Ionicons
+                  color={theme.colors.text.secondary}
                   name="close-circle"
                   size={20}
-                  color={theme.colors.text.secondary}
                 />
               </TouchableOpacity>
             )}
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons
+              color={theme.colors.text.primary}
               name={isRTL ? "arrow-forward" : "arrow-back"}
               size={24}
-              color={theme.colors.text.primary}
             />
           </TouchableOpacity>
         </View>
@@ -225,9 +231,9 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
         {/* Filters */}
         <View style={styles.filtersContainer}>
           <ScrollView
+            contentContainerStyle={styles.filtersScroll}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersScroll}
           >
             {(
               [
@@ -268,7 +274,10 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
         <View style={styles.resultsContainer}>
           {isSearching ? (
             <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={theme.colors.primary.main} />
+              <ActivityIndicator
+                color={theme.colors.primary.main}
+                size="large"
+              />
               <Text style={styles.loadingText}>
                 {isRTL ? "جاري البحث..." : "Searching..."}
               </Text>
@@ -276,16 +285,17 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
           ) : results.length === 0 && searchQuery.length >= 2 ? (
             <View style={styles.centerContainer}>
               <Ionicons
+                color={theme.colors.text.secondary}
                 name="search-outline"
                 size={48}
-                color={theme.colors.text.secondary}
               />
               <Text style={styles.emptyText}>
-                {isRTL
-                  ? "لم يتم العثور على نتائج"
-                  : "No results found"}
+                {isRTL ? "لم يتم العثور على نتائج" : "No results found"}
               </Text>
-              <Caption numberOfLines={undefined} style={[styles.emptySubtext, { textAlign: "center" as const }]}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.emptySubtext, { textAlign: "center" as const }]}
+              >
                 {isRTL
                   ? "جرب مصطلحات بحث مختلفة"
                   : "Try different search terms"}
@@ -294,18 +304,17 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
           ) : searchQuery.length < 2 ? (
             <View style={styles.centerContainer}>
               <Ionicons
+                color={theme.colors.text.secondary}
                 name="search-outline"
                 size={48}
-                color={theme.colors.text.secondary}
               />
               <Text style={styles.emptyText}>
-                {isRTL
-                  ? "ابدأ الكتابة للبحث..."
-                  : "Start typing to search..."}
+                {isRTL ? "ابدأ الكتابة للبحث..." : "Start typing to search..."}
               </Text>
             </View>
           ) : (
             <FlatList
+              contentContainerStyle={styles.resultsList}
               data={results}
               keyExtractor={(item) => `${item.type}-${item.id}`}
               renderItem={({ item }) => {
@@ -313,10 +322,14 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
                 if (!typeLabel) return null;
                 return (
                   <TouchableOpacity
-                    onPress={() => handleResultPress(item)}
                     activeOpacity={0.7}
+                    onPress={() => handleResultPress(item)}
                   >
-                    <Card style={styles.resultCard} onPress={undefined} contentStyle={undefined}>
+                    <Card
+                      contentStyle={undefined}
+                      onPress={undefined}
+                      style={styles.resultCard}
+                    >
                       <View style={styles.resultHeader}>
                         <View style={styles.resultLeft}>
                           <Text style={styles.resultIcon}>
@@ -324,16 +337,22 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
                           </Text>
                           <View style={styles.resultText}>
                             <Text style={styles.resultTitle}>{item.title}</Text>
-                            <Caption numberOfLines={undefined} style={styles.resultSubtitle}>
+                            <Caption
+                              numberOfLines={undefined}
+                              style={styles.resultSubtitle}
+                            >
                               {item.subtitle}
                             </Caption>
                           </View>
                         </View>
                         <View style={styles.resultRight}>
-                          <Badge variant="outline" style={styles.typeBadge}>
+                          <Badge style={styles.typeBadge} variant="outline">
                             {isRTL ? typeLabel.ar : typeLabel.en}
                           </Badge>
-                          <Caption numberOfLines={undefined} style={styles.resultDate}>
+                          <Caption
+                            numberOfLines={undefined}
+                            style={styles.resultDate}
+                          >
                             {formatDate(item.timestamp)}
                           </Caption>
                         </View>
@@ -342,7 +361,6 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
                   </TouchableOpacity>
                 );
               }}
-              contentContainerStyle={styles.resultsList}
               showsVerticalScrollIndicator={false}
             />
           )}
@@ -358,7 +376,9 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     backgroundColor: theme.colors.background.primary,
   },
   header: {
-    flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+    flexDirection: (isRTL
+      ? "row-reverse"
+      : "row") as ViewStyle["flexDirection"],
     alignItems: "center" as ViewStyle["alignItems"],
     padding: theme.spacing.lg,
     borderBottomWidth: 1,
@@ -367,7 +387,9 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   } as ViewStyle,
   searchContainer: {
     flex: 1,
-    flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+    flexDirection: (isRTL
+      ? "row-reverse"
+      : "row") as ViewStyle["flexDirection"],
     alignItems: "center" as ViewStyle["alignItems"],
     backgroundColor: theme.colors.background.secondary,
     borderRadius: theme.borderRadius.lg,
@@ -455,12 +477,16 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     marginBottom: theme.spacing.base,
   },
   resultHeader: {
-    flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+    flexDirection: (isRTL
+      ? "row-reverse"
+      : "row") as ViewStyle["flexDirection"],
     alignItems: "flex-start" as ViewStyle["alignItems"],
     justifyContent: "space-between" as ViewStyle["justifyContent"],
   } as ViewStyle,
   resultLeft: {
-    flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+    flexDirection: (isRTL
+      ? "row-reverse"
+      : "row") as ViewStyle["flexDirection"],
     alignItems: "center" as ViewStyle["alignItems"],
     flex: 1,
   } as ViewStyle,

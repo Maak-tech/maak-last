@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type {
-  Symptom,
+  Allergy,
+  LabResult,
   Medication,
   Mood,
-  Allergy,
+  Symptom,
   VitalSign,
-  LabResult,
 } from "@/types";
 
 const OFFLINE_QUEUE_KEY = "@maak_offline_queue";
@@ -32,7 +32,7 @@ export interface OfflineData {
 }
 
 class OfflineService {
-  private isOnline: boolean = true;
+  private isOnline = true;
   private syncListeners: Array<(isOnline: boolean) => void> = [];
   private networkCheckInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -47,13 +47,13 @@ class OfflineService {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
+
       const response = await fetch("https://www.google.com", {
         method: "HEAD",
         cache: "no-store",
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
       return response.ok;
     } catch {
@@ -79,7 +79,11 @@ class OfflineService {
       }
 
       // Notify listeners if status changed
-      if (wasOnline !== this.isOnline && this.syncListeners && Array.isArray(this.syncListeners)) {
+      if (
+        wasOnline !== this.isOnline &&
+        this.syncListeners &&
+        Array.isArray(this.syncListeners)
+      ) {
         this.syncListeners.forEach((listener) => {
           try {
             listener(this.isOnline);
@@ -88,7 +92,7 @@ class OfflineService {
           }
         });
       }
-    }, 10000); // Check every 10 seconds
+    }, 10_000); // Check every 10 seconds
   }
 
   /**
@@ -130,7 +134,9 @@ class OfflineService {
   /**
    * Add operation to offline queue
    */
-  async queueOperation(operation: Omit<OfflineOperation, "id" | "timestamp" | "retries">): Promise<string> {
+  async queueOperation(
+    operation: Omit<OfflineOperation, "id" | "timestamp" | "retries">
+  ): Promise<string> {
     const queue = await this.getOfflineQueue();
     const newOperation: OfflineOperation = {
       ...operation,
@@ -180,10 +186,7 @@ class OfflineService {
       offlineData[collection] = data as any;
       offlineData.lastSync = new Date();
 
-      await AsyncStorage.setItem(
-        OFFLINE_DATA_KEY,
-        JSON.stringify(offlineData)
-      );
+      await AsyncStorage.setItem(OFFLINE_DATA_KEY, JSON.stringify(offlineData));
     } catch (error) {
       // Handle error silently
     }
@@ -228,9 +231,7 @@ class OfflineService {
   /**
    * Get data from specific collection (offline-first)
    */
-  async getOfflineCollection<T>(
-    collection: keyof OfflineData
-  ): Promise<T[]> {
+  async getOfflineCollection<T>(collection: keyof OfflineData): Promise<T[]> {
     const offlineData = await this.getOfflineData();
     return (offlineData[collection] || []) as T[];
   }
@@ -246,26 +247,31 @@ class OfflineService {
       const services: Record<string, any> = {};
 
       switch (operation.collection) {
-        case "symptoms":
+        case "symptoms": {
           const { symptomService } = await import("./symptomService");
           services.symptom = symptomService;
           break;
-        case "medications":
+        }
+        case "medications": {
           const { medicationService } = await import("./medicationService");
           services.medication = medicationService;
           break;
-        case "moods":
+        }
+        case "moods": {
           const { moodService } = await import("./moodService");
           services.mood = moodService;
           break;
-        case "allergies":
+        }
+        case "allergies": {
           const { allergyService } = await import("./allergyService");
           services.allergy = allergyService;
           break;
-        case "labResults":
+        }
+        case "labResults": {
           const { labResultService } = await import("./labResultService");
           services.labResult = labResultService;
           break;
+        }
         default:
           return false;
       }
@@ -276,26 +282,42 @@ class OfflineService {
       // Execute operation
       switch (operation.type) {
         case "create":
-          if (service.addSymptom || service.addMedication || service.addMood || service.addAllergy || service.addLabResult) {
-            await service[`add${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`](
-              operation.data.userId,
-              operation.data
-            );
+          if (
+            service.addSymptom ||
+            service.addMedication ||
+            service.addMood ||
+            service.addAllergy ||
+            service.addLabResult
+          ) {
+            await service[
+              `add${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`
+            ](operation.data.userId, operation.data);
           }
           break;
         case "update":
-          if (service.updateSymptom || service.updateMedication || service.updateMood || service.updateAllergy || service.updateLabResult) {
-            await service[`update${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`](
-              operation.data.id,
-              operation.data
-            );
+          if (
+            service.updateSymptom ||
+            service.updateMedication ||
+            service.updateMood ||
+            service.updateAllergy ||
+            service.updateLabResult
+          ) {
+            await service[
+              `update${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`
+            ](operation.data.id, operation.data);
           }
           break;
         case "delete":
-          if (service.deleteSymptom || service.deleteMedication || service.deleteMood || service.deleteAllergy || service.deleteLabResult) {
-            await service[`delete${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`](
-              operation.data.id
-            );
+          if (
+            service.deleteSymptom ||
+            service.deleteMedication ||
+            service.deleteMood ||
+            service.deleteAllergy ||
+            service.deleteLabResult
+          ) {
+            await service[
+              `delete${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`
+            ](operation.data.id);
           }
           break;
       }
@@ -328,7 +350,9 @@ class OfflineService {
   /**
    * Update operation in queue
    */
-  private async updateOperationInQueue(operation: OfflineOperation): Promise<void> {
+  private async updateOperationInQueue(
+    operation: OfflineOperation
+  ): Promise<void> {
     const queue = await this.getOfflineQueue();
     const index = queue.findIndex((op) => op.id === operation.id);
     if (index !== -1) {
@@ -392,10 +416,7 @@ class OfflineService {
   async markSynced(): Promise<void> {
     const offlineData = await this.getOfflineData();
     offlineData.lastSync = new Date();
-    await AsyncStorage.setItem(
-      OFFLINE_DATA_KEY,
-      JSON.stringify(offlineData)
-    );
+    await AsyncStorage.setItem(OFFLINE_DATA_KEY, JSON.stringify(offlineData));
   }
 }
 

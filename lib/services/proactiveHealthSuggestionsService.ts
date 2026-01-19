@@ -1,18 +1,37 @@
-import type { Medication, Symptom, Mood, User, EmergencyAlert, CalendarEvent, Allergy, MedicalHistory } from "@/types";
-import { medicationService } from "./medicationService";
-import { symptomService } from "./symptomService";
-import { moodService } from "./moodService";
-import { healthScoreService } from "./healthScoreService";
-import { healthInsightsService, type PatternInsight } from "./healthInsightsService";
-import { medicationRefillService, type RefillPrediction } from "./medicationRefillService";
-import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
-import healthContextService from "./healthContextService";
-import { alertService } from "./alertService";
-import { calendarService } from "./calendarService";
-import { allergyService } from "./allergyService";
-import { medicalHistoryService } from "./medicalHistoryService";
-import { collection, getDocs, query, where, orderBy, limit as firestoreLimit, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  limit as firestoreLimit,
+  getDocs,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type {
+  Allergy,
+  CalendarEvent,
+  EmergencyAlert,
+  MedicalHistory,
+  Medication,
+  Mood,
+  Symptom,
+} from "@/types";
+import { alertService } from "./alertService";
+import { allergyService } from "./allergyService";
+import { calendarService } from "./calendarService";
+import healthContextService from "./healthContextService";
+import {
+  healthInsightsService,
+  type PatternInsight,
+} from "./healthInsightsService";
+import { healthScoreService } from "./healthScoreService";
+import { medicalHistoryService } from "./medicalHistoryService";
+import { medicationRefillService } from "./medicationRefillService";
+import { medicationService } from "./medicationService";
+import { moodService } from "./moodService";
+import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
+import { symptomService } from "./symptomService";
 
 export interface HealthSuggestion {
   id: string;
@@ -39,16 +58,33 @@ export interface HealthSuggestion {
 }
 
 // Localization helper for suggestions
-const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Record<string, string | number>): { 
-  title: string; 
-  description: string; 
+const getLocalizedSuggestionText = (
+  key: string,
+  isArabic: boolean,
+  params?: Record<string, string | number>
+): {
+  title: string;
+  description: string;
   actionLabel?: string;
   category: string;
 } => {
-  const texts: Record<string, { 
-    en: { title: string; description: string; actionLabel?: string; category: string }; 
-    ar: { title: string; description: string; actionLabel?: string; category: string } 
-  }> = {
+  const texts: Record<
+    string,
+    {
+      en: {
+        title: string;
+        description: string;
+        actionLabel?: string;
+        category: string;
+      };
+      ar: {
+        title: string;
+        description: string;
+        actionLabel?: string;
+        category: string;
+      };
+    }
+  > = {
     lowCompliance: {
       en: {
         title: "Low Medication Compliance",
@@ -80,7 +116,9 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     refillMedication: {
       en: {
         title: `Refill ${params?.medicationName || "Medication"}`,
-        description: String(params?.message || "Time to refill your medication."),
+        description: String(
+          params?.message || "Time to refill your medication."
+        ),
         actionLabel: "View Medications",
         category: "Medication",
       },
@@ -122,13 +160,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     moodPattern: {
       en: {
         title: "Mood Pattern Detected",
-        description: "You've been experiencing more negative moods recently. Consider activities that help improve your mood or speak with a healthcare provider.",
+        description:
+          "You've been experiencing more negative moods recently. Consider activities that help improve your mood or speak with a healthcare provider.",
         actionLabel: "View Moods",
         category: "Wellness",
       },
       ar: {
         title: "تم اكتشاف نمط المزاج",
-        description: "كنت تعاني من مزاج سلبي أكثر مؤخراً. فكر في الأنشطة التي تساعد على تحسين مزاجك أو التحدث مع مقدم الرعاية الصحية.",
+        description:
+          "كنت تعاني من مزاج سلبي أكثر مؤخراً. فكر في الأنشطة التي تساعد على تحسين مزاجك أو التحدث مع مقدم الرعاية الصحية.",
         actionLabel: "عرض المزاج",
         category: "العافية",
       },
@@ -136,13 +176,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     lowMoodIntensity: {
       en: {
         title: "Low Mood Intensity",
-        description: "Your mood intensity has been low. Consider activities that boost your energy and mood.",
+        description:
+          "Your mood intensity has been low. Consider activities that boost your energy and mood.",
         actionLabel: "Track Mood",
         category: "Wellness",
       },
       ar: {
         title: "انخفاض شدة المزاج",
-        description: "كانت شدة مزاجك منخفضة. فكر في الأنشطة التي تعزز طاقتك ومزاجك.",
+        description:
+          "كانت شدة مزاجك منخفضة. فكر في الأنشطة التي تعزز طاقتك ومزاجك.",
         actionLabel: "تتبع المزاج",
         category: "العافية",
       },
@@ -178,13 +220,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     trackMood: {
       en: {
         title: "Track Your Mood",
-        description: "Tracking your mood can help identify patterns and improve your overall wellness.",
+        description:
+          "Tracking your mood can help identify patterns and improve your overall wellness.",
         actionLabel: "Track Mood",
         category: "Lifestyle",
       },
       ar: {
         title: "تتبع مزاجك",
-        description: "تتبع مزاجك يمكن أن يساعد في تحديد الأنماط وتحسين صحتك العامة.",
+        description:
+          "تتبع مزاجك يمكن أن يساعد في تحديد الأنماط وتحسين صحتك العامة.",
         actionLabel: "تتبع المزاج",
         category: "نمط الحياة",
       },
@@ -192,13 +236,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     stressManagement: {
       en: {
         title: "Stress Management",
-        description: "You've been experiencing stress-related symptoms. Consider stress management techniques like meditation, exercise, or relaxation.",
+        description:
+          "You've been experiencing stress-related symptoms. Consider stress management techniques like meditation, exercise, or relaxation.",
         actionLabel: "View Resources",
         category: "Lifestyle",
       },
       ar: {
         title: "إدارة التوتر",
-        description: "كنت تعاني من أعراض مرتبطة بالتوتر. فكر في تقنيات إدارة التوتر مثل التأمل أو التمارين أو الاسترخاء.",
+        description:
+          "كنت تعاني من أعراض مرتبطة بالتوتر. فكر في تقنيات إدارة التوتر مثل التأمل أو التمارين أو الاسترخاء.",
         actionLabel: "عرض الموارد",
         category: "نمط الحياة",
       },
@@ -206,13 +252,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     annualCheckup: {
       en: {
         title: "Annual Health Checkup",
-        description: "Consider scheduling your annual health checkup to stay on top of your preventive care.",
+        description:
+          "Consider scheduling your annual health checkup to stay on top of your preventive care.",
         actionLabel: "Schedule Appointment",
         category: "Preventive Care",
       },
       ar: {
         title: "الفحص الصحي السنوي",
-        description: "فكر في جدولة فحصك الصحي السنوي للبقاء على اطلاع على الرعاية الوقائية.",
+        description:
+          "فكر في جدولة فحصك الصحي السنوي للبقاء على اطلاع على الرعاية الوقائية.",
         actionLabel: "جدولة موعد",
         category: "الرعاية الوقائية",
       },
@@ -234,13 +282,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     moodSupport: {
       en: {
         title: "Mood Support",
-        description: "Your recent mood entries suggest you might benefit from additional support. Consider activities that boost your mood.",
+        description:
+          "Your recent mood entries suggest you might benefit from additional support. Consider activities that boost your mood.",
         actionLabel: "View Mood History",
         category: "Wellness",
       },
       ar: {
         title: "دعم المزاج",
-        description: "تشير إدخالات مزاجك الأخيرة إلى أنك قد تستفيد من دعم إضافي. فكر في الأنشطة التي تعزز مزاجك.",
+        description:
+          "تشير إدخالات مزاجك الأخيرة إلى أنك قد تستفيد من دعم إضافي. فكر في الأنشطة التي تعزز مزاجك.",
         actionLabel: "عرض تاريخ المزاج",
         category: "العافية",
       },
@@ -248,13 +298,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     medicationEffectivenessReview: {
       en: {
         title: "Medication Effectiveness Review",
-        description: "We notice some patterns in your symptoms that may relate to your medication schedule. Consider reviewing with your healthcare provider.",
+        description:
+          "We notice some patterns in your symptoms that may relate to your medication schedule. Consider reviewing with your healthcare provider.",
         actionLabel: "Discuss with Provider",
         category: "Medication",
       },
       ar: {
         title: "مراجعة فعالية الدواء",
-        description: "لاحظنا بعض الأنماط في أعراضك التي قد تتعلق بجدول أدويتك. فكر في المراجعة مع مقدم الرعاية الصحية.",
+        description:
+          "لاحظنا بعض الأنماط في أعراضك التي قد تتعلق بجدول أدويتك. فكر في المراجعة مع مقدم الرعاية الصحية.",
         actionLabel: "ناقش مع مقدم الرعاية",
         category: "الأدوية",
       },
@@ -276,13 +328,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     medicationAdjustment: {
       en: {
         title: "Medication Adjustment Needed",
-        description: "Your symptom patterns suggest your current medication regimen may need adjustment. Consider consulting your healthcare provider.",
+        description:
+          "Your symptom patterns suggest your current medication regimen may need adjustment. Consider consulting your healthcare provider.",
         actionLabel: "Consult Provider",
         category: "Medication",
       },
       ar: {
         title: "تعديل الدواء مطلوب",
-        description: "تشير أنماط أعراضك إلى أن نظام الأدوية الحالي قد يحتاج إلى تعديل. فكر في استشارة مقدم الرعاية الصحية.",
+        description:
+          "تشير أنماط أعراضك إلى أن نظام الأدوية الحالي قد يحتاج إلى تعديل. فكر في استشارة مقدم الرعاية الصحية.",
         actionLabel: "استشر مقدم الرعاية",
         category: "الأدوية",
       },
@@ -290,13 +344,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     winterWellness: {
       en: {
         title: "Winter Wellness",
-        description: "Cold weather can affect your symptoms. Stay warm and maintain your vitamin D levels.",
+        description:
+          "Cold weather can affect your symptoms. Stay warm and maintain your vitamin D levels.",
         actionLabel: "Winter Health Tips",
         category: "Preventive Care",
       },
       ar: {
         title: "صحة الشتاء",
-        description: "الطقس البارد يمكن أن يؤثر على أعراضك. حافظ على دفئك ومستويات فيتامين د.",
+        description:
+          "الطقس البارد يمكن أن يؤثر على أعراضك. حافظ على دفئك ومستويات فيتامين د.",
         actionLabel: "نصائح صحة الشتاء",
         category: "الرعاية الوقائية",
       },
@@ -304,13 +360,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     springAllergies: {
       en: {
         title: "Spring Allergies",
-        description: "Pollen season may increase allergy symptoms. Consider allergy management strategies.",
+        description:
+          "Pollen season may increase allergy symptoms. Consider allergy management strategies.",
         actionLabel: "Allergy Management",
         category: "Preventive Care",
       },
       ar: {
         title: "حساسية الربيع",
-        description: "موسم حبوب اللقاح قد يزيد من أعراض الحساسية. فكر في استراتيجيات إدارة الحساسية.",
+        description:
+          "موسم حبوب اللقاح قد يزيد من أعراض الحساسية. فكر في استراتيجيات إدارة الحساسية.",
         actionLabel: "إدارة الحساسية",
         category: "الرعاية الوقائية",
       },
@@ -318,13 +376,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     summerHydration: {
       en: {
         title: "Summer Hydration",
-        description: "Hot weather increases the need for hydration. Monitor your fluid intake carefully.",
+        description:
+          "Hot weather increases the need for hydration. Monitor your fluid intake carefully.",
         actionLabel: "Hydration Tips",
         category: "Preventive Care",
       },
       ar: {
         title: "ترطيب الصيف",
-        description: "الطقس الحار يزيد من الحاجة للترطيب. راقب استهلاك السوائل بعناية.",
+        description:
+          "الطقس الحار يزيد من الحاجة للترطيب. راقب استهلاك السوائل بعناية.",
         actionLabel: "نصائح الترطيب",
         category: "الرعاية الوقائية",
       },
@@ -332,13 +392,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     fallTransition: {
       en: {
         title: "Fall Transition",
-        description: "Seasonal changes can affect sleep and energy levels. Maintain consistent routines.",
+        description:
+          "Seasonal changes can affect sleep and energy levels. Maintain consistent routines.",
         actionLabel: "Seasonal Adjustment",
         category: "Preventive Care",
       },
       ar: {
         title: "انتقال الخريف",
-        description: "التغيرات الموسمية يمكن أن تؤثر على النوم ومستويات الطاقة. حافظ على روتين ثابت.",
+        description:
+          "التغيرات الموسمية يمكن أن تؤثر على النوم ومستويات الطاقة. حافظ على روتين ثابت.",
         actionLabel: "التكيف الموسمي",
         category: "الرعاية الوقائية",
       },
@@ -346,13 +408,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     activityFatigue: {
       en: {
         title: "Gentle Activity",
-        description: "You've reported fatigue several times this week. Consider gentle activities like short walks or light stretching.",
+        description:
+          "You've reported fatigue several times this week. Consider gentle activities like short walks or light stretching.",
         actionLabel: "Activity Suggestions",
         category: "Lifestyle",
       },
       ar: {
         title: "نشاط خفيف",
-        description: "سجلت الإرهاق عدة مرات هذا الأسبوع. فكر في الأنشطة الخفيفة مثل المشي القصير أو التمدد الخفيف.",
+        description:
+          "سجلت الإرهاق عدة مرات هذا الأسبوع. فكر في الأنشطة الخفيفة مثل المشي القصير أو التمدد الخفيف.",
         actionLabel: "اقتراحات النشاط",
         category: "نمط الحياة",
       },
@@ -360,13 +424,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     nutritionSupport: {
       en: {
         title: "Nutrition Support",
-        description: "You've mentioned digestive or appetite issues. Consider speaking with a nutritionist for dietary adjustments.",
+        description:
+          "You've mentioned digestive or appetite issues. Consider speaking with a nutritionist for dietary adjustments.",
         actionLabel: "Nutrition Advice",
         category: "Lifestyle",
       },
       ar: {
         title: "دعم التغذية",
-        description: "ذكرت مشاكل في الهضم أو الشهية. فكر في التحدث مع أخصائي تغذية لتعديلات غذائية.",
+        description:
+          "ذكرت مشاكل في الهضم أو الشهية. فكر في التحدث مع أخصائي تغذية لتعديلات غذائية.",
         actionLabel: "نصائح التغذية",
         category: "نمط الحياة",
       },
@@ -374,13 +440,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     stressRelief: {
       en: {
         title: "Stress Management",
-        description: "Consider stress reduction techniques like meditation, deep breathing, or gentle exercise.",
+        description:
+          "Consider stress reduction techniques like meditation, deep breathing, or gentle exercise.",
         actionLabel: "Stress Relief Tips",
         category: "Wellness",
       },
       ar: {
         title: "إدارة التوتر",
-        description: "فكر في تقنيات تخفيف التوتر مثل التأمل أو التنفس العميق أو التمارين الخفيفة.",
+        description:
+          "فكر في تقنيات تخفيف التوتر مثل التأمل أو التنفس العميق أو التمارين الخفيفة.",
         actionLabel: "نصائح تخفيف التوتر",
         category: "العافية",
       },
@@ -388,13 +456,15 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
     socialConnection: {
       en: {
         title: "Social Connection",
-        description: "Social connections are important for mental health. Consider reaching out to friends or family.",
+        description:
+          "Social connections are important for mental health. Consider reaching out to friends or family.",
         actionLabel: "Connection Tips",
         category: "Wellness",
       },
       ar: {
         title: "التواصل الاجتماعي",
-        description: "الروابط الاجتماعية مهمة للصحة النفسية. فكر في التواصل مع الأصدقاء أو العائلة.",
+        description:
+          "الروابط الاجتماعية مهمة للصحة النفسية. فكر في التواصل مع الأصدقاء أو العائلة.",
         actionLabel: "نصائح التواصل",
         category: "العافية",
       },
@@ -486,14 +556,20 @@ const getLocalizedSuggestionText = (key: string, isArabic: boolean, params?: Rec
   };
 
   const locale = isArabic ? "ar" : "en";
-  return texts[key]?.[locale] || texts[key]?.en || { title: key, description: "", category: "General" };
+  return (
+    texts[key]?.[locale] ||
+    texts[key]?.en || { title: key, description: "", category: "General" }
+  );
 };
 
 class ProactiveHealthSuggestionsService {
   /**
    * Generate proactive health suggestions for a user
    */
-  async generateSuggestions(userId: string, isArabic = false): Promise<HealthSuggestion[]> {
+  async generateSuggestions(
+    userId: string,
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
     try {
@@ -513,10 +589,18 @@ class ProactiveHealthSuggestionsService {
         symptomService.getUserSymptoms(userId, 30),
         moodService.getUserMoods(userId, 30),
         healthContextService.getUserHealthContext(userId),
-        alertService.getUserAlerts(userId, 20).catch(() => [] as EmergencyAlert[]),
-        calendarService.getUpcomingEvents(userId, 7).catch(() => [] as CalendarEvent[]),
-        allergyService.getUserAllergies(userId, 100).catch(() => [] as Allergy[]),
-        medicalHistoryService.getUserMedicalHistory(userId).catch(() => [] as MedicalHistory[]),
+        alertService
+          .getUserAlerts(userId, 20)
+          .catch(() => [] as EmergencyAlert[]),
+        calendarService
+          .getUpcomingEvents(userId, 7)
+          .catch(() => [] as CalendarEvent[]),
+        allergyService
+          .getUserAllergies(userId, 100)
+          .catch(() => [] as Allergy[]),
+        medicalHistoryService
+          .getUserMedicalHistory(userId)
+          .catch(() => [] as MedicalHistory[]),
         this.getRecentVitals(userId).catch(() => []),
       ]);
 
@@ -531,11 +615,17 @@ class ProactiveHealthSuggestionsService {
       suggestions.push(...complianceSuggestions);
 
       // 2. Medication refill suggestions
-      const refillSuggestions = await this.getRefillSuggestions(activeMedications, isArabic);
+      const refillSuggestions = await this.getRefillSuggestions(
+        activeMedications,
+        isArabic
+      );
       suggestions.push(...refillSuggestions);
 
       // 3. Symptom pattern suggestions
-      const symptomSuggestions = await this.getSymptomPatternSuggestions(symptoms, isArabic);
+      const symptomSuggestions = await this.getSymptomPatternSuggestions(
+        symptoms,
+        isArabic
+      );
       suggestions.push(...symptomSuggestions);
 
       // 4. Mood-based suggestions
@@ -593,23 +683,40 @@ class ProactiveHealthSuggestionsService {
       suggestions.push(...wellnessSuggestions);
 
       // 11. Alert-based suggestions (from logged alerts)
-      const alertSuggestions = await this.getAlertBasedSuggestions(alerts, isArabic);
+      const alertSuggestions = await this.getAlertBasedSuggestions(
+        alerts,
+        isArabic
+      );
       suggestions.push(...alertSuggestions);
 
       // 12. Upcoming event suggestions (appointments, checkups)
-      const eventSuggestions = await this.getEventBasedSuggestions(upcomingEvents, isArabic);
+      const eventSuggestions = await this.getEventBasedSuggestions(
+        upcomingEvents,
+        isArabic
+      );
       suggestions.push(...eventSuggestions);
 
       // 13. Vital trends suggestions
-      const vitalSuggestions = await this.getVitalTrendSuggestions(vitals, isArabic);
+      const vitalSuggestions = await this.getVitalTrendSuggestions(
+        vitals,
+        isArabic
+      );
       suggestions.push(...vitalSuggestions);
 
       // 14. Allergy-aware suggestions
-      const allergySuggestions = await this.getAllergyAwareSuggestions(allergies, activeMedications, isArabic);
+      const allergySuggestions = await this.getAllergyAwareSuggestions(
+        allergies,
+        activeMedications,
+        isArabic
+      );
       suggestions.push(...allergySuggestions);
 
       // 15. Medical history-based suggestions
-      const historySuggestions = await this.getMedicalHistorySuggestions(medicalHistory, symptoms, isArabic);
+      const historySuggestions = await this.getMedicalHistorySuggestions(
+        medicalHistory,
+        symptoms,
+        isArabic
+      );
       suggestions.push(...historySuggestions);
 
       // Sort by priority (high first)
@@ -631,7 +738,7 @@ class ProactiveHealthSuggestionsService {
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
+
       const q = query(
         collection(db, "vitals"),
         where("userId", "==", userId),
@@ -639,9 +746,9 @@ class ProactiveHealthSuggestionsService {
         orderBy("timestamp", "desc"),
         firestoreLimit(100)
       );
-      
+
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         timestamp: doc.data().timestamp?.toDate?.() || new Date(),
@@ -661,19 +768,23 @@ class ProactiveHealthSuggestionsService {
     const suggestions: HealthSuggestion[] = [];
 
     // Filter unresolved alerts
-    const unresolvedAlerts = alerts.filter(a => !a.resolved);
-    
+    const unresolvedAlerts = alerts.filter((a) => !a.resolved);
+
     // High severity alerts get immediate attention
     const highSeverityAlerts = unresolvedAlerts.filter(
-      a => a.severity === "critical" || a.severity === "high"
+      (a) => a.severity === "critical" || a.severity === "high"
     );
-    
+
     if (highSeverityAlerts.length > 0) {
       const alert = highSeverityAlerts[0];
-      const localizedText = getLocalizedSuggestionText("highSeverityAlert", isArabic, {
-        alertType: alert.type,
-        message: alert.message?.substring(0, 50) || "",
-      });
+      const localizedText = getLocalizedSuggestionText(
+        "highSeverityAlert",
+        isArabic,
+        {
+          alertType: alert.type,
+          message: alert.message?.substring(0, 50) || "",
+        }
+      );
       suggestions.push({
         id: `alert-high-${alert.id}`,
         type: "symptom",
@@ -689,12 +800,16 @@ class ProactiveHealthSuggestionsService {
         timestamp: new Date(),
       });
     }
-    
+
     // Unresolved alerts reminder
     if (unresolvedAlerts.length > 1) {
-      const localizedText = getLocalizedSuggestionText("unresolvedAlert", isArabic, {
-        count: unresolvedAlerts.length,
-      });
+      const localizedText = getLocalizedSuggestionText(
+        "unresolvedAlert",
+        isArabic,
+        {
+          count: unresolvedAlerts.length,
+        }
+      );
       suggestions.push({
         id: "alerts-unresolved",
         type: "symptom",
@@ -725,7 +840,10 @@ class ProactiveHealthSuggestionsService {
 
     // Find health-related appointments
     const healthAppointments = events.filter(
-      e => e.type === "appointment" || e.type === "medication" || e.type === "vaccination"
+      (e) =>
+        e.type === "appointment" ||
+        e.type === "medication" ||
+        e.type === "vaccination"
     );
 
     // Upcoming appointment reminders
@@ -733,17 +851,24 @@ class ProactiveHealthSuggestionsService {
       const daysUntil = Math.ceil(
         (event.startDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
       );
-      
+
       if (daysUntil >= 0 && daysUntil <= 7) {
-        const timeFrame = daysUntil === 0 ? "today" : 
-                          daysUntil === 1 ? "tomorrow" : 
-                          `in ${daysUntil} days`;
-        
-        const localizedText = getLocalizedSuggestionText("upcomingAppointment", isArabic, {
-          eventTitle: event.title,
-          timeFrame,
-        });
-        
+        const timeFrame =
+          daysUntil === 0
+            ? "today"
+            : daysUntil === 1
+              ? "tomorrow"
+              : `in ${daysUntil} days`;
+
+        const localizedText = getLocalizedSuggestionText(
+          "upcomingAppointment",
+          isArabic,
+          {
+            eventTitle: event.title,
+            timeFrame,
+          }
+        );
+
         suggestions.push({
           id: `event-${event.id}`,
           type: "appointment",
@@ -777,7 +902,7 @@ class ProactiveHealthSuggestionsService {
 
     // Group vitals by type
     const vitalsByType: Record<string, any[]> = {};
-    vitals.forEach(v => {
+    vitals.forEach((v) => {
       const type = v.type || "unknown";
       if (!vitalsByType[type]) vitalsByType[type] = [];
       vitalsByType[type].push(v);
@@ -787,24 +912,30 @@ class ProactiveHealthSuggestionsService {
     for (const [type, readings] of Object.entries(vitalsByType)) {
       if (readings.length < 3) continue;
 
-      const values = readings.map(r => r.value).filter(v => typeof v === "number");
+      const values = readings
+        .map((r) => r.value)
+        .filter((v) => typeof v === "number");
       if (values.length < 3) continue;
 
       const recentAvg = values.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
       const olderAvg = values.slice(-3).reduce((a, b) => a + b, 0) / 3;
-      
+
       const percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
-      
+
       if (Math.abs(percentChange) > 10) {
         const trend = percentChange > 0 ? "increasing" : "decreasing";
         const advice = this.getVitalAdvice(type, trend, recentAvg);
-        
-        const localizedText = getLocalizedSuggestionText("vitalTrend", isArabic, {
-          vitalType: this.getVitalDisplayName(type),
-          trend,
-          advice,
-        });
-        
+
+        const localizedText = getLocalizedSuggestionText(
+          "vitalTrend",
+          isArabic,
+          {
+            vitalType: this.getVitalDisplayName(type),
+            trend,
+            advice,
+          }
+        );
+
         suggestions.push({
           id: `vital-trend-${type}`,
           type: "symptom",
@@ -837,22 +968,34 @@ class ProactiveHealthSuggestionsService {
 
     // Severe allergies reminder (severity can be "severe" or "severe-life-threatening")
     const severeAllergies = allergies.filter(
-      a => a.severity === "severe" || a.severity === "severe-life-threatening"
+      (a) => a.severity === "severe" || a.severity === "severe-life-threatening"
     );
 
     // Check if allergy name suggests medication type
-    const medicationKeywords = ["penicillin", "aspirin", "ibuprofen", "sulfa", "codeine", "amoxicillin", "antibiotic"];
-    
+    const medicationKeywords = [
+      "penicillin",
+      "aspirin",
+      "ibuprofen",
+      "sulfa",
+      "codeine",
+      "amoxicillin",
+      "antibiotic",
+    ];
+
     for (const allergy of severeAllergies.slice(0, 2)) {
-      const isMedicationAllergy = medicationKeywords.some(
-        keyword => allergy.name.toLowerCase().includes(keyword)
+      const isMedicationAllergy = medicationKeywords.some((keyword) =>
+        allergy.name.toLowerCase().includes(keyword)
       );
-      
+
       if (isMedicationAllergy) {
-        const localizedText = getLocalizedSuggestionText("allergyMedicationWarning", isArabic, {
-          allergen: allergy.name,
-        });
-        
+        const localizedText = getLocalizedSuggestionText(
+          "allergyMedicationWarning",
+          isArabic,
+          {
+            allergen: allergy.name,
+          }
+        );
+
         suggestions.push({
           id: `allergy-warning-${allergy.id}`,
           type: "medication",
@@ -888,12 +1031,15 @@ class ProactiveHealthSuggestionsService {
 
     for (const condition of activeConditions.slice(0, 2)) {
       const conditionLower = condition.condition.toLowerCase();
-      
+
       // Check for symptom correlations with conditions
       let advice = "";
       if (conditionLower.includes("diabetes")) {
         advice = "monitoring blood sugar levels regularly";
-      } else if (conditionLower.includes("hypertension") || conditionLower.includes("blood pressure")) {
+      } else if (
+        conditionLower.includes("hypertension") ||
+        conditionLower.includes("blood pressure")
+      ) {
         advice = "checking blood pressure daily and managing stress";
       } else if (conditionLower.includes("heart")) {
         advice = "maintaining heart-healthy habits and monitoring symptoms";
@@ -903,10 +1049,14 @@ class ProactiveHealthSuggestionsService {
         continue; // Skip if no specific advice
       }
 
-      const localizedText = getLocalizedSuggestionText("conditionManagement", isArabic, {
-        condition: condition.condition,
-        advice,
-      });
+      const localizedText = getLocalizedSuggestionText(
+        "conditionManagement",
+        isArabic,
+        {
+          condition: condition.condition,
+          advice,
+        }
+      );
 
       suggestions.push({
         id: `history-${condition.id}`,
@@ -948,10 +1098,8 @@ class ProactiveHealthSuggestionsService {
         return "Monitor for low blood sugar symptoms and have snacks available.";
       }
     }
-    if (type === "heartRate") {
-      if (trend === "increasing" && value > 90) {
-        return "High resting heart rate may indicate stress or dehydration.";
-      }
+    if (type === "heartRate" && trend === "increasing" && value > 90) {
+      return "High resting heart rate may indicate stress or dehydration.";
     }
     if (type === "bloodPressure") {
       return "Blood pressure changes should be discussed with your healthcare provider.";
@@ -979,11 +1127,16 @@ class ProactiveHealthSuggestionsService {
         );
 
       const lowCompliance = scheduleEntries.filter(
-        (entry) => entry.complianceRate !== undefined && entry.complianceRate < 70
+        (entry) =>
+          entry.complianceRate !== undefined && entry.complianceRate < 70
       );
 
       if (lowCompliance.length > 0) {
-        const localizedText = getLocalizedSuggestionText("lowCompliance", isArabic, { count: lowCompliance.length });
+        const localizedText = getLocalizedSuggestionText(
+          "lowCompliance",
+          isArabic,
+          { count: lowCompliance.length }
+        );
         suggestions.push({
           id: "compliance-low",
           type: "compliance",
@@ -1006,7 +1159,11 @@ class ProactiveHealthSuggestionsService {
       );
 
       if (missedDoses > 0) {
-        const localizedText = getLocalizedSuggestionText("missedDoses", isArabic, { count: missedDoses });
+        const localizedText = getLocalizedSuggestionText(
+          "missedDoses",
+          isArabic,
+          { count: missedDoses }
+        );
         suggestions.push({
           id: "missed-doses",
           type: "compliance",
@@ -1038,20 +1195,31 @@ class ProactiveHealthSuggestionsService {
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
-    const refillSummary = medicationRefillService.getRefillPredictions(medications);
+    const refillSummary =
+      medicationRefillService.getRefillPredictions(medications);
     const refillAlerts = refillSummary.predictions.filter(
-      (p) => p.urgency === "critical" || p.urgency === "high" || p.urgency === "medium"
+      (p) =>
+        p.urgency === "critical" ||
+        p.urgency === "high" ||
+        p.urgency === "medium"
     );
 
     refillAlerts.forEach((alert) => {
-      const localizedText = getLocalizedSuggestionText("refillMedication", isArabic, { 
-        medicationName: alert.medicationName,
-        message: `Refill needed in ${alert.daysUntilRefill} day${alert.daysUntilRefill !== 1 ? "s" : ""}` 
-      });
+      const localizedText = getLocalizedSuggestionText(
+        "refillMedication",
+        isArabic,
+        {
+          medicationName: alert.medicationName,
+          message: `Refill needed in ${alert.daysUntilRefill} day${alert.daysUntilRefill !== 1 ? "s" : ""}`,
+        }
+      );
       suggestions.push({
         id: `refill-${alert.medicationId}`,
         type: "medication",
-        priority: alert.urgency === "critical" || alert.urgency === "high" ? "high" : "medium",
+        priority:
+          alert.urgency === "critical" || alert.urgency === "high"
+            ? "high"
+            : "medium",
         title: localizedText.title,
         description: localizedText.description,
         action: {
@@ -1091,7 +1259,11 @@ class ProactiveHealthSuggestionsService {
 
     if (frequentSymptoms.length > 0) {
       const [symptomType, count] = frequentSymptoms[0];
-      const localizedText = getLocalizedSuggestionText("frequentSymptom", isArabic, { symptomType, count });
+      const localizedText = getLocalizedSuggestionText(
+        "frequentSymptom",
+        isArabic,
+        { symptomType, count }
+      );
       suggestions.push({
         id: `symptom-frequent-${symptomType}`,
         type: "symptom",
@@ -1111,7 +1283,11 @@ class ProactiveHealthSuggestionsService {
     // Check for high severity symptoms
     const highSeveritySymptoms = symptoms.filter((s) => s.severity >= 4);
     if (highSeveritySymptoms.length > 0) {
-      const localizedText = getLocalizedSuggestionText("highSeveritySymptoms", isArabic, { count: highSeveritySymptoms.length });
+      const localizedText = getLocalizedSuggestionText(
+        "highSeveritySymptoms",
+        isArabic,
+        { count: highSeveritySymptoms.length }
+      );
       suggestions.push({
         id: "symptom-severe",
         type: "symptom",
@@ -1134,17 +1310,19 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get mood-based suggestions
    */
-  private async getMoodSuggestions(moods: Mood[], isArabic = false): Promise<HealthSuggestion[]> {
+  private async getMoodSuggestions(
+    moods: Mood[],
+    isArabic = false
+  ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
     if (moods.length < 3) return suggestions;
 
     // Check for negative mood patterns
-    const negativeMoods = moods.filter(
-      (m) =>
-        ["sad", "anxious", "stressed", "tired", "empty", "apathetic"].includes(
-          m.mood.toLowerCase()
-        )
+    const negativeMoods = moods.filter((m) =>
+      ["sad", "anxious", "stressed", "tired", "empty", "apathetic"].includes(
+        m.mood.toLowerCase()
+      )
     );
 
     if (negativeMoods.length >= moods.length * 0.6) {
@@ -1169,7 +1347,10 @@ class ProactiveHealthSuggestionsService {
     const averageIntensity =
       moods.reduce((sum, m) => sum + m.intensity, 0) / moods.length;
     if (averageIntensity <= 2) {
-      const localizedText = getLocalizedSuggestionText("lowMoodIntensity", isArabic);
+      const localizedText = getLocalizedSuggestionText(
+        "lowMoodIntensity",
+        isArabic
+      );
       suggestions.push({
         id: "mood-low-intensity",
         type: "wellness",
@@ -1205,7 +1386,11 @@ class ProactiveHealthSuggestionsService {
     );
 
     if (healthScoreResult.score < 60) {
-      const localizedText = getLocalizedSuggestionText("lowHealthScore", isArabic, { score: healthScoreResult.score });
+      const localizedText = getLocalizedSuggestionText(
+        "lowHealthScore",
+        isArabic,
+        { score: healthScoreResult.score }
+      );
       suggestions.push({
         id: "health-score-low",
         type: "wellness",
@@ -1221,7 +1406,11 @@ class ProactiveHealthSuggestionsService {
         timestamp: new Date(),
       });
     } else if (healthScoreResult.score < 75) {
-      const localizedText = getLocalizedSuggestionText("improveHealthScore", isArabic, { score: healthScoreResult.score });
+      const localizedText = getLocalizedSuggestionText(
+        "improveHealthScore",
+        isArabic,
+        { score: healthScoreResult.score }
+      );
       suggestions.push({
         id: "health-score-improve",
         type: "wellness",
@@ -1280,7 +1469,10 @@ class ProactiveHealthSuggestionsService {
     );
 
     if (stressSymptoms.length >= 3) {
-      const localizedText = getLocalizedSuggestionText("stressManagement", isArabic);
+      const localizedText = getLocalizedSuggestionText(
+        "stressManagement",
+        isArabic
+      );
       suggestions.push({
         id: "stress-management",
         type: "lifestyle",
@@ -1313,7 +1505,10 @@ class ProactiveHealthSuggestionsService {
     const currentMonth = new Date().getMonth();
     if (currentMonth === 0 || currentMonth === 6) {
       // January or July
-      const localizedText = getLocalizedSuggestionText("annualCheckup", isArabic);
+      const localizedText = getLocalizedSuggestionText(
+        "annualCheckup",
+        isArabic
+      );
       suggestions.push({
         id: "annual-checkup",
         type: "appointment",
@@ -1336,7 +1531,10 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get personalized health tips
    */
-  async getPersonalizedTips(userId: string, isArabic = false): Promise<string[]> {
+  async getPersonalizedTips(
+    userId: string,
+    isArabic = false
+  ): Promise<string[]> {
     try {
       const insights = await healthInsightsService.getAllInsights(userId);
       const tips: string[] = [];
@@ -1344,7 +1542,7 @@ class ProactiveHealthSuggestionsService {
       // Generate tips based on insights
       insights.forEach((pattern: PatternInsight) => {
         if (pattern.type === "temporal") {
-          const tipText = isArabic 
+          const tipText = isArabic
             ? `تميل أعراضك إلى ${pattern.description}. فكر في التخطيط للأنشطة وفقاً لذلك.`
             : `Your symptoms tend to ${pattern.description}. Consider planning activities accordingly.`;
           tips.push(tipText);
@@ -1374,23 +1572,33 @@ class ProactiveHealthSuggestionsService {
     try {
       // Analyze symptom trends over time
       const recentSymptoms = symptoms.filter(
-        s => new Date().getTime() - s.timestamp.getTime() < 30 * 24 * 60 * 60 * 1000 // Last 30 days
+        (s) =>
+          new Date().getTime() - s.timestamp.getTime() <
+          30 * 24 * 60 * 60 * 1000 // Last 30 days
       );
 
       if (recentSymptoms.length > 5) {
-        const symptomTypes = recentSymptoms.reduce((acc, symptom) => {
-          acc[symptom.type] = (acc[symptom.type] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+        const symptomTypes = recentSymptoms.reduce(
+          (acc, symptom) => {
+            acc[symptom.type] = (acc[symptom.type] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        );
 
-        const mostCommonSymptom = Object.entries(symptomTypes)
-          .sort(([,a], [,b]) => b - a)[0];
+        const mostCommonSymptom = Object.entries(symptomTypes).sort(
+          ([, a], [, b]) => b - a
+        )[0];
 
         if (mostCommonSymptom && mostCommonSymptom[1] >= 3) {
-          const localizedText = getLocalizedSuggestionText("recurringSymptomPattern", isArabic, { 
-            symptomType: mostCommonSymptom[0], 
-            count: mostCommonSymptom[1] 
-          });
+          const localizedText = getLocalizedSuggestionText(
+            "recurringSymptomPattern",
+            isArabic,
+            {
+              symptomType: mostCommonSymptom[0],
+              count: mostCommonSymptom[1],
+            }
+          );
           suggestions.push({
             id: "symptom-pattern",
             type: "wellness",
@@ -1410,14 +1618,21 @@ class ProactiveHealthSuggestionsService {
 
       // Analyze mood trends
       const recentMoods = moods.filter(
-        m => new Date().getTime() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000 // Last 14 days
+        (m) =>
+          new Date().getTime() - m.timestamp.getTime() <
+          14 * 24 * 60 * 60 * 1000 // Last 14 days
       );
 
       if (recentMoods.length > 3) {
-        const avgMood = recentMoods.reduce((sum, m) => sum + m.intensity, 0) / recentMoods.length;
+        const avgMood =
+          recentMoods.reduce((sum, m) => sum + m.intensity, 0) /
+          recentMoods.length;
 
         if (avgMood < 3) {
-          const localizedText = getLocalizedSuggestionText("moodSupport", isArabic);
+          const localizedText = getLocalizedSuggestionText(
+            "moodSupport",
+            isArabic
+          );
           suggestions.push({
             id: "mood-trend",
             type: "wellness",
@@ -1437,10 +1652,16 @@ class ProactiveHealthSuggestionsService {
 
       // Medication effectiveness analysis
       if (medications.length > 0 && symptoms.length > 10) {
-        const symptomTrends = this.analyzeSymptomMedicationCorrelation(symptoms, medications);
+        const symptomTrends = this.analyzeSymptomMedicationCorrelation(
+          symptoms,
+          medications
+        );
 
         if (symptomTrends.length > 0) {
-          const localizedText = getLocalizedSuggestionText("medicationEffectivenessReview", isArabic);
+          const localizedText = getLocalizedSuggestionText(
+            "medicationEffectivenessReview",
+            isArabic
+          );
           suggestions.push({
             id: "medication-effectiveness",
             type: "medication",
@@ -1457,7 +1678,6 @@ class ProactiveHealthSuggestionsService {
           });
         }
       }
-
     } catch (error) {
       // Silently handle error
     }
@@ -1480,9 +1700,13 @@ class ProactiveHealthSuggestionsService {
       const flareUpPrediction = this.predictFlareUps(symptoms);
 
       if (flareUpPrediction.likelihood > 0.7) {
-        const localizedText = getLocalizedSuggestionText("flareUpWarning", isArabic, { 
-          symptomType: flareUpPrediction.symptomType 
-        });
+        const localizedText = getLocalizedSuggestionText(
+          "flareUpWarning",
+          isArabic,
+          {
+            symptomType: flareUpPrediction.symptomType,
+          }
+        );
         suggestions.push({
           id: "flare-up-warning",
           type: "preventive",
@@ -1500,10 +1724,16 @@ class ProactiveHealthSuggestionsService {
       }
 
       // Predict medication needs
-      const medicationPrediction = this.predictMedicationNeeds(symptoms, healthContext);
+      const medicationPrediction = this.predictMedicationNeeds(
+        symptoms,
+        healthContext
+      );
 
       if (medicationPrediction.needsAdjustment) {
-        const localizedText = getLocalizedSuggestionText("medicationAdjustment", isArabic);
+        const localizedText = getLocalizedSuggestionText(
+          "medicationAdjustment",
+          isArabic
+        );
         suggestions.push({
           id: "medication-adjustment",
           type: "medication",
@@ -1539,7 +1769,6 @@ class ProactiveHealthSuggestionsService {
           timestamp: new Date(),
         });
       }
-
     } catch (error) {
       // Silently handle error
     }
@@ -1560,25 +1789,40 @@ class ProactiveHealthSuggestionsService {
 
     try {
       // Activity level analysis
-      const activitySuggestion = this.analyzeActivityNeeds(healthContext, symptoms, isArabic);
+      const activitySuggestion = this.analyzeActivityNeeds(
+        healthContext,
+        symptoms,
+        isArabic
+      );
       if (activitySuggestion) {
         suggestions.push(activitySuggestion);
       }
 
       // Sleep pattern analysis
-      const sleepSuggestion = this.analyzeSleepPatterns(healthContext, isArabic);
+      const sleepSuggestion = this.analyzeSleepPatterns(
+        healthContext,
+        isArabic
+      );
       if (sleepSuggestion) {
         suggestions.push(sleepSuggestion);
       }
 
       // Nutrition suggestions based on symptoms
-      const nutritionSuggestion = this.analyzeNutritionNeeds(symptoms, healthContext, isArabic);
+      const nutritionSuggestion = this.analyzeNutritionNeeds(
+        symptoms,
+        healthContext,
+        isArabic
+      );
       if (nutritionSuggestion) {
         suggestions.push(nutritionSuggestion);
       }
 
       // Stress management suggestions
-      const stressSuggestion = this.analyzeStressLevels(moods, symptoms, isArabic);
+      const stressSuggestion = this.analyzeStressLevels(
+        moods,
+        symptoms,
+        isArabic
+      );
       if (stressSuggestion) {
         suggestions.push(stressSuggestion);
       }
@@ -1588,7 +1832,6 @@ class ProactiveHealthSuggestionsService {
       if (socialSuggestion) {
         suggestions.push(socialSuggestion);
       }
-
     } catch (error) {
       // Silently handle error
     }
@@ -1599,16 +1842,21 @@ class ProactiveHealthSuggestionsService {
   /**
    * Analyze symptom-medication correlations
    */
-  private analyzeSymptomMedicationCorrelation(symptoms: Symptom[], medications: Medication[]): string[] {
+  private analyzeSymptomMedicationCorrelation(
+    symptoms: Symptom[],
+    medications: Medication[]
+  ): string[] {
     const correlations: string[] = [];
 
     try {
       // Simple correlation analysis - in a real implementation this would be more sophisticated
-      const symptomTypes = [...new Set(symptoms.map(s => s.type))];
+      const symptomTypes = [...new Set(symptoms.map((s) => s.type))];
 
-      symptomTypes.forEach(symptomType => {
-        const symptomOccurrences = symptoms.filter(s => s.type === symptomType);
-        const medicationNames = medications.map(m => m.name);
+      symptomTypes.forEach((symptomType) => {
+        const symptomOccurrences = symptoms.filter(
+          (s) => s.type === symptomType
+        );
+        const medicationNames = medications.map((m) => m.name);
 
         // Look for patterns - this is a simplified version
         if (symptomOccurrences.length > 5) {
@@ -1625,22 +1873,30 @@ class ProactiveHealthSuggestionsService {
   /**
    * Predict potential flare-ups based on symptom patterns
    */
-  private predictFlareUps(symptoms: Symptom[]): { likelihood: number; symptomType: string } {
+  private predictFlareUps(symptoms: Symptom[]): {
+    likelihood: number;
+    symptomType: string;
+  } {
     try {
       if (symptoms.length < 10) return { likelihood: 0, symptomType: "" };
 
       // Simple pattern recognition - look for increasing frequency or severity
       const recentSymptoms = symptoms.filter(
-        s => new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000 // Last 7 days
+        (s) =>
+          new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000 // Last 7 days
       );
 
-      const symptomTypes = recentSymptoms.reduce((acc, symptom) => {
-        acc[symptom.type] = (acc[symptom.type] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      const symptomTypes = recentSymptoms.reduce(
+        (acc, symptom) => {
+          acc[symptom.type] = (acc[symptom.type] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
-      const mostCommon = Object.entries(symptomTypes)
-        .sort(([,a], [,b]) => b - a)[0];
+      const mostCommon = Object.entries(symptomTypes).sort(
+        ([, a], [, b]) => b - a
+      )[0];
 
       // If a symptom appears more than 3 times in a week, consider it a potential flare-up
       const likelihood = mostCommon && mostCommon[1] >= 3 ? 0.8 : 0.2;
@@ -1654,14 +1910,21 @@ class ProactiveHealthSuggestionsService {
   /**
    * Predict medication needs based on symptom patterns
    */
-  private predictMedicationNeeds(symptoms: Symptom[], healthContext: any): { needsAdjustment: boolean } {
+  private predictMedicationNeeds(
+    symptoms: Symptom[],
+    healthContext: any
+  ): { needsAdjustment: boolean } {
     try {
       // Simple analysis - if symptoms are increasing despite medication, suggest adjustment
       const recentSymptoms = symptoms.filter(
-        s => new Date().getTime() - s.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000 // Last 14 days
+        (s) =>
+          new Date().getTime() - s.timestamp.getTime() <
+          14 * 24 * 60 * 60 * 1000 // Last 14 days
       );
 
-      const avgSeverity = recentSymptoms.reduce((sum, s) => sum + s.severity, 0) / recentSymptoms.length;
+      const avgSeverity =
+        recentSymptoms.reduce((sum, s) => sum + s.severity, 0) /
+        recentSymptoms.length;
 
       // If average severity is high and there are many symptoms, suggest adjustment
       const needsAdjustment = avgSeverity > 3 && recentSymptoms.length > 10;
@@ -1675,44 +1938,65 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get seasonal health predictions
    */
-  private getSeasonalHealthPrediction(isArabic = false): { title: string; description: string; actionLabel: string; category: string } | null {
+  private getSeasonalHealthPrediction(isArabic = false): {
+    title: string;
+    description: string;
+    actionLabel: string;
+    category: string;
+  } | null {
     try {
       const month = new Date().getMonth();
 
       // Seasonal recommendations based on month
-      if (month >= 11 || month <= 1) { // Winter
-        const localizedText = getLocalizedSuggestionText("winterWellness", isArabic);
+      if (month >= 11 || month <= 1) {
+        // Winter
+        const localizedText = getLocalizedSuggestionText(
+          "winterWellness",
+          isArabic
+        );
         return {
           title: localizedText.title,
           description: localizedText.description,
           actionLabel: localizedText.actionLabel || "Winter Health Tips",
-          category: localizedText.category
+          category: localizedText.category,
         };
-      } else if (month >= 2 && month <= 4) { // Spring
-        const localizedText = getLocalizedSuggestionText("springAllergies", isArabic);
+      }
+      if (month >= 2 && month <= 4) {
+        // Spring
+        const localizedText = getLocalizedSuggestionText(
+          "springAllergies",
+          isArabic
+        );
         return {
           title: localizedText.title,
           description: localizedText.description,
           actionLabel: localizedText.actionLabel || "Allergy Management",
-          category: localizedText.category
+          category: localizedText.category,
         };
-      } else if (month >= 5 && month <= 7) { // Summer
-        const localizedText = getLocalizedSuggestionText("summerHydration", isArabic);
+      }
+      if (month >= 5 && month <= 7) {
+        // Summer
+        const localizedText = getLocalizedSuggestionText(
+          "summerHydration",
+          isArabic
+        );
         return {
           title: localizedText.title,
           description: localizedText.description,
           actionLabel: localizedText.actionLabel || "Hydration Tips",
-          category: localizedText.category
-        };
-      } else { // Fall
-        const localizedText = getLocalizedSuggestionText("fallTransition", isArabic);
-        return {
-          title: localizedText.title,
-          description: localizedText.description,
-          actionLabel: localizedText.actionLabel || "Seasonal Adjustment",
-          category: localizedText.category
+          category: localizedText.category,
         };
       }
+      const localizedText = getLocalizedSuggestionText(
+        "fallTransition",
+        isArabic
+      );
+      return {
+        title: localizedText.title,
+        description: localizedText.description,
+        actionLabel: localizedText.actionLabel || "Seasonal Adjustment",
+        category: localizedText.category,
+      };
     } catch (error) {
       return null;
     }
@@ -1721,16 +2005,26 @@ class ProactiveHealthSuggestionsService {
   /**
    * Analyze activity needs based on health context and symptoms
    */
-  private analyzeActivityNeeds(healthContext: any, symptoms: Symptom[], isArabic = false): HealthSuggestion | null {
+  private analyzeActivityNeeds(
+    healthContext: any,
+    symptoms: Symptom[],
+    isArabic = false
+  ): HealthSuggestion | null {
     try {
       const recentSymptoms = symptoms.filter(
-        s => new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
+        (s) =>
+          new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
       );
 
-      const fatigueSymptoms = recentSymptoms.filter(s => s.type === "fatigue" || s.type === "tired").length;
+      const fatigueSymptoms = recentSymptoms.filter(
+        (s) => s.type === "fatigue" || s.type === "tired"
+      ).length;
 
       if (fatigueSymptoms >= 3) {
-        const localizedText = getLocalizedSuggestionText("activityFatigue", isArabic);
+        const localizedText = getLocalizedSuggestionText(
+          "activityFatigue",
+          isArabic
+        );
         return {
           id: "activity-fatigue",
           type: "lifestyle",
@@ -1756,7 +2050,10 @@ class ProactiveHealthSuggestionsService {
   /**
    * Analyze sleep patterns
    */
-  private analyzeSleepPatterns(healthContext: any, isArabic = false): HealthSuggestion | null {
+  private analyzeSleepPatterns(
+    healthContext: any,
+    isArabic = false
+  ): HealthSuggestion | null {
     try {
       // This would analyze actual sleep data if available
       // For now, return a general suggestion if sleep symptoms are present
@@ -1769,13 +2066,22 @@ class ProactiveHealthSuggestionsService {
   /**
    * Analyze nutrition needs based on symptoms
    */
-  private analyzeNutritionNeeds(symptoms: Symptom[], healthContext: any, isArabic = false): HealthSuggestion | null {
+  private analyzeNutritionNeeds(
+    symptoms: Symptom[],
+    healthContext: any,
+    isArabic = false
+  ): HealthSuggestion | null {
     try {
-      const nauseaSymptoms = symptoms.filter(s => s.type === "nausea").length;
-      const appetiteSymptoms = symptoms.filter(s => s.type === "lossOfAppetite").length;
+      const nauseaSymptoms = symptoms.filter((s) => s.type === "nausea").length;
+      const appetiteSymptoms = symptoms.filter(
+        (s) => s.type === "lossOfAppetite"
+      ).length;
 
       if (nauseaSymptoms >= 2 || appetiteSymptoms >= 2) {
-        const localizedText = getLocalizedSuggestionText("nutritionSupport", isArabic);
+        const localizedText = getLocalizedSuggestionText(
+          "nutritionSupport",
+          isArabic
+        );
         return {
           id: "nutrition-support",
           type: "lifestyle",
@@ -1801,17 +2107,27 @@ class ProactiveHealthSuggestionsService {
   /**
    * Analyze stress levels and suggest management techniques
    */
-  private analyzeStressLevels(moods: Mood[], symptoms: Symptom[], isArabic = false): HealthSuggestion | null {
+  private analyzeStressLevels(
+    moods: Mood[],
+    symptoms: Symptom[],
+    isArabic = false
+  ): HealthSuggestion | null {
     try {
       const recentMoods = moods.filter(
-        m => new Date().getTime() - m.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
+        (m) =>
+          new Date().getTime() - m.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
       );
 
-      const lowMoods = recentMoods.filter(m => m.intensity < 4).length;
-      const anxietySymptoms = symptoms.filter(s => s.type === "anxiety").length;
+      const lowMoods = recentMoods.filter((m) => m.intensity < 4).length;
+      const anxietySymptoms = symptoms.filter(
+        (s) => s.type === "anxiety"
+      ).length;
 
       if (lowMoods >= 3 || anxietySymptoms >= 2) {
-        const localizedText = getLocalizedSuggestionText("stressRelief", isArabic);
+        const localizedText = getLocalizedSuggestionText(
+          "stressRelief",
+          isArabic
+        );
         return {
           id: "stress-management",
           type: "wellness",
@@ -1837,19 +2153,28 @@ class ProactiveHealthSuggestionsService {
   /**
    * Analyze social connection needs
    */
-  private analyzeSocialNeeds(moods: Mood[], isArabic = false): HealthSuggestion | null {
+  private analyzeSocialNeeds(
+    moods: Mood[],
+    isArabic = false
+  ): HealthSuggestion | null {
     try {
       const recentMoods = moods.filter(
-        m => new Date().getTime() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000
+        (m) =>
+          new Date().getTime() - m.timestamp.getTime() <
+          14 * 24 * 60 * 60 * 1000
       );
 
-      const lonelyMoods = recentMoods.filter(m =>
-        m.notes?.toLowerCase().includes("lonely") ||
-        m.notes?.toLowerCase().includes("alone")
+      const lonelyMoods = recentMoods.filter(
+        (m) =>
+          m.notes?.toLowerCase().includes("lonely") ||
+          m.notes?.toLowerCase().includes("alone")
       ).length;
 
       if (lonelyMoods >= 2) {
-        const localizedText = getLocalizedSuggestionText("socialConnection", isArabic);
+        const localizedText = getLocalizedSuggestionText(
+          "socialConnection",
+          isArabic
+        );
         return {
           id: "social-connection",
           type: "wellness",
@@ -1873,4 +2198,5 @@ class ProactiveHealthSuggestionsService {
   }
 }
 
-export const proactiveHealthSuggestionsService = new ProactiveHealthSuggestionsService();
+export const proactiveHealthSuggestionsService =
+  new ProactiveHealthSuggestionsService();

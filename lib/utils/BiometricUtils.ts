@@ -54,12 +54,12 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
   try {
     const LocalAuth = await getLocalAuthentication();
     if (!LocalAuth) {
-    return {
-      available: false,
-      supportedTypes: [],
-      isBiometricEnrolled: false,
-      error: "Biometric authentication module not available",
-    };
+      return {
+        available: false,
+        supportedTypes: [],
+        isBiometricEnrolled: false,
+        error: "Biometric authentication module not available",
+      };
     }
 
     const compatible = await LocalAuth.hasHardwareAsync();
@@ -157,6 +157,77 @@ export async function authenticateBiometric(): Promise<{
 }
 
 /**
+ * Process PPG signal using ML models (PaPaGei) with fallback to traditional processing
+ *
+ * This function attempts to use ML-powered analysis first, then falls back to
+ * traditional signal processing if ML service is unavailable.
+ *
+ * @param signal - Array of pixel intensity values (0-255)
+ * @param frameRate - Frames per second (typically 14-30 fps)
+ * @param useML - Whether to attempt ML processing (default: true)
+ * @param userId - Optional user ID for ML service tracking
+ * @returns Heart rate in BPM, HRV, respiratory rate, and comprehensive signal quality
+ */
+export async function processPPGSignalWithML(
+  signal: number[],
+  frameRate = 14,
+  useML = true,
+  userId?: string
+): Promise<PPGResult> {
+  // Try ML processing first if enabled
+  if (useML) {
+    try {
+      const { ppgMLService } = await import("@/lib/services/ppgMLService");
+      const mlResult = await ppgMLService.analyzePPG(signal, frameRate, userId);
+
+      // If ML succeeded, return result
+      if (mlResult.success) {
+        return mlResult;
+      }
+
+      // If ML failed but we have a result (low quality), still return it
+      // but mark as estimate
+      if (mlResult.heartRate !== undefined) {
+        return {
+          ...mlResult,
+          isEstimate: true,
+        };
+      }
+
+      // If error is authentication-related, silently fall through to traditional processing
+      const isAuthError =
+        mlResult.error?.includes("not authenticated") ||
+        mlResult.error?.includes("User must be authenticated");
+
+      if (!isAuthError) {
+        // ML completely failed for non-auth reasons, log warning
+        console.warn(
+          "ML processing failed, falling back to traditional processing"
+        );
+      }
+      // Fall through to traditional processing
+    } catch (error: any) {
+      // Only log warning for non-authentication errors
+      const isAuthError =
+        error?.code === "unauthenticated" ||
+        error?.message?.includes("User must be authenticated") ||
+        error?.message?.includes("unauthenticated");
+
+      if (!isAuthError) {
+        console.warn(
+          "ML service unavailable, using traditional processing:",
+          error
+        );
+      }
+      // Fall through to traditional processing
+    }
+  }
+
+  // Fallback to traditional processing
+  return processPPGSignalEnhanced(signal, frameRate);
+}
+
+/**
  * Process PPG signal to extract heart rate following research guidance
  * Based on multiple research papers:
  * - Olugbenle et al. (arXiv:2412.07082v1) - Low frame-rate PPG heart rate measurement
@@ -173,7 +244,7 @@ export async function authenticateBiometric(): Promise<{
  */
 export function processPPGSignalEnhanced(
   signal: number[],
-  frameRate: number = 14
+  frameRate = 14
 ): PPGResult {
   if (!signal || signal.length < 30) {
     return {
@@ -185,7 +256,9 @@ export function processPPGSignalEnhanced(
 
   try {
     // Validate signal values
-    const validSignal = signal.filter(val => !isNaN(val) && val >= 0 && val <= 255);
+    const validSignal = signal.filter(
+      (val) => !isNaN(val) && val >= 0 && val <= 255
+    );
     if (validSignal.length < signal.length * 0.8) {
       return {
         success: false,
@@ -198,7 +271,7 @@ export function processPPGSignalEnhanced(
     const min = Math.min(...validSignal);
     const max = Math.max(...validSignal);
     const range = max - min;
-    
+
     // Raw pixel averages can have small amplitude even with usable PPG after filtering.
     // Only reject when the range is so tiny that normalization becomes unstable.
     const MIN_RAW_RANGE_FOR_NORMALIZATION = 1;
@@ -209,7 +282,7 @@ export function processPPGSignalEnhanced(
         error: "Signal quality too low",
       };
     }
-    
+
     const normalized = validSignal.map((val) => (val - min) / range);
 
     // Apply optimized filtering
@@ -235,7 +308,9 @@ export function processPPGSignalEnhanced(
       const estimate =
         Number.isFinite(heartRateAuto) && Number.isFinite(heartRatePeak)
           ? 0.6 * heartRateAuto + 0.4 * heartRatePeak
-          : (Number.isFinite(heartRateAuto) ? heartRateAuto : heartRatePeak);
+          : Number.isFinite(heartRateAuto)
+            ? heartRateAuto
+            : heartRatePeak;
       return {
         success: true,
         heartRate: Math.round(Math.max(40, Math.min(200, estimate))),
@@ -248,13 +323,18 @@ export function processPPGSignalEnhanced(
     const HIGH_BPM_THRESHOLD = 110;
     const MIN_SIGNAL_QUALITY_FOR_HIGH_BPM = 0.55;
     const heartRateSelected = heartRatePeak;
-    if (heartRateSelected >= HIGH_BPM_THRESHOLD && signalQuality < MIN_SIGNAL_QUALITY_FOR_HIGH_BPM) {
+    if (
+      heartRateSelected >= HIGH_BPM_THRESHOLD &&
+      signalQuality < MIN_SIGNAL_QUALITY_FOR_HIGH_BPM
+    ) {
       // Still return an estimate (but mark it low confidence) so the user gets a BPM.
       // Prefer autocorrelation estimate to reduce false-high BPM from noisy peaks.
       const estimate =
         Number.isFinite(heartRateAuto) && Number.isFinite(heartRateSelected)
           ? 0.6 * heartRateAuto + 0.4 * heartRateSelected
-          : (Number.isFinite(heartRateAuto) ? heartRateAuto : heartRateSelected);
+          : Number.isFinite(heartRateAuto)
+            ? heartRateAuto
+            : heartRateSelected;
       return {
         success: true,
         heartRate: Math.round(Math.max(40, Math.min(200, estimate))),
@@ -275,13 +355,18 @@ export function processPPGSignalEnhanced(
 
     // Calculate additional metrics
     const hrv = calculateHRVOptimized(filtered, frameRate);
-    const respiratoryRate = calculateRespiratoryRateOptimized(filtered, frameRate);
+    const respiratoryRate = calculateRespiratoryRateOptimized(
+      filtered,
+      frameRate
+    );
 
     return {
       success: true,
       heartRate: Math.round(heartRateSelected),
       heartRateVariability: hrv ? Math.round(hrv) : undefined,
-      respiratoryRate: respiratoryRate ? Math.round(respiratoryRate) : undefined,
+      respiratoryRate: respiratoryRate
+        ? Math.round(respiratoryRate)
+        : undefined,
       signalQuality,
     };
   } catch (error: any) {
@@ -298,10 +383,7 @@ export function processPPGSignalEnhanced(
  * Based on "Processes with multi-order filtering (2nd-6th)" from research papers
  * Implements cascaded filtering with detrending in 5-second windows
  */
-function applyOptimizedFilter(
-  signal: number[],
-  frameRate: number
-): number[] {
+function applyOptimizedFilter(signal: number[], frameRate: number): number[] {
   if (signal.length < 10) return signal;
 
   let filtered = [...signal];
@@ -311,10 +393,10 @@ function applyOptimizedFilter(
 
   // Step 2: Apply multi-order Butterworth filtering (2nd-6th order cascade)
   // Low-pass filter to remove high-frequency noise
-  filtered = applyButterworthFilter(filtered, frameRate, 'low', 5.0); // 5 Hz cutoff
+  filtered = applyButterworthFilter(filtered, frameRate, "low", 5.0); // 5 Hz cutoff
 
   // Step 3: High-pass filter to remove baseline drift
-  filtered = applyButterworthFilter(filtered, frameRate, 'high', 0.5); // 0.5 Hz cutoff
+  filtered = applyButterworthFilter(filtered, frameRate, "high", 0.5); // 0.5 Hz cutoff
 
   // Step 4: Band-pass filter for PPG frequency range (0.5-5 Hz = 30-300 BPM)
   filtered = applyBandpassFilter(filtered, frameRate, 0.5, 5.0);
@@ -331,7 +413,10 @@ function applyDetrending(signal: number[], frameRate: number): number[] {
 
   for (let i = 0; i < signal.length; i++) {
     const windowStart = Math.max(0, i - Math.floor(windowSize / 2));
-    const windowEnd = Math.min(signal.length - 1, i + Math.floor(windowSize / 2));
+    const windowEnd = Math.min(
+      signal.length - 1,
+      i + Math.floor(windowSize / 2)
+    );
 
     // Calculate linear trend in the window
     const windowData = signal.slice(windowStart, windowEnd + 1);
@@ -348,7 +433,11 @@ function applyDetrending(signal: number[], frameRate: number): number[] {
 /**
  * Calculate linear trend for detrending
  */
-function calculateLinearTrend(windowData: number[], offset: number, frameRate: number): number[] {
+function calculateLinearTrend(
+  windowData: number[],
+  offset: number,
+  frameRate: number
+): number[] {
   const n = windowData.length;
   if (n < 2) return windowData;
 
@@ -372,7 +461,7 @@ function calculateLinearTrend(windowData: number[], offset: number, frameRate: n
   const intercept = meanY - slope * meanT;
 
   // Generate trend line
-  return times.map(t => slope * t + intercept);
+  return times.map((t) => slope * t + intercept);
 }
 
 /**
@@ -381,7 +470,7 @@ function calculateLinearTrend(windowData: number[], offset: number, frameRate: n
 function applyButterworthFilter(
   signal: number[],
   frameRate: number,
-  type: 'low' | 'high',
+  type: "low" | "high",
   cutoffFreq: number
 ): number[] {
   // Simplified Butterworth filter implementation
@@ -391,7 +480,7 @@ function applyButterworthFilter(
   const filtered: number[] = [signal[0]]; // First sample unchanged
 
   for (let i = 1; i < signal.length; i++) {
-    if (type === 'low') {
+    if (type === "low") {
       // Low-pass: y[i] = alpha * x[i] + (1-alpha) * y[i-1]
       filtered.push(alpha * signal[i] + (1 - alpha) * filtered[i - 1]);
     } else {
@@ -413,15 +502,18 @@ function applyBandpassFilter(
   highCutoff: number
 ): number[] {
   // Apply low-pass then high-pass
-  let filtered = applyButterworthFilter(signal, frameRate, 'low', highCutoff);
-  filtered = applyButterworthFilter(filtered, frameRate, 'high', lowCutoff);
+  let filtered = applyButterworthFilter(signal, frameRate, "low", highCutoff);
+  filtered = applyButterworthFilter(filtered, frameRate, "high", lowCutoff);
   return filtered;
 }
 
 /**
  * Calculate Butterworth filter alpha coefficient
  */
-function calculateButterworthAlpha(frameRate: number, cutoffFreq: number): number {
+function calculateButterworthAlpha(
+  frameRate: number,
+  cutoffFreq: number
+): number {
   // Simplified alpha calculation for Butterworth filter
   const rc = 1 / (2 * Math.PI * cutoffFreq);
   const dt = 1 / frameRate;
@@ -431,22 +523,30 @@ function calculateButterworthAlpha(frameRate: number, cutoffFreq: number): numbe
 /**
  * Optimized heart rate calculation using peak detection
  */
-function calculateHeartRateOptimized(signal: number[], frameRate: number): number {
+function calculateHeartRateOptimized(
+  signal: number[],
+  frameRate: number
+): number {
   // Find peaks with minimum distance constraint
   const minPeakDistance = Math.floor(frameRate * 0.4); // Minimum 0.4s between peaks (150 BPM max)
   const peaks: number[] = [];
-  
+
   // Calculate threshold as percentage of signal range
   const min = Math.min(...signal);
   const max = Math.max(...signal);
   const threshold = min + (max - min) * 0.3; // 30% above minimum
-  
+
   for (let i = 1; i < signal.length - 1; i++) {
-    if (signal[i] > signal[i - 1] && 
-        signal[i] > signal[i + 1] && 
-        signal[i] > threshold) {
+    if (
+      signal[i] > signal[i - 1] &&
+      signal[i] > signal[i + 1] &&
+      signal[i] > threshold
+    ) {
       // Check minimum distance from last peak
-      if (peaks.length === 0 || i - peaks[peaks.length - 1] >= minPeakDistance) {
+      if (
+        peaks.length === 0 ||
+        i - peaks[peaks.length - 1] >= minPeakDistance
+      ) {
         peaks.push(i);
       }
     }
@@ -465,19 +565,21 @@ function calculateHeartRateOptimized(signal: number[], frameRate: number): numbe
   // Remove outliers (values more than 50% different from median)
   intervals.sort((a, b) => a - b);
   const median = intervals[Math.floor(intervals.length / 2)];
-  
+
   // Guard against division by zero - if median is 0, skip filtering
-  const filteredIntervals = median > 0
-    ? intervals.filter(interval => 
-        Math.abs(interval - median) / median < 0.5
-      )
-    : intervals;
+  const filteredIntervals =
+    median > 0
+      ? intervals.filter(
+          (interval) => Math.abs(interval - median) / median < 0.5
+        )
+      : intervals;
 
   if (filteredIntervals.length === 0) {
     return estimateHeartRateFromPeriod(signal, frameRate);
   }
 
-  const avgInterval = filteredIntervals.reduce((a, b) => a + b, 0) / filteredIntervals.length;
+  const avgInterval =
+    filteredIntervals.reduce((a, b) => a + b, 0) / filteredIntervals.length;
   const period = avgInterval / frameRate; // seconds
   const heartRate = 60 / period; // BPM
 
@@ -494,7 +596,7 @@ function calculateSignalQualityOptimized(signal: number[]): number {
 
   // Calculate basic statistics
   const mean = signal.reduce((a, b) => a + b, 0) / n;
-  const variance = signal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / n;
+  const variance = signal.reduce((sum, val) => sum + (val - mean) ** 2, 0) / n;
   const stdDev = Math.sqrt(variance);
 
   // Calculate Signal-to-Noise Ratio (SNR)
@@ -556,7 +658,9 @@ function estimateNoiseLevel(signal: number[]): number {
   if (noiseSignal.length === 0) return 0;
 
   const mean = noiseSignal.reduce((a, b) => a + b, 0) / noiseSignal.length;
-  const variance = noiseSignal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / noiseSignal.length;
+  const variance =
+    noiseSignal.reduce((sum, val) => sum + (val - mean) ** 2, 0) /
+    noiseSignal.length;
 
   return Math.sqrt(variance);
 }
@@ -575,7 +679,8 @@ function calculatePeriodicityScore(signal: number[]): number {
   if (peaks.length === 0) return 0;
 
   // Calculate average correlation strength
-  const avgCorrelation = peaks.reduce((sum, lag) => sum + autocorr[lag], 0) / peaks.length;
+  const avgCorrelation =
+    peaks.reduce((sum, lag) => sum + autocorr[lag], 0) / peaks.length;
 
   // Periodicity score based on correlation strength and number of peaks
   const score = Math.min(avgCorrelation * Math.min(peaks.length / 5, 1), 1);
@@ -588,7 +693,8 @@ function calculatePeriodicityScore(signal: number[]): number {
  */
 function calculateAutocorrelation(signal: number[], maxLag: number): number[] {
   const mean = signal.reduce((a, b) => a + b, 0) / signal.length;
-  const variance = signal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / signal.length;
+  const variance =
+    signal.reduce((sum, val) => sum + (val - mean) ** 2, 0) / signal.length;
 
   const autocorr: number[] = [];
 
@@ -614,7 +720,11 @@ function findPeaks(array: number[], threshold: number): number[] {
   const peaks: number[] = [];
 
   for (let i = 1; i < array.length - 1; i++) {
-    if (array[i] > array[i - 1] && array[i] > array[i + 1] && array[i] > threshold) {
+    if (
+      array[i] > array[i - 1] &&
+      array[i] > array[i + 1] &&
+      array[i] > threshold
+    ) {
       peaks.push(i);
     }
   }
@@ -638,15 +748,22 @@ function calculateStabilityScore(signal: number[]): number {
   }
 
   // Calculate mean and std for each segment
-  const segmentStats = segments.map(segment => {
+  const segmentStats = segments.map((segment) => {
     const mean = segment.reduce((a, b) => a + b, 0) / segment.length;
-    const variance = segment.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / segment.length;
+    const variance =
+      segment.reduce((sum, val) => sum + (val - mean) ** 2, 0) / segment.length;
     return { mean, std: Math.sqrt(variance) };
   });
 
   // Check consistency across segments
-  const overallMean = segmentStats.reduce((sum, stat) => sum + stat.mean, 0) / segmentStats.length;
-  const meanVariation = segmentStats.reduce((sum, stat) => sum + Math.pow(stat.mean - overallMean, 2), 0) / segmentStats.length;
+  const overallMean =
+    segmentStats.reduce((sum, stat) => sum + stat.mean, 0) /
+    segmentStats.length;
+  const meanVariation =
+    segmentStats.reduce(
+      (sum, stat) => sum + (stat.mean - overallMean) ** 2,
+      0
+    ) / segmentStats.length;
   const meanStd = Math.sqrt(meanVariation);
 
   // Lower variation = higher stability
@@ -666,8 +783,8 @@ function calculateSpectralConcentration(signal: number[]): number {
   const psd = estimatePSD(signal);
 
   // PPG frequency range: 0.8-3.5 Hz (48-210 BPM)
-  const ppgStart = Math.floor(psd.length * 0.8 / (signal.length / 2));
-  const ppgEnd = Math.floor(psd.length * 3.5 / (signal.length / 2));
+  const ppgStart = Math.floor((psd.length * 0.8) / (signal.length / 2));
+  const ppgEnd = Math.floor((psd.length * 3.5) / (signal.length / 2));
 
   if (ppgStart >= psd.length || ppgEnd >= psd.length) return 0;
 
@@ -683,38 +800,47 @@ function calculateSpectralConcentration(signal: number[]): number {
  */
 function estimatePSD(signal: number[]): number[] {
   // Very simplified PSD estimation using autocorrelation
-  const autocorr = calculateAutocorrelation(signal, Math.floor(signal.length / 4));
-  return autocorr.map(val => Math.abs(val)); // Magnitude
+  const autocorr = calculateAutocorrelation(
+    signal,
+    Math.floor(signal.length / 4)
+  );
+  return autocorr.map((val) => Math.abs(val)); // Magnitude
 }
 
 /**
  * Optimized HRV calculation
  */
-function calculateHRVOptimized(signal: number[], frameRate: number): number | undefined {
+function calculateHRVOptimized(
+  signal: number[],
+  frameRate: number
+): number | undefined {
   try {
     const peaks: number[] = [];
     const threshold = 0.3; // 30% of signal range
-    
+
     for (let i = 1; i < signal.length - 1; i++) {
-      if (signal[i] > signal[i - 1] && 
-          signal[i] > signal[i + 1] && 
-          signal[i] > threshold) {
+      if (
+        signal[i] > signal[i - 1] &&
+        signal[i] > signal[i + 1] &&
+        signal[i] > threshold
+      ) {
         peaks.push(i);
       }
     }
 
-    if (peaks.length < 3) return undefined;
+    if (peaks.length < 3) return;
 
     // Calculate R-R intervals in milliseconds
     const rrIntervals: number[] = [];
     for (let i = 1; i < peaks.length; i++) {
       const interval = (peaks[i] - peaks[i - 1]) * (1000 / frameRate);
-      if (interval > 300 && interval < 2000) { // Valid R-R interval range
+      if (interval > 300 && interval < 2000) {
+        // Valid R-R interval range
         rrIntervals.push(interval);
       }
     }
 
-    if (rrIntervals.length < 2) return undefined;
+    if (rrIntervals.length < 2) return;
 
     // Calculate RMSSD
     let sumSquaredDiffs = 0;
@@ -726,7 +852,7 @@ function calculateHRVOptimized(signal: number[], frameRate: number): number | un
     const rmssd = Math.sqrt(sumSquaredDiffs / (rrIntervals.length - 1));
     return rmssd;
   } catch {
-    return undefined;
+    return;
   }
 }
 
@@ -747,7 +873,7 @@ function calculateRespiratoryRateOptimized(
       let count = 0;
       const start = Math.max(0, i - windowSize);
       const end = Math.min(signal.length - 1, i + windowSize);
-      
+
       for (let j = start; j <= end; j++) {
         sum += signal[j];
         count++;
@@ -758,16 +884,19 @@ function calculateRespiratoryRateOptimized(
     // Find breathing peaks with appropriate spacing
     const minBreathDistance = Math.floor(frameRate * 2); // Minimum 2s between breaths (30 breaths/min max)
     const breathingPeaks: number[] = [];
-    
+
     for (let i = 1; i < envelope.length - 1; i++) {
-      if (envelope[i] > envelope[i - 1] && envelope[i] > envelope[i + 1]) {
-        if (breathingPeaks.length === 0 || i - breathingPeaks[breathingPeaks.length - 1] >= minBreathDistance) {
-          breathingPeaks.push(i);
-        }
+      if (
+        envelope[i] > envelope[i - 1] &&
+        envelope[i] > envelope[i + 1] &&
+        (breathingPeaks.length === 0 ||
+          i - breathingPeaks[breathingPeaks.length - 1] >= minBreathDistance)
+      ) {
+        breathingPeaks.push(i);
       }
     }
 
-    if (breathingPeaks.length < 2) return undefined;
+    if (breathingPeaks.length < 2) return;
 
     // Calculate average breathing interval
     const intervals: number[] = [];
@@ -781,19 +910,22 @@ function calculateRespiratoryRateOptimized(
 
     // Validate respiratory rate (normal range: 6-30 breaths/min)
     if (respiratoryRate < 6 || respiratoryRate > 30) {
-      return undefined;
+      return;
     }
 
     return respiratoryRate;
   } catch {
-    return undefined;
+    return;
   }
 }
 
 /**
  * Estimate heart rate from signal period
  */
-function estimateHeartRateFromPeriod(signal: number[], frameRate: number): number {
+function estimateHeartRateFromPeriod(
+  signal: number[],
+  frameRate: number
+): number {
   // Autocorrelation-based estimator (mean-centered + normalized).
   // This avoids bias toward longer periods that can happen with unnormalized dot products.
   const n = signal.length;
@@ -804,10 +936,14 @@ function estimateHeartRateFromPeriod(signal: number[], frameRate: number): numbe
   const variance = signal.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
   if (variance <= 0) return 60; // fallback
 
-  let maxCorrelation = -Infinity;
+  let maxCorrelation = Number.NEGATIVE_INFINITY;
   let bestPeriod = frameRate; // Default to 1 second (60 BPM)
 
-  for (let period = minPeriod; period <= maxPeriod && period < n / 2; period++) {
+  for (
+    let period = minPeriod;
+    period <= maxPeriod && period < n / 2;
+    period++
+  ) {
     let correlation = 0;
     let count = 0;
 
@@ -826,12 +962,10 @@ function estimateHeartRateFromPeriod(signal: number[], frameRate: number): numbe
   return (60 * frameRate) / bestPeriod;
 }
 
-
-
 /**
  * Multimodal fusion: Combine fingerprint and PPG scores
  * Based on Multimodal Fusion research paper
- * 
+ *
  * @param fingerprintScore - Score from biometric authentication (0-1)
  * @param ppgScore - Score from PPG heart rate match (0-1)
  * @param ppgQuality - Signal quality from PPG (0-1)
@@ -869,7 +1003,7 @@ export function fuseMultimodalScores(
 export function compareHeartRate(
   currentHR: number,
   enrolledHR: number,
-  tolerance: number = 10
+  tolerance = 10
 ): number {
   const difference = Math.abs(currentHR - enrolledHR);
   const maxDifference = tolerance * 2; // Allow ±tolerance BPM
@@ -882,4 +1016,3 @@ export function compareHeartRate(
   const score = Math.max(0, 1.0 - (difference - tolerance) / tolerance);
   return score;
 }
-

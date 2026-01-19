@@ -1,7 +1,7 @@
 /**
  * Zeina Service Type Definitions
  * Core types for HIPAA-safe AI analysis
- * 
+ *
  * PHI BOUNDARY: This file defines data structures.
  * - AlertContext: May contain PHI (raw backend data)
  * - ZeinaInput: NO PHI (sanitized, normalized)
@@ -15,16 +15,22 @@
 export interface AlertContext {
   alertId: string;
   patientId: string;
-  alertType: 'vital' | 'symptom' | 'fall' | 'trend' | 'medication';
-  severity: 'info' | 'warning' | 'critical';
-  vitalType?: 'heartRate' | 'bloodPressure' | 'respiratoryRate' | 'oxygenSaturation' | 'bodyTemperature' | 'weight';
+  alertType: "vital" | "symptom" | "fall" | "trend" | "medication";
+  severity: "info" | "warning" | "critical";
+  vitalType?:
+    | "heartRate"
+    | "bloodPressure"
+    | "respiratoryRate"
+    | "oxygenSaturation"
+    | "bodyTemperature"
+    | "weight";
   vitalValue?: number;
   vitalUnit?: string;
-  trend?: 'increasing' | 'decreasing' | 'stable';
+  trend?: "increasing" | "decreasing" | "stable";
   timestamp?: Date;
   // Additional context (all stripped before AI)
   patientAge?: number;
-  patientGender?: 'male' | 'female' | 'other';
+  patientGender?: "male" | "female" | "other";
   medicationCount?: number;
   conditionCount?: number;
 }
@@ -37,10 +43,10 @@ export interface ZeinaInput {
   alertType: string;
   severity: string;
   vitalType?: string;
-  vitalLevel?: 'very_low' | 'low' | 'normal' | 'high' | 'very_high'; // Bucketed value
-  trend?: 'increasing' | 'decreasing' | 'stable';
-  ageGroup?: 'child' | 'adult' | 'senior'; // Bucketed age
-  gender?: 'male' | 'female' | 'other';
+  vitalLevel?: "very_low" | "low" | "normal" | "high" | "very_high"; // Bucketed value
+  trend?: "increasing" | "decreasing" | "stable";
+  ageGroup?: "child" | "adult" | "senior"; // Bucketed age
+  gender?: "male" | "female" | "other";
   hasMedications?: boolean;
   hasConditions?: boolean;
   context?: string; // Generic contextual info, no identifying details
@@ -51,34 +57,34 @@ export interface ZeinaInput {
  */
 export enum RecommendedActionCode {
   // Monitoring actions
-  MONITOR = 'MONITOR',
-  CHECK_VITALS = 'CHECK_VITALS',
-  RECHECK_IN_1H = 'RECHECK_IN_1H',
-  RECHECK_IN_24H = 'RECHECK_IN_24H',
-  
+  MONITOR = "MONITOR",
+  CHECK_VITALS = "CHECK_VITALS",
+  RECHECK_IN_1H = "RECHECK_IN_1H",
+  RECHECK_IN_24H = "RECHECK_IN_24H",
+
   // Communication actions
-  CONTACT_PATIENT = 'CONTACT_PATIENT',
-  UPDATE_FAMILY = 'UPDATE_FAMILY',
-  NOTIFY_CAREGIVER = 'NOTIFY_CAREGIVER',
-  
+  CONTACT_PATIENT = "CONTACT_PATIENT",
+  UPDATE_FAMILY = "UPDATE_FAMILY",
+  NOTIFY_CAREGIVER = "NOTIFY_CAREGIVER",
+
   // Clinical actions
-  REVIEW_MEDICATIONS = 'REVIEW_MEDICATIONS',
-  REVIEW_HISTORY = 'REVIEW_HISTORY',
-  ASSESS_SYMPTOMS = 'ASSESS_SYMPTOMS',
-  
+  REVIEW_MEDICATIONS = "REVIEW_MEDICATIONS",
+  REVIEW_HISTORY = "REVIEW_HISTORY",
+  ASSESS_SYMPTOMS = "ASSESS_SYMPTOMS",
+
   // Escalation actions
-  SCHEDULE_CONSULTATION = 'SCHEDULE_CONSULTATION',
-  CONSIDER_EMERGENCY = 'CONSIDER_EMERGENCY',
-  IMMEDIATE_ATTENTION = 'IMMEDIATE_ATTENTION',
+  SCHEDULE_CONSULTATION = "SCHEDULE_CONSULTATION",
+  CONSIDER_EMERGENCY = "CONSIDER_EMERGENCY",
+  IMMEDIATE_ATTENTION = "IMMEDIATE_ATTENTION",
 }
 
 /**
  * Escalation levels
  */
 export enum EscalationLevel {
-  NONE = 'none',           // Informational only
-  CAREGIVER = 'caregiver', // Notify caregiver
-  EMERGENCY = 'emergency',  // Immediate medical attention
+  NONE = "none", // Informational only
+  CAREGIVER = "caregiver", // Notify caregiver
+  EMERGENCY = "emergency", // Immediate medical attention
 }
 
 /**
@@ -104,7 +110,7 @@ export interface ZeinaOutput {
   recommendedActionCode: RecommendedActionCode;
   escalationLevel: EscalationLevel;
   metadata: {
-    analysisType: 'ai' | 'deterministic';
+    analysisType: "ai" | "deterministic";
     model?: string;
     timestamp: Date;
     version: string;
@@ -143,11 +149,11 @@ export interface GuardrailResult {
  */
 export interface BackendActions {
   sendAlert: boolean;
-  alertRecipients: ('caregiver' | 'family' | 'emergency')[];
+  alertRecipients: ("caregiver" | "family" | "emergency")[];
   appCTA?: {
     action: string;
     label: string;
-    priority: 'low' | 'medium' | 'high' | 'critical';
+    priority: "low" | "medium" | "high" | "critical";
   };
   autoActions: string[]; // List of automated actions to trigger
 }
@@ -159,7 +165,7 @@ export interface ZeinaMetrics {
   traceId: string;
   durationMs: number;
   success: boolean;
-  analysisType: 'ai' | 'deterministic';
+  analysisType: "ai" | "deterministic";
   guardrailBlocked: boolean;
   errorType?: string;
 }

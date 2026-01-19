@@ -222,7 +222,7 @@ class HealthAnalyticsService {
     try {
       const docRef = doc(db, BASELINES_COLLECTION, `${userId}_${vitalType}`);
       const docSnap = await getDoc(docRef);
-      
+
       if (!docSnap.exists()) {
         return null;
       }
@@ -233,7 +233,11 @@ class HealthAnalyticsService {
         lastUpdated: data.lastUpdated.toDate(),
       } as PersonalizedBaseline;
     } catch (error) {
-      logger.error("Failed to get baseline", { userId, vitalType, error }, "HealthAnalytics");
+      logger.error(
+        "Failed to get baseline",
+        { userId, vitalType, error },
+        "HealthAnalytics"
+      );
       return null;
     }
   }
@@ -248,9 +252,9 @@ class HealthAnalyticsService {
     }
 
     try {
-      const values = readings.map(r => r.value).sort((a, b) => a - b);
+      const values = readings.map((r) => r.value).sort((a, b) => a - b);
       const mean = values.reduce((a, b) => a + b, 0) / values.length;
-      const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+      const squaredDiffs = values.map((v) => (v - mean) ** 2);
       const variance = squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
       const standardDeviation = Math.sqrt(variance);
 
@@ -277,10 +281,18 @@ class HealthAnalyticsService {
         lastUpdated: Timestamp.fromDate(baseline.lastUpdated),
       });
 
-      logger.info("Updated patient baseline", { userId, vitalType, mean, standardDeviation }, "HealthAnalytics");
+      logger.info(
+        "Updated patient baseline",
+        { userId, vitalType, mean, standardDeviation },
+        "HealthAnalytics"
+      );
       return baseline;
     } catch (error) {
-      logger.error("Failed to update baseline", { userId, vitalType, error }, "HealthAnalytics");
+      logger.error(
+        "Failed to update baseline",
+        { userId, vitalType, error },
+        "HealthAnalytics"
+      );
       return null;
     }
   }
@@ -290,10 +302,11 @@ class HealthAnalyticsService {
     const lower = Math.floor(index);
     const upper = Math.ceil(index);
     const weight = index - lower;
-    
-    if (upper >= sortedValues.length) return sortedValues[sortedValues.length - 1];
+
+    if (upper >= sortedValues.length)
+      return sortedValues[sortedValues.length - 1];
     if (lower < 0) return sortedValues[0];
-    
+
     return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
   }
 
@@ -313,7 +326,8 @@ class HealthAnalyticsService {
 
     const zScore = (reading.value - baseline.mean) / baseline.standardDeviation;
     const absZScore = Math.abs(zScore);
-    const deviationFromBaseline = ((reading.value - baseline.mean) / baseline.mean) * 100;
+    const deviationFromBaseline =
+      ((reading.value - baseline.mean) / baseline.mean) * 100;
 
     const confidence = Math.min(baseline.sampleCount / 100, 1);
     const adjustedThreshold = defaultThreshold * (2 - confidence);
@@ -341,7 +355,7 @@ class HealthAnalyticsService {
     isArabic = false
   ): Promise<HealthScore> {
     const now = new Date();
-    
+
     const cardiovascular = this.calculateComponentScore(recentVitals, [
       "heart_rate",
       "systolic_bp",
@@ -371,12 +385,12 @@ class HealthAnalyticsService {
       activity: 0.15,
     };
 
-    const rawScore = 
+    const rawScore =
       cardiovascular * weights.cardiovascular +
       respiratory * weights.respiratory +
       metabolic * weights.metabolic +
       activity * weights.activity;
-    
+
     const overallScore = Math.max(0, Math.min(100, Math.round(rawScore)));
 
     const riskFactors = this.identifyRiskFactors(recentVitals, isArabic);
@@ -402,7 +416,11 @@ class HealthAnalyticsService {
         timestamp: Timestamp.fromDate(now),
       });
     } catch (error) {
-      logger.error("Failed to save health score", { userId, error }, "HealthAnalytics");
+      logger.error(
+        "Failed to save health score",
+        { userId, error },
+        "HealthAnalytics"
+      );
     }
 
     return healthScore;
@@ -430,7 +448,10 @@ class HealthAnalyticsService {
   }
 
   private scoreVitalReading(reading: VitalReading): number {
-    const optimalRanges: Record<string, { min: number; max: number; optimal: number }> = {
+    const optimalRanges: Record<
+      string,
+      { min: number; max: number; optimal: number }
+    > = {
       heart_rate: { min: 50, max: 100, optimal: 70 },
       systolic_bp: { min: 90, max: 140, optimal: 120 },
       diastolic_bp: { min: 60, max: 90, optimal: 80 },
@@ -438,7 +459,7 @@ class HealthAnalyticsService {
       respiratory_rate: { min: 12, max: 20, optimal: 16 },
       blood_glucose: { min: 70, max: 140, optimal: 100 },
       temperature: { min: 36.1, max: 37.2, optimal: 36.6 },
-      steps: { min: 0, max: 15000, optimal: 10000 },
+      steps: { min: 0, max: 15_000, optimal: 10_000 },
       active_minutes: { min: 0, max: 120, optimal: 60 },
       sleep_hours: { min: 4, max: 10, optimal: 8 },
     };
@@ -447,47 +468,63 @@ class HealthAnalyticsService {
     if (!range) return 75;
 
     if (reading.value < range.min || reading.value > range.max) {
-      const deviation = reading.value < range.min
-        ? (range.min - reading.value) / Math.max(range.min, 1)
-        : (reading.value - range.max) / Math.max(range.max, 1);
+      const deviation =
+        reading.value < range.min
+          ? (range.min - reading.value) / Math.max(range.min, 1)
+          : (reading.value - range.max) / Math.max(range.max, 1);
       return Math.max(0, Math.min(100, 100 - Math.abs(deviation) * 50));
     }
 
     const distanceFromOptimal = Math.abs(reading.value - range.optimal);
-    const maxDistance = Math.max(range.optimal - range.min, range.max - range.optimal);
+    const maxDistance = Math.max(
+      range.optimal - range.min,
+      range.max - range.optimal
+    );
     const normalizedDistance = distanceFromOptimal / maxDistance;
 
     return Math.round(100 - normalizedDistance * 25);
   }
 
-  private identifyRiskFactors(vitals: Map<string, VitalReading[]>, isArabic = false): string[] {
+  private identifyRiskFactors(
+    vitals: Map<string, VitalReading[]>,
+    isArabic = false
+  ): string[] {
     const riskFactors: string[] = [];
 
     const hrReadings = vitals.get("heart_rate");
     if (hrReadings && hrReadings.length > 0) {
-      const avgHR = hrReadings.reduce((a, b) => a + b.value, 0) / hrReadings.length;
-      if (avgHR > 100) riskFactors.push(getLocalizedText("elevatedHeartRate", isArabic));
-      if (avgHR < 50) riskFactors.push(getLocalizedText("lowHeartRate", isArabic));
+      const avgHR =
+        hrReadings.reduce((a, b) => a + b.value, 0) / hrReadings.length;
+      if (avgHR > 100)
+        riskFactors.push(getLocalizedText("elevatedHeartRate", isArabic));
+      if (avgHR < 50)
+        riskFactors.push(getLocalizedText("lowHeartRate", isArabic));
     }
 
     const bpReadings = vitals.get("systolic_bp");
     if (bpReadings && bpReadings.length > 0) {
-      const avgBP = bpReadings.reduce((a, b) => a + b.value, 0) / bpReadings.length;
-      if (avgBP > 140) riskFactors.push(getLocalizedText("elevatedBloodPressure", isArabic));
-      if (avgBP < 90) riskFactors.push(getLocalizedText("lowBloodPressure", isArabic));
+      const avgBP =
+        bpReadings.reduce((a, b) => a + b.value, 0) / bpReadings.length;
+      if (avgBP > 140)
+        riskFactors.push(getLocalizedText("elevatedBloodPressure", isArabic));
+      if (avgBP < 90)
+        riskFactors.push(getLocalizedText("lowBloodPressure", isArabic));
     }
 
     const o2Readings = vitals.get("blood_oxygen");
     if (o2Readings && o2Readings.length > 0) {
-      const avgO2 = o2Readings.reduce((a, b) => a + b.value, 0) / o2Readings.length;
-      if (avgO2 < 95) riskFactors.push(getLocalizedText("lowOxygenSaturation", isArabic));
+      const avgO2 =
+        o2Readings.reduce((a, b) => a + b.value, 0) / o2Readings.length;
+      if (avgO2 < 95)
+        riskFactors.push(getLocalizedText("lowOxygenSaturation", isArabic));
     }
 
     const glucoseReadings = vitals.get("blood_glucose");
     if (glucoseReadings && glucoseReadings.length > 0) {
-      const values = glucoseReadings.map(r => r.value);
+      const values = glucoseReadings.map((r) => r.value);
       const variance = this.calculateVariance(values);
-      if (variance > 500) riskFactors.push(getLocalizedText("highGlucoseVariability", isArabic));
+      if (variance > 500)
+        riskFactors.push(getLocalizedText("highGlucoseVariability", isArabic));
     }
 
     return riskFactors;
@@ -496,7 +533,9 @@ class HealthAnalyticsService {
   private calculateVariance(values: number[]): number {
     if (values.length === 0) return 0;
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
-    return values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    return (
+      values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length
+    );
   }
 
   private async calculateScoreTrend(
@@ -520,7 +559,7 @@ class HealthAnalyticsService {
         return "stable";
       }
 
-      const scores = snapshot.docs.map(d => d.data().overallScore as number);
+      const scores = snapshot.docs.map((d) => d.data().overallScore as number);
       const avgPastScore = scores.reduce((a, b) => a + b, 0) / scores.length;
       const diff = currentScore - avgPastScore;
 
@@ -528,7 +567,11 @@ class HealthAnalyticsService {
       if (diff < -5) return "declining";
       return "stable";
     } catch (error) {
-      logger.error("Failed to calculate score trend", { userId, error }, "HealthAnalytics");
+      logger.error(
+        "Failed to calculate score trend",
+        { userId, error },
+        "HealthAnalytics"
+      );
       return "stable";
     }
   }
@@ -540,7 +583,7 @@ class HealthAnalyticsService {
     vitalType2: string
   ): VitalCorrelation {
     const paired = this.pairReadingsByTime(readings1, readings2, 5 * 60 * 1000);
-    
+
     if (paired.length < 10) {
       return {
         vitalType1,
@@ -552,8 +595,8 @@ class HealthAnalyticsService {
       };
     }
 
-    const values1 = paired.map(p => p[0]);
-    const values2 = paired.map(p => p[1]);
+    const values1 = paired.map((p) => p[0]);
+    const values2 = paired.map((p) => p[1]);
 
     const mean1 = values1.reduce((a, b) => a + b, 0) / values1.length;
     const mean2 = values2.reduce((a, b) => a + b, 0) / values2.length;
@@ -571,7 +614,8 @@ class HealthAnalyticsService {
     }
 
     const denominator = Math.sqrt(sumSq1 * sumSq2);
-    const correlationCoefficient = denominator === 0 ? 0 : numerator / denominator;
+    const correlationCoefficient =
+      denominator === 0 ? 0 : numerator / denominator;
 
     const absCorr = Math.abs(correlationCoefficient);
     let strength: "strong" | "moderate" | "weak" | "none";
@@ -601,15 +645,20 @@ class HealthAnalyticsService {
     maxTimeDiffMs: number
   ): [number, number][] {
     const pairs: [number, number][] = [];
-    
+
     for (const r1 of readings1) {
-      const closest = readings2.reduce((best, r2) => {
-        const diff = Math.abs(r1.timestamp.getTime() - r2.timestamp.getTime());
-        if (diff < best.diff && diff <= maxTimeDiffMs) {
-          return { reading: r2, diff };
-        }
-        return best;
-      }, { reading: null as VitalReading | null, diff: maxTimeDiffMs + 1 });
+      const closest = readings2.reduce(
+        (best, r2) => {
+          const diff = Math.abs(
+            r1.timestamp.getTime() - r2.timestamp.getTime()
+          );
+          if (diff < best.diff && diff <= maxTimeDiffMs) {
+            return { reading: r2, diff };
+          }
+          return best;
+        },
+        { reading: null as VitalReading | null, diff: maxTimeDiffMs + 1 }
+      );
 
       if (closest.reading) {
         pairs.push([r1.value, closest.reading.value]);
@@ -630,24 +679,32 @@ class HealthAnalyticsService {
 
     for (const [vitalType, readings] of recentVitals) {
       if (readings.length === 0) continue;
-      
+
       const baseline = baselines.get(vitalType);
       const latestReading = readings[readings.length - 1];
-      
+
       const anomaly = this.detectAnomaly(latestReading, baseline || null);
       if (anomaly.isAnomaly) {
-        const severity = Math.abs(anomaly.zScore) > 4 ? "high" : 
-                        Math.abs(anomaly.zScore) > 3 ? "moderate" : "low";
+        const severity =
+          Math.abs(anomaly.zScore) > 4
+            ? "high"
+            : Math.abs(anomaly.zScore) > 3
+              ? "moderate"
+              : "low";
         const contribution = Math.min(Math.abs(anomaly.zScore) * 10, 30);
-        
+
         const anomalyLabel = isArabic ? "شذوذ" : "anomaly";
         factors.push({
           name: `${this.formatVitalName(vitalType, isArabic)} ${anomalyLabel}`,
           contribution,
           severity,
-          description: anomaly.message || (isArabic ? `تم اكتشاف قراءة غير طبيعية في ${this.formatVitalName(vitalType, isArabic)}` : `Abnormal ${vitalType} reading detected`),
+          description:
+            anomaly.message ||
+            (isArabic
+              ? `تم اكتشاف قراءة غير طبيعية في ${this.formatVitalName(vitalType, isArabic)}`
+              : `Abnormal ${vitalType} reading detected`),
         });
-        
+
         totalRiskScore += contribution;
       }
 
@@ -657,7 +714,12 @@ class HealthAnalyticsService {
         factors.push({
           name: `${this.formatVitalName(vitalType, isArabic)} ${trendLabel}`,
           contribution: trend.concernLevel * 10,
-          severity: trend.concernLevel >= 2 ? "high" : trend.concernLevel >= 1 ? "moderate" : "low",
+          severity:
+            trend.concernLevel >= 2
+              ? "high"
+              : trend.concernLevel >= 1
+                ? "moderate"
+                : "low",
           description: trend.description,
         });
         totalRiskScore += trend.concernLevel * 10;
@@ -671,7 +733,11 @@ class HealthAnalyticsService {
     else if (riskScore >= 25) overallRisk = "moderate";
     else overallRisk = "low";
 
-    const recommendations = this.generateRiskRecommendations(factors, overallRisk, isArabic);
+    const recommendations = this.generateRiskRecommendations(
+      factors,
+      overallRisk,
+      isArabic
+    );
 
     const assessment: RiskAssessment = {
       userId,
@@ -688,19 +754,32 @@ class HealthAnalyticsService {
         timestamp: Timestamp.fromDate(assessment.timestamp),
       });
     } catch (error) {
-      logger.error("Failed to save risk assessment", { userId, error }, "HealthAnalytics");
+      logger.error(
+        "Failed to save risk assessment",
+        { userId, error },
+        "HealthAnalytics"
+      );
     }
 
     return assessment;
   }
 
-  private calculateShortTermTrend(readings: VitalReading[], isArabic = false): { concernLevel: number; description: string } {
+  private calculateShortTermTrend(
+    readings: VitalReading[],
+    isArabic = false
+  ): { concernLevel: number; description: string } {
     if (readings.length < 5) {
-      return { concernLevel: 0, description: getLocalizedText("insufficientData", isArabic) };
+      return {
+        concernLevel: 0,
+        description: getLocalizedText("insufficientData", isArabic),
+      };
     }
 
-    const recentValues = readings.slice(-10).map(r => r.value);
-    const firstHalf = recentValues.slice(0, Math.floor(recentValues.length / 2));
+    const recentValues = readings.slice(-10).map((r) => r.value);
+    const firstHalf = recentValues.slice(
+      0,
+      Math.floor(recentValues.length / 2)
+    );
     const secondHalf = recentValues.slice(Math.floor(recentValues.length / 2));
 
     const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
@@ -708,45 +787,79 @@ class HealthAnalyticsService {
     const changePercent = ((secondAvg - firstAvg) / firstAvg) * 100;
 
     if (Math.abs(changePercent) < 5) {
-      return { concernLevel: 0, description: getLocalizedText("stableReadings", isArabic) };
+      return {
+        concernLevel: 0,
+        description: getLocalizedText("stableReadings", isArabic),
+      };
     }
 
-    const changeText = isArabic ? `(${Math.abs(changePercent).toFixed(1)}% تغيير)` : `(${Math.abs(changePercent).toFixed(1)}% change)`;
-    
+    const changeText = isArabic
+      ? `(${Math.abs(changePercent).toFixed(1)}% تغيير)`
+      : `(${Math.abs(changePercent).toFixed(1)}% change)`;
+
     if (changePercent > 0) {
       if (Math.abs(changePercent) >= 20) {
-        return { concernLevel: 3, description: `${getLocalizedText("rapidlyIncreasing", isArabic)} ${changeText}` };
+        return {
+          concernLevel: 3,
+          description: `${getLocalizedText("rapidlyIncreasing", isArabic)} ${changeText}`,
+        };
       }
       if (Math.abs(changePercent) >= 10) {
-        return { concernLevel: 2, description: `${getLocalizedText("significantlyIncreasing", isArabic)} ${changeText}` };
+        return {
+          concernLevel: 2,
+          description: `${getLocalizedText("significantlyIncreasing", isArabic)} ${changeText}`,
+        };
       }
-      return { concernLevel: 1, description: `${getLocalizedText("slightlyIncreasing", isArabic)} ${changeText}` };
-    } else {
-      if (Math.abs(changePercent) >= 20) {
-        return { concernLevel: 3, description: `${getLocalizedText("rapidlyDecreasing", isArabic)} ${changeText}` };
-      }
-      if (Math.abs(changePercent) >= 10) {
-        return { concernLevel: 2, description: `${getLocalizedText("significantlyDecreasing", isArabic)} ${changeText}` };
-      }
-      return { concernLevel: 1, description: `${getLocalizedText("slightlyDecreasing", isArabic)} ${changeText}` };
+      return {
+        concernLevel: 1,
+        description: `${getLocalizedText("slightlyIncreasing", isArabic)} ${changeText}`,
+      };
     }
+    if (Math.abs(changePercent) >= 20) {
+      return {
+        concernLevel: 3,
+        description: `${getLocalizedText("rapidlyDecreasing", isArabic)} ${changeText}`,
+      };
+    }
+    if (Math.abs(changePercent) >= 10) {
+      return {
+        concernLevel: 2,
+        description: `${getLocalizedText("significantlyDecreasing", isArabic)} ${changeText}`,
+      };
+    }
+    return {
+      concernLevel: 1,
+      description: `${getLocalizedText("slightlyDecreasing", isArabic)} ${changeText}`,
+    };
   }
 
-  private generateRiskRecommendations(factors: RiskFactor[], overallRisk: string, isArabic = false): string[] {
+  private generateRiskRecommendations(
+    factors: RiskFactor[],
+    overallRisk: string,
+    isArabic = false
+  ): string[] {
     const recommendations: string[] = [];
 
     if (overallRisk === "critical") {
       recommendations.push(getLocalizedText("seekImmediateMedical", isArabic));
-      recommendations.push(getLocalizedText("contactProviderUrgently", isArabic));
+      recommendations.push(
+        getLocalizedText("contactProviderUrgently", isArabic)
+      );
     } else if (overallRisk === "high") {
       recommendations.push(getLocalizedText("scheduleConsultation", isArabic));
-      recommendations.push(getLocalizedText("monitorVitalsFrequently", isArabic));
+      recommendations.push(
+        getLocalizedText("monitorVitalsFrequently", isArabic)
+      );
     }
 
     for (const factor of factors) {
       if (factor.name.includes("heart_rate") && factor.severity !== "low") {
-        recommendations.push(getLocalizedText("avoidCaffeineActivity", isArabic));
-        recommendations.push(getLocalizedText("practiceDeepBreathing", isArabic));
+        recommendations.push(
+          getLocalizedText("avoidCaffeineActivity", isArabic)
+        );
+        recommendations.push(
+          getLocalizedText("practiceDeepBreathing", isArabic)
+        );
       }
       if (factor.name.includes("blood_pressure") && factor.severity !== "low") {
         recommendations.push(getLocalizedText("reduceSodiumIntake", isArabic));
@@ -769,7 +882,10 @@ class HealthAnalyticsService {
     const names: Record<string, { en: string; ar: string }> = {
       heart_rate: { en: "Heart Rate", ar: "معدل ضربات القلب" },
       systolic_bp: { en: "Systolic Blood Pressure", ar: "ضغط الدم الانقباضي" },
-      diastolic_bp: { en: "Diastolic Blood Pressure", ar: "ضغط الدم الانبساطي" },
+      diastolic_bp: {
+        en: "Diastolic Blood Pressure",
+        ar: "ضغط الدم الانبساطي",
+      },
       blood_oxygen: { en: "Blood Oxygen", ar: "أكسجين الدم" },
       respiratory_rate: { en: "Respiratory Rate", ar: "معدل التنفس" },
       blood_glucose: { en: "Blood Glucose", ar: "سكر الدم" },

@@ -12,14 +12,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import TagInput from "@/app/components/TagInput";
+import { Button } from "@/components/design-system";
+import {
+  Caption,
+  Heading,
+  Text as TypographyText,
+} from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { labResultService } from "@/lib/services/labResultService";
 import type { LabResult, LabResultValue } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import { Button } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
-import TagInput from "@/app/components/TagInput";
 
 const COMMON_LABS: Array<{
   en: string;
@@ -27,67 +31,155 @@ const COMMON_LABS: Array<{
   testType: "blood" | "urine" | "imaging" | "other";
 }> = [
   // Blood Tests
-  { en: "Complete Blood Count (CBC)", ar: "فحص الدم الكامل", testType: "blood" },
-  { en: "Basic Metabolic Panel (BMP)", ar: "لوحة التمثيل الغذائي الأساسية", testType: "blood" },
-  { en: "Comprehensive Metabolic Panel (CMP)", ar: "لوحة التمثيل الغذائي الشاملة", testType: "blood" },
+  {
+    en: "Complete Blood Count (CBC)",
+    ar: "فحص الدم الكامل",
+    testType: "blood",
+  },
+  {
+    en: "Basic Metabolic Panel (BMP)",
+    ar: "لوحة التمثيل الغذائي الأساسية",
+    testType: "blood",
+  },
+  {
+    en: "Comprehensive Metabolic Panel (CMP)",
+    ar: "لوحة التمثيل الغذائي الشاملة",
+    testType: "blood",
+  },
   { en: "Lipid Panel", ar: "لوحة الدهون", testType: "blood" },
-  { en: "Liver Function Tests (LFT)", ar: "اختبارات وظائف الكبد", testType: "blood" },
-  { en: "Thyroid Stimulating Hormone (TSH)", ar: "هرمون تحفيز الغدة الدرقية", testType: "blood" },
-  { en: "Hemoglobin A1C (HbA1c)", ar: "الهيموجلوبين السكري", testType: "blood" },
+  {
+    en: "Liver Function Tests (LFT)",
+    ar: "اختبارات وظائف الكبد",
+    testType: "blood",
+  },
+  {
+    en: "Thyroid Stimulating Hormone (TSH)",
+    ar: "هرمون تحفيز الغدة الدرقية",
+    testType: "blood",
+  },
+  {
+    en: "Hemoglobin A1C (HbA1c)",
+    ar: "الهيموجلوبين السكري",
+    testType: "blood",
+  },
   { en: "Vitamin D", ar: "فيتامين د", testType: "blood" },
   { en: "Vitamin B12", ar: "فيتامين ب12", testType: "blood" },
   { en: "Iron Studies", ar: "دراسات الحديد", testType: "blood" },
   { en: "Cholesterol Test", ar: "فحص الكوليسترول", testType: "blood" },
   { en: "Blood Glucose", ar: "سكر الدم", testType: "blood" },
   { en: "Creatinine", ar: "الكرياتينين", testType: "blood" },
-  { en: "BUN (Blood Urea Nitrogen)", ar: "نيتروجين اليوريا في الدم", testType: "blood" },
+  {
+    en: "BUN (Blood Urea Nitrogen)",
+    ar: "نيتروجين اليوريا في الدم",
+    testType: "blood",
+  },
   { en: "ALT (Alanine Aminotransferase)", ar: "إنزيم ALT", testType: "blood" },
-  { en: "AST (Aspartate Aminotransferase)", ar: "إنزيم AST", testType: "blood" },
-  { en: "C-Reactive Protein (CRP)", ar: "بروتين سي التفاعلي", testType: "blood" },
-  { en: "Complete Blood Count with Differential", ar: "فحص الدم الكامل مع التفاضلي", testType: "blood" },
+  {
+    en: "AST (Aspartate Aminotransferase)",
+    ar: "إنزيم AST",
+    testType: "blood",
+  },
+  {
+    en: "C-Reactive Protein (CRP)",
+    ar: "بروتين سي التفاعلي",
+    testType: "blood",
+  },
+  {
+    en: "Complete Blood Count with Differential",
+    ar: "فحص الدم الكامل مع التفاضلي",
+    testType: "blood",
+  },
   { en: "Hemoglobin", ar: "الهيموجلوبين", testType: "blood" },
   { en: "Hematocrit", ar: "الهيماتوكريت", testType: "blood" },
-  { en: "White Blood Cell Count (WBC)", ar: "عدد خلايا الدم البيضاء", testType: "blood" },
+  {
+    en: "White Blood Cell Count (WBC)",
+    ar: "عدد خلايا الدم البيضاء",
+    testType: "blood",
+  },
   { en: "Platelet Count", ar: "عدد الصفائح الدموية", testType: "blood" },
   { en: "Prothrombin Time (PT)", ar: "زمن البروثرومبين", testType: "blood" },
-  { en: "Partial Thromboplastin Time (PTT)", ar: "زمن الثرومبوبلاستين الجزئي", testType: "blood" },
-  { en: "Erythrocyte Sedimentation Rate (ESR)", ar: "معدل ترسيب كريات الدم الحمراء", testType: "blood" },
+  {
+    en: "Partial Thromboplastin Time (PTT)",
+    ar: "زمن الثرومبوبلاستين الجزئي",
+    testType: "blood",
+  },
+  {
+    en: "Erythrocyte Sedimentation Rate (ESR)",
+    ar: "معدل ترسيب كريات الدم الحمراء",
+    testType: "blood",
+  },
   { en: "Ferritin", ar: "الفيريتين", testType: "blood" },
   { en: "Folate", ar: "حمض الفوليك", testType: "blood" },
   { en: "Testosterone", ar: "التستوستيرون", testType: "blood" },
   { en: "Estrogen", ar: "الإستروجين", testType: "blood" },
-  { en: "PSA (Prostate Specific Antigen)", ar: "مستضد البروستاتا النوعي", testType: "blood" },
-  
+  {
+    en: "PSA (Prostate Specific Antigen)",
+    ar: "مستضد البروستاتا النوعي",
+    testType: "blood",
+  },
+
   // Urine Tests
   { en: "Complete Urinalysis", ar: "تحليل البول الكامل", testType: "urine" },
   { en: "Urine Culture", ar: "زراعة البول", testType: "urine" },
   { en: "Urine Protein", ar: "بروتين البول", testType: "urine" },
   { en: "Urine Glucose", ar: "سكر البول", testType: "urine" },
   { en: "Urine Microalbumin", ar: "البول الدقيق", testType: "urine" },
-  { en: "24-Hour Urine Collection", ar: "جمع البول لمدة 24 ساعة", testType: "urine" },
+  {
+    en: "24-Hour Urine Collection",
+    ar: "جمع البول لمدة 24 ساعة",
+    testType: "urine",
+  },
   { en: "Urine Drug Screen", ar: "فحص المخدرات في البول", testType: "urine" },
   { en: "Urine Pregnancy Test", ar: "فحص الحمل في البول", testType: "urine" },
-  
+
   // Imaging Tests
   { en: "Chest X-Ray", ar: "أشعة الصدر", testType: "imaging" },
   { en: "ECG/EKG", ar: "تخطيط القلب", testType: "imaging" },
-  { en: "Echocardiogram", ar: "فحص القلب بالموجات فوق الصوتية", testType: "imaging" },
+  {
+    en: "Echocardiogram",
+    ar: "فحص القلب بالموجات فوق الصوتية",
+    testType: "imaging",
+  },
   { en: "Mammogram", ar: "تصوير الثدي", testType: "imaging" },
-  { en: "Abdominal Ultrasound", ar: "الموجات فوق الصوتية للبطن", testType: "imaging" },
-  { en: "Pelvic Ultrasound", ar: "الموجات فوق الصوتية للحوض", testType: "imaging" },
+  {
+    en: "Abdominal Ultrasound",
+    ar: "الموجات فوق الصوتية للبطن",
+    testType: "imaging",
+  },
+  {
+    en: "Pelvic Ultrasound",
+    ar: "الموجات فوق الصوتية للحوض",
+    testType: "imaging",
+  },
   { en: "CT Scan - Head", ar: "التصوير المقطعي للرأس", testType: "imaging" },
   { en: "CT Scan - Chest", ar: "التصوير المقطعي للصدر", testType: "imaging" },
   { en: "CT Scan - Abdomen", ar: "التصوير المقطعي للبطن", testType: "imaging" },
-  { en: "MRI - Head", ar: "التصوير بالرنين المغناطيسي للرأس", testType: "imaging" },
-  { en: "MRI - Spine", ar: "التصوير بالرنين المغناطيسي للعمود الفقري", testType: "imaging" },
-  { en: "Bone Density Scan (DEXA)", ar: "فحص كثافة العظام", testType: "imaging" },
+  {
+    en: "MRI - Head",
+    ar: "التصوير بالرنين المغناطيسي للرأس",
+    testType: "imaging",
+  },
+  {
+    en: "MRI - Spine",
+    ar: "التصوير بالرنين المغناطيسي للعمود الفقري",
+    testType: "imaging",
+  },
+  {
+    en: "Bone Density Scan (DEXA)",
+    ar: "فحص كثافة العظام",
+    testType: "imaging",
+  },
   { en: "X-Ray - Extremity", ar: "أشعة الأطراف", testType: "imaging" },
   { en: "X-Ray - Spine", ar: "أشعة العمود الفقري", testType: "imaging" },
-  
+
   // Other Tests
   { en: "Pap Smear", ar: "مسحة عنق الرحم", testType: "other" },
   { en: "Stool Culture", ar: "زراعة البراز", testType: "other" },
-  { en: "Stool Occult Blood", ar: "فحص الدم الخفي في البراز", testType: "other" },
+  {
+    en: "Stool Occult Blood",
+    ar: "فحص الدم الخفي في البراز",
+    testType: "other",
+  },
   { en: "Throat Culture", ar: "زراعة الحلق", testType: "other" },
   { en: "Sputum Culture", ar: "زراعة البلغم", testType: "other" },
   { en: "Skin Biopsy", ar: "خزعة الجلد", testType: "other" },
@@ -102,7 +194,9 @@ export default function AddLabResultScreen() {
   const isRTL = i18n.language === "ar";
 
   const [testName, setTestName] = useState("");
-  const [selectedCommonLab, setSelectedCommonLab] = useState<string | null>(null);
+  const [selectedCommonLab, setSelectedCommonLab] = useState<string | null>(
+    null
+  );
   const [showCommonLabsDropdown, setShowCommonLabsDropdown] = useState(false);
   const [testType, setTestType] = useState<LabResult["testType"]>("blood");
   const [testDate, setTestDate] = useState(new Date());
@@ -287,13 +381,17 @@ export default function AddLabResultScreen() {
   ];
 
   // Filter common labs based on selected test type
-  const filteredCommonLabs = COMMON_LABS.filter((lab) => lab.testType === testType);
+  const filteredCommonLabs = COMMON_LABS.filter(
+    (lab) => lab.testType === testType
+  );
 
   // Clear selected lab when test type changes
   const handleTestTypeChange = (newTestType: LabResult["testType"]) => {
     setTestType(newTestType);
     if (selectedCommonLab) {
-      const selectedLab = COMMON_LABS.find((lab) => lab.en === selectedCommonLab);
+      const selectedLab = COMMON_LABS.find(
+        (lab) => lab.en === selectedCommonLab
+      );
       if (selectedLab && selectedLab.testType !== newTestType) {
         setSelectedCommonLab(null);
         setTestName("");
@@ -348,7 +446,9 @@ export default function AddLabResultScreen() {
     if (validResults.length === 0) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "يرجى إدخال نتيجة واحدة على الأقل" : "Please enter at least one result"
+        isRTL
+          ? "يرجى إدخال نتيجة واحدة على الأقل"
+          : "Please enter at least one result"
       );
       return;
     }
@@ -359,7 +459,7 @@ export default function AddLabResultScreen() {
       const analyzedResults = validResults.map((result) => {
         const numericValue =
           typeof result.value === "string"
-            ? parseFloat(result.value)
+            ? Number.parseFloat(result.value)
             : result.value;
 
         const status = labResultService.analyzeResultValue(
@@ -371,9 +471,10 @@ export default function AddLabResultScreen() {
 
         return {
           ...result,
-          value: typeof numericValue === "number" && !isNaN(numericValue)
-            ? numericValue
-            : result.value,
+          value:
+            typeof numericValue === "number" && !isNaN(numericValue)
+              ? numericValue
+              : result.value,
           status,
         };
       });
@@ -392,7 +493,9 @@ export default function AddLabResultScreen() {
 
       Alert.alert(
         isRTL ? "نجح" : "Success",
-        isRTL ? "تم إضافة نتيجة المختبر بنجاح" : "Lab result added successfully",
+        isRTL
+          ? "تم إضافة نتيجة المختبر بنجاح"
+          : "Lab result added successfully",
         [
           {
             text: isRTL ? "حسناً" : "OK",
@@ -404,7 +507,7 @@ export default function AddLabResultScreen() {
       const errorMessage = error?.message || "Unknown error";
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL 
+        isRTL
           ? `فشل إضافة نتيجة المختبر: ${errorMessage}`
           : `Failed to add lab result: ${errorMessage}`
       );
@@ -416,42 +519,63 @@ export default function AddLabResultScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Heading level={5} style={[styles.label, { marginBottom: 0 }, isRTL && styles.rtlText]}>
+        <Heading
+          level={5}
+          style={[styles.label, { marginBottom: 0 }, isRTL && styles.rtlText]}
+        >
           {isRTL ? "إضافة نتيجة مختبر" : "Add Lab Result"}
         </Heading>
         <TouchableOpacity onPress={() => router.back()}>
-          <X size={24} color={theme.colors.text.primary} />
+          <X color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
         {/* Test Name */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "اسم الاختبار" : "Test Name"} *
           </TypographyText>
           <View style={styles.inputContainer}>
             <TextInput
-              style={[styles.input, styles.inputWithDropdown, isRTL && styles.rtlText]}
-              value={testName}
               onChangeText={(text) => {
                 setTestName(text);
                 // Clear selected common lab if user types custom text
-                if (selectedCommonLab && text !== (isRTL ? COMMON_LABS.find(l => l.en === selectedCommonLab)?.ar : selectedCommonLab)) {
+                if (
+                  selectedCommonLab &&
+                  text !==
+                    (isRTL
+                      ? COMMON_LABS.find((l) => l.en === selectedCommonLab)?.ar
+                      : selectedCommonLab)
+                ) {
                   setSelectedCommonLab(null);
                 }
               }}
-              placeholder={isRTL ? "مثال: فحص الدم الكامل" : "e.g., Complete Blood Count"}
+              placeholder={
+                isRTL ? "مثال: فحص الدم الكامل" : "e.g., Complete Blood Count"
+              }
               placeholderTextColor={theme.colors.text.secondary}
+              style={[
+                styles.input,
+                styles.inputWithDropdown,
+                isRTL && styles.rtlText,
+              ]}
+              value={testName}
             />
             <TouchableOpacity
               onPress={() => setShowCommonLabsDropdown(true)}
               style={styles.dropdownButton}
             >
-              <ChevronDown size={20} color={theme.colors.text.primary} />
+              <ChevronDown color={theme.colors.text.primary} size={20} />
             </TouchableOpacity>
           </View>
-          <Caption style={[styles.rtlText, { marginTop: 4 }]} numberOfLines={2}>
+          <Caption numberOfLines={2} style={[styles.rtlText, { marginTop: 4 }]}>
             {isRTL
               ? "أو اختر من القائمة المنسدلة للفحوصات الشائعة"
               : "Or select from common lab tests dropdown"}
@@ -460,7 +584,13 @@ export default function AddLabResultScreen() {
 
         {/* Test Type */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "نوع الاختبار" : "Test Type"} *
           </TypographyText>
           <View style={styles.typeSelector}>
@@ -488,17 +618,23 @@ export default function AddLabResultScreen() {
 
         {/* Test Date */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "تاريخ الاختبار" : "Test Date"} *
           </TypographyText>
           <TextInput
-            style={[styles.input, isRTL && styles.rtlText]}
-            value={testDate.toLocaleDateString()}
             editable={false}
             placeholder={isRTL ? "تاريخ الاختبار" : "Test Date"}
             placeholderTextColor={theme.colors.text.secondary}
+            style={[styles.input, isRTL && styles.rtlText]}
+            value={testDate.toLocaleDateString()}
           />
-          <Caption style={[styles.rtlText, { marginTop: 4 }]} numberOfLines={2}>
+          <Caption numberOfLines={2} style={[styles.rtlText, { marginTop: 4 }]}>
             {isRTL
               ? "سيتم استخدام تاريخ اليوم. يمكنك التعديل لاحقاً."
               : "Using today's date. You can edit later."}
@@ -507,41 +643,64 @@ export default function AddLabResultScreen() {
 
         {/* Facility */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "المنشأة" : "Facility"} ({isRTL ? "اختياري" : "Optional"})
           </TypographyText>
           <TextInput
+            onChangeText={setFacility}
+            placeholder={
+              isRTL ? "اسم المختبر أو المستشفى" : "Lab or hospital name"
+            }
+            placeholderTextColor={theme.colors.text.secondary}
             style={[styles.input, isRTL && styles.rtlText]}
             value={facility}
-            onChangeText={setFacility}
-            placeholder={isRTL ? "اسم المختبر أو المستشفى" : "Lab or hospital name"}
-            placeholderTextColor={theme.colors.text.secondary}
           />
         </View>
 
         {/* Ordered By */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "طلب من" : "Ordered By"} ({isRTL ? "اختياري" : "Optional"})
           </TypographyText>
           <TextInput
-            style={[styles.input, isRTL && styles.rtlText]}
-            value={orderedBy}
             onChangeText={setOrderedBy}
             placeholder={isRTL ? "اسم الطبيب" : "Doctor name"}
             placeholderTextColor={theme.colors.text.secondary}
+            style={[styles.input, isRTL && styles.rtlText]}
+            value={orderedBy}
           />
         </View>
 
         {/* Results */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "النتائج" : "Results"} *
           </TypographyText>
           {results.map((result, index) => (
             <View key={index} style={styles.resultItem}>
               <View style={styles.resultItemHeader}>
-                <TypographyText weight="semibold" style={[styles.label, { marginBottom: 0 }]}>
+                <TypographyText
+                  style={[styles.label, { marginBottom: 0 }]}
+                  weight="semibold"
+                >
                   {isRTL ? `نتيجة ${index + 1}` : `Result ${index + 1}`}
                 </TypographyText>
                 {results.length > 1 && (
@@ -549,52 +708,64 @@ export default function AddLabResultScreen() {
                     onPress={() => handleRemoveResult(index)}
                     style={styles.deleteButton}
                   >
-                    <Trash2 size={20} color={theme.colors.accent.error} />
+                    <Trash2 color={theme.colors.accent.error} size={20} />
                   </TouchableOpacity>
                 )}
               </View>
               <View style={styles.resultItemRow}>
                 <TextInput
-                  style={[styles.resultInput, isRTL && styles.rtlText]}
+                  onChangeText={(text) =>
+                    handleUpdateResult(index, "name", text)
+                  }
                   placeholder={isRTL ? "اسم القيمة" : "Value name"}
                   placeholderTextColor={theme.colors.text.secondary}
+                  style={[styles.resultInput, isRTL && styles.rtlText]}
                   value={result.name}
-                  onChangeText={(text) => handleUpdateResult(index, "name", text)}
                 />
               </View>
               <View style={styles.resultItemRow}>
                 <TextInput
-                  style={[styles.resultInput, { flex: 2 }, isRTL && styles.rtlText]}
+                  keyboardType="decimal-pad"
+                  onChangeText={(text) => {
+                    const num = Number.parseFloat(text);
+                    handleUpdateResult(index, "value", isNaN(num) ? text : num);
+                  }}
                   placeholder={isRTL ? "القيمة" : "Value"}
                   placeholderTextColor={theme.colors.text.secondary}
+                  style={[
+                    styles.resultInput,
+                    { flex: 2 },
+                    isRTL && styles.rtlText,
+                  ]}
                   value={String(result.value)}
-                  onChangeText={(text) => {
-                    const num = parseFloat(text);
-                    handleUpdateResult(
-                      index,
-                      "value",
-                      !isNaN(num) ? num : text
-                    );
-                  }}
-                  keyboardType="decimal-pad"
                 />
                 <TextInput
-                  style={[styles.resultInput, { flex: 1 }, isRTL && styles.rtlText]}
+                  onChangeText={(text) =>
+                    handleUpdateResult(index, "unit", text)
+                  }
                   placeholder={isRTL ? "الوحدة" : "Unit"}
                   placeholderTextColor={theme.colors.text.secondary}
+                  style={[
+                    styles.resultInput,
+                    { flex: 1 },
+                    isRTL && styles.rtlText,
+                  ]}
                   value={result.unit}
-                  onChangeText={(text) => handleUpdateResult(index, "unit", text)}
                 />
               </View>
               <View style={styles.resultItemRow}>
                 <TextInput
-                  style={[styles.resultInput, isRTL && styles.rtlText]}
-                  placeholder={isRTL ? "النطاق المرجعي (مثال: 70-100)" : "Reference range (e.g., 70-100)"}
-                  placeholderTextColor={theme.colors.text.secondary}
-                  value={result.referenceRange}
                   onChangeText={(text) =>
                     handleUpdateResult(index, "referenceRange", text)
                   }
+                  placeholder={
+                    isRTL
+                      ? "النطاق المرجعي (مثال: 70-100)"
+                      : "Reference range (e.g., 70-100)"
+                  }
+                  placeholderTextColor={theme.colors.text.secondary}
+                  style={[styles.resultInput, isRTL && styles.rtlText]}
+                  value={result.referenceRange}
                 />
               </View>
             </View>
@@ -603,7 +774,7 @@ export default function AddLabResultScreen() {
             onPress={handleAddResult}
             style={styles.addResultButton}
           >
-            <Plus size={20} color={theme.colors.primary.main} />
+            <Plus color={theme.colors.primary.main} size={20} />
             <TypographyText style={[{ marginLeft: theme.spacing.xs }]}>
               {isRTL ? "إضافة نتيجة أخرى" : "Add Another Result"}
             </TypographyText>
@@ -612,35 +783,47 @@ export default function AddLabResultScreen() {
 
         {/* Tags */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "العلامات" : "Tags"} ({isRTL ? "اختياري" : "Optional"})
           </TypographyText>
           <TagInput
-            tags={tags}
+            maxTags={10}
             onChangeTags={setTags}
             placeholder={
-              isRTL
-                ? "أضف علامات للتنظيم"
-                : "Add tags for organization"
+              isRTL ? "أضف علامات للتنظيم" : "Add tags for organization"
             }
-            maxTags={10}
             showSuggestions={true}
+            tags={tags}
           />
         </View>
 
         {/* Notes */}
         <View style={styles.fieldContainer}>
-          <TypographyText style={[styles.label, { marginBottom: theme.spacing.xs }, isRTL && styles.rtlText]}>
+          <TypographyText
+            style={[
+              styles.label,
+              { marginBottom: theme.spacing.xs },
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "ملاحظات" : "Notes"} ({isRTL ? "اختياري" : "Optional"})
           </TypographyText>
           <TextInput
-            style={[styles.textArea, isRTL && styles.rtlText]}
-            value={notes}
-            onChangeText={setNotes}
             multiline
             numberOfLines={4}
-            placeholder={isRTL ? "أضف ملاحظات إضافية..." : "Add additional notes..."}
+            onChangeText={setNotes}
+            placeholder={
+              isRTL ? "أضف ملاحظات إضافية..." : "Add additional notes..."
+            }
             placeholderTextColor={theme.colors.text.secondary}
+            style={[styles.textArea, isRTL && styles.rtlText]}
+            value={notes}
           />
         </View>
       </ScrollView>
@@ -648,54 +831,71 @@ export default function AddLabResultScreen() {
       {/* Actions */}
       <View style={styles.actions}>
         <Button
-          variant="outline"
-          title={isRTL ? "إلغاء" : "Cancel"}
+          disabled={saving}
           onPress={() => router.back()}
           style={{ flex: 1 }}
           textStyle={{}}
-          disabled={saving}
+          title={isRTL ? "إلغاء" : "Cancel"}
+          variant="outline"
         />
         <Button
-          variant="primary"
-          title={isRTL ? "حفظ" : "Save"}
+          disabled={saving}
           onPress={handleSave}
           style={{ flex: 1 }}
           textStyle={{}}
-          disabled={saving}
+          title={isRTL ? "حفظ" : "Save"}
+          variant="primary"
         />
       </View>
 
       {/* Common Labs Dropdown Modal */}
       <Modal
-        visible={showCommonLabsDropdown}
-        transparent
         animationType="slide"
         onRequestClose={() => setShowCommonLabsDropdown(false)}
+        transparent
+        visible={showCommonLabsDropdown}
       >
         <View style={styles.dropdownModal}>
           <TouchableOpacity
-            style={{ flex: 1 }}
             activeOpacity={1}
             onPress={() => setShowCommonLabsDropdown(false)}
+            style={{ flex: 1 }}
           />
           <View style={styles.dropdownModalContent}>
             <View style={styles.dropdownModalHeader}>
               <View style={{ flex: 1 }}>
-                <Heading level={5} style={[styles.label, { marginBottom: 0 }, isRTL && styles.rtlText]}>
+                <Heading
+                  level={5}
+                  style={[
+                    styles.label,
+                    { marginBottom: 0 },
+                    isRTL && styles.rtlText,
+                  ]}
+                >
                   {isRTL ? "الفحوصات الشائعة" : "Common Lab Tests"}
                 </Heading>
-                <Caption style={[styles.rtlText, { marginTop: 4 }]} numberOfLines={1}>
+                <Caption
+                  numberOfLines={1}
+                  style={[styles.rtlText, { marginTop: 4 }]}
+                >
                   {testTypes.find((t) => t.value === testType)?.label}
                 </Caption>
               </View>
-              <TouchableOpacity onPress={() => setShowCommonLabsDropdown(false)}>
-                <X size={24} color={theme.colors.text.primary} />
+              <TouchableOpacity
+                onPress={() => setShowCommonLabsDropdown(false)}
+              >
+                <X color={theme.colors.text.primary} size={24} />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.dropdownList}
+            >
               {filteredCommonLabs.length === 0 ? (
                 <View style={styles.dropdownItem}>
-                  <Text style={[styles.dropdownItemText, isRTL && styles.rtlText]}>
+                  <Text
+                    style={[styles.dropdownItemText, isRTL && styles.rtlText]}
+                  >
                     {isRTL
                       ? "لا توجد فحوصات شائعة لهذا النوع"
                       : "No common tests for this type"}
@@ -703,33 +903,38 @@ export default function AddLabResultScreen() {
                 </View>
               ) : (
                 filteredCommonLabs.map((lab) => {
-                const labLabel = isRTL ? lab.ar : lab.en;
-                const isSelected = selectedCommonLab === lab.en;
-                return (
-                  <TouchableOpacity
-                    key={lab.en}
-                    onPress={() => {
-                      setSelectedCommonLab(lab.en);
-                      setTestName(labLabel);
-                      setShowCommonLabsDropdown(false);
-                    }}
-                    style={[
-                      styles.dropdownItem,
-                      isSelected && { backgroundColor: theme.colors.primary.main + "20" },
-                    ]}
-                  >
-                    <Text
+                  const labLabel = isRTL ? lab.ar : lab.en;
+                  const isSelected = selectedCommonLab === lab.en;
+                  return (
+                    <TouchableOpacity
+                      key={lab.en}
+                      onPress={() => {
+                        setSelectedCommonLab(lab.en);
+                        setTestName(labLabel);
+                        setShowCommonLabsDropdown(false);
+                      }}
                       style={[
-                        styles.dropdownItemText,
-                        isRTL && styles.rtlText,
-                        isSelected && { color: theme.colors.primary.main, fontWeight: "600" },
+                        styles.dropdownItem,
+                        isSelected && {
+                          backgroundColor: theme.colors.primary.main + "20",
+                        },
                       ]}
                     >
-                      {labLabel}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          isRTL && styles.rtlText,
+                          isSelected && {
+                            color: theme.colors.primary.main,
+                            fontWeight: "600",
+                          },
+                        ]}
+                      >
+                        {labLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
               )}
             </ScrollView>
           </View>

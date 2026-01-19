@@ -1,11 +1,11 @@
-import { ReactNode } from 'react';
-import { ViewStyle, TextStyle } from 'react-native';
+import { ReactNode } from "react";
+import { ViewStyle, TextStyle } from "react-native";
 
 export interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-  size?: 'small' | 'medium' | 'large';
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  size?: "small" | "medium" | "large";
   disabled?: boolean;
   loading?: boolean;
   icon?: ReactNode | null;

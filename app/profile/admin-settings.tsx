@@ -2,14 +2,11 @@ import { useNavigation, useRouter } from "expo-router";
 import {
   AlertTriangle,
   ArrowLeft,
-  Calendar,
   ChevronRight,
   CreditCard,
   Crown,
   RefreshCcw,
-  Shield,
   Trash2,
-  User,
   Users,
   X,
 } from "lucide-react-native";
@@ -32,9 +29,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useSubscription } from "@/hooks/useSubscription";
 import { userService } from "@/lib/services/userService";
-import { familyInviteService } from "@/lib/services/familyInviteService";
 import type { User as UserType } from "@/types";
-import { PLAN_LIMITS } from "@/lib/services/revenueCatService";
 
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
@@ -109,7 +104,9 @@ export default function AdminSettingsScreen() {
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل تحديث حالة الاشتراك" : "Failed to refresh subscription status"
+        isRTL
+          ? "فشل تحديث حالة الاشتراك"
+          : "Failed to refresh subscription status"
       );
     } finally {
       setRefreshing(false);
@@ -120,10 +117,7 @@ export default function AdminSettingsScreen() {
     try {
       setRefreshing(true);
       await restorePurchases();
-      Alert.alert(
-        t("restoreSuccess"),
-        t("restoreSuccessMessage")
-      );
+      Alert.alert(t("restoreSuccess"), t("restoreSuccessMessage"));
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
@@ -140,7 +134,7 @@ export default function AdminSettingsScreen() {
   };
 
   const handleRemoveMember = async () => {
-    if (!selectedMember || !user?.familyId || !user?.id) return;
+    if (!(selectedMember && user?.familyId && user?.id)) return;
 
     Alert.alert(
       t("confirmRemoval"),
@@ -158,30 +152,27 @@ export default function AdminSettingsScreen() {
           onPress: async () => {
             try {
               setRemovingMember(true);
-              
+
               // Use the dedicated removeFamilyMember method
               await userService.removeFamilyMember(
                 selectedMember.id,
                 user.familyId!,
                 user.id
               );
-              
+
               // Reload family members
               await loadData(true);
               setShowMemberModal(false);
               setSelectedMember(null);
-              
-              Alert.alert(
-                t("success"),
-                t("memberRemoved")
-              );
+
+              Alert.alert(t("success"), t("memberRemoved"));
             } catch (error: any) {
               const errorMessage = error?.message || String(error);
               console.error("Error removing member:", errorMessage);
               Alert.alert(
                 t("error"),
-                isRTL 
-                  ? `فشل إزالة العضو: ${errorMessage}` 
+                isRTL
+                  ? `فشل إزالة العضو: ${errorMessage}`
                   : `Failed to remove member: ${errorMessage}`
               );
             } finally {
@@ -470,17 +461,15 @@ export default function AdminSettingsScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
             onPress={() => router.back()}
+            style={styles.backButton}
           >
             <ArrowLeft color={isDark ? "#F1F5F9" : "#1E293B"} size={24} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {t("adminSettings")}
-          </Text>
+          <Text style={styles.headerTitle}>{t("adminSettings")}</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
         </View>
       </SafeAreaView>
     );
@@ -491,17 +480,15 @@ export default function AdminSettingsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
           onPress={() => router.back()}
+          style={styles.backButton}
         >
           <ArrowLeft color={isDark ? "#F1F5F9" : "#1E293B"} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {t("adminSettings")}
-        </Text>
+        <Text style={styles.headerTitle}>{t("adminSettings")}</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* Subscription Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -525,15 +512,9 @@ export default function AdminSettingsScreen() {
               ]}
             >
               {hasActiveSubscription ? (
-                <Crown
-                  color={theme.colors.accent.success}
-                  size={14}
-                />
+                <Crown color={theme.colors.accent.success} size={14} />
               ) : (
-                <AlertTriangle
-                  color={theme.colors.accent.warning}
-                  size={14}
-                />
+                <AlertTriangle color={theme.colors.accent.warning} size={14} />
               )}
               <Text
                 style={[
@@ -552,27 +533,21 @@ export default function AdminSettingsScreen() {
 
           {/* Subscription Info */}
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>
-              {t("planType")}
-            </Text>
+            <Text style={styles.infoLabel}>{t("planType")}</Text>
             <Text style={styles.infoValue}>{getSubscriptionTypeLabel()}</Text>
           </View>
 
           {hasActiveSubscription && (
             <>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>
-                  {t("billingPeriod")}
-                </Text>
+                <Text style={styles.infoLabel}>{t("billingPeriod")}</Text>
                 <Text style={styles.infoValue}>
                   {getSubscriptionPeriodLabel()}
                 </Text>
               </View>
 
               <View style={[styles.infoRow, styles.infoRowLast]}>
-                <Text style={styles.infoLabel}>
-                  {t("expirationDate")}
-                </Text>
+                <Text style={styles.infoLabel}>{t("expirationDate")}</Text>
                 <Text style={styles.infoValue}>
                   {formatDate(subscriptionStatus.expirationDate)}
                 </Text>
@@ -610,15 +585,18 @@ export default function AdminSettingsScreen() {
 
           {/* Actions */}
           <TouchableOpacity
+            disabled={refreshing}
+            onPress={handleRefreshSubscription}
             style={[
               styles.actionButton,
               { backgroundColor: theme.colors.primary.main + "15" },
             ]}
-            onPress={handleRefreshSubscription}
-            disabled={refreshing}
           >
             {refreshing ? (
-              <ActivityIndicator size="small" color={theme.colors.primary.main} />
+              <ActivityIndicator
+                color={theme.colors.primary.main}
+                size="small"
+              />
             ) : (
               <RefreshCcw color={theme.colors.primary.main} size={18} />
             )}
@@ -633,12 +611,12 @@ export default function AdminSettingsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            disabled={refreshing}
+            onPress={handleRestorePurchases}
             style={[
               styles.actionButton,
               { backgroundColor: isDark ? "#334155" : "#E2E8F0" },
             ]}
-            onPress={handleRestorePurchases}
-            disabled={refreshing}
           >
             <CreditCard color={isDark ? "#94A3B8" : "#64748B"} size={18} />
             <Text
@@ -663,9 +641,7 @@ export default function AdminSettingsScreen() {
             >
               <Users color={theme.colors.secondary.main} size={20} />
             </View>
-            <Text style={styles.sectionTitle}>
-              {t("linkedFamilyMembers")}
-            </Text>
+            <Text style={styles.sectionTitle}>{t("linkedFamilyMembers")}</Text>
           </View>
 
           {familyMembers.length > 0 ? (
@@ -678,11 +654,11 @@ export default function AdminSettingsScreen() {
               {familyMembers.map((member, index) => (
                 <TouchableOpacity
                   key={member.id}
+                  onPress={() => handleMemberPress(member)}
                   style={[
                     styles.memberItem,
                     index === familyMembers.length - 1 && styles.memberItemLast,
                   ]}
-                  onPress={() => handleMemberPress(member)}
                 >
                   <View style={styles.memberAvatar}>
                     <Avatar
@@ -716,7 +692,9 @@ export default function AdminSettingsScreen() {
             <View style={styles.emptyState}>
               <Users color={isDark ? "#475569" : "#CBD5E1"} size={48} />
               <Text style={styles.emptyText}>
-                {t("noFamilyMembersLinked")}{"\n"}{t("inviteFromFamilyTab")}
+                {t("noFamilyMembersLinked")}
+                {"\n"}
+                {t("inviteFromFamilyTab")}
               </Text>
             </View>
           )}
@@ -724,11 +702,11 @@ export default function AdminSettingsScreen() {
           {/* Invite more members button */}
           {hasActiveSubscription && familyMembers.length < maxFamilyMembers && (
             <TouchableOpacity
+              onPress={() => router.push("/(tabs)/family")}
               style={[
                 styles.actionButton,
                 { backgroundColor: theme.colors.secondary.main + "15" },
               ]}
-              onPress={() => router.push("/(tabs)/family")}
             >
               <Users color={theme.colors.secondary.main} size={18} />
               <Text
@@ -746,25 +724,23 @@ export default function AdminSettingsScreen() {
 
       {/* Member Details Modal */}
       <Modal
-        visible={showMemberModal}
         animationType="slide"
-        transparent
         onRequestClose={() => setShowMemberModal(false)}
+        transparent
+        visible={showMemberModal}
       >
         <View style={styles.modalOverlay}>
           <TouchableOpacity
-            style={{ flex: 1 }}
             activeOpacity={1}
             onPress={() => setShowMemberModal(false)}
+            style={{ flex: 1 }}
           />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {t("memberDetails")}
-              </Text>
+              <Text style={styles.modalTitle}>{t("memberDetails")}</Text>
               <TouchableOpacity
-                style={styles.modalCloseButton}
                 onPress={() => setShowMemberModal(false)}
+                style={styles.modalCloseButton}
               >
                 <X color={isDark ? "#94A3B8" : "#64748B"} size={24} />
               </TouchableOpacity>
@@ -795,14 +771,14 @@ export default function AdminSettingsScreen() {
 
                 <View style={styles.modalActions}>
                   <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={handleRemoveMember}
                     disabled={removingMember}
+                    onPress={handleRemoveMember}
+                    style={styles.removeButton}
                   >
                     {removingMember ? (
                       <ActivityIndicator
-                        size="small"
                         color={isDark ? "#FCA5A5" : "#DC2626"}
+                        size="small"
                       />
                     ) : (
                       <Trash2

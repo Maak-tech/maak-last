@@ -1,21 +1,21 @@
 import type {
-  User,
-  Symptom,
+  Allergy,
+  LabResult,
+  MedicalHistory,
   Medication,
   Mood,
-  Allergy,
-  MedicalHistory,
-  LabResult,
+  Symptom,
+  User,
 } from "@/types";
-import { userService } from "./userService";
-import { symptomService } from "./symptomService";
+import { allergyService } from "./allergyService";
+import { healthScoreService } from "./healthScoreService";
+import { labResultService } from "./labResultService";
+import { medicalHistoryService } from "./medicalHistoryService";
 import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
-import { allergyService } from "./allergyService";
-import { medicalHistoryService } from "./medicalHistoryService";
-import { labResultService } from "./labResultService";
-import { healthScoreService } from "./healthScoreService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
+import { symptomService } from "./symptomService";
+import { userService } from "./userService";
 
 export interface ReportPrivacySettings {
   includeSymptoms: boolean;
@@ -161,24 +161,20 @@ class FamilyHealthReportService {
     ]);
 
     // Filter by date range
-    const filteredSymptoms = symptoms.filter(
-      (s) =>
-        s.timestamp >= startDate &&
-        s.timestamp <= endDate &&
-        s.timestamp instanceof Date
-          ? s.timestamp
-          : new Date(s.timestamp) >= startDate &&
-            new Date(s.timestamp) <= endDate
+    const filteredSymptoms = symptoms.filter((s) =>
+      s.timestamp >= startDate &&
+      s.timestamp <= endDate &&
+      s.timestamp instanceof Date
+        ? s.timestamp
+        : new Date(s.timestamp) >= startDate && new Date(s.timestamp) <= endDate
     );
 
-    const filteredMoods = moods.filter(
-      (m) =>
-        m.timestamp >= startDate &&
-        m.timestamp <= endDate &&
-        m.timestamp instanceof Date
-          ? m.timestamp
-          : new Date(m.timestamp) >= startDate &&
-            new Date(m.timestamp) <= endDate
+    const filteredMoods = moods.filter((m) =>
+      m.timestamp >= startDate &&
+      m.timestamp <= endDate &&
+      m.timestamp instanceof Date
+        ? m.timestamp
+        : new Date(m.timestamp) >= startDate && new Date(m.timestamp) <= endDate
     );
 
     // Calculate health score
@@ -229,8 +225,8 @@ class FamilyHealthReportService {
       moodCounts.set(mood.mood, count + 1);
     });
     const mostCommonMood =
-      Array.from(moodCounts.entries())
-        .sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+      Array.from(moodCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      "N/A";
 
     // Determine trends
     const symptomTrend = this.calculateSymptomTrend(filteredSymptoms);
@@ -355,7 +351,9 @@ class FamilyHealthReportService {
   /**
    * Calculate symptom trend
    */
-  private calculateSymptomTrend(symptoms: Symptom[]): "improving" | "stable" | "worsening" {
+  private calculateSymptomTrend(
+    symptoms: Symptom[]
+  ): "improving" | "stable" | "worsening" {
     if (symptoms.length < 2) return "stable";
 
     // Split symptoms into two halves
@@ -386,44 +384,56 @@ class FamilyHealthReportService {
         if (value instanceof Date) {
           return value.toISOString();
         }
-        
+
         // Handle Firestore Timestamp objects
-        if (value && typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+        if (
+          value &&
+          typeof value === "object" &&
+          "toDate" in value &&
+          typeof value.toDate === "function"
+        ) {
           try {
             return value.toDate().toISOString();
           } catch {
             return null;
           }
         }
-        
+
         // Handle undefined values
         if (value === undefined) {
           return null;
         }
-        
+
         return value;
       };
-      
+
       return JSON.stringify(report, replacer, 2);
     } catch (error) {
       console.error("Error exporting report as JSON:", error);
-      throw new Error(`Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(
+        `Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
 
   /**
    * Format report as HTML for PDF generation
    */
-  formatReportAsHTML(report: FamilyHealthReport, isRTL: boolean = false): string {
+  formatReportAsHTML(report: FamilyHealthReport, isRTL = false): string {
     // Helper function to safely format dates
     const formatDate = (date: Date | string | any): string => {
       try {
         let dateObj: Date;
         if (date instanceof Date) {
           dateObj = date;
-        } else if (typeof date === 'string') {
+        } else if (typeof date === "string") {
           dateObj = new Date(date);
-        } else if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+        } else if (
+          date &&
+          typeof date === "object" &&
+          "toDate" in date &&
+          typeof date.toDate === "function"
+        ) {
           dateObj = date.toDate();
         } else {
           return date?.toString() || "N/A";
@@ -640,7 +650,7 @@ class FamilyHealthReportService {
           </div>
         `;
       });
-      html += `</div>`;
+      html += "</div>";
     }
 
     // Member details
@@ -662,9 +672,13 @@ class FamilyHealthReportService {
           <div class="member-info">
             <div class="member-info-item">${isRTL ? "الأعراض" : "Symptoms"}: ${memberReport.symptoms.total}</div>
             <div class="member-info-item">${isRTL ? "الأدوية الفعالة" : "Active Medications"}: ${memberReport.medications.active}</div>
-            ${memberReport.medications.complianceRate !== undefined ? `
+            ${
+              memberReport.medications.complianceRate !== undefined
+                ? `
               <div class="member-info-item">${isRTL ? "الالتزام بالأدوية" : "Compliance"}: ${memberReport.medications.complianceRate}%</div>
-            ` : ''}
+            `
+                : ""
+            }
             <div class="trend">
               <span>${isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}: ${
                 isRTL
@@ -696,7 +710,7 @@ class FamilyHealthReportService {
   /**
    * Format report as text summary
    */
-  formatReportAsText(report: FamilyHealthReport, isRTL: boolean = false): string {
+  formatReportAsText(report: FamilyHealthReport, isRTL = false): string {
     const lines: string[] = [];
 
     // Helper function to safely format dates
@@ -705,9 +719,14 @@ class FamilyHealthReportService {
         let dateObj: Date;
         if (date instanceof Date) {
           dateObj = date;
-        } else if (typeof date === 'string') {
+        } else if (typeof date === "string") {
           dateObj = new Date(date);
-        } else if (date && typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+        } else if (
+          date &&
+          typeof date === "object" &&
+          "toDate" in date &&
+          typeof date.toDate === "function"
+        ) {
           dateObj = date.toDate();
         } else {
           return date?.toString() || "N/A";
@@ -718,9 +737,7 @@ class FamilyHealthReportService {
       }
     };
 
-    lines.push(
-      isRTL ? "تقرير الصحة العائلية" : "Family Health Report"
-    );
+    lines.push(isRTL ? "تقرير الصحة العائلية" : "Family Health Report");
     lines.push("=".repeat(50));
     lines.push("");
 

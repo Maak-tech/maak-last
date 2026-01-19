@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { offlineService, type OfflineOperation } from "@/lib/services/offlineService";
+import {
+  type OfflineOperation,
+  offlineService,
+} from "@/lib/services/offlineService";
 
 export interface UseOfflineReturn {
   isOnline: boolean;

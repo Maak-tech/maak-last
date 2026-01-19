@@ -1,37 +1,41 @@
-import React from 'react';
-import { Text as RNText, StyleSheet, TextProps as RNTextProps } from 'react-native';
-import { colors, typography, spacing } from './theme';
+import type React from "react";
+import {
+  Text as RNText,
+  type TextProps as RNTextProps,
+  StyleSheet,
+} from "react-native";
+import { colors, typography } from "./theme";
 
-export interface CaptionProps extends Omit<RNTextProps, 'style'> {
+export interface CaptionProps extends Omit<RNTextProps, "style"> {
   children: React.ReactNode;
   color?: string;
-  style?: RNTextProps['style'];
+  style?: RNTextProps["style"];
   numberOfLines?: number;
 }
 
-export interface HeadingProps extends Omit<RNTextProps, 'style'> {
+export interface HeadingProps extends Omit<RNTextProps, "style"> {
   level?: 1 | 2 | 3 | 4 | 5 | 6;
   children: React.ReactNode;
   color?: string;
-  align?: 'left' | 'center' | 'right';
-  weight?: 'light' | 'regular' | 'medium' | 'semibold' | 'bold';
-  style?: RNTextProps['style'];
+  align?: "left" | "center" | "right";
+  weight?: "light" | "regular" | "medium" | "semibold" | "bold";
+  style?: RNTextProps["style"];
 }
 
-export interface TextProps extends Omit<RNTextProps, 'style'> {
+export interface TextProps extends Omit<RNTextProps, "style"> {
   children: React.ReactNode;
-  size?: 'small' | 'medium' | 'large';
+  size?: "small" | "medium" | "large";
   color?: string;
-  align?: 'left' | 'center' | 'right';
-  weight?: 'light' | 'regular' | 'medium' | 'semibold' | 'bold';
-  style?: RNTextProps['style'];
+  align?: "left" | "center" | "right";
+  weight?: "light" | "regular" | "medium" | "semibold" | "bold";
+  style?: RNTextProps["style"];
   numberOfLines?: number;
 }
 
-export interface LabelProps extends Omit<RNTextProps, 'style'> {
+export interface LabelProps extends Omit<RNTextProps, "style"> {
   children: React.ReactNode;
   color?: string;
-  style?: RNTextProps['style'];
+  style?: RNTextProps["style"];
   numberOfLines?: number;
   required?: boolean;
 }
@@ -41,8 +45,8 @@ export const Heading: React.FC<HeadingProps> = ({
   level = 1, // 1-6
   children,
   color = colors.textPrimary,
-  align = 'left',
-  weight = 'bold',
+  align = "left",
+  weight = "bold",
   style,
   ...props
 }) => {
@@ -80,10 +84,10 @@ export const Heading: React.FC<HeadingProps> = ({
 // Body Text Component
 export const Text: React.FC<TextProps> = ({
   children,
-  size = 'medium', // small, medium, large
+  size = "medium", // small, medium, large
   color = colors.textPrimary,
-  align = 'left',
-  weight = 'regular',
+  align = "left",
+  weight = "regular",
   style,
   ...props
 }) => {
@@ -116,27 +120,34 @@ export const Text: React.FC<TextProps> = ({
 };
 
 // Caption Text
-export const Caption: React.FC<CaptionProps> = ({ children, color = colors.textSecondary, style, numberOfLines, ...props }) => {
-  return (
-    <RNText
-      style={[styles.caption, { color }, style]}
-      numberOfLines={numberOfLines}
-      {...props}
-    >
-      {children}
-    </RNText>
-  );
-};
+export const Caption: React.FC<CaptionProps> = ({
+  children,
+  color = colors.textSecondary,
+  style,
+  numberOfLines,
+  ...props
+}) => (
+  <RNText
+    numberOfLines={numberOfLines}
+    style={[styles.caption, { color }, style]}
+    {...props}
+  >
+    {children}
+  </RNText>
+);
 
 // Label Text (for forms)
-export const Label: React.FC<LabelProps> = ({ children, required = false, style, ...props }) => {
-  return (
-    <RNText style={[styles.label, style]} {...props}>
-      {children}
-      {required && <RNText style={styles.required}> *</RNText>}
-    </RNText>
-  );
-};
+export const Label: React.FC<LabelProps> = ({
+  children,
+  required = false,
+  style,
+  ...props
+}) => (
+  <RNText style={[styles.label, style]} {...props}>
+    {children}
+    {required && <RNText style={styles.required}> *</RNText>}
+  </RNText>
+);
 
 const styles = StyleSheet.create({
   heading: {

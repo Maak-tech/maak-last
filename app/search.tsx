@@ -1,28 +1,30 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Keyboard,
-  StyleSheet,
   Text,
   TextInput,
+  type TextStyle,
   TouchableOpacity,
   View,
-  type TextStyle,
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { globalSearchService, type SearchResult, type SearchFilters } from "@/lib/services/globalSearchService";
+import {
+  globalSearchService,
+  type SearchFilters,
+  type SearchResult,
+} from "@/lib/services/globalSearchService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Card } from "@/components/design-system";
-import { Heading, Text as TypographyText } from "@/components/design-system/Typography";
 
 export default function GlobalSearchScreen() {
   const { t, i18n } = useTranslation();
@@ -196,7 +198,9 @@ export default function GlobalSearchScreen() {
     if (!user?.id) return;
 
     try {
-      const userSuggestions = await globalSearchService.getSearchSuggestions(user.id);
+      const userSuggestions = await globalSearchService.getSearchSuggestions(
+        user.id
+      );
       setSuggestions(userSuggestions);
     } catch (error) {
       // Silently handle error
@@ -208,7 +212,11 @@ export default function GlobalSearchScreen() {
 
     setLoading(true);
     try {
-      const searchResults = await globalSearchService.search(user.id, searchQuery, filters);
+      const searchResults = await globalSearchService.search(
+        user.id,
+        searchQuery,
+        filters
+      );
       setResults(searchResults);
     } catch (error) {
       Alert.alert(
@@ -238,10 +246,10 @@ export default function GlobalSearchScreen() {
   };
 
   const toggleFilter = (type: keyof SearchFilters, value: string) => {
-    setFilters(prev => {
-      const currentValues = prev[type] as string[] || [];
+    setFilters((prev) => {
+      const currentValues = (prev[type] as string[]) || [];
       const newValues = currentValues.includes(value)
-        ? currentValues.filter(v => v !== value)
+        ? currentValues.filter((v) => v !== value)
         : [...currentValues, value];
 
       return {
@@ -272,30 +280,33 @@ export default function GlobalSearchScreen() {
       onPress={() => handleResultPress(item)}
       style={styles.resultItem as ViewStyle}
     >
-      <Card 
-        variant="elevated" 
-        style={styles.resultCard as ViewStyle}
-        pressable={false}
-        onPress={() => {}}
+      <Card
         contentStyle={{}}
+        onPress={() => {}}
+        pressable={false}
+        style={styles.resultCard as ViewStyle}
+        variant="elevated"
       >
         <View style={styles.resultHeader as ViewStyle}>
           <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
             {getResultIcon(item.type)}
-            <Text style={[styles.resultTitle as TextStyle, { marginStart: theme.spacing.sm }]}>
+            <Text
+              style={[
+                styles.resultTitle as TextStyle,
+                { marginStart: theme.spacing.sm },
+              ]}
+            >
               {item.title}
             </Text>
           </View>
-          <Badge variant="outline" size="small" style={{}}>
+          <Badge size="small" style={{}} variant="outline">
             {item.type}
           </Badge>
         </View>
 
-        <Text style={styles.resultSubtitle as TextStyle}>
-          {item.subtitle}
-        </Text>
+        <Text style={styles.resultSubtitle as TextStyle}>{item.subtitle}</Text>
 
-        <Text style={styles.resultDescription as TextStyle} numberOfLines={2}>
+        <Text numberOfLines={2} style={styles.resultDescription as TextStyle}>
           {item.description}
         </Text>
 
@@ -309,15 +320,18 @@ export default function GlobalSearchScreen() {
   const renderEmptyState = () => (
     <View style={styles.emptyContainer as ViewStyle}>
       <Ionicons
+        color={theme.colors.text.tertiary}
         name="search-outline"
         size={48}
-        color={theme.colors.text.tertiary}
       />
       <Text style={styles.emptyText as TextStyle}>
         {query.trim()
-          ? (isRTL ? "لا توجد نتائج لهذا البحث" : "No results found for this search")
-          : (isRTL ? "ابدأ البحث عن بياناتك الصحية" : "Start searching your health data")
-        }
+          ? isRTL
+            ? "لا توجد نتائج لهذا البحث"
+            : "No results found for this search"
+          : isRTL
+            ? "ابدأ البحث عن بياناتك الصحية"
+            : "Start searching your health data"}
       </Text>
     </View>
   );
@@ -340,13 +354,15 @@ export default function GlobalSearchScreen() {
               onPress={() => toggleFilter("types", key)}
               style={[
                 styles.filterChip as ViewStyle,
-                (filters.types || []).includes(key) && styles.filterChipActive as ViewStyle,
+                (filters.types || []).includes(key) &&
+                  (styles.filterChipActive as ViewStyle),
               ]}
             >
               <Text
                 style={[
                   styles.filterChipText as TextStyle,
-                  (filters.types || []).includes(key) && styles.filterChipTextActive as TextStyle,
+                  (filters.types || []).includes(key) &&
+                    (styles.filterChipTextActive as TextStyle),
                 ]}
               >
                 {label}
@@ -365,28 +381,41 @@ export default function GlobalSearchScreen() {
           onPress={() => router.back()}
           style={{ marginBottom: theme.spacing.md }}
         >
-          <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
+          <Ionicons
+            color={theme.colors.text.primary}
+            name="arrow-back"
+            size={24}
+          />
         </TouchableOpacity>
 
         <View style={styles.searchContainer as ViewStyle}>
           <Ionicons
+            color={theme.colors.text.secondary}
             name="search"
             size={20}
-            color={theme.colors.text.secondary}
             style={styles.searchIcon as TextStyle}
           />
           <TextInput
-            style={styles.searchInput as TextStyle}
-            placeholder={isRTL ? "البحث في البيانات الصحية..." : "Search health data..."}
-            value={query}
-            onChangeText={setQuery}
             autoFocus
-            returnKeyType="search"
+            onChangeText={setQuery}
             onSubmitEditing={() => Keyboard.dismiss()}
+            placeholder={
+              isRTL ? "البحث في البيانات الصحية..." : "Search health data..."
+            }
+            returnKeyType="search"
+            style={styles.searchInput as TextStyle}
+            value={query}
           />
           {query ? (
-            <TouchableOpacity onPress={clearSearch} style={styles.clearButton as ViewStyle}>
-              <Ionicons name="close-circle" size={20} color={theme.colors.text.secondary} />
+            <TouchableOpacity
+              onPress={clearSearch}
+              style={styles.clearButton as ViewStyle}
+            >
+              <Ionicons
+                color={theme.colors.text.secondary}
+                name="close-circle"
+                size={20}
+              />
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity
@@ -394,9 +423,13 @@ export default function GlobalSearchScreen() {
             style={styles.filterButton as ViewStyle}
           >
             <Ionicons
+              color={
+                showFilters
+                  ? theme.colors.primary.main
+                  : theme.colors.text.secondary
+              }
               name="filter"
               size={20}
-              color={showFilters ? theme.colors.primary.main : theme.colors.text.secondary}
             />
           </TouchableOpacity>
         </View>
@@ -406,7 +439,12 @@ export default function GlobalSearchScreen() {
 
       {!query.trim() && suggestions.length > 0 && (
         <View style={styles.suggestionsContainer as ViewStyle}>
-          <Text style={[styles.filterLabel as TextStyle, { marginBottom: theme.spacing.sm }]}>
+          <Text
+            style={[
+              styles.filterLabel as TextStyle,
+              { marginBottom: theme.spacing.sm },
+            ]}
+          >
             {isRTL ? "اقتراحات البحث" : "Search Suggestions"}
           </Text>
           <View style={styles.filterChips as ViewStyle}>
@@ -428,16 +466,16 @@ export default function GlobalSearchScreen() {
       <View style={styles.resultsContainer as ViewStyle}>
         {loading ? (
           <View style={styles.emptyContainer as ViewStyle}>
-            <ActivityIndicator size="large" color={theme.colors.primary.main} />
+            <ActivityIndicator color={theme.colors.primary.main} size="large" />
           </View>
         ) : (
           <FlatList
             data={results}
-            renderItem={renderResult}
+            keyboardShouldPersistTaps="handled"
             keyExtractor={(item) => item.id}
             ListEmptyComponent={renderEmptyState}
+            renderItem={renderResult}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
           />
         )}
       </View>

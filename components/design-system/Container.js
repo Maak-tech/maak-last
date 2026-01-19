@@ -1,15 +1,14 @@
-import React from 'react';
+import { LinearGradient } from "expo-linear-gradient";
 import {
-  View,
-  ScrollView,
-  StyleSheet,
-  StatusBar,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing } from './theme';
-import { LinearGradient } from 'expo-linear-gradient';
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { colors, spacing } from "./theme";
 
 const Container = ({
   children,
@@ -29,8 +28,8 @@ const Container = ({
   const scrollContent = scroll ? (
     <ScrollView
       contentContainerStyle={[padding && styles.withPadding]}
-      showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       {children}
     </ScrollView>
@@ -41,22 +40,22 @@ const Container = ({
   return (
     <>
       <StatusBar
-        barStyle={gradient ? 'light-content' : 'dark-content'}
         backgroundColor={gradient ? gradientColors[0] : backgroundColor}
+        barStyle={gradient ? "light-content" : "dark-content"}
       />
-      
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+
+      <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           {gradient ? (
             <LinearGradient
               colors={gradientColors}
-              style={styles.gradient}
-              start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
+              start={{ x: 0, y: 0 }}
+              style={styles.gradient}
             >
               {scrollContent}
             </LinearGradient>

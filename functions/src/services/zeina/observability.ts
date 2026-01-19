@@ -1,11 +1,11 @@
 /**
  * Observability: Traces & Metrics
- * 
+ *
  * HIPAA-SAFE LOGGING:
  * - NO PHI in logs (only traceId, alertId, patientId as identifiers)
  * - All metrics aggregatable
  * - Counter-based metrics for monitoring
- * 
+ *
  * Key Metrics:
  * - zeina.calls (total analysis calls)
  * - zeina.failures (analysis failures)
@@ -14,8 +14,8 @@
  * - zeina.llm_timeouts (LLM timeout errors)
  */
 
-import { logger } from '../../observability/logger';
-import type { ZeinaMetrics } from './types';
+import { logger } from "../../observability/logger";
+import type { ZeinaMetrics } from "./types";
 
 /**
  * Metric counters (in-memory, can be exported to monitoring service)
@@ -23,7 +23,7 @@ import type { ZeinaMetrics } from './types';
 class MetricCounters {
   private counters: Map<string, number> = new Map();
 
-  increment(metric: string, value: number = 1): void {
+  increment(metric: string, value = 1): void {
     const current = this.counters.get(metric) || 0;
     this.counters.set(metric, current + value);
   }
@@ -48,12 +48,12 @@ const metrics = new MetricCounters();
  * Track Zeina analysis call
  */
 export function trackZeinaCall(traceId: string, alertId: string): void {
-  metrics.increment('zeina.calls');
-  
-  logger.info('Zeina analysis call started', {
+  metrics.increment("zeina.calls");
+
+  logger.info("Zeina analysis call started", {
     traceId,
     alertId,
-    fn: 'zeina.observability.trackZeinaCall',
+    fn: "zeina.observability.trackZeinaCall",
   });
 }
 
@@ -64,27 +64,27 @@ export function trackZeinaComplete(
   traceId: string,
   alertId: string,
   durationMs: number,
-  analysisType: 'ai' | 'deterministic',
+  analysisType: "ai" | "deterministic",
   riskScore: number
 ): void {
-  logger.info('Zeina analysis completed', {
+  logger.info("Zeina analysis completed", {
     traceId,
     alertId,
     durationMs,
     analysisType,
     riskScore,
-    fn: 'zeina.observability.trackZeinaComplete',
+    fn: "zeina.observability.trackZeinaComplete",
   });
 
   // Track duration buckets
   if (durationMs < 1000) {
-    metrics.increment('zeina.duration.under_1s');
+    metrics.increment("zeina.duration.under_1s");
   } else if (durationMs < 3000) {
-    metrics.increment('zeina.duration.1s_to_3s');
+    metrics.increment("zeina.duration.1s_to_3s");
   } else if (durationMs < 5000) {
-    metrics.increment('zeina.duration.3s_to_5s');
+    metrics.increment("zeina.duration.3s_to_5s");
   } else {
-    metrics.increment('zeina.duration.over_5s');
+    metrics.increment("zeina.duration.over_5s");
   }
 
   // Track analysis type
@@ -100,14 +100,14 @@ export function trackZeinaFailure(
   errorType: string,
   error?: Error
 ): void {
-  metrics.increment('zeina.failures');
+  metrics.increment("zeina.failures");
   metrics.increment(`zeina.failures.${errorType}`);
 
-  logger.error('Zeina analysis failed', error || new Error(errorType), {
+  logger.error("Zeina analysis failed", error || new Error(errorType), {
     traceId,
     alertId,
     errorType,
-    fn: 'zeina.observability.trackZeinaFailure',
+    fn: "zeina.observability.trackZeinaFailure",
   });
 }
 
@@ -120,15 +120,15 @@ export function trackGuardrailBlock(
   reason: string,
   errors: string[]
 ): void {
-  metrics.increment('zeina.guardrail_blocks');
+  metrics.increment("zeina.guardrail_blocks");
   metrics.increment(`zeina.guardrail_blocks.${reason}`);
 
-  logger.warn('Zeina guardrail block', {
+  logger.warn("Zeina guardrail block", {
     traceId,
     alertId,
     reason,
     errorCount: errors.length,
-    fn: 'zeina.observability.trackGuardrailBlock',
+    fn: "zeina.observability.trackGuardrailBlock",
   });
 }
 
@@ -141,24 +141,24 @@ export function trackLLMCall(
   success: boolean,
   durationMs?: number
 ): void {
-  metrics.increment('zeina.llm_calls');
+  metrics.increment("zeina.llm_calls");
   metrics.increment(`zeina.llm_calls.${provider}`);
 
   if (success) {
-    metrics.increment('zeina.llm_calls.success');
-    logger.debug('LLM call succeeded', {
+    metrics.increment("zeina.llm_calls.success");
+    logger.debug("LLM call succeeded", {
       traceId,
       provider,
       durationMs,
-      fn: 'zeina.observability.trackLLMCall',
+      fn: "zeina.observability.trackLLMCall",
     });
   } else {
-    metrics.increment('zeina.llm_calls.failure');
-    logger.warn('LLM call failed', {
+    metrics.increment("zeina.llm_calls.failure");
+    logger.warn("LLM call failed", {
       traceId,
       provider,
       durationMs,
-      fn: 'zeina.observability.trackLLMCall',
+      fn: "zeina.observability.trackLLMCall",
     });
   }
 }
@@ -167,13 +167,13 @@ export function trackLLMCall(
  * Track LLM timeout
  */
 export function trackLLMTimeout(traceId: string, provider: string): void {
-  metrics.increment('zeina.llm_timeouts');
+  metrics.increment("zeina.llm_timeouts");
   metrics.increment(`zeina.llm_timeouts.${provider}`);
 
-  logger.warn('LLM call timeout', {
+  logger.warn("LLM call timeout", {
     traceId,
     provider,
-    fn: 'zeina.observability.trackLLMTimeout',
+    fn: "zeina.observability.trackLLMTimeout",
   });
 }
 
@@ -198,7 +198,7 @@ export function createMetricsObject(
   traceId: string,
   durationMs: number,
   success: boolean,
-  analysisType: 'ai' | 'deterministic',
+  analysisType: "ai" | "deterministic",
   guardrailBlocked: boolean,
   errorType?: string
 ): ZeinaMetrics {
@@ -217,9 +217,9 @@ export function createMetricsObject(
  */
 export function logMetricsSummary(): void {
   const allMetrics = metrics.getAll();
-  
-  logger.info('Zeina metrics summary', {
+
+  logger.info("Zeina metrics summary", {
     metrics: allMetrics,
-    fn: 'zeina.observability.logMetricsSummary',
+    fn: "zeina.observability.logMetricsSummary",
   });
 }

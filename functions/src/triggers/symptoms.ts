@@ -3,17 +3,17 @@
  * Checks symptoms against severity thresholds and alerts admins
  */
 
-import * as admin from 'firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
-import { logger } from '../observability/logger';
-import { getFamilyAdmins } from '../modules/family/admins';
+import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { getFamilyAdmins } from "../modules/family/admins";
+import { logger } from "../observability/logger";
 
 /**
  * Firestore trigger: Check symptoms against benchmarks when new symptom is created
  */
 export const checkSymptomBenchmarks = onDocumentCreated(
-  'symptoms/{symptomId}',
+  "symptoms/{symptomId}",
   async (event) => {
     const symptomData = event.data?.data();
     if (!symptomData) {
@@ -22,7 +22,7 @@ export const checkSymptomBenchmarks = onDocumentCreated(
 
     const { userId, severity } = symptomData;
 
-    if (!userId || typeof severity !== 'number') {
+    if (!userId || typeof severity !== "number") {
       return;
     }
 
@@ -34,7 +34,7 @@ export const checkSymptomBenchmarks = onDocumentCreated(
     try {
       // Get user info
       const db = admin.firestore();
-      const userDoc = await db.collection('users').doc(userId).get();
+      const userDoc = await db.collection("users").doc(userId).get();
       const userData = userDoc.data();
 
       if (!userData?.familyId) {
@@ -44,7 +44,7 @@ export const checkSymptomBenchmarks = onDocumentCreated(
       const userName =
         userData.firstName && userData.lastName
           ? `${userData.firstName} ${userData.lastName}`
-          : userData.email || 'User';
+          : userData.email || "User";
 
       const adminIds = await getFamilyAdmins(userData.familyId);
       const adminIdsToAlert = adminIds.filter((id) => id !== userId);
@@ -53,40 +53,40 @@ export const checkSymptomBenchmarks = onDocumentCreated(
         return;
       }
 
-      const severityText = severity === 5 ? 'very severe' : 'severe';
-      const severityEmoji = severity === 5 ? '🚨' : '⚠️';
-      const symptomType = symptomData.type || 'symptom';
+      const severityText = severity === 5 ? "very severe" : "severe";
+      const severityEmoji = severity === 5 ? "🚨" : "⚠️";
+      const symptomType = symptomData.type || "symptom";
 
       const notification = {
         title: `${severityEmoji} Symptom Alert`,
         body: `${userName} is experiencing ${severityText} ${symptomType}`,
-        priority: severity === 5 ? ('high' as const) : ('normal' as const),
+        priority: severity === 5 ? ("high" as const) : ("normal" as const),
         data: {
-          type: 'symptom_alert',
+          type: "symptom_alert",
           symptomType,
           severity: severity.toString(),
           userId,
           userName,
         },
-        clickAction: 'OPEN_SYMPTOMS',
-        color: severity === 5 ? '#EF4444' : '#F59E0B',
+        clickAction: "OPEN_SYMPTOMS",
+        color: severity === 5 ? "#EF4444" : "#F59E0B",
       };
 
       // Send to admins
       // Note: This requires sendPushNotification to be exported from index.ts
-      const indexModule = await import('../index.js') as any;
+      const indexModule = (await import("../index.js")) as any;
       const result = await indexModule.sendPushNotification(
         {
           userIds: adminIdsToAlert,
           notification,
-          notificationType: 'symptom',
+          notificationType: "symptom",
         },
-        { auth: { uid: 'system' } } as any
+        { auth: { uid: "system" } } as any
       );
 
       // Log the alert
-      await db.collection('notificationLogs').add({
-        type: 'symptom_alert',
+      await db.collection("notificationLogs").add({
+        type: "symptom_alert",
         userId,
         symptomType,
         severity,
@@ -95,8 +95,8 @@ export const checkSymptomBenchmarks = onDocumentCreated(
         result,
       });
     } catch (error) {
-      logger.error('Error in checkSymptomBenchmarks', error as Error, {
-        fn: 'checkSymptomBenchmarks',
+      logger.error("Error in checkSymptomBenchmarks", error as Error, {
+        fn: "checkSymptomBenchmarks",
       });
       // Don't throw - this is a background function
     }

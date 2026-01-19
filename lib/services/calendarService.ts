@@ -1,19 +1,18 @@
 import {
+  addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
   orderBy,
+  query,
   Timestamp,
-  limit,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { CalendarEvent, RecurrencePattern } from "@/types";
+import type { CalendarEvent } from "@/types";
 
 class CalendarService {
   /**
@@ -23,7 +22,6 @@ class CalendarService {
     userId: string,
     event: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">
   ): Promise<string> {
-
     try {
       // Filter out undefined values - Firestore doesn't accept undefined
       const cleanedEvent: any = {
@@ -37,47 +35,82 @@ class CalendarService {
       };
 
       // Only add fields that are defined
-      if (event.description !== undefined && event.description !== null && event.description.trim() !== "") {
+      if (
+        event.description !== undefined &&
+        event.description !== null &&
+        event.description.trim() !== ""
+      ) {
         cleanedEvent.description = event.description;
       }
       if (event.endDate) {
         cleanedEvent.endDate = Timestamp.fromDate(event.endDate);
       }
-      if (event.location !== undefined && event.location !== null && event.location.trim() !== "") {
+      if (
+        event.location !== undefined &&
+        event.location !== null &&
+        event.location.trim() !== ""
+      ) {
         cleanedEvent.location = event.location;
       }
       if (event.familyId !== undefined && event.familyId !== null) {
         cleanedEvent.familyId = event.familyId;
       }
-      if (event.recurrencePattern !== undefined && event.recurrencePattern !== null && event.recurrencePattern !== "none") {
+      if (
+        event.recurrencePattern !== undefined &&
+        event.recurrencePattern !== null &&
+        event.recurrencePattern !== "none"
+      ) {
         cleanedEvent.recurrencePattern = event.recurrencePattern;
       }
       if (event.recurrenceEndDate) {
-        cleanedEvent.recurrenceEndDate = Timestamp.fromDate(event.recurrenceEndDate);
+        cleanedEvent.recurrenceEndDate = Timestamp.fromDate(
+          event.recurrenceEndDate
+        );
       }
-      if (event.recurrenceCount !== undefined && event.recurrenceCount !== null) {
+      if (
+        event.recurrenceCount !== undefined &&
+        event.recurrenceCount !== null
+      ) {
         cleanedEvent.recurrenceCount = event.recurrenceCount;
       }
       if (event.relatedItemId !== undefined && event.relatedItemId !== null) {
         cleanedEvent.relatedItemId = event.relatedItemId;
       }
-      if (event.relatedItemType !== undefined && event.relatedItemType !== null) {
+      if (
+        event.relatedItemType !== undefined &&
+        event.relatedItemType !== null
+      ) {
         cleanedEvent.relatedItemType = event.relatedItemType;
       }
       if (event.color !== undefined && event.color !== null) {
         cleanedEvent.color = event.color;
       }
-      if (event.reminders !== undefined && event.reminders !== null && event.reminders.length > 0) {
+      if (
+        event.reminders !== undefined &&
+        event.reminders !== null &&
+        event.reminders.length > 0
+      ) {
         cleanedEvent.reminders = event.reminders;
       }
-      if (event.tags !== undefined && event.tags !== null && event.tags.length > 0) {
+      if (
+        event.tags !== undefined &&
+        event.tags !== null &&
+        event.tags.length > 0
+      ) {
         cleanedEvent.tags = event.tags;
       }
-      if (event.attendees !== undefined && event.attendees !== null && event.attendees.length > 0) {
+      if (
+        event.attendees !== undefined &&
+        event.attendees !== null &&
+        event.attendees.length > 0
+      ) {
         cleanedEvent.attendees = event.attendees;
       }
 
-      const docRef = await addDoc(collection(db, "calendarEvents"), cleanedEvent);
+      const docRef = await addDoc(
+        collection(db, "calendarEvents"),
+        cleanedEvent
+      );
 
       // Generate recurring events if needed
       if (event.recurrencePattern && event.recurrencePattern !== "none") {
@@ -118,7 +151,9 @@ class CalendarService {
         updateData.startDate = Timestamp.fromDate(updates.startDate);
       }
       if (updates.endDate !== undefined) {
-        updateData.endDate = updates.endDate ? Timestamp.fromDate(updates.endDate) : null;
+        updateData.endDate = updates.endDate
+          ? Timestamp.fromDate(updates.endDate)
+          : null;
       }
       if (updates.allDay !== undefined) {
         updateData.allDay = updates.allDay;
@@ -133,8 +168,8 @@ class CalendarService {
         updateData.recurrencePattern = updates.recurrencePattern || null;
       }
       if (updates.recurrenceEndDate !== undefined) {
-        updateData.recurrenceEndDate = updates.recurrenceEndDate 
-          ? Timestamp.fromDate(updates.recurrenceEndDate) 
+        updateData.recurrenceEndDate = updates.recurrenceEndDate
+          ? Timestamp.fromDate(updates.recurrenceEndDate)
           : null;
       }
       if (updates.recurrenceCount !== undefined) {
@@ -297,7 +332,7 @@ class CalendarService {
   async getEventsForDate(
     userId: string,
     date: Date,
-    includeFamily: boolean = false,
+    includeFamily = false,
     familyId?: string
   ): Promise<CalendarEvent[]> {
     const startOfDay = new Date(date);
@@ -327,7 +362,7 @@ class CalendarService {
     userId: string,
     startDate: Date,
     endDate: Date,
-    includeFamily: boolean = false,
+    includeFamily = false,
     familyId?: string
   ): Promise<CalendarEvent[]> {
     const userEvents = await this.getUserEvents(userId, startDate, endDate);
@@ -355,12 +390,14 @@ class CalendarService {
       return;
     }
 
-    const events: Array<Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">> = [];
+    const events: Array<
+      Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">
+    > = [];
     const startDate = new Date(event.startDate);
     const endDate = event.recurrenceEndDate || new Date();
     endDate.setFullYear(endDate.getFullYear() + 1); // Default to 1 year ahead
 
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     let count = 0;
     const maxCount = event.recurrenceCount || 365; // Safety limit
 
@@ -490,8 +527,8 @@ class CalendarService {
    */
   async getUpcomingEvents(
     userId: string,
-    days: number = 7,
-    includeFamily: boolean = false,
+    days = 7,
+    includeFamily = false,
     familyId?: string
   ): Promise<CalendarEvent[]> {
     const startDate = new Date();

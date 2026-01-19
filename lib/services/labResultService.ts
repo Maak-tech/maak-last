@@ -1,16 +1,16 @@
 import {
+  addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
   limit,
+  orderBy,
+  query,
   Timestamp,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { LabResult, LabResultValue } from "@/types";
@@ -25,7 +25,7 @@ class LabResultService {
   ): Promise<string> {
     try {
       // Validate required fields
-      if (!labResult.testName || !labResult.testName.trim()) {
+      if (!(labResult.testName && labResult.testName.trim())) {
         throw new Error("Test name is required");
       }
       if (!labResult.results || labResult.results.length === 0) {
@@ -34,12 +34,19 @@ class LabResultService {
 
       // Clean nested results array - remove undefined values from each result object
       const cleanedResults = labResult.results
-        .filter((result) => result.name && result.name.trim() && (result.value !== undefined && result.value !== null && result.value !== ""))
-        .map((result) => {
-          return Object.fromEntries(
+        .filter(
+          (result) =>
+            result.name &&
+            result.name.trim() &&
+            result.value !== undefined &&
+            result.value !== null &&
+            result.value !== ""
+        )
+        .map((result) =>
+          Object.fromEntries(
             Object.entries(result).filter(([_, value]) => value !== undefined)
-          );
-        });
+          )
+        );
 
       if (cleanedResults.length === 0) {
         throw new Error("No valid results found");
@@ -56,8 +63,12 @@ class LabResultService {
           ...(labResult.facility && { facility: labResult.facility }),
           ...(labResult.orderedBy && { orderedBy: labResult.orderedBy }),
           ...(labResult.notes && { notes: labResult.notes }),
-          ...(labResult.tags && labResult.tags.length > 0 && { tags: labResult.tags }),
-          ...(labResult.attachments && labResult.attachments.length > 0 && { attachments: labResult.attachments }),
+          ...(labResult.tags &&
+            labResult.tags.length > 0 && { tags: labResult.tags }),
+          ...(labResult.attachments &&
+            labResult.attachments.length > 0 && {
+              attachments: labResult.attachments,
+            }),
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         }).filter(([_, value]) => value !== undefined)
@@ -237,10 +248,7 @@ class LabResultService {
   /**
    * Get lab results by tag
    */
-  async getLabResultsByTag(
-    userId: string,
-    tag: string
-  ): Promise<LabResult[]> {
+  async getLabResultsByTag(userId: string, tag: string): Promise<LabResult[]> {
     try {
       const allResults = await this.getUserLabResults(userId);
       return allResults.filter(
@@ -272,11 +280,11 @@ class LabResultService {
       if (range) {
         if (numericValue < range.min) {
           return "low";
-        } else if (numericValue > range.max) {
-          return "high";
-        } else {
-          return "normal";
         }
+        if (numericValue > range.max) {
+          return "high";
+        }
+        return "normal";
       }
     }
 
@@ -297,10 +305,7 @@ class LabResultService {
       ) {
         return "low";
       }
-      if (
-        lowerValue.includes("abnormal") ||
-        lowerValue.includes("critical")
-      ) {
+      if (lowerValue.includes("abnormal") || lowerValue.includes("critical")) {
         return "abnormal";
       }
     }
@@ -319,8 +324,8 @@ class LabResultService {
       const match = range.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
       if (match) {
         return {
-          min: parseFloat(match[1]),
-          max: parseFloat(match[2]),
+          min: Number.parseFloat(match[1]),
+          max: Number.parseFloat(match[2]),
         };
       }
       return null;

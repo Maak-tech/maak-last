@@ -1,4 +1,3 @@
-import React, { useCallback, useEffect, useState } from "react";
 import { router } from "expo-router";
 import {
   ChevronLeft,
@@ -7,6 +6,7 @@ import {
   TestTube,
   X,
 } from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -15,23 +15,25 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
+  type StyleProp,
   Text,
-  TextInput,
+  type TextStyle,
   TouchableOpacity,
   View,
   type ViewStyle,
-  type TextStyle,
-  type StyleProp,
 } from "react-native";
+import { Button, Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import {
+  Caption,
+  Heading,
+  Text as TypographyText,
+} from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { labResultService } from "@/lib/services/labResultService";
 import type { LabResult } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Button, Card } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
 
 export default function LabResultsScreen() {
   const { t, i18n } = useTranslation();
@@ -44,7 +46,9 @@ export default function LabResultsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedResult, setSelectedResult] = useState<LabResult | null>(null);
-  const [filterType, setFilterType] = useState<LabResult["testType"] | "all">("all");
+  const [filterType, setFilterType] = useState<LabResult["testType"] | "all">(
+    "all"
+  );
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -186,46 +190,51 @@ export default function LabResultsScreen() {
     } as TextStyle,
   }))(theme);
 
-  const loadLabResults = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadLabResults = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        let results: LabResult[];
+        if (filterType === "all") {
+          results = await labResultService.getUserLabResults(user.id);
+        } else {
+          results = await labResultService.getLabResultsByType(
+            user.id,
+            filterType
+          );
+        }
+
+        setLabResults(results);
+      } catch (error) {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "فشل تحميل نتائج المختبر" : "Failed to load lab results"
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      let results: LabResult[];
-      if (filterType === "all") {
-        results = await labResultService.getUserLabResults(user.id);
-      } else {
-        results = await labResultService.getLabResultsByType(user.id, filterType);
-      }
-
-      setLabResults(results);
-    } catch (error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل تحميل نتائج المختبر" : "Failed to load lab results"
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, filterType, isRTL]);
+    },
+    [user, filterType, isRTL]
+  );
 
   useEffect(() => {
     loadLabResults();
   }, [loadLabResults]);
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString(isRTL ? "ar" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
-  };
 
   const getStatusColor = (status?: LabResult["results"][0]["status"]) => {
     switch (status) {
@@ -289,12 +298,19 @@ export default function LabResultsScreen() {
           ]}
         >
           <ChevronLeft
-            size={24}
             color={theme.colors.text.primary}
+            size={24}
             style={isRTL ? { transform: [{ rotate: "180deg" }] } : undefined}
           />
         </TouchableOpacity>
-        <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined, { flex: 1 }]}>
+        <Heading
+          level={4}
+          style={[
+            styles.headerTitle as TextStyle,
+            isRTL ? (styles.rtlText as TextStyle) : undefined,
+            { flex: 1 },
+          ]}
+        >
           {isRTL ? "نتائج المختبر" : "Lab Results"}
         </Heading>
         <TouchableOpacity
@@ -307,9 +323,9 @@ export default function LabResultsScreen() {
 
       {/* Filters */}
       <ScrollView
+        contentContainerStyle={styles.filterContainer as StyleProp<ViewStyle>}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterContainer as StyleProp<ViewStyle>}
       >
         {testTypes.map((type) => (
           <TouchableOpacity
@@ -317,13 +333,15 @@ export default function LabResultsScreen() {
             onPress={() => setFilterType(type.value)}
             style={[
               styles.filterChip as StyleProp<ViewStyle>,
-              filterType === type.value && (styles.filterChipActive as StyleProp<ViewStyle>),
+              filterType === type.value &&
+                (styles.filterChipActive as StyleProp<ViewStyle>),
             ]}
           >
             <Text
               style={[
                 styles.filterChipText as StyleProp<TextStyle>,
-                filterType === type.value && (styles.filterChipTextActive as StyleProp<TextStyle>),
+                filterType === type.value &&
+                  (styles.filterChipTextActive as StyleProp<TextStyle>),
               ]}
             >
               {type.label}
@@ -335,60 +353,80 @@ export default function LabResultsScreen() {
       {/* Results List */}
       {loading ? (
         <View style={styles.emptyContainer as StyleProp<ViewStyle>}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
         </View>
       ) : labResults.length === 0 ? (
         <ScrollView
           contentContainerStyle={styles.emptyContainer as StyleProp<ViewStyle>}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => loadLabResults(true)} />
+            <RefreshControl
+              onRefresh={() => loadLabResults(true)}
+              refreshing={refreshing}
+            />
           }
         >
-          <TestTube size={64} color={theme.colors.text.secondary} />
-          <Text style={[styles.emptyText as StyleProp<TextStyle>, isRTL && (styles.rtlText as StyleProp<TextStyle>)]}>
-            {isRTL
-              ? "لا توجد نتائج مختبر مسجلة"
-              : "No lab results recorded"}
+          <TestTube color={theme.colors.text.secondary} size={64} />
+          <Text
+            style={[
+              styles.emptyText as StyleProp<TextStyle>,
+              isRTL && (styles.rtlText as StyleProp<TextStyle>),
+            ]}
+          >
+            {isRTL ? "لا توجد نتائج مختبر مسجلة" : "No lab results recorded"}
           </Text>
           <Button
-            variant="primary"
             onPress={() => router.push("/(tabs)/lab-results/add")}
             style={{ marginTop: theme.spacing.base }}
             title={isRTL ? "إضافة نتيجة مختبر" : "Add Lab Result"}
+            variant="primary"
           />
         </ScrollView>
       ) : (
         <ScrollView
-          style={styles.content as StyleProp<ViewStyle>}
           contentContainerStyle={styles.resultsList as StyleProp<ViewStyle>}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => loadLabResults(true)} />
+            <RefreshControl
+              onRefresh={() => loadLabResults(true)}
+              refreshing={refreshing}
+            />
           }
+          style={styles.content as StyleProp<ViewStyle>}
         >
           {labResults.map((result) => (
             <Card
-              key={result.id}
-              variant="elevated"
-              style={styles.resultCard as StyleProp<ViewStyle>}
               contentStyle={undefined}
+              key={result.id}
               onPress={() => {
                 setSelectedResult(result);
                 setShowAddModal(true);
               }}
+              style={styles.resultCard as StyleProp<ViewStyle>}
+              variant="elevated"
             >
               <View style={styles.resultHeader as StyleProp<ViewStyle>}>
                 <View style={{ flex: 1 }}>
                   <TypographyText
+                    style={[
+                      styles.resultTitle as TextStyle,
+                      isRTL ? (styles.rtlText as TextStyle) : undefined,
+                    ]}
                     weight="bold"
-                    style={[styles.resultTitle as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]}
                   >
                     {result.testName}
                   </TypographyText>
-                  <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
+                  <Caption
+                    numberOfLines={1}
+                    style={[
+                      styles.resultDate as TextStyle,
+                      isRTL ? (styles.rtlText as TextStyle) : undefined,
+                    ]}
+                  >
                     {formatDate(result.testDate)}
                   </Caption>
                 </View>
                 <Badge
+                  size="small"
+                  style={undefined}
                   variant={
                     result.testType === "blood"
                       ? "error"
@@ -396,15 +434,19 @@ export default function LabResultsScreen() {
                         ? "info"
                         : "outline"
                   }
-                  size="small"
-                  style={undefined}
                 >
                   {result.testType}
                 </Badge>
               </View>
 
               {result.facility && (
-                <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
+                <Caption
+                  numberOfLines={1}
+                  style={[
+                    styles.resultDate as TextStyle,
+                    isRTL ? (styles.rtlText as TextStyle) : undefined,
+                  ]}
+                >
                   {isRTL ? "المنشأة: " : "Facility: "}
                   {result.facility}
                 </Caption>
@@ -413,13 +455,21 @@ export default function LabResultsScreen() {
               {result.results && result.results.length > 0 && (
                 <View style={styles.resultValues as StyleProp<ViewStyle>}>
                   {result.results.slice(0, 3).map((value, index) => (
-                    <View key={index} style={styles.resultValueItem as StyleProp<ViewStyle>}>
+                    <View
+                      key={index}
+                      style={styles.resultValueItem as StyleProp<ViewStyle>}
+                    >
                       <TypographyText
-                        style={[styles.resultValueName as StyleProp<TextStyle>, isRTL && (styles.rtlText as StyleProp<TextStyle>)]}
+                        style={[
+                          styles.resultValueName as StyleProp<TextStyle>,
+                          isRTL && (styles.rtlText as StyleProp<TextStyle>),
+                        ]}
                       >
                         {value.name}
                       </TypographyText>
-                      <View style={styles.resultValueData as StyleProp<ViewStyle>}>
+                      <View
+                        style={styles.resultValueData as StyleProp<ViewStyle>}
+                      >
                         <TypographyText
                           style={[
                             styles.resultValueText as StyleProp<TextStyle>,
@@ -429,21 +479,27 @@ export default function LabResultsScreen() {
                           {value.value}
                         </TypographyText>
                         {value.unit && (
-                          <Caption style={styles.resultValueUnit as StyleProp<TextStyle>} numberOfLines={1}>
+                          <Caption
+                            numberOfLines={1}
+                            style={
+                              styles.resultValueUnit as StyleProp<TextStyle>
+                            }
+                          >
                             {value.unit}
                           </Caption>
                         )}
                         {value.status && (
                           <Badge
+                            size="small"
+                            style={undefined}
                             variant={
                               value.status === "normal"
                                 ? "success"
-                                : value.status === "high" || value.status === "critical"
+                                : value.status === "high" ||
+                                    value.status === "critical"
                                   ? "error"
                                   : "warning"
                             }
-                            size="small"
-                            style={undefined}
                           >
                             {getStatusLabel(value.status)}
                           </Badge>
@@ -452,7 +508,13 @@ export default function LabResultsScreen() {
                     </View>
                   ))}
                   {result.results.length > 3 && (
-                    <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
+                    <Caption
+                      numberOfLines={1}
+                      style={[
+                        styles.resultDate as TextStyle,
+                        isRTL ? (styles.rtlText as TextStyle) : undefined,
+                      ]}
+                    >
                       {isRTL
                         ? `+${result.results.length - 3} المزيد`
                         : `+${result.results.length - 3} more`}
@@ -461,11 +523,19 @@ export default function LabResultsScreen() {
                 </View>
               )}
 
-              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", marginTop: theme.spacing.sm }}>
+              <View
+                style={{
+                  flexDirection: isRTL ? "row-reverse" : "row",
+                  marginTop: theme.spacing.sm,
+                }}
+              >
                 <ChevronRight
-                  size={16}
                   color={theme.colors.text.secondary}
-                  style={{ marginLeft: isRTL ? 0 : "auto", marginRight: isRTL ? "auto" : 0 }}
+                  size={16}
+                  style={{
+                    marginLeft: isRTL ? 0 : "auto",
+                    marginRight: isRTL ? "auto" : 0,
+                  }}
                 />
               </View>
             </Card>
@@ -475,17 +545,23 @@ export default function LabResultsScreen() {
 
       {/* Detail Modal */}
       <Modal
-        visible={showAddModal && !!selectedResult}
         animationType="slide"
-        presentationStyle="pageSheet"
         onRequestClose={() => {
           setShowAddModal(false);
           setSelectedResult(null);
         }}
+        presentationStyle="pageSheet"
+        visible={showAddModal && !!selectedResult}
       >
         <SafeAreaView style={styles.modalContainer as StyleProp<ViewStyle>}>
           <View style={styles.modalHeader as StyleProp<ViewStyle>}>
-            <Heading level={5} style={[styles.resultTitle as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]}>
+            <Heading
+              level={5}
+              style={[
+                styles.resultTitle as TextStyle,
+                isRTL ? (styles.rtlText as TextStyle) : undefined,
+              ]}
+            >
               {selectedResult?.testName}
             </Heading>
             <TouchableOpacity
@@ -494,93 +570,145 @@ export default function LabResultsScreen() {
                 setSelectedResult(null);
               }}
             >
-              <X size={24} color={theme.colors.text.primary} />
+              <X color={theme.colors.text.primary} size={24} />
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent as StyleProp<ViewStyle>}>
             {selectedResult && (
               <>
                 <View style={{ marginBottom: theme.spacing.base }}>
-                  <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
+                  <Caption
+                    numberOfLines={1}
+                    style={[
+                      styles.resultDate as TextStyle,
+                      isRTL ? (styles.rtlText as TextStyle) : undefined,
+                    ]}
+                  >
                     {isRTL ? "التاريخ: " : "Date: "}
                     {formatDate(selectedResult.testDate)}
                   </Caption>
                   {selectedResult.facility && (
-                    <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
+                    <Caption
+                      numberOfLines={1}
+                      style={[
+                        styles.resultDate as TextStyle,
+                        isRTL ? (styles.rtlText as TextStyle) : undefined,
+                      ]}
+                    >
                       {isRTL ? "المنشأة: " : "Facility: "}
                       {selectedResult.facility}
                     </Caption>
                   )}
                   {selectedResult.orderedBy && (
-                    <Caption style={[styles.resultDate as TextStyle, isRTL ? (styles.rtlText as TextStyle) : undefined]} numberOfLines={1}>
+                    <Caption
+                      numberOfLines={1}
+                      style={[
+                        styles.resultDate as TextStyle,
+                        isRTL ? (styles.rtlText as TextStyle) : undefined,
+                      ]}
+                    >
                       {isRTL ? "طلب من: " : "Ordered by: "}
                       {selectedResult.orderedBy}
                     </Caption>
                   )}
                 </View>
 
-                {selectedResult.results && selectedResult.results.length > 0 && (
-                  <View style={styles.resultValues as StyleProp<ViewStyle>}>
-                    {selectedResult.results.map((value, index) => (
-                      <View key={index} style={styles.resultValueItem as StyleProp<ViewStyle>}>
-                        <View style={{ flex: 1 }}>
-                          <TypographyText
-                            weight="semibold"
-                            style={[styles.resultValueName as StyleProp<TextStyle>, isRTL && (styles.rtlText as StyleProp<TextStyle>)]}
-                          >
-                            {value.name}
-                          </TypographyText>
-                          {value.referenceRange && (
-                            <Caption style={[styles.resultDate as StyleProp<TextStyle>, isRTL && (styles.rtlText as StyleProp<TextStyle>)]} numberOfLines={1}>
-                              {isRTL ? "النطاق المرجعي: " : "Reference: "}
-                              {value.referenceRange}
-                            </Caption>
-                          )}
-                        </View>
-                        <View style={styles.resultValueData as StyleProp<ViewStyle>}>
-                          <TypographyText
-                            style={[
-                              styles.resultValueText as StyleProp<TextStyle>,
-                              { color: getStatusColor(value.status) },
-                            ]}
-                          >
-                            {value.value}
-                          </TypographyText>
-                          {value.unit && (
-                            <Caption style={styles.resultValueUnit as StyleProp<TextStyle>} numberOfLines={1}>
-                              {value.unit}
-                            </Caption>
-                          )}
-                          {value.status && (
-                            <Badge
-                              variant={
-                                value.status === "normal"
-                                  ? "success"
-                                  : value.status === "high" || value.status === "critical"
-                                    ? "error"
-                                    : "warning"
-                              }
-                              size="small"
-                              style={{}}
+                {selectedResult.results &&
+                  selectedResult.results.length > 0 && (
+                    <View style={styles.resultValues as StyleProp<ViewStyle>}>
+                      {selectedResult.results.map((value, index) => (
+                        <View
+                          key={index}
+                          style={styles.resultValueItem as StyleProp<ViewStyle>}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <TypographyText
+                              style={[
+                                styles.resultValueName as StyleProp<TextStyle>,
+                                isRTL &&
+                                  (styles.rtlText as StyleProp<TextStyle>),
+                              ]}
+                              weight="semibold"
                             >
-                              {getStatusLabel(value.status)}
-                            </Badge>
-                          )}
+                              {value.name}
+                            </TypographyText>
+                            {value.referenceRange && (
+                              <Caption
+                                numberOfLines={1}
+                                style={[
+                                  styles.resultDate as StyleProp<TextStyle>,
+                                  isRTL &&
+                                    (styles.rtlText as StyleProp<TextStyle>),
+                                ]}
+                              >
+                                {isRTL ? "النطاق المرجعي: " : "Reference: "}
+                                {value.referenceRange}
+                              </Caption>
+                            )}
+                          </View>
+                          <View
+                            style={
+                              styles.resultValueData as StyleProp<ViewStyle>
+                            }
+                          >
+                            <TypographyText
+                              style={[
+                                styles.resultValueText as StyleProp<TextStyle>,
+                                { color: getStatusColor(value.status) },
+                              ]}
+                            >
+                              {value.value}
+                            </TypographyText>
+                            {value.unit && (
+                              <Caption
+                                numberOfLines={1}
+                                style={
+                                  styles.resultValueUnit as StyleProp<TextStyle>
+                                }
+                              >
+                                {value.unit}
+                              </Caption>
+                            )}
+                            {value.status && (
+                              <Badge
+                                size="small"
+                                style={{}}
+                                variant={
+                                  value.status === "normal"
+                                    ? "success"
+                                    : value.status === "high" ||
+                                        value.status === "critical"
+                                      ? "error"
+                                      : "warning"
+                                }
+                              >
+                                {getStatusLabel(value.status)}
+                              </Badge>
+                            )}
+                          </View>
                         </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                      ))}
+                    </View>
+                  )}
 
                 {selectedResult.notes && (
                   <View style={{ marginTop: theme.spacing.base }}>
                     <TypographyText
+                      style={[
+                        styles.resultValueName as StyleProp<TextStyle>,
+                        isRTL && (styles.rtlText as StyleProp<TextStyle>),
+                      ]}
                       weight="semibold"
-                      style={[styles.resultValueName as StyleProp<TextStyle>, isRTL && (styles.rtlText as StyleProp<TextStyle>)]}
                     >
                       {isRTL ? "ملاحظات" : "Notes"}
                     </TypographyText>
-                    <Caption style={[styles.resultDate as StyleProp<TextStyle>, isRTL && (styles.rtlText as StyleProp<TextStyle>)]} numberOfLines={10}>
+                    <Caption
+                      numberOfLines={10}
+                      style={[
+                        styles.resultDate as StyleProp<TextStyle>,
+                        isRTL && (styles.rtlText as StyleProp<TextStyle>),
+                      ]}
+                    >
                       {selectedResult.notes}
                     </Caption>
                   </View>

@@ -4,10 +4,10 @@
  * Permission checks for patient data and alerts
  */
 
-import * as functions from 'firebase-functions';
-import type { AuthContext } from './authContext';
-import type { UserRole } from '../db/firestore';
-import { getUsersCollection, getCareLinksCollection } from '../db/collections';
+import * as functions from "firebase-functions";
+import { getCareLinksCollection, getUsersCollection } from "../db/collections";
+import type { UserRole } from "../db/firestore";
+import type { AuthContext } from "./authContext";
 
 export interface RBACContext {
   actor: AuthContext;
@@ -25,23 +25,26 @@ export function hasRole(actor: AuthContext, role: UserRole): boolean {
 }
 
 export function isOwner(actor: AuthContext): boolean {
-  return hasRole(actor, 'owner');
+  return hasRole(actor, "owner");
 }
 
 export function isCaregiver(actor: AuthContext): boolean {
-  return hasRole(actor, 'caregiver');
+  return hasRole(actor, "caregiver");
 }
 
 export function isAdmin(actor: AuthContext): boolean {
-  return hasRole(actor, 'admin');
+  return hasRole(actor, "admin");
 }
 
 // ============================================================================
 // Family Checks
 // ============================================================================
 
-export function isSameFamily(actorFamilyId?: string, targetFamilyId?: string): boolean {
-  if (!actorFamilyId || !targetFamilyId) {
+export function isSameFamily(
+  actorFamilyId?: string,
+  targetFamilyId?: string
+): boolean {
+  if (!(actorFamilyId && targetFamilyId)) {
     return false;
   }
   return actorFamilyId === targetFamilyId;
@@ -59,7 +62,7 @@ export function isSameFamily(actorFamilyId?: string, targetFamilyId?: string): b
  */
 export async function canReadPatient(ctx: RBACContext): Promise<boolean> {
   const { actor, targetUserId, patientId } = ctx;
-  
+
   const targetId = targetUserId || patientId;
   if (!targetId) {
     return false;
@@ -73,12 +76,12 @@ export async function canReadPatient(ctx: RBACContext): Promise<boolean> {
   // Check if actor is caregiver for this patient
   if (isCaregiver(actor)) {
     const careLink = await getCareLinksCollection()
-      .where('caregiverId', '==', actor.uid)
-      .where('patientId', '==', targetId)
-      .where('status', '==', 'active')
+      .where("caregiverId", "==", actor.uid)
+      .where("patientId", "==", targetId)
+      .where("status", "==", "active")
       .limit(1)
       .get();
-    
+
     if (!careLink.empty) {
       return true;
     }
@@ -106,7 +109,7 @@ export async function canReadPatient(ctx: RBACContext): Promise<boolean> {
  */
 export async function canWritePatient(ctx: RBACContext): Promise<boolean> {
   const { actor, targetUserId, patientId } = ctx;
-  
+
   const targetId = targetUserId || patientId;
   if (!targetId) {
     return false;
@@ -120,17 +123,19 @@ export async function canWritePatient(ctx: RBACContext): Promise<boolean> {
   // Check if caregiver has write permissions
   if (isCaregiver(actor)) {
     const careLink = await getCareLinksCollection()
-      .where('caregiverId', '==', actor.uid)
-      .where('patientId', '==', targetId)
-      .where('status', '==', 'active')
+      .where("caregiverId", "==", actor.uid)
+      .where("patientId", "==", targetId)
+      .where("status", "==", "active")
       .limit(1)
       .get();
-    
+
     if (!careLink.empty) {
       const careLinkData = careLink.docs[0].data();
       // Check specific permissions
-      if (careLinkData.permissions?.canEditMedications || 
-          careLinkData.permissions?.canViewVitals) {
+      if (
+        careLinkData.permissions?.canEditMedications ||
+        careLinkData.permissions?.canViewVitals
+      ) {
         return true;
       }
     }
@@ -161,7 +166,7 @@ export async function canWritePatient(ctx: RBACContext): Promise<boolean> {
  */
 export async function canAcknowledgeAlert(ctx: RBACContext): Promise<boolean> {
   const { actor, targetUserId, patientId } = ctx;
-  
+
   const targetId = targetUserId || patientId;
   if (!targetId) {
     return false;
@@ -175,12 +180,12 @@ export async function canAcknowledgeAlert(ctx: RBACContext): Promise<boolean> {
   // Check if caregiver has alert permissions
   if (isCaregiver(actor)) {
     const careLink = await getCareLinksCollection()
-      .where('caregiverId', '==', actor.uid)
-      .where('patientId', '==', targetId)
-      .where('status', '==', 'active')
+      .where("caregiverId", "==", actor.uid)
+      .where("patientId", "==", targetId)
+      .where("status", "==", "active")
       .limit(1)
       .get();
-    
+
     if (!careLink.empty) {
       const careLinkData = careLink.docs[0].data();
       if (careLinkData.permissions?.canManageAlerts) {
@@ -211,8 +216,8 @@ export async function assertCanReadPatient(ctx: RBACContext): Promise<void> {
   const allowed = await canReadPatient(ctx);
   if (!allowed) {
     throw new functions.https.HttpsError(
-      'permission-denied',
-      'You do not have permission to read this patient data'
+      "permission-denied",
+      "You do not have permission to read this patient data"
     );
   }
 }
@@ -221,18 +226,20 @@ export async function assertCanWritePatient(ctx: RBACContext): Promise<void> {
   const allowed = await canWritePatient(ctx);
   if (!allowed) {
     throw new functions.https.HttpsError(
-      'permission-denied',
-      'You do not have permission to write this patient data'
+      "permission-denied",
+      "You do not have permission to write this patient data"
     );
   }
 }
 
-export async function assertCanAcknowledgeAlert(ctx: RBACContext): Promise<void> {
+export async function assertCanAcknowledgeAlert(
+  ctx: RBACContext
+): Promise<void> {
   const allowed = await canAcknowledgeAlert(ctx);
   if (!allowed) {
     throw new functions.https.HttpsError(
-      'permission-denied',
-      'You do not have permission to acknowledge this alert'
+      "permission-denied",
+      "You do not have permission to acknowledge this alert"
     );
   }
 }

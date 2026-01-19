@@ -58,7 +58,12 @@ class Logger {
   /**
    * Add a log entry
    */
-  private addLog(level: LogLevel, message: string, data?: unknown, source?: string): void {
+  private addLog(
+    level: LogLevel,
+    message: string,
+    data?: unknown,
+    source?: string
+  ): void {
     if (!this.shouldLog(level)) {
       return;
     }
@@ -81,7 +86,7 @@ class Logger {
     if (__DEV__) {
       const prefix = source ? `[${source}]` : "";
       const timestamp = entry.timestamp.toISOString();
-      
+
       switch (level) {
         case "debug":
           console.debug(`${timestamp} ${prefix} ${message}`, data || "");
@@ -154,7 +159,7 @@ class Logger {
    */
   getLogs(level?: LogLevel, limit = 50): LogEntry[] {
     let filtered = this.logs;
-    
+
     if (level) {
       filtered = this.logs.filter((log) => log.level === level);
     }
@@ -182,4 +187,3 @@ export const logWarn = (message: string, data?: unknown, source?: string) =>
   logger.warn(message, data, source);
 export const logError = (message: string, error?: unknown, source?: string) =>
   logger.error(message, error, source);
-

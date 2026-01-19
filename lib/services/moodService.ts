@@ -13,8 +13,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Mood } from "@/types";
-import { userService } from "./userService";
 import { offlineService } from "./offlineService";
+import { userService } from "./userService";
 
 export const moodService = {
   // Add new mood (offline-first)
@@ -48,23 +48,30 @@ export const moodService = {
         const docRef = await addDoc(collection(db, "moods"), cleanedData);
         // Cache the result for offline access
         const newMood = { id: docRef.id, ...moodData };
-        const currentMoods = await offlineService.getOfflineCollection<Mood>("moods");
-        await offlineService.storeOfflineData("moods", [...currentMoods, newMood]);
+        const currentMoods =
+          await offlineService.getOfflineCollection<Mood>("moods");
+        await offlineService.storeOfflineData("moods", [
+          ...currentMoods,
+          newMood,
+        ]);
         return docRef.id;
-      } else {
-        // Offline - queue the operation
-        const operationId = await offlineService.queueOperation({
-          type: "create",
-          collection: "moods",
-          data: { ...moodData, userId: moodData.userId },
-        });
-        // Store locally for immediate UI update
-        const tempId = `offline_${operationId}`;
-        const newMood = { id: tempId, ...moodData };
-        const currentMoods = await offlineService.getOfflineCollection<Mood>("moods");
-        await offlineService.storeOfflineData("moods", [...currentMoods, newMood]);
-        return tempId;
       }
+      // Offline - queue the operation
+      const operationId = await offlineService.queueOperation({
+        type: "create",
+        collection: "moods",
+        data: { ...moodData, userId: moodData.userId },
+      });
+      // Store locally for immediate UI update
+      const tempId = `offline_${operationId}`;
+      const newMood = { id: tempId, ...moodData };
+      const currentMoods =
+        await offlineService.getOfflineCollection<Mood>("moods");
+      await offlineService.storeOfflineData("moods", [
+        ...currentMoods,
+        newMood,
+      ]);
+      return tempId;
     } catch (error) {
       // If online but fails, queue for retry
       if (isOnline) {
@@ -148,18 +155,19 @@ export const moodService = {
         // Cache for offline access
         await offlineService.storeOfflineData("moods", moods);
         return moods;
-      } else {
-        // Offline - use cached data filtered by userId
-        const cachedMoods = await offlineService.getOfflineCollection<Mood>("moods");
-        return cachedMoods
-          .filter((m) => m.userId === userId)
-          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-          .slice(0, limitCount);
       }
+      // Offline - use cached data filtered by userId
+      const cachedMoods =
+        await offlineService.getOfflineCollection<Mood>("moods");
+      return cachedMoods
+        .filter((m) => m.userId === userId)
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, limitCount);
     } catch (error) {
       // If online but fails, try offline cache
       if (isOnline) {
-        const cachedMoods = await offlineService.getOfflineCollection<Mood>("moods");
+        const cachedMoods =
+          await offlineService.getOfflineCollection<Mood>("moods");
         return cachedMoods
           .filter((m) => m.userId === userId)
           .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
@@ -170,22 +178,37 @@ export const moodService = {
   },
 
   // Check if user has permission to access family data (admin or caregiver)
-  async checkFamilyAccessPermission(userId: string, familyId: string): Promise<boolean> {
+  async checkFamilyAccessPermission(
+    userId: string,
+    familyId: string
+  ): Promise<boolean> {
     try {
       const user = await userService.getUser(userId);
-      return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
+      return (
+        user?.familyId === familyId &&
+        (user?.role === "admin" || user?.role === "caregiver")
+      );
     } catch (error) {
       return false;
     }
   },
 
   // Get moods for all family members (for admins and caregivers)
-  async getFamilyMoods(userId: string, familyId: string, limitCount = 50): Promise<Mood[]> {
+  async getFamilyMoods(
+    userId: string,
+    familyId: string,
+    limitCount = 50
+  ): Promise<Mood[]> {
     try {
       // Check permissions
-      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      const hasPermission = await this.checkFamilyAccessPermission(
+        userId,
+        familyId
+      );
       if (!hasPermission) {
-        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+        throw new Error(
+          "Access denied: Only admins and caregivers can access family medical data"
+        );
       }
       // First get all family members
       const familyMembersQuery = query(
@@ -256,9 +279,14 @@ export const moodService = {
   }> {
     try {
       // Check permissions
-      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      const hasPermission = await this.checkFamilyAccessPermission(
+        userId,
+        familyId
+      );
       if (!hasPermission) {
-        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+        throw new Error(
+          "Access denied: Only admins and caregivers can access family medical data"
+        );
       }
 
       const startDate = new Date();
@@ -274,9 +302,10 @@ export const moodService = {
       const membersMap = new Map<string, string>();
       familyMembersSnapshot.docs.forEach((doc) => {
         const userData = doc.data();
-        const userName = userData.firstName && userData.lastName
-          ? `${userData.firstName} ${userData.lastName}`
-          : userData.firstName || userData.lastName || "Unknown";
+        const userName =
+          userData.firstName && userData.lastName
+            ? `${userData.firstName} ${userData.lastName}`
+            : userData.firstName || userData.lastName || "Unknown";
         membersMap.set(doc.id, userName);
       });
 
@@ -389,9 +418,10 @@ export const moodService = {
           const membersMap = new Map<string, string>();
           familyMembersSnapshot.docs.forEach((doc) => {
             const userData = doc.data();
-            const userName = userData.firstName && userData.lastName
-              ? `${userData.firstName} ${userData.lastName}`
-              : userData.firstName || userData.lastName || "Unknown";
+            const userName =
+              userData.firstName && userData.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData.firstName || userData.lastName || "Unknown";
             membersMap.set(doc.id, userName);
           });
 
@@ -407,14 +437,23 @@ export const moodService = {
             }))
           );
           const allStats = await Promise.all(statsPromises);
-          
+
           // Combine stats
-          const totalMoods = allStats.reduce((sum, stat) => sum + stat.totalMoods, 0);
-          const totalIntensity = allStats.reduce((sum, stat) => sum + (stat.avgIntensity * stat.totalMoods), 0);
+          const totalMoods = allStats.reduce(
+            (sum, stat) => sum + stat.totalMoods,
+            0
+          );
+          const totalIntensity = allStats.reduce(
+            (sum, stat) => sum + stat.avgIntensity * stat.totalMoods,
+            0
+          );
           const avgIntensity = totalMoods > 0 ? totalIntensity / totalMoods : 0;
-          
+
           // Combine mood distribution
-          const moodCounts = new Map<string, { count: number; users: Set<string> }>();
+          const moodCounts = new Map<
+            string,
+            { count: number; users: Set<string> }
+          >();
           allStats.forEach((stat, index) => {
             stat.moodDistribution.forEach((dist) => {
               const key = dist.mood;
@@ -426,7 +465,7 @@ export const moodService = {
               entry.users.add(memberIds[index]);
             });
           });
-          
+
           const moodDistribution = Array.from(moodCounts.entries())
             .map(([mood, data]) => ({
               mood,
@@ -438,7 +477,7 @@ export const moodService = {
               })),
             }))
             .sort((a, b) => b.count - a.count);
-          
+
           return {
             totalMoods,
             avgIntensity: Math.round(avgIntensity * 10) / 10,
@@ -537,7 +576,7 @@ export const moodService = {
           const allMoods = await this.getUserMoods(userId, 1000); // Get more than needed
           const startDate = new Date();
           startDate.setDate(startDate.getDate() - days);
-          
+
           // Filter by date in memory
           const moods = allMoods.filter(
             (m) => m.timestamp.getTime() >= startDate.getTime()

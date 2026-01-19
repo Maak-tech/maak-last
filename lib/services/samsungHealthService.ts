@@ -4,32 +4,35 @@
  * Supports comprehensive health data including vitals, activity, sleep, and body composition
  */
 
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import Constants from "expo-constants";
 import {
   getAvailableMetricsForProvider,
-  getSamsungHealthScopesForMetrics,
   getMetricByKey,
+  getSamsungHealthScopesForMetrics,
 } from "../health/healthMetricsCatalog";
+import { saveProviderConnection } from "../health/healthSync";
 import {
   HEALTH_STORAGE_KEYS,
-  type SamsungHealthTokens,
+  type MetricSample,
   type NormalizedMetricPayload,
   type ProviderAvailability,
-  type MetricSample,
+  type SamsungHealthTokens,
 } from "../health/healthTypes";
-import { saveProviderConnection } from "../health/healthSync";
 
 // Samsung Health OAuth configuration
 const SAMSUNG_HEALTH_CLIENT_ID =
-  Constants.expoConfig?.extra?.samsungHealthClientId || "YOUR_SAMSUNG_CLIENT_ID";
+  Constants.expoConfig?.extra?.samsungHealthClientId ||
+  "YOUR_SAMSUNG_CLIENT_ID";
 const SAMSUNG_HEALTH_CLIENT_SECRET =
   Constants.expoConfig?.extra?.samsungHealthClientSecret ||
   "YOUR_SAMSUNG_CLIENT_SECRET";
-const SAMSUNG_HEALTH_AUTH_URL = "https://oauth-account.samsung.com/oauth2/v1/auth";
-const SAMSUNG_HEALTH_TOKEN_URL = "https://oauth-account.samsung.com/oauth2/v1/token";
+const SAMSUNG_HEALTH_AUTH_URL =
+  "https://oauth-account.samsung.com/oauth2/v1/auth";
+const SAMSUNG_HEALTH_TOKEN_URL =
+  "https://oauth-account.samsung.com/oauth2/v1/token";
 const SAMSUNG_HEALTH_API_BASE = "https://api-health.samsung.com/v1";
 const REDIRECT_URI = Linking.createURL("samsung-health-callback");
 
@@ -50,8 +53,12 @@ const dataTypeParsers: Record<
     return data.data.map((item: any) => ({
       value: item.heart_rate || item.value || item.bpm || 0,
       unit: "bpm",
-      startDate: new Date(item.timestamp || item.start_time || item.date).toISOString(),
-      endDate: item.end_time ? new Date(item.end_time).toISOString() : undefined,
+      startDate: new Date(
+        item.timestamp || item.start_time || item.date
+      ).toISOString(),
+      endDate: item.end_time
+        ? new Date(item.end_time).toISOString()
+        : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -115,7 +122,8 @@ const dataTypeParsers: Record<
   respiratory_rate: (data) => {
     if (!data?.data) return [];
     return data.data.map((item: any) => ({
-      value: item.respiratory_rate || item.breaths_per_minute || item.value || 0,
+      value:
+        item.respiratory_rate || item.breaths_per_minute || item.value || 0,
       unit: "breaths/min",
       startDate: new Date(item.timestamp || item.date).toISOString(),
       source: item.source || "Samsung Health",
@@ -194,8 +202,12 @@ const dataTypeParsers: Record<
     return data.data.map((item: any) => ({
       value: item.steps || item.step_count || item.count || item.value || 0,
       unit: "count",
-      startDate: new Date(item.timestamp || item.start_time || item.date).toISOString(),
-      endDate: item.end_time ? new Date(item.end_time).toISOString() : undefined,
+      startDate: new Date(
+        item.timestamp || item.start_time || item.date
+      ).toISOString(),
+      endDate: item.end_time
+        ? new Date(item.end_time).toISOString()
+        : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -204,7 +216,12 @@ const dataTypeParsers: Record<
   active_energy: (data) => {
     if (!data?.data) return [];
     return data.data.map((item: any) => ({
-      value: item.active_calories || item.calories_burned || item.calories || item.value || 0,
+      value:
+        item.active_calories ||
+        item.calories_burned ||
+        item.calories ||
+        item.value ||
+        0,
       unit: "kcal",
       startDate: new Date(item.timestamp || item.date).toISOString(),
       source: item.source || "Samsung Health",
@@ -227,7 +244,8 @@ const dataTypeParsers: Record<
   flights_climbed: (data) => {
     if (!data?.data) return [];
     return data.data.map((item: any) => ({
-      value: item.floors || item.floors_climbed || item.count || item.value || 0,
+      value:
+        item.floors || item.floors_climbed || item.count || item.value || 0,
       unit: "count",
       startDate: new Date(item.timestamp || item.date).toISOString(),
       source: item.source || "Samsung Health",
@@ -239,10 +257,14 @@ const dataTypeParsers: Record<
     if (!data?.data) return [];
     return data.data.map((item: any) => ({
       // Convert from milliseconds or seconds to minutes if needed
-      value: item.duration_minutes || item.duration / 60000 || item.value || 0,
+      value: item.duration_minutes || item.duration / 60_000 || item.value || 0,
       unit: "min",
-      startDate: new Date(item.timestamp || item.start_time || item.date).toISOString(),
-      endDate: item.end_time ? new Date(item.end_time).toISOString() : undefined,
+      startDate: new Date(
+        item.timestamp || item.start_time || item.date
+      ).toISOString(),
+      endDate: item.end_time
+        ? new Date(item.end_time).toISOString()
+        : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -253,8 +275,12 @@ const dataTypeParsers: Record<
     return data.data.map((item: any) => ({
       value: item.exercise_type || item.workout_type || item.type || "workout",
       unit: "",
-      startDate: new Date(item.timestamp || item.start_time || item.date).toISOString(),
-      endDate: item.end_time ? new Date(item.end_time).toISOString() : undefined,
+      startDate: new Date(
+        item.timestamp || item.start_time || item.date
+      ).toISOString(),
+      endDate: item.end_time
+        ? new Date(item.end_time).toISOString()
+        : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -266,9 +292,11 @@ const dataTypeParsers: Record<
       // Total sleep in hours
       value: item.total_sleep_minutes
         ? item.total_sleep_minutes / 60
-        : item.duration / 3600000 || item.value || 0,
+        : item.duration / 3_600_000 || item.value || 0,
       unit: "hours",
-      startDate: new Date(item.start_time || item.bed_time || item.date).toISOString(),
+      startDate: new Date(
+        item.start_time || item.bed_time || item.date
+      ).toISOString(),
       endDate: new Date(item.end_time || item.wake_time).toISOString(),
       source: item.source || "Samsung Health",
     }));
@@ -350,13 +378,16 @@ export const samsungHealthService = {
 
       const authUrl =
         `${SAMSUNG_HEALTH_AUTH_URL}?` +
-        `response_type=code&` +
+        "response_type=code&" +
         `client_id=${encodeURIComponent(SAMSUNG_HEALTH_CLIENT_ID)}&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
         `scope=${encodeURIComponent(scopes.join(" "))}&` +
         `state=${encodeURIComponent("samsung_health_auth")}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        REDIRECT_URI
+      );
 
       if (result.type === "success" && result.url) {
         await samsungHealthService.handleRedirect(result.url, selectedMetrics);
@@ -371,7 +402,10 @@ export const samsungHealthService = {
   /**
    * Handle OAuth redirect callback
    */
-  handleRedirect: async (url: string, selectedMetrics?: string[]): Promise<void> => {
+  handleRedirect: async (
+    url: string,
+    selectedMetrics?: string[]
+  ): Promise<void> => {
     try {
       const urlObj = new URL(url);
       const code = urlObj.searchParams.get("code");
@@ -421,7 +455,9 @@ export const samsungHealthService = {
         selectedMetrics: selectedMetrics || [],
       });
     } catch (error: any) {
-      throw new Error(`Failed to complete Samsung Health authentication: ${error.message}`);
+      throw new Error(
+        `Failed to complete Samsung Health authentication: ${error.message}`
+      );
     }
   },
 
@@ -516,8 +552,10 @@ export const samsungHealthService = {
 
         try {
           // Build endpoint URL with date parameter
-          const endpoint = metric.samsungHealth.endpoint
-            .replace("{date}", formatDate(startDate));
+          const endpoint = metric.samsungHealth.endpoint.replace(
+            "{date}",
+            formatDate(startDate)
+          );
 
           // Add date range params for endpoints that support it
           const url = new URL(`${SAMSUNG_HEALTH_API_BASE}${endpoint}`);
@@ -591,16 +629,17 @@ export const samsungHealthService = {
     metricKeys: string[],
     startDate: Date,
     endDate: Date
-  ): Promise<NormalizedMetricPayload[]> => {
-    return samsungHealthService.fetchHealthData(metricKeys, startDate, endDate);
-  },
+  ): Promise<NormalizedMetricPayload[]> =>
+    samsungHealthService.fetchHealthData(metricKeys, startDate, endDate),
 
   /**
    * Disconnect Samsung Health integration
    */
   disconnect: async (): Promise<void> => {
     try {
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS);
+      await SecureStore.deleteItemAsync(
+        HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS
+      );
     } catch {
       // Ignore errors during disconnect
     }
@@ -653,7 +692,7 @@ function parseMetricData(metricKey: string, data: any): MetricSample[] {
   }
 
   // Fallback generic parser
-  if (!data || !Array.isArray(data.data) || data.data.length === 0) {
+  if (!(data && Array.isArray(data.data)) || data.data.length === 0) {
     return [];
   }
 

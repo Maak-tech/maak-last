@@ -92,17 +92,17 @@ export default function MedicalHistoryScreen() {
   // Helper function to translate condition based on current language
   const translateCondition = (condition: string): string => {
     if (!condition) return condition;
-    
+
     // Find the condition in examples
     const example = MEDICAL_HISTORY_EXAMPLES.find(
       (ex) => ex.en === condition || ex.ar === condition
     );
-    
+
     if (example) {
       // Return the appropriate language version
       return isRTL ? example.ar : example.en;
     }
-    
+
     // If not found in examples, return as-is (custom condition)
     return condition;
   };
@@ -353,7 +353,9 @@ export default function MedicalHistoryScreen() {
             <Text style={[styles.emptyTitle, isRTL && { textAlign: "left" }]}>
               {isRTL ? "لا توجد سجلات طبية" : "No Medical Records"}
             </Text>
-            <Text style={[styles.emptyDescription, isRTL && { textAlign: "left" }]}>
+            <Text
+              style={[styles.emptyDescription, isRTL && { textAlign: "left" }]}
+            >
               {isRTL
                 ? "ابدأ بإضافة حالاتك الطبية والأدوية"
                 : "Start by adding your medical conditions and medications"}
@@ -363,7 +365,9 @@ export default function MedicalHistoryScreen() {
               style={styles.addButton}
             >
               <Plus color="#FFFFFF" size={16} />
-              <Text style={[styles.addButtonText, isRTL && { textAlign: "left" }]}>
+              <Text
+                style={[styles.addButtonText, isRTL && { textAlign: "left" }]}
+              >
                 {isRTL ? "إضافة سجل" : "Add Record"}
               </Text>
             </TouchableOpacity>
@@ -455,7 +459,9 @@ export default function MedicalHistoryScreen() {
                             >
                               {new Date(
                                 record.diagnosedDate
-                              ).toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US")}
+                              ).toLocaleDateString(
+                                isRTL ? "ar-u-ca-gregory" : "en-US"
+                              )}
                             </Text>
                           )}
                         </View>
@@ -510,7 +516,9 @@ export default function MedicalHistoryScreen() {
               style={styles.floatingAddButton}
             >
               <Plus color="#FFFFFF" size={20} />
-              <Text style={[styles.floatingAddText, isRTL && { textAlign: "left" }]}>
+              <Text
+                style={[styles.floatingAddText, isRTL && { textAlign: "left" }]}
+              >
                 {isRTL ? "إضافة سجل جديد" : "Add New Record"}
               </Text>
             </TouchableOpacity>
@@ -559,18 +567,18 @@ export default function MedicalHistoryScreen() {
                   setNewCondition({ ...newCondition, condition: text })
                 }
                 placeholder={
-                  isRTL
-                    ? "مثال: السكري، الضغط"
-                    : "e.g., Diabetes, Hypertension"
+                  isRTL ? "مثال: السكري، الضغط" : "e.g., Diabetes, Hypertension"
                 }
                 style={[styles.textInput, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={newCondition.condition}
               />
-              
+
               {/* Medical History Examples */}
               <View style={styles.examplesContainer}>
-                <Text style={[styles.examplesLabel, isRTL && { textAlign: "left" }]}>
+                <Text
+                  style={[styles.examplesLabel, isRTL && { textAlign: "left" }]}
+                >
                   {isRTL ? "أمثلة شائعة:" : "Common Examples:"}
                 </Text>
                 <View style={styles.examplesGrid}>
@@ -585,7 +593,12 @@ export default function MedicalHistoryScreen() {
                       }
                       style={styles.exampleChip}
                     >
-                      <Text style={[styles.exampleChipText, isRTL && { textAlign: "left" }]}>
+                      <Text
+                        style={[
+                          styles.exampleChipText,
+                          isRTL && { textAlign: "left" },
+                        ]}
+                      >
                         {isRTL ? example.ar : example.en}
                       </Text>
                     </TouchableOpacity>
@@ -634,7 +647,9 @@ export default function MedicalHistoryScreen() {
             {user?.familyId && (
               <View style={styles.fieldContainer}>
                 <View style={styles.toggleContainer}>
-                  <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
+                  <Text
+                    style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}
+                  >
                     {isRTL
                       ? "هذا السجل لعضو في العائلة"
                       : "This record is for a family member"}
@@ -661,7 +676,9 @@ export default function MedicalHistoryScreen() {
             {/* Family Member Selection */}
             {newCondition.isFamily && user?.familyId && (
               <View style={styles.fieldContainer}>
-                <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
+                <Text
+                  style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}
+                >
                   {isRTL ? "عضو العائلة" : "Family Member"} *
                 </Text>
                 {loadingFamilyMembers ? (
@@ -671,7 +688,9 @@ export default function MedicalHistoryScreen() {
                     style={{ marginVertical: 12 }}
                   />
                 ) : familyMembers.length === 0 ? (
-                  <Text style={[styles.helperText, isRTL && { textAlign: "left" }]}>
+                  <Text
+                    style={[styles.helperText, isRTL && { textAlign: "left" }]}
+                  >
                     {isRTL
                       ? "لا يوجد أعضاء عائلة متاحين"
                       : "No family members available"}
@@ -715,7 +734,9 @@ export default function MedicalHistoryScreen() {
             {/* Relation Field (for family members) */}
             {newCondition.isFamily && (
               <View style={styles.fieldContainer}>
-                <Text style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}>
+                <Text
+                  style={[styles.fieldLabel, isRTL && { textAlign: "left" }]}
+                >
                   {isRTL ? "صلة القرابة" : "Relationship"} (
                   {isRTL ? "اختياري" : "Optional"})
                 </Text>

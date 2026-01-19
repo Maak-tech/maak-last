@@ -1,18 +1,18 @@
 /**
  * PPG Pixel Extractor for react-native-vision-camera
- * 
+ *
  * This module provides utilities to extract red channel pixel data
  * from camera frames for PPG (photoplethysmography) analysis.
- * 
+ *
  * Based on research:
  * - Olugbenle et al. (arXiv:2412.07082v1) - Low frame-rate PPG heart rate measurement at 14 fps
  * - Total pixel intensity calculation for PPG signal extraction
- * 
+ *
  * IMPORTANT: This requires react-native-vision-camera with frame processors enabled.
  * You must be running a development build (not Expo Go).
  */
 
-import { Frame } from 'react-native-vision-camera';
+import type { Frame } from "react-native-vision-camera";
 
 // Debug flag - set to false in production to reduce console spam
 // Set to true when troubleshooting frame extraction issues
@@ -21,51 +21,51 @@ const DEBUG_FRAME_EXTRACTION = __DEV__;
 /**
  * Extract red channel average from camera frame
  * This is the core function for PPG signal extraction
- * 
+ *
  * The algorithm calculates the total intensity of pixels in the center region
  * of the frame, as described in Olugbenle et al. research paper.
- * 
+ *
  * NOTE: Extraction stats tracking should be done via runOnJS callbacks in the
  * calling code, not via worklet-global state, to avoid threading issues.
- * 
+ *
  * @param frame - Camera frame from react-native-vision-camera
  * @returns Average red channel intensity (0-255), or -1 on extraction failure
  */
 export function extractRedChannelAverage(frame: Frame): number {
-  'worklet';
-  
+  "worklet";
+
   try {
     // Get frame dimensions
     const width = frame.width;
     const height = frame.height;
-    
+
     // Validate dimensions - return -1 (invalid) instead of fake data
-    if (!width || !height || width <= 0 || height <= 0) {
+    if (!(width && height) || width <= 0 || height <= 0) {
       if (DEBUG_FRAME_EXTRACTION) {
-        console.log('[PPG] Frame dimensions invalid:', width, height);
+        console.log("[PPG] Frame dimensions invalid:", width, height);
       }
       return -1; // Return invalid marker - frame dimensions invalid
     }
-    
+
     // Calculate center region following research guidance
     // Use larger area (25-30% of frame) for better signal averaging
     // When finger covers camera and flashlight, entire frame should be similar in color
     const centerX = Math.floor(width / 2);
     const centerY = Math.floor(height / 2);
     const sampleRadius = Math.floor(Math.min(width, height) * 0.25); // Increased to 25% for better averaging
-    
+
     // Get pixel format
     const pixelFormat = frame.pixelFormat;
-    
+
     // Only log frame info once (first frame)
     // Subsequent frames will use the same method
-    
+
     // Cast frame for accessing internal properties (JSI HostObjects can be fragile - avoid enumerating keys)
     const frameAny = frame as any;
-    
+
     // Try multiple methods to access pixel data
     let extractedValue: number | null = null;
-    let extractionMethod = 'none';
+    let extractionMethod = "none";
     let isFirstFrame = false; // Will be set by successful extraction
 
     // IMPORTANT:
@@ -106,42 +106,55 @@ export function extractRedChannelAverage(frame: Frame): number {
         }
       }
 
-      return count > 0 ? sum / count : NaN;
+      return count > 0 ? sum / count : Number.NaN;
     };
-    
+
     // Method 1: Try toArrayBuffer()
-    if (extractedValue === null && typeof frameAny.toArrayBuffer === 'function') {
+    if (
+      extractedValue === null &&
+      typeof frameAny.toArrayBuffer === "function"
+    ) {
       try {
         const buffer = frameAny.toArrayBuffer();
         if (buffer) {
           // buffer can be ArrayBuffer (expected). If it's not, this will throw and get logged below.
           const data = new Uint8Array(buffer);
           if (data.length > 0) {
-            if (pixelFormat === 'yuv') {
-              extractedValue = extractRedFromYUVBuffer(data, width, height, centerX, centerY, sampleRadius);
+            if (pixelFormat === "yuv") {
+              extractedValue = extractRedFromYUVBuffer(
+                data,
+                width,
+                height,
+                centerX,
+                centerY,
+                sampleRadius
+              );
             } else {
               extractedValue = sampleRGB(data, frame.bytesPerRow);
             }
-            extractionMethod = 'toArrayBuffer';
+            extractionMethod = "toArrayBuffer";
             isFirstFrame = true;
           }
         }
       } catch (e) {
         if (DEBUG_FRAME_EXTRACTION) {
-          console.log('[PPG] toArrayBuffer() threw:', String(e));
+          console.log("[PPG] toArrayBuffer() threw:", String(e));
         }
         // Method not available or failed - try next method
       }
     }
-    
+
     // Method 2: Try getPlaneData() (some builds expose this non-typed API)
-    if (extractedValue === null && typeof frameAny.getPlaneData === 'function') {
+    if (
+      extractedValue === null &&
+      typeof frameAny.getPlaneData === "function"
+    ) {
       try {
         const yPlaneData = frameAny.getPlaneData(0);
         if (yPlaneData) {
           const yPlane = new Uint8Array(yPlaneData);
           if (yPlane.length > 0) {
-            if (pixelFormat === 'yuv') {
+            if (pixelFormat === "yuv") {
               // Try to get U and V planes for full YUV->RGB conversion
               try {
                 const uPlaneData = frameAny.getPlaneData(1);
@@ -149,21 +162,51 @@ export function extractRedChannelAverage(frame: Frame): number {
                 if (uPlaneData && vPlaneData) {
                   const uPlane = new Uint8Array(uPlaneData);
                   const vPlane = new Uint8Array(vPlaneData);
-                  extractedValue = extractRedFromYUVPlanes(yPlane, uPlane, vPlane, width, height, centerX, centerY, sampleRadius);
-                  extractionMethod = 'getPlaneData-YUV';
+                  extractedValue = extractRedFromYUVPlanes(
+                    yPlane,
+                    uPlane,
+                    vPlane,
+                    width,
+                    height,
+                    centerX,
+                    centerY,
+                    sampleRadius
+                  );
+                  extractionMethod = "getPlaneData-YUV";
                 } else {
                   // Only Y plane available - use luminance
-                  extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
-                  extractionMethod = 'getPlaneData-Y';
+                  extractedValue = extractRedFromYPlane(
+                    yPlane,
+                    width,
+                    height,
+                    centerX,
+                    centerY,
+                    sampleRadius
+                  );
+                  extractionMethod = "getPlaneData-Y";
                 }
               } catch (e) {
                 // Only Y plane available - use luminance
-                extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
-                extractionMethod = 'getPlaneData-Y';
+                extractedValue = extractRedFromYPlane(
+                  yPlane,
+                  width,
+                  height,
+                  centerX,
+                  centerY,
+                  sampleRadius
+                );
+                extractionMethod = "getPlaneData-Y";
               }
             } else {
-              extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
-              extractionMethod = 'getPlaneData';
+              extractedValue = extractRedFromYPlane(
+                yPlane,
+                width,
+                height,
+                centerX,
+                centerY,
+                sampleRadius
+              );
+              extractionMethod = "getPlaneData";
             }
             isFirstFrame = true;
           }
@@ -172,9 +215,14 @@ export function extractRedChannelAverage(frame: Frame): number {
         // Method not available or failed - try next method
       }
     }
-    
+
     // Method 3: Try planes array property (some builds expose this non-typed API)
-    if (extractedValue === null && frameAny.planes && Array.isArray(frameAny.planes) && frameAny.planes.length > 0) {
+    if (
+      extractedValue === null &&
+      frameAny.planes &&
+      Array.isArray(frameAny.planes) &&
+      frameAny.planes.length > 0
+    ) {
       try {
         const plane0 = frameAny.planes[0];
         if (plane0) {
@@ -182,28 +230,63 @@ export function extractRedChannelAverage(frame: Frame): number {
           let yPlane: Uint8Array;
           if (plane0 instanceof Uint8Array) {
             yPlane = plane0;
-          } else if (plane0 instanceof ArrayBuffer || (typeof SharedArrayBuffer !== 'undefined' && plane0 instanceof SharedArrayBuffer)) {
+          } else if (
+            plane0 instanceof ArrayBuffer ||
+            (typeof SharedArrayBuffer !== "undefined" &&
+              plane0 instanceof SharedArrayBuffer)
+          ) {
             yPlane = new Uint8Array(plane0);
-          } else if (typeof plane0.buffer !== 'undefined') {
+          } else if (typeof plane0.buffer !== "undefined") {
             yPlane = new Uint8Array(plane0.buffer);
           } else {
             yPlane = new Uint8Array(plane0);
           }
-          
+
           if (yPlane.length > 0) {
-            if (pixelFormat === 'yuv' && frameAny.planes.length >= 3) {
+            if (pixelFormat === "yuv" && frameAny.planes.length >= 3) {
               try {
-                const uPlane = new Uint8Array(frameAny.planes[1] instanceof ArrayBuffer ? frameAny.planes[1] : frameAny.planes[1].buffer || frameAny.planes[1]);
-                const vPlane = new Uint8Array(frameAny.planes[2] instanceof ArrayBuffer ? frameAny.planes[2] : frameAny.planes[2].buffer || frameAny.planes[2]);
-                extractedValue = extractRedFromYUVPlanes(yPlane, uPlane, vPlane, width, height, centerX, centerY, sampleRadius);
-                extractionMethod = 'planes-YUV';
+                const uPlane = new Uint8Array(
+                  frameAny.planes[1] instanceof ArrayBuffer
+                    ? frameAny.planes[1]
+                    : frameAny.planes[1].buffer || frameAny.planes[1]
+                );
+                const vPlane = new Uint8Array(
+                  frameAny.planes[2] instanceof ArrayBuffer
+                    ? frameAny.planes[2]
+                    : frameAny.planes[2].buffer || frameAny.planes[2]
+                );
+                extractedValue = extractRedFromYUVPlanes(
+                  yPlane,
+                  uPlane,
+                  vPlane,
+                  width,
+                  height,
+                  centerX,
+                  centerY,
+                  sampleRadius
+                );
+                extractionMethod = "planes-YUV";
               } catch (e) {
-                extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
-                extractionMethod = 'planes-Y';
+                extractedValue = extractRedFromYPlane(
+                  yPlane,
+                  width,
+                  height,
+                  centerX,
+                  centerY,
+                  sampleRadius
+                );
+                extractionMethod = "planes-Y";
               }
             } else {
-              extractedValue = extractRedFromYPlane(yPlane, width, height, centerX, centerY, sampleRadius);
-              extractionMethod = 'planes';
+              extractedValue = extractRedFromYPlane(
+                yPlane,
+                width,
+                height,
+                centerX,
+                centerY,
+                sampleRadius
+              );
+              extractionMethod = "planes";
             }
             isFirstFrame = true;
           }
@@ -212,36 +295,46 @@ export function extractRedChannelAverage(frame: Frame): number {
         // Method not available or failed
       }
     }
-    
+
     // If we successfully extracted a value, return it
     // Extraction stats tracking should be done via runOnJS in the calling code
-    if (extractedValue !== null && !isNaN(extractedValue) && extractedValue >= 0 && extractedValue <= 255) {
+    if (
+      extractedValue !== null &&
+      !isNaN(extractedValue) &&
+      extractedValue >= 0 &&
+      extractedValue <= 255
+    ) {
       // Only log success on first frame or when debugging
       if (DEBUG_FRAME_EXTRACTION && isFirstFrame) {
-        console.log('[PPG] Frame extraction working:', {
+        console.log("[PPG] Frame extraction working:", {
           method: extractionMethod,
           dimensions: `${width}x${height}`,
           pixelFormat,
-          sampleValue: extractedValue
+          sampleValue: extractedValue,
         });
       }
       return extractedValue;
     }
-    
+
     // All methods failed - log details only when debugging
     if (DEBUG_FRAME_EXTRACTION) {
-      console.log('[PPG] All extraction methods failed');
-      console.log('[PPG] Frame has toArrayBuffer:', typeof frameAny.toArrayBuffer === 'function');
-      console.log('[PPG] Frame has getPlaneData:', typeof frameAny.getPlaneData === 'function');
-      console.log('[PPG] Frame has planes:', Array.isArray(frameAny.planes));
+      console.log("[PPG] All extraction methods failed");
+      console.log(
+        "[PPG] Frame has toArrayBuffer:",
+        typeof frameAny.toArrayBuffer === "function"
+      );
+      console.log(
+        "[PPG] Frame has getPlaneData:",
+        typeof frameAny.getPlaneData === "function"
+      );
+      console.log("[PPG] Frame has planes:", Array.isArray(frameAny.planes));
     }
-    
+
     // Fallback: Return invalid marker
     return -1;
-    
   } catch (error) {
     if (DEBUG_FRAME_EXTRACTION) {
-      console.log('[PPG] Exception during extraction:', String(error));
+      console.log("[PPG] Exception during extraction:", String(error));
     }
     // Return fallback value that won't break the signal
     return -1;
@@ -252,16 +345,16 @@ export function extractRedChannelAverage(frame: Frame): number {
  * CRITICAL: No fallback signal generation
  * When pixel extraction fails, we MUST return -1 (invalid marker)
  * to ensure the measurement properly fails rather than using fake data.
- * 
+ *
  * This is essential for scientific accuracy based on:
  * - Olugbenle et al. (arXiv:2412.07082v1) - Real PPG signals required
  * - PMC5981424 - Validation of smartphone PPG requires actual sensor data
- * 
+ *
  * DO NOT return any value that could be mistaken for valid PPG data.
  */
 function generateFallbackPPGSignal(): number {
-  'worklet';
-  
+  "worklet";
+
   // Return -1 as an invalid marker
   // This value will be rejected by the validation in the calling code
   // and will cause the measurement to properly fail
@@ -289,7 +382,7 @@ function extractRedFromRGBAorBGRA(
   centerY: number,
   radius: number
 ): number {
-  'worklet';
+  "worklet";
 
   const bpp = 4;
   const stride = bytesPerRow > 0 ? bytesPerRow : width * bpp;
@@ -321,13 +414,13 @@ function extractRedFromRGBAorBGRA(
     }
   }
 
-  return count > 0 ? sum / count : NaN;
+  return count > 0 ? sum / count : Number.NaN;
 }
 
 /**
  * Extract red channel from RGB buffer
  * Assumes RGB format: [R, G, B, R, G, B, ...]
- * 
+ *
  * @param data - Pixel data as Uint8Array
  * @param width - Frame width
  * @param height - Frame height
@@ -344,35 +437,35 @@ function extractRedFromBuffer(
   centerY: number,
   radius: number
 ): number {
-  'worklet';
-  
+  "worklet";
+
   let redSum = 0;
   let sampleCount = 0;
   const sampleStep = 4; // Sample every 4th pixel for efficiency
-  
+
   // Sample pixels in center region
   for (let y = centerY - radius; y < centerY + radius; y += sampleStep) {
     for (let x = centerX - radius; x < centerX + radius; x += sampleStep) {
       if (x >= 0 && x < width && y >= 0 && y < height) {
         // Calculate pixel index for RGB format
         const pixelIndex = (y * width + x) * 3;
-        
+
         // Extract red channel (first byte of RGB triplet)
         const redValue = data[pixelIndex];
-        
+
         redSum += redValue;
         sampleCount++;
       }
     }
   }
-  
+
   return sampleCount > 0 ? redSum / sampleCount : 128;
 }
 
 /**
  * Extract red channel from YUV planes (react-native-vision-camera v4 API)
  * Uses YUV420 format (4:2:0 subsampling) which is standard for most cameras
- * 
+ *
  * @param yPlane - Y (luminance) plane data
  * @param uPlane - U (chrominance) plane data
  * @param vPlane - V (chrominance) plane data
@@ -393,51 +486,51 @@ function extractRedFromYUVPlanes(
   centerY: number,
   radius: number
 ): number {
-  'worklet';
-  
+  "worklet";
+
   let redSum = 0;
   let sampleCount = 0;
   const sampleStep = 4; // Sample every 4th pixel for performance
-  
+
   // Ensure we don't go out of bounds
   const minX = Math.max(0, centerX - radius);
   const maxX = Math.min(width - 1, centerX + radius);
   const minY = Math.max(0, centerY - radius);
   const maxY = Math.min(height - 1, centerY + radius);
-  
+
   // U and V planes are subsampled (half resolution)
   const uvWidth = Math.floor(width / 2);
   const uvHeight = Math.floor(height / 2);
-  
+
   for (let y = minY; y <= maxY; y += sampleStep) {
     for (let x = minX; x <= maxX; x += sampleStep) {
       // Get Y (luminance) value
       const yIndex = y * width + x;
       if (yIndex >= yPlane.length) continue;
-      
+
       const Y = yPlane[yIndex];
-      
+
       // Get U and V (chrominance) values - subsampled at 2x2 blocks
       const uvX = Math.floor(x / 2);
       const uvY = Math.floor(y / 2);
       const uvIndex = uvY * uvWidth + uvX;
-      
+
       if (uvIndex >= uPlane.length || uvIndex >= vPlane.length) continue;
-      
+
       const U = uPlane[uvIndex];
       const V = vPlane[uvIndex];
-      
+
       // Convert YUV to RGB using ITU-R BT.601 standard
       const r = Y + 1.402 * (V - 128);
-      
+
       // Clamp to valid RGB range (0-255)
       const redValue = Math.max(0, Math.min(255, Math.round(r)));
-      
+
       redSum += redValue;
       sampleCount++;
     }
   }
-  
+
   // Return average red channel intensity
   return sampleCount > 0 ? redSum / sampleCount : 128;
 }
@@ -445,7 +538,7 @@ function extractRedFromYUVPlanes(
 /**
  * Extract red channel from Y plane only (luminance approximation)
  * Used when U/V planes are not available
- * 
+ *
  * @param yPlane - Y (luminance) plane data
  * @param width - Frame width
  * @param height - Frame height
@@ -462,28 +555,28 @@ function extractRedFromYPlane(
   centerY: number,
   radius: number
 ): number {
-  'worklet';
-  
+  "worklet";
+
   let sum = 0;
   let sampleCount = 0;
   const sampleStep = 4; // Sample every 4th pixel for performance
-  
+
   // Ensure we don't go out of bounds
   const minX = Math.max(0, centerX - radius);
   const maxX = Math.min(width - 1, centerX + radius);
   const minY = Math.max(0, centerY - radius);
   const maxY = Math.min(height - 1, centerY + radius);
-  
+
   for (let y = minY; y <= maxY; y += sampleStep) {
     for (let x = minX; x <= maxX; x += sampleStep) {
       const yIndex = y * width + x;
       if (yIndex >= yPlane.length) continue;
-      
+
       sum += yPlane[yIndex];
       sampleCount++;
     }
   }
-  
+
   // Return average luminance (approximation of red channel)
   return sampleCount > 0 ? sum / sampleCount : 128;
 }
@@ -492,7 +585,7 @@ function extractRedFromYPlane(
  * Extract red channel from YUV buffer (legacy API)
  * YUV is the most common format for camera frames
  * Uses YUV420 format (4:2:0 subsampling) which is standard for most cameras
- * 
+ *
  * @param data - Pixel data as Uint8Array (YUV format)
  * @param width - Frame width
  * @param height - Frame height
@@ -509,63 +602,63 @@ function extractRedFromYUVBuffer(
   centerY: number,
   radius: number
 ): number {
-  'worklet';
-  
+  "worklet";
+
   let redSum = 0;
   let sampleCount = 0;
   const sampleStep = 4; // Sample every 4th pixel for performance
-  
+
   // YUV420 format layout
   const yPlaneSize = width * height;
   const uvPlaneSize = Math.floor((width / 2) * (height / 2));
-  
+
   // Validate buffer size
   const expectedSize = yPlaneSize + 2 * uvPlaneSize;
   if (data.length < expectedSize) {
     // Buffer too small, return neutral value
     return 128;
   }
-  
+
   // Ensure we don't go out of bounds
   const minX = Math.max(0, centerX - radius);
   const maxX = Math.min(width - 1, centerX + radius);
   const minY = Math.max(0, centerY - radius);
   const maxY = Math.min(height - 1, centerY + radius);
-  
+
   for (let y = minY; y <= maxY; y += sampleStep) {
     for (let x = minX; x <= maxX; x += sampleStep) {
       // Get Y (luminance) value
       const yIndex = y * width + x;
       if (yIndex >= yPlaneSize) continue;
-      
+
       const Y = data[yIndex];
-      
+
       // Get U and V (chrominance) values - subsampled at 2x2 blocks
       const uvX = Math.floor(x / 2);
       const uvY = Math.floor(y / 2);
       const uvIndex = uvY * Math.floor(width / 2) + uvX;
-      
+
       if (uvIndex >= uvPlaneSize) continue;
-      
+
       const uIndex = yPlaneSize + uvIndex;
       const vIndex = yPlaneSize + uvPlaneSize + uvIndex;
-      
+
       if (uIndex >= data.length || vIndex >= data.length) continue;
-      
+
       const U = data[uIndex];
       const V = data[vIndex];
-      
+
       // Convert YUV to RGB using ITU-R BT.601 standard
       const r = Y + 1.402 * (V - 128);
-      
+
       // Clamp to valid RGB range (0-255)
       const redValue = Math.max(0, Math.min(255, Math.round(r)));
-      
+
       redSum += redValue;
       sampleCount++;
     }
   }
-  
+
   // Return average red channel intensity
   return sampleCount > 0 ? redSum / sampleCount : 128;
 }
@@ -573,7 +666,7 @@ function extractRedFromYUVBuffer(
 /**
  * Validate frame quality for PPG
  * Checks if the frame is suitable for heart rate measurement
- * 
+ *
  * @param redAverage - Average red channel intensity
  * @param previousValues - Array of previous red channel values
  * @returns true if frame quality is good
@@ -582,71 +675,74 @@ export function validateFrameForPPG(
   redAverage: number,
   previousValues: number[]
 ): boolean {
-  'worklet';
-  
+  "worklet";
+
   // Check if brightness is in reasonable range
   // Too dark (< 50) or too bright (> 250) indicates poor finger placement
   if (redAverage < 50 || redAverage > 250) {
     return false;
   }
-  
+
   // If we have previous values, check for variation
   if (previousValues.length > 10) {
     const recentValues = previousValues.slice(-10);
     const mean = recentValues.reduce((a, b) => a + b, 0) / recentValues.length;
-    const variance = recentValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentValues.length;
+    const variance =
+      recentValues.reduce((sum, val) => sum + (val - mean) ** 2, 0) /
+      recentValues.length;
     const stdDev = Math.sqrt(variance);
-    
+
     // Signal should have some variation (stdDev > 1) but not too much noise (stdDev < 50)
     if (stdDev < 1 || stdDev > 50) {
       return false;
     }
   }
-  
+
   return true;
 }
 
 /**
  * Calculate signal quality score
  * Returns a value between 0 and 1 indicating signal quality
- * 
+ *
  * @param values - Array of red channel values
  * @returns Quality score (0-1)
  */
 export function calculateSignalQuality(values: number[]): number {
-  'worklet';
-  
+  "worklet";
+
   if (values.length < 10) {
     return 0;
   }
-  
+
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  const variance =
+    values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length;
   const stdDev = Math.sqrt(variance);
-  
+
   // Good signal characteristics:
   // 1. Moderate variation (stdDev between 5 and 30)
   // 2. Mean in reasonable range (100-200)
   // 3. No extreme outliers
-  
+
   let quality = 1.0;
-  
+
   // Penalize low variation
   if (stdDev < 5) {
     quality *= stdDev / 5;
   }
-  
+
   // Penalize excessive variation (noise)
   if (stdDev > 30) {
     quality *= Math.max(0, 1 - (stdDev - 30) / 50);
   }
-  
+
   // Penalize poor brightness
   if (mean < 100 || mean > 200) {
     const deviation = Math.abs(mean - 150);
     quality *= Math.max(0, 1 - deviation / 100);
   }
-  
+
   return Math.max(0, Math.min(1, quality));
 }
 
@@ -658,13 +754,14 @@ export function calculateSignalQuality(values: number[]): number {
  * @returns Quality score (0-1)
  */
 export function calculateRealTimeSignalQuality(signal: number[]): number {
-  'worklet';
+  "worklet";
 
   if (signal.length < 30) return 0;
 
   // Calculate basic statistics
   const mean = signal.reduce((a, b) => a + b, 0) / signal.length;
-  const variance = signal.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / signal.length;
+  const variance =
+    signal.reduce((sum, val) => sum + (val - mean) ** 2, 0) / signal.length;
   const stdDev = Math.sqrt(variance);
 
   // Check signal range (should be reasonable for PPG)
@@ -691,7 +788,8 @@ export function calculateRealTimeSignalQuality(signal: number[]): number {
   const stabilityScore = calculateSignalStability(signal);
 
   // Weighted quality score
-  const quality = 0.4 * snrScore + 0.4 * periodicityScore + 0.2 * stabilityScore;
+  const quality =
+    0.4 * snrScore + 0.4 * periodicityScore + 0.2 * stabilityScore;
 
   return Math.max(0, Math.min(1, quality));
 }
@@ -700,13 +798,13 @@ export function calculateRealTimeSignalQuality(signal: number[]): number {
  * Estimate noise from high-frequency components
  */
 function estimateNoiseFromHighFreq(signal: number[]): number {
-  'worklet';
+  "worklet";
 
   // Simple high-pass filter to isolate noise
   const filtered: number[] = [];
   for (let i = 2; i < signal.length; i++) {
     // Second-order high-pass filter approximation
-    const highFreq = signal[i] - 2 * signal[i-1] + signal[i-2];
+    const highFreq = signal[i] - 2 * signal[i - 1] + signal[i - 2];
     filtered.push(Math.abs(highFreq));
   }
 
@@ -720,13 +818,14 @@ function estimateNoiseFromHighFreq(signal: number[]): number {
  * Calculate periodicity using autocorrelation
  */
 function calculatePeriodicityFromAutocorr(signal: number[]): number {
-  'worklet';
+  "worklet";
 
   const maxLag = Math.min(50, Math.floor(signal.length / 3));
   const autocorr: number[] = [];
 
   // Calculate autocorrelation
-  for (let lag = 10; lag <= maxLag; lag++) { // Start from lag 10 to avoid DC component
+  for (let lag = 10; lag <= maxLag; lag++) {
+    // Start from lag 10 to avoid DC component
     let correlation = 0;
     let count = 0;
 
@@ -752,7 +851,7 @@ function calculatePeriodicityFromAutocorr(signal: number[]): number {
  * Calculate signal stability over time
  */
 function calculateSignalStability(signal: number[]): number {
-  'worklet';
+  "worklet";
 
   // Divide into segments and check consistency
   const segmentSize = Math.floor(signal.length / 3);
@@ -766,15 +865,19 @@ function calculateSignalStability(signal: number[]): number {
   }
 
   // Calculate statistics for each segment
-  const stats = segments.map(segment => {
+  const stats = segments.map((segment) => {
     const mean = segment.reduce((a, b) => a + b, 0) / segment.length;
-    const variance = segment.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / segment.length;
+    const variance =
+      segment.reduce((sum, val) => sum + (val - mean) ** 2, 0) / segment.length;
     return { mean, std: Math.sqrt(variance) };
   });
 
   // Check consistency
-  const meanMeans = stats.reduce((sum, stat) => sum + stat.mean, 0) / stats.length;
-  const meanVariation = stats.reduce((sum, stat) => sum + Math.pow(stat.mean - meanMeans, 2), 0) / stats.length;
+  const meanMeans =
+    stats.reduce((sum, stat) => sum + stat.mean, 0) / stats.length;
+  const meanVariation =
+    stats.reduce((sum, stat) => sum + (stat.mean - meanMeans) ** 2, 0) /
+    stats.length;
 
   // Lower variation = higher stability
   return Math.max(0, 1 - Math.sqrt(meanVariation) / (meanMeans * 0.2));
@@ -805,4 +908,3 @@ function calculateSignalStability(signal: number[]): number {
  * const quality = calculateRealTimeSignalQuality(recentSignal);
  * ```
  */
-

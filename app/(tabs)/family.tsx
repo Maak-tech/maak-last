@@ -1,14 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Print from "expo-print";
 import { useFocusEffect, useRouter } from "expo-router";
+import * as Sharing from "expo-sharing";
 import {
   Activity,
   AlertTriangle,
   Calendar,
   Check,
-  CheckCircle,
-  ChevronLeft,
   Clock,
-  Download,
   Droplet,
   Edit,
   FileText,
@@ -58,46 +57,54 @@ import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
 import Avatar from "@/components/Avatar";
+import { Button, Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import {
+  Caption,
+  Heading,
+  Text as TypographyText,
+} from "@/components/design-system/Typography";
+import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { alertService } from "@/lib/services/alertService";
+import {
+  type CaregiverOverview,
+  caregiverDashboardService,
+} from "@/lib/services/caregiverDashboardService";
+import {
+  type FamilyHealthReport,
+  familyHealthReportService,
+  type ReportPrivacySettings,
+} from "@/lib/services/familyHealthReportService";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import healthContextService from "@/lib/services/healthContextService";
 import type { VitalSigns } from "@/lib/services/healthDataService";
-import { medicationService } from "@/lib/services/medicationService";
-import { getUserHealthEvents, getFamilyHealthEvents } from "../../src/health/events/healthEventsService";
-import { acknowledgeHealthEvent, resolveHealthEvent, escalateHealthEvent } from "../../src/health/events/createHealthEvent";
-import type { HealthEvent } from "../../src/health/events/types";
-import { symptomService } from "@/lib/services/symptomService";
-import { userService } from "@/lib/services/userService";
 import { healthScoreService } from "@/lib/services/healthScoreService";
-import { logger } from "@/lib/utils/logger";
-import type { User } from "@/types";
-import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
-import { revenueCatService, PLAN_LIMITS } from "@/lib/services/revenueCatService";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
-import * as Print from "expo-print";
+import { medicationService } from "@/lib/services/medicationService";
+import { revenueCatService } from "@/lib/services/revenueCatService";
 import {
-  familyHealthReportService,
-  type FamilyHealthReport,
-  type ReportPrivacySettings,
-} from "@/lib/services/familyHealthReportService";
-import {
-  caregiverDashboardService,
-  type CaregiverOverview,
-} from "@/lib/services/caregiverDashboardService";
-import {
-  sharedMedicationScheduleService,
   type MedicationScheduleEntry,
   type SharedScheduleDay,
+  sharedMedicationScheduleService,
 } from "@/lib/services/sharedMedicationScheduleService";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Button, Card } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
-import { createThemedStyles, getTextStyle } from "@/utils/styles";
+import { symptomService } from "@/lib/services/symptomService";
+import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
+import type { User } from "@/types";
+import { getTextStyle } from "@/utils/styles";
+import {
+  acknowledgeHealthEvent,
+  escalateHealthEvent,
+  resolveHealthEvent,
+} from "../../src/health/events/createHealthEvent";
+import {
+  getFamilyHealthEvents,
+  getUserHealthEvents,
+} from "../../src/health/events/healthEventsService";
+import type { HealthEvent } from "../../src/health/events/types";
 
 const RELATIONS = [
   { key: "father", labelEn: "Father", labelAr: "الأب" },
@@ -124,26 +131,35 @@ export default function FamilyScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
-  const { isPremium, isFamilyPlan, maxTotalMembers, isLoading: subscriptionLoading } = useSubscription();
+  const {
+    isPremium,
+    isFamilyPlan,
+    maxTotalMembers,
+    isLoading: subscriptionLoading,
+  } = useSubscription();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showJoinFamilyModal, setShowJoinFamilyModal] = useState(false);
   const [showEditMemberModal, setShowEditMemberModal] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showHealthReportsModal, setShowHealthReportsModal] = useState(false);
-  const [healthReport, setHealthReport] = useState<FamilyHealthReport | null>(null);
+  const [healthReport, setHealthReport] = useState<FamilyHealthReport | null>(
+    null
+  );
   const [generatingReport, setGeneratingReport] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [privacySettings, setPrivacySettings] = useState<ReportPrivacySettings>({
-    includeSymptoms: true,
-    includeMedications: true,
-    includeMoods: true,
-    includeAllergies: true,
-    includeMedicalHistory: true,
-    includeLabResults: true,
-    includeVitals: true,
-    includeComplianceData: true,
-  });
+  const [privacySettings, setPrivacySettings] = useState<ReportPrivacySettings>(
+    {
+      includeSymptoms: true,
+      includeMedications: true,
+      includeMoods: true,
+      includeAllergies: true,
+      includeMedicalHistory: true,
+      includeLabResults: true,
+      includeVitals: true,
+      includeComplianceData: true,
+    }
+  );
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
     start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
     end: new Date(),
@@ -155,7 +171,8 @@ export default function FamilyScreen() {
     emergencyContacts: Array<{ name: string; phone: string }>;
   } | null>(null);
   const [loadingElderlyDashboard, setLoadingElderlyDashboard] = useState(false);
-  const [refreshingElderlyDashboard, setRefreshingElderlyDashboard] = useState(false);
+  const [refreshingElderlyDashboard, setRefreshingElderlyDashboard] =
+    useState(false);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [memberMetrics, setMemberMetrics] = useState<FamilyMemberMetrics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,15 +200,26 @@ export default function FamilyScreen() {
   >([]);
   const [newContact, setNewContact] = useState({ name: "", phone: "" });
   const [medicationAlertsEnabled, setMedicationAlertsEnabled] = useState(false);
-  const [caregiverOverview, setCaregiverOverview] = useState<CaregiverOverview | null>(null);
-  const [loadingCaregiverDashboard, setLoadingCaregiverDashboard] = useState(false);
-  const [medicationScheduleEntries, setMedicationScheduleEntries] = useState<MedicationScheduleEntry[]>([]);
-  const [todaySchedule, setTodaySchedule] = useState<SharedScheduleDay | null>(null);
-  const [upcomingSchedule, setUpcomingSchedule] = useState<SharedScheduleDay[]>([]);
-  const [loadingMedicationSchedule, setLoadingMedicationSchedule] = useState(false);
+  const [caregiverOverview, setCaregiverOverview] =
+    useState<CaregiverOverview | null>(null);
+  const [loadingCaregiverDashboard, setLoadingCaregiverDashboard] =
+    useState(false);
+  const [medicationScheduleEntries, setMedicationScheduleEntries] = useState<
+    MedicationScheduleEntry[]
+  >([]);
+  const [todaySchedule, setTodaySchedule] = useState<SharedScheduleDay | null>(
+    null
+  );
+  const [upcomingSchedule, setUpcomingSchedule] = useState<SharedScheduleDay[]>(
+    []
+  );
+  const [loadingMedicationSchedule, setLoadingMedicationSchedule] =
+    useState(false);
   const [events, setEvents] = useState<HealthEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
-  const [medicationScheduleViewMode, setMedicationScheduleViewMode] = useState<"today" | "upcoming" | "all">("today");
+  const [medicationScheduleViewMode, setMedicationScheduleViewMode] = useState<
+    "today" | "upcoming" | "all"
+  >("today");
   const [markingTaken, setMarkingTaken] = useState<string | null>(null);
 
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
@@ -277,40 +305,56 @@ export default function FamilyScreen() {
       if (isRefresh) {
         setLoadingEvents(true);
       }
-      
+
       // For admins with family, load all family member events
       if (isAdmin && user.familyId && familyMembers.length > 0) {
-        logger.debug("Loading family health events", {
-          userId: user.id,
-          familyId: user.familyId,
-          memberCount: familyMembers.length,
-        }, "FamilyScreen");
+        logger.debug(
+          "Loading family health events",
+          {
+            userId: user.id,
+            familyId: user.familyId,
+            memberCount: familyMembers.length,
+          },
+          "FamilyScreen"
+        );
 
-        const userIds = familyMembers.map(member => member.id);
+        const userIds = familyMembers.map((member) => member.id);
         const familyEvents = await getFamilyHealthEvents(userIds);
         setEvents(familyEvents);
 
         const durationMs = Date.now() - startTime;
-        logger.info("Family health events loaded", {
-          userId: user.id,
-          eventCount: familyEvents.length,
-          durationMs,
-        }, "FamilyScreen");
+        logger.info(
+          "Family health events loaded",
+          {
+            userId: user.id,
+            eventCount: familyEvents.length,
+            durationMs,
+          },
+          "FamilyScreen"
+        );
       } else {
         // For non-admins or users without family, load only their own events
-        logger.debug("Loading user health events", {
-          userId: user.id,
-        }, "FamilyScreen");
+        logger.debug(
+          "Loading user health events",
+          {
+            userId: user.id,
+          },
+          "FamilyScreen"
+        );
 
         const userEvents = await getUserHealthEvents(user.id);
         setEvents(userEvents);
 
         const durationMs = Date.now() - startTime;
-        logger.info("User health events loaded", {
-          userId: user.id,
-          eventCount: userEvents.length,
-          durationMs,
-        }, "FamilyScreen");
+        logger.info(
+          "User health events loaded",
+          {
+            userId: user.id,
+            eventCount: userEvents.length,
+            durationMs,
+          },
+          "FamilyScreen"
+        );
       }
     } catch (error) {
       const durationMs = Date.now() - startTime;
@@ -326,21 +370,29 @@ export default function FamilyScreen() {
     const startTime = Date.now();
 
     try {
-      logger.info("User acknowledging health event", {
-        eventId,
-        userId: user.id,
-        role: user.role,
-      }, "FamilyScreen");
+      logger.info(
+        "User acknowledging health event",
+        {
+          eventId,
+          userId: user.id,
+          role: user.role,
+        },
+        "FamilyScreen"
+      );
 
       await acknowledgeHealthEvent(eventId, user.id);
       await loadEvents(true);
 
       const durationMs = Date.now() - startTime;
-      logger.info("Health event acknowledged successfully", {
-        eventId,
-        userId: user.id,
-        durationMs,
-      }, "FamilyScreen");
+      logger.info(
+        "Health event acknowledged successfully",
+        {
+          eventId,
+          userId: user.id,
+          durationMs,
+        },
+        "FamilyScreen"
+      );
 
       Alert.alert(
         isRTL ? "تم" : "Success",
@@ -363,21 +415,29 @@ export default function FamilyScreen() {
     const startTime = Date.now();
 
     try {
-      logger.info("User resolving health event", {
-        eventId,
-        userId: user.id,
-        role: user.role,
-      }, "FamilyScreen");
+      logger.info(
+        "User resolving health event",
+        {
+          eventId,
+          userId: user.id,
+          role: user.role,
+        },
+        "FamilyScreen"
+      );
 
       await resolveHealthEvent(eventId, user.id);
       await loadEvents(true);
 
       const durationMs = Date.now() - startTime;
-      logger.info("Health event resolved successfully", {
-        eventId,
-        userId: user.id,
-        durationMs,
-      }, "FamilyScreen");
+      logger.info(
+        "Health event resolved successfully",
+        {
+          eventId,
+          userId: user.id,
+          durationMs,
+        },
+        "FamilyScreen"
+      );
 
       Alert.alert(
         isRTL ? "تم" : "Success",
@@ -408,22 +468,30 @@ export default function FamilyScreen() {
             const startTime = Date.now();
 
             try {
-              logger.info("User escalating health event", {
-                eventId,
-                userId: user.id,
-                role: user.role,
-                hasReason: !!reason,
-              }, "FamilyScreen");
+              logger.info(
+                "User escalating health event",
+                {
+                  eventId,
+                  userId: user.id,
+                  role: user.role,
+                  hasReason: !!reason,
+                },
+                "FamilyScreen"
+              );
 
               await escalateHealthEvent(eventId, user.id, reason || undefined);
               await loadEvents(true);
 
               const durationMs = Date.now() - startTime;
-              logger.info("Health event escalated successfully", {
-                eventId,
-                userId: user.id,
-                durationMs,
-              }, "FamilyScreen");
+              logger.info(
+                "Health event escalated successfully",
+                {
+                  eventId,
+                  userId: user.id,
+                  durationMs,
+                },
+                "FamilyScreen"
+              );
 
               Alert.alert(
                 isRTL ? "تم" : "Success",
@@ -431,15 +499,19 @@ export default function FamilyScreen() {
               );
             } catch (error) {
               const durationMs = Date.now() - startTime;
-              logger.error("Failed to escalate health event", error, "FamilyScreen");
+              logger.error(
+                "Failed to escalate health event",
+                error,
+                "FamilyScreen"
+              );
 
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL ? "فشل في تصعيد الحدث" : "Failed to escalate event"
               );
             }
-          }
-        }
+          },
+        },
       ],
       "plain-text",
       "",
@@ -455,11 +527,11 @@ export default function FamilyScreen() {
 
     if (diffHours < 1) {
       return "Just now";
-    } else if (diffHours < 24) {
-      return `${diffHours}h ago`;
-    } else {
-      return `${diffDays}d ago`;
     }
+    if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    }
+    return `${diffDays}d ago`;
   };
 
   const getEventStatusColor = (status: HealthEvent["status"]) => {
@@ -514,12 +586,15 @@ export default function FamilyScreen() {
             ]);
 
           // Calculate health score using the centralized service
-          const healthScoreResult = healthScoreService.calculateHealthScoreFromData(
-            symptoms,
-            medications
-          );
+          const healthScoreResult =
+            healthScoreService.calculateHealthScoreFromData(
+              symptoms,
+              medications
+            );
           const healthScore = healthScoreResult.score;
-          const activeMedications = medications.filter((m: { isActive: boolean }) => m.isActive);
+          const activeMedications = medications.filter(
+            (m: { isActive: boolean }) => m.isActive
+          );
 
           // Count symptoms this week
           const symptomsThisWeek = symptoms.filter(
@@ -588,17 +663,21 @@ export default function FamilyScreen() {
 
   // Load caregiver dashboard data
   const loadCaregiverDashboard = useCallback(async () => {
-    if (!user || !user.familyId || (user.role !== "admin" && user.role !== "caregiver")) {
+    if (
+      !(user && user.familyId) ||
+      (user.role !== "admin" && user.role !== "caregiver")
+    ) {
       setCaregiverOverview(null);
       return;
     }
 
     try {
       setLoadingCaregiverDashboard(true);
-      const dashboardData = await caregiverDashboardService.getCaregiverOverview(
-        user.id,
-        user.familyId
-      );
+      const dashboardData =
+        await caregiverDashboardService.getCaregiverOverview(
+          user.id,
+          user.familyId
+        );
       setCaregiverOverview(dashboardData);
     } catch (error) {
       // Silently handle error - fallback to regular dashboard
@@ -609,34 +688,37 @@ export default function FamilyScreen() {
   }, [user]);
 
   // Load medication schedule data
-  const loadMedicationSchedule = useCallback(async (isRefresh = false) => {
-    if (!user || !user.familyId) return;
+  const loadMedicationSchedule = useCallback(
+    async (isRefresh = false) => {
+      if (!(user && user.familyId)) return;
 
-    try {
-      if (isRefresh) {
-        // Don't show loading spinner on refresh
-      } else {
-        setLoadingMedicationSchedule(true);
+      try {
+        if (isRefresh) {
+          // Don't show loading spinner on refresh
+        } else {
+          setLoadingMedicationSchedule(true);
+        }
+
+        const [entries, today, upcoming] = await Promise.all([
+          sharedMedicationScheduleService.getFamilyMedicationSchedules(
+            user.familyId,
+            user.id
+          ),
+          sharedMedicationScheduleService.getTodaySchedule(user.familyId),
+          sharedMedicationScheduleService.getUpcomingSchedule(user.familyId, 7),
+        ]);
+
+        setMedicationScheduleEntries(entries);
+        setTodaySchedule(today);
+        setUpcomingSchedule(upcoming);
+      } catch (error) {
+        // Silently handle error
+      } finally {
+        setLoadingMedicationSchedule(false);
       }
-
-      const [entries, today, upcoming] = await Promise.all([
-        sharedMedicationScheduleService.getFamilyMedicationSchedules(
-          user.familyId,
-          user.id
-        ),
-        sharedMedicationScheduleService.getTodaySchedule(user.familyId),
-        sharedMedicationScheduleService.getUpcomingSchedule(user.familyId, 7),
-      ]);
-
-      setMedicationScheduleEntries(entries);
-      setTodaySchedule(today);
-      setUpcomingSchedule(upcoming);
-    } catch (error) {
-      // Silently handle error
-    } finally {
-      setLoadingMedicationSchedule(false);
-    }
-  }, [user]);
+    },
+    [user]
+  );
 
   // Load medication schedule when family members are loaded
   useEffect(() => {
@@ -658,7 +740,6 @@ export default function FamilyScreen() {
       loadEvents();
     }
   }, [familyMembers.length, isAdmin]);
-
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
@@ -693,13 +774,12 @@ export default function FamilyScreen() {
     });
   };
 
-  const formatMedicationDate = (date: Date) => {
-    return date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+  const formatMedicationDate = (date: Date) =>
+    date.toLocaleDateString(isRTL ? "ar" : "en-US", {
       weekday: "long",
       month: "long",
       day: "numeric",
     });
-  };
 
   const getComplianceColor = (rate?: number) => {
     if (!rate) return theme.colors.text.secondary;
@@ -708,13 +788,16 @@ export default function FamilyScreen() {
     return "#EF4444";
   };
 
-  const handleMarkMedicationAsTaken = async (entry: MedicationScheduleEntry) => {
-    if (!user || !user.familyId) return;
+  const handleMarkMedicationAsTaken = async (
+    entry: MedicationScheduleEntry
+  ) => {
+    if (!(user && user.familyId)) return;
 
-    const canManage = await sharedMedicationScheduleService.canManageMedications(
-      user.id,
-      entry.member.id
-    );
+    const canManage =
+      await sharedMedicationScheduleService.canManageMedications(
+        user.id,
+        entry.member.id
+      );
 
     if (!canManage && user.id !== entry.member.id) {
       Alert.alert(
@@ -767,10 +850,14 @@ export default function FamilyScreen() {
     if (selectedFilter.type === "personal") {
       // Show only current user's medications
       return entries.filter((entry) => entry.member.id === user?.id);
-    } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+    }
+    if (selectedFilter.type === "member" && selectedFilter.memberId) {
       // Show only selected member's medications
-      return entries.filter((entry) => entry.member.id === selectedFilter.memberId);
-    } else if (selectedFilter.type === "family") {
+      return entries.filter(
+        (entry) => entry.member.id === selectedFilter.memberId
+      );
+    }
+    if (selectedFilter.type === "family") {
       // Show all family members' medications
       return entries;
     }
@@ -798,31 +885,11 @@ export default function FamilyScreen() {
     // Check subscription limits before inviting
     // Always enforce limits - if subscription is loading, use conservative defaults (assume no premium)
     const currentMemberCount = familyMembers.length;
-    const maxMembers = subscriptionLoading ? 0 : (maxTotalMembers || 0);
+    const maxMembers = subscriptionLoading ? 0 : maxTotalMembers || 0;
     const hasPremium = subscriptionLoading ? false : isPremium;
 
     // If no premium subscription, limit to 1 member (just the admin)
-    if (!hasPremium) {
-      if (currentMemberCount >= 1) {
-        Alert.alert(
-          isRTL ? "خطأ" : "Premium Required",
-          isRTL
-            ? "يجب الاشتراك بالاشتراك العائلي لإضافة أعضاء إضافيين إلى العائلة"
-            : "A premium subscription is required to add additional family members",
-          [
-            {
-              text: isRTL ? "إلغاء" : "Cancel",
-              style: "cancel",
-            },
-            {
-              text: isRTL ? "عرض الاشتراكات العائلية" : "View Family Plans",
-              onPress: () => setShowPaywall(true),
-            },
-          ]
-        );
-        return;
-      }
-    } else {
+    if (hasPremium) {
       // Check if family has reached the limit
       if (currentMemberCount >= maxMembers) {
         Alert.alert(
@@ -836,13 +903,33 @@ export default function FamilyScreen() {
               style: "cancel",
             },
             {
-              text: isRTL ? "ترقية إلى الاشتراك العائلي" : "Upgrade to Family Plan",
+              text: isRTL
+                ? "ترقية إلى الاشتراك العائلي"
+                : "Upgrade to Family Plan",
               onPress: () => setShowPaywall(true),
             },
           ]
         );
         return;
       }
+    } else if (currentMemberCount >= 1) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Premium Required",
+        isRTL
+          ? "يجب الاشتراك بالاشتراك العائلي لإضافة أعضاء إضافيين إلى العائلة"
+          : "A premium subscription is required to add additional family members",
+        [
+          {
+            text: isRTL ? "إلغاء" : "Cancel",
+            style: "cancel",
+          },
+          {
+            text: isRTL ? "عرض الاشتراكات العائلية" : "View Family Plans",
+            onPress: () => setShowPaywall(true),
+          },
+        ]
+      );
+      return;
     }
 
     setInviteLoading(true);
@@ -923,7 +1010,10 @@ export default function FamilyScreen() {
 
   const handleEditMember = (member: User) => {
     // Check permissions: admins/caregivers can edit anyone, members can only edit themselves
-    const canEdit = (user?.role === "admin" || user?.role === "caregiver") || user?.id === member.id;
+    const canEdit =
+      user?.role === "admin" ||
+      user?.role === "caregiver" ||
+      user?.id === member.id;
 
     if (!canEdit) {
       Alert.alert(
@@ -965,7 +1055,10 @@ export default function FamilyScreen() {
       };
 
       // Only admins/caregivers can change roles and only for other users (not themselves)
-      if ((user.role === "admin" || user.role === "caregiver") && user.id !== editMemberForm.id) {
+      if (
+        (user.role === "admin" || user.role === "caregiver") &&
+        user.id !== editMemberForm.id
+      ) {
         if (
           editMemberForm.role !== "admin" &&
           editMemberForm.role !== "member" &&
@@ -1107,7 +1200,9 @@ export default function FamilyScreen() {
         setTimeout(() => {
           Alert.alert(
             isRTL ? "خطأ" : "Error",
-            isRTL ? "يرجى ملء جميع البيانات المطلوبة" : "Please fill in all fields",
+            isRTL
+              ? "يرجى ملء جميع البيانات المطلوبة"
+              : "Please fill in all fields",
             [{ text: isRTL ? "حسناً" : "OK" }],
             { cancelable: true }
           );
@@ -1195,16 +1290,17 @@ export default function FamilyScreen() {
   };
 
   const handleGenerateHealthReport = async () => {
-    if (!user || !user.familyId) return;
+    if (!(user && user.familyId)) return;
 
     setGeneratingReport(true);
     try {
-      const generatedReport = await familyHealthReportService.generateFamilyReport(
-        user.familyId,
-        dateRange.start,
-        dateRange.end,
-        privacySettings
-      );
+      const generatedReport =
+        await familyHealthReportService.generateFamilyReport(
+          user.familyId,
+          dateRange.start,
+          dateRange.end,
+          privacySettings
+        );
 
       setHealthReport(generatedReport);
       setShowPrivacyModal(false);
@@ -1247,7 +1343,7 @@ export default function FamilyScreen() {
       console.error("Failed to export PDF report:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL 
+        isRTL
           ? `فشل تصدير التقرير: ${error instanceof Error ? error.message : "خطأ غير معروف"}`
           : `Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`
       );
@@ -1263,40 +1359,50 @@ export default function FamilyScreen() {
   const getTrendIcon = (trend: string) => {
     switch (trend) {
       case "improving":
-        return <TrendingUp size={16} color={theme.colors.health.excellent} />;
+        return <TrendingUp color={theme.colors.health.excellent} size={16} />;
       case "worsening":
-        return <TrendingDown size={16} color={theme.colors.health.critical} />;
+        return <TrendingDown color={theme.colors.health.critical} size={16} />;
       default:
         return null;
     }
   };
 
-  const loadElderlyDashboard = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadElderlyDashboard = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    try {
-      if (isRefresh) {
-        setRefreshingElderlyDashboard(true);
-      } else {
-        setLoadingElderlyDashboard(true);
+      try {
+        if (isRefresh) {
+          setRefreshingElderlyDashboard(true);
+        } else {
+          setLoadingElderlyDashboard(true);
+        }
+
+        const data = await caregiverDashboardService.getElderlyUserDashboard(
+          user.id
+        );
+        setElderlyDashboardData(data);
+      } catch (error) {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "فشل تحميل البيانات" : "Failed to load data"
+        );
+      } finally {
+        setLoadingElderlyDashboard(false);
+        setRefreshingElderlyDashboard(false);
       }
-
-      const data = await caregiverDashboardService.getElderlyUserDashboard(user.id);
-      setElderlyDashboardData(data);
-    } catch (error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل تحميل البيانات" : "Failed to load data"
-      );
-    } finally {
-      setLoadingElderlyDashboard(false);
-      setRefreshingElderlyDashboard(false);
-    }
-  }, [user, isRTL]);
+    },
+    [user, isRTL]
+  );
 
   // Set default view mode to dashboard for admins when user loads (only once)
   useEffect(() => {
-    if (user && isAdmin && !viewModeInitialized.current && viewMode === "list") {
+    if (
+      user &&
+      isAdmin &&
+      !viewModeInitialized.current &&
+      viewMode === "list"
+    ) {
       // Set to dashboard view for admins by default (only on initial load)
       setViewMode("dashboard");
       viewModeInitialized.current = true;
@@ -1328,7 +1434,14 @@ export default function FamilyScreen() {
         loadElderlyDashboard();
       }
       loadMedicationSchedule();
-    }, [user, viewMode, isAdmin, loadCaregiverDashboard, loadElderlyDashboard, loadMedicationSchedule])
+    }, [
+      user,
+      viewMode,
+      isAdmin,
+      loadCaregiverDashboard,
+      loadElderlyDashboard,
+      loadMedicationSchedule,
+    ])
   );
 
   const handleElderlyEmergency = async () => {
@@ -1495,12 +1608,16 @@ export default function FamilyScreen() {
       );
       if (result.success && result.familyId) {
         // Get target family members to check capacity and find admin
-        const targetFamilyMembers = await userService.getFamilyMembers(result.familyId);
+        const targetFamilyMembers = await userService.getFamilyMembers(
+          result.familyId
+        );
         const currentMemberCount = targetFamilyMembers.length;
-        
+
         // Find the admin of the target family
-        const adminUser = targetFamilyMembers.find(member => member.role === "admin");
-        
+        const adminUser = targetFamilyMembers.find(
+          (member) => member.role === "admin"
+        );
+
         if (!adminUser) {
           Alert.alert(
             isRTL ? "خطأ" : "Error",
@@ -1533,8 +1650,9 @@ export default function FamilyScreen() {
 
         // Check if the family has reached capacity based on ADMIN's subscription
         // If admin has no premium subscription, they can only have 1 member (themselves)
-        const adminMaxMembers = adminMaxTotalMembers > 0 ? adminMaxTotalMembers : 1;
-        
+        const adminMaxMembers =
+          adminMaxTotalMembers > 0 ? adminMaxTotalMembers : 1;
+
         if (currentMemberCount >= adminMaxMembers) {
           Alert.alert(
             isRTL ? "تم الوصول للحد الأقصى" : "Family at Capacity",
@@ -1555,7 +1673,7 @@ export default function FamilyScreen() {
         // Check if joining user has premium subscription
         // Non-premium users can only join empty families (just the admin)
         const hasPremium = subscriptionLoading ? false : isPremium;
-        
+
         if (!hasPremium && currentMemberCount >= 1) {
           Alert.alert(
             isRTL ? "خطأ" : "Premium Required",
@@ -1615,10 +1733,14 @@ export default function FamilyScreen() {
     if (selectedFilter.type === "personal") {
       // Show only current user's data
       return memberMetrics.filter((metric) => metric.user.id === user?.id);
-    } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+    }
+    if (selectedFilter.type === "member" && selectedFilter.memberId) {
       // Show only selected member's data
-      return memberMetrics.filter((metric) => metric.user.id === selectedFilter.memberId);
-    } else if (selectedFilter.type === "family") {
+      return memberMetrics.filter(
+        (metric) => metric.user.id === selectedFilter.memberId
+      );
+    }
+    if (selectedFilter.type === "family") {
       // Show all family members' data
       return memberMetrics;
     }
@@ -1632,14 +1754,21 @@ export default function FamilyScreen() {
     const metricsToUse = filteredMemberMetrics;
     const totalMembers = metricsToUse.length;
     const activeMembers = metricsToUse.length; // All loaded members are active
-    
+
     // Calculate total alerts from filtered member metrics
-    const totalAlerts = metricsToUse.reduce((sum, member) => sum + member.alertsCount, 0);
-    
+    const totalAlerts = metricsToUse.reduce(
+      (sum, member) => sum + member.alertsCount,
+      0
+    );
+
     // Calculate average health score from filtered member metrics
-    const avgHealthScore = metricsToUse.length > 0
-      ? Math.round(metricsToUse.reduce((sum, member) => sum + member.healthScore, 0) / metricsToUse.length)
-      : 100; // Default to 100 if no members
+    const avgHealthScore =
+      metricsToUse.length > 0
+        ? Math.round(
+            metricsToUse.reduce((sum, member) => sum + member.healthScore, 0) /
+              metricsToUse.length
+          )
+        : 100; // Default to 100 if no members
 
     return { totalMembers, activeMembers, totalAlerts, avgHealthScore };
   };
@@ -1842,6 +1971,7 @@ export default function FamilyScreen() {
       </View>
 
       <ScrollView
+        contentContainerStyle={styles.contentInner}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadFamilyMembers(true)}
@@ -1851,7 +1981,6 @@ export default function FamilyScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
-        contentContainerStyle={styles.contentInner}
       >
         {/* View Data Filter */}
         <FamilyDataFilter
@@ -1867,8 +1996,12 @@ export default function FamilyScreen() {
         <View style={styles.overviewCard}>
           <Text style={[styles.overviewTitle, isRTL && styles.rtlText]}>
             {selectedFilter.type === "personal"
-              ? isRTL ? "نظرة عامة" : "My Overview"
-              : isRTL ? "نظرة عامة على العائلة" : "Family Overview"}
+              ? isRTL
+                ? "نظرة عامة"
+                : "My Overview"
+              : isRTL
+                ? "نظرة عامة على العائلة"
+                : "Family Overview"}
           </Text>
 
           <View style={styles.statsGrid}>
@@ -1926,8 +2059,8 @@ export default function FamilyScreen() {
                 const colors = severityColors[item.severity];
 
                 return (
-                    <TouchableOpacity
-                      key={`${item.memberId}-${index}`}
+                  <TouchableOpacity
+                    key={`${item.memberId}-${index}`}
                     onPress={() => {
                       router.push(`/family/${item.memberId}`);
                     }}
@@ -2063,79 +2196,290 @@ export default function FamilyScreen() {
                 <View>
                   {/* Calculate filtered stats */}
                   {(() => {
-                    const filteredMembers = caregiverOverview.members.filter((memberData) => {
-                      if (selectedFilter.type === "personal") {
+                    const filteredMembers = caregiverOverview.members.filter(
+                      (memberData) => {
+                        if (selectedFilter.type === "personal") {
+                          return memberData.member.id === user?.id;
+                        }
+                        if (
+                          selectedFilter.type === "member" &&
+                          selectedFilter.memberId
+                        ) {
+                          return (
+                            memberData.member.id === selectedFilter.memberId
+                          );
+                        }
+                        if (selectedFilter.type === "family") {
+                          return true;
+                        }
                         return memberData.member.id === user?.id;
-                      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
-                        return memberData.member.id === selectedFilter.memberId;
-                      } else if (selectedFilter.type === "family") {
-                        return true;
                       }
-                      return memberData.member.id === user?.id;
-                    });
-                    
+                    );
+
                     const filteredTotalMembers = filteredMembers.length;
-                    const filteredMembersNeedingAttention = filteredMembers.filter(m => m.needsAttention).length;
-                    const filteredTotalActiveAlerts = filteredMembers.reduce((sum, m) => sum + m.recentAlerts.filter(a => !a.resolved).length, 0);
-                    const filteredAverageHealthScore = filteredMembers.length > 0
-                      ? Math.round(filteredMembers.reduce((sum, m) => sum + m.healthScore, 0) / filteredMembers.length)
-                      : 0;
-                    
+                    const filteredMembersNeedingAttention =
+                      filteredMembers.filter((m) => m.needsAttention).length;
+                    const filteredTotalActiveAlerts = filteredMembers.reduce(
+                      (sum, m) =>
+                        sum + m.recentAlerts.filter((a) => !a.resolved).length,
+                      0
+                    );
+                    const filteredAverageHealthScore =
+                      filteredMembers.length > 0
+                        ? Math.round(
+                            filteredMembers.reduce(
+                              (sum, m) => sum + m.healthScore,
+                              0
+                            ) / filteredMembers.length
+                          )
+                        : 0;
+
                     return (
-                      <Card variant="elevated" style={{ marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                        <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.base }]}>
+                      <Card
+                        contentStyle={undefined}
+                        onPress={undefined}
+                        style={{ marginBottom: theme.spacing.base }}
+                        variant="elevated"
+                      >
+                        <Heading
+                          level={6}
+                          style={[
+                            isRTL ? styles.rtlText : {},
+                            { marginBottom: theme.spacing.base },
+                          ]}
+                        >
                           {isRTL ? "الملخص" : "Overview"}
                         </Heading>
-                        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: theme.spacing.base }}>
-                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                            <Users size={32} color={theme.colors.primary.main} />
-                            <Text 
-                              numberOfLines={1}
+                        <View
+                          style={{
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            flexWrap: "wrap",
+                            gap: theme.spacing.base,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flex: 1,
+                              minWidth: "45%",
+                              padding: theme.spacing.base,
+                              backgroundColor:
+                                theme.colors.background.secondary,
+                              borderRadius: theme.borderRadius.md,
+                              alignItems: "center",
+                              overflow: "visible",
+                            }}
+                          >
+                            <Users
+                              color={theme.colors.primary.main}
+                              size={32}
+                            />
+                            <Text
                               adjustsFontSizeToFit={true}
                               minimumFontScale={0.7}
-                              style={[getTextStyle(theme, "heading", "bold", theme.colors.text.primary), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              numberOfLines={1}
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "heading",
+                                  "bold",
+                                  theme.colors.text.primary
+                                ),
+                                {
+                                  fontSize: 32,
+                                  marginTop: theme.spacing.xs,
+                                  width: "100%",
+                                  textAlign: "center",
+                                },
+                              ]}
+                            >
                               {filteredTotalMembers}
                             </Text>
-                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                {
+                                  textAlign: "center",
+                                  marginTop: theme.spacing.xs,
+                                },
+                              ]}
+                            >
                               {isRTL ? "إجمالي الأعضاء" : "Total Members"}
                             </Text>
                           </View>
-                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                            <AlertTriangle size={32} color={theme.colors.accent.error} />
-                            <Text 
-                              numberOfLines={1}
+                          <View
+                            style={{
+                              flex: 1,
+                              minWidth: "45%",
+                              padding: theme.spacing.base,
+                              backgroundColor:
+                                theme.colors.background.secondary,
+                              borderRadius: theme.borderRadius.md,
+                              alignItems: "center",
+                              overflow: "visible",
+                            }}
+                          >
+                            <AlertTriangle
+                              color={theme.colors.accent.error}
+                              size={32}
+                            />
+                            <Text
                               adjustsFontSizeToFit={true}
                               minimumFontScale={0.7}
-                              style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.error), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              numberOfLines={1}
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "heading",
+                                  "bold",
+                                  theme.colors.accent.error
+                                ),
+                                {
+                                  fontSize: 32,
+                                  marginTop: theme.spacing.xs,
+                                  width: "100%",
+                                  textAlign: "center",
+                                },
+                              ]}
+                            >
                               {filteredMembersNeedingAttention}
                             </Text>
-                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                {
+                                  textAlign: "center",
+                                  marginTop: theme.spacing.xs,
+                                },
+                              ]}
+                            >
                               {isRTL ? "يحتاجون انتباه" : "Need Attention"}
                             </Text>
                           </View>
-                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                            <AlertTriangle size={32} color={theme.colors.accent.warning} />
-                            <Text 
-                              numberOfLines={1}
+                          <View
+                            style={{
+                              flex: 1,
+                              minWidth: "45%",
+                              padding: theme.spacing.base,
+                              backgroundColor:
+                                theme.colors.background.secondary,
+                              borderRadius: theme.borderRadius.md,
+                              alignItems: "center",
+                              overflow: "visible",
+                            }}
+                          >
+                            <AlertTriangle
+                              color={theme.colors.accent.warning}
+                              size={32}
+                            />
+                            <Text
                               adjustsFontSizeToFit={true}
                               minimumFontScale={0.7}
-                              style={[getTextStyle(theme, "heading", "bold", theme.colors.accent.warning), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              numberOfLines={1}
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "heading",
+                                  "bold",
+                                  theme.colors.accent.warning
+                                ),
+                                {
+                                  fontSize: 32,
+                                  marginTop: theme.spacing.xs,
+                                  width: "100%",
+                                  textAlign: "center",
+                                },
+                              ]}
+                            >
                               {filteredTotalActiveAlerts}
                             </Text>
-                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                {
+                                  textAlign: "center",
+                                  marginTop: theme.spacing.xs,
+                                },
+                              ]}
+                            >
                               {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
                             </Text>
                           </View>
-                          <View style={{ flex: 1, minWidth: "45%", padding: theme.spacing.base, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center", overflow: "visible" }}>
-                            <Heart size={32} color={filteredAverageHealthScore >= 80 ? "#10B981" : filteredAverageHealthScore >= 60 ? "#F59E0B" : "#EF4444"} />
-                            <Text 
-                              numberOfLines={1}
+                          <View
+                            style={{
+                              flex: 1,
+                              minWidth: "45%",
+                              padding: theme.spacing.base,
+                              backgroundColor:
+                                theme.colors.background.secondary,
+                              borderRadius: theme.borderRadius.md,
+                              alignItems: "center",
+                              overflow: "visible",
+                            }}
+                          >
+                            <Heart
+                              color={
+                                filteredAverageHealthScore >= 80
+                                  ? "#10B981"
+                                  : filteredAverageHealthScore >= 60
+                                    ? "#F59E0B"
+                                    : "#EF4444"
+                              }
+                              size={32}
+                            />
+                            <Text
                               adjustsFontSizeToFit={true}
                               minimumFontScale={0.7}
-                              style={[getTextStyle(theme, "heading", "bold", filteredAverageHealthScore >= 80 ? "#10B981" : filteredAverageHealthScore >= 60 ? "#F59E0B" : "#EF4444"), { fontSize: 32, marginTop: theme.spacing.xs, width: "100%", textAlign: "center" }]}>
+                              numberOfLines={1}
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "heading",
+                                  "bold",
+                                  filteredAverageHealthScore >= 80
+                                    ? "#10B981"
+                                    : filteredAverageHealthScore >= 60
+                                      ? "#F59E0B"
+                                      : "#EF4444"
+                                ),
+                                {
+                                  fontSize: 32,
+                                  marginTop: theme.spacing.xs,
+                                  width: "100%",
+                                  textAlign: "center",
+                                },
+                              ]}
+                            >
                               {filteredAverageHealthScore}
                             </Text>
-                            <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.xs }]}>
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                {
+                                  textAlign: "center",
+                                  marginTop: theme.spacing.xs,
+                                },
+                              ]}
+                            >
                               {isRTL ? "متوسط النقاط" : "Avg Health Score"}
                             </Text>
                           </View>
@@ -2145,168 +2489,377 @@ export default function FamilyScreen() {
                   })()}
 
                   {/* Member Details */}
-                  <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.base, marginTop: theme.spacing.base }]}>
+                  <Heading
+                    level={6}
+                    style={[
+                      isRTL ? styles.rtlText : {},
+                      {
+                        marginBottom: theme.spacing.base,
+                        marginTop: theme.spacing.base,
+                      },
+                    ]}
+                  >
                     {isRTL ? "تفاصيل الأعضاء" : "Member Details"}
                   </Heading>
                   {caregiverOverview.members
                     .filter((memberData) => {
                       if (selectedFilter.type === "personal") {
                         return memberData.member.id === user?.id;
-                      } else if (selectedFilter.type === "member" && selectedFilter.memberId) {
+                      }
+                      if (
+                        selectedFilter.type === "member" &&
+                        selectedFilter.memberId
+                      ) {
                         return memberData.member.id === selectedFilter.memberId;
-                      } else if (selectedFilter.type === "family") {
+                      }
+                      if (selectedFilter.type === "family") {
                         return true;
                       }
                       return memberData.member.id === user?.id;
                     })
                     .map((memberData) => (
-                    <Card
-                      key={memberData.member.id}
-                      variant="elevated"
-                      style={{
-                        marginBottom: theme.spacing.base,
-                        backgroundColor: memberData.needsAttention ? theme.colors.accent.error + "10" : undefined,
-                        borderColor: memberData.needsAttention ? theme.colors.accent.error : undefined,
-                      }}
-                      onPress={() => router.push(`/family/${memberData.member.id}`)}
-                      pressable={true}
-                      contentStyle={undefined}
-                    >
-                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.base, marginBottom: theme.spacing.base }}>
-                        <Avatar
-                          size="md"
-                          name={memberData.member.firstName}
-                          avatarType={memberData.member.avatarType}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.xs }]}>
-                            {memberData.member.firstName} {memberData.member.lastName}
-                          </Heading>
-                          <Badge
-                            variant="outline"
-                            size="small"
-                            style={{
-                              backgroundColor: (memberData.healthScore >= 80 ? "#10B981" : memberData.healthScore >= 60 ? "#F59E0B" : "#EF4444") + "20",
-                              borderColor: memberData.healthScore >= 80 ? "#10B981" : memberData.healthScore >= 60 ? "#F59E0B" : "#EF4444",
-                              marginTop: theme.spacing.xs,
-                            }}
-                          >
-                            <Caption style={{ color: memberData.healthScore >= 80 ? "#10B981" : memberData.healthScore >= 60 ? "#F59E0B" : "#EF4444" }} numberOfLines={1}>
-                              {isRTL ? "النقاط" : "Score"}: {memberData.healthScore}
-                            </Caption>
-                          </Badge>
-                          {memberData.needsAttention && (
+                      <Card
+                        contentStyle={undefined}
+                        key={memberData.member.id}
+                        onPress={() =>
+                          router.push(`/family/${memberData.member.id}`)
+                        }
+                        pressable={true}
+                        style={{
+                          marginBottom: theme.spacing.base,
+                          backgroundColor: memberData.needsAttention
+                            ? theme.colors.accent.error + "10"
+                            : undefined,
+                          borderColor: memberData.needsAttention
+                            ? theme.colors.accent.error
+                            : undefined,
+                        }}
+                        variant="elevated"
+                      >
+                        <View
+                          style={{
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            alignItems: "center",
+                            gap: theme.spacing.base,
+                            marginBottom: theme.spacing.base,
+                          }}
+                        >
+                          <Avatar
+                            avatarType={memberData.member.avatarType}
+                            name={memberData.member.firstName}
+                            size="md"
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Heading
+                              level={6}
+                              style={[
+                                isRTL ? styles.rtlText : {},
+                                { marginBottom: theme.spacing.xs },
+                              ]}
+                            >
+                              {memberData.member.firstName}{" "}
+                              {memberData.member.lastName}
+                            </Heading>
                             <Badge
-                              variant="outline"
                               size="small"
                               style={{
-                                backgroundColor: theme.colors.accent.error + "20",
-                                borderColor: theme.colors.accent.error,
+                                backgroundColor:
+                                  (memberData.healthScore >= 80
+                                    ? "#10B981"
+                                    : memberData.healthScore >= 60
+                                      ? "#F59E0B"
+                                      : "#EF4444") + "20",
+                                borderColor:
+                                  memberData.healthScore >= 80
+                                    ? "#10B981"
+                                    : memberData.healthScore >= 60
+                                      ? "#F59E0B"
+                                      : "#EF4444",
                                 marginTop: theme.spacing.xs,
                               }}
+                              variant="outline"
                             >
-                              <Caption style={{ color: theme.colors.accent.error }} numberOfLines={1}>
-                                {isRTL ? "يحتاج انتباه" : "Needs Attention"}
+                              <Caption
+                                numberOfLines={1}
+                                style={{
+                                  color:
+                                    memberData.healthScore >= 80
+                                      ? "#10B981"
+                                      : memberData.healthScore >= 60
+                                        ? "#F59E0B"
+                                        : "#EF4444",
+                                }}
+                              >
+                                {isRTL ? "النقاط" : "Score"}:{" "}
+                                {memberData.healthScore}
                               </Caption>
                             </Badge>
-                          )}
-                        </View>
-                      </View>
-
-                      {/* Metrics */}
-                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: theme.spacing.base, marginTop: theme.spacing.sm }}>
-                        <View style={{ flex: 1, padding: theme.spacing.sm, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
-                          <Pill size={20} color={theme.colors.primary.main} />
-                          <Text style={[getTextStyle(theme, "subheading", "bold", theme.colors.text.primary), { fontSize: 20, marginTop: theme.spacing.xs }]}>
-                            {memberData.medicationCompliance.rate}%
-                          </Text>
-                          <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { marginTop: theme.spacing.xs, textAlign: "center" }]}>
-                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1, padding: theme.spacing.sm, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
-                          <AlertTriangle size={20} color={theme.colors.accent.error} />
-                          <Text style={[getTextStyle(theme, "subheading", "bold", theme.colors.accent.error), { fontSize: 20, marginTop: theme.spacing.xs }]}>
-                            {memberData.medicationCompliance.missedDoses}
-                          </Text>
-                          <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { marginTop: theme.spacing.xs, textAlign: "center" }]}>
-                            {isRTL ? "جرعات مفقودة" : "Missed Doses"}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1, padding: theme.spacing.sm, backgroundColor: theme.colors.background.secondary, borderRadius: theme.borderRadius.md, alignItems: "center" }}>
-                          <AlertTriangle size={20} color={theme.colors.accent.warning} />
-                          <Text style={[getTextStyle(theme, "subheading", "bold", theme.colors.accent.warning), { fontSize: 20, marginTop: theme.spacing.xs }]}>
-                            {memberData.recentAlerts.filter((a) => !a.resolved).length}
-                          </Text>
-                          <Text style={[getTextStyle(theme, "caption", "regular", theme.colors.text.secondary), { marginTop: theme.spacing.xs, textAlign: "center" }]}>
-                            {isRTL ? "تنبيهات" : "Alerts"}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Attention Reasons */}
-                      {memberData.attentionReasons.length > 0 && (
-                        <View style={{ marginTop: theme.spacing.sm }}>
-                          <Caption style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.xs }]} numberOfLines={1}>
-                            {isRTL ? "أسباب الانتباه" : "Attention Reasons"}:
-                          </Caption>
-                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap" }}>
-                            {memberData.attentionReasons.map((reason, index) => (
+                            {memberData.needsAttention && (
                               <Badge
-                                key={index}
-                                variant="outline"
                                 size="small"
-                                style={{ marginTop: theme.spacing.xs, marginRight: theme.spacing.xs, alignSelf: "flex-start" }}
+                                style={{
+                                  backgroundColor:
+                                    theme.colors.accent.error + "20",
+                                  borderColor: theme.colors.accent.error,
+                                  marginTop: theme.spacing.xs,
+                                }}
+                                variant="outline"
                               >
-                                <Caption style={{}} numberOfLines={1}>{translateAttentionReason(reason)}</Caption>
+                                <Caption
+                                  numberOfLines={1}
+                                  style={{ color: theme.colors.accent.error }}
+                                >
+                                  {isRTL ? "يحتاج انتباه" : "Needs Attention"}
+                                </Caption>
                               </Badge>
-                            ))}
+                            )}
                           </View>
                         </View>
-                      )}
 
-                      {/* Emergency Contacts */}
-                      {memberData.emergencyContacts.length > 0 && (
-                        <View style={{ marginTop: theme.spacing.sm }}>
-                          <Caption style={[isRTL ? styles.rtlText : {}, { marginBottom: theme.spacing.xs }]} numberOfLines={1}>
-                            {isRTL ? "جهات الاتصال الطارئة" : "Emergency Contacts"}:
-                          </Caption>
-                          {memberData.emergencyContacts.map((contact, index) => (
-                            <TouchableOpacity
-                              key={index}
-                              onPress={() => Linking.openURL(`tel:${contact.phone}`)}
+                        {/* Metrics */}
+                        <View
+                          style={{
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            gap: theme.spacing.base,
+                            marginTop: theme.spacing.sm,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flex: 1,
+                              padding: theme.spacing.sm,
+                              backgroundColor:
+                                theme.colors.background.secondary,
+                              borderRadius: theme.borderRadius.md,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Pill color={theme.colors.primary.main} size={20} />
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "subheading",
+                                  "bold",
+                                  theme.colors.text.primary
+                                ),
+                                { fontSize: 20, marginTop: theme.spacing.xs },
+                              ]}
+                            >
+                              {memberData.medicationCompliance.rate}%
+                            </Text>
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                {
+                                  marginTop: theme.spacing.xs,
+                                  textAlign: "center",
+                                },
+                              ]}
+                            >
+                              {isRTL ? "الالتزام بالأدوية" : "Compliance"}
+                            </Text>
+                          </View>
+                          <View
+                            style={{
+                              flex: 1,
+                              padding: theme.spacing.sm,
+                              backgroundColor:
+                                theme.colors.background.secondary,
+                              borderRadius: theme.borderRadius.md,
+                              alignItems: "center",
+                            }}
+                          >
+                            <AlertTriangle
+                              color={theme.colors.accent.error}
+                              size={20}
+                            />
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "subheading",
+                                  "bold",
+                                  theme.colors.accent.error
+                                ),
+                                { fontSize: 20, marginTop: theme.spacing.xs },
+                              ]}
+                            >
+                              {memberData.medicationCompliance.missedDoses}
+                            </Text>
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                {
+                                  marginTop: theme.spacing.xs,
+                                  textAlign: "center",
+                                },
+                              ]}
+                            >
+                              {isRTL ? "جرعات مفقودة" : "Missed Doses"}
+                            </Text>
+                          </View>
+                          <View
+                            style={{
+                              flex: 1,
+                              padding: theme.spacing.sm,
+                              backgroundColor:
+                                theme.colors.background.secondary,
+                              borderRadius: theme.borderRadius.md,
+                              alignItems: "center",
+                            }}
+                          >
+                            <AlertTriangle
+                              color={theme.colors.accent.warning}
+                              size={20}
+                            />
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "subheading",
+                                  "bold",
+                                  theme.colors.accent.warning
+                                ),
+                                { fontSize: 20, marginTop: theme.spacing.xs },
+                              ]}
+                            >
+                              {
+                                memberData.recentAlerts.filter(
+                                  (a) => !a.resolved
+                                ).length
+                              }
+                            </Text>
+                            <Text
+                              style={[
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "regular",
+                                  theme.colors.text.secondary
+                                ),
+                                {
+                                  marginTop: theme.spacing.xs,
+                                  textAlign: "center",
+                                },
+                              ]}
+                            >
+                              {isRTL ? "تنبيهات" : "Alerts"}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Attention Reasons */}
+                        {memberData.attentionReasons.length > 0 && (
+                          <View style={{ marginTop: theme.spacing.sm }}>
+                            <Caption
+                              numberOfLines={1}
+                              style={[
+                                isRTL ? styles.rtlText : {},
+                                { marginBottom: theme.spacing.xs },
+                              ]}
+                            >
+                              {isRTL ? "أسباب الانتباه" : "Attention Reasons"}:
+                            </Caption>
+                            <View
                               style={{
                                 flexDirection: isRTL ? "row-reverse" : "row",
-                                alignItems: "center",
-                                gap: theme.spacing.xs,
-                                marginTop: theme.spacing.xs,
+                                flexWrap: "wrap",
                               }}
                             >
-                              <Phone size={16} color={theme.colors.primary.main} />
-                              <Caption style={{}} numberOfLines={1}>{contact.name}</Caption>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      )}
-                    </Card>
-                  ))}
+                              {memberData.attentionReasons.map(
+                                (reason, index) => (
+                                  <Badge
+                                    key={index}
+                                    size="small"
+                                    style={{
+                                      marginTop: theme.spacing.xs,
+                                      marginRight: theme.spacing.xs,
+                                      alignSelf: "flex-start",
+                                    }}
+                                    variant="outline"
+                                  >
+                                    <Caption numberOfLines={1} style={{}}>
+                                      {translateAttentionReason(reason)}
+                                    </Caption>
+                                  </Badge>
+                                )
+                              )}
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Emergency Contacts */}
+                        {memberData.emergencyContacts.length > 0 && (
+                          <View style={{ marginTop: theme.spacing.sm }}>
+                            <Caption
+                              numberOfLines={1}
+                              style={[
+                                isRTL ? styles.rtlText : {},
+                                { marginBottom: theme.spacing.xs },
+                              ]}
+                            >
+                              {isRTL
+                                ? "جهات الاتصال الطارئة"
+                                : "Emergency Contacts"}
+                              :
+                            </Caption>
+                            {memberData.emergencyContacts.map(
+                              (contact, index) => (
+                                <TouchableOpacity
+                                  key={index}
+                                  onPress={() =>
+                                    Linking.openURL(`tel:${contact.phone}`)
+                                  }
+                                  style={{
+                                    flexDirection: isRTL
+                                      ? "row-reverse"
+                                      : "row",
+                                    alignItems: "center",
+                                    gap: theme.spacing.xs,
+                                    marginTop: theme.spacing.xs,
+                                  }}
+                                >
+                                  <Phone
+                                    color={theme.colors.primary.main}
+                                    size={16}
+                                  />
+                                  <Caption numberOfLines={1} style={{}}>
+                                    {contact.name}
+                                  </Caption>
+                                </TouchableOpacity>
+                              )
+                            )}
+                          </View>
+                        )}
+                      </Card>
+                    ))}
                 </View>
               ) : (
                 <View style={styles.emptyContainer}>
-                  <Users size={64} color={theme.colors.text.secondary} />
+                  <Users color={theme.colors.text.secondary} size={64} />
                   <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
                     {isRTL ? "لا توجد بيانات" : "No data available"}
                   </Text>
                 </View>
               )
+            ) : // Regular Dashboard View for non-admins
+            loadingMetrics ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color="#2563EB" size="large" />
+              </View>
             ) : (
-              // Regular Dashboard View for non-admins
-              loadingMetrics ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color="#2563EB" size="large" />
-                </View>
-              ) : (
-                <View style={styles.dashboardGrid}>
+              <View style={styles.dashboardGrid}>
                 {filteredMemberMetrics.map((metric) => {
                   const fullName =
                     metric.user.firstName && metric.user.lastName
@@ -2592,7 +3145,6 @@ export default function FamilyScreen() {
                   );
                 })}
               </View>
-              )
             )
           ) : (
             // List View
@@ -2600,9 +3152,9 @@ export default function FamilyScreen() {
               {familyMembers.map((member) => (
                 <View key={member.id} style={styles.memberItem}>
                   <TouchableOpacity
+                    activeOpacity={0.7}
                     onPress={() => router.push(`/family/${member.id}`)}
                     style={styles.memberLeft}
-                    activeOpacity={0.7}
                   >
                     <View style={styles.avatarContainer}>
                       <Avatar
@@ -2693,55 +3245,88 @@ export default function FamilyScreen() {
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color="#2563EB" size="large" />
               </View>
-            ) : !elderlyDashboardData ? (
-              <View style={styles.emptyContainer}>
-                <Heart size={64} color={theme.colors.text.secondary} />
-                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                  {isRTL ? "لا توجد بيانات" : "No data available"}
-                </Text>
-              </View>
-            ) : (
+            ) : elderlyDashboardData ? (
               <View>
                 {/* Next Medication */}
                 {elderlyDashboardData.nextMedication && (
-                  <Card variant="elevated" style={{ backgroundColor: theme.colors.primary.main + "10", borderColor: theme.colors.primary.main, borderWidth: 2, padding: 24, borderRadius: 16, marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 16, marginBottom: 16 }}>
-                      <Pill size={32} color={theme.colors.primary.main} />
+                  <Card
+                    contentStyle={undefined}
+                    onPress={undefined}
+                    style={{
+                      backgroundColor: theme.colors.primary.main + "10",
+                      borderColor: theme.colors.primary.main,
+                      borderWidth: 2,
+                      padding: 24,
+                      borderRadius: 16,
+                      marginBottom: theme.spacing.base,
+                    }}
+                    variant="elevated"
+                  >
+                    <View
+                      style={{
+                        flexDirection: isRTL ? "row-reverse" : "row",
+                        alignItems: "center",
+                        gap: 16,
+                        marginBottom: 16,
+                      }}
+                    >
+                      <Pill color={theme.colors.primary.main} size={32} />
                       <Heading level={1} style={{ fontSize: 24 }}>
                         {isRTL ? "الدواء التالي" : "Next Medication"}
                       </Heading>
                     </View>
-                    <Text style={{ fontSize: 32, fontFamily: "Geist-Bold", color: theme.colors.primary.main, marginBottom: 8 }}>
+                    <Text
+                      style={{
+                        fontSize: 32,
+                        fontFamily: "Geist-Bold",
+                        color: theme.colors.primary.main,
+                        marginBottom: 8,
+                      }}
+                    >
                       {elderlyDashboardData.nextMedication.time}
                     </Text>
-                    <Heading level={2} style={{ fontSize: 20, marginBottom: 4 }}>
+                    <Heading
+                      level={2}
+                      style={{ fontSize: 20, marginBottom: 4 }}
+                    >
                       {elderlyDashboardData.nextMedication.name}
                     </Heading>
-                    <Caption style={{ fontSize: 18 }} numberOfLines={1}>
-                      {isRTL ? "الجرعة" : "Dosage"}: {elderlyDashboardData.nextMedication.dosage}
+                    <Caption numberOfLines={1} style={{ fontSize: 18 }}>
+                      {isRTL ? "الجرعة" : "Dosage"}:{" "}
+                      {elderlyDashboardData.nextMedication.dosage}
                     </Caption>
                   </Card>
                 )}
 
                 {/* Health Score */}
                 <Card
-                  variant="elevated"
+                  contentStyle={undefined}
+                  onPress={undefined}
                   style={{
                     alignItems: "center",
                     padding: 24,
                     borderRadius: 16,
                     marginBottom: theme.spacing.base,
-                    backgroundColor: getElderlyHealthScoreColor(elderlyDashboardData.healthScore) + "10",
+                    backgroundColor:
+                      getElderlyHealthScoreColor(
+                        elderlyDashboardData.healthScore
+                      ) + "10",
                   }}
-                  onPress={undefined}
-                  contentStyle={undefined}
+                  variant="elevated"
                 >
-                  <Heart size={48} color={getElderlyHealthScoreColor(elderlyDashboardData.healthScore)} />
+                  <Heart
+                    color={getElderlyHealthScoreColor(
+                      elderlyDashboardData.healthScore
+                    )}
+                    size={48}
+                  />
                   <Text
                     style={{
                       fontSize: 64,
                       fontFamily: "Geist-Bold",
-                      color: getElderlyHealthScoreColor(elderlyDashboardData.healthScore),
+                      color: getElderlyHealthScoreColor(
+                        elderlyDashboardData.healthScore
+                      ),
                       marginBottom: 8,
                     }}
                   >
@@ -2754,9 +3339,27 @@ export default function FamilyScreen() {
 
                 {/* Alerts */}
                 {elderlyDashboardData.hasAlerts && (
-                  <Card variant="elevated" style={{ backgroundColor: "#FEE2E2", borderColor: "#EF4444", borderWidth: 2, padding: 24, borderRadius: 16, marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 16 }}>
-                      <AlertTriangle size={32} color="#EF4444" />
+                  <Card
+                    contentStyle={undefined}
+                    onPress={undefined}
+                    style={{
+                      backgroundColor: "#FEE2E2",
+                      borderColor: "#EF4444",
+                      borderWidth: 2,
+                      padding: 24,
+                      borderRadius: 16,
+                      marginBottom: theme.spacing.base,
+                    }}
+                    variant="elevated"
+                  >
+                    <View
+                      style={{
+                        flexDirection: isRTL ? "row-reverse" : "row",
+                        alignItems: "center",
+                        gap: 16,
+                      }}
+                    >
+                      <AlertTriangle color="#EF4444" size={32} />
                       <Heading level={1} style={{ fontSize: 24 }}>
                         {isRTL ? "تنبيهات فعالة" : "Active Alerts"}
                       </Heading>
@@ -2771,6 +3374,7 @@ export default function FamilyScreen() {
 
                 {/* Emergency Button */}
                 <TouchableOpacity
+                  activeOpacity={0.8}
                   onPress={handleElderlyEmergency}
                   style={{
                     backgroundColor: "#EF4444",
@@ -2782,10 +3386,15 @@ export default function FamilyScreen() {
                     gap: 16,
                     marginBottom: theme.spacing.base,
                   }}
-                  activeOpacity={0.8}
                 >
-                  <Shield size={32} color="#FFFFFF" />
-                  <Text style={{ fontSize: 24, fontFamily: "Geist-Bold", color: "#FFFFFF" }}>
+                  <Shield color="#FFFFFF" size={32} />
+                  <Text
+                    style={{
+                      fontSize: 24,
+                      fontFamily: "Geist-Bold",
+                      color: "#FFFFFF",
+                    }}
+                  >
                     {isRTL ? "تنبيه طارئ" : "Emergency Alert"}
                   </Text>
                 </TouchableOpacity>
@@ -2793,32 +3402,50 @@ export default function FamilyScreen() {
                 {/* Emergency Contacts */}
                 {elderlyDashboardData.emergencyContacts.length > 0 && (
                   <View>
-                    <Heading level={2} style={{ fontSize: 20, marginBottom: theme.spacing.base }}>
+                    <Heading
+                      level={2}
+                      style={{ fontSize: 20, marginBottom: theme.spacing.base }}
+                    >
                       {isRTL ? "جهات الاتصال الطارئة" : "Emergency Contacts"}
                     </Heading>
-                    {elderlyDashboardData.emergencyContacts.map((contact, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        onPress={() => handleElderlyCall(contact.phone)}
-                        style={{
-                          backgroundColor: "#F3F4F6",
-                          padding: 16,
-                          borderRadius: 8,
-                          flexDirection: isRTL ? "row-reverse" : "row",
-                          alignItems: "center",
-                          gap: 16,
-                          marginBottom: 12,
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Phone size={24} color={theme.colors.primary.main} />
-                        <Text style={{ fontSize: 18, fontFamily: "Geist-Bold", color: "#111827" }}>
-                          {contact.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    {elderlyDashboardData.emergencyContacts.map(
+                      (contact, index) => (
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          key={index}
+                          onPress={() => handleElderlyCall(contact.phone)}
+                          style={{
+                            backgroundColor: "#F3F4F6",
+                            padding: 16,
+                            borderRadius: 8,
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            alignItems: "center",
+                            gap: 16,
+                            marginBottom: 12,
+                          }}
+                        >
+                          <Phone color={theme.colors.primary.main} size={24} />
+                          <Text
+                            style={{
+                              fontSize: 18,
+                              fontFamily: "Geist-Bold",
+                              color: "#111827",
+                            }}
+                          >
+                            {contact.name}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    )}
                   </View>
                 )}
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Heart color={theme.colors.text.secondary} size={64} />
+                <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+                  {isRTL ? "لا توجد بيانات" : "No data available"}
+                </Text>
               </View>
             )}
           </View>
@@ -2826,11 +3453,23 @@ export default function FamilyScreen() {
 
         {/* Medication Schedule */}
         <View style={styles.section}>
-          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spacing.base }}>
+          <View
+            style={{
+              flexDirection: isRTL ? "row-reverse" : "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: theme.spacing.base,
+            }}
+          >
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {isRTL ? "جدول الأدوية المشترك" : "Shared Medication Schedule"}
             </Text>
-            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: theme.spacing.xs }}>
+            <View
+              style={{
+                flexDirection: isRTL ? "row-reverse" : "row",
+                gap: theme.spacing.xs,
+              }}
+            >
               {[
                 { value: "today", label: isRTL ? "اليوم" : "Today" },
                 { value: "upcoming", label: isRTL ? "القادم" : "Upcoming" },
@@ -2838,17 +3477,39 @@ export default function FamilyScreen() {
               ].map((mode) => (
                 <TouchableOpacity
                   key={mode.value}
-                  onPress={() => setMedicationScheduleViewMode(mode.value as any)}
+                  onPress={() =>
+                    setMedicationScheduleViewMode(mode.value as any)
+                  }
                   style={{
                     paddingHorizontal: theme.spacing.sm,
                     paddingVertical: theme.spacing.xs / 2,
                     borderRadius: theme.borderRadius.full,
                     borderWidth: 1,
-                    borderColor: medicationScheduleViewMode === mode.value ? theme.colors.primary.main : (typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light),
-                    backgroundColor: medicationScheduleViewMode === mode.value ? theme.colors.primary.main : theme.colors.background.secondary,
+                    borderColor:
+                      medicationScheduleViewMode === mode.value
+                        ? theme.colors.primary.main
+                        : typeof theme.colors.border === "string"
+                          ? theme.colors.border
+                          : theme.colors.border.light,
+                    backgroundColor:
+                      medicationScheduleViewMode === mode.value
+                        ? theme.colors.primary.main
+                        : theme.colors.background.secondary,
                   }}
                 >
-                  <Text style={[getTextStyle(theme, "caption", "medium", medicationScheduleViewMode === mode.value ? theme.colors.neutral.white : theme.colors.text.secondary), { fontSize: 11 }]}>
+                  <Text
+                    style={[
+                      getTextStyle(
+                        theme,
+                        "caption",
+                        "medium",
+                        medicationScheduleViewMode === mode.value
+                          ? theme.colors.neutral.white
+                          : theme.colors.text.secondary
+                      ),
+                      { fontSize: 11 },
+                    ]}
+                  >
                     {mode.label}
                   </Text>
                 </TouchableOpacity>
@@ -2858,43 +3519,108 @@ export default function FamilyScreen() {
 
           {loadingMedicationSchedule ? (
             <View style={{ padding: theme.spacing.xl, alignItems: "center" }}>
-              <ActivityIndicator color={theme.colors.primary.main} size="small" />
+              <ActivityIndicator
+                color={theme.colors.primary.main}
+                size="small"
+              />
             </View>
           ) : getFilteredMedicationEntries().length === 0 ? (
             <View style={{ padding: theme.spacing.xl, alignItems: "center" }}>
-              <Pill size={48} color={theme.colors.text.secondary} />
-              <Text style={[getTextStyle(theme, "body", "regular", theme.colors.text.secondary), { textAlign: "center", marginTop: theme.spacing.base }]}>
-                {isRTL ? "لا توجد أدوية في هذا الجدول" : "No medications in this schedule"}
+              <Pill color={theme.colors.text.secondary} size={48} />
+              <Text
+                style={[
+                  getTextStyle(
+                    theme,
+                    "body",
+                    "regular",
+                    theme.colors.text.secondary
+                  ),
+                  { textAlign: "center", marginTop: theme.spacing.base },
+                ]}
+              >
+                {isRTL
+                  ? "لا توجد أدوية في هذا الجدول"
+                  : "No medications in this schedule"}
               </Text>
             </View>
           ) : (
             <View>
               {medicationScheduleViewMode === "today" && todaySchedule && (
                 <View style={{ marginBottom: theme.spacing.base }}>
-                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spacing.sm, paddingBottom: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
+                  <View
+                    style={{
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: theme.spacing.sm,
+                      paddingBottom: theme.spacing.sm,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.colors.border.light,
+                    }}
+                  >
                     <Heading level={6} style={[isRTL ? styles.rtlText : {}]}>
                       {formatMedicationDate(todaySchedule.date)}
                     </Heading>
-                      <Badge variant="outline" size="small" style={{}}>
-                        {todaySchedule.entries.length}
-                      </Badge>
+                    <Badge size="small" style={{}} variant="outline">
+                      {todaySchedule.entries.length}
+                    </Badge>
                   </View>
 
                   {todaySchedule.entries.map((entry) => (
-                    <Card key={`${entry.medication.id}-${entry.member.id}`} variant="elevated" style={{ marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: theme.spacing.xs }}>
-                        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
-                          <Pill size={24} color={theme.colors.primary.main} />
+                    <Card
+                      contentStyle={undefined}
+                      key={`${entry.medication.id}-${entry.member.id}`}
+                      onPress={undefined}
+                      style={{ marginBottom: theme.spacing.base }}
+                      variant="elevated"
+                    >
+                      <View
+                        style={{
+                          flexDirection: isRTL ? "row-reverse" : "row",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          marginBottom: theme.spacing.xs,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            alignItems: "center",
+                            gap: theme.spacing.sm,
+                            flex: 1,
+                          }}
+                        >
+                          <Pill color={theme.colors.primary.main} size={24} />
                           <View style={{ flex: 1 }}>
-                            <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: 2 }]}>
+                            <Heading
+                              level={6}
+                              style={[
+                                isRTL ? styles.rtlText : {},
+                                { marginBottom: 2 },
+                              ]}
+                            >
                               {entry.medication.name}
                             </Heading>
-                            <Caption style={[isRTL ? styles.rtlText : {}]} numberOfLines={1}>
-                              {entry.medication.dosage} • {entry.medication.frequency}
+                            <Caption
+                              numberOfLines={1}
+                              style={[isRTL ? styles.rtlText : {}]}
+                            >
+                              {entry.medication.dosage} •{" "}
+                              {entry.medication.frequency}
                             </Caption>
-                            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-                              <UserIcon size={12} color={theme.colors.text.secondary} />
-                              <Caption style={{}} numberOfLines={1}>
+                            <View
+                              style={{
+                                flexDirection: isRTL ? "row-reverse" : "row",
+                                alignItems: "center",
+                                gap: theme.spacing.xs,
+                                marginTop: theme.spacing.xs,
+                              }}
+                            >
+                              <UserIcon
+                                color={theme.colors.text.secondary}
+                                size={12}
+                              />
+                              <Caption numberOfLines={1} style={{}}>
                                 {entry.member.firstName} {entry.member.lastName}
                               </Caption>
                             </View>
@@ -2903,57 +3629,133 @@ export default function FamilyScreen() {
                       </View>
 
                       {entry.nextDose && (
-                        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-                          <Clock size={14} color={theme.colors.text.secondary} />
-                          <Caption style={{}} numberOfLines={1}>
-                            {isRTL ? "الجرعة التالية" : "Next dose"}: {formatMedicationTime(entry.nextDose)}
+                        <View
+                          style={{
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            alignItems: "center",
+                            gap: theme.spacing.xs,
+                            marginTop: theme.spacing.xs,
+                          }}
+                        >
+                          <Clock
+                            color={theme.colors.text.secondary}
+                            size={14}
+                          />
+                          <Caption numberOfLines={1} style={{}}>
+                            {isRTL ? "الجرعة التالية" : "Next dose"}:{" "}
+                            {formatMedicationTime(entry.nextDose)}
                           </Caption>
                         </View>
                       )}
 
                       {entry.complianceRate !== undefined && (
-                        <View style={{ marginTop: theme.spacing.xs, alignSelf: "flex-start" }}>
-                          <Badge variant="outline" size="small" style={{ borderColor: getComplianceColor(entry.complianceRate) }}>
-                            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 4 }}>
+                        <View
+                          style={{
+                            marginTop: theme.spacing.xs,
+                            alignSelf: "flex-start",
+                          }}
+                        >
+                          <Badge
+                            size="small"
+                            style={{
+                              borderColor: getComplianceColor(
+                                entry.complianceRate
+                              ),
+                            }}
+                            variant="outline"
+                          >
+                            <View
+                              style={{
+                                flexDirection: isRTL ? "row-reverse" : "row",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
                               {entry.complianceRate >= 90 ? (
-                                <TrendingUp size={12} color={getComplianceColor(entry.complianceRate)} />
+                                <TrendingUp
+                                  color={getComplianceColor(
+                                    entry.complianceRate
+                                  )}
+                                  size={12}
+                                />
                               ) : (
-                                <TrendingDown size={12} color={getComplianceColor(entry.complianceRate)} />
+                                <TrendingDown
+                                  color={getComplianceColor(
+                                    entry.complianceRate
+                                  )}
+                                  size={12}
+                                />
                               )}
-                              <Caption style={{ color: getComplianceColor(entry.complianceRate) }} numberOfLines={1}>
-                                {isRTL ? "الالتزام بالأدوية" : "Compliance"}: {entry.complianceRate}%
+                              <Caption
+                                numberOfLines={1}
+                                style={{
+                                  color: getComplianceColor(
+                                    entry.complianceRate
+                                  ),
+                                }}
+                              >
+                                {isRTL ? "الالتزام بالأدوية" : "Compliance"}:{" "}
+                                {entry.complianceRate}%
                               </Caption>
                             </View>
                           </Badge>
                         </View>
                       )}
 
-                      {entry.missedDoses !== undefined && entry.missedDoses > 0 && (
-                        <Badge variant="outline" size="small" style={{ marginTop: theme.spacing.xs, alignSelf: "flex-start", borderColor: theme.colors.accent.error }}>
-                          <Caption style={{ color: theme.colors.accent.error }} numberOfLines={1}>
-                            {isRTL ? "جرعات مفقودة" : "Missed"}: {entry.missedDoses}
-                          </Caption>
-                        </Badge>
-                      )}
+                      {entry.missedDoses !== undefined &&
+                        entry.missedDoses > 0 && (
+                          <Badge
+                            size="small"
+                            style={{
+                              marginTop: theme.spacing.xs,
+                              alignSelf: "flex-start",
+                              borderColor: theme.colors.accent.error,
+                            }}
+                            variant="outline"
+                          >
+                            <Caption
+                              numberOfLines={1}
+                              style={{ color: theme.colors.accent.error }}
+                            >
+                              {isRTL ? "جرعات مفقودة" : "Missed"}:{" "}
+                              {entry.missedDoses}
+                            </Caption>
+                          </Badge>
+                        )}
 
                       <TouchableOpacity
-                        onPress={() => handleMarkMedicationAsTaken(entry)}
                         disabled={markingTaken === entry.medication.id}
+                        onPress={() => handleMarkMedicationAsTaken(entry)}
                         style={{
                           flexDirection: isRTL ? "row-reverse" : "row",
                           alignItems: "center",
                           justifyContent: "center",
-                          backgroundColor: markingTaken === entry.medication.id ? (typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light) : theme.colors.primary.main,
+                          backgroundColor:
+                            markingTaken === entry.medication.id
+                              ? typeof theme.colors.border === "string"
+                                ? theme.colors.border
+                                : theme.colors.border.light
+                              : theme.colors.primary.main,
                           paddingVertical: theme.spacing.sm,
                           paddingHorizontal: theme.spacing.base,
                           borderRadius: theme.borderRadius.md,
                           gap: theme.spacing.xs,
                           marginTop: theme.spacing.sm,
-                          opacity: markingTaken === entry.medication.id ? 0.5 : 1,
+                          opacity:
+                            markingTaken === entry.medication.id ? 0.5 : 1,
                         }}
                       >
-                        <Check size={16} color={theme.colors.neutral.white} />
-                        <TypographyText style={[getTextStyle(theme, "body", "semibold", theme.colors.neutral.white)]}>
+                        <Check color={theme.colors.neutral.white} size={16} />
+                        <TypographyText
+                          style={[
+                            getTextStyle(
+                              theme,
+                              "body",
+                              "semibold",
+                              theme.colors.neutral.white
+                            ),
+                          ]}
+                        >
                           {isRTL ? "تم التناول" : "Mark as Taken"}
                         </TypographyText>
                       </TouchableOpacity>
@@ -2964,32 +3766,86 @@ export default function FamilyScreen() {
 
               {medicationScheduleViewMode === "upcoming" &&
                 upcomingSchedule.map((day) => (
-                  <View key={day.date.toISOString()} style={{ marginBottom: theme.spacing.base }}>
-                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spacing.sm, paddingBottom: theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: theme.colors.border.light }}>
+                  <View
+                    key={day.date.toISOString()}
+                    style={{ marginBottom: theme.spacing.base }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: isRTL ? "row-reverse" : "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: theme.spacing.sm,
+                        paddingBottom: theme.spacing.sm,
+                        borderBottomWidth: 1,
+                        borderBottomColor: theme.colors.border.light,
+                      }}
+                    >
                       <Heading level={6} style={[isRTL ? styles.rtlText : {}]}>
                         {formatMedicationDate(day.date)}
                       </Heading>
-                      <Badge variant="outline" size="small" style={{}}>
+                      <Badge size="small" style={{}} variant="outline">
                         {day.entries.length}
                       </Badge>
                     </View>
 
                     {day.entries.map((entry) => (
-                      <Card key={`${entry.medication.id}-${entry.member.id}`} variant="elevated" style={{ marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                        <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: theme.spacing.xs }}>
-                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
-                            <Pill size={24} color={theme.colors.primary.main} />
+                      <Card
+                        contentStyle={undefined}
+                        key={`${entry.medication.id}-${entry.member.id}`}
+                        onPress={undefined}
+                        style={{ marginBottom: theme.spacing.base }}
+                        variant="elevated"
+                      >
+                        <View
+                          style={{
+                            flexDirection: isRTL ? "row-reverse" : "row",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            marginBottom: theme.spacing.xs,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: isRTL ? "row-reverse" : "row",
+                              alignItems: "center",
+                              gap: theme.spacing.sm,
+                              flex: 1,
+                            }}
+                          >
+                            <Pill color={theme.colors.primary.main} size={24} />
                             <View style={{ flex: 1 }}>
-                              <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: 2 }]}>
+                              <Heading
+                                level={6}
+                                style={[
+                                  isRTL ? styles.rtlText : {},
+                                  { marginBottom: 2 },
+                                ]}
+                              >
                                 {entry.medication.name}
                               </Heading>
-                              <Caption style={[isRTL ? styles.rtlText : {}]} numberOfLines={1}>
-                                {entry.medication.dosage} • {entry.medication.frequency}
+                              <Caption
+                                numberOfLines={1}
+                                style={[isRTL ? styles.rtlText : {}]}
+                              >
+                                {entry.medication.dosage} •{" "}
+                                {entry.medication.frequency}
                               </Caption>
-                              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-                                <UserIcon size={12} color={theme.colors.text.secondary} />
-                                <Caption style={{}} numberOfLines={1}>
-                                  {entry.member.firstName} {entry.member.lastName}
+                              <View
+                                style={{
+                                  flexDirection: isRTL ? "row-reverse" : "row",
+                                  alignItems: "center",
+                                  gap: theme.spacing.xs,
+                                  marginTop: theme.spacing.xs,
+                                }}
+                              >
+                                <UserIcon
+                                  color={theme.colors.text.secondary}
+                                  size={12}
+                                />
+                                <Caption numberOfLines={1} style={{}}>
+                                  {entry.member.firstName}{" "}
+                                  {entry.member.lastName}
                                 </Caption>
                               </View>
                             </View>
@@ -2997,10 +3853,21 @@ export default function FamilyScreen() {
                         </View>
 
                         {entry.nextDose && (
-                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-                            <Clock size={14} color={theme.colors.text.secondary} />
-                            <Caption style={{}} numberOfLines={1}>
-                              {isRTL ? "الجرعة التالية" : "Next dose"}: {formatMedicationTime(entry.nextDose)}
+                          <View
+                            style={{
+                              flexDirection: isRTL ? "row-reverse" : "row",
+                              alignItems: "center",
+                              gap: theme.spacing.xs,
+                              marginTop: theme.spacing.xs,
+                            }}
+                          >
+                            <Clock
+                              color={theme.colors.text.secondary}
+                              size={14}
+                            />
+                            <Caption numberOfLines={1} style={{}}>
+                              {isRTL ? "الجرعة التالية" : "Next dose"}:{" "}
+                              {formatMedicationTime(entry.nextDose)}
                             </Caption>
                           </View>
                         )}
@@ -3011,20 +3878,60 @@ export default function FamilyScreen() {
 
               {medicationScheduleViewMode === "all" &&
                 medicationScheduleEntries.map((entry) => (
-                  <Card key={`${entry.medication.id}-${entry.member.id}`} variant="elevated" style={{ marginBottom: theme.spacing.base }} onPress={undefined} contentStyle={undefined}>
-                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: theme.spacing.xs }}>
-                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.sm, flex: 1 }}>
-                        <Pill size={24} color={theme.colors.primary.main} />
+                  <Card
+                    contentStyle={undefined}
+                    key={`${entry.medication.id}-${entry.member.id}`}
+                    onPress={undefined}
+                    style={{ marginBottom: theme.spacing.base }}
+                    variant="elevated"
+                  >
+                    <View
+                      style={{
+                        flexDirection: isRTL ? "row-reverse" : "row",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: theme.spacing.xs,
+                      }}
+                    >
+                      <View
+                        style={{
+                          flexDirection: isRTL ? "row-reverse" : "row",
+                          alignItems: "center",
+                          gap: theme.spacing.sm,
+                          flex: 1,
+                        }}
+                      >
+                        <Pill color={theme.colors.primary.main} size={24} />
                         <View style={{ flex: 1 }}>
-                          <Heading level={6} style={[isRTL ? styles.rtlText : {}, { marginBottom: 2 }]}>
+                          <Heading
+                            level={6}
+                            style={[
+                              isRTL ? styles.rtlText : {},
+                              { marginBottom: 2 },
+                            ]}
+                          >
                             {entry.medication.name}
                           </Heading>
-                          <Caption style={[isRTL ? styles.rtlText : {}]} numberOfLines={1}>
-                            {entry.medication.dosage} • {entry.medication.frequency}
+                          <Caption
+                            numberOfLines={1}
+                            style={[isRTL ? styles.rtlText : {}]}
+                          >
+                            {entry.medication.dosage} •{" "}
+                            {entry.medication.frequency}
                           </Caption>
-                          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-                            <UserIcon size={12} color={theme.colors.text.secondary} />
-                            <Caption style={{}} numberOfLines={1}>
+                          <View
+                            style={{
+                              flexDirection: isRTL ? "row-reverse" : "row",
+                              alignItems: "center",
+                              gap: theme.spacing.xs,
+                              marginTop: theme.spacing.xs,
+                            }}
+                          >
+                            <UserIcon
+                              color={theme.colors.text.secondary}
+                              size={12}
+                            />
+                            <Caption numberOfLines={1} style={{}}>
                               {entry.member.firstName} {entry.member.lastName}
                             </Caption>
                           </View>
@@ -3033,10 +3940,18 @@ export default function FamilyScreen() {
                     </View>
 
                     {entry.nextDose && (
-                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: theme.spacing.xs, marginTop: theme.spacing.xs }}>
-                        <Clock size={14} color={theme.colors.text.secondary} />
-                        <Caption style={{}} numberOfLines={1}>
-                          {isRTL ? "الجرعة التالية" : "Next dose"}: {formatMedicationTime(entry.nextDose)}
+                      <View
+                        style={{
+                          flexDirection: isRTL ? "row-reverse" : "row",
+                          alignItems: "center",
+                          gap: theme.spacing.xs,
+                          marginTop: theme.spacing.xs,
+                        }}
+                      >
+                        <Clock color={theme.colors.text.secondary} size={14} />
+                        <Caption numberOfLines={1} style={{}}>
+                          {isRTL ? "الجرعة التالية" : "Next dose"}:{" "}
+                          {formatMedicationTime(entry.nextDose)}
                         </Caption>
                       </View>
                     )}
@@ -3060,97 +3975,133 @@ export default function FamilyScreen() {
             </View>
             {loadingEvents ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator color={theme.colors.primary.main} size="small" />
+                <ActivityIndicator
+                  color={theme.colors.primary.main}
+                  size="small"
+                />
               </View>
             ) : events.length > 0 ? (
               <View style={styles.eventsList}>
                 {events.map((event) => {
                   // Find the family member this event belongs to
-                  const eventMember = familyMembers.find(m => m.id === event.userId);
-                  const memberName = eventMember 
-                    ? `${eventMember.firstName || ''} ${eventMember.lastName || ''}`.trim() || eventMember.email
-                    : 'Unknown Member';
+                  const eventMember = familyMembers.find(
+                    (m) => m.id === event.userId
+                  );
+                  const memberName = eventMember
+                    ? `${eventMember.firstName || ""} ${eventMember.lastName || ""}`.trim() ||
+                      eventMember.email
+                    : "Unknown Member";
 
                   return (
-                  <View key={event.id} style={styles.eventCard}>
-                    <View style={styles.eventHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.eventType, isRTL && styles.rtlText]}>
-                          {event.type === "VITAL_ALERT"
-                            ? (isRTL ? "تنبيه حيوي" : "Vital Alert")
-                            : event.type}
-                        </Text>
-                        <Text style={[styles.eventMemberName, isRTL && styles.rtlText]}>
-                          {isRTL ? `للعضو: ${memberName}` : `For: ${memberName}`}
-                        </Text>
-                      </View>
-                      <View style={styles.eventStatus}>
-                        <View style={[styles.statusBadge, { backgroundColor: getEventStatusColor(event.status) }]}>
-                          <Text style={styles.statusBadgeText}>
-                            {getEventStatusText(event.status)}
+                    <View key={event.id} style={styles.eventCard}>
+                      <View style={styles.eventHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[styles.eventType, isRTL && styles.rtlText]}
+                          >
+                            {event.type === "VITAL_ALERT"
+                              ? isRTL
+                                ? "تنبيه حيوي"
+                                : "Vital Alert"
+                              : event.type}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.eventMemberName,
+                              isRTL && styles.rtlText,
+                            ]}
+                          >
+                            {isRTL
+                              ? `للعضو: ${memberName}`
+                              : `For: ${memberName}`}
                           </Text>
                         </View>
+                        <View style={styles.eventStatus}>
+                          <View
+                            style={[
+                              styles.statusBadge,
+                              {
+                                backgroundColor: getEventStatusColor(
+                                  event.status
+                                ),
+                              },
+                            ]}
+                          >
+                            <Text style={styles.statusBadgeText}>
+                              {getEventStatusText(event.status)}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
-                    </View>
 
-                    <View style={styles.eventReasons}>
-                      {event.reasons.map((reason, index) => (
+                      <View style={styles.eventReasons}>
+                        {event.reasons.map((reason, index) => (
+                          <Text
+                            key={index}
+                            style={[styles.reasonItem, isRTL && styles.rtlText]}
+                          >
+                            • {reason}
+                          </Text>
+                        ))}
+                      </View>
+
+                      <View style={styles.eventFooter}>
                         <Text
-                          key={index}
-                          style={[styles.reasonItem, isRTL && styles.rtlText]}
+                          style={[styles.eventTime, isRTL && styles.rtlText]}
                         >
-                          • {reason}
+                          {formatEventTime(event.createdAt)}
                         </Text>
-                      ))}
-                    </View>
 
-                    <View style={styles.eventFooter}>
-                      <Text style={[styles.eventTime, isRTL && styles.rtlText]}>
-                        {formatEventTime(event.createdAt)}
-                      </Text>
+                        {event.status === "OPEN" && (
+                          <View style={styles.actionButtons}>
+                            <TouchableOpacity
+                              onPress={() => handleAcknowledgeEvent(event.id!)}
+                              style={[
+                                styles.eventActionButton,
+                                styles.acknowledgeButton,
+                              ]}
+                            >
+                              <Text style={styles.actionButtonText}>
+                                {t("acknowledge", "Ack")}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleEscalateEvent(event.id!)}
+                              style={[
+                                styles.eventActionButton,
+                                styles.escalateButton,
+                              ]}
+                            >
+                              <Text style={styles.actionButtonText}>
+                                {t("escalate", "Esc")}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
 
-                      {event.status === "OPEN" && (
-                        <View style={styles.actionButtons}>
+                        {(event.status === "OPEN" ||
+                          event.status === "ACKED") && (
                           <TouchableOpacity
-                            onPress={() => handleAcknowledgeEvent(event.id!)}
-                            style={[styles.eventActionButton, styles.acknowledgeButton]}
+                            onPress={() => handleResolveEvent(event.id!)}
+                            style={[
+                              styles.eventActionButton,
+                              styles.resolveButton,
+                            ]}
                           >
                             <Text style={styles.actionButtonText}>
-                              {t("acknowledge", "Ack")}
+                              {t("resolve", "Resolve")}
                             </Text>
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleEscalateEvent(event.id!)}
-                            style={[styles.eventActionButton, styles.escalateButton]}
-                          >
-                            <Text style={styles.actionButtonText}>
-                              {t("escalate", "Esc")}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-
-                      {(event.status === "OPEN" || event.status === "ACKED") && (
-                        <TouchableOpacity
-                          onPress={() => handleResolveEvent(event.id!)}
-                          style={[styles.eventActionButton, styles.resolveButton]}
-                        >
-                          <Text style={styles.actionButtonText}>
-                            {t("resolve", "Resolve")}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
+                        )}
+                      </View>
                     </View>
-                  </View>
                   );
                 })}
               </View>
             ) : (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                  {isRTL
-                    ? "لا توجد أحداث صحية"
-                    : "No health events"}
+                  {isRTL ? "لا توجد أحداث صحية" : "No health events"}
                 </Text>
               </View>
             )}
@@ -3163,7 +4114,12 @@ export default function FamilyScreen() {
             {isRTL ? "إجراءات سريعة" : "Quick Actions"}
           </Text>
 
-          <View style={[styles.quickActions, isRTL && { flexDirection: "row-reverse" }]}>
+          <View
+            style={[
+              styles.quickActions,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
             <TouchableOpacity
               onPress={copyInviteCode}
               style={styles.quickActionButton}
@@ -3193,7 +4149,6 @@ export default function FamilyScreen() {
                 {isRTL ? "التقارير الصحية" : "Health Reports"}
               </Text>
             </TouchableOpacity>
-
 
             <TouchableOpacity
               onPress={handleEmergencySettings}
@@ -3700,9 +4655,9 @@ export default function FamilyScreen() {
       {/* Premium Paywall Modal */}
       <Modal
         animationType="slide"
+        onRequestClose={() => setShowPaywall(false)}
         presentationStyle="pageSheet"
         visible={showPaywall}
-        onRequestClose={() => setShowPaywall(false)}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -3717,12 +4672,12 @@ export default function FamilyScreen() {
             </TouchableOpacity>
           </View>
           <RevenueCatPaywall
+            onDismiss={() => setShowPaywall(false)}
             onPurchaseComplete={() => {
               setShowPaywall(false);
               // Reload family members to reflect new limits
               loadFamilyMembers();
             }}
-            onDismiss={() => setShowPaywall(false)}
           />
         </SafeAreaView>
       </Modal>
@@ -3730,16 +4685,35 @@ export default function FamilyScreen() {
       {/* Health Reports Modal */}
       <Modal
         animationType="slide"
-        presentationStyle="pageSheet"
-        visible={showHealthReportsModal}
         onRequestClose={() => {
           setShowHealthReportsModal(false);
           setHealthReport(null);
         }}
+        presentationStyle="pageSheet"
+        visible={showHealthReportsModal}
       >
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: theme.colors.background.primary }]}>
-          <View style={[styles.modalHeader, { backgroundColor: theme.colors.background.secondary, borderBottomColor: theme.colors.border.medium }]}>
-            <Text style={[styles.modalTitle, isRTL && styles.rtlText, { color: theme.colors.text.primary }]}>
+        <SafeAreaView
+          style={[
+            styles.modalContainer,
+            { backgroundColor: theme.colors.background.primary },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalHeader,
+              {
+                backgroundColor: theme.colors.background.secondary,
+                borderBottomColor: theme.colors.border.medium,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                isRTL && styles.rtlText,
+                { color: theme.colors.text.primary },
+              ]}
+            >
               {isRTL ? "تقارير الصحة العائلية" : "Family Health Reports"}
             </Text>
             <TouchableOpacity
@@ -3753,33 +4727,57 @@ export default function FamilyScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={[styles.modalContent, { backgroundColor: theme.colors.background.primary }]}>
+          <ScrollView
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.colors.background.primary },
+            ]}
+          >
             {/* Generate Report Card */}
-            <Card variant="elevated" style={{ marginBottom: 20, backgroundColor: theme.colors.background.secondary }} onPress={undefined} contentStyle={undefined}>
-              <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
+            <Card
+              contentStyle={undefined}
+              onPress={undefined}
+              style={{
+                marginBottom: 20,
+                backgroundColor: theme.colors.background.secondary,
+              }}
+              variant="elevated"
+            >
+              <Heading
+                level={6}
+                style={{ marginBottom: 12, color: theme.colors.text.primary }}
+              >
                 {isRTL ? "إنشاء تقرير جديد" : "Generate New Report"}
               </Heading>
-              <Caption style={{ marginBottom: 16, color: theme.colors.text.secondary }} numberOfLines={2}>
+              <Caption
+                numberOfLines={2}
+                style={{ marginBottom: 16, color: theme.colors.text.secondary }}
+              >
                 {isRTL
                   ? "اختر إعدادات الخصوصية والفترة الزمنية لإنشاء تقرير شامل عن صحة العائلة"
                   : "Select privacy settings and time period to generate a comprehensive family health report"}
               </Caption>
-              <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12 }}>
+              <View
+                style={{
+                  flexDirection: isRTL ? "row-reverse" : "row",
+                  gap: 12,
+                }}
+              >
                 <Button
-                  variant="outline"
                   onPress={() => setShowPrivacyModal(true)}
                   style={{ flex: 1 }}
                   textStyle={{}}
                   title={isRTL ? "إعدادات الخصوصية" : "Privacy Settings"}
+                  variant="outline"
                 />
                 <Button
-                  variant="primary"
+                  disabled={generatingReport}
+                  loading={generatingReport}
                   onPress={handleGenerateHealthReport}
                   style={{ flex: 1 }}
                   textStyle={{}}
-                  disabled={generatingReport}
-                  loading={generatingReport}
                   title={isRTL ? "إنشاء التقرير" : "Generate Report"}
+                  variant="primary"
                 />
               </View>
             </Card>
@@ -3789,39 +4787,142 @@ export default function FamilyScreen() {
               <>
                 {/* Summary Section */}
                 <View style={{ marginBottom: 24 }}>
-                  <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
+                  <Heading
+                    level={6}
+                    style={{
+                      marginBottom: 12,
+                      color: theme.colors.text.primary,
+                    }}
+                  >
                     {isRTL ? "الملخص" : "Summary"}
                   </Heading>
-                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
-                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
+                  <View
+                    style={{
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      flexWrap: "wrap",
+                      gap: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        minWidth: "45%",
+                        padding: 12,
+                        backgroundColor: theme.colors.background.tertiary,
+                        borderRadius: theme.borderRadius.lg,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border.medium,
+                      }}
+                    >
+                      <Caption
+                        numberOfLines={1}
+                        style={{
+                          marginBottom: 4,
+                          color: theme.colors.text.secondary,
+                        }}
+                      >
                         {isRTL ? "إجمالي الأعضاء" : "Total Members"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: theme.colors.text.primary }}>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontFamily: theme.typography.fontFamily.bold,
+                          color: theme.colors.text.primary,
+                        }}
+                      >
                         {healthReport.summary.totalMembers}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
-                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
+                    <View
+                      style={{
+                        flex: 1,
+                        minWidth: "45%",
+                        padding: 12,
+                        backgroundColor: theme.colors.background.tertiary,
+                        borderRadius: theme.borderRadius.lg,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border.medium,
+                      }}
+                    >
+                      <Caption
+                        numberOfLines={1}
+                        style={{
+                          marginBottom: 4,
+                          color: theme.colors.text.secondary,
+                        }}
+                      >
                         {isRTL ? "متوسط النقاط الصحية" : "Avg Health Score"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: getHealthScoreColor(healthReport.summary.averageHealthScore) }}>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontFamily: theme.typography.fontFamily.bold,
+                          color: getHealthScoreColor(
+                            healthReport.summary.averageHealthScore
+                          ),
+                        }}
+                      >
                         {healthReport.summary.averageHealthScore}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
-                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
+                    <View
+                      style={{
+                        flex: 1,
+                        minWidth: "45%",
+                        padding: 12,
+                        backgroundColor: theme.colors.background.tertiary,
+                        borderRadius: theme.borderRadius.lg,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border.medium,
+                      }}
+                    >
+                      <Caption
+                        numberOfLines={1}
+                        style={{
+                          marginBottom: 4,
+                          color: theme.colors.text.secondary,
+                        }}
+                      >
                         {isRTL ? "الأدوية النشطة" : "Active Medications"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: theme.colors.text.primary }}>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontFamily: theme.typography.fontFamily.bold,
+                          color: theme.colors.text.primary,
+                        }}
+                      >
                         {healthReport.summary.totalActiveMedications}
                       </Text>
                     </View>
-                    <View style={{ flex: 1, minWidth: "45%", padding: 12, backgroundColor: theme.colors.background.tertiary, borderRadius: theme.borderRadius.lg, borderWidth: 1, borderColor: theme.colors.border.medium }}>
-                      <Caption style={{ marginBottom: 4, color: theme.colors.text.secondary }} numberOfLines={1}>
+                    <View
+                      style={{
+                        flex: 1,
+                        minWidth: "45%",
+                        padding: 12,
+                        backgroundColor: theme.colors.background.tertiary,
+                        borderRadius: theme.borderRadius.lg,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border.medium,
+                      }}
+                    >
+                      <Caption
+                        numberOfLines={1}
+                        style={{
+                          marginBottom: 4,
+                          color: theme.colors.text.secondary,
+                        }}
+                      >
                         {isRTL ? "إجمالي الأعراض" : "Total Symptoms"}
                       </Caption>
-                      <Text style={{ fontSize: 24, fontFamily: theme.typography.fontFamily.bold, color: theme.colors.text.primary }}>
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontFamily: theme.typography.fontFamily.bold,
+                          color: theme.colors.text.primary,
+                        }}
+                      >
                         {healthReport.summary.totalSymptoms}
                       </Text>
                     </View>
@@ -3830,21 +4931,39 @@ export default function FamilyScreen() {
                   {/* Alerts */}
                   {healthReport.summary.alerts.length > 0 && (
                     <View style={{ marginTop: 12 }}>
-                      <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
+                      <Heading
+                        level={6}
+                        style={{
+                          marginBottom: 12,
+                          color: theme.colors.text.primary,
+                        }}
+                      >
                         {isRTL ? "التنبيهات" : "Alerts"}
                       </Heading>
                       {healthReport.summary.alerts.map((alert, index) => (
                         <Card
-                          key={index}
-                          variant="elevated"
-                          style={{ backgroundColor: theme.colors.accent.error + "20", borderColor: theme.colors.accent.error, marginBottom: 8 }}
-                          onPress={undefined}
                           contentStyle={undefined}
+                          key={index}
+                          onPress={undefined}
+                          style={{
+                            backgroundColor: theme.colors.accent.error + "20",
+                            borderColor: theme.colors.accent.error,
+                            marginBottom: 8,
+                          }}
+                          variant="elevated"
                         >
-                          <Heading level={6} style={{ color: theme.colors.text.primary }}>
+                          <Heading
+                            level={6}
+                            style={{ color: theme.colors.text.primary }}
+                          >
                             {alert.member}
                           </Heading>
-                          <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={2}>{alert.message}</Caption>
+                          <Caption
+                            numberOfLines={2}
+                            style={{ color: theme.colors.text.secondary }}
+                          >
+                            {alert.message}
+                          </Caption>
                         </Card>
                       ))}
                     </View>
@@ -3853,67 +4972,123 @@ export default function FamilyScreen() {
                   {/* Export Button */}
                   <View style={{ marginTop: 12 }}>
                     <Button
-                      variant="outline"
+                      icon={null}
                       onPress={handleExportPDF}
                       style={{ width: "100%" }}
                       textStyle={{}}
-                      title={isRTL ? "تصدير التقرير كـ PDF" : "Export Report as PDF"}
-                      icon={null}
+                      title={
+                        isRTL ? "تصدير التقرير كـ PDF" : "Export Report as PDF"
+                      }
+                      variant="outline"
                     />
                   </View>
                 </View>
 
                 {/* Member Details */}
                 <View style={{ marginBottom: 24 }}>
-                  <Heading level={6} style={{ marginBottom: 12, color: theme.colors.text.primary }}>
+                  <Heading
+                    level={6}
+                    style={{
+                      marginBottom: 12,
+                      color: theme.colors.text.primary,
+                    }}
+                  >
                     {isRTL ? "تفاصيل أفراد العائلة" : "Member Details"}
                   </Heading>
                   {healthReport.members.map((memberReport) => (
                     <Card
-                      key={memberReport.member.id}
-                      variant="elevated"
-                      style={{ marginBottom: 12, backgroundColor: theme.colors.background.secondary }}
-                      onPress={undefined}
                       contentStyle={undefined}
+                      key={memberReport.member.id}
+                      onPress={undefined}
+                      style={{
+                        marginBottom: 12,
+                        backgroundColor: theme.colors.background.secondary,
+                      }}
+                      variant="elevated"
                     >
-                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <View
+                        style={{
+                          flexDirection: isRTL ? "row-reverse" : "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: 8,
+                        }}
+                      >
                         <View style={{ flex: 1 }}>
-                          <Heading level={6} style={{ color: theme.colors.text.primary }}>
-                            {memberReport.member.firstName} {memberReport.member.lastName}
+                          <Heading
+                            level={6}
+                            style={{ color: theme.colors.text.primary }}
+                          >
+                            {memberReport.member.firstName}{" "}
+                            {memberReport.member.lastName}
                           </Heading>
                         </View>
                         <Badge
-                          variant="outline"
                           size="small"
                           style={{
-                            backgroundColor: getHealthScoreColor(memberReport.healthScore) + "20",
-                            borderColor: getHealthScoreColor(memberReport.healthScore),
+                            backgroundColor:
+                              getHealthScoreColor(memberReport.healthScore) +
+                              "20",
+                            borderColor: getHealthScoreColor(
+                              memberReport.healthScore
+                            ),
                           }}
+                          variant="outline"
                         >
-                          <Caption style={{ color: getHealthScoreColor(memberReport.healthScore) }} numberOfLines={1}>
-                            {isRTL ? "النقاط" : "Score"}: {memberReport.healthScore}
+                          <Caption
+                            numberOfLines={1}
+                            style={{
+                              color: getHealthScoreColor(
+                                memberReport.healthScore
+                              ),
+                            }}
+                          >
+                            {isRTL ? "النقاط" : "Score"}:{" "}
+                            {memberReport.healthScore}
                           </Caption>
                         </Badge>
                       </View>
 
                       <View style={{ marginTop: 8 }}>
-                        <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
-                          {isRTL ? "الأعراض" : "Symptoms"}: {memberReport.symptoms.total}
+                        <Caption
+                          numberOfLines={1}
+                          style={{ color: theme.colors.text.secondary }}
+                        >
+                          {isRTL ? "الأعراض" : "Symptoms"}:{" "}
+                          {memberReport.symptoms.total}
                         </Caption>
-                        <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
-                          {isRTL ? "الأدوية الفعالة" : "Active Medications"}: {memberReport.medications.active}
+                        <Caption
+                          numberOfLines={1}
+                          style={{ color: theme.colors.text.secondary }}
+                        >
+                          {isRTL ? "الأدوية الفعالة" : "Active Medications"}:{" "}
+                          {memberReport.medications.active}
                         </Caption>
-                        {memberReport.medications.complianceRate !== undefined && (
-                          <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
-                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}: {memberReport.medications.complianceRate}%
+                        {memberReport.medications.complianceRate !==
+                          undefined && (
+                          <Caption
+                            numberOfLines={1}
+                            style={{ color: theme.colors.text.secondary }}
+                          >
+                            {isRTL ? "الالتزام بالأدوية" : "Compliance"}:{" "}
+                            {memberReport.medications.complianceRate}%
                           </Caption>
                         )}
                       </View>
 
                       {/* Trends */}
-                      <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, marginTop: 8 }}>
+                      <View
+                        style={{
+                          flexDirection: isRTL ? "row-reverse" : "row",
+                          gap: 12,
+                          marginTop: 8,
+                        }}
+                      >
                         {getTrendIcon(memberReport.trends.symptomTrend)}
-                        <Caption style={{ color: theme.colors.text.secondary }} numberOfLines={1}>
+                        <Caption
+                          numberOfLines={1}
+                          style={{ color: theme.colors.text.secondary }}
+                        >
                           {isRTL ? "اتجاه الأعراض الصحية" : "Symptom Trend"}:{" "}
                           {isRTL
                             ? memberReport.trends.symptomTrend === "improving"
@@ -3930,10 +5105,23 @@ export default function FamilyScreen() {
               </>
             )}
 
-            {!healthReport && !generatingReport && (
-              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 40 }}>
-                <FileText size={64} color={theme.colors.text.tertiary} />
-                <Text style={{ marginTop: 16, textAlign: "center", color: theme.colors.text.secondary }}>
+            {!(healthReport || generatingReport) && (
+              <View
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: 40,
+                }}
+              >
+                <FileText color={theme.colors.text.tertiary} size={64} />
+                <Text
+                  style={{
+                    marginTop: 16,
+                    textAlign: "center",
+                    color: theme.colors.text.secondary,
+                  }}
+                >
                   {isRTL
                     ? "قم بإنشاء تقرير صحي للعائلة لعرض الملخص والإحصائيات"
                     : "Generate a family health report to view summary and statistics"}
@@ -3944,10 +5132,10 @@ export default function FamilyScreen() {
 
           {/* Privacy Settings Modal */}
           <Modal
-            visible={showPrivacyModal}
             animationType="slide"
-            presentationStyle="pageSheet"
             onRequestClose={() => setShowPrivacyModal(false)}
+            presentationStyle="pageSheet"
+            visible={showPrivacyModal}
           >
             <SafeAreaView style={styles.modalContainer}>
               <View style={styles.modalHeader}>
@@ -3955,7 +5143,9 @@ export default function FamilyScreen() {
                   {isRTL ? "إعدادات الخصوصية" : "Privacy Settings"}
                 </Heading>
                 <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
-                  <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
+                  <Text
+                    style={{ fontSize: 18, color: theme.colors.primary.main }}
+                  >
                     {isRTL ? "إغلاق" : "Close"}
                   </Text>
                 </TouchableOpacity>
@@ -3964,15 +5154,21 @@ export default function FamilyScreen() {
                 {[
                   {
                     key: "includeSymptoms",
-                    label: isRTL ? "ضم أعراض الصحة في التقرير" : "Include Symptoms",
+                    label: isRTL
+                      ? "ضم أعراض الصحة في التقرير"
+                      : "Include Symptoms",
                   },
                   {
                     key: "includeMedications",
-                    label: isRTL ? "ضم أدوية العائلة في التقرير" : "Include Medications",
+                    label: isRTL
+                      ? "ضم أدوية العائلة في التقرير"
+                      : "Include Medications",
                   },
                   {
                     key: "includeMoods",
-                    label: isRTL ? "ضم حالات نفسية في التقرير" : "Include Moods",
+                    label: isRTL
+                      ? "ضم حالات نفسية في التقرير"
+                      : "Include Moods",
                   },
                   {
                     key: "includeAllergies",
@@ -3980,7 +5176,9 @@ export default function FamilyScreen() {
                   },
                   {
                     key: "includeMedicalHistory",
-                    label: isRTL ? "ضم التاريخ الطبي في التقرير" : "Include Medical History",
+                    label: isRTL
+                      ? "ضم التاريخ الطبي في التقرير"
+                      : "Include Medical History",
                   },
                   {
                     key: "includeLabResults",
@@ -3988,30 +5186,48 @@ export default function FamilyScreen() {
                   },
                   {
                     key: "includeVitals",
-                    label: isRTL ? "ضم المؤشرات الحيوية في التقرير" : "Include Vitals",
+                    label: isRTL
+                      ? "ضم المؤشرات الحيوية في التقرير"
+                      : "Include Vitals",
                   },
                   {
                     key: "includeComplianceData",
-                    label: isRTL ? "ضم بيانات التزام بالأدوية في التقرير" : "Include Compliance Data",
+                    label: isRTL
+                      ? "ضم بيانات التزام بالأدوية في التقرير"
+                      : "Include Compliance Data",
                   },
                 ].map((option) => (
-                  <View key={option.key} style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" }}>
+                  <View
+                    key={option.key}
+                    style={{
+                      flexDirection: isRTL ? "row-reverse" : "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      paddingVertical: 16,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#E5E7EB",
+                    }}
+                  >
                     <TypographyText style={{ flex: 1 }}>
                       {option.label}
                     </TypographyText>
                     <Switch
-                      value={privacySettings[option.key as keyof ReportPrivacySettings]}
                       onValueChange={(value) =>
                         setPrivacySettings({
                           ...privacySettings,
                           [option.key]: value,
                         })
                       }
+                      thumbColor="#FFFFFF"
                       trackColor={{
                         false: "#E5E7EB",
                         true: "#2563EB",
                       }}
-                      thumbColor="#FFFFFF"
+                      value={
+                        privacySettings[
+                          option.key as keyof ReportPrivacySettings
+                        ]
+                      }
                     />
                   </View>
                 ))}
@@ -4020,7 +5236,6 @@ export default function FamilyScreen() {
           </Modal>
         </SafeAreaView>
       </Modal>
-
     </SafeAreaView>
   );
 }

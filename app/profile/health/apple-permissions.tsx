@@ -29,7 +29,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import {
   getAllGroups,
   getAvailableMetricsForProvider,
-  getGroupDisplayName,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
 // Lazy import to prevent early native module loading
@@ -72,7 +71,7 @@ export default function AppleHealthPermissionsScreen() {
     const timer = setTimeout(() => {
       // Screen is ready, user can interact
     }, 2000); // 2 second delay after mount
-    
+
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -86,7 +85,7 @@ export default function AppleHealthPermissionsScreen() {
       const { appleHealthService } = await import(
         "@/lib/services/appleHealthService"
       );
-      
+
       // Retry logic for native bridge readiness
       let availability;
       let retries = 0;
@@ -118,7 +117,8 @@ export default function AppleHealthPermissionsScreen() {
     } catch (error: any) {
       setHealthKitAvailable(false);
       setAvailabilityReason(
-        error?.message || "Failed to check HealthKit availability. Please try again."
+        error?.message ||
+          "Failed to check HealthKit availability. Please try again."
       );
     }
   };
@@ -163,10 +163,7 @@ export default function AppleHealthPermissionsScreen() {
 
   const handleContinue = async () => {
     if (selectedMetrics.size === 0) {
-      Alert.alert(
-        t("noMetricsSelected"),
-        t("pleaseSelectAtLeastOneMetric")
-      );
+      Alert.alert(t("noMetricsSelected"), t("pleaseSelectAtLeastOneMetric"));
       return;
     }
 
@@ -225,7 +222,7 @@ export default function AppleHealthPermissionsScreen() {
       // Request HealthKit permissions with retry logic
       let success = false;
       retries = 0;
-      
+
       while (retries < maxRetries && !success) {
         try {
           success = await appleHealthService.authorize(
@@ -562,7 +559,8 @@ export default function AppleHealthPermissionsScreen() {
                                   isRTL && { textAlign: "left" },
                                 ]}
                               >
-                                {t(`healthMetrics.${metric.key}`) || metric.displayName}
+                                {t(`healthMetrics.${metric.key}`) ||
+                                  metric.displayName}
                               </Text>
                               {metric.unit && (
                                 <Text
@@ -591,7 +589,11 @@ export default function AppleHealthPermissionsScreen() {
           <View style={styles.infoRow}>
             <Info color={theme.colors.text.secondary} size={16} />
             <Text
-              style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && { textAlign: "left" }]}
+              style={[
+                styles.infoText,
+                { color: theme.colors.text.secondary },
+                isRTL && { textAlign: "left" },
+              ]}
             >
               {t("changePermissionsLater")}
             </Text>
@@ -619,7 +621,8 @@ export default function AppleHealthPermissionsScreen() {
             ) : (
               <>
                 <Text style={styles.primaryButtonText}>
-                  {t("authorizeMetrics")} {selectedMetrics.size} {selectedMetrics.size !== 1 ? t("metrics") : t("metric")}
+                  {t("authorizeMetrics")} {selectedMetrics.size}{" "}
+                  {selectedMetrics.size !== 1 ? t("metrics") : t("metric")}
                 </Text>
                 <ChevronRight color="#FFFFFF" size={20} />
               </>

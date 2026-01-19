@@ -11,10 +11,10 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Medication } from "@/types";
-import { userService } from "./userService";
-import { offlineService } from "./offlineService";
 import { healthTimelineService } from "@/lib/observability";
+import type { Medication } from "@/types";
+import { offlineService } from "./offlineService";
+import { userService } from "./userService";
 
 export const medicationService = {
   // Add new medication (offline-first)
@@ -37,23 +37,30 @@ export const medicationService = {
         const docRef = await addDoc(collection(db, "medications"), cleanedData);
         // Cache the result for offline access
         const newMedication = { id: docRef.id, ...medicationData };
-        const currentMedications = await offlineService.getOfflineCollection<Medication>("medications");
-        await offlineService.storeOfflineData("medications", [...currentMedications, newMedication]);
+        const currentMedications =
+          await offlineService.getOfflineCollection<Medication>("medications");
+        await offlineService.storeOfflineData("medications", [
+          ...currentMedications,
+          newMedication,
+        ]);
         return docRef.id;
-      } else {
-        // Offline - queue the operation
-        const operationId = await offlineService.queueOperation({
-          type: "create",
-          collection: "medications",
-          data: { ...medicationData, userId: medicationData.userId },
-        });
-        // Store locally for immediate UI update
-        const tempId = `offline_${operationId}`;
-        const newMedication = { id: tempId, ...medicationData };
-        const currentMedications = await offlineService.getOfflineCollection<Medication>("medications");
-        await offlineService.storeOfflineData("medications", [...currentMedications, newMedication]);
-        return tempId;
       }
+      // Offline - queue the operation
+      const operationId = await offlineService.queueOperation({
+        type: "create",
+        collection: "medications",
+        data: { ...medicationData, userId: medicationData.userId },
+      });
+      // Store locally for immediate UI update
+      const tempId = `offline_${operationId}`;
+      const newMedication = { id: tempId, ...medicationData };
+      const currentMedications =
+        await offlineService.getOfflineCollection<Medication>("medications");
+      await offlineService.storeOfflineData("medications", [
+        ...currentMedications,
+        newMedication,
+      ]);
+      return tempId;
     } catch (error) {
       // If online but fails, queue for retry
       if (isOnline) {
@@ -139,22 +146,25 @@ export const medicationService = {
         });
 
         // Sort by startDate descending in memory
-        medications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+        medications.sort(
+          (a, b) => b.startDate.getTime() - a.startDate.getTime()
+        );
 
         // Cache for offline access
         await offlineService.storeOfflineData("medications", medications);
         return medications;
-      } else {
-        // Offline - use cached data filtered by userId
-        const cachedMedications = await offlineService.getOfflineCollection<Medication>("medications");
-        return cachedMedications
-          .filter((m) => m.userId === userId && m.isActive !== false)
-          .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
       }
+      // Offline - use cached data filtered by userId
+      const cachedMedications =
+        await offlineService.getOfflineCollection<Medication>("medications");
+      return cachedMedications
+        .filter((m) => m.userId === userId && m.isActive !== false)
+        .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
     } catch (error) {
       // If online but fails, try offline cache
       if (isOnline) {
-        const cachedMedications = await offlineService.getOfflineCollection<Medication>("medications");
+        const cachedMedications =
+          await offlineService.getOfflineCollection<Medication>("medications");
         return cachedMedications
           .filter((m) => m.userId === userId && m.isActive !== false)
           .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
@@ -217,8 +227,8 @@ export const medicationService = {
       await healthTimelineService.addEvent({
         userId: medication.userId,
         eventType: newTakenState ? "medication_taken" : "medication_missed",
-        title: newTakenState 
-          ? `Medication taken: ${medication.name}` 
+        title: newTakenState
+          ? `Medication taken: ${medication.name}`
           : `Medication unmarked: ${medication.name}`,
         description: `${medication.dosage} at ${reminder.time}`,
         timestamp: new Date(),
@@ -412,22 +422,36 @@ export const medicationService = {
   },
 
   // Check if user has permission to access family data (admin or caregiver)
-  async checkFamilyAccessPermission(userId: string, familyId: string): Promise<boolean> {
+  async checkFamilyAccessPermission(
+    userId: string,
+    familyId: string
+  ): Promise<boolean> {
     try {
       const user = await userService.getUser(userId);
-      return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
+      return (
+        user?.familyId === familyId &&
+        (user?.role === "admin" || user?.role === "caregiver")
+      );
     } catch (error) {
       return false;
     }
   },
 
   // Get medications for all family members (for admins and caregivers)
-  async getFamilyMedications(userId: string, familyId: string): Promise<Medication[]> {
+  async getFamilyMedications(
+    userId: string,
+    familyId: string
+  ): Promise<Medication[]> {
     try {
       // Check permissions
-      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      const hasPermission = await this.checkFamilyAccessPermission(
+        userId,
+        familyId
+      );
       if (!hasPermission) {
-        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+        throw new Error(
+          "Access denied: Only admins and caregivers can access family medical data"
+        );
       }
       // First get all family members
       const familyMembersQuery = query(
@@ -450,7 +474,9 @@ export const medicationService = {
         const allMedicationsArrays = await Promise.all(medicationPromises);
         const allMedications = allMedicationsArrays.flat();
         // Sort by startDate descending
-        return allMedications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+        return allMedications.sort(
+          (a, b) => b.startDate.getTime() - a.startDate.getTime()
+        );
       }
 
       // Get medications for all family members (works for up to 10 members)
@@ -510,9 +536,13 @@ export const medicationService = {
           const allMedicationsArrays = await Promise.all(medicationPromises);
           const allMedications = allMedicationsArrays.flat();
           // Sort by startDate descending
-          return allMedications.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+          return allMedications.sort(
+            (a, b) => b.startDate.getTime() - a.startDate.getTime()
+          );
         } catch (fallbackError) {
-          throw new Error(`Failed to load family medications: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`);
+          throw new Error(
+            `Failed to load family medications: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`
+          );
         }
       }
       throw error;
@@ -520,9 +550,15 @@ export const medicationService = {
   },
 
   // Get today's medications for all family members (for admins and caregivers)
-  async getFamilyTodaysMedications(userId: string, familyId: string): Promise<Medication[]> {
+  async getFamilyTodaysMedications(
+    userId: string,
+    familyId: string
+  ): Promise<Medication[]> {
     try {
-      const familyMedications = await this.getFamilyMedications(userId, familyId);
+      const familyMedications = await this.getFamilyMedications(
+        userId,
+        familyId
+      );
 
       // Filter for today's medications (active medications with reminders)
       const today = new Date().toDateString();

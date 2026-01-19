@@ -1,6 +1,5 @@
 import {
   collection,
-  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -87,23 +86,24 @@ export const userService = {
         } else {
           // Update firstName if it's missing, set to default "User", or if we have a better value
           const currentFirstName = existingUser.firstName || "";
-          const shouldUpdateFirstName = 
-            !currentFirstName || 
+          const shouldUpdateFirstName =
+            !currentFirstName ||
             currentFirstName === "User" ||
-            (firstName && firstName !== "User" && firstName !== currentFirstName);
-          
+            (firstName &&
+              firstName !== "User" &&
+              firstName !== currentFirstName);
+
           if (shouldUpdateFirstName && firstName && firstName !== "User") {
             updates.firstName = firstName;
             needsUpdate = true;
           }
-          
+
           // Update lastName if it's missing or if we have a better value
           // Don't overwrite existing lastName with empty string unless it's currently empty
           const currentLastName = existingUser.lastName || "";
-          const shouldUpdateLastName = 
-            !currentLastName ||
-            (lastName && lastName !== currentLastName);
-          
+          const shouldUpdateLastName =
+            !currentLastName || (lastName && lastName !== currentLastName);
+
           if (shouldUpdateLastName && lastName) {
             updates.lastName = lastName;
             needsUpdate = true;
@@ -132,7 +132,7 @@ export const userService = {
       // Only do this if we're about to create with defaults - real names should create immediately
       if (firstName === "User" || !firstName) {
         // Wait a bit and check again - user might have been created by signUp
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         const retryUser = await this.getUser(userId);
         if (retryUser) {
           // User exists now - return it (don't call ensureUserDocument again to avoid recursion)
@@ -362,7 +362,10 @@ export const userService = {
   },
 
   // Set a user as caregiver (admin only)
-  async setUserAsCaregiver(userId: string, requestingUserId: string): Promise<void> {
+  async setUserAsCaregiver(
+    userId: string,
+    requestingUserId: string
+  ): Promise<void> {
     try {
       // Check if the requesting user is an admin
       const isAdmin = await this.isUserAdmin(requestingUserId);
@@ -415,7 +418,11 @@ export const userService = {
         throw new Error("Only admins can remove family members");
       }
 
-      console.log("[removeFamilyMember] Starting removal:", { memberUserId, familyId, requestingUserId });
+      console.log("[removeFamilyMember] Starting removal:", {
+        memberUserId,
+        familyId,
+        requestingUserId,
+      });
 
       // Remove from family members array first
       try {
@@ -431,16 +438,27 @@ export const userService = {
           await updateDoc(doc(db, "families", familyId), {
             members: updatedMembers,
           });
-          console.log("[removeFamilyMember] Families collection updated successfully");
+          console.log(
+            "[removeFamilyMember] Families collection updated successfully"
+          );
         }
       } catch (familyError: any) {
-        console.error("[removeFamilyMember] Error updating families:", familyError?.code, familyError?.message);
-        throw new Error(`Failed to update family: ${familyError?.code || familyError?.message}`);
+        console.error(
+          "[removeFamilyMember] Error updating families:",
+          familyError?.code,
+          familyError?.message
+        );
+        throw new Error(
+          `Failed to update family: ${familyError?.code || familyError?.message}`
+        );
       }
 
       // Update the user's document to remove family association
       try {
-        console.log("[removeFamilyMember] Updating user document for:", memberUserId);
+        console.log(
+          "[removeFamilyMember] Updating user document for:",
+          memberUserId
+        );
         // Use null instead of deleteField() for better compatibility with Firestore rules
         await updateDoc(doc(db, "users", memberUserId), {
           familyId: null,
@@ -448,12 +466,20 @@ export const userService = {
         });
         console.log("[removeFamilyMember] User document updated successfully");
       } catch (userError: any) {
-        console.error("[removeFamilyMember] Error updating user:", userError?.code, userError?.message);
+        console.error(
+          "[removeFamilyMember] Error updating user:",
+          userError?.code,
+          userError?.message
+        );
         // If permission denied, provide more context
         if (userError?.code === "permission-denied") {
-          throw new Error("Permission denied: Admin cannot update family member. Check Firestore rules.");
+          throw new Error(
+            "Permission denied: Admin cannot update family member. Check Firestore rules."
+          );
         }
-        throw new Error(`Failed to update user: ${userError?.code || userError?.message}`);
+        throw new Error(
+          `Failed to update user: ${userError?.code || userError?.message}`
+        );
       }
     } catch (error) {
       throw error;

@@ -42,7 +42,7 @@ export const useNotifications = () => {
             importError instanceof Error
               ? importError.message
               : String(importError);
-          
+
           // Check if it's a bundle loading error
           if (
             errorMessage.toLowerCase().includes("loadbundle") ||
@@ -93,17 +93,25 @@ export const useNotifications = () => {
             });
 
           responseListener.current =
-            Notifications.addNotificationResponseReceivedListener((response) => {
-              // Handle quick actions from interactive notifications
-              const { actionIdentifier, notification } = response;
-              const data = notification.request.content.data;
+            Notifications.addNotificationResponseReceivedListener(
+              (response) => {
+                // Handle quick actions from interactive notifications
+                const { actionIdentifier, notification } = response;
+                const data = notification.request.content.data;
 
-              if (actionIdentifier && data?.type) {
-                // Handle quick action
-                const { NotificationResponseHandler } = require('../lib/services/smartNotificationService');
-                NotificationResponseHandler.handleQuickAction(actionIdentifier, data, user?.id || '');
+                if (actionIdentifier && data?.type) {
+                  // Handle quick action
+                  const {
+                    NotificationResponseHandler,
+                  } = require("../lib/services/smartNotificationService");
+                  NotificationResponseHandler.handleQuickAction(
+                    actionIdentifier,
+                    data,
+                    user?.id || ""
+                  );
+                }
               }
-            });
+            );
         } catch (listenerError) {
           // Silently handle listener error
         }
@@ -127,11 +135,12 @@ export const useNotifications = () => {
         if (isInitialized.current) {
           try {
             const Notifications = await import("expo-notifications");
-            const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
-            
+            const allScheduled =
+              await Notifications.getAllScheduledNotificationsAsync();
+
             // Group medication notifications by medication+time
             const medicationGroups: Map<string, any[]> = new Map();
-            
+
             for (const notification of allScheduled) {
               const data = notification.content?.data;
               if (data?.type === "medication_reminder") {
@@ -147,7 +156,9 @@ export const useNotifications = () => {
               if (notifications.length > 1) {
                 for (let i = 1; i < notifications.length; i++) {
                   try {
-                    await Notifications.cancelScheduledNotificationAsync(notifications[i].identifier);
+                    await Notifications.cancelScheduledNotificationAsync(
+                      notifications[i].identifier
+                    );
                   } catch {
                     // Silently handle individual cancellation error
                   }
@@ -238,23 +249,24 @@ export const useNotifications = () => {
         if (user) {
           try {
             const userData = await userService.getUser(user.id);
-            const notificationSettings = userData?.preferences?.notifications as any;
-            
+            const notificationSettings = userData?.preferences
+              ?.notifications as any;
+
             // Check if notifications are globally disabled
             if (notificationSettings?.enabled === false) {
-              return { 
-                success: false, 
+              return {
+                success: false,
                 error: "Notifications are disabled in settings",
-                skipped: true 
+                skipped: true,
               };
             }
-            
+
             // Check if medication reminders are disabled
             if (notificationSettings?.medicationReminders === false) {
-              return { 
-                success: false, 
+              return {
+                success: false,
                 error: "Medication reminders are disabled in settings",
-                skipped: true 
+                skipped: true,
               };
             }
           } catch (prefError) {
@@ -340,7 +352,6 @@ export const useNotifications = () => {
         const permissionResult = await Notifications.getPermissionsAsync();
         const { status } = permissionResult;
         if (status !== "granted") {
-
           // Request permissions with proper iOS options
           const requestOptions =
             Platform.OS === "ios"
@@ -375,13 +386,16 @@ export const useNotifications = () => {
         }
 
         // Create a unique key for this medication+time combination to prevent duplicates
-        const notificationKey = `med_${medicationName.toLowerCase().replace(/\s+/g, '_')}_${reminderTime}`;
+        const notificationKey = `med_${medicationName.toLowerCase().replace(/\s+/g, "_")}_${reminderTime}`;
 
         // Cancel any existing notification with the same key to prevent duplicates
-        const existingNotificationId = scheduledMedicationNotifications.get(notificationKey);
+        const existingNotificationId =
+          scheduledMedicationNotifications.get(notificationKey);
         if (existingNotificationId) {
           try {
-            await Notifications.cancelScheduledNotificationAsync(existingNotificationId);
+            await Notifications.cancelScheduledNotificationAsync(
+              existingNotificationId
+            );
           } catch {
             // Silently handle cancellation error
           }
@@ -389,7 +403,8 @@ export const useNotifications = () => {
 
         // Also scan and cancel any duplicate notifications for this medication/time
         try {
-          const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+          const allScheduled =
+            await Notifications.getAllScheduledNotificationsAsync();
           const duplicates = allScheduled.filter((n: any) => {
             const data = n.content?.data;
             return (
@@ -398,10 +413,12 @@ export const useNotifications = () => {
               data?.reminderTime === reminderTime
             );
           });
-          
+
           for (const dup of duplicates) {
             try {
-              await Notifications.cancelScheduledNotificationAsync(dup.identifier);
+              await Notifications.cancelScheduledNotificationAsync(
+                dup.identifier
+              );
             } catch {
               // Silently handle individual cancellation error
             }
@@ -556,8 +573,9 @@ export const useNotifications = () => {
 
       try {
         const Notifications = await import("expo-notifications");
-        const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
-        
+        const allScheduled =
+          await Notifications.getAllScheduledNotificationsAsync();
+
         const toCancel = allScheduled.filter((n: any) => {
           const data = n.content?.data;
           if (data?.type !== "medication_reminder") return false;
@@ -568,9 +586,11 @@ export const useNotifications = () => {
 
         for (const notification of toCancel) {
           try {
-            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+            await Notifications.cancelScheduledNotificationAsync(
+              notification.identifier
+            );
             // Also remove from our tracking map
-            const key = `med_${medicationName.toLowerCase().replace(/\s+/g, '_')}_${notification.content?.data?.reminderTime || ''}`;
+            const key = `med_${medicationName.toLowerCase().replace(/\s+/g, "_")}_${notification.content?.data?.reminderTime || ""}`;
             scheduledMedicationNotifications.delete(key);
           } catch {
             // Silently handle individual cancellation error
@@ -591,11 +611,12 @@ export const useNotifications = () => {
 
     try {
       const Notifications = await import("expo-notifications");
-      const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
-      
+      const allScheduled =
+        await Notifications.getAllScheduledNotificationsAsync();
+
       // Group medication notifications by medication+time
       const medicationGroups: Map<string, any[]> = new Map();
-      
+
       for (const notification of allScheduled) {
         const data = notification.content?.data;
         if (data?.type === "medication_reminder") {
@@ -607,14 +628,16 @@ export const useNotifications = () => {
       }
 
       let cleared = 0;
-      
+
       // For each group, keep only the most recent notification and cancel the rest
       for (const [, notifications] of medicationGroups) {
         if (notifications.length > 1) {
           // Keep the first one, cancel the rest
           for (let i = 1; i < notifications.length; i++) {
             try {
-              await Notifications.cancelScheduledNotificationAsync(notifications[i].identifier);
+              await Notifications.cancelScheduledNotificationAsync(
+                notifications[i].identifier
+              );
               cleared++;
             } catch {
               // Silently handle individual cancellation error
@@ -637,14 +660,17 @@ export const useNotifications = () => {
 
     try {
       const Notifications = await import("expo-notifications");
-      const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
-      
+      const allScheduled =
+        await Notifications.getAllScheduledNotificationsAsync();
+
       let cancelled = 0;
       for (const notification of allScheduled) {
         const data = notification.content?.data;
         if (data?.type === "medication_reminder") {
           try {
-            await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+            await Notifications.cancelScheduledNotificationAsync(
+              notification.identifier
+            );
             cancelled++;
           } catch {
             // Silently handle individual cancellation error
@@ -670,7 +696,7 @@ export const useNotifications = () => {
     try {
       const Notifications = await import("expo-notifications");
       await Notifications.cancelAllScheduledNotificationsAsync();
-      
+
       // Clear the tracking map
       scheduledMedicationNotifications.clear();
 

@@ -417,7 +417,10 @@ export const pushNotificationService = {
       if (isFCMAvailable) {
         // Use the sendSymptomAlert Cloud Function which sends to admins
         const functions = await getAuthenticatedFunctions();
-        const sendSymptomAlertFunc = httpsCallable(functions, "sendSymptomAlert");
+        const sendSymptomAlertFunc = httpsCallable(
+          functions,
+          "sendSymptomAlert"
+        );
 
         // Get current user for senderId
         const { auth } = await import("@/lib/firebase");
@@ -470,7 +473,9 @@ export const pushNotificationService = {
         const functions = await getAuthenticatedFunctions();
         const sendPushFunc = httpsCallable(functions, "sendPushNotification");
 
-        const familyMembers = await userService.getFamilyMembers(options.familyId);
+        const familyMembers = await userService.getFamilyMembers(
+          options.familyId
+        );
         const adminIds = familyMembers
           .filter((m) => m.role === "admin" && m.id !== options.actorUserId)
           .map((m) => m.id);
@@ -518,7 +523,11 @@ export const pushNotificationService = {
       notificationType: "family",
     };
 
-    await this.sendToAdmins(options.familyId, notification, options.actorUserId);
+    await this.sendToAdmins(
+      options.familyId,
+      notification,
+      options.actorUserId
+    );
   },
 
   // Test notification functionality

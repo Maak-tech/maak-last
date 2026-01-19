@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
-import type { Medication } from "@/types";
-import { smartNotificationService } from "@/lib/services/smartNotificationService";
-import { useNotifications } from "./useNotifications";
 import { useAuth } from "@/contexts/AuthContext";
+import { smartNotificationService } from "@/lib/services/smartNotificationService";
+import type { Medication } from "@/types";
+import { useNotifications } from "./useNotifications";
 
 interface UseSmartNotificationsOptions {
   medications?: Medication[];
@@ -11,7 +11,9 @@ interface UseSmartNotificationsOptions {
   checkInterval?: number; // Minutes between checks
 }
 
-export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}) => {
+export const useSmartNotifications = (
+  options: UseSmartNotificationsOptions = {}
+) => {
   const {
     medications = [],
     enabled = true,
@@ -33,7 +35,7 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
     const now = Date.now();
     const timeSinceLastCheck = now - lastCheckTimeRef.current;
     const minIntervalMs = 60 * 60 * 1000; // 1 hour minimum between checks
-    
+
     if (timeSinceLastCheck < minIntervalMs && lastCheckTimeRef.current > 0) {
       return;
     }
@@ -49,26 +51,33 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
 
       // Generate comprehensive notifications including daily check-ins
       const context = smartNotificationService.getTimeContext();
-      const smartNotifications = await smartNotificationService.generateComprehensiveNotifications(
-        user.id,
-        medications,
-        context
-      );
+      const smartNotifications =
+        await smartNotificationService.generateComprehensiveNotifications(
+          user.id,
+          medications,
+          context
+        );
 
       // Filter out immediate notifications unless they're critical/high priority
       // This prevents flooding the user with notifications on every check
-      const filteredNotifications = smartNotifications.filter(notification => {
-        const isImmediate = notification.scheduledTime.getTime() <= Date.now() + 60000; // Within 1 minute
-        const isImportant = notification.priority === 'critical' || notification.priority === 'high';
-        
-        // Only allow immediate notifications if they're important
-        return !isImmediate || isImportant;
-      });
+      const filteredNotifications = smartNotifications.filter(
+        (notification) => {
+          const isImmediate =
+            notification.scheduledTime.getTime() <= Date.now() + 60_000; // Within 1 minute
+          const isImportant =
+            notification.priority === "critical" ||
+            notification.priority === "high";
+
+          // Only allow immediate notifications if they're important
+          return !isImmediate || isImportant;
+        }
+      );
 
       if (filteredNotifications.length > 0) {
-        const result = await smartNotificationService.scheduleSmartNotifications(
-          filteredNotifications
-        );
+        const result =
+          await smartNotificationService.scheduleSmartNotifications(
+            filteredNotifications
+          );
       }
     } catch (error) {
       // Silently handle errors
@@ -84,9 +93,12 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
     checkAndScheduleNotifications();
 
     // Set up periodic checks
-    checkIntervalRef.current = setInterval(() => {
-      checkAndScheduleNotifications();
-    }, checkInterval * 60 * 1000); // Convert minutes to milliseconds
+    checkIntervalRef.current = setInterval(
+      () => {
+        checkAndScheduleNotifications();
+      },
+      checkInterval * 60 * 1000
+    ); // Convert minutes to milliseconds
 
     return () => {
       if (checkIntervalRef.current) {
@@ -103,13 +115,13 @@ export const useSmartNotifications = (options: UseSmartNotificationsOptions = {}
 /**
  * Hook for scheduling daily interactive notifications
  */
-export const useDailyNotificationScheduler = (enabled: boolean = true) => {
+export const useDailyNotificationScheduler = (enabled = true) => {
   const { user } = useAuth();
   const { ensureInitialized } = useNotifications();
   const lastScheduledDate = useRef<string | null>(null);
 
   const scheduleDailyNotifications = useCallback(async () => {
-    if (!enabled || !user?.id || Platform.OS === "web") {
+    if (!(enabled && user?.id) || Platform.OS === "web") {
       return;
     }
 
@@ -127,14 +139,14 @@ export const useDailyNotificationScheduler = (enabled: boolean = true) => {
       }
 
       // Schedule daily notifications
-      const result = await smartNotificationService.scheduleDailyNotifications(user.id);
+      const result = await smartNotificationService.scheduleDailyNotifications(
+        user.id
+      );
 
       if (result.scheduled > 0) {
         lastScheduledDate.current = today;
       }
-
-    } catch (error) {
-    }
+    } catch (error) {}
   }, [enabled, user?.id, ensureInitialized]);
 
   useEffect(() => {
@@ -155,7 +167,10 @@ export const useDailyNotificationScheduler = (enabled: boolean = true) => {
       scheduleDailyNotifications();
 
       // Set up daily scheduling (every 24 hours)
-      const intervalId = setInterval(scheduleDailyNotifications, 24 * 60 * 60 * 1000);
+      const intervalId = setInterval(
+        scheduleDailyNotifications,
+        24 * 60 * 60 * 1000
+      );
 
       return () => clearInterval(intervalId);
     }, timeUntilTomorrow);

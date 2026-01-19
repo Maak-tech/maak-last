@@ -1,18 +1,8 @@
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
-  orderBy,
-} from "firebase/firestore";
+import { doc, Timestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { Medication, User } from "@/types";
 import { medicationService } from "./medicationService";
 import { userService } from "./userService";
-import type { Medication, User } from "@/types";
 
 export interface MedicationScheduleEntry {
   medication: Medication;
@@ -70,7 +60,7 @@ class SharedMedicationScheduleService {
 
       // Sort by next dose time
       scheduleEntries.sort((a, b) => {
-        if (!a.nextDose && !b.nextDose) return 0;
+        if (!(a.nextDose || b.nextDose)) return 0;
         if (!a.nextDose) return 1;
         if (!b.nextDose) return -1;
         return a.nextDose.getTime() - b.nextDose.getTime();
@@ -132,7 +122,7 @@ class SharedMedicationScheduleService {
       const caregiver = await userService.getUser(caregiverId);
       const member = await userService.getUser(memberId);
 
-      if (!caregiver || !member) {
+      if (!(caregiver && member)) {
         throw new Error("User not found");
       }
 
@@ -140,7 +130,9 @@ class SharedMedicationScheduleService {
       if (
         caregiver.familyId !== familyId ||
         member.familyId !== familyId ||
-        (caregiver.role !== "admin" && caregiver.role !== "caregiver" && caregiverId !== memberId)
+        (caregiver.role !== "admin" &&
+          caregiver.role !== "caregiver" &&
+          caregiverId !== memberId)
       ) {
         throw new Error("Permission denied");
       }
@@ -159,7 +151,7 @@ class SharedMedicationScheduleService {
       let foundUntakenReminder = false;
       const updatedReminders = reminders.map((reminder) => {
         // Only mark the first untaken reminder we encounter
-        if (!foundUntakenReminder && !reminder.takenAt && !reminder.taken) {
+        if (!(foundUntakenReminder || reminder.takenAt || reminder.taken)) {
           foundUntakenReminder = true;
           return {
             ...reminder,
@@ -220,7 +212,7 @@ class SharedMedicationScheduleService {
    */
   async getUpcomingSchedule(
     familyId: string,
-    days: number = 7
+    days = 7
   ): Promise<SharedScheduleDay[]> {
     const entries = await this.getFamilyMedicationSchedules(familyId);
     const scheduleDays: SharedScheduleDay[] = [];
@@ -250,8 +242,11 @@ class SharedMedicationScheduleService {
    * Calculate next dose time for a medication
    */
   private calculateNextDose(medication: Medication): Date | undefined {
-    if (!medication.isActive || !medication.reminders || medication.reminders.length === 0) {
-      return undefined;
+    if (
+      !(medication.isActive && medication.reminders) ||
+      medication.reminders.length === 0
+    ) {
+      return;
     }
 
     const now = new Date();
@@ -279,19 +274,21 @@ class SharedMedicationScheduleService {
     const firstReminder = reminderTimes[0];
     if (firstReminder) {
       const nextDose = new Date(tomorrow);
-      const [hours, minutes] = medication.reminders[0].time.split(":").map(Number);
+      const [hours, minutes] = medication.reminders[0].time
+        .split(":")
+        .map(Number);
       nextDose.setHours(hours, minutes, 0, 0);
       return nextDose;
     }
 
-    return undefined;
+    return;
   }
 
   /**
    * Get last taken timestamp
    */
   private getLastTaken(medication: Medication): Date | undefined {
-    if (!medication.reminders) return undefined;
+    if (!medication.reminders) return;
 
     const takenReminders = medication.reminders
       .filter((r) => r.takenAt)
@@ -332,7 +329,9 @@ class SharedMedicationScheduleService {
 
     // Count taken doses
     const takenDoses = medication.reminders.filter(
-      (r) => (r.takenAt && new Date(r.takenAt) >= thirtyDaysAgo) || (r.taken && r.takenAt)
+      (r) =>
+        (r.takenAt && new Date(r.takenAt) >= thirtyDaysAgo) ||
+        (r.taken && r.takenAt)
     ).length;
 
     if (totalExpectedDoses === 0) return 100;
@@ -355,7 +354,9 @@ class SharedMedicationScheduleService {
     const expectedDoses = 7 * frequency.dosesPerDay;
 
     const takenDoses = medication.reminders.filter(
-      (r) => (r.takenAt && new Date(r.takenAt) >= sevenDaysAgo) || (r.taken && r.takenAt)
+      (r) =>
+        (r.takenAt && new Date(r.takenAt) >= sevenDaysAgo) ||
+        (r.taken && r.takenAt)
     ).length;
 
     return Math.max(0, expectedDoses - takenDoses);
@@ -395,7 +396,7 @@ class SharedMedicationScheduleService {
       const caregiver = await userService.getUser(caregiverId);
       const member = await userService.getUser(memberId);
 
-      if (!caregiver || !member) return false;
+      if (!(caregiver && member)) return false;
 
       // Can manage if:
       // 1. Managing own medications
@@ -412,4 +413,5 @@ class SharedMedicationScheduleService {
   }
 }
 
-export const sharedMedicationScheduleService = new SharedMedicationScheduleService();
+export const sharedMedicationScheduleService =
+  new SharedMedicationScheduleService();

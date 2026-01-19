@@ -5,13 +5,12 @@
 
 import { useNavigation, useRouter } from "expo-router";
 import {
+  Activity,
   ArrowLeft,
   ChevronRight,
   Heart,
   Lock,
-  Settings,
   Shield,
-  Activity,
 } from "lucide-react-native";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -72,8 +71,8 @@ export default function GarminIntroScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -125,7 +124,9 @@ export default function GarminIntroScreen() {
 
           <View style={styles.benefitsList}>
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#22C55E" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#22C55E" }]}
+              >
                 <Activity color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -153,7 +154,9 @@ export default function GarminIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#3B82F6" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#3B82F6" }]}
+              >
                 <Heart color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -164,7 +167,9 @@ export default function GarminIntroScreen() {
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {isRTL ? "مراقبة القلب والتنفس" : "Heart & Respiratory Monitoring"}
+                  {isRTL
+                    ? "مراقبة القلب والتنفس"
+                    : "Heart & Respiratory Monitoring"}
                 </Text>
                 <Text
                   style={[
@@ -181,7 +186,9 @@ export default function GarminIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}
+              >
                 <Shield color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -201,7 +208,9 @@ export default function GarminIntroScreen() {
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {isRTL ? "جودة النوم، مراحل النوم، والراحة اليومية" : "Sleep quality, sleep stages, and daily readiness"}
+                  {isRTL
+                    ? "جودة النوم، مراحل النوم، والراحة اليومية"
+                    : "Sleep quality, sleep stages, and daily readiness"}
                 </Text>
               </View>
             </View>

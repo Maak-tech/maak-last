@@ -1,4 +1,3 @@
-
 export interface TimelineEvent {
   id: string;
   type:
@@ -84,9 +83,10 @@ class TimelineService {
             type: "symptom",
             title: symptom.type,
             description: symptom.description || symptom.location,
-            timestamp: symptom.timestamp instanceof Date
-              ? symptom.timestamp
-              : new Date(symptom.timestamp),
+            timestamp:
+              symptom.timestamp instanceof Date
+                ? symptom.timestamp
+                : new Date(symptom.timestamp),
             data: symptom,
             color: this.getSeverityColor(symptom.severity),
             icon: "Activity",
@@ -105,9 +105,10 @@ class TimelineService {
             type: "medication",
             title: `${medication.name} - Started`,
             description: `${medication.dosage} • ${medication.frequency}`,
-            timestamp: medication.startDate instanceof Date
-              ? medication.startDate
-              : new Date(medication.startDate),
+            timestamp:
+              medication.startDate instanceof Date
+                ? medication.startDate
+                : new Date(medication.startDate),
             data: medication,
             color: "#3B82F6", // Blue
             icon: "Pill",
@@ -125,9 +126,10 @@ class TimelineService {
             type: "medication",
             title: `${medication.name} - Ended`,
             description: medication.notes,
-            timestamp: medication.endDate instanceof Date
-              ? medication.endDate
-              : new Date(medication.endDate),
+            timestamp:
+              medication.endDate instanceof Date
+                ? medication.endDate
+                : new Date(medication.endDate),
             data: medication,
             color: "#64748B", // Gray
             icon: "Pill",
@@ -146,9 +148,10 @@ class TimelineService {
             type: "mood",
             title: mood.mood,
             description: mood.notes || mood.activities?.join(", "),
-            timestamp: mood.timestamp instanceof Date
-              ? mood.timestamp
-              : new Date(mood.timestamp),
+            timestamp:
+              mood.timestamp instanceof Date
+                ? mood.timestamp
+                : new Date(mood.timestamp),
             data: mood,
             color: this.getMoodColor(mood.mood),
             icon: "Smile",
@@ -167,9 +170,10 @@ class TimelineService {
             type: "allergy",
             title: allergy.name,
             description: allergy.reaction || allergy.severity,
-            timestamp: allergy.timestamp instanceof Date
-              ? allergy.timestamp
-              : new Date(allergy.timestamp),
+            timestamp:
+              allergy.timestamp instanceof Date
+                ? allergy.timestamp
+                : new Date(allergy.timestamp),
             data: allergy,
             color: "#EF4444", // Red
             icon: "AlertTriangle",
@@ -188,9 +192,10 @@ class TimelineService {
             type: "labResult",
             title: labResult.testName,
             description: labResult.facility || labResult.testType,
-            timestamp: labResult.testDate instanceof Date
-              ? labResult.testDate
-              : new Date(labResult.testDate),
+            timestamp:
+              labResult.testDate instanceof Date
+                ? labResult.testDate
+                : new Date(labResult.testDate),
             data: labResult,
             color: "#8B5CF6", // Purple
             icon: "TestTube",
@@ -205,9 +210,10 @@ class TimelineService {
           type: "calendar",
           title: event.title,
           description: event.description || event.location,
-          timestamp: event.startDate instanceof Date
-            ? event.startDate
-            : new Date(event.startDate),
+          timestamp:
+            event.startDate instanceof Date
+              ? event.startDate
+              : new Date(event.startDate),
           data: event,
           color: event.color || "#10B981", // Green
           icon: "Calendar",
@@ -226,9 +232,10 @@ class TimelineService {
             type: "medicalHistory",
             title: history.condition,
             description: history.notes || history.status,
-            timestamp: history.diagnosedDate instanceof Date
-              ? history.diagnosedDate
-              : new Date(history.diagnosedDate),
+            timestamp:
+              history.diagnosedDate instanceof Date
+                ? history.diagnosedDate
+                : new Date(history.diagnosedDate),
             data: history,
             color: "#F59E0B", // Orange
             icon: "FileText",
@@ -264,8 +271,7 @@ class TimelineService {
     endDate: Date
   ): TimelineEvent[] {
     return events.filter(
-      (event) =>
-        event.timestamp >= startDate && event.timestamp <= endDate
+      (event) => event.timestamp >= startDate && event.timestamp <= endDate
     );
   }
 
@@ -317,10 +323,7 @@ class TimelineService {
   /**
    * Get events for a specific day
    */
-  async getEventsForDay(
-    userId: string,
-    date: Date
-  ): Promise<TimelineEvent[]> {
+  async getEventsForDay(userId: string, date: Date): Promise<TimelineEvent[]> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
 

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Mic, MicOff, Volume2, VolumeX, Settings } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   addDoc,
@@ -13,6 +13,7 @@ import {
   query,
   updateDoc,
 } from "firebase/firestore";
+import { Mic, MicOff, Settings, Volume2, VolumeX } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -28,16 +29,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "../lib/firebase";
 import healthContextService from "../lib/services/healthContextService";
-import { voiceService } from "../lib/services/voiceService";
-import realtimeAgentService from "../lib/services/realtimeAgentService";
 import openaiService, {
   AI_MODELS,
   type ChatMessage as AIMessage,
 } from "../lib/services/openaiService";
+import realtimeAgentService from "../lib/services/realtimeAgentService";
+import { voiceService } from "../lib/services/voiceService";
 import ChatMessage from "./components/ChatMessage";
 
 interface ChatSession {
@@ -100,8 +100,12 @@ export default function AIAssistant() {
     // Initialize voice settings from local storage
     const loadVoiceSettings = async () => {
       try {
-        const savedVoiceOutput = await AsyncStorage.getItem("voice_output_enabled");
-        const savedVoiceInput = await AsyncStorage.getItem("voice_input_enabled");
+        const savedVoiceOutput = await AsyncStorage.getItem(
+          "voice_output_enabled"
+        );
+        const savedVoiceInput = await AsyncStorage.getItem(
+          "voice_input_enabled"
+        );
         const savedVoiceLanguage = await AsyncStorage.getItem("voice_language");
 
         if (savedVoiceOutput !== null) {
@@ -149,7 +153,10 @@ export default function AIAssistant() {
     if (!recognitionAvailable) {
       Alert.alert(
         t("speechError", "Speech Error"),
-        t("voiceInputNotAvailable", "Voice input is not available on this device")
+        t(
+          "voiceInputNotAvailable",
+          "Voice input is not available on this device"
+        )
       );
       return;
     }
@@ -169,7 +176,8 @@ export default function AIAssistant() {
           setIsListening(false);
           Alert.alert(
             t("speechError", "Speech Error"),
-            error.message || t("failedToRecognizeSpeech", "Failed to recognize speech")
+            error.message ||
+              t("failedToRecognizeSpeech", "Failed to recognize speech")
           );
         },
         voiceLanguage
@@ -178,13 +186,14 @@ export default function AIAssistant() {
       setIsListening(false);
       Alert.alert(
         t("speechError", "Speech Error"),
-        error.message || t("failedToStartVoiceInput", "Failed to start voice input")
+        error.message ||
+          t("failedToStartVoiceInput", "Failed to start voice input")
       );
     }
   };
 
   const handleVoiceOutput = async (text: string) => {
-    if (!voiceEnabled || !voiceOutputEnabled) return;
+    if (!(voiceEnabled && voiceOutputEnabled)) return;
 
     try {
       setIsSpeaking(true);
@@ -205,7 +214,10 @@ export default function AIAssistant() {
     if (!voiceEnabled) {
       Alert.alert(
         t("voiceNotAvailable", "Voice Not Available"),
-        t("voiceOutputNotSupported", "Voice output is not supported on this device")
+        t(
+          "voiceOutputNotSupported",
+          "Voice output is not supported on this device"
+        )
       );
       return;
     }
@@ -225,7 +237,9 @@ export default function AIAssistant() {
 
       if (key) {
         // Mask API key for security - only store masked version in state
-        const maskedKey = key ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}` : "";
+        const maskedKey = key
+          ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}`
+          : "";
         setApiKey(maskedKey);
         setSelectedModel(model);
         setTempModel(model);
@@ -238,7 +252,10 @@ export default function AIAssistant() {
           ),
           [
             { text: t("cancel", "Cancel"), style: "cancel" },
-            { text: t("configure", "Configure"), onPress: () => setShowSettings(true) },
+            {
+              text: t("configure", "Configure"),
+              onPress: () => setShowSettings(true),
+            },
           ]
         );
       }
@@ -260,11 +277,10 @@ export default function AIAssistant() {
       const welcomeMessage: AIMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          t(
-            "aiAssistantWelcome",
-            "Hello! I'm your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?"
-          ),
+        content: t(
+          "aiAssistantWelcome",
+          "Hello! I'm your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?"
+        ),
         timestamp: new Date(),
       };
 
@@ -368,7 +384,8 @@ export default function AIAssistant() {
   };
 
   const handleSend = async (textOverride?: string | unknown) => {
-    const textToSend = typeof textOverride === "string" ? textOverride : inputText;
+    const textToSend =
+      typeof textOverride === "string" ? textOverride : inputText;
     if (!textToSend.trim() || isStreaming) return;
 
     // Check if API key is configured in the service (not state, for security)
@@ -444,7 +461,7 @@ export default function AIAssistant() {
           ...assistantMessage,
           content: fullResponse,
         });
-        
+
         // Speak the response if voice is enabled and auto-speak is on
         if (voiceOutputEnabled && autoSpeak) {
           await handleVoiceOutput(fullResponse);
@@ -463,7 +480,10 @@ export default function AIAssistant() {
               "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing."
             ),
             [
-              { text: t("openSettings", "Open Settings"), onPress: () => setShowSettings(true) },
+              {
+                text: t("openSettings", "Open Settings"),
+                onPress: () => setShowSettings(true),
+              },
               { text: t("ok", "OK"), style: "cancel" },
             ]
           );
@@ -475,7 +495,10 @@ export default function AIAssistant() {
               "The API key appears to be invalid. Please check and update it."
             ),
             [
-              { text: t("openSettings", "Open Settings"), onPress: () => setShowSettings(true) },
+              {
+                text: t("openSettings", "Open Settings"),
+                onPress: () => setShowSettings(true),
+              },
               { text: t("cancel", "Cancel"), style: "cancel" },
             ]
           );
@@ -483,7 +506,10 @@ export default function AIAssistant() {
           Alert.alert(
             t("error", "Error"),
             error.message ||
-              t("failedToGetResponse", "Failed to get response. Please try again.")
+              t(
+                "failedToGetResponse",
+                "Failed to get response. Please try again."
+              )
           );
         }
       }
@@ -505,8 +531,14 @@ export default function AIAssistant() {
 
     // Save voice settings
     try {
-      await AsyncStorage.setItem("voice_output_enabled", JSON.stringify(voiceOutputEnabled));
-      await AsyncStorage.setItem("voice_input_enabled", JSON.stringify(voiceInputEnabled));
+      await AsyncStorage.setItem(
+        "voice_output_enabled",
+        JSON.stringify(voiceOutputEnabled)
+      );
+      await AsyncStorage.setItem(
+        "voice_input_enabled",
+        JSON.stringify(voiceInputEnabled)
+      );
       await AsyncStorage.setItem("voice_language", voiceLanguage);
     } catch (error) {
       // Silently handle storage error
@@ -659,7 +691,9 @@ export default function AIAssistant() {
         >
           <Ionicons color="#333" name="arrow-back" size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t("aiAssistant", "AI Assistant")}</Text>
+        <Text style={styles.headerTitle}>
+          {t("aiAssistant", "AI Assistant")}
+        </Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             onPress={handleNewChat}
@@ -740,11 +774,11 @@ export default function AIAssistant() {
               ]}
             >
               {isSpeaking ? (
-                <VolumeX size={20} color="white" />
+                <VolumeX color="white" size={20} />
               ) : voiceOutputEnabled ? (
-                <Volume2 size={20} color="white" />
+                <Volume2 color="white" size={20} />
               ) : (
-                <VolumeX size={20} color="#666" />
+                <VolumeX color="#666" size={20} />
               )}
             </TouchableOpacity>
           )}
@@ -757,9 +791,9 @@ export default function AIAssistant() {
               ]}
             >
               {isListening ? (
-                <MicOff size={20} color="white" />
+                <MicOff color="white" size={20} />
               ) : (
-                <Mic size={20} color="#666" />
+                <Mic color="#666" size={20} />
               )}
             </TouchableOpacity>
           )}
@@ -767,7 +801,10 @@ export default function AIAssistant() {
             editable={!isStreaming}
             multiline
             onChangeText={setInputText}
-            placeholder={t("askZeina", "Ask Zeina about your health, medications, symptoms...")}
+            placeholder={t(
+              "askZeina",
+              "Ask Zeina about your health, medications, symptoms..."
+            )}
             placeholderTextColor="#999"
             scrollEnabled
             style={styles.textInput}
@@ -806,7 +843,9 @@ export default function AIAssistant() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalLabel}>{t("openAIApiKey", "OpenAI API Key")}</Text>
+            <Text style={styles.modalLabel}>
+              {t("openAIApiKey", "OpenAI API Key")}
+            </Text>
             <TextInput
               autoCapitalize="none"
               onChangeText={setTempApiKey}
@@ -818,7 +857,10 @@ export default function AIAssistant() {
             />
 
             <Text style={styles.modalHint}>
-              {t("getApiKeyFromOpenAI", "Get your API key from platform.openai.com")}
+              {t(
+                "getApiKeyFromOpenAI",
+                "Get your API key from platform.openai.com"
+              )}
             </Text>
 
             <Text style={[styles.modalLabel, { marginTop: 16 }]}>
@@ -868,7 +910,7 @@ export default function AIAssistant() {
                 {voiceEnabled && (
                   <View style={styles.voiceSetting}>
                     <View style={styles.voiceSettingInfo}>
-                      <Volume2 size={20} color="#007AFF" />
+                      <Volume2 color="#007AFF" size={20} />
                       <View style={{ marginStart: 12, flex: 1 }}>
                         <Text style={styles.voiceSettingTitle}>
                           {t("voiceOutput", "Voice Output")}
@@ -901,7 +943,7 @@ export default function AIAssistant() {
                 {recognitionAvailable && (
                   <View style={styles.voiceSetting}>
                     <View style={styles.voiceSettingInfo}>
-                      <Mic size={20} color="#007AFF" />
+                      <Mic color="#007AFF" size={20} />
                       <View style={{ marginStart: 12, flex: 1 }}>
                         <Text style={styles.voiceSettingTitle}>
                           {t("voiceInput", "Voice Input")}
@@ -933,7 +975,7 @@ export default function AIAssistant() {
 
                 <View style={styles.voiceSetting}>
                   <View style={styles.voiceSettingInfo}>
-                    <Settings size={20} color="#007AFF" />
+                    <Settings color="#007AFF" size={20} />
                     <View style={{ marginStart: 12, flex: 1 }}>
                       <Text style={styles.voiceSettingTitle}>
                         {t("voiceLanguage", "Voice Language")}
@@ -1000,7 +1042,9 @@ export default function AIAssistant() {
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { maxHeight: "80%" }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t("chatHistory", "Chat History")}</Text>
+              <Text style={styles.modalTitle}>
+                {t("chatHistory", "Chat History")}
+              </Text>
               <TouchableOpacity onPress={() => setShowHistory(false)}>
                 <Ionicons color="#333" name="close" size={24} />
               </TouchableOpacity>
@@ -1017,7 +1061,10 @@ export default function AIAssistant() {
                     {t("noChatHistory", "No chat history yet")}
                   </Text>
                   <Text style={styles.emptyHistorySubtext}>
-                    {t("conversationsWillAppear", "Your conversations will appear here")}
+                    {t(
+                      "conversationsWillAppear",
+                      "Your conversations will appear here"
+                    )}
                   </Text>
                 </View>
               ) : (

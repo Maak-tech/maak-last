@@ -3,15 +3,15 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
+import { Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
   medicationRefillService,
   type RefillPrediction,
   type RefillSummary,
 } from "@/lib/services/medicationRefillService";
-import { Card } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { Badge } from "@/components/design-system/AdditionalComponents";
 
 interface MedicationRefillCardProps {
   refillSummary: RefillSummary;
@@ -84,17 +84,17 @@ export default function MedicationRefillCard({
   };
 
   return (
-    <Card style={styles.card} onPress={undefined} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={undefined} style={styles.card}>
       <TouchableOpacity
+        activeOpacity={0.7}
         onPress={() => setExpanded(!expanded)}
         style={styles.header}
-        activeOpacity={0.7}
       >
         <View style={styles.headerLeft}>
           <Ionicons
+            color={theme.colors.primary.main}
             name="flask"
             size={24}
-            color={theme.colors.primary.main}
             style={styles.icon}
           />
           <View style={styles.headerText}>
@@ -110,17 +110,14 @@ export default function MedicationRefillCard({
         </View>
         <View style={styles.headerRight}>
           {refillSummary.critical > 0 && (
-            <Badge
-              variant="error"
-              style={styles.badge}
-            >
+            <Badge style={styles.badge} variant="error">
               {refillSummary.critical}
             </Badge>
           )}
           <Ionicons
+            color={theme.colors.text.secondary}
             name={expanded ? "chevron-up" : "chevron-down"}
             size={20}
-            color={theme.colors.text.secondary}
           />
         </View>
       </TouchableOpacity>
@@ -133,18 +130,24 @@ export default function MedicationRefillCard({
                 {isRTL ? "يحتاج اهتمام فوري" : "Needs Immediate Attention"}
               </Text>
               {criticalRefills.map((prediction) => (
-                <View key={prediction.medicationId} style={styles.predictionItem}>
+                <View
+                  key={prediction.medicationId}
+                  style={styles.predictionItem}
+                >
                   <View style={styles.predictionLeft}>
                     <Ionicons
+                      color={getUrgencyColor(prediction.urgency)}
                       name={getUrgencyIcon(prediction.urgency)}
                       size={20}
-                      color={getUrgencyColor(prediction.urgency)}
                     />
                     <View style={styles.predictionText}>
                       <Text style={styles.medicationName}>
                         {prediction.medicationName}
                       </Text>
-                      <Caption numberOfLines={2} style={styles.predictionDetails}>
+                      <Caption
+                        numberOfLines={2}
+                        style={styles.predictionDetails}
+                      >
                         {prediction.dosage} •{" "}
                         {prediction.currentQuantity !== undefined
                           ? `${prediction.currentQuantity} ${prediction.quantityUnit} remaining`
@@ -154,10 +157,10 @@ export default function MedicationRefillCard({
                   </View>
                   <View style={styles.predictionRight}>
                     <Badge
+                      style={styles.urgencyBadge}
                       variant={
                         prediction.urgency === "critical" ? "error" : "warning"
                       }
-                      style={styles.urgencyBadge}
                     >
                       {getUrgencyLabel(prediction.urgency)}
                     </Badge>
@@ -192,15 +195,18 @@ export default function MedicationRefillCard({
                   >
                     <View style={styles.predictionLeft}>
                       <Ionicons
+                        color={getUrgencyColor(prediction.urgency)}
                         name={getUrgencyIcon(prediction.urgency)}
                         size={20}
-                        color={getUrgencyColor(prediction.urgency)}
                       />
                       <View style={styles.predictionText}>
                         <Text style={styles.medicationName}>
                           {prediction.medicationName}
                         </Text>
-                        <Caption numberOfLines={1} style={styles.predictionDetails}>
+                        <Caption
+                          numberOfLines={1}
+                          style={styles.predictionDetails}
+                        >
                           {prediction.dosage}
                         </Caption>
                       </View>
@@ -222,17 +228,17 @@ export default function MedicationRefillCard({
 
           {onViewAll && (
             <TouchableOpacity
+              activeOpacity={0.7}
               onPress={onViewAll}
               style={styles.viewAllButton}
-              activeOpacity={0.7}
             >
               <Text style={styles.viewAllText}>
                 {isRTL ? "عرض الكل" : "View All"}
               </Text>
               <Ionicons
+                color={theme.colors.primary.main}
                 name={isRTL ? "arrow-forward" : "arrow-forward"}
                 size={16}
-                color={theme.colors.primary.main}
               />
             </TouchableOpacity>
           )}
@@ -329,7 +335,9 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     fontSize: 12,
   },
   predictionRight: {
-    alignItems: (isRTL ? "flex-start" : "flex-end") as "flex-start" | "flex-end",
+    alignItems: (isRTL ? "flex-start" : "flex-end") as
+      | "flex-start"
+      | "flex-end",
     gap: theme.spacing.xs,
   },
   urgencyBadge: {

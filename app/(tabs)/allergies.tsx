@@ -1,5 +1,12 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { AlertTriangle, ArrowLeft, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Edit,
+  MoreVertical,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,19 +16,18 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+// Design System Components
+import { Button, Card, Input } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { allergyService } from "@/lib/services/allergyService";
 import { userService } from "@/lib/services/userService";
 import type { Allergy, User as UserType } from "@/types";
-// Design System Components
-import { Button, Card, Input } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { Badge } from "@/components/design-system/AdditionalComponents";
 
 // Allergy keys mapping to translation keys
 const ALLERGY_KEYS = [
@@ -49,7 +55,10 @@ const SEVERITY_OPTIONS_KEYS = [
   { value: "mild", labelKey: "severityMild" },
   { value: "moderate", labelKey: "severityModerate" },
   { value: "severe", labelKey: "severitySevere" },
-  { value: "severe-life-threatening", labelKey: "severitySevereLifeThreatening" },
+  {
+    value: "severe-life-threatening",
+    labelKey: "severitySevereLifeThreatening",
+  },
 ];
 
 export default function AllergiesScreen() {
@@ -60,7 +69,9 @@ export default function AllergiesScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAllergy, setSelectedAllergy] = useState("");
   const [customAllergy, setCustomAllergy] = useState("");
-  const [severity, setSeverity] = useState<"mild" | "moderate" | "severe" | "severe-life-threatening">("mild");
+  const [severity, setSeverity] = useState<
+    "mild" | "moderate" | "severe" | "severe-life-threatening"
+  >("mild");
   const [reaction, setReaction] = useState("");
   const [notes, setNotes] = useState("");
   const [discoveredDate, setDiscoveredDate] = useState<Date>(new Date());
@@ -76,34 +87,37 @@ export default function AllergiesScreen() {
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
-  const loadAllergies = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadAllergies = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        // Load family members if user has family
+        if (user.familyId) {
+          const members = await userService.getFamilyMembers(user.familyId);
+          setFamilyMembers(members);
+        }
+
+        const userAllergies = await allergyService.getUserAllergies(
+          user.id,
+          50
+        );
+        setAllergies(userAllergies);
+      } catch (error) {
+        Alert.alert(t("error"), t("errorLoadingData"));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      // Load family members if user has family
-      if (user.familyId) {
-        const members = await userService.getFamilyMembers(user.familyId);
-        setFamilyMembers(members);
-      }
-
-      const userAllergies = await allergyService.getUserAllergies(user.id, 50);
-      setAllergies(userAllergies);
-    } catch (error) {
-      Alert.alert(
-        t("error"),
-        t("errorLoadingData")
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, t]);
+    },
+    [user, t]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -123,24 +137,24 @@ export default function AllergiesScreen() {
     }
     // Handle backward compatibility: map old English names to translation keys
     const englishToKeyMap: Record<string, string> = {
-      "Peanuts": "allergyPeanuts",
+      Peanuts: "allergyPeanuts",
       "Tree Nuts": "allergyTreeNuts",
-      "Milk": "allergyMilk",
-      "Eggs": "allergyEggs",
-      "Fish": "allergyFish",
-      "Shellfish": "allergyShellfish",
-      "Soy": "allergySoy",
-      "Wheat": "allergyWheat",
-      "Pollen": "allergyPollen",
+      Milk: "allergyMilk",
+      Eggs: "allergyEggs",
+      Fish: "allergyFish",
+      Shellfish: "allergyShellfish",
+      Soy: "allergySoy",
+      Wheat: "allergyWheat",
+      Pollen: "allergyPollen",
       "Dust Mites": "allergyDustMites",
       "Pet Dander": "allergyPetDander",
-      "Mold": "allergyMold",
-      "Latex": "allergyLatex",
-      "Penicillin": "allergyPenicillin",
-      "Aspirin": "allergyAspirin",
+      Mold: "allergyMold",
+      Latex: "allergyLatex",
+      Penicillin: "allergyPenicillin",
+      Aspirin: "allergyAspirin",
       "Bee Stings": "allergyBeeStings",
-      "Sesame": "allergySesame",
-      "Sulfites": "allergySulfites",
+      Sesame: "allergySesame",
+      Sulfites: "allergySulfites",
     };
     if (englishToKeyMap[name]) {
       return t(englishToKeyMap[name]);
@@ -154,10 +168,7 @@ export default function AllergiesScreen() {
 
     const allergyName = selectedAllergy || customAllergy;
     if (!allergyName.trim()) {
-      Alert.alert(
-        t("error"),
-        t("pleaseEnterAllergyName")
-      );
+      Alert.alert(t("error"), t("pleaseEnterAllergyName"));
       return;
     }
 
@@ -192,10 +203,7 @@ export default function AllergiesScreen() {
       resetForm();
       loadAllergies();
     } catch (error) {
-      Alert.alert(
-        t("error"),
-        t("errorSavingData")
-      );
+      Alert.alert(t("error"), t("errorSavingData"));
     } finally {
       setLoading(false);
     }
@@ -206,29 +214,29 @@ export default function AllergiesScreen() {
     // Check if it's a translation key (common allergy) or custom allergy
     // Also handle backward compatibility with old English names
     const englishToKeyMap: Record<string, string> = {
-      "Peanuts": "allergyPeanuts",
+      Peanuts: "allergyPeanuts",
       "Tree Nuts": "allergyTreeNuts",
-      "Milk": "allergyMilk",
-      "Eggs": "allergyEggs",
-      "Fish": "allergyFish",
-      "Shellfish": "allergyShellfish",
-      "Soy": "allergySoy",
-      "Wheat": "allergyWheat",
-      "Pollen": "allergyPollen",
+      Milk: "allergyMilk",
+      Eggs: "allergyEggs",
+      Fish: "allergyFish",
+      Shellfish: "allergyShellfish",
+      Soy: "allergySoy",
+      Wheat: "allergyWheat",
+      Pollen: "allergyPollen",
       "Dust Mites": "allergyDustMites",
       "Pet Dander": "allergyPetDander",
-      "Mold": "allergyMold",
-      "Latex": "allergyLatex",
-      "Penicillin": "allergyPenicillin",
-      "Aspirin": "allergyAspirin",
+      Mold: "allergyMold",
+      Latex: "allergyLatex",
+      Penicillin: "allergyPenicillin",
+      Aspirin: "allergyAspirin",
       "Bee Stings": "allergyBeeStings",
-      "Sesame": "allergySesame",
-      "Sulfites": "allergySulfites",
+      Sesame: "allergySesame",
+      Sulfites: "allergySulfites",
     };
-    const allergyKey = ALLERGY_KEYS.includes(allergy.name) 
-      ? allergy.name 
+    const allergyKey = ALLERGY_KEYS.includes(allergy.name)
+      ? allergy.name
       : englishToKeyMap[allergy.name];
-    
+
     if (allergyKey) {
       setSelectedAllergy(allergyKey);
       setCustomAllergy("");
@@ -258,7 +266,10 @@ export default function AllergiesScreen() {
       const timestampValue = allergy.timestamp as any;
       if (timestampValue instanceof Date) {
         discoveredDate = timestampValue;
-      } else if (timestampValue?.toDate && typeof timestampValue.toDate === "function") {
+      } else if (
+        timestampValue?.toDate &&
+        typeof timestampValue.toDate === "function"
+      ) {
         discoveredDate = timestampValue.toDate();
       } else {
         discoveredDate = new Date(timestampValue);
@@ -270,31 +281,24 @@ export default function AllergiesScreen() {
   };
 
   const handleDeleteAllergy = async (allergyId: string) => {
-    Alert.alert(
-      t("confirmDelete"),
-      t("confirmDeleteAllergy"),
-      [
-        {
-          text: t("cancel"),
-          style: "cancel",
+    Alert.alert(t("confirmDelete"), t("confirmDeleteAllergy"), [
+      {
+        text: t("cancel"),
+        style: "cancel",
+      },
+      {
+        text: t("delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await allergyService.deleteAllergy(allergyId);
+            loadAllergies();
+          } catch (error) {
+            Alert.alert(t("error"), t("errorDeletingData"));
+          }
         },
-        {
-          text: t("delete"),
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await allergyService.deleteAllergy(allergyId);
-              loadAllergies();
-            } catch (error) {
-              Alert.alert(
-                t("error"),
-                t("errorDeletingData")
-              );
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
     setShowActionsMenu(null);
   };
 
@@ -635,7 +639,10 @@ export default function AllergiesScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContainer}>
           <Text color="#EF4444" style={{}}>
-            {t("pleaseLogInToTrackAllergies", "Please log in to track allergies")}
+            {t(
+              "pleaseLogInToTrackAllergies",
+              "Please log in to track allergies"
+            )}
           </Text>
         </View>
       </SafeAreaView>
@@ -671,6 +678,7 @@ export default function AllergiesScreen() {
       </View>
 
       <ScrollView
+        contentContainerStyle={styles.contentInner}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadAllergies(true)}
@@ -680,27 +688,59 @@ export default function AllergiesScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
-        contentContainerStyle={styles.contentInner}
       >
         {/* Stats Section */}
         <View style={styles.statsSection}>
-          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading
+            level={5}
+            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+          >
             {t("statistics")}
           </Heading>
           <View style={styles.statsGrid}>
-            <Card variant="elevated" style={styles.statCard} onPress={undefined} contentStyle={undefined}>
-              <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
+            <Card
+              contentStyle={undefined}
+              onPress={undefined}
+              style={styles.statCard}
+              variant="elevated"
+            >
+              <Text
+                size="large"
+                style={[styles.statValue, isRTL && styles.rtlText]}
+                weight="bold"
+              >
                 {allergies.length}
               </Text>
-              <Caption style={[styles.statLabel, isRTL && styles.rtlText]} numberOfLines={undefined}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.statLabel, isRTL && styles.rtlText]}
+              >
                 {t("totalAllergies")}
               </Caption>
             </Card>
-            <Card variant="elevated" style={styles.statCard} onPress={undefined} contentStyle={undefined}>
-              <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
-                {allergies.filter((a) => a.severity === "severe" || a.severity === "severe-life-threatening").length}
+            <Card
+              contentStyle={undefined}
+              onPress={undefined}
+              style={styles.statCard}
+              variant="elevated"
+            >
+              <Text
+                size="large"
+                style={[styles.statValue, isRTL && styles.rtlText]}
+                weight="bold"
+              >
+                {
+                  allergies.filter(
+                    (a) =>
+                      a.severity === "severe" ||
+                      a.severity === "severe-life-threatening"
+                  ).length
+                }
               </Text>
-              <Caption style={[styles.statLabel, isRTL && styles.rtlText]} numberOfLines={undefined}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.statLabel, isRTL && styles.rtlText]}
+              >
                 {t("severeAllergies")}
               </Caption>
             </Card>
@@ -709,7 +749,10 @@ export default function AllergiesScreen() {
 
         {/* Allergies List */}
         <View style={styles.allergiesSection}>
-          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading
+            level={5}
+            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+          >
             {t("myAllergies")}
           </Heading>
 
@@ -727,26 +770,55 @@ export default function AllergiesScreen() {
             </View>
           ) : (
             allergies.map((allergy) => (
-              <Card key={allergy.id} variant="elevated" style={styles.allergyCard} onPress={undefined} contentStyle={undefined}>
+              <Card
+                contentStyle={undefined}
+                key={allergy.id}
+                onPress={undefined}
+                style={styles.allergyCard}
+                variant="elevated"
+              >
                 <View style={styles.allergyHeader}>
                   <View style={styles.allergyInfo}>
-                    <Text weight="semibold" size="large" style={[styles.allergyName, isRTL && styles.rtlText]}>
+                    <Text
+                      size="large"
+                      style={[styles.allergyName, isRTL && styles.rtlText]}
+                      weight="semibold"
+                    >
                       {getTranslatedAllergyName(allergy.name)}
                     </Text>
                     <View style={styles.allergyMeta}>
-                      <Caption style={[styles.allergyDate, isRTL && styles.rtlText]} numberOfLines={undefined}>
-                        {formatDate(allergy.discoveredDate || allergy.timestamp)}
+                      <Caption
+                        numberOfLines={undefined}
+                        style={[styles.allergyDate, isRTL && styles.rtlText]}
+                      >
+                        {formatDate(
+                          allergy.discoveredDate || allergy.timestamp
+                        )}
                       </Caption>
                       <Badge
-                        variant={allergy.severity === "mild" ? "success" : allergy.severity === "moderate" ? "warning" : "error"}
                         size="small"
                         style={[
                           styles.severityBadge,
-                          { backgroundColor: getSeverityColor(allergy.severity) },
+                          {
+                            backgroundColor: getSeverityColor(allergy.severity),
+                          },
                         ]}
+                        variant={
+                          allergy.severity === "mild"
+                            ? "success"
+                            : allergy.severity === "moderate"
+                              ? "warning"
+                              : "error"
+                        }
                       >
-                        {SEVERITY_OPTIONS_KEYS.find((opt) => opt.value === allergy.severity) 
-                          ? t(SEVERITY_OPTIONS_KEYS.find((opt) => opt.value === allergy.severity)!.labelKey)
+                        {SEVERITY_OPTIONS_KEYS.find(
+                          (opt) => opt.value === allergy.severity
+                        )
+                          ? t(
+                              SEVERITY_OPTIONS_KEYS.find(
+                                (opt) => opt.value === allergy.severity
+                              )!.labelKey
+                            )
                           : allergy.severity}
                       </Badge>
                     </View>
@@ -760,7 +832,10 @@ export default function AllergiesScreen() {
                       }
                       style={styles.actionsButton}
                     >
-                      <MoreVertical color={theme.colors.text.secondary} size={16} />
+                      <MoreVertical
+                        color={theme.colors.text.secondary}
+                        size={16}
+                      />
                     </TouchableOpacity>
                     {showActionsMenu === allergy.id && (
                       <View style={styles.actionsMenu}>
@@ -769,9 +844,7 @@ export default function AllergiesScreen() {
                           style={styles.actionItem}
                         >
                           <Edit color={theme.colors.text.primary} size={16} />
-                          <Text style={styles.actionText}>
-                            {t("edit")}
-                          </Text>
+                          <Text style={styles.actionText}>{t("edit")}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteAllergy(allergy.id)}
@@ -789,14 +862,28 @@ export default function AllergiesScreen() {
                 {(allergy.reaction || allergy.notes) && (
                   <View style={styles.allergyDetails}>
                     {allergy.reaction && (
-                      <Text style={[styles.allergyDetailText, isRTL && styles.rtlText]}>
-                        <Text weight="semibold" style={{}}>{t("reaction")}: </Text>
+                      <Text
+                        style={[
+                          styles.allergyDetailText,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        <Text style={{}} weight="semibold">
+                          {t("reaction")}:{" "}
+                        </Text>
                         {allergy.reaction}
                       </Text>
                     )}
                     {allergy.notes && (
-                      <Text style={[styles.allergyDetailText, isRTL && styles.rtlText]}>
-                        <Text weight="semibold" style={{}}>{t("notes")}: </Text>
+                      <Text
+                        style={[
+                          styles.allergyDetailText,
+                          isRTL && styles.rtlText,
+                        ]}
+                      >
+                        <Text style={{}} weight="semibold">
+                          {t("notes")}:{" "}
+                        </Text>
                         {allergy.notes}
                       </Text>
                     )}
@@ -810,18 +897,21 @@ export default function AllergiesScreen() {
 
       {/* Add/Edit Modal */}
       <Modal
-        visible={showAddModal}
         animationType="slide"
-        transparent={true}
         onRequestClose={() => {
           setShowAddModal(false);
           resetForm();
         }}
+        transparent={true}
+        visible={showAddModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Heading level={4} style={[styles.modalTitle, isRTL && styles.rtlText]}>
+              <Heading
+                level={4}
+                style={[styles.modalTitle, isRTL && styles.rtlText]}
+              >
                 {editingAllergy ? t("editAllergy") : t("addAllergy")}
               </Heading>
               <TouchableOpacity
@@ -890,13 +980,15 @@ export default function AllergiesScreen() {
                       }}
                       style={[
                         styles.allergyOption,
-                        selectedAllergy === allergyKey && styles.allergyOptionSelected,
+                        selectedAllergy === allergyKey &&
+                          styles.allergyOptionSelected,
                       ]}
                     >
                       <Text
                         style={[
                           styles.allergyOptionText,
-                          selectedAllergy === allergyKey && styles.allergyOptionTextSelected,
+                          selectedAllergy === allergyKey &&
+                            styles.allergyOptionTextSelected,
                         ]}
                       >
                         {allergyLabel}
@@ -908,19 +1000,19 @@ export default function AllergiesScreen() {
 
               <View style={styles.fieldGroup}>
                 <Input
+                  error={undefined}
+                  helperText={undefined}
                   label={t("customAllergy")}
-                  placeholder={t("orEnterCustomAllergy")}
-                  value={customAllergy}
+                  leftIcon={undefined}
                   onChangeText={(text: string) => {
                     setCustomAllergy(text);
                     if (text) setSelectedAllergy("");
                   }}
-                  textAlign={isRTL ? "right" : "left"}
-                  style={isRTL && styles.rtlTextInput}
-                  error={undefined}
-                  helperText={undefined}
-                  leftIcon={undefined}
+                  placeholder={t("orEnterCustomAllergy")}
                   rightIcon={undefined}
+                  style={isRTL && styles.rtlTextInput}
+                  textAlign={isRTL ? "right" : "left"}
+                  value={customAllergy}
                 />
               </View>
 
@@ -940,7 +1032,8 @@ export default function AllergiesScreen() {
                     <Text
                       style={[
                         styles.severityButtonText,
-                        severity === option.value && styles.severityButtonTextActive,
+                        severity === option.value &&
+                          styles.severityButtonTextActive,
                       ]}
                     >
                       {t(option.labelKey)}
@@ -951,48 +1044,41 @@ export default function AllergiesScreen() {
 
               <View style={styles.fieldGroup}>
                 <Input
-                  label={`${t("reaction")} (${t("optional")})`}
-                  placeholder={t("reactionOptional")}
-                  value={reaction}
-                  onChangeText={setReaction}
-                  multiline
-                  numberOfLines={3}
-                  textAlign={isRTL ? "right" : "left"}
-                  style={isRTL && styles.rtlTextInput}
                   error={undefined}
                   helperText={undefined}
+                  label={`${t("reaction")} (${t("optional")})`}
                   leftIcon={undefined}
+                  multiline
+                  numberOfLines={3}
+                  onChangeText={setReaction}
+                  placeholder={t("reactionOptional")}
                   rightIcon={undefined}
+                  style={isRTL && styles.rtlTextInput}
+                  textAlign={isRTL ? "right" : "left"}
+                  value={reaction}
                 />
               </View>
 
               <View style={styles.fieldGroup}>
                 <Input
-                  label={`${t("notes")} (${t("optional")})`}
-                  placeholder={t("notesOptional")}
-                  value={notes}
-                  onChangeText={setNotes}
-                  multiline
-                  numberOfLines={3}
-                  textAlign={isRTL ? "right" : "left"}
-                  style={isRTL && styles.rtlTextInput}
                   error={undefined}
                   helperText={undefined}
+                  label={`${t("notes")} (${t("optional")})`}
                   leftIcon={undefined}
+                  multiline
+                  numberOfLines={3}
+                  onChangeText={setNotes}
+                  placeholder={t("notesOptional")}
                   rightIcon={undefined}
+                  style={isRTL && styles.rtlTextInput}
+                  textAlign={isRTL ? "right" : "left"}
+                  value={notes}
                 />
               </View>
 
               <Button
-                title={editingAllergy
-                  ? isRTL
-                    ? "حفظ التغييرات"
-                    : "Save Changes"
-                  : isRTL
-                    ? "إضافة"
-                    : "Add"}
-                onPress={handleAddAllergy}
                 loading={loading}
+                onPress={handleAddAllergy}
                 style={{
                   marginTop: theme.spacing.lg,
                   backgroundColor: theme.colors.primary.main,
@@ -1000,6 +1086,15 @@ export default function AllergiesScreen() {
                 textStyle={{
                   color: theme.colors.neutral.white,
                 }}
+                title={
+                  editingAllergy
+                    ? isRTL
+                      ? "حفظ التغييرات"
+                      : "Save Changes"
+                    : isRTL
+                      ? "إضافة"
+                      : "Add"
+                }
               />
             </ScrollView>
           </View>
@@ -1008,4 +1103,3 @@ export default function AllergiesScreen() {
     </SafeAreaView>
   );
 }
-

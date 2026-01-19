@@ -1,10 +1,11 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
+import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 import { getAnalytics } from "firebase/analytics";
+import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   type Auth,
   browserLocalPersistence,
   getAuth,
-  // @ts-ignore: getReactNativePersistence exists in the RN bundle but is missing from TypeScript definitions
+  // @ts-expect-error: getReactNativePersistence exists in the RN bundle but is missing from TypeScript definitions
   getReactNativePersistence,
   initializeAuth,
   setPersistence,
@@ -13,7 +14,6 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
-import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 
 // Default Firebase configuration
 // Note: For native iOS/Android, GoogleService-Info.plist and google-services.json
@@ -53,11 +53,11 @@ const firebaseConfig = {
 const getPlatformConfig = () => {
   if (Platform.OS === "web") {
     return firebaseConfig.web;
-  } else if (Platform.OS === "ios") {
-    return firebaseConfig.ios;
-  } else {
-    return firebaseConfig.android;
   }
+  if (Platform.OS === "ios") {
+    return firebaseConfig.ios;
+  }
+  return firebaseConfig.android;
 };
 
 const platformConfig = getPlatformConfig();

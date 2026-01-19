@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react";
+import { ChevronDown, ChevronUp, X } from "lucide-react-native";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
   Modal,
   ScrollView,
   Switch,
+  type TextStyle,
   TouchableOpacity,
   View,
-  type TextStyle,
 } from "react-native";
+import { Button } from "@/components/design-system";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  dashboardWidgetService,
   type DashboardConfig,
+  dashboardWidgetService,
 } from "@/lib/services/dashboardWidgetService";
-import { Button } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { X, ChevronUp, ChevronDown } from "lucide-react-native";
 
 interface DashboardWidgetSettingsProps {
   visible: boolean;
@@ -62,7 +62,7 @@ export default function DashboardWidgetSettings({
   };
 
   const handleToggleWidget = async (widgetId: string) => {
-    if (!user || !config) return;
+    if (!(user && config)) return;
 
     const widget = config.widgets.find((w) => w.id === widgetId);
     if (!widget) return;
@@ -78,7 +78,11 @@ export default function DashboardWidgetSettings({
     };
 
     setConfig(updatedConfig);
-    await dashboardWidgetService.toggleWidget(user.id, widgetId as any, newEnabled);
+    await dashboardWidgetService.toggleWidget(
+      user.id,
+      widgetId as any,
+      newEnabled
+    );
     onConfigChange?.(updatedConfig);
   };
 
@@ -116,10 +120,10 @@ export default function DashboardWidgetSettings({
   };
 
   const handleSave = async () => {
-    if (!user || !config || saving) return;
+    if (!(user && config) || saving) return;
 
     // Validate config before saving
-    if (!config.userId || !config.widgets || !Array.isArray(config.widgets)) {
+    if (!(config.userId && config.widgets && Array.isArray(config.widgets))) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
@@ -136,24 +140,26 @@ export default function DashboardWidgetSettings({
         ...config,
         userId: user.id,
       };
-      
+
       // Save the current config
       await dashboardWidgetService.saveDashboardConfig(configToSave);
-      
+
       // Reload the config from server to ensure we have the latest version
-      const savedConfig = await dashboardWidgetService.getDashboardConfig(user.id);
-      
+      const savedConfig = await dashboardWidgetService.getDashboardConfig(
+        user.id
+      );
+
       // Update local state with saved config
       setConfig(savedConfig);
-      
+
       // Notify parent component of the change
       onConfigChange?.(savedConfig);
-      
+
       // Close the modal - changes will be visible immediately
       onClose();
     } catch (error: any) {
       // Log error for debugging
-      
+
       // Show error to user with more details
       const errorMessage = error?.message || "Unknown error";
       Alert.alert(
@@ -196,10 +202,10 @@ export default function DashboardWidgetSettings({
 
   return (
     <Modal
-      visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={onClose}
+      presentationStyle="pageSheet"
+      visible={visible}
     >
       <View style={styles.container}>
         {/* Header */}
@@ -208,14 +214,14 @@ export default function DashboardWidgetSettings({
             {isRTL ? "تخصيص لوحة المعلومات" : "Customize Dashboard"}
           </Heading>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <X size={24} color={theme.colors.text.primary} />
+            <X color={theme.colors.text.primary} size={24} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content}>
-          <Caption 
-            style={[styles.description, isRTL && styles.rtlText]}
+          <Caption
             numberOfLines={0}
+            style={[styles.description, isRTL && styles.rtlText]}
           >
             {isRTL
               ? "استخدم الأزرار لأعلى/لأسفل لإعادة ترتيب العناصر، أو قم بإيقاف تشغيل العناصر لإخفائها"
@@ -229,37 +235,38 @@ export default function DashboardWidgetSettings({
                 <View style={styles.widgetLeft}>
                   <View style={styles.dragControls}>
                     <TouchableOpacity
-                      onPress={() => handleMoveUp(index)}
                       disabled={index === 0}
+                      onPress={() => handleMoveUp(index)}
                       style={[
                         styles.moveButton,
                         index === 0 && styles.moveButtonDisabled,
                       ]}
                     >
                       <ChevronUp
-                        size={16}
                         color={
                           index === 0
                             ? theme.colors.text.secondary
                             : theme.colors.primary.main
                         }
+                        size={16}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => handleMoveDown(index)}
                       disabled={index === sortedWidgets.length - 1}
+                      onPress={() => handleMoveDown(index)}
                       style={[
                         styles.moveButton,
-                        index === sortedWidgets.length - 1 && styles.moveButtonDisabled,
+                        index === sortedWidgets.length - 1 &&
+                          styles.moveButtonDisabled,
                       ]}
                     >
                       <ChevronDown
-                        size={16}
                         color={
                           index === sortedWidgets.length - 1
                             ? theme.colors.text.secondary
                             : theme.colors.primary.main
                         }
+                        size={16}
                       />
                     </TouchableOpacity>
                   </View>
@@ -267,29 +274,30 @@ export default function DashboardWidgetSettings({
                     <Text style={[styles.widgetName, isRTL && styles.rtlText]}>
                       {dashboardWidgetService.getWidgetName(widget.id, isRTL)}
                     </Text>
-                    <Caption 
-                      style={styles.widgetOrder}
-                      numberOfLines={1}
-                    >
-                      {isRTL ? `الترتيب: ${widget.order + 1}` : `Order: ${widget.order + 1}`}
+                    <Caption numberOfLines={1} style={styles.widgetOrder}>
+                      {isRTL
+                        ? `الترتيب: ${widget.order + 1}`
+                        : `Order: ${widget.order + 1}`}
                     </Caption>
                   </View>
                 </View>
                 <Switch
-                  value={widget.enabled}
                   onValueChange={() => handleToggleWidget(widget.id)}
+                  thumbColor={
+                    widget.enabled
+                      ? theme.colors.neutral?.white || "#FFFFFF"
+                      : typeof theme.colors.border === "string"
+                        ? theme.colors.border
+                        : theme.colors.neutral?.[400] || "#94A3B8"
+                  }
                   trackColor={{
-                    false: typeof theme.colors.border === "string" 
-                      ? theme.colors.border 
-                      : theme.colors.border.medium,
+                    false:
+                      typeof theme.colors.border === "string"
+                        ? theme.colors.border
+                        : theme.colors.border.medium,
                     true: theme.colors.primary.main,
                   }}
-                  thumbColor={widget.enabled 
-                    ? theme.colors.neutral?.white || "#FFFFFF"
-                    : typeof theme.colors.border === "string"
-                      ? theme.colors.border
-                      : theme.colors.neutral?.[400] || "#94A3B8"
-                  }
+                  value={widget.enabled}
                 />
               </View>
             ))}
@@ -298,20 +306,20 @@ export default function DashboardWidgetSettings({
           {/* Action Buttons */}
           <View style={styles.actions}>
             <Button
-              variant="outline"
-              onPress={handleReset}
               disabled={saving}
+              onPress={handleReset}
               style={styles.resetButton}
               textStyle={{}}
               title={isRTL ? "إعادة تعيين إلى الافتراضي" : "Reset to Default"}
+              variant="outline"
             />
             <Button
-              variant="primary"
-              onPress={handleSave}
               disabled={saving}
+              onPress={handleSave}
               style={styles.saveButton}
               textStyle={{}}
               title={isRTL ? "حفظ" : "Save"}
+              variant="primary"
             />
           </View>
         </ScrollView>
@@ -332,9 +340,10 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: typeof theme.colors.border === "string" 
-      ? theme.colors.border 
-      : theme.colors.border.light,
+    borderBottomColor:
+      typeof theme.colors.border === "string"
+        ? theme.colors.border
+        : theme.colors.border.light,
   },
   title: {
     fontSize: 20,
@@ -368,9 +377,10 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     backgroundColor: theme.colors.background.secondary,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: typeof theme.colors.border === "string" 
-      ? theme.colors.border 
-      : theme.colors.border.light,
+    borderColor:
+      typeof theme.colors.border === "string"
+        ? theme.colors.border
+        : theme.colors.border.light,
   },
   widgetLeft: {
     flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",

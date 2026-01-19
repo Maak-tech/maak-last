@@ -12,7 +12,7 @@ import {
   TestTube,
   Zap,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -26,10 +26,10 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BloodPressureEntry from "@/components/BloodPressureEntry";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { allergyService } from "@/lib/services/allergyService";
-import { healthDataService } from "@/lib/services/healthDataService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
@@ -40,16 +40,14 @@ import type {
   Medication,
   Mood,
   Symptom,
-  User as UserType,
 } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import BloodPressureEntry from "@/components/BloodPressureEntry";
 
 export default function TrackScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
-  
+
   // All hooks must be called before any conditional returns
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -288,15 +286,21 @@ export default function TrackScreen() {
       }
 
       // Load recent data for overview
-      const [symptoms, medications, medicalHistory, moods, moodStats, allergies] =
-        await Promise.all([
-          symptomService.getUserSymptoms(user.id, 3),
-          medicationService.getTodaysMedications(user.id),
-          medicalHistoryService.getUserMedicalHistory(user.id),
-          moodService.getUserMoods(user.id, 3),
-          moodService.getMoodStats(user.id, 7),
-          allergyService.getUserAllergies(user.id, 3),
-        ]);
+      const [
+        symptoms,
+        medications,
+        medicalHistory,
+        moods,
+        moodStats,
+        allergies,
+      ] = await Promise.all([
+        symptomService.getUserSymptoms(user.id, 3),
+        medicationService.getTodaysMedications(user.id),
+        medicalHistoryService.getUserMedicalHistory(user.id),
+        moodService.getUserMoods(user.id, 3),
+        moodService.getMoodStats(user.id, 7),
+        allergyService.getUserAllergies(user.id, 3),
+      ]);
 
       setRecentSymptoms(symptoms);
       setTodaysMedications(medications);
@@ -307,7 +311,7 @@ export default function TrackScreen() {
       // Calculate stats (optimized single pass)
       const totalSymptoms = symptoms.length;
       const totalMedications = medications.length;
-      
+
       // Optimize date calculation for symptomsThisWeek
       const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
       const symptomsThisWeek = symptoms.filter(
@@ -357,16 +361,33 @@ export default function TrackScreen() {
     }, [user])
   );
 
-  const formatTime = (timestamp: Date | string | { toDate?: () => Date; seconds?: number } | null | undefined) => {
+  const formatTime = (
+    timestamp:
+      | Date
+      | string
+      | { toDate?: () => Date; seconds?: number }
+      | null
+      | undefined
+  ) => {
     if (!timestamp) return "";
     let date: Date;
     if (timestamp instanceof Date) {
       date = timestamp;
     } else if (typeof timestamp === "string") {
       date = new Date(timestamp);
-    } else if (timestamp && typeof timestamp === "object" && "toDate" in timestamp && timestamp.toDate) {
+    } else if (
+      timestamp &&
+      typeof timestamp === "object" &&
+      "toDate" in timestamp &&
+      timestamp.toDate
+    ) {
       date = timestamp.toDate();
-    } else if (timestamp && typeof timestamp === "object" && "seconds" in timestamp && timestamp.seconds !== undefined) {
+    } else if (
+      timestamp &&
+      typeof timestamp === "object" &&
+      "seconds" in timestamp &&
+      timestamp.seconds !== undefined
+    ) {
       date = new Date(timestamp.seconds * 1000);
     } else {
       return "";
@@ -426,6 +447,7 @@ export default function TrackScreen() {
       </View>
 
       <ScrollView
+        contentContainerStyle={styles.contentInner as ViewStyle}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadTrackingData(true)}
@@ -435,7 +457,6 @@ export default function TrackScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
-        contentContainerStyle={styles.contentInner as ViewStyle}
       >
         {/* Summary Stats */}
         {loading ? (
@@ -484,7 +505,9 @@ export default function TrackScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "أعراض صحية هذا الأسبوع" : "Tracked Symptoms This Week"}
+                  {isRTL
+                    ? "أعراض صحية هذا الأسبوع"
+                    : "Tracked Symptoms This Week"}
                 </Text>
               </View>
 
@@ -717,7 +740,10 @@ export default function TrackScreen() {
                       ] as StyleProp<ViewStyle>
                     }
                   >
-                    <AlertTriangle color={theme.colors.accent.error} size={28} />
+                    <AlertTriangle
+                      color={theme.colors.accent.error}
+                      size={28}
+                    />
                   </View>
                   <Text
                     style={
@@ -748,7 +774,10 @@ export default function TrackScreen() {
                       ] as StyleProp<ViewStyle>
                     }
                   >
-                    <AlertTriangle color={theme.colors.neutral.white} size={16} />
+                    <AlertTriangle
+                      color={theme.colors.neutral.white}
+                      size={16}
+                    />
                     <Text
                       style={
                         styles.trackingCardButtonText as StyleProp<TextStyle>
@@ -789,8 +818,8 @@ export default function TrackScreen() {
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
-                      }
-                    >
+                    }
+                  >
                     {isRTL ? "ضغط الدم" : "Blood Pressure"}
                   </Text>
                   <Text
@@ -801,9 +830,7 @@ export default function TrackScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL
-                      ? "تسجيل ضغط الدم يدوياً"
-                      : "Manual entry"}
+                    {isRTL ? "تسجيل ضغط الدم يدوياً" : "Manual entry"}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setShowBloodPressureEntry(true)}
@@ -948,22 +975,34 @@ export default function TrackScreen() {
                 </TouchableOpacity>
 
                 <View
-                  style={[styles.trackingCard as ViewStyle, { position: "relative" as const }]}
+                  style={[
+                    styles.trackingCard as ViewStyle,
+                    { position: "relative" as const },
+                  ]}
                 >
-                  <View style={{
-                    position: "absolute" as const,
-                    top: theme.spacing.lg,
-                    right: theme.spacing.lg,
-                    backgroundColor: theme.colors.secondary.main,
-                    paddingHorizontal: theme.spacing.sm,
-                    paddingVertical: 2,
-                    borderRadius: theme.borderRadius.md,
-                  }}>
-                    <Text style={{
-                      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
-                      fontSize: 10,
-                      letterSpacing: 0.5,
-                    }}>
+                  <View
+                    style={{
+                      position: "absolute" as const,
+                      top: theme.spacing.lg,
+                      right: theme.spacing.lg,
+                      backgroundColor: theme.colors.secondary.main,
+                      paddingHorizontal: theme.spacing.sm,
+                      paddingVertical: 2,
+                      borderRadius: theme.borderRadius.md,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        ...getTextStyle(
+                          theme,
+                          "caption",
+                          "bold",
+                          theme.colors.neutral.white
+                        ),
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      }}
+                    >
                       BETA
                     </Text>
                   </View>
@@ -1000,6 +1039,7 @@ export default function TrackScreen() {
                       : "Heart Rate, HRV & Respiratory Rate"}
                   </Text>
                   <TouchableOpacity
+                    activeOpacity={0.7}
                     onPress={() => router.push("/ppg-measure")}
                     style={
                       [
@@ -1007,7 +1047,6 @@ export default function TrackScreen() {
                         { backgroundColor: theme.colors.accent.error },
                       ] as StyleProp<ViewStyle>
                     }
-                    activeOpacity={0.7}
                   >
                     <Heart color={theme.colors.neutral.white} size={16} />
                     <Text
@@ -1349,7 +1388,10 @@ export default function TrackScreen() {
                         ] as StyleProp<ViewStyle>
                       }
                     >
-                      <AlertTriangle color={theme.colors.accent.error} size={20} />
+                      <AlertTriangle
+                        color={theme.colors.accent.error}
+                        size={20}
+                      />
                     </View>
                     <View style={styles.recentInfo as ViewStyle}>
                       <Text
@@ -1370,7 +1412,8 @@ export default function TrackScreen() {
                           ] as StyleProp<TextStyle>
                         }
                       >
-                        {allergy.severity.charAt(0).toUpperCase() + allergy.severity.slice(1)}
+                        {allergy.severity.charAt(0).toUpperCase() +
+                          allergy.severity.slice(1)}
                         {allergy.reaction ? ` • ${allergy.reaction}` : ""}
                       </Text>
                     </View>
@@ -1540,7 +1583,6 @@ export default function TrackScreen() {
               </View>
             )}
 
-
             {/* Maak One-liner */}
             <View style={styles.onelineCard as ViewStyle}>
               <Text
@@ -1562,11 +1604,11 @@ export default function TrackScreen() {
 
       {/* Blood Pressure Entry Modal */}
       <BloodPressureEntry
-        visible={showBloodPressureEntry}
         onClose={() => setShowBloodPressureEntry(false)}
         onSave={() => {
           loadTrackingData();
         }}
+        visible={showBloodPressureEntry}
       />
     </SafeAreaView>
   );

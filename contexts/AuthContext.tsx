@@ -1,19 +1,17 @@
 import {
+  type ConfirmationResult,
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   type User as FirebaseUser,
   onAuthStateChanged,
+  RecaptchaVerifier,
+  type RecaptchaVerifier as RecaptchaVerifierType,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
-  PhoneAuthProvider,
-  signInWithCredential,
-  ConfirmationResult,
   signOut,
   updatePassword,
-  RecaptchaVerifier,
-  type RecaptchaVerifier as RecaptchaVerifierType,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
@@ -28,13 +26,19 @@ import { logger } from "@/lib/utils/logger";
 import type { AvatarType, User } from "@/types";
 
 // Import React Native Firebase for native phone auth
-let rnFirebaseAuth: typeof import("@react-native-firebase/auth").default | null = null;
+let rnFirebaseAuth:
+  | typeof import("@react-native-firebase/auth").default
+  | null = null;
 if (Platform.OS !== "web") {
   try {
     rnFirebaseAuth = require("@react-native-firebase/auth").default;
   } catch (e) {
     // React Native Firebase not available, will fall back to web SDK
-    logger.info("React Native Firebase auth not available, using web SDK", {}, "AuthContext");
+    logger.info(
+      "React Native Firebase auth not available, using web SDK",
+      {},
+      "AuthContext"
+    );
   }
 }
 
@@ -44,7 +48,9 @@ interface RNFirebaseConfirmationResult {
 }
 
 // Combined confirmation result type
-type PhoneConfirmationResult = ConfirmationResult | RNFirebaseConfirmationResult;
+type PhoneConfirmationResult =
+  | ConfirmationResult
+  | RNFirebaseConfirmationResult;
 
 interface AuthContextType {
   user: User | null;
@@ -123,7 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return {
           id: firebaseUser.uid,
           email: firebaseUser.email || userData.email || undefined,
-          phoneNumber: firebaseUser.phoneNumber || userData.phoneNumber || undefined,
+          phoneNumber:
+            firebaseUser.phoneNumber || userData.phoneNumber || undefined,
           firstName: firstName || "User",
           lastName: lastName || "",
           avatar: userData.avatar,
@@ -132,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           role: userData.role || "member",
           createdAt: userData.createdAt?.toDate() || new Date(),
           onboardingCompleted: userData.onboardingCompleted,
-          isPremium: userData.isPremium || false,
+          isPremium: userData.isPremium,
           preferences: userData.preferences || {
             language: "en",
             notifications: true,
@@ -154,7 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<User> => {
     const userData: Omit<User, "id"> = {
       ...(firebaseUser.email && { email: firebaseUser.email }),
-      ...(firebaseUser.phoneNumber && { phoneNumber: firebaseUser.phoneNumber }),
+      ...(firebaseUser.phoneNumber && {
+        phoneNumber: firebaseUser.phoneNumber,
+      }),
       firstName,
       lastName,
       role: "member",
@@ -244,7 +253,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await revenueCatService.setUserId(firebaseUser.uid);
           } catch (error) {
             // Silently fail - RevenueCat sync is not critical for app functionality
-            logger.error("Failed to sync RevenueCat user ID", error, "AuthContext");
+            logger.error(
+              "Failed to sync RevenueCat user ID",
+              error,
+              "AuthContext"
+            );
           }
 
           // Initialize FCM in background (don't block on this)
@@ -292,28 +305,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await revenueCatService.logOut();
           } catch (error) {
             // Silently fail - RevenueCat logout is not critical
-            logger.error("Failed to log out from RevenueCat", error, "AuthContext");
+            logger.error(
+              "Failed to log out from RevenueCat",
+              error,
+              "AuthContext"
+            );
           }
         }
       } catch (error: any) {
         // Handle auth state change errors
         // Don't log out the user unless it's a critical authentication error
         // RevenueCat and other non-critical errors shouldn't cause logout
-        const isCriticalError = 
-          error?.code?.startsWith("auth/") || 
+        const isCriticalError =
+          error?.code?.startsWith("auth/") ||
           error?.message?.includes("auth") ||
           error?.message?.includes("permission-denied") ||
           error?.message?.includes("unauthenticated");
-        
+
         if (isCriticalError) {
           // Critical auth error - user should be logged out
-          logger.error("Critical auth error in onAuthStateChanged", error, "AuthContext");
+          logger.error(
+            "Critical auth error in onAuthStateChanged",
+            error,
+            "AuthContext"
+          );
           if (isMounted) {
             setUser(null);
           }
         } else {
           // Non-critical error (e.g., RevenueCat, FCM, etc.) - log but don't logout
-          logger.error("Non-critical error in onAuthStateChanged", error, "AuthContext");
+          logger.error(
+            "Non-critical error in onAuthStateChanged",
+            error,
+            "AuthContext"
+          );
           // User remains logged in even if RevenueCat or other services fail
         }
       } finally {
@@ -453,7 +478,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (error: any) {
       // Only set loading to false on error - successful sign-in will be handled by onAuthStateChanged
       setLoading(false);
-      
+
       let errorMessage = "Failed to sign in. Please try again.";
 
       if (error.code === "auth/user-not-found") {
@@ -549,7 +574,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       // Clean and validate phone number
       const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
-      
+
       // Format phone number to E.164 format if needed
       let formattedPhone: string;
       if (cleanedPhone.startsWith("+")) {
@@ -568,7 +593,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const e164Regex = /^\+[1-9]\d{1,14}$/;
       if (!e164Regex.test(formattedPhone)) {
         setLoading(false);
-        logger.error("Invalid phone number format", { phoneNumber, formattedPhone }, "AuthContext");
+        logger.error(
+          "Invalid phone number format",
+          { phoneNumber, formattedPhone },
+          "AuthContext"
+        );
         throw new Error(
           "Invalid phone number format. Please enter your phone number with country code (e.g., +1234567890)"
         );
@@ -580,38 +609,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       await AsyncStorage.default.setItem(
         "pendingPhoneSignup",
-        JSON.stringify({ firstName, lastName, avatarType, phoneNumber: formattedPhone })
+        JSON.stringify({
+          firstName,
+          lastName,
+          avatarType,
+          phoneNumber: formattedPhone,
+        })
       );
 
-      logger.info("Sending verification code", { formattedPhone, platform: Platform.OS }, "AuthContext");
+      logger.info(
+        "Sending verification code",
+        { formattedPhone, platform: Platform.OS },
+        "AuthContext"
+      );
 
       // Use React Native Firebase on native platforms, web SDK on web
       if (Platform.OS !== "web" && rnFirebaseAuth) {
         // Use React Native Firebase for native phone auth
-        const confirmation = await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
-        logger.info("Verification code sent successfully via RN Firebase", { formattedPhone }, "AuthContext");
+        const confirmation =
+          await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
+        logger.info(
+          "Verification code sent successfully via RN Firebase",
+          { formattedPhone },
+          "AuthContext"
+        );
         setLoading(false);
         return confirmation;
-      } else if (Platform.OS === "web") {
+      }
+      if (Platform.OS === "web") {
         // Use web SDK for web platform - requires reCAPTCHA verifier
         // Create reCAPTCHA verifier if it doesn't exist
         if (!recaptchaVerifierRef.current) {
           if (typeof document === "undefined") {
-            throw new Error("reCAPTCHA verifier cannot be created - document is not available");
+            throw new Error(
+              "reCAPTCHA verifier cannot be created - document is not available"
+            );
           }
-          
+
           try {
             // Create invisible reCAPTCHA verifier
-            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-              size: "invisible",
-              callback: () => {
-                // reCAPTCHA solved, will proceed automatically
-              },
-              "expired-callback": () => {
-                // reCAPTCHA expired, user needs to retry
-                recaptchaVerifierRef.current = null;
-              },
-            });
+            recaptchaVerifierRef.current = new RecaptchaVerifier(
+              auth,
+              "recaptcha-container",
+              {
+                size: "invisible",
+                callback: () => {
+                  // reCAPTCHA solved, will proceed automatically
+                },
+                "expired-callback": () => {
+                  // reCAPTCHA expired, user needs to retry
+                  recaptchaVerifierRef.current = null;
+                },
+              }
+            );
           } catch (error: any) {
             // If container doesn't exist, create it dynamically
             if (typeof document !== "undefined") {
@@ -622,24 +672,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 container.style.display = "none";
                 document.body.appendChild(container);
               }
-              recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-                size: "invisible",
-                callback: () => {
-                  // reCAPTCHA solved
-                },
-                "expired-callback": () => {
-                  recaptchaVerifierRef.current = null;
-                },
-              });
+              recaptchaVerifierRef.current = new RecaptchaVerifier(
+                auth,
+                "recaptcha-container",
+                {
+                  size: "invisible",
+                  callback: () => {
+                    // reCAPTCHA solved
+                  },
+                  "expired-callback": () => {
+                    recaptchaVerifierRef.current = null;
+                  },
+                }
+              );
             } else {
-              throw new Error("reCAPTCHA verifier cannot be created in this environment");
+              throw new Error(
+                "reCAPTCHA verifier cannot be created in this environment"
+              );
             }
           }
         }
 
         // Ensure verifier was created successfully before proceeding
         if (!recaptchaVerifierRef.current) {
-          throw new Error("Failed to create reCAPTCHA verifier. Please refresh the page and try again.");
+          throw new Error(
+            "Failed to create reCAPTCHA verifier. Please refresh the page and try again."
+          );
         }
 
         const confirmationResult = await signInWithPhoneNumber(
@@ -647,47 +705,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           formattedPhone,
           recaptchaVerifierRef.current
         );
-        logger.info("Verification code sent successfully via web SDK", { formattedPhone }, "AuthContext");
+        logger.info(
+          "Verification code sent successfully via web SDK",
+          { formattedPhone },
+          "AuthContext"
+        );
         setLoading(false);
         return confirmationResult;
-      } else {
-        // Fallback: native platform but RN Firebase not available
-        // Check if we're in Expo Go
-        let isExpoGo = false;
-        try {
-          const Constants = await import("expo-constants");
-          isExpoGo = Constants.default.appOwnership === "expo";
-        } catch {
-          // Could not determine, assume not Expo Go
-        }
-        
-        if (isExpoGo) {
-          throw new Error("Phone authentication is not available in Expo Go. Please use a development build (run 'eas build --profile development' or 'expo run:android'/'expo run:ios').");
-        } else {
-          throw new Error("Phone authentication requires React Native Firebase. Please ensure @react-native-firebase/auth is properly installed and rebuild the app.");
-        }
       }
+      // Fallback: native platform but RN Firebase not available
+      // Check if we're in Expo Go
+      let isExpoGo = false;
+      try {
+        const Constants = await import("expo-constants");
+        isExpoGo = Constants.default.appOwnership === "expo";
+      } catch {
+        // Could not determine, assume not Expo Go
+      }
+
+      if (isExpoGo) {
+        throw new Error(
+          "Phone authentication is not available in Expo Go. Please use a development build (run 'eas build --profile development' or 'expo run:android'/'expo run:ios')."
+        );
+      }
+      throw new Error(
+        "Phone authentication requires React Native Firebase. Please ensure @react-native-firebase/auth is properly installed and rebuild the app."
+      );
     } catch (error: any) {
       setLoading(false);
-      
+
       // Log the full error for debugging
-      logger.error("Phone signup error", { 
-        error: error.message || error, 
-        code: error.code,
-        phoneNumber 
-      }, "AuthContext");
+      logger.error(
+        "Phone signup error",
+        {
+          error: error.message || error,
+          code: error.code,
+          phoneNumber,
+        },
+        "AuthContext"
+      );
 
       let errorMessage = "Failed to send verification code. Please try again.";
 
       // Check for the specific reCAPTCHA/verify error
-      if (error.message?.includes("verify") || error.message?.includes("undefined") || error.message?.includes("cannot read property")) {
+      if (
+        error.message?.includes("verify") ||
+        error.message?.includes("undefined") ||
+        error.message?.includes("cannot read property")
+      ) {
         if (Platform.OS === "web") {
-          errorMessage = "reCAPTCHA verification failed. Please refresh the page and try again.";
+          errorMessage =
+            "reCAPTCHA verification failed. Please refresh the page and try again.";
         } else {
-          errorMessage = "Phone authentication requires React Native Firebase. Please rebuild the app with EAS Build or ensure @react-native-firebase/auth is properly installed.";
+          errorMessage =
+            "Phone authentication requires React Native Firebase. Please rebuild the app with EAS Build or ensure @react-native-firebase/auth is properly installed.";
         }
       } else if (error.code === "auth/invalid-phone-number") {
-        errorMessage = "Invalid phone number format. Please include country code (e.g., +1234567890).";
+        errorMessage =
+          "Invalid phone number format. Please include country code (e.g., +1234567890).";
       } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Too many requests. Please try again later.";
       } else if (error.code === "auth/quota-exceeded") {
@@ -697,7 +772,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else if (error.code === "auth/captcha-check-failed") {
         errorMessage = "reCAPTCHA verification failed. Please try again.";
       } else if (error.code === "auth/app-not-authorized") {
-        errorMessage = "Phone authentication is not enabled for this app. Please contact support.";
+        errorMessage =
+          "Phone authentication is not enabled for this app. Please contact support.";
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -717,7 +793,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       // Both web SDK and RN Firebase have a confirm method
       const result = await confirmationResult.confirm(code);
-      
+
       // RN Firebase returns the user directly, web SDK returns UserCredential
       const user = result?.user || result;
       const userId = user?.uid;
@@ -731,9 +807,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const AsyncStorage = await import(
         "@react-native-async-storage/async-storage"
       );
-      const pendingDataStr = await AsyncStorage.default.getItem(
-        "pendingPhoneSignup"
-      );
+      const pendingDataStr =
+        await AsyncStorage.default.getItem("pendingPhoneSignup");
       let phoneNumber = userPhoneNumber || "";
 
       if (pendingDataStr) {
@@ -755,7 +830,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // Update user document with phone number
         const userDocRef = doc(db, "users", userId);
         await updateDoc(userDocRef, {
-          phoneNumber: phoneNumber,
+          phoneNumber,
         });
       } catch (docError: any) {
         let docErrorMessage =
@@ -819,35 +894,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         formattedPhone = "+" + cleanedPhone;
       }
 
-      logger.info("Sending verification code for login", { formattedPhone, platform: Platform.OS }, "AuthContext");
+      logger.info(
+        "Sending verification code for login",
+        { formattedPhone, platform: Platform.OS },
+        "AuthContext"
+      );
 
       // Use React Native Firebase on native platforms, web SDK on web
       if (Platform.OS !== "web" && rnFirebaseAuth) {
         // Use React Native Firebase for native phone auth
-        const confirmation = await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
-        logger.info("Verification code sent successfully via RN Firebase", { formattedPhone }, "AuthContext");
+        const confirmation =
+          await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
+        logger.info(
+          "Verification code sent successfully via RN Firebase",
+          { formattedPhone },
+          "AuthContext"
+        );
         setLoading(false);
         return confirmation;
-      } else if (Platform.OS === "web") {
+      }
+      if (Platform.OS === "web") {
         // Use web SDK for web platform - requires reCAPTCHA verifier
         // Create reCAPTCHA verifier if it doesn't exist
         if (!recaptchaVerifierRef.current) {
           if (typeof document === "undefined") {
-            throw new Error("reCAPTCHA verifier cannot be created - document is not available");
+            throw new Error(
+              "reCAPTCHA verifier cannot be created - document is not available"
+            );
           }
-          
+
           try {
             // Create invisible reCAPTCHA verifier
-            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-              size: "invisible",
-              callback: () => {
-                // reCAPTCHA solved, will proceed automatically
-              },
-              "expired-callback": () => {
-                // reCAPTCHA expired, user needs to retry
-                recaptchaVerifierRef.current = null;
-              },
-            });
+            recaptchaVerifierRef.current = new RecaptchaVerifier(
+              auth,
+              "recaptcha-container",
+              {
+                size: "invisible",
+                callback: () => {
+                  // reCAPTCHA solved, will proceed automatically
+                },
+                "expired-callback": () => {
+                  // reCAPTCHA expired, user needs to retry
+                  recaptchaVerifierRef.current = null;
+                },
+              }
+            );
           } catch (error: any) {
             // If container doesn't exist, create it dynamically
             if (typeof document !== "undefined") {
@@ -858,24 +949,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 container.style.display = "none";
                 document.body.appendChild(container);
               }
-              recaptchaVerifierRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-                size: "invisible",
-                callback: () => {
-                  // reCAPTCHA solved
-                },
-                "expired-callback": () => {
-                  recaptchaVerifierRef.current = null;
-                },
-              });
+              recaptchaVerifierRef.current = new RecaptchaVerifier(
+                auth,
+                "recaptcha-container",
+                {
+                  size: "invisible",
+                  callback: () => {
+                    // reCAPTCHA solved
+                  },
+                  "expired-callback": () => {
+                    recaptchaVerifierRef.current = null;
+                  },
+                }
+              );
             } else {
-              throw new Error("reCAPTCHA verifier cannot be created in this environment");
+              throw new Error(
+                "reCAPTCHA verifier cannot be created in this environment"
+              );
             }
           }
         }
 
         // Ensure verifier was created successfully before proceeding
         if (!recaptchaVerifierRef.current) {
-          throw new Error("Failed to create reCAPTCHA verifier. Please refresh the page and try again.");
+          throw new Error(
+            "Failed to create reCAPTCHA verifier. Please refresh the page and try again."
+          );
         }
 
         const confirmationResult = await signInWithPhoneNumber(
@@ -883,36 +982,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           formattedPhone,
           recaptchaVerifierRef.current
         );
-        logger.info("Verification code sent successfully via web SDK", { formattedPhone }, "AuthContext");
+        logger.info(
+          "Verification code sent successfully via web SDK",
+          { formattedPhone },
+          "AuthContext"
+        );
         setLoading(false);
         return confirmationResult;
-      } else {
-        // Fallback: native platform but RN Firebase not available
-        // Check if we're in Expo Go
-        let isExpoGo = false;
-        try {
-          const Constants = await import("expo-constants");
-          isExpoGo = Constants.default.appOwnership === "expo";
-        } catch {
-          // Could not determine, assume not Expo Go
-        }
-        
-        if (isExpoGo) {
-          throw new Error("Phone authentication is not available in Expo Go. Please use a development build (run 'eas build --profile development' or 'expo run:android'/'expo run:ios').");
-        } else {
-          throw new Error("Phone authentication requires React Native Firebase. Please ensure @react-native-firebase/auth is properly installed and rebuild the app.");
-        }
       }
+      // Fallback: native platform but RN Firebase not available
+      // Check if we're in Expo Go
+      let isExpoGo = false;
+      try {
+        const Constants = await import("expo-constants");
+        isExpoGo = Constants.default.appOwnership === "expo";
+      } catch {
+        // Could not determine, assume not Expo Go
+      }
+
+      if (isExpoGo) {
+        throw new Error(
+          "Phone authentication is not available in Expo Go. Please use a development build (run 'eas build --profile development' or 'expo run:android'/'expo run:ios')."
+        );
+      }
+      throw new Error(
+        "Phone authentication requires React Native Firebase. Please ensure @react-native-firebase/auth is properly installed and rebuild the app."
+      );
     } catch (error: any) {
       setLoading(false);
       let errorMessage = "Failed to send verification code. Please try again.";
 
       // Check for the specific reCAPTCHA/verify error
-      if (error.message?.includes("verify") || error.message?.includes("undefined") || error.message?.includes("cannot read property")) {
+      if (
+        error.message?.includes("verify") ||
+        error.message?.includes("undefined") ||
+        error.message?.includes("cannot read property")
+      ) {
         if (Platform.OS === "web") {
-          errorMessage = "reCAPTCHA verification failed. Please refresh the page and try again.";
+          errorMessage =
+            "reCAPTCHA verification failed. Please refresh the page and try again.";
         } else {
-          errorMessage = "Phone authentication requires React Native Firebase. Please rebuild the app with EAS Build or ensure @react-native-firebase/auth is properly installed.";
+          errorMessage =
+            "Phone authentication requires React Native Firebase. Please rebuild the app with EAS Build or ensure @react-native-firebase/auth is properly installed.";
         }
       } else if (error.code === "auth/invalid-phone-number") {
         errorMessage = "Invalid phone number format.";

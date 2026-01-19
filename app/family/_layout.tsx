@@ -7,8 +7,8 @@ export default function FamilyLayout() {
         headerShown: false,
       }}
     >
-      <Stack.Screen 
-        name="[memberId]" 
+      <Stack.Screen
+        name="[memberId]"
         options={{
           headerShown: false,
         }}
@@ -16,4 +16,3 @@ export default function FamilyLayout() {
     </Stack>
   );
 }
-

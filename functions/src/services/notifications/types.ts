@@ -7,13 +7,13 @@
  * Notification type enum
  */
 export type NotificationType =
-  | 'fall'
-  | 'medication'
-  | 'symptom'
-  | 'vital'
-  | 'trend'
-  | 'family'
-  | 'general'
+  | "fall"
+  | "medication"
+  | "symptom"
+  | "vital"
+  | "trend"
+  | "family"
+  | "general"
   | string; // Allow other types for extensibility
 
 /**
@@ -24,7 +24,7 @@ export interface NotificationPayload {
   body: string;
   imageUrl?: string;
   data?: Record<string, any>;
-  priority?: 'high' | 'normal';
+  priority?: "high" | "normal";
   sound?: string;
   badge?: number;
   clickAction?: string;

@@ -1,4 +1,4 @@
-import { Calendar, TrendingUp, Brain } from "lucide-react-native";
+import { Brain } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,27 +7,30 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
+  type TextStyle,
   TouchableOpacity,
   View,
-  type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
+import CorrelationChart from "@/app/components/CorrelationChart";
+import HealthChart from "@/app/components/HealthChart";
+import TrendPredictionChart from "@/app/components/TrendPredictionChart";
+import { Button, Card } from "@/components/design-system";
+import {
+  Caption,
+  Heading,
+  Text as TypographyText,
+} from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAIInsights } from "@/hooks/useAIInsights";
 import { chartsService } from "@/lib/services/chartsService";
+import { healthDataService } from "@/lib/services/healthDataService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
-import { healthDataService } from "@/lib/services/healthDataService";
-import { useAIInsights } from "@/hooks/useAIInsights";
-import type { Symptom, Medication, VitalSign } from "@/types";
+import type { Medication, Symptom, VitalSign } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import HealthChart from "@/app/components/HealthChart";
-import CorrelationChart from "@/app/components/CorrelationChart";
-import TrendPredictionChart from "@/app/components/TrendPredictionChart";
-import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Button, Card } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
 
 type DateRange = "7d" | "30d" | "90d" | "custom";
 
@@ -44,13 +47,15 @@ export default function AnalyticsScreen() {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [vitals, setVitals] = useState<VitalSign[]>([]);
   const [showComparison, setShowComparison] = useState(false);
-  const [comparisonRange, setComparisonRange] = useState<DateRange | null>(null);
+  const [comparisonRange, setComparisonRange] = useState<DateRange | null>(
+    null
+  );
   const [showAIInsights, setShowAIInsights] = useState(false);
 
   // AI Insights hook
   const aiInsights = useAIInsights(user?.id, {
     autoLoad: false, // Load on demand to avoid slowing down analytics
-    includeNarrative: true
+    includeNarrative: true,
   });
 
   const styles = createThemedStyles((theme) => ({
@@ -69,7 +74,9 @@ export default function AnalyticsScreen() {
       fontSize: 24,
     } as TextStyle,
     dateRangeSelector: {
-      flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+      flexDirection: (isRTL
+        ? "row-reverse"
+        : "row") as ViewStyle["flexDirection"],
       gap: theme.spacing.xs,
       flexWrap: "wrap" as ViewStyle["flexWrap"],
     } as ViewStyle,
@@ -78,7 +85,10 @@ export default function AnalyticsScreen() {
       paddingVertical: theme.spacing.xs,
       borderRadius: theme.borderRadius.full,
       borderWidth: 1,
-      borderColor: typeof theme.colors.border === "string" ? theme.colors.border : theme.colors.border.light,
+      borderColor:
+        typeof theme.colors.border === "string"
+          ? theme.colors.border
+          : theme.colors.border.light,
       backgroundColor: theme.colors.background.secondary,
     } as ViewStyle,
     dateRangeButtonActive: {
@@ -99,14 +109,18 @@ export default function AnalyticsScreen() {
       marginVertical: theme.spacing.base,
     } as ViewStyle,
     sectionHeader: {
-      flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+      flexDirection: (isRTL
+        ? "row-reverse"
+        : "row") as ViewStyle["flexDirection"],
       justifyContent: "space-between" as ViewStyle["justifyContent"],
       alignItems: "center" as ViewStyle["alignItems"],
       paddingHorizontal: theme.spacing.base,
       marginBottom: theme.spacing.sm,
     } as ViewStyle,
     comparisonToggle: {
-      flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+      flexDirection: (isRTL
+        ? "row-reverse"
+        : "row") as ViewStyle["flexDirection"],
       alignItems: "center" as ViewStyle["alignItems"],
       gap: theme.spacing.xs,
     } as ViewStyle,
@@ -155,37 +169,40 @@ export default function AnalyticsScreen() {
     });
   };
 
-  const loadAnalyticsData = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadAnalyticsData = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        const days = getDaysFromRange(dateRange);
+
+        // Load data in parallel
+        const [userSymptoms, userMedications, userVitals] = await Promise.all([
+          symptomService.getUserSymptoms(user.id, 1000), // Get more for better charts
+          medicationService.getUserMedications(user.id),
+          healthDataService.getLatestVitals(), // This might need to be updated to get historical vitals
+        ]);
+
+        setSymptoms(userSymptoms);
+        setMedications(userMedications);
+        // Note: getLatestVitals returns VitalSigns object, not VitalSign[]
+        // For now, we'll keep vitals as empty array since it's not used in the analytics
+        setVitals([]);
+      } catch (error) {
+        // Handle error silently
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      const days = getDaysFromRange(dateRange);
-
-      // Load data in parallel
-      const [userSymptoms, userMedications, userVitals] = await Promise.all([
-        symptomService.getUserSymptoms(user.id, 1000), // Get more for better charts
-        medicationService.getUserMedications(user.id),
-        healthDataService.getLatestVitals(), // This might need to be updated to get historical vitals
-      ]);
-
-      setSymptoms(userSymptoms);
-      setMedications(userMedications);
-      // Note: getLatestVitals returns VitalSigns object, not VitalSign[]
-      // For now, we'll keep vitals as empty array since it's not used in the analytics
-      setVitals([]);
-    } catch (error) {
-      // Handle error silently
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, dateRange]);
+    },
+    [user, dateRange]
+  );
 
   useEffect(() => {
     loadAnalyticsData();
@@ -203,10 +220,11 @@ export default function AnalyticsScreen() {
     getDaysFromRange(dateRange)
   );
 
-  const medicationComplianceData = chartsService.prepareMedicationComplianceTimeSeries(
-    medications,
-    getDaysFromRange(dateRange)
-  );
+  const medicationComplianceData =
+    chartsService.prepareMedicationComplianceTimeSeries(
+      medications,
+      getDaysFromRange(dateRange)
+    );
 
   const correlationData = chartsService.calculateCorrelation(
     symptoms,
@@ -229,10 +247,8 @@ export default function AnalyticsScreen() {
       ? (() => {
           const currentDays = getDaysFromRange(dateRange);
           const previousDays = getDaysFromRange(comparisonRange);
-          const previousSymptomChartData = chartsService.prepareSymptomTimeSeries(
-            symptoms,
-            previousDays
-          );
+          const previousSymptomChartData =
+            chartsService.prepareSymptomTimeSeries(symptoms, previousDays);
           const currentIsoDates = buildIsoDateSeries(currentDays);
           const previousIsoDates = buildIsoDateSeries(previousDays);
 
@@ -265,7 +281,13 @@ export default function AnalyticsScreen() {
     <SafeAreaView style={styles.container as ViewStyle}>
       <View style={styles.header as ViewStyle}>
         <View style={{ marginBottom: theme.spacing.base }}>
-          <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && styles.rtlText as TextStyle]}>
+          <Heading
+            level={4}
+            style={[
+              styles.headerTitle as TextStyle,
+              isRTL && (styles.rtlText as TextStyle),
+            ]}
+          >
             {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics & Trends"}
           </Heading>
         </View>
@@ -276,16 +298,24 @@ export default function AnalyticsScreen() {
             <TouchableOpacity
               key={range.value}
               onPress={() => setDateRange(range.value)}
-              style={[
-                styles.dateRangeButton,
-                dateRange === range.value ? styles.dateRangeButtonActive : undefined,
-              ] as ViewStyle[]}
+              style={
+                [
+                  styles.dateRangeButton,
+                  dateRange === range.value
+                    ? styles.dateRangeButtonActive
+                    : undefined,
+                ] as ViewStyle[]
+              }
             >
               <Text
-                style={[
-                  styles.dateRangeButtonText,
-                  dateRange === range.value ? styles.dateRangeButtonTextActive : undefined,
-                ] as TextStyle[]}
+                style={
+                  [
+                    styles.dateRangeButtonText,
+                    dateRange === range.value
+                      ? styles.dateRangeButtonTextActive
+                      : undefined,
+                  ] as TextStyle[]
+                }
               >
                 {range.label}
               </Text>
@@ -296,17 +326,17 @@ export default function AnalyticsScreen() {
 
       {loading ? (
         <View style={styles.emptyContainer as ViewStyle}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
         </View>
       ) : (
         <ScrollView
-          style={styles.content as ViewStyle}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
               onRefresh={() => loadAnalyticsData(true)}
+              refreshing={refreshing}
             />
           }
+          style={styles.content as ViewStyle}
         >
           {/* Symptom Trends */}
           {symptoms.length > 0 && (
@@ -343,7 +373,13 @@ export default function AnalyticsScreen() {
                         : theme.colors.text.secondary,
                     }}
                   >
-                    {isRTL ? (showComparison ? "إخفاء المقارنة" : "مقارنة") : (showComparison ? "Hide Comparison" : "Compare")}
+                    {isRTL
+                      ? showComparison
+                        ? "إخفاء المقارنة"
+                        : "مقارنة"
+                      : showComparison
+                        ? "Hide Comparison"
+                        : "Compare"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -429,19 +465,23 @@ export default function AnalyticsScreen() {
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
                 <Heading level={6} style={styles.rtlText as TextStyle}>
-                  {isRTL ? "تحليل الارتباط بين الأعراض الصحية والأدوية" : "Correlation Analysis"}
+                  {isRTL
+                    ? "تحليل الارتباط بين الأعراض الصحية والأدوية"
+                    : "Correlation Analysis"}
                 </Heading>
               </View>
-              <CorrelationChart
-                data={correlationData}
-                title=""
-              />
-              <Card variant="elevated" style={{ marginHorizontal: 16, marginTop: 8 }} onPress={undefined} contentStyle={undefined}>
+              <CorrelationChart data={correlationData} title="" />
+              <Card
+                contentStyle={undefined}
+                onPress={undefined}
+                style={{ marginHorizontal: 16, marginTop: 8 }}
+                variant="elevated"
+              >
                 <View style={{ padding: 16 }}>
-                  <TypographyText weight="semibold" style={{ marginBottom: 8 }}>
+                  <TypographyText style={{ marginBottom: 8 }} weight="semibold">
                     {isRTL ? "التفسير الصحي" : "Interpretation"}
                   </TypographyText>
-                  <Caption style={{}} numberOfLines={5}>
+                  <Caption numberOfLines={5} style={{}}>
                     {correlationData.correlation > 0.3
                       ? isRTL
                         ? "يبدو أن الالتزام بالأدوية يرتبط بانخفاض شدة الأعراض الصحية"
@@ -469,7 +509,14 @@ export default function AnalyticsScreen() {
                 onPress={() => setShowAIInsights(!showAIInsights)}
                 style={styles.comparisonToggle as ViewStyle}
               >
-                <Brain size={16} color={showAIInsights ? theme.colors.primary.main : theme.colors.text.secondary} />
+                <Brain
+                  color={
+                    showAIInsights
+                      ? theme.colors.primary.main
+                      : theme.colors.text.secondary
+                  }
+                  size={16}
+                />
                 <Text
                   style={{
                     fontSize: 12,
@@ -478,7 +525,13 @@ export default function AnalyticsScreen() {
                       : theme.colors.text.secondary,
                   }}
                 >
-                  {isRTL ? (showAIInsights ? "إخفاء" : "عرض") : (showAIInsights ? "Hide" : "Show")}
+                  {isRTL
+                    ? showAIInsights
+                      ? "إخفاء"
+                      : "عرض"
+                    : showAIInsights
+                      ? "Hide"
+                      : "Show"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -486,28 +539,52 @@ export default function AnalyticsScreen() {
             {showAIInsights && (
               <View style={{ marginHorizontal: 16 }}>
                 {aiInsights.loading ? (
-                  <View style={{ padding: 20, alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color={theme.colors.primary.main} />
-                    <Text style={{
-                      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-                      marginTop: theme.spacing.xs,
-                    }}>
+                  <View style={{ padding: 20, alignItems: "center" }}>
+                    <ActivityIndicator
+                      color={theme.colors.primary.main}
+                      size="small"
+                    />
+                    <Text
+                      style={{
+                        ...getTextStyle(
+                          theme,
+                          "body",
+                          "regular",
+                          theme.colors.text.primary
+                        ),
+                        marginTop: theme.spacing.xs,
+                      }}
+                    >
                       {isRTL ? "تحليل بياناتك..." : "Analyzing your data..."}
                     </Text>
                   </View>
                 ) : aiInsights.error ? (
-                  <Card variant="elevated" style={{ marginBottom: 8 }} onPress={() => {}} contentStyle={undefined}>
+                  <Card
+                    contentStyle={undefined}
+                    onPress={() => {}}
+                    style={{ marginBottom: 8 }}
+                    variant="elevated"
+                  >
                     <View style={{ padding: 16 }}>
-                      <Text style={{
-                        ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-                        color: theme.colors.accent.error,
-                      }}>
-                        {isRTL ? "فشل في تحميل الرؤى الذكية" : "Failed to load AI insights"}
+                      <Text
+                        style={{
+                          ...getTextStyle(
+                            theme,
+                            "body",
+                            "regular",
+                            theme.colors.text.primary
+                          ),
+                          color: theme.colors.accent.error,
+                        }}
+                      >
+                        {isRTL
+                          ? "فشل في تحميل الرؤى الذكية"
+                          : "Failed to load AI insights"}
                       </Text>
                       <Button
-                        title={isRTL ? "إعادة المحاولة" : "Retry"}
                         onPress={aiInsights.refresh}
                         style={{ marginTop: 8 }}
+                        title={isRTL ? "إعادة المحاولة" : "Retry"}
                       />
                     </View>
                   </Card>
@@ -516,7 +593,7 @@ export default function AnalyticsScreen() {
                     compact={true}
                     onInsightPress={(insight: any) => {
                       // Handle insight press - could navigate to detailed view
-                      console.log('Insight pressed:', insight);
+                      console.log("Insight pressed:", insight);
                     }}
                   />
                 )}
@@ -532,16 +609,25 @@ export default function AnalyticsScreen() {
               </Heading>
             </View>
             <View style={{ paddingHorizontal: 16, gap: 12 }}>
-              <Card variant="elevated" style={undefined} onPress={undefined} contentStyle={undefined}>
+              <Card
+                contentStyle={undefined}
+                onPress={undefined}
+                style={undefined}
+                variant="elevated"
+              >
                 <View style={{ padding: 16 }}>
-                  <TypographyText weight="semibold" style={{ marginBottom: 4 }}>
-                    {isRTL ? "متوسط شدة الأعراض الصحية" : "Average Symptom Severity"}
+                  <TypographyText style={{ marginBottom: 4 }} weight="semibold">
+                    {isRTL
+                      ? "متوسط شدة الأعراض الصحية"
+                      : "Average Symptom Severity"}
                   </TypographyText>
-                  <TypographyText size="large" weight="bold" style={{}}>
+                  <TypographyText size="large" style={{}} weight="bold">
                     {symptomChartData.datasets[0].data.length > 0
                       ? (
-                          symptomChartData.datasets[0].data.reduce((a, b) => a + b, 0) /
-                          symptomChartData.datasets[0].data.length
+                          symptomChartData.datasets[0].data.reduce(
+                            (a, b) => a + b,
+                            0
+                          ) / symptomChartData.datasets[0].data.length
                         ).toFixed(1)
                       : "0"}
                     /5
@@ -549,16 +635,25 @@ export default function AnalyticsScreen() {
                 </View>
               </Card>
 
-              <Card variant="elevated" style={undefined} onPress={undefined} contentStyle={undefined}>
+              <Card
+                contentStyle={undefined}
+                onPress={undefined}
+                style={undefined}
+                variant="elevated"
+              >
                 <View style={{ padding: 16 }}>
-                  <TypographyText weight="semibold" style={{ marginBottom: 4 }}>
-                    {isRTL ? "متوسط الالتزام بالأدوية" : "Average Medication Compliance"}
+                  <TypographyText style={{ marginBottom: 4 }} weight="semibold">
+                    {isRTL
+                      ? "متوسط الالتزام بالأدوية"
+                      : "Average Medication Compliance"}
                   </TypographyText>
-                  <TypographyText size="large" weight="bold" style={{}}>
+                  <TypographyText size="large" style={{}} weight="bold">
                     {medicationComplianceData.datasets[0].data.length > 0
                       ? (
-                          medicationComplianceData.datasets[0].data.reduce((a, b) => a + b, 0) /
-                          medicationComplianceData.datasets[0].data.length
+                          medicationComplianceData.datasets[0].data.reduce(
+                            (a, b) => a + b,
+                            0
+                          ) / medicationComplianceData.datasets[0].data.length
                         ).toFixed(0)
                       : "100"}
                     %

@@ -1,38 +1,37 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from './theme';
+import { Image, StyleSheet, Text, View } from "react-native";
+import { borderRadius, colors, shadows, spacing, typography } from "./theme";
 
 // Badge Component
 export const Badge = ({
   children,
-  variant = 'primary', // primary, secondary, success, error, warning, info
-  size = 'medium', // small, medium, large
+  variant = "primary", // primary, secondary, success, error, warning, info
+  size = "medium", // small, medium, large
   style,
-}) => {
-  return (
-    <View style={[styles.badge, styles[`badge_${variant}`], styles[`badge_${size}`], style]}>
-      <Text style={[styles.badgeText, styles[`badgeText_${size}`]]}>
-        {children}
-      </Text>
-    </View>
-  );
-};
+}) => (
+  <View
+    style={[
+      styles.badge,
+      styles[`badge_${variant}`],
+      styles[`badge_${size}`],
+      style,
+    ]}
+  >
+    <Text style={[styles.badgeText, styles[`badgeText_${size}`]]}>
+      {children}
+    </Text>
+  </View>
+);
 
 // Avatar Component
-export const Avatar = ({
-  source,
-  size = 48,
-  name,
-  style,
-}) => {
+export const Avatar = ({ source, size = 48, name, style }) => {
   const initials = name
     ? name
-        .split(' ')
+        .split(" ")
         .map((n) => n[0])
-        .join('')
+        .join("")
         .toUpperCase()
         .slice(0, 2)
-    : '?';
+    : "?";
 
   return (
     <View
@@ -46,7 +45,10 @@ export const Avatar = ({
       {source ? (
         <Image
           source={source}
-          style={[styles.avatarImage, { width: size, height: size, borderRadius: size / 2 }]}
+          style={[
+            styles.avatarImage,
+            { width: size, height: size, borderRadius: size / 2 },
+          ]}
         />
       ) : (
         <Text style={[styles.avatarText, { fontSize: size / 2.5 }]}>
@@ -60,7 +62,7 @@ export const Avatar = ({
 // Divider Component
 export const Divider = ({
   vertical = false,
-  spacing: dividerSpacing = 'medium',
+  spacing: dividerSpacing = "medium",
   color = colors.divider,
   thickness = 1,
   style,
@@ -98,7 +100,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.round,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   badge_small: {
     paddingHorizontal: spacing.xs,
@@ -147,13 +149,13 @@ const styles = StyleSheet.create({
   // Avatar Styles
   avatar: {
     backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   avatarText: {
     color: colors.primary,
@@ -165,9 +167,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.divider,
   },
   dividerHorizontal: {
-    width: '100%',
+    width: "100%",
   },
   dividerVertical: {
-    height: '100%',
+    height: "100%",
   },
 });

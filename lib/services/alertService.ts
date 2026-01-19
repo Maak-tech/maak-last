@@ -12,14 +12,14 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import {
+  escalationService,
+  healthTimelineService,
+  observabilityEmitter,
+} from "@/lib/observability";
 import type { EmergencyAlert } from "@/types";
 import { pushNotificationService } from "./pushNotificationService";
 import { userService } from "./userService";
-import {
-  observabilityEmitter,
-  healthTimelineService,
-  escalationService,
-} from "@/lib/observability";
 
 export const alertService = {
   async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
@@ -35,10 +35,18 @@ export const alertService = {
         title: `Alert: ${alertData.type}`,
         description: alertData.message,
         timestamp: alertData.timestamp,
-        severity: alertData.severity === "critical" ? "critical" : 
-                  alertData.severity === "high" ? "error" : "warn",
-        icon: alertData.type === "fall" ? "alert-triangle" : 
-              alertData.type === "medication" ? "pill" : "heart-pulse",
+        severity:
+          alertData.severity === "critical"
+            ? "critical"
+            : alertData.severity === "high"
+              ? "error"
+              : "warn",
+        icon:
+          alertData.type === "fall"
+            ? "alert-triangle"
+            : alertData.type === "medication"
+              ? "pill"
+              : "heart-pulse",
         metadata: {
           alertId: docRef.id,
           alertType: alertData.type,
@@ -53,8 +61,12 @@ export const alertService = {
         domain: "alerts",
         source: "alertService",
         message: `Alert created: ${alertData.type}`,
-        severity: alertData.severity === "critical" ? "critical" : 
-                  alertData.severity === "high" ? "error" : "warn",
+        severity:
+          alertData.severity === "critical"
+            ? "critical"
+            : alertData.severity === "high"
+              ? "error"
+              : "warn",
         status: "success",
         metadata: {
           alertId: docRef.id,
@@ -169,7 +181,7 @@ export const alertService = {
         userId: alertData.userId,
         eventType: "alert_resolved",
         title: `Alert resolved: ${alertData.type}`,
-        description: `Alert was resolved`,
+        description: "Alert was resolved",
         timestamp: new Date(),
         severity: "info",
         icon: "check-circle",
@@ -248,7 +260,9 @@ export const alertService = {
         userId,
         eventType: "fall_detected",
         title: "Fall detected",
-        description: location ? `Location: ${location}` : "Fall detected - location unknown",
+        description: location
+          ? `Location: ${location}`
+          : "Fall detected - location unknown",
         timestamp: new Date(),
         severity: "critical",
         icon: "alert-triangle",
@@ -296,7 +310,10 @@ export const alertService = {
           severity: "warn",
           status: "failure",
           error: {
-            message: notificationError instanceof Error ? notificationError.message : "Unknown error",
+            message:
+              notificationError instanceof Error
+                ? notificationError.message
+                : "Unknown error",
           },
           metadata: { alertId, userId },
         });
@@ -362,9 +379,14 @@ export const alertService = {
     try {
       // Verify caregiver has permission
       const caregiver = await userService.getUser(caregiverId);
-      if (!caregiver || caregiver.familyId !== familyId ||
-          (caregiver.role !== "admin" && caregiver.role !== "caregiver")) {
-        throw new Error("Access denied: Only admins and caregivers can send alerts");
+      if (
+        !caregiver ||
+        caregiver.familyId !== familyId ||
+        (caregiver.role !== "admin" && caregiver.role !== "caregiver")
+      ) {
+        throw new Error(
+          "Access denied: Only admins and caregivers can send alerts"
+        );
       }
 
       const alertData: Omit<EmergencyAlert, "id"> = {
@@ -390,8 +412,8 @@ export const alertService = {
               type: "caregiver_alert",
               alertId,
               caregiverId,
-              familyId
-            }
+              familyId,
+            },
           },
           caregiverId // Exclude the caregiver who sent the alert
         );

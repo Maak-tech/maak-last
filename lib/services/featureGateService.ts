@@ -164,7 +164,9 @@ class FeatureGateService {
         return true;
 
       case FeatureAccessLevel.PREMIUM_INDIVIDUAL:
-        return subscriptionStatus.isIndividualPlan || subscriptionStatus.isFamilyPlan;
+        return (
+          subscriptionStatus.isIndividualPlan || subscriptionStatus.isFamilyPlan
+        );
 
       case FeatureAccessLevel.PREMIUM_FAMILY:
         return subscriptionStatus.isFamilyPlan;
@@ -198,7 +200,9 @@ class FeatureGateService {
   /**
    * Get all features that require a specific access level
    */
-  getFeaturesByAccessLevel(accessLevel: FeatureAccessLevel): Array<typeof FEATURES[FeatureId]> {
+  getFeaturesByAccessLevel(
+    accessLevel: FeatureAccessLevel
+  ): Array<(typeof FEATURES)[FeatureId]> {
     return Object.values(FEATURES).filter(
       (feature) => feature.accessLevel === accessLevel
     );
@@ -273,7 +277,8 @@ export function useFeatureGate(featureId: FeatureId) {
   });
 
   const feature = featureGateService.getFeature(featureId);
-  const requiredLevel = featureGateService.getRequiredSubscriptionType(featureId);
+  const requiredLevel =
+    featureGateService.getRequiredSubscriptionType(featureId);
 
   return {
     hasAccess,
@@ -311,7 +316,7 @@ export function useFeatureGates(featureIds: FeatureId[]) {
       {
         hasAccess: boolean;
         needsUpgrade: boolean;
-        feature: typeof FEATURES[FeatureId] | undefined;
+        feature: (typeof FEATURES)[FeatureId] | undefined;
       }
     >
   );
@@ -321,4 +326,3 @@ export function useFeatureGates(featureIds: FeatureId[]) {
     isLoading: subscription.isLoading,
   };
 }
-

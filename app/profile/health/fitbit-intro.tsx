@@ -275,7 +275,9 @@ export default function FitbitIntroScreen() {
                     { color: theme.colors.text.primary },
                   ]}
                 >
-                  {isRTL ? "نقرأ فقط ما تختاره" : "We only read what you choose"}
+                  {isRTL
+                    ? "نقرأ فقط ما تختاره"
+                    : "We only read what you choose"}
                 </Text>
                 <Text
                   style={[
@@ -360,11 +362,11 @@ export default function FitbitIntroScreen() {
 
         {/* Continue Button */}
         <TouchableOpacity
+          onPress={() => router.push("/profile/health/fitbit-permissions")}
           style={[
             styles.continueButton,
             { backgroundColor: theme.colors.primary.main },
           ]}
-          onPress={() => router.push("/profile/health/fitbit-permissions")}
         >
           <Text style={styles.continueButtonText}>
             {isRTL ? "متابعة" : "Continue"}
@@ -519,4 +521,3 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
 });
-

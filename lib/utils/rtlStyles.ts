@@ -3,7 +3,7 @@
  * Use these helpers to create spacing that automatically flips for RTL languages
  */
 
-import { StyleSheet, ViewStyle, TextStyle } from "react-native";
+import type { TextStyle, ViewStyle } from "react-native";
 
 /**
  * Creates RTL-aware margin styles
@@ -86,4 +86,3 @@ export const getRTLTextAlign = (
   }
   return { textAlign: baseAlign };
 };
-

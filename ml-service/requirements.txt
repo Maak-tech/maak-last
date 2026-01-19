@@ -1,0 +1,29 @@
+# Core dependencies
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.9.0  # Newer version has pre-built wheels for Python 3.13
+python-dotenv==1.0.0
+
+# ML dependencies
+# Note: Using compatible versions for Python 3.13
+# If you have Python 3.9-3.11, you can use torch==2.1.2, numpy==1.26.3
+torch>=2.6.0
+torchvision>=0.21.0
+numpy>=1.26.0  # Use >= to get compatible pre-built wheels
+scipy>=1.12.0
+scikit-learn>=1.4.0
+
+# Signal processing
+librosa>=0.10.2
+pywavelets>=1.6.0  # Newer version has pre-built wheels for Python 3.13
+
+# Utilities
+httpx==0.26.0
+python-multipart==0.0.6
+requests==2.31.0
+
+# Development
+pytest==7.4.4
+black==24.1.1
+isort==5.13.2
+mypy==1.8.0

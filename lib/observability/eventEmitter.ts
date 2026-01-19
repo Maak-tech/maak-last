@@ -1,20 +1,16 @@
-import {
-  addDoc,
-  collection,
-  Timestamp,
-} from "firebase/firestore";
+import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { AppState, type AppStateStatus } from "react-native";
 import { db } from "@/lib/firebase";
 import { logger } from "@/lib/utils/logger";
 import type {
-  ObservabilityEvent,
-  HealthEvent,
-  AlertEvent,
-  PlatformMetric,
   AlertAuditEntry,
-  ObservabilityDomain,
+  AlertEvent,
   EventSeverity,
   EventStatus,
+  HealthEvent,
+  ObservabilityDomain,
+  ObservabilityEvent,
+  PlatformMetric,
 } from "./types";
 
 const EVENTS_COLLECTION = "observability_events";
@@ -66,13 +62,15 @@ function redactPHI(text: string): string {
   return redacted;
 }
 
-function sanitizeMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
-  if (!metadata) return undefined;
-  
+function sanitizeMetadata(
+  metadata: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!metadata) return;
+
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(metadata)) {
     if (!ALLOWED_METADATA_KEYS.has(key)) continue;
-    
+
     if (typeof value === "string") {
       sanitized[key] = redactPHI(value);
     } else if (typeof value === "number" || typeof value === "boolean") {
@@ -85,8 +83,8 @@ function sanitizeMetadata(metadata: Record<string, unknown> | undefined): Record
 function sanitizeError(
   error: { code?: string; message: string; stack?: string } | undefined
 ): { code?: string; message: string } | undefined {
-  if (!error) return undefined;
-  
+  if (!error) return;
+
   const sanitized: { code?: string; message: string } = {
     message: redactPHI(error.message).substring(0, 200),
   };
@@ -96,7 +94,9 @@ function sanitizeError(
   return sanitized;
 }
 
-function sanitizeForFirestore(data: Record<string, unknown>): Record<string, unknown> {
+function sanitizeForFirestore(
+  data: Record<string, unknown>
+): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (value === undefined) continue;
@@ -110,7 +110,11 @@ function sanitizeForFirestore(data: Record<string, unknown>): Record<string, unk
       sanitized[key] = redactPHI(value).substring(0, 500);
     } else if (value instanceof Date) {
       sanitized[key] = Timestamp.fromDate(value);
-    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    } else if (
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
       sanitized[key] = sanitizeForFirestore(value as Record<string, unknown>);
     } else {
       sanitized[key] = value;
@@ -123,7 +127,7 @@ class ObservabilityEventEmitter {
   private buffer: ObservabilityEvent[] = [];
   private flushInterval: NodeJS.Timeout | null = null;
   private maxBufferSize = 50;
-  private flushIntervalMs = 10000;
+  private flushIntervalMs = 10_000;
   private isEnabled = true;
   private appStateSubscription: { remove: () => void } | null = null;
 
@@ -143,7 +147,11 @@ class ObservabilityEventEmitter {
         this.handleAppStateChange.bind(this)
       );
     } catch (error) {
-      logger.warn("Failed to setup app state listener", error, "ObservabilityEmitter");
+      logger.warn(
+        "Failed to setup app state listener",
+        error,
+        "ObservabilityEmitter"
+      );
     }
   }
 
@@ -168,15 +176,24 @@ class ObservabilityEventEmitter {
 
     try {
       const batch = eventsToFlush.map((event) =>
-        addDoc(collection(db, EVENTS_COLLECTION), sanitizeForFirestore(event as any))
+        addDoc(
+          collection(db, EVENTS_COLLECTION),
+          sanitizeForFirestore(event as any)
+        )
       );
       await Promise.allSettled(batch);
     } catch (error) {
-      logger.error("Failed to flush observability events", error, "ObservabilityEmitter");
+      logger.error(
+        "Failed to flush observability events",
+        error,
+        "ObservabilityEmitter"
+      );
     }
   }
 
-  async emit(event: Omit<ObservabilityEvent, "id" | "timestamp">): Promise<string> {
+  async emit(
+    event: Omit<ObservabilityEvent, "id" | "timestamp">
+  ): Promise<string> {
     if (!this.isEnabled) return "";
 
     const correlationId = event.correlationId || generateCorrelationId();
@@ -193,11 +210,23 @@ class ObservabilityEventEmitter {
     }
 
     if (event.severity === "error" || event.severity === "critical") {
-      logger.error(`[${event.domain}] ${event.message}`, event.metadata, event.source);
+      logger.error(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
     } else if (event.severity === "warn") {
-      logger.warn(`[${event.domain}] ${event.message}`, event.metadata, event.source);
+      logger.warn(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
     } else {
-      logger.info(`[${event.domain}] ${event.message}`, event.metadata, event.source);
+      logger.info(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
     }
 
     return correlationId;
@@ -333,7 +362,11 @@ class ObservabilityEventEmitter {
       // Firestore client can occasionally retry a successful "create" and get ALREADY_EXISTS.
       // This is safe to ignore because the metric doc was already written.
       if ((error as any)?.code === "already-exists") return;
-      logger.error("Failed to record metric", { metricName, error }, "ObservabilityEmitter");
+      logger.error(
+        "Failed to record metric",
+        { metricName, error },
+        "ObservabilityEmitter"
+      );
     }
   }
 
@@ -364,9 +397,16 @@ class ObservabilityEventEmitter {
     };
 
     try {
-      await addDoc(collection(db, ALERT_AUDITS_COLLECTION), sanitizeForFirestore(auditEntry as any));
+      await addDoc(
+        collection(db, ALERT_AUDITS_COLLECTION),
+        sanitizeForFirestore(auditEntry as any)
+      );
     } catch (error) {
-      logger.error("Failed to record alert audit", { alertId, action, error }, "ObservabilityEmitter");
+      logger.error(
+        "Failed to record alert audit",
+        { alertId, action, error },
+        "ObservabilityEmitter"
+      );
     }
   }
 

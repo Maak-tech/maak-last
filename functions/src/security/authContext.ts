@@ -2,8 +2,8 @@
  * Authentication context extraction and management
  */
 
-import type { UserRole } from '../db/firestore';
-import { getUsersCollection } from '../db/collections';
+import { getUsersCollection } from "../db/collections";
+import type { UserRole } from "../db/firestore";
 
 export interface AuthContext {
   uid: string;
@@ -29,10 +29,12 @@ export function extractAuthContext(context: any): AuthContext | null {
 /**
  * Enrich auth context with user data from Firestore
  */
-export async function enrichAuthContext(authContext: AuthContext): Promise<AuthContext> {
+export async function enrichAuthContext(
+  authContext: AuthContext
+): Promise<AuthContext> {
   try {
     const userDoc = await getUsersCollection().doc(authContext.uid).get();
-    
+
     if (!userDoc.exists) {
       return authContext;
     }
@@ -56,7 +58,9 @@ export async function enrichAuthContext(authContext: AuthContext): Promise<AuthC
 /**
  * Get full auth context (extract + enrich)
  */
-export async function getAuthContext(context: any): Promise<AuthContext | null> {
+export async function getAuthContext(
+  context: any
+): Promise<AuthContext | null> {
   const baseContext = extractAuthContext(context);
   if (!baseContext) {
     return null;

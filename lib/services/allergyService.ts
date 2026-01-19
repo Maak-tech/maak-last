@@ -34,23 +34,30 @@ export const allergyService = {
         const docRef = await addDoc(collection(db, "allergies"), cleanedData);
         // Cache the result for offline access
         const newAllergy = { id: docRef.id, ...allergyData };
-        const currentAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
-        await offlineService.storeOfflineData("allergies", [...currentAllergies, newAllergy]);
+        const currentAllergies =
+          await offlineService.getOfflineCollection<Allergy>("allergies");
+        await offlineService.storeOfflineData("allergies", [
+          ...currentAllergies,
+          newAllergy,
+        ]);
         return docRef.id;
-      } else {
-        // Offline - queue the operation
-        const operationId = await offlineService.queueOperation({
-          type: "create",
-          collection: "allergies",
-          data: { ...allergyData, userId: allergyData.userId },
-        });
-        // Store locally for immediate UI update
-        const tempId = `offline_${operationId}`;
-        const newAllergy = { id: tempId, ...allergyData };
-        const currentAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
-        await offlineService.storeOfflineData("allergies", [...currentAllergies, newAllergy]);
-        return tempId;
       }
+      // Offline - queue the operation
+      const operationId = await offlineService.queueOperation({
+        type: "create",
+        collection: "allergies",
+        data: { ...allergyData, userId: allergyData.userId },
+      });
+      // Store locally for immediate UI update
+      const tempId = `offline_${operationId}`;
+      const newAllergy = { id: tempId, ...allergyData };
+      const currentAllergies =
+        await offlineService.getOfflineCollection<Allergy>("allergies");
+      await offlineService.storeOfflineData("allergies", [
+        ...currentAllergies,
+        newAllergy,
+      ]);
+      return tempId;
     } catch (error) {
       // If online but fails, queue for retry
       if (isOnline) {
@@ -85,7 +92,10 @@ export const allergyService = {
           try {
             // Safely convert timestamp
             let timestamp: Date;
-            if (data.timestamp?.toDate && typeof data.timestamp.toDate === "function") {
+            if (
+              data.timestamp?.toDate &&
+              typeof data.timestamp.toDate === "function"
+            ) {
               timestamp = data.timestamp.toDate();
             } else if (data.timestamp instanceof Date) {
               timestamp = data.timestamp;
@@ -98,7 +108,10 @@ export const allergyService = {
             // Safely convert discoveredDate
             let discoveredDate: Date | undefined;
             if (data.discoveredDate) {
-              if (data.discoveredDate?.toDate && typeof data.discoveredDate.toDate === "function") {
+              if (
+                data.discoveredDate?.toDate &&
+                typeof data.discoveredDate.toDate === "function"
+              ) {
                 discoveredDate = data.discoveredDate.toDate();
               } else if (data.discoveredDate instanceof Date) {
                 discoveredDate = data.discoveredDate;
@@ -130,22 +143,23 @@ export const allergyService = {
         // Cache for offline access
         await offlineService.storeOfflineData("allergies", result);
         return result;
-      } else {
-        // Offline - use cached data filtered by userId
-        const cachedAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
-        return cachedAllergies
-          .filter((a) => a.userId === userId)
-          .sort((a, b) => {
-            const timeA = a.timestamp?.getTime() || 0;
-            const timeB = b.timestamp?.getTime() || 0;
-            return timeB - timeA;
-          })
-          .slice(0, limitCount);
       }
+      // Offline - use cached data filtered by userId
+      const cachedAllergies =
+        await offlineService.getOfflineCollection<Allergy>("allergies");
+      return cachedAllergies
+        .filter((a) => a.userId === userId)
+        .sort((a, b) => {
+          const timeA = a.timestamp?.getTime() || 0;
+          const timeB = b.timestamp?.getTime() || 0;
+          return timeB - timeA;
+        })
+        .slice(0, limitCount);
     } catch (error) {
       // If online but fails, try offline cache
       if (isOnline) {
-        const cachedAllergies = await offlineService.getOfflineCollection<Allergy>("allergies");
+        const cachedAllergies =
+          await offlineService.getOfflineCollection<Allergy>("allergies");
         return cachedAllergies
           .filter((a) => a.userId === userId)
           .sort((a, b) => {
@@ -167,15 +181,21 @@ export const allergyService = {
     try {
       const updateData: any = { ...updates };
       if (updates.timestamp) {
-        const timestamp = updates.timestamp instanceof Date ? updates.timestamp : new Date(updates.timestamp);
+        const timestamp =
+          updates.timestamp instanceof Date
+            ? updates.timestamp
+            : new Date(updates.timestamp);
         updateData.timestamp = Timestamp.fromDate(timestamp);
       }
       if (updates.discoveredDate) {
-        const discoveredDate = updates.discoveredDate instanceof Date ? updates.discoveredDate : new Date(updates.discoveredDate);
+        const discoveredDate =
+          updates.discoveredDate instanceof Date
+            ? updates.discoveredDate
+            : new Date(updates.discoveredDate);
         updateData.discoveredDate = Timestamp.fromDate(discoveredDate);
       }
       // Remove undefined values
-      Object.keys(updateData).forEach(key => {
+      Object.keys(updateData).forEach((key) => {
         if (updateData[key] === undefined) {
           delete updateData[key];
         }
@@ -195,4 +215,3 @@ export const allergyService = {
     }
   },
 };
-

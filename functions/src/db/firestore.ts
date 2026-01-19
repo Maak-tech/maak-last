@@ -3,15 +3,15 @@
  * Core data types for the application
  */
 
-import { Timestamp } from 'firebase-admin/firestore';
+import type { Timestamp } from "firebase-admin/firestore";
 
-export { Timestamp, FieldValue } from 'firebase-admin/firestore';
+export { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 // ============================================================================
 // User & Auth
 // ============================================================================
 
-export type UserRole = 'owner' | 'caregiver' | 'admin';
+export type UserRole = "owner" | "caregiver" | "admin";
 
 export interface User {
   id?: string;
@@ -21,12 +21,15 @@ export interface User {
   role: UserRole;
   familyId?: string;
   fcmToken?: string;
-  fcmTokens?: Record<string, {
-    token: string;
-    updatedAt: Timestamp;
-    platform: string;
-    deviceName: string;
-  }>;
+  fcmTokens?: Record<
+    string,
+    {
+      token: string;
+      updatedAt: Timestamp;
+      platform: string;
+      deviceName: string;
+    }
+  >;
   preferences?: {
     notifications?: {
       enabled?: boolean;
@@ -51,7 +54,7 @@ export interface Patient {
   userId: string;
   familyId: string;
   dateOfBirth?: Timestamp;
-  gender?: 'male' | 'female' | 'other';
+  gender?: "male" | "female" | "other";
   bloodType?: string;
   allergies?: string[];
   emergencyContacts?: Array<{
@@ -71,7 +74,7 @@ export interface Patient {
 export interface CareLink {
   id?: string;
   caregiverId: string; // User ID of caregiver
-  patientId: string;   // User ID of patient
+  patientId: string; // User ID of patient
   familyId: string;
   relationship?: string;
   permissions?: {
@@ -82,7 +85,7 @@ export interface CareLink {
   invitedBy?: string;
   invitedAt?: Timestamp;
   acceptedAt?: Timestamp;
-  status: 'pending' | 'active' | 'revoked';
+  status: "pending" | "active" | "revoked";
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -91,15 +94,15 @@ export interface CareLink {
 // Vital
 // ============================================================================
 
-export type VitalType = 
-  | 'heartRate'
-  | 'bloodPressure'
-  | 'respiratoryRate'
-  | 'oxygenSaturation'
-  | 'bodyTemperature'
-  | 'weight'
-  | 'restingHeartRate'
-  | 'heartRateVariability';
+export type VitalType =
+  | "heartRate"
+  | "bloodPressure"
+  | "respiratoryRate"
+  | "oxygenSaturation"
+  | "bodyTemperature"
+  | "weight"
+  | "restingHeartRate"
+  | "heartRateVariability";
 
 export interface Vital {
   id?: string;
@@ -110,7 +113,7 @@ export interface Vital {
   unit: string;
   systolic?: number; // For blood pressure
   diastolic?: number; // For blood pressure
-  source?: 'manual' | 'device' | 'healthkit' | 'googlefit' | 'oura' | 'garmin';
+  source?: "manual" | "device" | "healthkit" | "googlefit" | "oura" | "garmin";
   deviceId?: string;
   timestamp: Timestamp;
   createdAt?: Timestamp;
@@ -120,9 +123,9 @@ export interface Vital {
 // Alert
 // ============================================================================
 
-export type AlertType = 'fall' | 'vital' | 'symptom' | 'medication' | 'trend';
-export type AlertSeverity = 'critical' | 'warning' | 'info';
-export type AlertStatus = 'active' | 'acknowledged' | 'resolved' | 'dismissed';
+export type AlertType = "fall" | "vital" | "symptom" | "medication" | "trend";
+export type AlertSeverity = "critical" | "warning" | "info";
+export type AlertStatus = "active" | "acknowledged" | "resolved" | "dismissed";
 
 export interface Alert {
   id?: string;
@@ -184,20 +187,26 @@ export interface Medication {
 // Audit Log
 // ============================================================================
 
-export type AuditAction = 
-  | 'read'
-  | 'create'
-  | 'update'
-  | 'delete'
-  | 'acknowledge'
-  | 'invite'
-  | 'revoke';
+export type AuditAction =
+  | "read"
+  | "create"
+  | "update"
+  | "delete"
+  | "acknowledge"
+  | "invite"
+  | "revoke";
 
 export interface AuditLog {
   id?: string;
   userId: string; // Who performed the action
   action: AuditAction;
-  resourceType: 'user' | 'patient' | 'vital' | 'alert' | 'medication' | 'careLink';
+  resourceType:
+    | "user"
+    | "patient"
+    | "vital"
+    | "alert"
+    | "medication"
+    | "careLink";
   resourceId: string;
   targetUserId?: string; // Who was affected (for patient data access)
   familyId?: string;

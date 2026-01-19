@@ -32,7 +32,7 @@ export function analyzeVitalTrend(
   values: Array<{ value: number; timestamp: Date }>,
   vitalType: string,
   unit: string,
-  timePeriodDays: number = 7
+  timePeriodDays = 7
 ): TrendAnalysis | null {
   if (values.length < 3) {
     return null; // Need at least 3 data points for trend analysis
@@ -78,10 +78,7 @@ export function analyzeVitalTrend(
 
   // Check for high variance (fluctuating)
   const variance =
-    sortedValues.reduce(
-      (sum, v) => sum + Math.pow(v.value - averageValue, 2),
-      0
-    ) / n;
+    sortedValues.reduce((sum, v) => sum + (v.value - averageValue) ** 2, 0) / n;
   const stdDev = Math.sqrt(variance);
   const coefficientOfVariation = (stdDev / averageValue) * 100;
 
@@ -176,7 +173,7 @@ export function analyzeVitalTrend(
 export function analyzeSymptomTrend(
   symptoms: Array<{ type: string; severity: number; timestamp: Date }>,
   symptomType: string,
-  timePeriodDays: number = 7
+  timePeriodDays = 7
 ): SymptomTrendAnalysis | null {
   const filteredSymptoms = symptoms.filter(
     (s) => s.type.toLowerCase() === symptomType.toLowerCase()
@@ -252,4 +249,3 @@ export function isTrendConcerning(
 ): boolean {
   return analysis.severity === "critical" || analysis.severity === "warning";
 }
-

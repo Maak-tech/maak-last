@@ -9,8 +9,11 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logger } from "@/lib/utils/logger";
-import { healthTimelineService, type HealthTimelineEvent } from "./healthTimeline";
-import { healthAnalytics, type HealthScore, type RiskAssessment } from "./healthAnalytics";
+import type { HealthScore, RiskAssessment } from "./healthAnalytics";
+import {
+  type HealthTimelineEvent,
+  healthTimelineService,
+} from "./healthTimeline";
 
 export interface FamilyMemberSummary {
   userId: string;
@@ -59,13 +62,16 @@ class FamilyDashboardService {
     let membersDeclining = 0;
 
     for (const userId of memberIds) {
-      const summary = await this.getMemberSummary(userId, memberNames[userId] || "Family Member");
+      const summary = await this.getMemberSummary(
+        userId,
+        memberNames[userId] || "Family Member"
+      );
       members.push(summary);
 
       totalActiveAlerts += summary.activeAlerts;
       const criticalCount = await this.getCriticalAlertCount(userId);
       totalCriticalAlerts += criticalCount;
-      
+
       if (summary.riskLevel === "critical" || summary.riskLevel === "high") {
         membersAtRisk++;
       }
@@ -79,9 +85,12 @@ class FamilyDashboardService {
       if (summary.healthTrend === "declining") membersDeclining++;
     }
 
-    const recentFamilyEvents = await healthTimelineService.getEventsForFamily(memberIds, {
-      limitCount: 20,
-    });
+    const recentFamilyEvents = await healthTimelineService.getEventsForFamily(
+      memberIds,
+      {
+        limitCount: 20,
+      }
+    );
 
     return {
       familyId,
@@ -91,7 +100,10 @@ class FamilyDashboardService {
       criticalAlerts: totalCriticalAlerts,
       recentFamilyEvents,
       aggregateMetrics: {
-        averageHealthScore: validScoreCount > 0 ? Math.round(totalHealthScore / validScoreCount) : 0,
+        averageHealthScore:
+          validScoreCount > 0
+            ? Math.round(totalHealthScore / validScoreCount)
+            : 0,
         membersAtRisk,
         membersImproving,
         membersDeclining,
@@ -99,8 +111,17 @@ class FamilyDashboardService {
     };
   }
 
-  private async getMemberSummary(userId: string, displayName: string): Promise<FamilyMemberSummary> {
-    const [healthScore, riskAssessment, activeAlerts, recentEvents, lastVitals] = await Promise.all([
+  private async getMemberSummary(
+    userId: string,
+    displayName: string
+  ): Promise<FamilyMemberSummary> {
+    const [
+      healthScore,
+      riskAssessment,
+      activeAlerts,
+      recentEvents,
+      lastVitals,
+    ] = await Promise.all([
       this.getLatestHealthScore(userId),
       this.getLatestRiskAssessment(userId),
       this.getActiveAlertCount(userId),
@@ -121,7 +142,9 @@ class FamilyDashboardService {
     };
   }
 
-  private async getLatestHealthScore(userId: string): Promise<HealthScore | null> {
+  private async getLatestHealthScore(
+    userId: string
+  ): Promise<HealthScore | null> {
     try {
       const q = query(
         collection(db, HEALTH_SCORES_COLLECTION),
@@ -139,12 +162,18 @@ class FamilyDashboardService {
         timestamp: data.timestamp.toDate(),
       } as HealthScore;
     } catch (error) {
-      logger.error("Failed to get health score", { userId, error }, "FamilyDashboard");
+      logger.error(
+        "Failed to get health score",
+        { userId, error },
+        "FamilyDashboard"
+      );
       return null;
     }
   }
 
-  private async getLatestRiskAssessment(userId: string): Promise<RiskAssessment | null> {
+  private async getLatestRiskAssessment(
+    userId: string
+  ): Promise<RiskAssessment | null> {
     try {
       const q = query(
         collection(db, RISK_ASSESSMENTS_COLLECTION),
@@ -162,7 +191,11 @@ class FamilyDashboardService {
         timestamp: data.timestamp.toDate(),
       } as RiskAssessment;
     } catch (error) {
-      logger.error("Failed to get risk assessment", { userId, error }, "FamilyDashboard");
+      logger.error(
+        "Failed to get risk assessment",
+        { userId, error },
+        "FamilyDashboard"
+      );
       return null;
     }
   }
@@ -178,7 +211,11 @@ class FamilyDashboardService {
       const snapshot = await getDocs(q);
       return snapshot.size;
     } catch (error) {
-      logger.error("Failed to get active alerts", { userId, error }, "FamilyDashboard");
+      logger.error(
+        "Failed to get active alerts",
+        { userId, error },
+        "FamilyDashboard"
+      );
       return 0;
     }
   }
@@ -195,12 +232,18 @@ class FamilyDashboardService {
       const snapshot = await getDocs(q);
       return snapshot.size;
     } catch (error) {
-      logger.error("Failed to get critical alerts", { userId, error }, "FamilyDashboard");
+      logger.error(
+        "Failed to get critical alerts",
+        { userId, error },
+        "FamilyDashboard"
+      );
       return 0;
     }
   }
 
-  private async getLastVitals(userId: string): Promise<Record<string, { value: number; unit: string; timestamp: Date }>> {
+  private async getLastVitals(
+    userId: string
+  ): Promise<Record<string, { value: number; unit: string; timestamp: Date }>> {
     const vitalTypes = [
       "heart_rate",
       "blood_oxygen",
@@ -210,7 +253,10 @@ class FamilyDashboardService {
       "temperature",
     ];
 
-    const lastVitals: Record<string, { value: number; unit: string; timestamp: Date }> = {};
+    const lastVitals: Record<
+      string,
+      { value: number; unit: string; timestamp: Date }
+    > = {};
 
     try {
       const events = await healthTimelineService.getEventsForUser(userId, {
@@ -231,7 +277,11 @@ class FamilyDashboardService {
         }
       }
     } catch (error) {
-      logger.error("Failed to get last vitals", { userId, error }, "FamilyDashboard");
+      logger.error(
+        "Failed to get last vitals",
+        { userId, error },
+        "FamilyDashboard"
+      );
     }
 
     return lastVitals;
@@ -251,7 +301,10 @@ class FamilyDashboardService {
         eventTypes: ["alert_created"],
       });
 
-      const dailyCounts: Record<string, { count: number; severities: string[] }> = {};
+      const dailyCounts: Record<
+        string,
+        { count: number; severities: string[] }
+      > = {};
 
       for (const event of events) {
         const dateKey = event.timestamp.toISOString().split("T")[0];
@@ -268,13 +321,17 @@ class FamilyDashboardService {
         severity: data.severities.includes("critical")
           ? "critical"
           : data.severities.includes("error")
-          ? "error"
-          : data.severities.includes("warn")
-          ? "warn"
-          : "info",
+            ? "error"
+            : data.severities.includes("warn")
+              ? "warn"
+              : "info",
       }));
     } catch (error) {
-      logger.error("Failed to get alert history", { userId, error }, "FamilyDashboard");
+      logger.error(
+        "Failed to get alert history",
+        { userId, error },
+        "FamilyDashboard"
+      );
       return [];
     }
   }
@@ -301,7 +358,11 @@ class FamilyDashboardService {
         score: doc.data().overallScore,
       }));
     } catch (error) {
-      logger.error("Failed to get health score history", { userId, error }, "FamilyDashboard");
+      logger.error(
+        "Failed to get health score history",
+        { userId, error },
+        "FamilyDashboard"
+      );
       return [];
     }
   }

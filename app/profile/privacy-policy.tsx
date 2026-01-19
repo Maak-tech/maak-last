@@ -125,7 +125,9 @@ export default function PrivacyPolicyScreen() {
               onPress={loadPrivacyPolicy}
               style={styles.retryButton}
             >
-              <Text style={[styles.retryButtonText, isRTL && { textAlign: "left" }]}>
+              <Text
+                style={[styles.retryButtonText, isRTL && { textAlign: "left" }]}
+              >
                 {isRTL ? "إعادة المحاولة" : "Retry"}
               </Text>
             </TouchableOpacity>
@@ -140,7 +142,12 @@ export default function PrivacyPolicyScreen() {
               <Text style={[styles.introTitle, isRTL && { textAlign: "left" }]}>
                 {isRTL ? "سياسة خصوصية تطبيق معاك" : document.title}
               </Text>
-              <Text style={[styles.introDescription, isRTL && { textAlign: "left" }]}>
+              <Text
+                style={[
+                  styles.introDescription,
+                  isRTL && { textAlign: "left" },
+                ]}
+              >
                 {isRTL
                   ? "نحن نحترم خصوصيتك ونلتزم بحماية معلوماتك الشخصية والصحية. تشرح هذه السياسة كيفية جمع واستخدام وحماية بياناتك."
                   : "We respect your privacy and are committed to protecting your personal and health information. This policy explains how we collect, use, and protect your data."}
@@ -149,7 +156,10 @@ export default function PrivacyPolicyScreen() {
                 <View style={styles.lastUpdated}>
                   <Calendar color="#64748B" size={16} />
                   <Text
-                    style={[styles.lastUpdatedText, isRTL && { textAlign: "left" }]}
+                    style={[
+                      styles.lastUpdatedText,
+                      isRTL && { textAlign: "left" },
+                    ]}
                   >
                     {isRTL
                       ? `آخر تحديث: ${document.lastUpdated}`

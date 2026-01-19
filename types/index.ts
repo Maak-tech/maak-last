@@ -180,7 +180,13 @@ export interface VitalSign {
 export interface EmergencyAlert {
   id: string;
   userId: string;
-  type: "fall" | "emergency" | "medication" | "vitals" | "vital_critical" | "vital_error";
+  type:
+    | "fall"
+    | "emergency"
+    | "medication"
+    | "vitals"
+    | "vital_critical"
+    | "vital_error";
   severity: "low" | "medium" | "high" | "critical";
   message: string;
   timestamp: Date;

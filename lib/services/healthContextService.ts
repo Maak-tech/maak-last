@@ -6,9 +6,7 @@ import {
   limit,
   orderBy,
   query,
-  type QuerySnapshot,
   where,
-  type DocumentData,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -116,10 +114,7 @@ class HealthContextService {
       const results = await Promise.allSettled([
         // Medications query
         getDocs(
-          query(
-            collection(db, "medications"),
-            where("userId", "==", uid)
-          )
+          query(collection(db, "medications"), where("userId", "==", uid))
         ),
         // Symptoms query
         getDocs(
@@ -181,20 +176,22 @@ class HealthContextService {
       // Process medications
       let medications: HealthContext["medications"] = [];
       if (medicationsSnapshot.status === "fulfilled") {
-        const medicationsWithSort = medicationsSnapshot.value.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            name: data.name || "Unknown medication",
-            dosage: data.dosage || "",
-            frequency: data.frequency || "",
-            startDate: data.startDate?.toDate?.()?.toLocaleDateString() || "",
-            endDate: data.endDate?.toDate?.()?.toLocaleDateString() || "",
-            notes: data.notes || "",
-            isActive: data.isActive !== false,
-            reminders: data.reminders || [],
-            _startDate: data.startDate?.toDate?.() || new Date(0),
-          };
-        });
+        const medicationsWithSort = medicationsSnapshot.value.docs.map(
+          (doc) => {
+            const data = doc.data();
+            return {
+              name: data.name || "Unknown medication",
+              dosage: data.dosage || "",
+              frequency: data.frequency || "",
+              startDate: data.startDate?.toDate?.()?.toLocaleDateString() || "",
+              endDate: data.endDate?.toDate?.()?.toLocaleDateString() || "",
+              notes: data.notes || "",
+              isActive: data.isActive !== false,
+              reminders: data.reminders || [],
+              _startDate: data.startDate?.toDate?.() || new Date(0),
+            };
+          }
+        );
         medicationsWithSort.sort(
           (a, b) => b._startDate.getTime() - a._startDate.getTime()
         );
@@ -300,8 +297,7 @@ class HealthContextService {
 
           familyMembers.push({
             id: familyDoc.id,
-            name:
-              memberData.name || memberData.displayName || "Family Member",
+            name: memberData.name || memberData.displayName || "Family Member",
             relationship:
               memberData.relationship ||
               memberData.relation ||
@@ -319,7 +315,7 @@ class HealthContextService {
       }
 
       // Process vitals from vitals collection
-      let latestVitals: HealthContext["vitalSigns"] = {
+      const latestVitals: HealthContext["vitalSigns"] = {
         heartRate: userData.lastHeartRate,
         bloodPressure: userData.lastBloodPressure,
         temperature: userData.lastTemperature,
@@ -329,7 +325,10 @@ class HealthContextService {
         lastUpdated: userData.vitalsLastUpdated?.toDate(),
       };
 
-      if (vitalsSnapshot.status === "fulfilled" && vitalsSnapshot.value.docs.length > 0) {
+      if (
+        vitalsSnapshot.status === "fulfilled" &&
+        vitalsSnapshot.value.docs.length > 0
+      ) {
         // Get today's date range for aggregating daily totals
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -360,13 +359,16 @@ class HealthContextService {
         ];
 
         // Group vitals by type
-        const vitalsByType: Record<string, Array<{ value: number; timestamp: Date; metadata?: any }>> = {};
-        
+        const vitalsByType: Record<
+          string,
+          Array<{ value: number; timestamp: Date; metadata?: any }>
+        > = {};
+
         vitalsSnapshot.value.docs.forEach((doc) => {
           const data = doc.data();
           const vitalType = data.type;
           const timestamp = data.timestamp?.toDate?.() || new Date();
-          
+
           if (!vitalsByType[vitalType]) {
             vitalsByType[vitalType] = [];
           }
@@ -382,7 +384,9 @@ class HealthContextService {
           const samples = vitalsByType[type];
           if (!samples || samples.length === 0) return null;
           // Sort by timestamp descending and get the latest
-          const sorted = [...samples].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          const sorted = [...samples].sort(
+            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+          );
           return sorted[0];
         };
 
@@ -397,8 +401,8 @@ class HealthContextService {
           if (todaySamples.length === 0) return null;
           const sum = todaySamples.reduce((acc, s) => acc + s.value, 0);
           // Return the latest timestamp from today's samples
-          const latestTimestamp = todaySamples.reduce((latest, s) =>
-            s.timestamp > latest ? s.timestamp : latest,
+          const latestTimestamp = todaySamples.reduce(
+            (latest, s) => (s.timestamp > latest ? s.timestamp : latest),
             todaySamples[0].timestamp
           );
           return { sum, timestamp: latestTimestamp };
@@ -406,7 +410,10 @@ class HealthContextService {
 
         // Helper to update lastUpdated timestamp
         const updateTimestamp = (timestamp: Date) => {
-          if (!latestVitals.lastUpdated || timestamp > latestVitals.lastUpdated) {
+          if (
+            !latestVitals.lastUpdated ||
+            timestamp > latestVitals.lastUpdated
+          ) {
             latestVitals.lastUpdated = timestamp;
           }
         };
@@ -424,7 +431,9 @@ class HealthContextService {
           updateTimestamp(restingHeartRate.timestamp);
         }
 
-        const walkingHeartRateAverage = getLatestValue("walkingHeartRateAverage");
+        const walkingHeartRateAverage = getLatestValue(
+          "walkingHeartRateAverage"
+        );
         if (walkingHeartRateAverage) {
           latestVitals.walkingHeartRateAverage = walkingHeartRateAverage.value;
           updateTimestamp(walkingHeartRateAverage.timestamp);
@@ -438,7 +447,10 @@ class HealthContextService {
 
         const bloodPressure = getLatestValue("bloodPressure");
         if (bloodPressure) {
-          if (bloodPressure.metadata?.systolic && bloodPressure.metadata?.diastolic) {
+          if (
+            bloodPressure.metadata?.systolic &&
+            bloodPressure.metadata?.diastolic
+          ) {
             latestVitals.bloodPressure = `${bloodPressure.metadata.systolic}/${bloodPressure.metadata.diastolic}`;
           } else {
             latestVitals.bloodPressure = `${bloodPressure.value}`;
@@ -553,21 +565,23 @@ class HealthContextService {
     }
   }
 
-  generateSystemPrompt(context: HealthContext, language: string = "en"): string {
+  generateSystemPrompt(context: HealthContext, language = "en"): string {
     const activeMedications = context.medications.filter((m) => m.isActive);
     const inactiveMedications = context.medications.filter((m) => !m.isActive);
 
     const isArabic = language.startsWith("ar");
 
-    const prompt = `${isArabic ?
-      `أنت مساعد صحي ذكي مفيد لديك إمكانية الوصول إلى الملف الصحي الشامل للمستخدم.
+    const prompt = `${
+      isArabic
+        ? `أنت مساعد صحي ذكي مفيد لديك إمكانية الوصول إلى الملف الصحي الشامل للمستخدم.
 
-يجب أن ترد باللغة العربية دائماً.` :
-      `You are a helpful AI health assistant with access to the user's comprehensive health profile.
+يجب أن ترد باللغة العربية دائماً.`
+        : `You are a helpful AI health assistant with access to the user's comprehensive health profile.
 
-You must respond in English.`}
+You must respond in English.`
+    }
 
-${isArabic ? `ملف المريض:` : `PATIENT PROFILE:`}
+${isArabic ? "ملف المريض:" : "PATIENT PROFILE:"}
 - Name: ${context.profile.name}
 - Age: ${context.profile.age > 0 ? `${context.profile.age} years old` : "Not specified"}
 - Gender: ${context.profile.gender}
@@ -576,32 +590,36 @@ ${isArabic ? `ملف المريض:` : `PATIENT PROFILE:`}
 - Weight: ${context.profile.weight}
 - Emergency Contact: ${context.profile.emergencyContact}
 
-${isArabic ? `التاريخ الطبي:
-الحالات الحالية:` : `MEDICAL HISTORY:
-Current Conditions:`} ${
+${
+  isArabic
+    ? `التاريخ الطبي:
+الحالات الحالية:`
+    : `MEDICAL HISTORY:
+Current Conditions:`
+} ${
       context.medicalHistory.conditions.length > 0
         ? context.medicalHistory.conditions
             .map(
               (c) =>
-                `\n  • ${c.condition}${c.diagnosedDate ? ` (${isArabic ? 'تشخيص' : 'diagnosed'}: ${c.diagnosedDate})` : ""}${c.status ? ` - ${c.status}` : ""}${c.notes ? ` - ${c.notes}` : ""}`
+                `\n  • ${c.condition}${c.diagnosedDate ? ` (${isArabic ? "تشخيص" : "diagnosed"}: ${c.diagnosedDate})` : ""}${c.status ? ` - ${c.status}` : ""}${c.notes ? ` - ${c.notes}` : ""}`
             )
             .join("")
-        : `\n  • ${isArabic ? 'لا توجد حالات مزمنة مسجلة' : 'No chronic conditions reported'}`
+        : `\n  • ${isArabic ? "لا توجد حالات مزمنة مسجلة" : "No chronic conditions reported"}`
     }
 
-${isArabic ? 'الحساسية:' : 'Allergies:'} ${
+${isArabic ? "الحساسية:" : "Allergies:"} ${
       context.medicalHistory.allergies.length > 0
         ? context.medicalHistory.allergies.map((a) => `\n  • ${a}`).join("")
-        : `\n  • ${isArabic ? 'لا توجد حساسية معروفة' : 'No known allergies'}`
+        : `\n  • ${isArabic ? "لا توجد حساسية معروفة" : "No known allergies"}`
     }
 
-${isArabic ? 'العمليات الجراحية السابقة:' : 'Previous Surgeries:'} ${
+${isArabic ? "العمليات الجراحية السابقة:" : "Previous Surgeries:"} ${
       context.medicalHistory.surgeries.length > 0
         ? context.medicalHistory.surgeries.map((s) => `\n  • ${s}`).join("")
-        : `\n  • ${isArabic ? 'لا توجد عمليات جراحية سابقة' : 'No previous surgeries'}`
+        : `\n  • ${isArabic ? "لا توجد عمليات جراحية سابقة" : "No previous surgeries"}`
     }
 
-${isArabic ? 'التاريخ الطبي العائلي:' : 'Family Medical History:'} ${
+${isArabic ? "التاريخ الطبي العائلي:" : "Family Medical History:"} ${
       context.medicalHistory.familyHistory.length > 0
         ? context.medicalHistory.familyHistory
             .map(
@@ -609,92 +627,97 @@ ${isArabic ? 'التاريخ الطبي العائلي:' : 'Family Medical Histo
                 `\n  • ${f.condition}${f.relationship ? ` (${f.relationship})` : ""}`
             )
             .join("")
-        : `\n  • ${isArabic ? 'لا يوجد تاريخ عائلي مسجل' : 'No family history recorded'}`
+        : `\n  • ${isArabic ? "لا يوجد تاريخ عائلي مسجل" : "No family history recorded"}`
     }
 
-${isArabic ? 'الأدوية الحالية:' : 'CURRENT MEDICATIONS:'}
+${isArabic ? "الأدوية الحالية:" : "CURRENT MEDICATIONS:"}
 ${
   activeMedications.length > 0
     ? activeMedications
         .map(
           (med) =>
             `• ${med.name}: ${med.dosage}, ${med.frequency}
-  ${isArabic ? 'بدء' : 'Started'}: ${med.startDate}${med.endDate ? `, ${isArabic ? 'ينتهي' : 'Ends'}: ${med.endDate}` : " (${isArabic ? 'مستمر' : 'ongoing'})"}
-  ${med.reminders && med.reminders.length > 0 ? `${isArabic ? 'تذكيرات' : 'Reminders'}: ${med.reminders.map((r: any) => typeof r === 'string' ? r : r.time).join(", ")}` : ""}
-  ${med.notes ? `${isArabic ? 'ملاحظات' : 'Notes'}: ${med.notes}` : ""}`
+  ${isArabic ? "بدء" : "Started"}: ${med.startDate}${med.endDate ? `, ${isArabic ? "ينتهي" : "Ends"}: ${med.endDate}` : " (${isArabic ? 'مستمر' : 'ongoing'})"}
+  ${med.reminders && med.reminders.length > 0 ? `${isArabic ? "تذكيرات" : "Reminders"}: ${med.reminders.map((r: any) => (typeof r === "string" ? r : r.time)).join(", ")}` : ""}
+  ${med.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${med.notes}` : ""}`
         )
         .join("\n")
-    : `• ${isArabic ? 'لا توجد أدوية حالية' : 'No current medications'}`
+    : `• ${isArabic ? "لا توجد أدوية حالية" : "No current medications"}`
 }
 
 ${
   inactiveMedications.length > 0
-    ? `\n${isArabic ? 'الأدوية السابقة:' : 'PAST MEDICATIONS:'}\n${inactiveMedications
+    ? `\n${isArabic ? "الأدوية السابقة:" : "PAST MEDICATIONS:"}\n${inactiveMedications
         .slice(0, 5)
-        .map((med) => `• ${med.name}: ${med.dosage} (${isArabic ? 'متوقف' : 'discontinued'})`)
+        .map(
+          (med) =>
+            `• ${med.name}: ${med.dosage} (${isArabic ? "متوقف" : "discontinued"})`
+        )
         .join("\n")}`
     : ""
 }
 
-${isArabic ? 'الأعراض الأخيرة (آخر 90 يوماً):' : 'RECENT SYMPTOMS (Last 90 days):'}
+${isArabic ? "الأعراض الأخيرة (آخر 90 يوماً):" : "RECENT SYMPTOMS (Last 90 days):"}
 ${
   context.symptoms.length > 0
     ? context.symptoms
         .slice(0, 10)
         .map(
           (symptom) =>
-            `• ${symptom.date}: ${symptom.name} (${isArabic ? 'الشدة' : 'Severity'}: ${symptom.severity})
-  ${symptom.bodyPart ? `${isArabic ? 'الموقع' : 'Location'}: ${symptom.bodyPart}` : ""}
-  ${symptom.duration ? `${isArabic ? 'المدة' : 'Duration'}: ${symptom.duration}` : ""}
-  ${symptom.notes ? `${isArabic ? 'ملاحظات' : 'Notes'}: ${symptom.notes}` : ""}`
+            `• ${symptom.date}: ${symptom.name} (${isArabic ? "الشدة" : "Severity"}: ${symptom.severity})
+  ${symptom.bodyPart ? `${isArabic ? "الموقع" : "Location"}: ${symptom.bodyPart}` : ""}
+  ${symptom.duration ? `${isArabic ? "المدة" : "Duration"}: ${symptom.duration}` : ""}
+  ${symptom.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${symptom.notes}` : ""}`
         )
         .join("\n")
-    : `• ${isArabic ? 'لا توجد أعراض حديثة مسجلة' : 'No recent symptoms reported'}`
+    : `• ${isArabic ? "لا توجد أعراض حديثة مسجلة" : "No recent symptoms reported"}`
 }
 
-${isArabic ? 'أفراد العائلة:' : 'FAMILY MEMBERS:'}
+${isArabic ? "أفراد العائلة:" : "FAMILY MEMBERS:"}
 ${
   context.familyMembers.length > 0
     ? context.familyMembers
         .map(
           (member) =>
-            `• ${member.name} (${member.relationship}${member.age ? `, ${member.age} ${isArabic ? 'سنوات' : 'years old'}` : ""})
-  ${member.conditions && member.conditions.length > 0 ? `${isArabic ? 'الحالات' : 'Conditions'}: ${member.conditions.join(", ")}` : ""}
-  ${member.healthStatus ? `${isArabic ? 'الحالة' : 'Status'}: ${member.healthStatus}` : ""}`
+            `• ${member.name} (${member.relationship}${member.age ? `, ${member.age} ${isArabic ? "سنوات" : "years old"}` : ""})
+  ${member.conditions && member.conditions.length > 0 ? `${isArabic ? "الحالات" : "Conditions"}: ${member.conditions.join(", ")}` : ""}
+  ${member.healthStatus ? `${isArabic ? "الحالة" : "Status"}: ${member.healthStatus}` : ""}`
         )
         .join("\n")
-    : `• ${isArabic ? 'لا يوجد أفراد عائلة متصلين بعد. يمكن إضافة أفراد العائلة من خلال تبويب العائلة.' : 'No family members connected yet. Family members can be added through the Family tab.'}`
+    : `• ${isArabic ? "لا يوجد أفراد عائلة متصلين بعد. يمكن إضافة أفراد العائلة من خلال تبويب العائلة." : "No family members connected yet. Family members can be added through the Family tab."}`
 }
 
-${isArabic ? 'تنبيهات صحية حديثة:' : 'RECENT HEALTH ALERTS:'}
-${context.recentAlerts.length > 0
-  ? context.recentAlerts
-      .slice(0, 5)
-      .map(
-        (alert) =>
-          `• ${alert.timestamp.toLocaleDateString()}: ${alert.type} - ${alert.details}`
-      )
-      .join("\n")
-  : ""
+${isArabic ? "تنبيهات صحية حديثة:" : "RECENT HEALTH ALERTS:"}
+${
+  context.recentAlerts.length > 0
+    ? context.recentAlerts
+        .slice(0, 5)
+        .map(
+          (alert) =>
+            `• ${alert.timestamp.toLocaleDateString()}: ${alert.type} - ${alert.details}`
+        )
+        .join("\n")
+    : ""
 }
 
 ${
   context.vitalSigns.lastUpdated
     ? `
-${isArabic ? 'العلامات الحيوية الأخيرة' : 'RECENT VITAL SIGNS'} (${context.vitalSigns.lastUpdated.toLocaleDateString()}):
-• ${isArabic ? 'معدل ضربات القلب' : 'Heart Rate'}: ${context.vitalSigns.heartRate || (isArabic ? 'غير مسجل' : 'Not recorded')} bpm
-• ${isArabic ? 'ضغط الدم' : 'Blood Pressure'}: ${context.vitalSigns.bloodPressure || (isArabic ? 'غير مسجل' : 'Not recorded')}
-• ${isArabic ? 'درجة الحرارة' : 'Temperature'}: ${context.vitalSigns.temperature || (isArabic ? 'غير مسجل' : 'Not recorded')}°F
-• ${isArabic ? 'مستوى الأكسجين' : 'Oxygen Level'}: ${context.vitalSigns.oxygenLevel || (isArabic ? 'غير مسجل' : 'Not recorded')}%
-${context.vitalSigns.glucoseLevel ? `• ${isArabic ? 'الجلوكوز' : 'Glucose'}: ${context.vitalSigns.glucoseLevel} mg/dL` : ""}
-${context.vitalSigns.weight ? `• ${isArabic ? 'الوزن' : 'Weight'}: ${context.vitalSigns.weight}` : ""}
+${isArabic ? "العلامات الحيوية الأخيرة" : "RECENT VITAL SIGNS"} (${context.vitalSigns.lastUpdated.toLocaleDateString()}):
+• ${isArabic ? "معدل ضربات القلب" : "Heart Rate"}: ${context.vitalSigns.heartRate || (isArabic ? "غير مسجل" : "Not recorded")} bpm
+• ${isArabic ? "ضغط الدم" : "Blood Pressure"}: ${context.vitalSigns.bloodPressure || (isArabic ? "غير مسجل" : "Not recorded")}
+• ${isArabic ? "درجة الحرارة" : "Temperature"}: ${context.vitalSigns.temperature || (isArabic ? "غير مسجل" : "Not recorded")}°F
+• ${isArabic ? "مستوى الأكسجين" : "Oxygen Level"}: ${context.vitalSigns.oxygenLevel || (isArabic ? "غير مسجل" : "Not recorded")}%
+${context.vitalSigns.glucoseLevel ? `• ${isArabic ? "الجلوكوز" : "Glucose"}: ${context.vitalSigns.glucoseLevel} mg/dL` : ""}
+${context.vitalSigns.weight ? `• ${isArabic ? "الوزن" : "Weight"}: ${context.vitalSigns.weight}` : ""}
 `
     : ""
 }
 
-${isArabic ? 'تعليمات لردودك:' : 'INSTRUCTIONS FOR YOUR RESPONSES:'}
-${isArabic ?
-`1. قدم رؤى صحية مخصصة بناءً على الملف الطبي الكامل
+${isArabic ? "تعليمات لردودك:" : "INSTRUCTIONS FOR YOUR RESPONSES:"}
+${
+  isArabic
+    ? `1. قدم رؤى صحية مخصصة بناءً على الملف الطبي الكامل
 2. ضع في اعتبارك جميع الأدوية عند مناقشة التفاعلات الدوائية أو العلاجات الجديدة
 3. كن على دراية بجميع الحساسية والحالات عند تقديم النصائح
 4. راجع الأعراض الأخيرة لتحديد الأنماط أو الاهتمامات
@@ -704,8 +727,8 @@ ${isArabic ?
 8. قدم نصائح عملية وقابلة للتنفيذ عند الاقتضاء
 9. إذا لاحظت أنماطاً مقلقة في الأعراض أو العلامات الحيوية، اقترح بلطف استشارة طبية
 
-تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.` :
-`1. Provide personalized health insights based on the complete medical profile
+تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
+    : `1. Provide personalized health insights based on the complete medical profile
 2. Consider all medications when discussing drug interactions or new treatments
 3. Be aware of all allergies and conditions when giving advice
 4. Reference recent symptoms to identify patterns or concerns
@@ -715,12 +738,13 @@ ${isArabic ?
 8. Provide practical, actionable advice when appropriate
 9. If you notice concerning patterns in symptoms or vital signs, gently suggest medical consultation
 
-Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`}`;
+Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
+}`;
 
     return prompt;
   }
 
-  async getContextualPrompt(userId?: string, language: string = "en"): Promise<string> {
+  async getContextualPrompt(userId?: string, language = "en"): Promise<string> {
     const context = await this.getUserHealthContext(userId);
     return this.generateSystemPrompt(context, language);
   }
@@ -732,14 +756,15 @@ Remember: You are an AI assistant providing information and support, not a repla
   async getHealthSummary(): Promise<any> {
     try {
       const context = await this.getUserHealthContext();
-      
+
       return {
         profile: {
           name: context.profile.name,
           age: context.profile.age,
           bloodType: context.profile.bloodType,
         },
-        activeMedicationsCount: context.medications.filter(m => m.isActive).length,
+        activeMedicationsCount: context.medications.filter((m) => m.isActive)
+          .length,
         recentSymptomsCount: context.symptoms.length,
         conditionsCount: context.medicalHistory.conditions.length,
         latestVitals: context.vitalSigns,
@@ -755,19 +780,28 @@ Remember: You are an AI assistant providing information and support, not a repla
    * Calculate overall health status based on context
    */
   private calculateOverallStatus(context: HealthContext): string {
-    const recentSymptoms = context.symptoms.filter(s => {
+    const recentSymptoms = context.symptoms.filter((s) => {
       const symptomDate = new Date(s.date);
-      const daysDiff = (Date.now() - symptomDate.getTime()) / (1000 * 60 * 60 * 24);
+      const daysDiff =
+        (Date.now() - symptomDate.getTime()) / (1000 * 60 * 60 * 24);
       return daysDiff <= 7;
     });
 
-    if (recentSymptoms.some(s => s.severity === "severe" || s.severity === "high")) {
+    if (
+      recentSymptoms.some(
+        (s) => s.severity === "severe" || s.severity === "high"
+      )
+    ) {
       return "Needs attention - severe symptoms reported recently";
     }
     if (recentSymptoms.length > 3) {
       return "Monitor closely - multiple symptoms reported";
     }
-    if (context.recentAlerts.some(a => a.severity === "high" || a.severity === "urgent")) {
+    if (
+      context.recentAlerts.some(
+        (a) => a.severity === "high" || a.severity === "urgent"
+      )
+    ) {
       return "Review alerts - important notifications pending";
     }
     return "Stable - no immediate concerns";
@@ -776,16 +810,16 @@ Remember: You are an AI assistant providing information and support, not a repla
   /**
    * Get user's medications list
    */
-  async getMedications(activeOnly: boolean = true): Promise<any> {
+  async getMedications(activeOnly = true): Promise<any> {
     try {
       const context = await this.getUserHealthContext();
       const allMedications = context.medications || [];
-      const medications = activeOnly 
-        ? allMedications.filter(m => m.isActive)
+      const medications = activeOnly
+        ? allMedications.filter((m) => m.isActive)
         : allMedications;
 
       return {
-        medications: medications.map(med => ({
+        medications: medications.map((med) => ({
           name: med.name,
           dosage: med.dosage,
           frequency: med.frequency,
@@ -796,7 +830,7 @@ Remember: You are an AI assistant providing information and support, not a repla
           reminders: med.reminders || [],
         })),
         totalCount: medications.length,
-        activeCount: allMedications.filter(m => m.isActive).length,
+        activeCount: allMedications.filter((m) => m.isActive).length,
       };
     } catch (error) {
       return { error: "Unable to fetch medications", medications: [] };
@@ -807,12 +841,24 @@ Remember: You are an AI assistant providing information and support, not a repla
    * Log a new symptom using the Zeina Actions Service
    * This actually saves the symptom to Firestore
    */
-  async logSymptom(symptomName: string, severity?: number, notes?: string, isArabic = false): Promise<any> {
+  async logSymptom(
+    symptomName: string,
+    severity?: number,
+    notes?: string,
+    isArabic = false
+  ): Promise<any> {
     try {
       // Use the Zeina Actions Service to log symptoms properly
       const { zeinaActionsService } = await import("./zeinaActionsService");
-      const result = await zeinaActionsService.logSymptom(symptomName, severity, notes, undefined, undefined, isArabic);
-      
+      const result = await zeinaActionsService.logSymptom(
+        symptomName,
+        severity,
+        notes,
+        undefined,
+        undefined,
+        isArabic
+      );
+
       return {
         success: result.success,
         message: result.message,
@@ -820,10 +866,10 @@ Remember: You are an AI assistant providing information and support, not a repla
         data: result.data,
       };
     } catch (error) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: "Failed to log symptom",
-        speakableResponse: isArabic 
+        speakableResponse: isArabic
           ? "عذراً، لم أتمكن من تسجيل هذا العرض الآن. يرجى المحاولة مرة أخرى لاحقاً."
           : "I'm sorry, I couldn't log that symptom right now. Please try again later.",
       };
@@ -833,7 +879,7 @@ Remember: You are an AI assistant providing information and support, not a repla
   /**
    * Get recent vital signs
    */
-  async getRecentVitals(vitalType: string = "all", days: number = 7): Promise<any> {
+  async getRecentVitals(vitalType = "all", days = 7): Promise<any> {
     try {
       const context = await this.getUserHealthContext();
       const vitals = context.vitalSigns;
@@ -841,12 +887,20 @@ Remember: You are an AI assistant providing information and support, not a repla
       if (vitalType === "all") {
         return {
           vitals: {
-            heartRate: vitals.heartRate ? `${vitals.heartRate} bpm` : "Not recorded",
+            heartRate: vitals.heartRate
+              ? `${vitals.heartRate} bpm`
+              : "Not recorded",
             bloodPressure: vitals.bloodPressure || "Not recorded",
-            temperature: vitals.temperature ? `${vitals.temperature}°F` : "Not recorded",
-            oxygenSaturation: vitals.oxygenLevel ? `${vitals.oxygenLevel}%` : "Not recorded",
+            temperature: vitals.temperature
+              ? `${vitals.temperature}°F`
+              : "Not recorded",
+            oxygenSaturation: vitals.oxygenLevel
+              ? `${vitals.oxygenLevel}%`
+              : "Not recorded",
             weight: vitals.weight || "Not recorded",
-            glucoseLevel: vitals.glucoseLevel ? `${vitals.glucoseLevel} mg/dL` : "Not recorded",
+            glucoseLevel: vitals.glucoseLevel
+              ? `${vitals.glucoseLevel} mg/dL`
+              : "Not recorded",
           },
           lastUpdated: vitals.lastUpdated?.toISOString() || "Never",
         };
@@ -880,12 +934,12 @@ Remember: You are an AI assistant providing information and support, not a repla
   async checkMedicationInteractions(newMedication?: string): Promise<any> {
     try {
       const context = await this.getUserHealthContext();
-      const activeMeds = context.medications.filter(m => m.isActive);
+      const activeMeds = context.medications.filter((m) => m.isActive);
 
       // In a full implementation, this would use a drug interaction database
       // For now, we provide general guidance
       const result: any = {
-        currentMedications: activeMeds.map(m => m.name),
+        currentMedications: activeMeds.map((m) => m.name),
         allergies: context.medicalHistory.allergies,
         warnings: [],
         recommendations: [],
@@ -893,7 +947,9 @@ Remember: You are an AI assistant providing information and support, not a repla
 
       // Add general warnings based on number of medications
       if (activeMeds.length >= 5) {
-        result.warnings.push("You are taking 5 or more medications. Please ensure your healthcare provider is aware of all medications.");
+        result.warnings.push(
+          "You are taking 5 or more medications. Please ensure your healthcare provider is aware of all medications."
+        );
       }
 
       // Check against allergies if new medication provided
@@ -923,7 +979,7 @@ Remember: You are an AI assistant providing information and support, not a repla
             primaryContact: context.profile.emergencyContact,
             phone: context.profile.phone,
             email: context.profile.email,
-            familyMembers: context.familyMembers.map(m => ({
+            familyMembers: context.familyMembers.map((m) => ({
               name: m.name,
               relationship: m.relationship,
               phone: m.phone,
@@ -936,7 +992,7 @@ Remember: You are an AI assistant providing information and support, not a repla
           return {
             success: true,
             message: "Family members have been notified",
-            contactedMembers: context.familyMembers.map(m => m.name),
+            contactedMembers: context.familyMembers.map((m) => m.name),
           };
 
         case "emergency_services_info":

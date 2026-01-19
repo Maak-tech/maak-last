@@ -193,8 +193,7 @@ export function isVitalBelowBenchmark(
   value: number,
   benchmark?: VitalBenchmark
 ): { isBelow: boolean; severity: "critical" | "warning" | null } {
-  const vitalBenchmark =
-    benchmark || VITAL_BENCHMARKS[vitalType.toLowerCase()];
+  const vitalBenchmark = benchmark || VITAL_BENCHMARKS[vitalType.toLowerCase()];
 
   if (!vitalBenchmark) {
     return { isBelow: false, severity: null };
@@ -226,8 +225,7 @@ export function isVitalAboveBenchmark(
   value: number,
   benchmark?: VitalBenchmark
 ): { isAbove: boolean; severity: "critical" | "warning" | null } {
-  const vitalBenchmark =
-    benchmark || VITAL_BENCHMARKS[vitalType.toLowerCase()];
+  const vitalBenchmark = benchmark || VITAL_BENCHMARKS[vitalType.toLowerCase()];
 
   if (!vitalBenchmark) {
     return { isAbove: false, severity: null };
@@ -254,9 +252,10 @@ export function isVitalAboveBenchmark(
 /**
  * Check if a symptom severity is below benchmark (i.e., severity is high enough to alert)
  */
-export function isSymptomBelowBenchmark(
-  severity: number
-): { isBelow: boolean; severity: "critical" | "warning" | null } {
+export function isSymptomBelowBenchmark(severity: number): {
+  isBelow: boolean;
+  severity: "critical" | "warning" | null;
+} {
   if (severity >= 5) {
     return { isBelow: true, severity: "critical" };
   }
@@ -276,4 +275,3 @@ export function getVitalBenchmark(
 ): VitalBenchmark | undefined {
   return VITAL_BENCHMARKS[vitalType.toLowerCase()];
 }
-

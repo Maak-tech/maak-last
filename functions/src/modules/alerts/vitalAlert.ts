@@ -3,25 +3,33 @@
  * Handles vital alert creation, Zeina enrichment, and notification to family admins
  */
 
-import * as admin from 'firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
-import { logger } from '../../observability/logger';
-import { createTraceId } from '../../observability/correlation';
-import { createAlertMessage, type AlertSeverity, type AlertDirection, type VitalType } from './engine';
-import { analyze as zeinaAnalyze, type AlertInfo } from '../../services/zeina/adapter';
-import { enrichAlertWithAnalysis } from '../../services/zeina/store';
-import { getRecentVitalsSummary } from '../vitals/recentSummary';
-import { getFamilyAdmins } from '../family/admins';
-import { sendPushNotificationInternal } from '../../services/notifications';
+import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { createTraceId } from "../../observability/correlation";
+import { logger } from "../../observability/logger";
+import { sendPushNotificationInternal } from "../../services/notifications";
+import {
+  type AlertInfo,
+  analyze as zeinaAnalyze,
+} from "../../services/zeina/adapter";
+import { enrichAlertWithAnalysis } from "../../services/zeina/store";
+import { getFamilyAdmins } from "../family/admins";
+import { getRecentVitalsSummary } from "../vitals/recentSummary";
+import {
+  type AlertDirection,
+  type AlertSeverity,
+  createAlertMessage,
+  type VitalType,
+} from "./engine";
 
 /**
  * Send vital alert to family admins
  * Includes optional Zeina AI analysis enrichment
- * 
+ *
  * NOTE: This function is now deprecated in favor of the unified vitals pipeline
  * (modules/vitals/pipeline.ts). Kept for backward compatibility with direct calls.
  * @deprecated Use processVitalReading from modules/vitals/pipeline.ts instead
- * 
+ *
  * @param userId - Patient user ID
  * @param userName - Patient display name
  * @param vitalType - Type of vital (heartRate, bloodPressure, etc.)
@@ -40,7 +48,7 @@ export async function sendVitalAlertToAdmins(
   direction: "low" | "high"
 ): Promise<void> {
   const traceId = createTraceId();
-  
+
   try {
     logger.info("Sending vital alert to admins", {
       traceId,
@@ -165,19 +173,24 @@ export async function sendVitalAlertToAdmins(
       });
     } catch (zeinaError) {
       // Don't fail the whole alert if Zeina fails
-      logger.warn("Zeina analysis failed, continuing with alert", zeinaError as Error, {
-        traceId,
-        alertId,
-        patientId: userId,
-        fn: "sendVitalAlertToAdmins",
-      });
+      logger.warn(
+        "Zeina analysis failed, continuing with alert",
+        zeinaError as Error,
+        {
+          traceId,
+          alertId,
+          patientId: userId,
+          fn: "sendVitalAlertToAdmins",
+        }
+      );
     }
 
     // Send notification to admins
     const notification = {
       title: alertMessage.title,
       body: `${userName}'s ${alertMessage.message}`,
-      priority: severity === "critical" ? ("high" as const) : ("normal" as const),
+      priority:
+        severity === "critical" ? ("high" as const) : ("normal" as const),
       data: {
         type: "vital_alert",
         vitalType,

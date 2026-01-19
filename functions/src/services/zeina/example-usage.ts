@@ -1,22 +1,22 @@
 /**
  * Example: How to integrate Zeina AI into existing alert handlers
- * 
+ *
  * This example shows how to use Zeina analysis in the vital alerts trigger.
  * The same pattern can be applied to symptom alerts, fall alerts, etc.
  */
 
-import { logger } from '../../observability/logger';
-import { createTraceId } from '../../observability/correlation';
+import { createTraceId } from "../../observability/correlation";
+import { logger } from "../../observability/logger";
 import {
-  runZeinaAnalysis,
-  executeZeinaActions,
-  auditZeinaAnalysis,
   type AlertContext,
-} from './index';
+  auditZeinaAnalysis,
+  executeZeinaActions,
+  runZeinaAnalysis,
+} from "./index";
 
 /**
  * Example: Enhanced vital alert handler with Zeina AI
- * 
+ *
  * This replaces or augments the existing vital alert logic
  */
 export async function handleVitalAlertWithZeina(
@@ -24,19 +24,19 @@ export async function handleVitalAlertWithZeina(
   patientId: string,
   vitalType: string,
   vitalValue: number,
-  severity: 'info' | 'warning' | 'critical',
+  severity: "info" | "warning" | "critical",
   patientAge?: number,
   medicationCount?: number
 ): Promise<void> {
   const traceId = createTraceId();
 
-  logger.info('Processing vital alert with Zeina', {
+  logger.info("Processing vital alert with Zeina", {
     traceId,
     alertId,
     patientId,
     vitalType,
     severity,
-    fn: 'handleVitalAlertWithZeina',
+    fn: "handleVitalAlertWithZeina",
   });
 
   try {
@@ -44,7 +44,7 @@ export async function handleVitalAlertWithZeina(
     const alertContext: AlertContext = {
       alertId,
       patientId,
-      alertType: 'vital',
+      alertType: "vital",
       severity,
       vitalType: vitalType as any,
       vitalValue,
@@ -59,15 +59,15 @@ export async function handleVitalAlertWithZeina(
       alertContext,
     });
 
-    if (!result.success || !result.output) {
+    if (!(result.success && result.output)) {
       // This should never happen due to fail-closed design
       // But handle gracefully just in case
-      logger.warn('Zeina analysis returned no output, using standard alert', {
+      logger.warn("Zeina analysis returned no output, using standard alert", {
         traceId,
         alertId,
-        fn: 'handleVitalAlertWithZeina',
+        fn: "handleVitalAlertWithZeina",
       });
-      
+
       // Fall back to standard alert handling
       await sendStandardAlert(alertId, patientId, severity);
       return;
@@ -80,7 +80,7 @@ export async function handleVitalAlertWithZeina(
       traceId
     );
 
-    logger.info('Zeina actions determined', {
+    logger.info("Zeina actions determined", {
       traceId,
       alertId,
       sendAlert: actions.sendAlert,
@@ -88,7 +88,7 @@ export async function handleVitalAlertWithZeina(
       actionCode: result.output.recommendedActionCode,
       escalationLevel: result.output.escalationLevel,
       riskScore: result.output.riskScore,
-      fn: 'handleVitalAlertWithZeina',
+      fn: "handleVitalAlertWithZeina",
     });
 
     // Step 4: Execute backend actions
@@ -125,20 +125,23 @@ export async function handleVitalAlertWithZeina(
     // Step 5: Audit log
     await auditZeinaAnalysis(result.output, alertContext, traceId);
 
-    logger.info('Vital alert processed successfully with Zeina', {
+    logger.info("Vital alert processed successfully with Zeina", {
       traceId,
       alertId,
-      fn: 'handleVitalAlertWithZeina',
+      fn: "handleVitalAlertWithZeina",
     });
-
   } catch (error) {
     // Even if Zeina fails completely, send standard alert
-    logger.error('Error processing alert with Zeina, falling back to standard alert', error as Error, {
-      traceId,
-      alertId,
-      patientId,
-      fn: 'handleVitalAlertWithZeina',
-    });
+    logger.error(
+      "Error processing alert with Zeina, falling back to standard alert",
+      error as Error,
+      {
+        traceId,
+        alertId,
+        patientId,
+        fn: "handleVitalAlertWithZeina",
+      }
+    );
 
     await sendStandardAlert(alertId, patientId, severity);
   }
@@ -150,36 +153,36 @@ export async function handleVitalAlertWithZeina(
 async function sendAlertsToRecipients(
   alertId: string,
   patientId: string,
-  recipients: ('caregiver' | 'family' | 'emergency')[],
+  recipients: ("caregiver" | "family" | "emergency")[],
   summary: string,
   escalationLevel: string,
   traceId: string
 ): Promise<void> {
-  logger.info('Sending alerts to recipients', {
+  logger.info("Sending alerts to recipients", {
     traceId,
     alertId,
     recipients,
-    fn: 'sendAlertsToRecipients',
+    fn: "sendAlertsToRecipients",
   });
 
   for (const recipient of recipients) {
     switch (recipient) {
-      case 'caregiver':
+      case "caregiver":
         // Send push notification to caregivers
         // await sendPushNotification(...)
-        logger.info('Sent alert to caregivers', { traceId, alertId });
+        logger.info("Sent alert to caregivers", { traceId, alertId });
         break;
 
-      case 'family':
+      case "family":
         // Send push notification to family members
         // await sendPushNotification(...)
-        logger.info('Sent alert to family', { traceId, alertId });
+        logger.info("Sent alert to family", { traceId, alertId });
         break;
 
-      case 'emergency':
+      case "emergency":
         // Trigger emergency protocol
         // This might include SMS, phone calls, etc.
-        logger.info('Triggered emergency protocol', { traceId, alertId });
+        logger.info("Triggered emergency protocol", { traceId, alertId });
         break;
     }
   }
@@ -196,12 +199,12 @@ async function createAppNotification(
   summary: string,
   traceId: string
 ): Promise<void> {
-  logger.info('Creating app notification', {
+  logger.info("Creating app notification", {
     traceId,
     patientId,
     action,
     priority,
-    fn: 'createAppNotification',
+    fn: "createAppNotification",
   });
 
   // Create notification in Firestore
@@ -225,58 +228,58 @@ async function executeAutomatedAction(
   patientId: string,
   traceId: string
 ): Promise<void> {
-  logger.info('Executing automated action', {
+  logger.info("Executing automated action", {
     traceId,
     alertId,
     action,
-    fn: 'executeAutomatedAction',
+    fn: "executeAutomatedAction",
   });
 
   switch (action) {
-    case 'schedule_followup_1h':
+    case "schedule_followup_1h":
       // Schedule follow-up check in 1 hour
-      logger.info('Scheduled 1h follow-up', { traceId, alertId });
+      logger.info("Scheduled 1h follow-up", { traceId, alertId });
       break;
 
-    case 'schedule_followup_24h':
+    case "schedule_followup_24h":
       // Schedule follow-up check in 24 hours
-      logger.info('Scheduled 24h follow-up', { traceId, alertId });
+      logger.info("Scheduled 24h follow-up", { traceId, alertId });
       break;
 
-    case 'send_caregiver_notification':
+    case "send_caregiver_notification":
       // Send push notification to caregiver
-      logger.info('Sent caregiver notification', { traceId, alertId });
+      logger.info("Sent caregiver notification", { traceId, alertId });
       break;
 
-    case 'send_family_notification':
+    case "send_family_notification":
       // Send push notification to family
-      logger.info('Sent family notification', { traceId, alertId });
+      logger.info("Sent family notification", { traceId, alertId });
       break;
 
-    case 'escalate_to_emergency':
+    case "escalate_to_emergency":
       // Escalate to emergency services
-      logger.info('Escalated to emergency', { traceId, alertId });
+      logger.info("Escalated to emergency", { traceId, alertId });
       break;
 
-    case 'log_critical_event':
+    case "log_critical_event":
       // Log as critical event for audit
-      logger.info('Logged critical event', { traceId, alertId });
+      logger.info("Logged critical event", { traceId, alertId });
       break;
 
-    case 'log_high_risk_event':
+    case "log_high_risk_event":
       // Log as high-risk event
-      logger.info('Logged high-risk event', { traceId, alertId });
+      logger.info("Logged high-risk event", { traceId, alertId });
       break;
 
-    case 'log_zeina_analysis':
+    case "log_zeina_analysis":
       // Already logged in auditZeinaAnalysis
       break;
 
     default:
-      logger.warn('Unknown automated action', {
+      logger.warn("Unknown automated action", {
         traceId,
         action,
-        fn: 'executeAutomatedAction',
+        fn: "executeAutomatedAction",
       });
   }
 }
@@ -289,11 +292,11 @@ async function sendStandardAlert(
   patientId: string,
   severity: string
 ): Promise<void> {
-  logger.info('Sending standard alert', {
+  logger.info("Sending standard alert", {
     alertId,
     patientId,
     severity,
-    fn: 'sendStandardAlert',
+    fn: "sendStandardAlert",
   });
 
   // Use existing alert logic

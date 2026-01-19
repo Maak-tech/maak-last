@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Card from './Card';
-import Button from './Button';
-import { Heading, Text, Caption } from './Typography';
-import { Avatar, Badge, Divider } from './AdditionalComponents';
-import FAB from './FAB';
-import { colors, spacing, borderRadius } from './theme';
+import { useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Avatar, Badge, Divider } from "./AdditionalComponents";
+import Button from "./Button";
+import Card from "./Card";
+import FAB from "./FAB";
+import { Caption, Heading, Text } from "./Typography";
+import { borderRadius, colors, spacing } from "./theme";
 
 const MaakHomeScreen = () => {
-  const [activeTab, setActiveTab] = useState('community');
+  const [activeTab, setActiveTab] = useState("community");
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView edges={["top"]} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -20,7 +20,9 @@ const MaakHomeScreen = () => {
             <Text style={styles.logoTextSmall}>M</Text>
           </View>
           <View>
-            <Heading level={4} style={styles.headerTitle}>Maak</Heading>
+            <Heading level={4} style={styles.headerTitle}>
+              Maak
+            </Heading>
             <Caption>Welcome back!</Caption>
           </View>
         </View>
@@ -32,48 +34,48 @@ const MaakHomeScreen = () => {
       {/* Tabs */}
       <View style={styles.tabs}>
         <Button
+          onPress={() => setActiveTab("community")}
+          size="small"
+          style={styles.tab}
           title="Community"
-          onPress={() => setActiveTab('community')}
-          variant={activeTab === 'community' ? 'primary' : 'ghost'}
-          size="small"
-          style={styles.tab}
+          variant={activeTab === "community" ? "primary" : "ghost"}
         />
         <Button
+          onPress={() => setActiveTab("projects")}
+          size="small"
+          style={styles.tab}
           title="Projects"
-          onPress={() => setActiveTab('projects')}
-          variant={activeTab === 'projects' ? 'primary' : 'ghost'}
-          size="small"
-          style={styles.tab}
+          variant={activeTab === "projects" ? "primary" : "ghost"}
         />
         <Button
-          title="Events"
-          onPress={() => setActiveTab('events')}
-          variant={activeTab === 'events' ? 'primary' : 'ghost'}
+          onPress={() => setActiveTab("events")}
           size="small"
           style={styles.tab}
+          title="Events"
+          variant={activeTab === "events" ? "primary" : "ghost"}
         />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* Stats Card */}
-        <Card variant="elevated" style={styles.statsCard}>
+        <Card style={styles.statsCard} variant="elevated">
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text weight="bold" size="large" style={styles.statNumber}>
+              <Text size="large" style={styles.statNumber} weight="bold">
                 342
               </Text>
               <Caption>Members</Caption>
             </View>
             <Divider vertical />
             <View style={styles.statItem}>
-              <Text weight="bold" size="large" style={styles.statNumber}>
+              <Text size="large" style={styles.statNumber} weight="bold">
                 28
               </Text>
               <Caption>Projects</Caption>
             </View>
             <Divider vertical />
             <View style={styles.statItem}>
-              <Text weight="bold" size="large" style={styles.statNumber}>
+              <Text size="large" style={styles.statNumber} weight="bold">
                 12
               </Text>
               <Caption>Events</Caption>
@@ -85,21 +87,28 @@ const MaakHomeScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Heading level={5}>Featured Projects</Heading>
-            <Text size="small" style={styles.seeAll}>See all</Text>
+            <Text size="small" style={styles.seeAll}>
+              See all
+            </Text>
           </View>
 
           <Card onPress={() => {}} style={styles.projectCard}>
             <View style={styles.projectHeader}>
               <Avatar name="Project Alpha" size="md" />
               <View style={styles.projectInfo}>
-                <Text weight="semibold" size="large">Project Alpha</Text>
+                <Text size="large" weight="semibold">
+                  Project Alpha
+                </Text>
                 <Caption>Mobile App Development</Caption>
               </View>
-              <Badge variant="success" size="small">Active</Badge>
+              <Badge size="small" variant="success">
+                Active
+              </Badge>
             </View>
             <Divider spacing="small" />
             <Text style={styles.projectDescription}>
-              Building a community-driven mobile application focused on local collaboration
+              Building a community-driven mobile application focused on local
+              collaboration
             </Text>
             <View style={styles.projectFooter}>
               <View style={styles.avatarGroup}>
@@ -107,10 +116,14 @@ const MaakHomeScreen = () => {
                 <Avatar name="User 2" size="sm" style={styles.avatarOverlap} />
                 <Avatar name="User 3" size="sm" style={styles.avatarOverlap} />
                 <View style={[styles.avatarOverlap, styles.moreAvatar]}>
-                  <Text size="small" weight="semibold">+5</Text>
+                  <Text size="small" weight="semibold">
+                    +5
+                  </Text>
                 </View>
               </View>
-              <Text size="small" style={styles.dueDate}>Due in 5 days</Text>
+              <Text size="small" style={styles.dueDate}>
+                Due in 5 days
+              </Text>
             </View>
           </Card>
 
@@ -118,24 +131,33 @@ const MaakHomeScreen = () => {
             <View style={styles.projectHeader}>
               <Avatar name="Design Sprint" size="md" />
               <View style={styles.projectInfo}>
-                <Text weight="semibold" size="large">Design Sprint</Text>
+                <Text size="large" weight="semibold">
+                  Design Sprint
+                </Text>
                 <Caption>UI/UX Workshop</Caption>
               </View>
-              <Badge variant="warning" size="small">Planning</Badge>
+              <Badge size="small" variant="warning">
+                Planning
+              </Badge>
             </View>
             <Divider spacing="small" />
             <Text style={styles.projectDescription}>
-              Collaborative design workshop to create innovative solutions for community challenges
+              Collaborative design workshop to create innovative solutions for
+              community challenges
             </Text>
             <View style={styles.projectFooter}>
               <View style={styles.avatarGroup}>
                 <Avatar name="User 4" size="sm" style={styles.avatarOverlap} />
                 <Avatar name="User 5" size="sm" style={styles.avatarOverlap} />
                 <View style={[styles.avatarOverlap, styles.moreAvatar]}>
-                  <Text size="small" weight="semibold">+3</Text>
+                  <Text size="small" weight="semibold">
+                    +3
+                  </Text>
                 </View>
               </View>
-              <Text size="small" style={styles.dueDate}>Starts tomorrow</Text>
+              <Text size="small" style={styles.dueDate}>
+                Starts tomorrow
+              </Text>
             </View>
           </Card>
         </View>
@@ -144,12 +166,16 @@ const MaakHomeScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Heading level={5}>Upcoming Events</Heading>
-            <Text size="small" style={styles.seeAll}>See all</Text>
+            <Text size="small" style={styles.seeAll}>
+              See all
+            </Text>
           </View>
 
           <Card style={styles.eventCard}>
             <View style={styles.eventDate}>
-              <Text weight="bold" size="large" style={styles.eventDay}>15</Text>
+              <Text size="large" style={styles.eventDay} weight="bold">
+                15
+              </Text>
               <Caption>Jan</Caption>
             </View>
             <View style={styles.eventInfo}>
@@ -157,17 +183,19 @@ const MaakHomeScreen = () => {
               <Caption>Community Center • 6:00 PM</Caption>
             </View>
             <Button
-              title="RSVP"
-              variant="secondary"
+              onPress={() => {}}
               size="small"
               style={styles.rsvpButton}
-              onPress={() => {}}
+              title="RSVP"
+              variant="secondary"
             />
           </Card>
 
           <Card style={styles.eventCard}>
             <View style={styles.eventDate}>
-              <Text weight="bold" size="large" style={styles.eventDay}>22</Text>
+              <Text size="large" style={styles.eventDay} weight="bold">
+                22
+              </Text>
               <Caption>Jan</Caption>
             </View>
             <View style={styles.eventInfo}>
@@ -175,11 +203,11 @@ const MaakHomeScreen = () => {
               <Caption>Online • 2:00 PM</Caption>
             </View>
             <Button
-              title="Join"
-              variant="outline"
+              onPress={() => {}}
               size="small"
               style={styles.rsvpButton}
-              onPress={() => {}}
+              title="Join"
+              variant="outline"
             />
           </Card>
         </View>
@@ -189,9 +217,9 @@ const MaakHomeScreen = () => {
 
       {/* Floating Action Button */}
       <FAB
+        backgroundColor={colors.secondary}
         icon={<Text style={styles.fabIcon}>+</Text>}
         onPress={() => {}}
-        backgroundColor={colors.secondary}
       />
     </SafeAreaView>
   );
@@ -203,41 +231,41 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: spacing.md,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   logoSmall: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: colors.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginEnd: spacing.sm,
   },
   logoTextSmall: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.primary,
   },
   headerTitle: {
     marginBottom: 0,
   },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   tabs: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: spacing.sm,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
@@ -255,12 +283,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
   },
   statNumber: {
@@ -271,9 +299,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: spacing.md,
   },
   seeAll: {
@@ -283,8 +311,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   projectHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: spacing.sm,
   },
   projectInfo: {
@@ -296,14 +324,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   projectFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: spacing.sm,
   },
   avatarGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   avatarOverlap: {
     marginStart: -8,
@@ -315,21 +343,21 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   dueDate: {
     color: colors.textSecondary,
   },
   eventCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
   eventDate: {
     width: 50,
-    alignItems: 'center',
+    alignItems: "center",
     marginEnd: spacing.md,
     padding: spacing.sm,
     backgroundColor: colors.secondaryLight,
@@ -346,7 +374,7 @@ const styles = StyleSheet.create({
   },
   fabIcon: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.surface,
   },
   bottomPadding: {

@@ -3,13 +3,12 @@
  * Handles checking user notification preferences
  */
 
-import * as admin from 'firebase-admin';
-import { logger } from '../../observability/logger';
-
+import * as admin from "firebase-admin";
+import { logger } from "../../observability/logger";
 
 /**
  * Check if a notification should be sent to a user based on their preferences
- * 
+ *
  * @param userId - The user ID to check
  * @param notificationType - Type of notification (fall, medication, symptom, vital, trend, family)
  * @returns true if notification should be sent, false otherwise
@@ -20,13 +19,13 @@ export async function shouldSendNotification(
 ): Promise<boolean> {
   try {
     const db = admin.firestore();
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 
     if (!userData) {
-      logger.debug('User not found', {
+      logger.debug("User not found", {
         uid: userId,
-        fn: 'shouldSendNotification',
+        fn: "shouldSendNotification",
       });
       return false;
     }
@@ -36,9 +35,9 @@ export async function shouldSendNotification(
 
     // Check global notification setting
     if (notificationSettings.enabled === false) {
-      logger.debug('Notifications disabled globally for user', {
+      logger.debug("Notifications disabled globally for user", {
         uid: userId,
-        fn: 'shouldSendNotification',
+        fn: "shouldSendNotification",
       });
       return false;
     }
@@ -46,41 +45,41 @@ export async function shouldSendNotification(
     // Check specific notification type
     let shouldSend: boolean;
     switch (notificationType) {
-      case 'fall':
+      case "fall":
         shouldSend = notificationSettings.fallAlerts !== false;
         break;
-      case 'medication':
+      case "medication":
         shouldSend = notificationSettings.medicationReminders !== false;
         break;
-      case 'symptom':
+      case "symptom":
         shouldSend = notificationSettings.symptomAlerts !== false;
         break;
-      case 'vital':
+      case "vital":
         shouldSend = notificationSettings.vitalAlerts !== false;
         break;
-      case 'trend':
+      case "trend":
         shouldSend = notificationSettings.trendAlerts !== false;
         break;
-      case 'family':
+      case "family":
         shouldSend = notificationSettings.familyUpdates !== false;
         break;
       default:
         shouldSend = true;
     }
 
-    logger.debug('Notification preference checked', {
+    logger.debug("Notification preference checked", {
       uid: userId,
       notificationType,
       shouldSend,
-      fn: 'shouldSendNotification',
+      fn: "shouldSendNotification",
     });
 
     return shouldSend;
   } catch (error) {
-    logger.error('Failed to check notification preferences', error as Error, {
+    logger.error("Failed to check notification preferences", error as Error, {
       uid: userId,
       notificationType,
-      fn: 'shouldSendNotification',
+      fn: "shouldSendNotification",
     });
     // Default to allowing notification on error
     return true;

@@ -4,30 +4,28 @@
  * Supports BOTH legacy fcmToken and new fcmTokens map
  */
 
-import * as admin from 'firebase-admin';
-import { logger } from '../../observability/logger';
+import * as admin from "firebase-admin";
+import { logger } from "../../observability/logger";
 
 /**
  * Get FCM tokens for a user
  * Supports BOTH:
  * 1. New format: fcmTokens map with device IDs
  * 2. Legacy format: fcmToken (string or array)
- * 
+ *
  * @param userId - The user ID to get tokens for
  * @returns Array of FCM tokens
  */
-export async function getUserTokens(
-  userId: string
-): Promise<string[]> {
+export async function getUserTokens(userId: string): Promise<string[]> {
   try {
     const db = admin.firestore();
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 
     if (!userData) {
-      logger.debug('User not found', {
+      logger.debug("User not found", {
         uid: userId,
-        fn: 'getUserTokens',
+        fn: "getUserTokens",
       });
       return [];
     }
@@ -35,12 +33,16 @@ export async function getUserTokens(
     const tokens: string[] = [];
 
     // Check new format first: fcmTokens map with device IDs
-    if (userData.fcmTokens && typeof userData.fcmTokens === 'object') {
+    if (userData.fcmTokens && typeof userData.fcmTokens === "object") {
       for (const deviceId in userData.fcmTokens) {
         const deviceToken = userData.fcmTokens[deviceId];
-        if (deviceToken && typeof deviceToken === 'object' && deviceToken.token) {
+        if (
+          deviceToken &&
+          typeof deviceToken === "object" &&
+          deviceToken.token
+        ) {
           tokens.push(deviceToken.token);
-        } else if (typeof deviceToken === 'string') {
+        } else if (typeof deviceToken === "string") {
           // Handle simplified format
           tokens.push(deviceToken);
         }
@@ -51,7 +53,7 @@ export async function getUserTokens(
     if (userData.fcmToken) {
       if (Array.isArray(userData.fcmToken)) {
         tokens.push(...userData.fcmToken);
-      } else if (typeof userData.fcmToken === 'string') {
+      } else if (typeof userData.fcmToken === "string") {
         tokens.push(userData.fcmToken);
       }
     }
@@ -59,17 +61,17 @@ export async function getUserTokens(
     // Remove duplicates
     const uniqueTokens = Array.from(new Set(tokens));
 
-    logger.debug('FCM tokens retrieved', {
+    logger.debug("FCM tokens retrieved", {
       uid: userId,
       tokenCount: uniqueTokens.length,
-      fn: 'getUserTokens',
+      fn: "getUserTokens",
     });
 
     return uniqueTokens;
   } catch (error) {
-    logger.error('Failed to get FCM tokens', error as Error, {
+    logger.error("Failed to get FCM tokens", error as Error, {
       uid: userId,
-      fn: 'getUserTokens',
+      fn: "getUserTokens",
     });
     return [];
   }

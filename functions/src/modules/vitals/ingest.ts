@@ -4,7 +4,7 @@
  * No Firestore dependencies - fully testable
  */
 
-import type { VitalType, Vital } from '../../db/firestore';
+import type { Vital, VitalType } from "../../db/firestore";
 
 export interface VitalInput {
   userId: string;
@@ -13,7 +13,7 @@ export interface VitalInput {
   unit: string;
   systolic?: number;
   diastolic?: number;
-  source?: 'manual' | 'device' | 'healthkit' | 'googlefit' | 'oura' | 'garmin';
+  source?: "manual" | "device" | "healthkit" | "googlefit" | "oura" | "garmin";
   deviceId?: string;
   timestamp?: Date;
 }
@@ -32,15 +32,18 @@ export interface ValidationResult {
 // Validation Rules
 // ============================================================================
 
-const VITAL_RANGES: Record<VitalType, { min: number; max: number; unit: string }> = {
-  heartRate: { min: 20, max: 250, unit: 'bpm' },
-  restingHeartRate: { min: 20, max: 200, unit: 'bpm' },
-  heartRateVariability: { min: 0, max: 200, unit: 'ms' },
-  bloodPressure: { min: 40, max: 300, unit: 'mmHg' },
-  respiratoryRate: { min: 0, max: 60, unit: 'breaths/min' },
-  oxygenSaturation: { min: 0, max: 100, unit: '%' },
-  bodyTemperature: { min: 25, max: 45, unit: '°C' },
-  weight: { min: 0, max: 500, unit: 'kg' },
+const VITAL_RANGES: Record<
+  VitalType,
+  { min: number; max: number; unit: string }
+> = {
+  heartRate: { min: 20, max: 250, unit: "bpm" },
+  restingHeartRate: { min: 20, max: 200, unit: "bpm" },
+  heartRateVariability: { min: 0, max: 200, unit: "ms" },
+  bloodPressure: { min: 40, max: 300, unit: "mmHg" },
+  respiratoryRate: { min: 0, max: 60, unit: "breaths/min" },
+  oxygenSaturation: { min: 0, max: 100, unit: "%" },
+  bodyTemperature: { min: 25, max: 45, unit: "°C" },
+  weight: { min: 0, max: 500, unit: "kg" },
 };
 
 // ============================================================================
@@ -50,23 +53,25 @@ const VITAL_RANGES: Record<VitalType, { min: number; max: number; unit: string }
 /**
  * Validate required fields
  */
-export function validateRequired(input: Partial<VitalInput>): ValidationError[] {
+export function validateRequired(
+  input: Partial<VitalInput>
+): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (!input.userId || input.userId.trim() === '') {
-    errors.push({ field: 'userId', message: 'User ID is required' });
+  if (!input.userId || input.userId.trim() === "") {
+    errors.push({ field: "userId", message: "User ID is required" });
   }
 
   if (!input.type) {
-    errors.push({ field: 'type', message: 'Vital type is required' });
+    errors.push({ field: "type", message: "Vital type is required" });
   }
 
   if (input.value === undefined || input.value === null) {
-    errors.push({ field: 'value', message: 'Value is required' });
+    errors.push({ field: "value", message: "Value is required" });
   }
 
-  if (!input.unit || input.unit.trim() === '') {
-    errors.push({ field: 'unit', message: 'Unit is required' });
+  if (!input.unit || input.unit.trim() === "") {
+    errors.push({ field: "unit", message: "Unit is required" });
   }
 
   return errors;
@@ -77,21 +82,23 @@ export function validateRequired(input: Partial<VitalInput>): ValidationError[] 
  */
 export function validateVitalType(type: string): ValidationError[] {
   const validTypes: VitalType[] = [
-    'heartRate',
-    'restingHeartRate',
-    'heartRateVariability',
-    'bloodPressure',
-    'respiratoryRate',
-    'oxygenSaturation',
-    'bodyTemperature',
-    'weight',
+    "heartRate",
+    "restingHeartRate",
+    "heartRateVariability",
+    "bloodPressure",
+    "respiratoryRate",
+    "oxygenSaturation",
+    "bodyTemperature",
+    "weight",
   ];
 
   if (!validTypes.includes(type as VitalType)) {
-    return [{
-      field: 'type',
-      message: `Invalid vital type. Must be one of: ${validTypes.join(', ')}`,
-    }];
+    return [
+      {
+        field: "type",
+        message: `Invalid vital type. Must be one of: ${validTypes.join(", ")}`,
+      },
+    ];
   }
 
   return [];
@@ -106,8 +113,8 @@ export function validateValueRange(
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (typeof value !== 'number' || isNaN(value)) {
-    return [{ field: 'value', message: 'Value must be a valid number' }];
+  if (typeof value !== "number" || isNaN(value)) {
+    return [{ field: "value", message: "Value must be a valid number" }];
   }
 
   const range = VITAL_RANGES[type];
@@ -117,7 +124,7 @@ export function validateValueRange(
 
   if (value < range.min || value > range.max) {
     errors.push({
-      field: 'value',
+      field: "value",
       message: `Value must be between ${range.min} and ${range.max} ${range.unit}`,
     });
   }
@@ -131,24 +138,40 @@ export function validateValueRange(
 export function validateBloodPressure(input: VitalInput): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (input.type === 'bloodPressure') {
+  if (input.type === "bloodPressure") {
     if (input.systolic === undefined || input.systolic === null) {
-      errors.push({ field: 'systolic', message: 'Systolic value is required for blood pressure' });
+      errors.push({
+        field: "systolic",
+        message: "Systolic value is required for blood pressure",
+      });
     } else if (input.systolic < 40 || input.systolic > 300) {
-      errors.push({ field: 'systolic', message: 'Systolic must be between 40 and 300 mmHg' });
+      errors.push({
+        field: "systolic",
+        message: "Systolic must be between 40 and 300 mmHg",
+      });
     }
 
     if (input.diastolic === undefined || input.diastolic === null) {
-      errors.push({ field: 'diastolic', message: 'Diastolic value is required for blood pressure' });
+      errors.push({
+        field: "diastolic",
+        message: "Diastolic value is required for blood pressure",
+      });
     } else if (input.diastolic < 20 || input.diastolic > 200) {
-      errors.push({ field: 'diastolic', message: 'Diastolic must be between 20 and 200 mmHg' });
+      errors.push({
+        field: "diastolic",
+        message: "Diastolic must be between 20 and 200 mmHg",
+      });
     }
 
     // Validate systolic > diastolic
-    if (input.systolic && input.diastolic && input.systolic <= input.diastolic) {
+    if (
+      input.systolic &&
+      input.diastolic &&
+      input.systolic <= input.diastolic
+    ) {
       errors.push({
-        field: 'bloodPressure',
-        message: 'Systolic must be greater than diastolic',
+        field: "bloodPressure",
+        message: "Systolic must be greater than diastolic",
       });
     }
   }
@@ -164,12 +187,21 @@ export function validateSource(source?: string): ValidationError[] {
     return [];
   }
 
-  const validSources = ['manual', 'device', 'healthkit', 'googlefit', 'oura', 'garmin'];
+  const validSources = [
+    "manual",
+    "device",
+    "healthkit",
+    "googlefit",
+    "oura",
+    "garmin",
+  ];
   if (!validSources.includes(source)) {
-    return [{
-      field: 'source',
-      message: `Invalid source. Must be one of: ${validSources.join(', ')}`,
-    }];
+    return [
+      {
+        field: "source",
+        message: `Invalid source. Must be one of: ${validSources.join(", ")}`,
+      },
+    ];
   }
 
   return [];
@@ -178,7 +210,9 @@ export function validateSource(source?: string): ValidationError[] {
 /**
  * Validate complete vital input
  */
-export function validateVitalInput(input: Partial<VitalInput>): ValidationResult {
+export function validateVitalInput(
+  input: Partial<VitalInput>
+): ValidationResult {
   const allErrors: ValidationError[] = [];
 
   // Required fields
@@ -198,7 +232,7 @@ export function validateVitalInput(input: Partial<VitalInput>): ValidationResult
   }
 
   // Blood pressure specific
-  if (input.type === 'bloodPressure') {
+  if (input.type === "bloodPressure") {
     allErrors.push(...validateBloodPressure(input as VitalInput));
   }
 
@@ -221,48 +255,48 @@ export function validateVitalInput(input: Partial<VitalInput>): ValidationResult
 export function normalizeUnit(type: VitalType, unit: string): string {
   const unitMap: Record<string, string> = {
     // Heart rate
-    'bpm': 'bpm',
-    'beats/min': 'bpm',
-    'beats per minute': 'bpm',
-    
+    bpm: "bpm",
+    "beats/min": "bpm",
+    "beats per minute": "bpm",
+
     // Temperature
-    '°c': '°C',
-    'c': '°C',
-    'celsius': '°C',
-    '°f': '°F',
-    'f': '°F',
-    'fahrenheit': '°F',
-    
+    "°c": "°C",
+    c: "°C",
+    celsius: "°C",
+    "°f": "°F",
+    f: "°F",
+    fahrenheit: "°F",
+
     // Oxygen
-    '%': '%',
-    'percent': '%',
-    'spo2': '%',
-    
+    "%": "%",
+    percent: "%",
+    spo2: "%",
+
     // Weight
-    'kg': 'kg',
-    'kilogram': 'kg',
-    'kilograms': 'kg',
-    'lb': 'lb',
-    'lbs': 'lb',
-    'pound': 'lb',
-    'pounds': 'lb',
-    
+    kg: "kg",
+    kilogram: "kg",
+    kilograms: "kg",
+    lb: "lb",
+    lbs: "lb",
+    pound: "lb",
+    pounds: "lb",
+
     // Blood pressure
-    'mmhg': 'mmHg',
-    'mm hg': 'mmHg',
-    
+    mmhg: "mmHg",
+    "mm hg": "mmHg",
+
     // Respiratory rate
-    'breaths/min': 'breaths/min',
-    'breaths per minute': 'breaths/min',
-    'rpm': 'breaths/min',
-    
+    "breaths/min": "breaths/min",
+    "breaths per minute": "breaths/min",
+    rpm: "breaths/min",
+
     // HRV
-    'ms': 'ms',
-    'milliseconds': 'ms',
+    ms: "ms",
+    milliseconds: "ms",
   };
 
   const normalized = unitMap[unit.toLowerCase()] || unit;
-  
+
   // Use expected unit for vital type if available
   const expectedUnit = VITAL_RANGES[type]?.unit;
   return expectedUnit || normalized;
@@ -271,27 +305,42 @@ export function normalizeUnit(type: VitalType, unit: string): string {
 /**
  * Convert temperature to Celsius if in Fahrenheit
  */
-export function normalizeTemperature(value: number, unit: string): { value: number; unit: string } {
-  if (unit === '°F' || unit.toLowerCase() === 'f' || unit.toLowerCase() === 'fahrenheit') {
+export function normalizeTemperature(
+  value: number,
+  unit: string
+): { value: number; unit: string } {
+  if (
+    unit === "°F" ||
+    unit.toLowerCase() === "f" ||
+    unit.toLowerCase() === "fahrenheit"
+  ) {
     return {
       value: (value - 32) * (5 / 9),
-      unit: '°C',
+      unit: "°C",
     };
   }
-  return { value, unit: '°C' };
+  return { value, unit: "°C" };
 }
 
 /**
  * Convert weight to kg if in pounds
  */
-export function normalizeWeight(value: number, unit: string): { value: number; unit: string } {
-  if (unit === 'lb' || unit === 'lbs' || unit.toLowerCase() === 'pound' || unit.toLowerCase() === 'pounds') {
+export function normalizeWeight(
+  value: number,
+  unit: string
+): { value: number; unit: string } {
+  if (
+    unit === "lb" ||
+    unit === "lbs" ||
+    unit.toLowerCase() === "pound" ||
+    unit.toLowerCase() === "pounds"
+  ) {
     return {
-      value: value * 0.453592,
-      unit: 'kg',
+      value: value * 0.453_592,
+      unit: "kg",
     };
   }
-  return { value, unit: 'kg' };
+  return { value, unit: "kg" };
 }
 
 /**
@@ -302,36 +351,38 @@ export function normalizeValue(
   value: number,
   unit: string
 ): { value: number; unit: string } {
-  if (type === 'bodyTemperature') {
+  if (type === "bodyTemperature") {
     return normalizeTemperature(value, unit);
   }
-  
-  if (type === 'weight') {
+
+  if (type === "weight") {
     return normalizeWeight(value, unit);
   }
-  
+
   return { value, unit: normalizeUnit(type, unit) };
 }
 
 /**
  * Create normalized VitalReading object
  */
-export function createVitalReading(input: VitalInput): Omit<Vital, 'id' | 'createdAt'> {
+export function createVitalReading(
+  input: VitalInput
+): Omit<Vital, "id" | "createdAt"> {
   const normalized = normalizeValue(input.type, input.value, input.unit);
-  
-  const vital: Omit<Vital, 'id' | 'createdAt'> = {
+
+  const vital: Omit<Vital, "id" | "createdAt"> = {
     userId: input.userId.trim(),
     type: input.type,
     value: Math.round(normalized.value * 100) / 100, // Round to 2 decimal places
     unit: normalized.unit,
-    source: input.source || 'manual',
-    timestamp: input.timestamp 
-      ? new Date(input.timestamp) as any // Will be converted to Timestamp by Firestore
-      : new Date() as any,
+    source: input.source || "manual",
+    timestamp: input.timestamp
+      ? (new Date(input.timestamp) as any) // Will be converted to Timestamp by Firestore
+      : (new Date() as any),
   };
 
   // Add blood pressure fields if applicable
-  if (input.type === 'bloodPressure' && input.systolic && input.diastolic) {
+  if (input.type === "bloodPressure" && input.systolic && input.diastolic) {
     vital.systolic = input.systolic;
     vital.diastolic = input.diastolic;
   }

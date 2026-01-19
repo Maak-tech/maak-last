@@ -6,21 +6,25 @@ import {
   SafeAreaView,
   ScrollView,
   Text,
+  type TextStyle,
   TouchableOpacity,
   View,
-  type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import {
+  Caption,
+  Heading,
+  Text as TypographyText,
+} from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  medicationInteractionService,
   type DrugInteraction,
+  medicationInteractionService,
 } from "@/lib/services/medicationInteractionService";
 import type { Medication } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Card } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
 
 interface MedicationInteractionWarningProps {
   medications: Medication[];
@@ -137,7 +141,12 @@ export default function MedicationInteractionWarning({
       marginBottom: theme.spacing.xs,
     } as TextStyle,
     rtlText: {
-      textAlign: (isRTL ? "right" : "left") as "left" | "right" | "center" | "justify" | "auto",
+      textAlign: (isRTL ? "right" : "left") as
+        | "left"
+        | "right"
+        | "center"
+        | "justify"
+        | "auto",
     } as TextStyle,
   }))(theme) as any;
 
@@ -165,7 +174,8 @@ export default function MedicationInteractionWarning({
         medsToCheck = [...medications, tempMed];
       }
 
-      const foundInteractions = await medicationInteractionService.checkInteractions(medsToCheck);
+      const foundInteractions =
+        await medicationInteractionService.checkInteractions(medsToCheck);
       setInteractions(foundInteractions);
 
       // Auto-show modal if major interactions found
@@ -188,10 +198,18 @@ export default function MedicationInteractionWarning({
 
   return (
     <View style={styles.container}>
-      <Card variant="elevated" style={styles.warningCard} onPress={undefined} contentStyle={undefined}>
+      <Card
+        contentStyle={undefined}
+        onPress={undefined}
+        style={styles.warningCard}
+        variant="elevated"
+      >
         <View style={styles.warningHeader}>
-          <AlertTriangle size={24} color={theme.colors.accent.error} />
-          <Heading level={5} style={[styles.warningTitle, isRTL ? styles.rtlText : {}]}>
+          <AlertTriangle color={theme.colors.accent.error} size={24} />
+          <Heading
+            level={5}
+            style={[styles.warningTitle, isRTL ? styles.rtlText : {}]}
+          >
             {isRTL ? "تحذير: تفاعلات دوائية" : "Warning: Drug Interactions"}
           </Heading>
         </View>
@@ -225,17 +243,20 @@ export default function MedicationInteractionWarning({
 
       {/* Interaction Details Modal */}
       <Modal
-        visible={showModal}
         animationType="slide"
-        presentationStyle="pageSheet"
         onRequestClose={() => {
           setShowModal(false);
           onDismiss?.();
         }}
+        presentationStyle="pageSheet"
+        visible={showModal}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Heading level={5} style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            <Heading
+              level={5}
+              style={[styles.modalTitle, isRTL && styles.rtlText]}
+            >
               {isRTL ? "تفاعلات الأدوية" : "Drug Interactions"}
             </Heading>
             <TouchableOpacity
@@ -244,44 +265,49 @@ export default function MedicationInteractionWarning({
                 onDismiss?.();
               }}
             >
-              <X size={24} color={theme.colors.text.primary} />
+              <X color={theme.colors.text.primary} size={24} />
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
             {interactions.map((interaction, index) => (
               <Card
+                contentStyle={undefined}
                 key={index}
-                variant="elevated"
+                onPress={undefined}
                 style={[
                   styles.interactionCard,
                   {
-                    borderLeftColor: medicationInteractionService.getSeverityColor(
-                      interaction.severity
-                    ),
+                    borderLeftColor:
+                      medicationInteractionService.getSeverityColor(
+                        interaction.severity
+                      ),
                   },
                 ]}
-                onPress={undefined}
-                contentStyle={undefined}
+                variant="elevated"
               >
                 <View style={styles.interactionHeader}>
                   <Heading
                     level={6}
-                    style={[styles.interactionMedications, isRTL ? styles.rtlText : {}]}
+                    style={[
+                      styles.interactionMedications,
+                      isRTL ? styles.rtlText : {},
+                    ]}
                   >
                     {interaction.medications.join(" + ")}
                   </Heading>
                   <Badge
-                    variant="outline"
                     size="small"
                     style={{
-                      borderColor: medicationInteractionService.getSeverityColor(
-                        interaction.severity
-                      ),
+                      borderColor:
+                        medicationInteractionService.getSeverityColor(
+                          interaction.severity
+                        ),
                       backgroundColor:
                         medicationInteractionService.getSeverityColor(
                           interaction.severity
                         ) + "20",
                     }}
+                    variant="outline"
                   >
                     <Caption
                       numberOfLines={1}
@@ -300,7 +326,10 @@ export default function MedicationInteractionWarning({
                 </View>
 
                 <TypographyText
-                  style={[styles.interactionDescription, isRTL && styles.rtlText]}
+                  style={[
+                    styles.interactionDescription,
+                    isRTL && styles.rtlText,
+                  ]}
                 >
                   {interaction.description}
                 </TypographyText>
@@ -335,7 +364,10 @@ export default function MedicationInteractionWarning({
                     {interaction.recommendations.map((rec, recIndex) => (
                       <Text
                         key={recIndex}
-                        style={[styles.recommendationItem, isRTL && styles.rtlText]}
+                        style={[
+                          styles.recommendationItem,
+                          isRTL && styles.rtlText,
+                        ]}
                       >
                         • {rec}
                       </Text>

@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, User, Users } from "lucide-react-native";
 import type React from "react";
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Animated,
@@ -44,14 +44,15 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
   const isRTL = useMemo(() => i18n.language === "ar", [i18n.language]);
 
   // Cleanup animation on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (animationRef.current) {
         animationRef.current.stop();
         animationRef.current = null;
       }
-    };
-  }, []);
+    },
+    []
+  );
 
   const filterOptions = useMemo((): FilterOption[] => {
     const options: FilterOption[] = [
@@ -72,9 +73,10 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
       familyMembers
         .filter((member) => member.id !== currentUserId)
         .forEach((member) => {
-          const memberName = member.firstName && member.lastName
-            ? `${member.firstName} ${member.lastName}`
-            : member.firstName || "User";
+          const memberName =
+            member.firstName && member.lastName
+              ? `${member.firstName} ${member.lastName}`
+              : member.firstName || "User";
 
           options.push({
             id: member.id,
@@ -106,86 +108,116 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
       duration: 300,
       useNativeDriver: false,
     });
-    
+
     animationRef.current = animation;
     animation.start(() => {
       animationRef.current = null;
     });
-    
+
     setIsExpanded(!isExpanded);
   }, [isExpanded, filterOptions.length, animatedHeight]);
 
-  const renderFilterOption = useCallback((option: FilterOption) => {
-    const isSelected = selectedFilter.id === option.id;
-    const iconColor = isSelected ? "#FFFFFF" : "#64748B";
+  const renderFilterOption = useCallback(
+    (option: FilterOption) => {
+      const isSelected = selectedFilter.id === option.id;
+      const iconColor = isSelected ? "#FFFFFF" : "#64748B";
 
-    const renderIcon = () => {
-      switch (option.type) {
-        case "personal":
-          return <User color={iconColor} size={16} style={styles.filterIcon} />;
-        case "family":
-          return <Users color={iconColor} size={16} style={styles.filterIcon} />;
-        case "member":
-          return (
-            <View style={[styles.memberAvatar, isSelected && styles.memberAvatarSelected]}>
-              <Text style={[styles.memberAvatarText, isSelected && styles.memberAvatarTextSelected]}>
-                {option.memberName?.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          );
-        default:
-          return null;
-      }
-    };
+      const renderIcon = () => {
+        switch (option.type) {
+          case "personal":
+            return (
+              <User color={iconColor} size={16} style={styles.filterIcon} />
+            );
+          case "family":
+            return (
+              <Users color={iconColor} size={16} style={styles.filterIcon} />
+            );
+          case "member":
+            return (
+              <View
+                style={[
+                  styles.memberAvatar,
+                  isSelected && styles.memberAvatarSelected,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.memberAvatarText,
+                    isSelected && styles.memberAvatarTextSelected,
+                  ]}
+                >
+                  {option.memberName?.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            );
+          default:
+            return null;
+        }
+      };
 
-    return (
-      <TouchableOpacity
-        key={option.id}
-        onPress={() => onFilterChange(option)}
-        style={[
-          styles.filterOption,
-          isSelected && styles.filterOptionSelected,
-          isRTL && styles.filterOptionRTL,
-        ]}
-      >
-        <View style={styles.filterContent}>
-          {renderIcon()}
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.filterText,
-              isSelected && styles.filterTextSelected,
-              isRTL && styles.filterTextRTL,
-            ]}
-          >
-            {option.label}
-          </Text>
-        </View>
-
-        {option.type === "member" && (
-          <View style={[styles.memberBadge, isSelected && styles.memberBadgeSelected]}>
-            <Text style={[styles.memberBadgeText, isSelected && styles.memberBadgeTextSelected]}>
-              {isRTL ? "فرد العائلة" : "Member"}
+      return (
+        <TouchableOpacity
+          key={option.id}
+          onPress={() => onFilterChange(option)}
+          style={[
+            styles.filterOption,
+            isSelected && styles.filterOptionSelected,
+            isRTL && styles.filterOptionRTL,
+          ]}
+        >
+          <View style={styles.filterContent}>
+            {renderIcon()}
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.filterText,
+                isSelected && styles.filterTextSelected,
+                isRTL && styles.filterTextRTL,
+              ]}
+            >
+              {option.label}
             </Text>
           </View>
-        )}
-      </TouchableOpacity>
-    );
-  }, [selectedFilter.id, onFilterChange, isRTL]);
 
-  const optionsToShow = useMemo(() => {
-    return isExpanded || !shouldShowExpansion
-      ? filterOptions
-      : filterOptions.slice(0, 15);
-  }, [filterOptions, isExpanded, shouldShowExpansion]);
+          {option.type === "member" && (
+            <View
+              style={[
+                styles.memberBadge,
+                isSelected && styles.memberBadgeSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.memberBadgeText,
+                  isSelected && styles.memberBadgeTextSelected,
+                ]}
+              >
+                {isRTL ? "فرد العائلة" : "Member"}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [selectedFilter.id, onFilterChange, isRTL]
+  );
 
-  const filterOptionsContent = useMemo(() => {
-    return (
+  const optionsToShow = useMemo(
+    () =>
+      isExpanded || !shouldShowExpansion
+        ? filterOptions
+        : filterOptions.slice(0, 15),
+    [filterOptions, isExpanded, shouldShowExpansion]
+  );
+
+  const filterOptionsContent = useMemo(
+    () => (
       <View style={styles.filtersGrid}>
         {optionsToShow.map(renderFilterOption)}
       </View>
-    );
-  }, [optionsToShow, renderFilterOption]);
+    ),
+    [optionsToShow, renderFilterOption]
+  );
 
   const selectedIndicatorText = useMemo(() => {
     switch (selectedFilter.type) {
@@ -200,7 +232,12 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
       default:
         return isRTL ? "عرض بياناتي الشخصية" : "Viewing My Personal Data";
     }
-  }, [selectedFilter.type, selectedFilter.memberName, familyMembers.length, isRTL]);
+  }, [
+    selectedFilter.type,
+    selectedFilter.memberName,
+    familyMembers.length,
+    isRTL,
+  ]);
 
   // Don't render if no family or if there's only personal option available
   if (!hasFamily || filterOptions.length === 1) {

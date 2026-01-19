@@ -3,26 +3,23 @@
  * Orchestrates vital ingestion: validation, persistence, alerting, audit
  */
 
-import * as functions from 'firebase-functions';
-import { Timestamp } from 'firebase-admin/firestore';
-import { logger } from '../observability/logger';
-import { createTraceId } from '../observability/correlation';
-import { getAuthContext } from '../security/authContext';
-import { assertCanWritePatient } from '../security/rbac';
-import { 
-  validateVitalInput, 
-  createVitalReading,
-  type VitalInput 
-} from '../modules/vitals/ingest';
-import { 
+import { Timestamp } from "firebase-admin/firestore";
+import * as functions from "firebase-functions";
+import { getAuditLogsCollection, getVitalsCollection } from "../db/collections";
+import {
   checkVitalBenchmark,
   createAlertMessage,
-  type VitalType 
-} from '../modules/alerts/engine';
-import { 
-  getVitalsCollection, 
-  getAuditLogsCollection
-} from '../db/collections';
+  type VitalType,
+} from "../modules/alerts/engine";
+import {
+  createVitalReading,
+  type VitalInput,
+  validateVitalInput,
+} from "../modules/vitals/ingest";
+import { createTraceId } from "../observability/correlation";
+import { logger } from "../observability/logger";
+import { getAuthContext } from "../security/authContext";
+import { assertCanWritePatient } from "../security/rbac";
 
 export interface IngestVitalRequest {
   userId: string;
@@ -31,7 +28,7 @@ export interface IngestVitalRequest {
   unit: string;
   systolic?: number;
   diastolic?: number;
-  source?: 'manual' | 'device' | 'healthkit' | 'googlefit' | 'oura' | 'garmin';
+  source?: "manual" | "device" | "healthkit" | "googlefit" | "oura" | "garmin";
   deviceId?: string;
   timestamp?: string; // ISO 8601 format
 }
@@ -40,8 +37,8 @@ export interface IngestVitalResponse {
   success: boolean;
   vitalId?: string;
   alert?: {
-    severity: 'critical' | 'warning';
-    direction: 'low' | 'high';
+    severity: "critical" | "warning";
+    direction: "low" | "high";
     message: string;
   };
   errors?: Array<{ field: string; message: string }>;
@@ -56,25 +53,25 @@ export async function ingestVital(
   context: any
 ): Promise<IngestVitalResponse> {
   const traceId = createTraceId();
-  
-  logger.info('Vital ingestion started', {
+
+  logger.info("Vital ingestion started", {
     traceId,
     uid: context.auth?.uid,
     patientId: data.userId,
-    fn: 'ingestVital',
+    fn: "ingestVital",
   });
 
   try {
     // 1. Extract and enrich auth context
     const authContext = await getAuthContext(context);
     if (!authContext) {
-      logger.warn('Unauthenticated vital ingestion attempt', {
+      logger.warn("Unauthenticated vital ingestion attempt", {
         traceId,
-        fn: 'ingestVital',
+        fn: "ingestVital",
       });
       throw new functions.https.HttpsError(
-        'unauthenticated',
-        'User must be authenticated'
+        "unauthenticated",
+        "User must be authenticated"
       );
     }
 
@@ -85,11 +82,11 @@ export async function ingestVital(
         patientId: data.userId,
       });
     } catch (error) {
-      logger.warn('Permission denied for vital ingestion', {
+      logger.warn("Permission denied for vital ingestion", {
         traceId,
         uid: authContext.uid,
         patientId: data.userId,
-        fn: 'ingestVital',
+        fn: "ingestVital",
       });
       throw error;
     }
@@ -109,11 +106,11 @@ export async function ingestVital(
 
     const validation = validateVitalInput(vitalInput);
     if (!validation.isValid) {
-      logger.warn('Invalid vital input', {
+      logger.warn("Invalid vital input", {
         traceId,
         uid: authContext.uid,
         patientId: data.userId,
-        fn: 'ingestVital',
+        fn: "ingestVital",
       });
       return {
         success: false,
@@ -134,17 +131,17 @@ export async function ingestVital(
 
     const vitalId = vitalDoc.id;
 
-    logger.info('Vital persisted', {
+    logger.info("Vital persisted", {
       traceId,
       uid: authContext.uid,
       patientId: data.userId,
       vitalId,
-      fn: 'ingestVital',
+      fn: "ingestVital",
     });
 
     // 6. Check alert thresholds (pure function from alert engine)
     const alertCheck = checkVitalBenchmark(data.type, data.value);
-    let alertInfo: IngestVitalResponse['alert'] | undefined;
+    let alertInfo: IngestVitalResponse["alert"] | undefined;
 
     if (alertCheck.isAlert && alertCheck.severity && alertCheck.direction) {
       const alertMessage = createAlertMessage(
@@ -161,12 +158,12 @@ export async function ingestVital(
         message: alertMessage.message,
       };
 
-      logger.info('Vital alert detected', {
+      logger.info("Vital alert detected", {
         traceId,
         uid: authContext.uid,
         patientId: data.userId,
         vitalId,
-        fn: 'ingestVital',
+        fn: "ingestVital",
       });
 
       // Note: Alert notification is handled by checkVitalBenchmarks Firestore trigger
@@ -178,39 +175,39 @@ export async function ingestVital(
       const auditCollection = getAuditLogsCollection();
       await auditCollection.add({
         userId: authContext.uid,
-        action: 'create',
-        resourceType: 'vital',
+        action: "create",
+        resourceType: "vital",
         resourceId: vitalId,
         targetUserId: data.userId,
         familyId: authContext.familyId,
         timestamp: Timestamp.now(),
       });
 
-      logger.debug('Audit event recorded', {
+      logger.debug("Audit event recorded", {
         traceId,
         uid: authContext.uid,
         patientId: data.userId,
         vitalId,
-        fn: 'ingestVital',
+        fn: "ingestVital",
       });
     } catch (auditError) {
       // Log audit failure but don't fail the request
-      logger.error('Failed to record audit event', auditError as Error, {
+      logger.error("Failed to record audit event", auditError as Error, {
         traceId,
         uid: authContext.uid,
         patientId: data.userId,
         vitalId,
-        fn: 'ingestVital',
+        fn: "ingestVital",
       });
     }
 
     // 8. Return success response
-    logger.info('Vital ingestion completed', {
+    logger.info("Vital ingestion completed", {
       traceId,
       uid: authContext.uid,
       patientId: data.userId,
       vitalId,
-      fn: 'ingestVital',
+      fn: "ingestVital",
     });
 
     // Note: Alert checking and notifications are now handled by the
@@ -221,13 +218,12 @@ export async function ingestVital(
       vitalId,
       alert: alertInfo,
     };
-
   } catch (error) {
-    logger.error('Vital ingestion failed', error as Error, {
+    logger.error("Vital ingestion failed", error as Error, {
       traceId,
       uid: context.auth?.uid,
       patientId: data.userId,
-      fn: 'ingestVital',
+      fn: "ingestVital",
     });
 
     // Re-throw HttpsErrors
@@ -237,8 +233,8 @@ export async function ingestVital(
 
     // Wrap other errors
     throw new functions.https.HttpsError(
-      'internal',
-      'Failed to ingest vital reading'
+      "internal",
+      "Failed to ingest vital reading"
     );
   }
 }

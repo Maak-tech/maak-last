@@ -1,6 +1,5 @@
-import { observabilityEmitter } from "./eventEmitter";
 import { circuitBreaker } from "./circuitBreaker";
-import type { EventSeverity } from "./types";
+import { observabilityEmitter } from "./eventEmitter";
 
 export interface InstrumentationOptions {
   source: string;
@@ -115,7 +114,10 @@ export function createServiceInstrumenter(serviceName: string) {
       });
     },
 
-    recordSuccess(operationName: string, metadata?: Record<string, unknown>): void {
+    recordSuccess(
+      operationName: string,
+      metadata?: Record<string, unknown>
+    ): void {
       observabilityEmitter.emitPlatformEvent(
         `${operationName}_success`,
         `${operationName} succeeded`,
@@ -150,7 +152,11 @@ export function createServiceInstrumenter(serviceName: string) {
       );
     },
 
-    recordLatency(operationName: string, durationMs: number, success: boolean): void {
+    recordLatency(
+      operationName: string,
+      durationMs: number,
+      success: boolean
+    ): void {
       observabilityEmitter.recordMetric(
         `${serviceName}_${operationName}_latency`,
         durationMs,
@@ -162,7 +168,7 @@ export function createServiceInstrumenter(serviceName: string) {
 
     recordCount(
       metricName: string,
-      value: number = 1,
+      value = 1,
       tags?: Record<string, string>
     ): void {
       observabilityEmitter.recordMetric(
@@ -178,7 +184,8 @@ export function createServiceInstrumenter(serviceName: string) {
 
 export const apiInstrumenter = createServiceInstrumenter("api");
 export const syncInstrumenter = createServiceInstrumenter("sync");
-export const notificationInstrumenter = createServiceInstrumenter("notification");
+export const notificationInstrumenter =
+  createServiceInstrumenter("notification");
 export const aiInstrumenter = createServiceInstrumenter("ai");
 export const authInstrumenter = createServiceInstrumenter("auth");
 export const paymentInstrumenter = createServiceInstrumenter("payment");

@@ -1,12 +1,6 @@
-import React, { useState } from 'react';
-import {
-  View,
-  TextInput,
-  Text,
-  StyleSheet,
-  Animated,
-} from 'react-native';
-import { colors, typography, spacing, borderRadius } from './theme';
+import { useState } from "react";
+import { Animated, StyleSheet, Text, TextInput, View } from "react-native";
+import { borderRadius, colors, spacing, typography } from "./theme";
 
 const Input = ({
   label,
@@ -52,11 +46,9 @@ const Input = ({
   return (
     <View style={[styles.container, style]}>
       {label && (
-        <Text style={[styles.label, error && styles.labelError]}>
-          {label}
-        </Text>
+        <Text style={[styles.label, error && styles.labelError]}>{label}</Text>
       )}
-      
+
       <Animated.View
         style={[
           styles.inputContainer,
@@ -66,8 +58,16 @@ const Input = ({
         ]}
       >
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
-        
+
         <TextInput
+          editable={!disabled}
+          multiline={multiline}
+          numberOfLines={numberOfLines}
+          onBlur={handleBlur}
+          onChangeText={onChangeText}
+          onFocus={handleFocus}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textDisabled}
           style={[
             styles.input,
             leftIcon && styles.inputWithLeftIcon,
@@ -75,20 +75,12 @@ const Input = ({
             multiline && styles.multilineInput,
           ]}
           value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textDisabled}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          editable={!disabled}
-          multiline={multiline}
-          numberOfLines={numberOfLines}
           {...props}
         />
-        
+
         {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
       </Animated.View>
-      
+
       {(error || helperText) && (
         <Text style={[styles.helperText, error && styles.errorText]}>
           {error || helperText}
@@ -112,8 +104,8 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderRadius: borderRadius.md,
@@ -122,7 +114,7 @@ const styles = StyleSheet.create({
   },
   multilineContainer: {
     minHeight: 100,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     paddingVertical: spacing.md,
   },
   inputDisabled: {
@@ -137,7 +129,7 @@ const styles = StyleSheet.create({
   },
   multilineInput: {
     minHeight: 70,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   inputWithLeftIcon: {
     marginStart: spacing.sm,

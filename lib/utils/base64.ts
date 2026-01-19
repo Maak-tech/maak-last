@@ -4,7 +4,8 @@
  * We implement small, dependency-free encode/decode for Uint8Array.
  */
 
-const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 function getAtob(): ((b64: string) => string) | null {
   const fn = (globalThis as any)?.atob;
@@ -66,7 +67,7 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
   if (btoaFn) {
     let binary = "";
     // Chunk to avoid call stack / memory issues for larger arrays
-    const chunkSize = 0x8000;
+    const chunkSize = 0x80_00;
     for (let i = 0; i < bytes.length; i += chunkSize) {
       const chunk = bytes.subarray(i, i + chunkSize);
       binary += String.fromCharCode(...Array.from(chunk));
@@ -100,4 +101,3 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 
   return output;
 }
-

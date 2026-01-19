@@ -3,10 +3,10 @@
  * Checks for medication reminders every hour and sends notifications to users
  */
 
-import * as admin from 'firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
-import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { logger } from '../observability/logger';
+import * as admin from "firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { logger } from "../observability/logger";
 
 /**
  * Helper function to check if time is within range
@@ -20,8 +20,8 @@ function isTimeWithinRange(
   targetTime: string,
   rangeMinutes: number
 ): boolean {
-  const [currentHour, currentMin] = currentTime.split(':').map(Number);
-  const [targetHour, targetMin] = targetTime.split(':').map(Number);
+  const [currentHour, currentMin] = currentTime.split(":").map(Number);
+  const [targetHour, targetMin] = targetTime.split(":").map(Number);
 
   const currentMinutes = currentHour * 60 + currentMin;
   const targetMinutes = targetHour * 60 + targetMin;
@@ -35,21 +35,21 @@ function isTimeWithinRange(
  * Runs every hour
  */
 export const scheduledMedicationReminders = onSchedule(
-  'every 1 hours',
+  "every 1 hours",
   async () => {
     const db = admin.firestore();
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
     const currentTime =
-      `${currentHour.toString().padStart(2, '0')}:` +
-      `${currentMinutes.toString().padStart(2, '0')}`;
+      `${currentHour.toString().padStart(2, "0")}:` +
+      `${currentMinutes.toString().padStart(2, "0")}`;
 
     try {
       // Get all active medications
       const medicationsSnapshot = await db
-        .collection('medications')
-        .where('isActive', '==', true)
+        .collection("medications")
+        .where("isActive", "==", true)
         .get();
 
       const remindersToSend: any[] = [];
@@ -79,17 +79,17 @@ export const scheduledMedicationReminders = onSchedule(
       // Send reminders
       // Note: This requires sendMedicationReminder to be exported from index.ts
       // We'll need to import it dynamically to avoid circular dependencies
-      const indexModule = await import('../index.js') as any;
-      
+      const indexModule = (await import("../index.js")) as any;
+
       for (const reminder of remindersToSend) {
         try {
           await indexModule.sendMedicationReminder(reminder, {
-            auth: { uid: 'system' },
+            auth: { uid: "system" },
           } as any);
 
           // Mark reminder as notified
           await db
-            .collection('medications')
+            .collection("medications")
             .doc(reminder.medicationId)
             .update({
               [`reminders.${reminder.reminderId}.notified`]: true,
@@ -97,16 +97,16 @@ export const scheduledMedicationReminders = onSchedule(
                 FieldValue.serverTimestamp(),
             });
         } catch (error) {
-          logger.error('Error sending reminder', error as Error, {
-            fn: 'sendScheduledMedicationReminders',
+          logger.error("Error sending reminder", error as Error, {
+            fn: "sendScheduledMedicationReminders",
           });
         }
       }
 
       // Medication reminders sent
     } catch (error) {
-      logger.error('Error in scheduled medication reminders', error as Error, {
-        fn: 'sendScheduledMedicationReminders',
+      logger.error("Error in scheduled medication reminders", error as Error, {
+        fn: "sendScheduledMedicationReminders",
       });
     }
   }

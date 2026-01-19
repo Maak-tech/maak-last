@@ -1,16 +1,10 @@
-import React from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-} from 'react-native';
-import { colors, spacing, borderRadius, shadows } from './theme';
+import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
+import { borderRadius, colors, shadows, spacing } from "./theme";
 
 const Card = ({
   children,
   onPress,
-  variant = 'elevated', // elevated, outlined, filled
+  variant = "elevated", // elevated, outlined, filled
   style,
   pressable = true,
   contentStyle,
@@ -40,19 +34,21 @@ const Card = ({
   const cardStyle = [
     styles.card,
     styles[`card_${variant}`],
-    variant === 'elevated' && shadows.medium,
+    variant === "elevated" && shadows.medium,
     style,
   ];
 
-  const content = <View style={[styles.content, contentStyle]}>{children}</View>;
+  const content = (
+    <View style={[styles.content, contentStyle]}>{children}</View>
+  );
 
   if (onPress && pressable) {
     return (
       <TouchableOpacity
         activeOpacity={1}
+        onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        onPress={onPress}
       >
         <Animated.View
           style={[
@@ -74,7 +70,7 @@ const Card = ({
 const styles = StyleSheet.create({
   card: {
     borderRadius: borderRadius.lg,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   card_elevated: {
     backgroundColor: colors.surface,

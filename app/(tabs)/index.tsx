@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -7,23 +6,20 @@ import {
   Check,
   ChevronRight,
   Heart,
-  HelpCircle,
   Phone,
   Pill,
   Settings,
   Smile,
-  Sparkles,
   Users,
-  X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Linking,
   Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -32,30 +28,28 @@ import {
   TouchableOpacity,
   View,
   type ViewStyle,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
+// Design System Components
+import DashboardWidgetSettings from "@/app/components/DashboardWidgetSettings";
+import HealthInsightsCard from "@/app/components/HealthInsightsCard";
+import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
+import { Card } from "@/components/design-system";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useDailyNotificationScheduler } from "@/hooks/useSmartNotifications";
 import { alertService } from "@/lib/services/alertService";
+import {
+  type DashboardConfig,
+  dashboardWidgetService,
+} from "@/lib/services/dashboardWidgetService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import type { Medication, Symptom, User as UserType } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-// Design System Components
-import DashboardWidgetSettings from "@/app/components/DashboardWidgetSettings";
-import HealthInsightsCard from "@/app/components/HealthInsightsCard";
-import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
-import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
-import { Button, Card } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import {
-  dashboardWidgetService,
-  type DashboardConfig,
-} from "@/lib/services/dashboardWidgetService";
-import { useDailyNotificationScheduler } from "@/hooks/useSmartNotifications";
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
@@ -76,7 +70,8 @@ export default function DashboardScreen() {
     medicationCompliance: 0,
   });
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
-  const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);
+  const [dashboardConfig, setDashboardConfig] =
+    useState<DashboardConfig | null>(null);
   const [showWidgetSettings, setShowWidgetSettings] = useState(false);
 
   const isRTL = i18n.language === "ar";
@@ -534,7 +529,7 @@ export default function DashboardScreen() {
       medications.forEach((med) => {
         const reminders = Array.isArray(med.reminders) ? med.reminders : [];
         totalReminders += reminders.length;
-        
+
         reminders.forEach((r) => {
           if (r.taken && r.takenAt) {
             const takenDate = (r.takenAt as any).toDate
@@ -575,7 +570,7 @@ export default function DashboardScreen() {
   // Refresh data when tab is focused (only if not already loading)
   useFocusEffect(
     useCallback(() => {
-      if (!loading && !refreshing) {
+      if (!(loading || refreshing)) {
         loadDashboardDataMemoized();
       }
     }, [loadDashboardDataMemoized, loading, refreshing])
@@ -592,7 +587,6 @@ export default function DashboardScreen() {
   const getSeverityColor = (severity: number) =>
     theme.colors.severity[severity as keyof typeof theme.colors.severity] ||
     theme.colors.neutral[500];
-
 
   const handleSOS = () => {
     try {
@@ -711,133 +705,138 @@ export default function DashboardScreen() {
   // Widget render functions
   const renderWidget = (widgetId: string) => {
     switch (widgetId) {
-
       case "stats":
         return (
           <View key="stats">
             <ScrollView
+              contentContainerStyle={styles.statsContainer as ViewStyle}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.statsContainer as ViewStyle}
-              style={isRTL ? { marginStart: -theme.spacing.base, marginEnd: 0 } : { marginHorizontal: -theme.spacing.base }}
+              style={
+                isRTL
+                  ? { marginStart: -theme.spacing.base, marginEnd: 0 }
+                  : { marginHorizontal: -theme.spacing.base }
+              }
             >
-              <Card 
-                variant="elevated" 
+              <Card
+                contentStyle={{ padding: 0 }}
                 onPress={() => router.push("/(tabs)/symptoms")}
                 pressable={true}
                 style={styles.statCard as ViewStyle}
-                contentStyle={{ padding: 0 }}
+                variant="elevated"
               >
                 <View style={styles.statCardContent as ViewStyle}>
                   <View style={styles.statIcon as ViewStyle}>
                     <Activity color={theme.colors.primary.main} size={32} />
                   </View>
                   <Text
-                    weight="bold"
-                    size="large"
-                    color={theme.colors.secondary.main}
-                    numberOfLines={1}
                     adjustsFontSizeToFit={true}
+                    color={theme.colors.secondary.main}
                     minimumFontScale={0.6}
+                    numberOfLines={1}
+                    size="large"
                     style={
                       [
                         styles.statValue,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
+                    weight="bold"
                   >
                     {stats.symptomsThisWeek}
                   </Text>
                   <Text
-                    weight="medium"
                     style={
                       [
                         styles.statLabel,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
+                    weight="medium"
                   >
-                    {isRTL ? "الأعراض الصحية هذا الأسبوع" : "Symptoms This Week"}
+                    {isRTL
+                      ? "الأعراض الصحية هذا الأسبوع"
+                      : "Symptoms This Week"}
                   </Text>
                 </View>
               </Card>
 
-              <Card 
-                variant="elevated" 
+              <Card
+                contentStyle={{ padding: 0 }}
                 onPress={() => router.push("/(tabs)/medications")}
                 pressable={true}
                 style={styles.statCard as ViewStyle}
-                contentStyle={{ padding: 0 }}
+                variant="elevated"
               >
                 <View style={styles.statCardContent as ViewStyle}>
                   <View style={styles.statIcon as ViewStyle}>
                     <Pill color={theme.colors.accent.success} size={32} />
                   </View>
                   <Text
-                    weight="bold"
-                    size="large"
-                    color={theme.colors.secondary.main}
-                    numberOfLines={1}
                     adjustsFontSizeToFit={true}
+                    color={theme.colors.secondary.main}
                     minimumFontScale={0.7}
+                    numberOfLines={1}
+                    size="large"
                     style={
                       [
                         styles.statValue,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
+                    weight="bold"
                   >
                     {stats.medicationCompliance}%
                   </Text>
                   <Text
-                    weight="medium"
                     style={
                       [
                         styles.statLabel,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
+                    weight="medium"
                   >
                     {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
                   </Text>
                 </View>
               </Card>
 
-              <Card 
-                variant="elevated" 
+              <Card
+                contentStyle={{ padding: 0 }}
                 onPress={() => router.push("/(tabs)/family")}
                 pressable={true}
                 style={styles.statCard as ViewStyle}
-                contentStyle={{ padding: 0 }}
+                variant="elevated"
               >
                 <View style={styles.statCardContent as ViewStyle}>
                   <View style={styles.statIcon as ViewStyle}>
                     <Users color={theme.colors.secondary.main} size={32} />
                   </View>
                   <Text
-                    weight="bold"
-                    size="large"
-                    color={theme.colors.secondary.main}
-                    numberOfLines={1}
                     adjustsFontSizeToFit={true}
+                    color={theme.colors.secondary.main}
                     minimumFontScale={0.7}
+                    numberOfLines={1}
+                    size="large"
                     style={
                       [
                         styles.statValue,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
+                    weight="bold"
                   >
                     {familyMembersCount || 1}
                   </Text>
                   <Text
-                    weight="medium"
                     style={
                       [
                         styles.statLabel,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
+                    weight="medium"
                   >
                     {isRTL ? "أفراد العائلة" : "Family Members"}
                   </Text>
@@ -934,7 +933,8 @@ export default function DashboardScreen() {
                           [
                             styles.statusCheckContainer,
                             {
-                              backgroundColor: theme.colors.background.secondary,
+                              backgroundColor:
+                                theme.colors.background.secondary,
                               borderColor: theme.colors.border.medium,
                               borderWidth: 2,
                             },
@@ -1100,7 +1100,7 @@ export default function DashboardScreen() {
         return (
           <View key="alerts">
             <Card
-              variant="elevated"
+              contentStyle={undefined}
               onPress={async () => {
                 if (!user?.id) return;
                 setShowAlertsModal(true);
@@ -1113,12 +1113,11 @@ export default function DashboardScreen() {
                 }
               }}
               style={styles.alertCard as ViewStyle}
-              contentStyle={undefined}
+              variant="elevated"
             >
               <AlertTriangle color={theme.colors.accent.error} size={24} />
               <View style={styles.alertContent as ViewStyle}>
                 <Text
-                  weight="bold"
                   color={theme.colors.accent.error}
                   style={
                     [
@@ -1126,8 +1125,11 @@ export default function DashboardScreen() {
                       isRTL && styles.rtlText,
                     ] as StyleProp<TextStyle>
                   }
+                  weight="bold"
                 >
-                  {isRTL ? "تنبيهات طوارئ صحية نشطة" : "Active Emergency Alerts"}
+                  {isRTL
+                    ? "تنبيهات طوارئ صحية نشطة"
+                    : "Active Emergency Alerts"}
                 </Text>
                 <Text
                   color={theme.colors.accent.error}
@@ -1253,8 +1255,14 @@ export default function DashboardScreen() {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
         <View style={styles.centerContainer as ViewStyle}>
-          <Text color={theme.colors.accent.error} style={styles.errorText as TextStyle}>
-            {t("pleaseLogInToViewDashboard", "Please log in to view your dashboard")}
+          <Text
+            color={theme.colors.accent.error}
+            style={styles.errorText as TextStyle}
+          >
+            {t(
+              "pleaseLogInToViewDashboard",
+              "Please log in to view your dashboard"
+            )}
           </Text>
         </View>
       </SafeAreaView>
@@ -1264,25 +1272,32 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container as ViewStyle}>
       <ScrollView
+        contentContainerStyle={styles.contentInner as ViewStyle}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
         }
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
-        contentContainerStyle={styles.contentInner as ViewStyle}
-        keyboardShouldPersistTaps="handled"
-        scrollEventThrottle={16}
       >
         {/* Header with SOS Button */}
         <View style={styles.headerWithSOS as ViewStyle}>
-          <View style={[styles.headerContent as ViewStyle, isRTL && { marginEnd: theme.spacing.md }]}>
+          <View
+            style={[
+              styles.headerContent as ViewStyle,
+              isRTL && { marginEnd: theme.spacing.md },
+            ]}
+          >
             <Heading
-              level={4}
               color={theme.colors.primary.main}
-              style={[
-                styles.welcomeText,
-                isRTL && styles.rtlText,
-              ] as StyleProp<TextStyle>}
+              level={4}
+              style={
+                [
+                  styles.welcomeText,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
             >
               {isRTL
                 ? `مرحباً، ${user.firstName || "User"}`
@@ -1290,6 +1305,7 @@ export default function DashboardScreen() {
             </Heading>
             <Caption
               color={theme.colors.text.secondary}
+              numberOfLines={undefined}
               style={
                 [
                   styles.dateText,
@@ -1297,24 +1313,35 @@ export default function DashboardScreen() {
                   isRTL && styles.dateTextRTL,
                 ] as StyleProp<TextStyle>
               }
-              numberOfLines={undefined}
             >
-              {new Date().toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+              {new Date().toLocaleDateString(
+                isRTL ? "ar-u-ca-gregory" : "en-US",
+                {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                }
+              )}
             </Caption>
           </View>
-          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, zIndex: 1001, flexShrink: 0 }}>
+          <View
+            style={{
+              flexDirection: isRTL ? "row-reverse" : "row",
+              gap: 12,
+              zIndex: 1001,
+              flexShrink: 0,
+            }}
+          >
             {isAdmin && (
               <Pressable
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                 onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+                    () => {}
+                  );
                   setShowWidgetSettings(true);
                 }}
-                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                 style={({ pressed }) => ({
                   backgroundColor: theme.colors.background.secondary,
                   borderRadius: 20,
@@ -1337,11 +1364,15 @@ export default function DashboardScreen() {
               onPress={handleSOS}
               style={[
                 styles.sosHeaderButton as ViewStyle,
-                isRTL && { marginStart: theme.spacing.md }
+                isRTL && { marginStart: theme.spacing.md },
               ]}
             >
               <Phone color={theme.colors.neutral.white} size={20} />
-              <Text weight="bold" color={theme.colors.neutral.white} style={styles.sosHeaderText as StyleProp<TextStyle>}>
+              <Text
+                color={theme.colors.neutral.white}
+                style={styles.sosHeaderText as StyleProp<TextStyle>}
+                weight="bold"
+              >
                 {isRTL ? "SOS" : "SOS"}
               </Text>
             </TouchableOpacity>
@@ -1576,7 +1607,9 @@ export default function DashboardScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "التنبيهات الطوارئ الصحية الفعالة" : "Active Emergency Alerts"}
+                  {isRTL
+                    ? "التنبيهات الطوارئ الصحية الفعالة"
+                    : "Active Emergency Alerts"}
                 </Text>
                 <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
                   <Text
@@ -1626,7 +1659,9 @@ export default function DashboardScreen() {
                       ] as StyleProp<TextStyle>
                     }
                   >
-                    {isRTL ? "لا توجد تنبيهات طوارئ صحية نشطة" : "No active emergency alerts"}
+                    {isRTL
+                      ? "لا توجد تنبيهات طوارئ صحية نشطة"
+                      : "No active emergency alerts"}
                   </Text>
                 </View>
               ) : (
@@ -1798,9 +1833,6 @@ export default function DashboardScreen() {
           </View>
         </Modal>
 
-
-
-
         {/* Health Tracking Section for Regular Users */}
         {!isAdmin && (
           <View style={styles.trackingSection as ViewStyle}>
@@ -1850,9 +1882,7 @@ export default function DashboardScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL
-                    ? "تسجيل الأعراض الصحية"
-                    : "Log health symptoms"}
+                  {isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms"}
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push("/(tabs)/symptoms")}
@@ -2006,9 +2036,7 @@ export default function DashboardScreen() {
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL
-                    ? "قياس الضغط والنبض"
-                    : "Blood pressure & pulse"}
+                  {isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse"}
                 </Text>
                 <TouchableOpacity
                   onPress={() => router.push("/(tabs)/vitals")}
@@ -2051,12 +2079,12 @@ export default function DashboardScreen() {
 
         {/* Widget Settings Modal */}
         <DashboardWidgetSettings
-          visible={showWidgetSettings}
           onClose={() => setShowWidgetSettings(false)}
           onConfigChange={(config) => {
             // Update the dashboard config immediately with the saved config
             setDashboardConfig(config);
           }}
+          visible={showWidgetSettings}
         />
       </ScrollView>
     </SafeAreaView>

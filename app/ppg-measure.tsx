@@ -1,9 +1,15 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from "react-native";
-import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
 import { Heart } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "@/contexts/AuthContext";
 
 // This screen is isolated - TextImpl errors only affect this route
 export default function PPGMeasureScreen() {
@@ -35,7 +41,9 @@ export default function PPGMeasureScreen() {
         // Simulated data is scientifically invalid and completely disabled
         // Show error to user - this is the ONLY acceptable outcome
         console.error("Failed to load VisionCamera PPG component:", error);
-        console.error("NO FALLBACK TO SIMULATED DATA - Real PPG measurement requires VisionCamera");
+        console.error(
+          "NO FALLBACK TO SIMULATED DATA - Real PPG measurement requires VisionCamera"
+        );
 
         // Set component to null - will show error message
         setPPGComponent(null);
@@ -53,7 +61,7 @@ export default function PPGMeasureScreen() {
   if (!user || loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator color="#2563EB" size="large" />
         <Text style={styles.loadingText}>
           {t("loadingPPGMonitor", "Loading PPG Monitor...")}
         </Text>
@@ -81,7 +89,10 @@ export default function PPGMeasureScreen() {
               "Please use a native app build for real measurements."
             )}
           </Text>
-          <TouchableOpacity style={styles.backButtonLarge} onPress={() => router.back()}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButtonLarge}
+          >
             <Text style={styles.backButtonLargeText}>
               {t("goBack", "Go Back")}
             </Text>
@@ -118,16 +129,16 @@ export default function PPGMeasureScreen() {
       {/* PPG Component */}
       <View style={{ flex: 1 }}>
         <PPGComponent
-          visible={true}
-          userId={user.id}
-          onMeasurementComplete={() => {
-            // Keep this route mounted so the PPG modal can show the success UI + score.
-            // The user can tap "Done" which triggers `onClose` and navigates back.
-          }}
           onClose={() => {
             // Navigate back when closed
             router.back();
           }}
+          onMeasurementComplete={() => {
+            // Keep this route mounted so the PPG modal can show the success UI + score.
+            // The user can tap "Done" which triggers `onClose` and navigates back.
+          }}
+          userId={user.id}
+          visible={true}
         />
       </View>
     </View>
@@ -231,4 +242,3 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 });
-

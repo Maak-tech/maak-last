@@ -6,13 +6,12 @@
 
 import { useNavigation, useRouter } from "expo-router";
 import {
+  Activity,
   ArrowLeft,
   ChevronRight,
   Heart,
   Lock,
-  Settings,
   Shield,
-  Activity,
 } from "lucide-react-native";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -73,8 +72,8 @@ export default function DexcomIntroScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -126,7 +125,9 @@ export default function DexcomIntroScreen() {
 
           <View style={styles.benefitsList}>
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#EF4444" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#EF4444" }]}
+              >
                 <Activity color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -154,7 +155,9 @@ export default function DexcomIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}
+              >
                 <Heart color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -182,7 +185,9 @@ export default function DexcomIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#10B981" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#10B981" }]}
+              >
                 <Shield color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>

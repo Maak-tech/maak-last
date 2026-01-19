@@ -108,7 +108,9 @@ export default function HelpSupportScreen() {
       <Text style={[styles.faqQuestion, isRTL && { textAlign: "left" }]}>
         {question}
       </Text>
-      <Text style={[styles.faqAnswer, isRTL && { textAlign: "left" }]}>{answer}</Text>
+      <Text style={[styles.faqAnswer, isRTL && { textAlign: "left" }]}>
+        {answer}
+      </Text>
     </View>
   );
 
@@ -135,7 +137,9 @@ export default function HelpSupportScreen() {
       <View style={[styles.helpIcon, { backgroundColor: color + "20" }]}>
         <Icon color={color} size={20} />
       </View>
-      <Text style={[styles.helpTitle, isRTL && { textAlign: "left" }]}>{title}</Text>
+      <Text style={[styles.helpTitle, isRTL && { textAlign: "left" }]}>
+        {title}
+      </Text>
       <Text style={[styles.helpDescription, isRTL && { textAlign: "left" }]}>
         {description}
       </Text>
@@ -180,7 +184,9 @@ export default function HelpSupportScreen() {
           <Text style={[styles.welcomeTitle, isRTL && { textAlign: "left" }]}>
             {isRTL ? "نحن هنا لمساعدتك" : "We're Here to Help"}
           </Text>
-          <Text style={[styles.welcomeDescription, isRTL && { textAlign: "left" }]}>
+          <Text
+            style={[styles.welcomeDescription, isRTL && { textAlign: "left" }]}
+          >
             {isRTL
               ? "فريق دعم معاك متاح لمساعدتك في أي وقت. اختر الطريقة المناسبة للتواصل معنا."
               : "Maak support team is available to help you anytime. Choose the best way to contact us."}
@@ -326,11 +332,18 @@ export default function HelpSupportScreen() {
             <View style={styles.emergencyIcon}>
               <Phone color="#EF4444" size={20} />
             </View>
-            <Text style={[styles.emergencyTitle, isRTL && { textAlign: "left" }]}>
+            <Text
+              style={[styles.emergencyTitle, isRTL && { textAlign: "left" }]}
+            >
               {isRTL ? "رقم الطوارئ" : "Emergency Contact"}
             </Text>
           </View>
-          <Text style={[styles.emergencyDescription, isRTL && { textAlign: "left" }]}>
+          <Text
+            style={[
+              styles.emergencyDescription,
+              isRTL && { textAlign: "left" },
+            ]}
+          >
             {isRTL
               ? "في حالة الطوارئ الطبية، اتصل بالرقم التالي:"
               : "For medical emergencies, call:"}
@@ -339,7 +352,9 @@ export default function HelpSupportScreen() {
             onPress={() => handleContactMethod("phone", "+966911")}
             style={styles.emergencyButton}
           >
-            <Text style={[styles.emergencyNumber, isRTL && { textAlign: "left" }]}>
+            <Text
+              style={[styles.emergencyNumber, isRTL && { textAlign: "left" }]}
+            >
               911
             </Text>
           </TouchableOpacity>
@@ -349,7 +364,9 @@ export default function HelpSupportScreen() {
         <View style={styles.locationSection}>
           <MapPin color="#64748B" size={20} />
           <View style={styles.locationContent}>
-            <Text style={[styles.locationTitle, isRTL && { textAlign: "left" }]}>
+            <Text
+              style={[styles.locationTitle, isRTL && { textAlign: "left" }]}
+            >
               {isRTL ? "موقعنا" : "Our Location"}
             </Text>
             <Text style={[styles.locationText, isRTL && { textAlign: "left" }]}>

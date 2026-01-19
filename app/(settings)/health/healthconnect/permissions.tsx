@@ -1,11 +1,18 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
-import { healthConnectService } from "@/lib/services/healthConnectService";
 import { saveProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
+import { healthConnectService } from "@/lib/services/healthConnectService";
 
 export default function HealthConnectPermissionsScreen() {
   const [authorizing, setAuthorizing] = useState(false);
@@ -33,11 +40,14 @@ export default function HealthConnectPermissionsScreen() {
 
       if (!availability.available) {
         setCheckingAvailability(false);
-        const installUrl = availability.installUrl || "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata";
-        
+        const installUrl =
+          availability.installUrl ||
+          "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata";
+
         Alert.alert(
           "Health Connect Not Available",
-          availability.reason || "Health Connect is not installed on your device. Please install it from the Play Store.",
+          availability.reason ||
+            "Health Connect is not installed on your device. Please install it from the Play Store.",
           [
             {
               text: "Install",
@@ -144,8 +154,8 @@ export default function HealthConnectPermissionsScreen() {
           {checkingAvailability
             ? "Checking Health Connect availability..."
             : authorizing
-            ? "Opening Health Connect Permission Screen..."
-            : "Processing..."}
+              ? "Opening Health Connect Permission Screen..."
+              : "Processing..."}
         </Text>
         <Text
           style={{
@@ -158,11 +168,10 @@ export default function HealthConnectPermissionsScreen() {
           {checkingAvailability
             ? "Please wait while we check if Health Connect is installed."
             : authorizing
-            ? "The Health Connect permission screen will appear where you can select health data permissions."
-            : ""}
+              ? "The Health Connect permission screen will appear where you can select health data permissions."
+              : ""}
         </Text>
       </View>
     </SafeAreaView>
   );
 }
-

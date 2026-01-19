@@ -4,23 +4,23 @@
  * Supports comprehensive health data including sleep, activity, HRV, SpO2, and readiness
  */
 
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import Constants from "expo-constants";
 import {
   getAvailableMetricsForProvider,
-  getOuraScopesForMetrics,
   getMetricByKey,
+  getOuraScopesForMetrics,
 } from "../health/healthMetricsCatalog";
+import { saveProviderConnection } from "../health/healthSync";
 import {
   HEALTH_STORAGE_KEYS,
-  type OuraTokens,
-  type NormalizedMetricPayload,
-  type ProviderAvailability,
   type MetricSample,
+  type NormalizedMetricPayload,
+  type OuraTokens,
+  type ProviderAvailability,
 } from "../health/healthTypes";
-import { saveProviderConnection } from "../health/healthSync";
 
 // Oura OAuth configuration
 const OURA_CLIENT_ID =
@@ -303,17 +303,29 @@ export const ouraService = {
       const scopes = getOuraScopesForMetrics(selectedMetrics);
 
       // Oura requires these scopes for most health data
-      const allScopes = [...new Set([...scopes, "personal", "daily", "heartrate", "workout", "session"])];
+      const allScopes = [
+        ...new Set([
+          ...scopes,
+          "personal",
+          "daily",
+          "heartrate",
+          "workout",
+          "session",
+        ]),
+      ];
 
       const authUrl =
         `${OURA_AUTH_URL}?` +
-        `response_type=code&` +
+        "response_type=code&" +
         `client_id=${encodeURIComponent(OURA_CLIENT_ID)}&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
         `scope=${encodeURIComponent(allScopes.join(" "))}&` +
         `state=${encodeURIComponent("oura_auth")}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        REDIRECT_URI
+      );
 
       if (result.type === "success" && result.url) {
         await ouraService.handleRedirect(result.url, selectedMetrics);
@@ -328,7 +340,10 @@ export const ouraService = {
   /**
    * Handle OAuth redirect callback
    */
-  handleRedirect: async (url: string, selectedMetrics?: string[]): Promise<void> => {
+  handleRedirect: async (
+    url: string,
+    selectedMetrics?: string[]
+  ): Promise<void> => {
     try {
       const urlObj = new URL(url);
       const code = urlObj.searchParams.get("code");
@@ -366,11 +381,14 @@ export const ouraService = {
       // Get user info
       let userId = "unknown";
       try {
-        const userResponse = await fetch(`${OURA_API_BASE}/v2/usercollection/personal_info`, {
-          headers: {
-            Authorization: `Bearer ${tokens.access_token}`,
-          },
-        });
+        const userResponse = await fetch(
+          `${OURA_API_BASE}/v2/usercollection/personal_info`,
+          {
+            headers: {
+              Authorization: `Bearer ${tokens.access_token}`,
+            },
+          }
+        );
         if (userResponse.ok) {
           const userData = await userResponse.json();
           userId = userData.id || userData.user_id || "unknown";
@@ -394,7 +412,9 @@ export const ouraService = {
         selectedMetrics: selectedMetrics || [],
       });
     } catch (error: any) {
-      throw new Error(`Failed to complete Oura authentication: ${error.message}`);
+      throw new Error(
+        `Failed to complete Oura authentication: ${error.message}`
+      );
     }
   },
 
@@ -472,7 +492,10 @@ export const ouraService = {
   /**
    * Make authenticated API request
    */
-  makeApiRequest: async (endpoint: string, params: Record<string, string> = {}): Promise<any> => {
+  makeApiRequest: async (
+    endpoint: string,
+    params: Record<string, string> = {}
+  ): Promise<any> => {
     const accessToken = await ouraService.refreshTokenIfNeeded();
     if (!accessToken) throw new Error("Not authenticated");
 
@@ -513,22 +536,58 @@ export const ouraService = {
       const endDateStr = formatDate(endDate);
 
       // Define which endpoints to fetch based on requested metrics
-      const endpointMetrics: Record<string, { endpoint: string; parser: keyof typeof ouraDataParsers }> = {
-        sleep_analysis: { endpoint: "/v2/usercollection/sleep", parser: "sleep" },
-        resting_heart_rate: { endpoint: "/v2/usercollection/sleep", parser: "sleep" },
-        heart_rate_variability: { endpoint: "/v2/usercollection/sleep", parser: "sleep" },
-        respiratory_rate: { endpoint: "/v2/usercollection/sleep", parser: "sleep" },
-        body_temperature: { endpoint: "/v2/usercollection/daily_readiness", parser: "daily_readiness" },
-        steps: { endpoint: "/v2/usercollection/daily_activity", parser: "daily_activity" },
-        active_energy: { endpoint: "/v2/usercollection/daily_activity", parser: "daily_activity" },
-        distance_walking_running: { endpoint: "/v2/usercollection/daily_activity", parser: "daily_activity" },
-        heart_rate: { endpoint: "/v2/usercollection/heartrate", parser: "heartrate" },
-        blood_oxygen: { endpoint: "/v2/usercollection/daily_spo2", parser: "daily_spo2" },
+      const endpointMetrics: Record<
+        string,
+        { endpoint: string; parser: keyof typeof ouraDataParsers }
+      > = {
+        sleep_analysis: {
+          endpoint: "/v2/usercollection/sleep",
+          parser: "sleep",
+        },
+        resting_heart_rate: {
+          endpoint: "/v2/usercollection/sleep",
+          parser: "sleep",
+        },
+        heart_rate_variability: {
+          endpoint: "/v2/usercollection/sleep",
+          parser: "sleep",
+        },
+        respiratory_rate: {
+          endpoint: "/v2/usercollection/sleep",
+          parser: "sleep",
+        },
+        body_temperature: {
+          endpoint: "/v2/usercollection/daily_readiness",
+          parser: "daily_readiness",
+        },
+        steps: {
+          endpoint: "/v2/usercollection/daily_activity",
+          parser: "daily_activity",
+        },
+        active_energy: {
+          endpoint: "/v2/usercollection/daily_activity",
+          parser: "daily_activity",
+        },
+        distance_walking_running: {
+          endpoint: "/v2/usercollection/daily_activity",
+          parser: "daily_activity",
+        },
+        heart_rate: {
+          endpoint: "/v2/usercollection/heartrate",
+          parser: "heartrate",
+        },
+        blood_oxygen: {
+          endpoint: "/v2/usercollection/daily_spo2",
+          parser: "daily_spo2",
+        },
         workouts: { endpoint: "/v2/usercollection/workout", parser: "workout" },
       };
 
       // Group by endpoint to reduce API calls
-      const endpointsToFetch = new Map<string, { parser: keyof typeof ouraDataParsers; metrics: string[] }>();
+      const endpointsToFetch = new Map<
+        string,
+        { parser: keyof typeof ouraDataParsers; metrics: string[] }
+      >();
 
       for (const metricKey of metricKeys) {
         const config = endpointMetrics[metricKey];
@@ -538,7 +597,10 @@ export const ouraService = {
         if (existing) {
           existing.metrics.push(metricKey);
         } else {
-          endpointsToFetch.set(config.endpoint, { parser: config.parser, metrics: [metricKey] });
+          endpointsToFetch.set(config.endpoint, {
+            parser: config.parser,
+            metrics: [metricKey],
+          });
         }
       }
 
@@ -599,13 +661,17 @@ export const ouraService = {
   fetchSleepData: async (
     startDate: Date,
     endDate: Date
-  ): Promise<NormalizedMetricPayload[]> => {
-    return ouraService.fetchHealthData(
-      ["sleep_analysis", "resting_heart_rate", "heart_rate_variability", "respiratory_rate"],
+  ): Promise<NormalizedMetricPayload[]> =>
+    ouraService.fetchHealthData(
+      [
+        "sleep_analysis",
+        "resting_heart_rate",
+        "heart_rate_variability",
+        "respiratory_rate",
+      ],
       startDate,
       endDate
-    );
-  },
+    ),
 
   /**
    * Fetch activity data from Oura
@@ -613,13 +679,12 @@ export const ouraService = {
   fetchActivityData: async (
     startDate: Date,
     endDate: Date
-  ): Promise<NormalizedMetricPayload[]> => {
-    return ouraService.fetchHealthData(
+  ): Promise<NormalizedMetricPayload[]> =>
+    ouraService.fetchHealthData(
       ["steps", "active_energy", "distance_walking_running"],
       startDate,
       endDate
-    );
-  },
+    ),
 
   /**
    * Fetch all available metrics for a date range
@@ -640,9 +705,8 @@ export const ouraService = {
     selectedMetrics: string[],
     startDate: Date,
     endDate: Date
-  ): Promise<NormalizedMetricPayload[]> => {
-    return ouraService.fetchHealthData(selectedMetrics, startDate, endDate);
-  },
+  ): Promise<NormalizedMetricPayload[]> =>
+    ouraService.fetchHealthData(selectedMetrics, startDate, endDate),
 
   /**
    * Disconnect Oura integration

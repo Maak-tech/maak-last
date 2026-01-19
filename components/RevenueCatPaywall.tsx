@@ -1,7 +1,11 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
-import type { CustomerInfo, PurchasesError, PurchasesStoreTransaction } from "react-native-purchases";
+import type {
+  CustomerInfo,
+  PurchasesError,
+  PurchasesStoreTransaction,
+} from "react-native-purchases";
 import RevenueCatUI from "react-native-purchases-ui";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 
@@ -21,7 +25,6 @@ export function RevenueCatPaywall({
   const { t } = useTranslation();
   const { isLoading, offerings, error } = useRevenueCat();
 
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -32,25 +35,30 @@ export function RevenueCatPaywall({
 
   useEffect(() => {
     if (error) {
-      Alert.alert(
-        t("error"),
-        error.message || t("subscription.loadError")
-      );
+      Alert.alert(t("error"), error.message || t("subscription.loadError"));
     }
   }, [error, t]);
 
-  if (!offerings && !isLoading) {
+  if (!(offerings || isLoading)) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{t("subscription.noOfferingsAvailable")}</Text>
+        <Text style={styles.errorText}>
+          {t("subscription.noOfferingsAvailable")}
+        </Text>
       </View>
     );
   }
 
   return (
     <RevenueCatUI.Paywall
-      options={{ offering: offerings }}
-      onPurchaseCompleted={({ customerInfo, storeTransaction }: { customerInfo: CustomerInfo; storeTransaction: PurchasesStoreTransaction }) => {
+      onDismiss={onDismiss}
+      onPurchaseCompleted={({
+        customerInfo,
+        storeTransaction,
+      }: {
+        customerInfo: CustomerInfo;
+        storeTransaction: PurchasesStoreTransaction;
+      }) => {
         Alert.alert(
           t("subscription.purchaseSuccess"),
           t("subscription.purchaseSuccessMessage"),
@@ -64,12 +72,6 @@ export function RevenueCatPaywall({
           ]
         );
       }}
-      onRestoreCompleted={({ customerInfo }: { customerInfo: CustomerInfo }) => {
-        Alert.alert(
-          t("subscription.restoreSuccess"),
-          t("subscription.restoreSuccessMessage")
-        );
-      }}
       onPurchaseError={({ error }: { error: PurchasesError }) => {
         // Don't show error for user cancellation
         if (!error.userCancelled) {
@@ -79,7 +81,17 @@ export function RevenueCatPaywall({
           );
         }
       }}
-      onDismiss={onDismiss}
+      onRestoreCompleted={({
+        customerInfo,
+      }: {
+        customerInfo: CustomerInfo;
+      }) => {
+        Alert.alert(
+          t("subscription.restoreSuccess"),
+          t("subscription.restoreSuccessMessage")
+        );
+      }}
+      options={{ offering: offerings }}
     />
   );
 }
@@ -102,4 +114,3 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-

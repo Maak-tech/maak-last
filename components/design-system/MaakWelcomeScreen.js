@@ -1,10 +1,9 @@
-import React from 'react';
-import { View, StyleSheet, Image } from 'react-native';
-import Container from './Container';
-import Button from './Button';
-import Card from './Card';
-import { Heading, Text, Caption } from './Typography';
-import { colors, spacing, borderRadius } from './theme';
+import { StyleSheet, View } from "react-native";
+import Button from "./Button";
+import Card from "./Card";
+import Container from "./Container";
+import { Caption, Heading, Text } from "./Typography";
+import { colors, spacing } from "./theme";
 
 const MaakWelcomeScreen = () => {
   return (
@@ -16,8 +15,8 @@ const MaakWelcomeScreen = () => {
             <Text style={styles.logoText}>Maak</Text>
           </View>
         </View>
-        
-        <Heading level={1} color={colors.textLight} style={styles.title}>
+
+        <Heading color={colors.textLight} level={1} style={styles.title}>
           Welcome to Maak
         </Heading>
         <Caption color={colors.secondaryLight} style={styles.subtitle}>
@@ -28,11 +27,16 @@ const MaakWelcomeScreen = () => {
       <View style={styles.cardsContainer}>
         <Card style={styles.featureCard}>
           <View style={styles.cardContent}>
-            <View style={[styles.iconCircle, { backgroundColor: colors.secondaryLight }]}>
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: colors.secondaryLight },
+              ]}
+            >
               <Text style={styles.iconText}>👥</Text>
             </View>
             <View style={styles.cardText}>
-              <Text weight="semibold" size="large" style={styles.cardTitle}>
+              <Text size="large" style={styles.cardTitle} weight="semibold">
                 Build Community
               </Text>
               <Caption>
@@ -44,11 +48,16 @@ const MaakWelcomeScreen = () => {
 
         <Card style={styles.featureCard}>
           <View style={styles.cardContent}>
-            <View style={[styles.iconCircle, { backgroundColor: colors.secondaryLight }]}>
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: colors.secondaryLight },
+              ]}
+            >
               <Text style={styles.iconText}>✨</Text>
             </View>
             <View style={styles.cardText}>
-              <Text weight="semibold" size="large" style={styles.cardTitle}>
+              <Text size="large" style={styles.cardTitle} weight="semibold">
                 Create Together
               </Text>
               <Caption>
@@ -60,11 +69,16 @@ const MaakWelcomeScreen = () => {
 
         <Card style={styles.featureCard}>
           <View style={styles.cardContent}>
-            <View style={[styles.iconCircle, { backgroundColor: colors.secondaryLight }]}>
+            <View
+              style={[
+                styles.iconCircle,
+                { backgroundColor: colors.secondaryLight },
+              ]}
+            >
               <Text style={styles.iconText}>🚀</Text>
             </View>
             <View style={styles.cardText}>
-              <Text weight="semibold" size="large" style={styles.cardTitle}>
+              <Text size="large" style={styles.cardTitle} weight="semibold">
                 Achieve Goals
               </Text>
               <Caption>
@@ -77,17 +91,17 @@ const MaakWelcomeScreen = () => {
 
       <View style={styles.buttonContainer}>
         <Button
-          title="Get Started"
+          fullWidth
           onPress={() => {}}
           style={styles.primaryButton}
-          fullWidth
+          title="Get Started"
         />
         <Button
-          title="Sign In"
-          onPress={() => {}}
-          variant="outline"
           fullWidth
+          onPress={() => {}}
           style={styles.outlineButton}
+          title="Sign In"
+          variant="outline"
         />
       </View>
     </Container>
@@ -96,7 +110,7 @@ const MaakWelcomeScreen = () => {
 
 const styles = StyleSheet.create({
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: spacing.xxl,
     marginBottom: spacing.xl,
   },
@@ -108,8 +122,8 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     backgroundColor: colors.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: colors.secondary,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -118,36 +132,36 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colors.primary,
   },
   title: {
     marginTop: spacing.md,
     marginBottom: spacing.xs,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 16,
   },
   cardsContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   featureCard: {
     marginBottom: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
   },
   cardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: spacing.md,
   },
   iconText: {

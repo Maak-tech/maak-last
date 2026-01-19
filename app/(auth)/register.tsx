@@ -1,8 +1,8 @@
 import { Link, useRouter } from "expo-router";
+import type { ConfirmationResult } from "firebase/auth";
 import { Check, Mail, Phone, Users, X } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import i18nInstance from "@/lib/i18n";
 import {
   Image,
   KeyboardAvoidingView,
@@ -18,8 +18,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import i18nInstance from "@/lib/i18n";
 import type { AvatarType } from "@/types";
-import type { ConfirmationResult } from "firebase/auth";
 
 // Type for React Native Firebase confirmation result
 interface RNFirebaseConfirmationResult {
@@ -27,7 +27,9 @@ interface RNFirebaseConfirmationResult {
 }
 
 // Combined confirmation result type (matches AuthContext)
-type PhoneConfirmationResult = ConfirmationResult | RNFirebaseConfirmationResult;
+type PhoneConfirmationResult =
+  | ConfirmationResult
+  | RNFirebaseConfirmationResult;
 
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
@@ -41,12 +43,15 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<PhoneConfirmationResult | null>(null);
+  const [confirmationResult, setConfirmationResult] =
+    useState<PhoneConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [selectedAvatarType, setSelectedAvatarType] = useState<AvatarType | undefined>();
+  const [selectedAvatarType, setSelectedAvatarType] = useState<
+    AvatarType | undefined
+  >();
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
   const isRTL = i18n.language === "ar";
@@ -64,7 +69,7 @@ export default function RegisterScreen() {
     if (firstName || lastName) {
       return `${firstName} ${lastName}`.trim();
     }
-    return undefined;
+    return;
   }, [firstName, lastName]);
 
   const handleRegister = async () => {
@@ -111,7 +116,9 @@ export default function RegisterScreen() {
       try {
         // Store family code in AsyncStorage if provided (will be processed after signup)
         if (familyCode.trim()) {
-          const AsyncStorage = await import("@react-native-async-storage/async-storage");
+          const AsyncStorage = await import(
+            "@react-native-async-storage/async-storage"
+          );
           await AsyncStorage.default.setItem(
             "pendingFamilyCode",
             familyCode.trim()
@@ -123,9 +130,11 @@ export default function RegisterScreen() {
         // once the auth state has fully updated
       } catch (error: any) {
         setErrors({
-          general: error.message || (isRTL
-            ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
-            : "Registration failed. Please try again."),
+          general:
+            error.message ||
+            (isRTL
+              ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
+              : "Registration failed. Please try again."),
         });
       }
     } else {
@@ -141,8 +150,9 @@ export default function RegisterScreen() {
 
       // Validate phone number format - must include country code
       const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
-      const hasCountryCode = cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
-      
+      const hasCountryCode =
+        cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
+
       if (!hasCountryCode && cleanedPhone.length < 10) {
         setErrors({
           general: isRTL
@@ -155,7 +165,9 @@ export default function RegisterScreen() {
       try {
         // Store family code in AsyncStorage if provided
         if (familyCode.trim()) {
-          const AsyncStorage = await import("@react-native-async-storage/async-storage");
+          const AsyncStorage = await import(
+            "@react-native-async-storage/async-storage"
+          );
           await AsyncStorage.default.setItem(
             "pendingFamilyCode",
             familyCode.trim()
@@ -175,9 +187,11 @@ export default function RegisterScreen() {
       } catch (error: any) {
         console.error("Phone signup error:", error);
         setErrors({
-          general: error.message || (isRTL
-            ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
-            : "Failed to send verification code. Please try again."),
+          general:
+            error.message ||
+            (isRTL
+              ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
+              : "Failed to send verification code. Please try again."),
         });
       }
     }
@@ -216,9 +230,11 @@ export default function RegisterScreen() {
       // once the auth state has fully updated
     } catch (error: any) {
       setErrors({
-        general: error.message || (isRTL
-          ? "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى."
-          : "Invalid verification code. Please try again."),
+        general:
+          error.message ||
+          (isRTL
+            ? "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى."
+            : "Invalid verification code. Please try again."),
       });
     }
   };
@@ -244,16 +260,18 @@ export default function RegisterScreen() {
       <ScrollView
         bounces={false}
         contentContainerStyle={styles.scrollContainer}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="automatic"
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           style={styles.keyboardContainer}
         >
-          <View style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}>
+          <View
+            style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}
+          >
             <TouchableOpacity
               onPress={toggleLanguage}
               style={styles.languageButton}
@@ -287,7 +305,9 @@ export default function RegisterScreen() {
 
             {errors?.general && (
               <View style={styles.errorContainer}>
-                <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errors.general}</Text>
+                <Text style={[styles.errorText, isRTL && styles.rtlText]}>
+                  {errors.general}
+                </Text>
               </View>
             )}
 
@@ -354,8 +374,8 @@ export default function RegisterScreen() {
                 ]}
               >
                 <Mail
-                  size={20}
                   color={signupMethod === "email" ? "#2563EB" : "#64748B"}
+                  size={20}
                 />
                 <Text
                   style={[
@@ -380,8 +400,8 @@ export default function RegisterScreen() {
                 ]}
               >
                 <Phone
-                  size={20}
                   color={signupMethod === "phone" ? "#2563EB" : "#64748B"}
+                  size={20}
                 />
                 <Text
                   style={[
@@ -424,7 +444,9 @@ export default function RegisterScreen() {
                     autoComplete="off"
                     onChangeText={setPassword}
                     passwordRules=""
-                    placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
+                    placeholder={
+                      isRTL ? "ادخل كلمة المرور" : "Enter your password"
+                    }
                     secureTextEntry
                     style={[
                       styles.input,
@@ -436,7 +458,11 @@ export default function RegisterScreen() {
                     value={password ?? ""}
                   />
                   {errors?.password && (
-                    <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>{errors.password}</Text>
+                    <Text
+                      style={[styles.fieldErrorText, isRTL && styles.rtlText]}
+                    >
+                      {errors.password}
+                    </Text>
                   )}
                 </View>
 
@@ -462,7 +488,9 @@ export default function RegisterScreen() {
                     value={confirmPassword ?? ""}
                   />
                   {errors?.confirmPassword && (
-                    <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
+                    <Text
+                      style={[styles.fieldErrorText, isRTL && styles.rtlText]}
+                    >
                       {errors.confirmPassword}
                     </Text>
                   )}
@@ -485,8 +513,8 @@ export default function RegisterScreen() {
                       }
                     }}
                     placeholder={
-                      isRTL 
-                        ? "مثال: +1234567890 أو +966501234567" 
+                      isRTL
+                        ? "مثال: +1234567890 أو +966501234567"
                         : "Example: +1234567890 or +966501234567"
                     }
                     style={[styles.input, isRTL && styles.rtlInput]}
@@ -510,7 +538,9 @@ export default function RegisterScreen() {
                       maxLength={6}
                       onChangeText={setOtpCode}
                       placeholder={
-                        isRTL ? "ادخل رمز التحقق المكون من 6 أرقام" : "Enter 6-digit verification code"
+                        isRTL
+                          ? "ادخل رمز التحقق المكون من 6 أرقام"
+                          : "Enter 6-digit verification code"
                       }
                       style={[styles.input, isRTL && styles.rtlInput]}
                       textAlign={isRTL ? "right" : "left"}
@@ -543,7 +573,11 @@ export default function RegisterScreen() {
               >
                 <Users color="#2563EB" size={20} />
                 <Text
-                  style={[styles.familyToggleText, isRTL && styles.rtlText, isRTL ? { marginEnd: 8 } : { marginStart: 8 }]}
+                  style={[
+                    styles.familyToggleText,
+                    isRTL && styles.rtlText,
+                    isRTL ? { marginEnd: 8 } : { marginStart: 8 },
+                  ]}
                 >
                   {isRTL ? "الانضمام إلى عائلة موجودة" : "Join existing family"}
                 </Text>
@@ -600,8 +634,16 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             )}
 
-            <View style={[styles.loginContainer, isRTL && styles.loginContainerRTL]}>
-              <Text style={[styles.loginText, isRTL && styles.rtlText, isRTL && { marginStart: 4 }]}>
+            <View
+              style={[styles.loginContainer, isRTL && styles.loginContainerRTL]}
+            >
+              <Text
+                style={[
+                  styles.loginText,
+                  isRTL && styles.rtlText,
+                  isRTL && { marginStart: 4 },
+                ]}
+              >
                 {t("alreadyHaveAccount")}
               </Text>
               <Link asChild href="/(auth)/login">
@@ -697,10 +739,12 @@ export default function RegisterScreen() {
                     {isRTL ? avatar.labelAr : avatar.labelEn}
                   </Text>
                   {selectedAvatarType === avatar.type && (
-                    <View style={[
-                      styles.avatarCheck,
-                      isRTL ? styles.avatarCheckRTL : styles.avatarCheckLTR
-                    ]}>
+                    <View
+                      style={[
+                        styles.avatarCheck,
+                        isRTL ? styles.avatarCheckRTL : styles.avatarCheckLTR,
+                      ]}
+                    >
                       <Check color="#FFFFFF" size={16} />
                     </View>
                   )}

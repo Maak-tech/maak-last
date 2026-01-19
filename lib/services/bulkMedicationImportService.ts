@@ -1,4 +1,4 @@
-import type { Medication, MedicationReminder } from "@/types";
+import type { MedicationReminder } from "@/types";
 
 export interface CSVMedicationRow {
   name: string;
@@ -155,7 +155,7 @@ class BulkMedicationImportService {
    * Parse date string in various formats
    */
   private parseDate(dateStr: string): Date | null {
-    if (!dateStr || !dateStr.trim()) {
+    if (!(dateStr && dateStr.trim())) {
       return null;
     }
 
@@ -237,7 +237,7 @@ class BulkMedicationImportService {
    * Parse time string in various formats (24h, 12h, etc.)
    */
   private parseTimeString(timeStr: string): string | null {
-    if (!timeStr || !timeStr.trim()) {
+    if (!(timeStr && timeStr.trim())) {
       return null;
     }
 
@@ -384,10 +384,7 @@ class BulkMedicationImportService {
   /**
    * Validate and parse medications from CSV rows
    */
-  parseMedications(
-    csvRows: CSVMedicationRow[],
-    userId: string
-  ): ImportResult {
+  parseMedications(csvRows: CSVMedicationRow[], userId: string): ImportResult {
     const result: ImportResult = {
       success: true,
       imported: 0,
@@ -399,7 +396,7 @@ class BulkMedicationImportService {
     csvRows.forEach((row, index) => {
       try {
         // Validate required fields
-        if (!row.name || !row.name.trim()) {
+        if (!(row.name && row.name.trim())) {
           result.errors.push({
             row: index + 2, // +2 because of header and 0-indexing
             medication: row.name || "Unknown",
@@ -409,7 +406,7 @@ class BulkMedicationImportService {
           return;
         }
 
-        if (!row.dosage || !row.dosage.trim()) {
+        if (!(row.dosage && row.dosage.trim())) {
           result.errors.push({
             row: index + 2,
             medication: row.name,
@@ -419,7 +416,7 @@ class BulkMedicationImportService {
           return;
         }
 
-        if (!row.frequency || !row.frequency.trim()) {
+        if (!(row.frequency && row.frequency.trim())) {
           result.errors.push({
             row: index + 2,
             medication: row.name,
@@ -429,7 +426,7 @@ class BulkMedicationImportService {
           return;
         }
 
-        if (!row.startDate || !row.startDate.trim()) {
+        if (!(row.startDate && row.startDate.trim())) {
           result.errors.push({
             row: index + 2,
             medication: row.name,
@@ -461,7 +458,10 @@ class BulkMedicationImportService {
         }
 
         // Parse reminders
-        const reminders = this.parseReminderTimes(row.reminderTimes, row.frequency);
+        const reminders = this.parseReminderTimes(
+          row.reminderTimes,
+          row.frequency
+        );
 
         // Create medication object
         const medication: ParsedMedication = {

@@ -4,7 +4,6 @@
  */
 
 import { offlineService } from "./offlineService";
-import type { Symptom, Medication, Mood, Allergy, LabResult } from "@/types";
 
 type ServiceMethod<T> = (...args: any[]) => Promise<T>;
 
@@ -29,7 +28,7 @@ export function makeOfflineFirst<T>(
         await offlineService.queueOperation({
           type: operationType,
           collection: collectionName,
-          data: data,
+          data,
         });
         throw error;
       }
@@ -39,7 +38,7 @@ export function makeOfflineFirst<T>(
       const operationId = await offlineService.queueOperation({
         type: operationType,
         collection: collectionName,
-        data: data,
+        data,
       });
 
       // Return a mock result for offline operations
@@ -70,7 +69,8 @@ export function makeOfflineRead<T>(
         return result;
       } catch (error) {
         // If online but fails, try offline cache
-        const offlineData = await offlineService.getOfflineCollection<T>(collectionName);
+        const offlineData =
+          await offlineService.getOfflineCollection<T>(collectionName);
         if (offlineData.length > 0) {
           return offlineData;
         }

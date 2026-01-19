@@ -4,13 +4,7 @@
  */
 
 import { useNavigation, useRouter } from "expo-router";
-import {
-  ArrowLeft,
-  Check,
-  ChevronRight,
-  Heart,
-  Info,
-} from "lucide-react-native";
+import { ArrowLeft, Check, ChevronRight, Info } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -18,7 +12,6 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -33,8 +26,6 @@ import {
   type MetricGroup,
 } from "@/lib/health/healthMetricsCatalog";
 import { garminService } from "@/lib/services/garminService";
-import { saveProviderConnection } from "@/lib/health/healthSync";
-import type { ProviderConnection } from "@/lib/health/healthTypes";
 
 export default function GarminPermissionsScreen() {
   const router = useRouter();
@@ -53,7 +44,9 @@ export default function GarminPermissionsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(
+    new Set()
+  );
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
   const [groups, setGroups] = useState<MetricGroup[]>([]);
 
@@ -138,9 +131,8 @@ export default function GarminPermissionsScreen() {
     setSelectedMetrics(newSelected);
   };
 
-  const getMetricsInGroup = (groupKey: MetricGroup) => {
-    return availableMetrics.filter((m) => m.group === groupKey);
-  };
+  const getMetricsInGroup = (groupKey: MetricGroup) =>
+    availableMetrics.filter((m) => m.group === groupKey);
 
   const isGroupFullySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
@@ -152,7 +144,9 @@ export default function GarminPermissionsScreen() {
 
   const isGroupPartiallySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
-    const selectedCount = groupMetrics.filter((m) => selectedMetrics.has(m.key)).length;
+    const selectedCount = groupMetrics.filter((m) =>
+      selectedMetrics.has(m.key)
+    ).length;
     return selectedCount > 0 && selectedCount < groupMetrics.length;
   };
 
@@ -182,13 +176,17 @@ export default function GarminPermissionsScreen() {
         [
           {
             text: isRTL ? "موافق" : "OK",
-            onPress: () => router.replace("/profile/health-integrations")},
+            onPress: () => router.replace("/profile/health-integrations"),
+          },
         ]
       );
     } catch (error: any) {
       Alert.alert(
         isRTL ? "فشل الربط" : "Connection Failed",
-        error.message || (isRTL ? "فشل في ربط جارمين كونكت" : "Failed to connect Garmin Connect")
+        error.message ||
+          (isRTL
+            ? "فشل في ربط جارمين كونكت"
+            : "Failed to connect Garmin Connect")
       );
     } finally {
       setConnecting(false);
@@ -251,8 +249,8 @@ export default function GarminPermissionsScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {/* Info Section */}
         <View style={styles.infoSection}>
@@ -336,8 +334,11 @@ export default function GarminPermissionsScreen() {
                       { color: theme.colors.text.tertiary },
                     ]}
                   >
-                    {groupMetrics.filter((m) => selectedMetrics.has(m.key)).length}/
-                    {groupMetrics.length}
+                    {
+                      groupMetrics.filter((m) => selectedMetrics.has(m.key))
+                        .length
+                    }
+                    /{groupMetrics.length}
                   </Text>
                 </TouchableOpacity>
 
@@ -350,7 +351,8 @@ export default function GarminPermissionsScreen() {
                       <View
                         style={[
                           styles.metricCheckbox,
-                          selectedMetrics.has(metric.key) && styles.metricCheckboxChecked,
+                          selectedMetrics.has(metric.key) &&
+                            styles.metricCheckboxChecked,
                         ]}
                       >
                         {selectedMetrics.has(metric.key) && (
@@ -390,8 +392,8 @@ export default function GarminPermissionsScreen() {
         {/* Connect Button */}
         <View style={styles.connectSection}>
           <TouchableOpacity
-            onPress={handleConnect}
             disabled={connecting}
+            onPress={handleConnect}
             style={[
               styles.connectButton,
               { backgroundColor: "#22C55E" },

@@ -12,9 +12,12 @@
  * - Health context integration
  */
 
-import { Platform } from "react-native";
 import Constants from "expo-constants";
-import { createWebSocketWithHeaders, getWebSocketSetupGuidance } from "@/lib/polyfills/websocketWithHeaders";
+import { Platform } from "react-native";
+import {
+  createWebSocketWithHeaders,
+  getWebSocketSetupGuidance,
+} from "@/lib/polyfills/websocketWithHeaders";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "@/lib/utils/base64";
 
 let SecureStore: any = null;
@@ -61,7 +64,15 @@ export interface RealtimeMessage {
 export interface RealtimeSessionConfig {
   modalities: ("text" | "audio")[];
   instructions: string;
-  voice: "alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse";
+  voice:
+    | "alloy"
+    | "ash"
+    | "ballad"
+    | "coral"
+    | "echo"
+    | "sage"
+    | "shimmer"
+    | "verse";
   input_audio_format: "pcm16" | "g711_ulaw" | "g711_alaw";
   output_audio_format: "pcm16" | "g711_ulaw" | "g711_alaw";
   input_audio_transcription: {
@@ -74,7 +85,11 @@ export interface RealtimeSessionConfig {
     silence_duration_ms?: number;
   } | null;
   tools: RealtimeTool[];
-  tool_choice: "auto" | "none" | "required" | { type: "function"; name: string };
+  tool_choice:
+    | "auto"
+    | "none"
+    | "required"
+    | { type: "function"; name: string };
   temperature: number;
   max_response_output_tokens: number | "inf";
 }
@@ -97,7 +112,11 @@ export interface RealtimeEventHandlers {
   onAudioDone?: () => void;
   onTranscriptDelta?: (delta: string, role: "user" | "assistant") => void;
   onTranscriptDone?: (transcript: string, role: "user" | "assistant") => void;
-  onToolCall?: (toolCall: { name: string; arguments: string; call_id: string }) => void;
+  onToolCall?: (toolCall: {
+    name: string;
+    arguments: string;
+    call_id: string;
+  }) => void;
   onResponseDone?: (response: any) => void;
   onError?: (error: any) => void;
   onConnectionStateChange?: (state: ConnectionState) => void;
@@ -109,7 +128,11 @@ export interface RealtimeEventHandlers {
   onRateLimitsUpdated?: (rateLimits: any) => void;
 }
 
-export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
+export type ConnectionState =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "error";
 
 // Health Assistant Tool Definitions - Expanded for Siri-like automation
 const healthAssistantTools: RealtimeTool[] = [
@@ -117,7 +140,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "get_health_summary",
-    description: "Get a summary of the user's current health status including recent vitals, medications, and symptoms",
+    description:
+      "Get a summary of the user's current health status including recent vitals, medications, and symptoms",
     parameters: {
       type: "object",
       properties: {},
@@ -127,7 +151,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "get_medications",
-    description: "Get the user's current medications list with dosages and schedules",
+    description:
+      "Get the user's current medications list with dosages and schedules",
     parameters: {
       type: "object",
       properties: {
@@ -141,13 +166,22 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "get_recent_vitals",
-    description: "Get recent vital sign measurements like blood pressure, heart rate, temperature",
+    description:
+      "Get recent vital sign measurements like blood pressure, heart rate, temperature",
     parameters: {
       type: "object",
       properties: {
         vital_type: {
           type: "string",
-          enum: ["blood_pressure", "heart_rate", "temperature", "oxygen_saturation", "weight", "blood_glucose", "all"],
+          enum: [
+            "blood_pressure",
+            "heart_rate",
+            "temperature",
+            "oxygen_saturation",
+            "weight",
+            "blood_glucose",
+            "all",
+          ],
           description: "Type of vital to retrieve",
         },
         days: {
@@ -160,13 +194,15 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "check_medication_interactions",
-    description: "Check for potential interactions between the user's medications",
+    description:
+      "Check for potential interactions between the user's medications",
     parameters: {
       type: "object",
       properties: {
         new_medication: {
           type: "string",
-          description: "Optional: A new medication to check against existing medications",
+          description:
+            "Optional: A new medication to check against existing medications",
         },
       },
     },
@@ -174,7 +210,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "emergency_contact",
-    description: "Get emergency contact information or trigger emergency protocols. Only use when explicitly requested by user or in genuine emergency situations.",
+    description:
+      "Get emergency contact information or trigger emergency protocols. Only use when explicitly requested by user or in genuine emergency situations.",
     parameters: {
       type: "object",
       properties: {
@@ -186,22 +223,25 @@ const healthAssistantTools: RealtimeTool[] = [
       required: ["action"],
     },
   },
-  
+
   // ===== AUTOMATED ACTION TOOLS =====
   {
     type: "function",
     name: "log_symptom",
-    description: "Log a symptom the user is experiencing. Use this when the user mentions they have a symptom like headache, fever, nausea, pain, etc. This will automatically save to their symptoms tab.",
+    description:
+      "Log a symptom the user is experiencing. Use this when the user mentions they have a symptom like headache, fever, nausea, pain, etc. This will automatically save to their symptoms tab.",
     parameters: {
       type: "object",
       properties: {
         symptom_name: {
           type: "string",
-          description: "The name/type of the symptom (e.g., headache, fever, nausea, stomach pain, dizziness, fatigue, cough, etc.)",
+          description:
+            "The name/type of the symptom (e.g., headache, fever, nausea, stomach pain, dizziness, fatigue, cough, etc.)",
         },
         severity: {
           type: "number",
-          description: "Severity on a scale of 1-10 (1=very mild, 5=moderate, 10=severe). Infer from context if not specified.",
+          description:
+            "Severity on a scale of 1-10 (1=very mild, 5=moderate, 10=severe). Infer from context if not specified.",
         },
         notes: {
           type: "string",
@@ -209,11 +249,13 @@ const healthAssistantTools: RealtimeTool[] = [
         },
         body_part: {
           type: "string",
-          description: "Body part affected (e.g., head, chest, stomach, back, etc.)",
+          description:
+            "Body part affected (e.g., head, chest, stomach, back, etc.)",
         },
         duration: {
           type: "string",
-          description: "How long the symptom has been present (e.g., '2 hours', 'since yesterday', 'all day')",
+          description:
+            "How long the symptom has been present (e.g., '2 hours', 'since yesterday', 'all day')",
         },
       },
       required: ["symptom_name"],
@@ -222,7 +264,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "add_medication",
-    description: "Add a new medication to the user's medication list. Use when user mentions they started taking a new medication.",
+    description:
+      "Add a new medication to the user's medication list. Use when user mentions they started taking a new medication.",
     parameters: {
       type: "object",
       properties: {
@@ -236,7 +279,8 @@ const healthAssistantTools: RealtimeTool[] = [
         },
         frequency: {
           type: "string",
-          description: "How often to take it (e.g., 'once daily', 'twice a day', 'every 8 hours', 'as needed')",
+          description:
+            "How often to take it (e.g., 'once daily', 'twice a day', 'every 8 hours', 'as needed')",
         },
         notes: {
           type: "string",
@@ -249,13 +293,21 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "log_vital_sign",
-    description: "Log a vital sign measurement that the user reports. Use when user tells you their blood pressure, heart rate, temperature, blood sugar, weight, etc.",
+    description:
+      "Log a vital sign measurement that the user reports. Use when user tells you their blood pressure, heart rate, temperature, blood sugar, weight, etc.",
     parameters: {
       type: "object",
       properties: {
         vital_type: {
           type: "string",
-          enum: ["heartRate", "bloodPressure", "bodyTemperature", "bloodGlucose", "weight", "oxygenSaturation"],
+          enum: [
+            "heartRate",
+            "bloodPressure",
+            "bodyTemperature",
+            "bloodGlucose",
+            "weight",
+            "oxygenSaturation",
+          ],
           description: "Type of vital sign being recorded",
         },
         value: {
@@ -264,7 +316,8 @@ const healthAssistantTools: RealtimeTool[] = [
         },
         unit: {
           type: "string",
-          description: "Unit of measurement (e.g., 'bpm', 'mmHg', '°F', 'mg/dL', 'lbs', '%')",
+          description:
+            "Unit of measurement (e.g., 'bpm', 'mmHg', '°F', 'mg/dL', 'lbs', '%')",
         },
         systolic: {
           type: "number",
@@ -281,7 +334,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "set_medication_reminder",
-    description: "Set a reminder for a medication. Use when user asks to be reminded about a medication at a specific time.",
+    description:
+      "Set a reminder for a medication. Use when user asks to be reminded about a medication at a specific time.",
     parameters: {
       type: "object",
       properties: {
@@ -291,7 +345,8 @@ const healthAssistantTools: RealtimeTool[] = [
         },
         time: {
           type: "string",
-          description: "Time for the reminder (e.g., '8:00 AM', '14:00', '9pm')",
+          description:
+            "Time for the reminder (e.g., '8:00 AM', '14:00', '9pm')",
         },
         recurring: {
           type: "boolean",
@@ -304,13 +359,19 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "alert_family",
-    description: "Send an alert or notification to family members. Use when user explicitly asks to notify or alert their family about something.",
+    description:
+      "Send an alert or notification to family members. Use when user explicitly asks to notify or alert their family about something.",
     parameters: {
       type: "object",
       properties: {
         alert_type: {
           type: "string",
-          enum: ["check_in", "symptom_alert", "medication_reminder", "emergency"],
+          enum: [
+            "check_in",
+            "symptom_alert",
+            "medication_reminder",
+            "emergency",
+          ],
           description: "Type of alert to send",
         },
         message: {
@@ -324,7 +385,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "schedule_reminder",
-    description: "Schedule a general health-related reminder (not medication-specific)",
+    description:
+      "Schedule a general health-related reminder (not medication-specific)",
     parameters: {
       type: "object",
       properties: {
@@ -351,7 +413,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "request_check_in",
-    description: "Request a wellness check-in from the user, or acknowledge their current state",
+    description:
+      "Request a wellness check-in from the user, or acknowledge their current state",
     parameters: {
       type: "object",
       properties: {
@@ -365,17 +428,20 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "log_mood",
-    description: "Log the user's current mood/emotional state. Use when user expresses how they're feeling emotionally (happy, sad, anxious, stressed, tired, etc.)",
+    description:
+      "Log the user's current mood/emotional state. Use when user expresses how they're feeling emotionally (happy, sad, anxious, stressed, tired, etc.)",
     parameters: {
       type: "object",
       properties: {
         mood_type: {
           type: "string",
-          description: "The mood/emotion (e.g., 'happy', 'sad', 'anxious', 'stressed', 'tired', 'calm', 'frustrated', 'grateful')",
+          description:
+            "The mood/emotion (e.g., 'happy', 'sad', 'anxious', 'stressed', 'tired', 'calm', 'frustrated', 'grateful')",
         },
         intensity: {
           type: "number",
-          description: "Intensity of the mood on a scale of 1-10 (1=barely noticeable, 10=overwhelming)",
+          description:
+            "Intensity of the mood on a scale of 1-10 (1=barely noticeable, 10=overwhelming)",
         },
         notes: {
           type: "string",
@@ -393,7 +459,8 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "mark_medication_taken",
-    description: "Mark a medication as taken. Use when user says they took their medication or confirms taking a pill.",
+    description:
+      "Mark a medication as taken. Use when user says they took their medication or confirms taking a pill.",
     parameters: {
       type: "object",
       properties: {
@@ -408,13 +475,24 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "navigate_to",
-    description: "Help user navigate to a section of the app. Use when user asks to see or go to a specific section.",
+    description:
+      "Help user navigate to a section of the app. Use when user asks to see or go to a specific section.",
     parameters: {
       type: "object",
       properties: {
         target: {
           type: "string",
-          enum: ["medications", "symptoms", "family", "profile", "dashboard", "calendar", "vitals", "allergies", "history"],
+          enum: [
+            "medications",
+            "symptoms",
+            "family",
+            "profile",
+            "dashboard",
+            "calendar",
+            "vitals",
+            "allergies",
+            "history",
+          ],
           description: "The app section to navigate to",
         },
       },
@@ -424,17 +502,20 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "add_allergy",
-    description: "Add a new allergy to the user's profile. Use when user mentions they are allergic to something (food, medication, environmental allergen, etc.).",
+    description:
+      "Add a new allergy to the user's profile. Use when user mentions they are allergic to something (food, medication, environmental allergen, etc.).",
     parameters: {
       type: "object",
       properties: {
         allergen: {
           type: "string",
-          description: "The substance the user is allergic to (e.g., 'penicillin', 'peanuts', 'dust', 'shellfish')",
+          description:
+            "The substance the user is allergic to (e.g., 'penicillin', 'peanuts', 'dust', 'shellfish')",
         },
         reaction: {
           type: "string",
-          description: "The allergic reaction they experience (e.g., 'rash', 'swelling', 'difficulty breathing', 'hives')",
+          description:
+            "The allergic reaction they experience (e.g., 'rash', 'swelling', 'difficulty breathing', 'hives')",
         },
         severity: {
           type: "string",
@@ -453,17 +534,20 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "add_medical_history",
-    description: "Add a medical condition to the user's medical history. Use when user mentions they have or had a medical condition (diabetes, hypertension, heart disease, surgery, etc.).",
+    description:
+      "Add a medical condition to the user's medical history. Use when user mentions they have or had a medical condition (diabetes, hypertension, heart disease, surgery, etc.).",
     parameters: {
       type: "object",
       properties: {
         condition: {
           type: "string",
-          description: "The medical condition or diagnosis (e.g., 'diabetes', 'hypertension', 'asthma', 'heart surgery')",
+          description:
+            "The medical condition or diagnosis (e.g., 'diabetes', 'hypertension', 'asthma', 'heart surgery')",
         },
         diagnosis_date: {
           type: "string",
-          description: "When the condition was diagnosed (e.g., '2020', 'last year', '5 years ago')",
+          description:
+            "When the condition was diagnosed (e.g., '2020', 'last year', '5 years ago')",
         },
         status: {
           type: "string",
@@ -478,12 +562,13 @@ const healthAssistantTools: RealtimeTool[] = [
       required: ["condition"],
     },
   },
-  
+
   // ===== INTELLIGENT ANALYSIS TOOLS =====
   {
     type: "function",
     name: "analyze_health_trends",
-    description: "Analyze trends in the user's health data over time. Use this to identify patterns, improvements, or concerns in vitals, symptoms, or medication adherence. Call this proactively when discussing health status or when user asks about their health patterns.",
+    description:
+      "Analyze trends in the user's health data over time. Use this to identify patterns, improvements, or concerns in vitals, symptoms, or medication adherence. Call this proactively when discussing health status or when user asks about their health patterns.",
     parameters: {
       type: "object",
       properties: {
@@ -499,7 +584,8 @@ const healthAssistantTools: RealtimeTool[] = [
         },
         focus_area: {
           type: "string",
-          description: "Specific area to focus on (e.g., 'blood pressure', 'headaches', 'medication adherence')",
+          description:
+            "Specific area to focus on (e.g., 'blood pressure', 'headaches', 'medication adherence')",
         },
       },
     },
@@ -507,18 +593,27 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "get_health_insights",
-    description: "Get personalized health insights and recommendations based on the user's health data, patterns, and medical history. Use this proactively to provide helpful suggestions or when user asks for health advice.",
+    description:
+      "Get personalized health insights and recommendations based on the user's health data, patterns, and medical history. Use this proactively to provide helpful suggestions or when user asks for health advice.",
     parameters: {
       type: "object",
       properties: {
         insight_type: {
           type: "string",
-          enum: ["medication_adherence", "symptom_patterns", "vital_ranges", "lifestyle", "preventive_care", "general"],
+          enum: [
+            "medication_adherence",
+            "symptom_patterns",
+            "vital_ranges",
+            "lifestyle",
+            "preventive_care",
+            "general",
+          ],
           description: "Type of insight to provide",
         },
         context: {
           type: "string",
-          description: "Additional context about what the user is asking about or current situation",
+          description:
+            "Additional context about what the user is asking about or current situation",
         },
       },
     },
@@ -526,13 +621,15 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "check_medication_adherence",
-    description: "Check how well the user is adhering to their medication schedule. Use this proactively when discussing medications or when user mentions missing doses.",
+    description:
+      "Check how well the user is adhering to their medication schedule. Use this proactively when discussing medications or when user mentions missing doses.",
     parameters: {
       type: "object",
       properties: {
         medication_name: {
           type: "string",
-          description: "Specific medication to check (optional - checks all if not provided)",
+          description:
+            "Specific medication to check (optional - checks all if not provided)",
         },
         time_period: {
           type: "string",
@@ -545,13 +642,15 @@ const healthAssistantTools: RealtimeTool[] = [
   {
     type: "function",
     name: "suggest_health_actions",
-    description: "Suggest proactive health actions based on the user's current health status, recent symptoms, or vitals. Use this to be helpful and proactive in managing their health.",
+    description:
+      "Suggest proactive health actions based on the user's current health status, recent symptoms, or vitals. Use this to be helpful and proactive in managing their health.",
     parameters: {
       type: "object",
       properties: {
         trigger: {
           type: "string",
-          description: "What triggered this suggestion (e.g., 'high blood pressure', 'frequent headaches', 'missed medications')",
+          description:
+            "What triggered this suggestion (e.g., 'high blood pressure', 'frequent headaches', 'missed medications')",
         },
         priority: {
           type: "string",
@@ -728,7 +827,8 @@ class RealtimeAgentService {
   private currentTranscript = { user: "", assistant: "" };
   private currentSound: any = null;
   private audioQueue: string[] = [];
-  private audioPlaybackQueue: Array<{ data: Uint8Array; timestamp: number }> = [];
+  private audioPlaybackQueue: Array<{ data: Uint8Array; timestamp: number }> =
+    [];
   private isPlayingAudio = false;
   private lastAudioCommitAt = 0;
   private lastResponseCreateAt = 0;
@@ -743,8 +843,14 @@ class RealtimeAgentService {
     try {
       // 1) Prefer a runtime key saved on the device (so dev client builds don't require rebuilds).
       if (SecureStore?.getItemAsync) {
-        const storedKey = await SecureStore.getItemAsync(RUNTIME_OPENAI_KEY_STORAGE);
-        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+        const storedKey = await SecureStore.getItemAsync(
+          RUNTIME_OPENAI_KEY_STORAGE
+        );
+        if (
+          storedKey &&
+          typeof storedKey === "string" &&
+          storedKey.trim() !== ""
+        ) {
           this.apiKey = storedKey.trim();
           return;
         }
@@ -752,20 +858,26 @@ class RealtimeAgentService {
 
       // 2) Fallback: AsyncStorage (dev reliability if SecureStore is unavailable).
       if (AsyncStorage?.getItem) {
-        const storedKey = await AsyncStorage.getItem(RUNTIME_OPENAI_KEY_STORAGE);
-        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+        const storedKey = await AsyncStorage.getItem(
+          RUNTIME_OPENAI_KEY_STORAGE
+        );
+        if (
+          storedKey &&
+          typeof storedKey === "string" &&
+          storedKey.trim() !== ""
+        ) {
           this.apiKey = storedKey.trim();
           return;
         }
       }
 
       const config = Constants.expoConfig?.extra;
-      
+
       // Use zeinaApiKey first (for Zeina voice agent), then fall back to openaiApiKey
       const key = config?.zeinaApiKey || config?.openaiApiKey || null;
-      
+
       // Validate the key is not empty
-      if (key && typeof key === 'string' && key.trim() !== '') {
+      if (key && typeof key === "string" && key.trim() !== "") {
         this.apiKey = key.trim();
       } else {
         this.apiKey = null;
@@ -830,7 +942,8 @@ class RealtimeAgentService {
     return new Promise((resolve, reject) => {
       try {
         // Connect to OpenAI Realtime API via WebSocket
-        const wsUrl = `wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17`;
+        const wsUrl =
+          "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
 
         // Create WebSocket with authentication headers
         const ws = createWebSocketWithHeaders(wsUrl, undefined, {
@@ -852,7 +965,7 @@ class RealtimeAgentService {
 
           // Configure the session
           this.configureSession(customInstructions);
-          
+
           if (!hasResolved) {
             hasResolved = true;
             clearTimeout(connectionTimeout);
@@ -865,24 +978,24 @@ class RealtimeAgentService {
         };
 
         ws.onerror = (error: any) => {
-          
           // Provide more detailed error information
-          const errorMessage = error?.message || error?.toString() || "Unknown WebSocket error";
+          const errorMessage =
+            error?.message || error?.toString() || "Unknown WebSocket error";
           const setupGuidance = getWebSocketSetupGuidance();
           const detailedError = new Error(
             `WebSocket connection failed: ${errorMessage}.\n\n` +
-            `Common causes:\n` +
-            `1. Missing or invalid OpenAI API key\n` +
-            `2. Network connectivity issues\n` +
-            `3. WebSocket headers not supported on this platform\n\n` +
-            `${setupGuidance}\n\n` +
-            `Please ensure OPENAI_API_KEY is set in your .env file.`
+              "Common causes:\n" +
+              "1. Missing or invalid OpenAI API key\n" +
+              "2. Network connectivity issues\n" +
+              "3. WebSocket headers not supported on this platform\n\n" +
+              `${setupGuidance}\n\n` +
+              "Please ensure OPENAI_API_KEY is set in your .env file."
           );
-          
+
           clearTimeout(connectionTimeout);
           this.eventHandlers.onError?.(detailedError);
           this.setConnectionState("error");
-          
+
           if (!hasResolved) {
             hasResolved = true;
             reject(detailedError);
@@ -898,28 +1011,38 @@ class RealtimeAgentService {
             // Abnormal closure - often means connection failed
             const error = new Error(
               "WebSocket connection closed abnormally. This usually means: " +
-              "1) Invalid API key or missing authentication, " +
-              "2) Network connectivity issues, or " +
-              "3) OpenAI API service unavailable. " +
-              `Close code: ${event.code}, Reason: ${event.reason || "No reason provided"}`
+                "1) Invalid API key or missing authentication, " +
+                "2) Network connectivity issues, or " +
+                "3) OpenAI API service unavailable. " +
+                `Close code: ${event.code}, Reason: ${event.reason || "No reason provided"}`
             );
             this.eventHandlers.onError?.(error);
           } else if (event.code === 1002) {
             // Protocol error
             const error = new Error(
               "WebSocket protocol error. This may indicate that WebSocket headers are not supported on this platform. " +
-              "Consider using a WebSocket library that supports custom headers for React Native."
+                "Consider using a WebSocket library that supports custom headers for React Native."
             );
             this.eventHandlers.onError?.(error);
           }
 
           // Attempt reconnection if it wasn't intentional
-          if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+          if (
+            event.code !== 1000 &&
+            this.reconnectAttempts < this.maxReconnectAttempts
+          ) {
             this.reconnectAttempts++;
-            setTimeout(() => this.connect(customInstructions), 2000 * this.reconnectAttempts);
+            setTimeout(
+              () => this.connect(customInstructions),
+              2000 * this.reconnectAttempts
+            );
           } else if (!hasResolved && event.code !== 1000) {
             hasResolved = true;
-            reject(new Error(`WebSocket closed with code ${event.code}: ${event.reason || "Connection failed"}`));
+            reject(
+              new Error(
+                `WebSocket closed with code ${event.code}: ${event.reason || "Connection failed"}`
+              )
+            );
           }
         };
 
@@ -928,9 +1051,13 @@ class RealtimeAgentService {
           if (this.connectionState === "connecting" && !hasResolved) {
             hasResolved = true;
             ws?.close();
-            reject(new Error("Connection timeout after 10 seconds. Please check your network connection and API key."));
+            reject(
+              new Error(
+                "Connection timeout after 10 seconds. Please check your network connection and API key."
+              )
+            );
           }
-        }, 10000);
+        }, 10_000);
       } catch (error) {
         this.setConnectionState("error");
         reject(error);
@@ -1012,7 +1139,7 @@ class RealtimeAgentService {
         // Assume it's already raw PCM16 (base64)
         pcmData = audioBase64;
       }
-      
+
       this.sendMessage({
         type: "input_audio_buffer.append",
         audio: pcmData,
@@ -1056,7 +1183,9 @@ class RealtimeAgentService {
   /**
    * Commit the input audio buffer, with a small cooldown to avoid duplicates
    */
-  private commitAudioBufferIfNeeded(source: "speech_stopped" | "manual_commit") {
+  private commitAudioBufferIfNeeded(
+    source: "speech_stopped" | "manual_commit"
+  ) {
     const now = Date.now();
     if (now - this.lastAudioCommitAt < this.audioCommitCooldownMs) return;
     this.lastAudioCommitAt = now;
@@ -1075,7 +1204,7 @@ class RealtimeAgentService {
         content: [
           {
             type: "input_text",
-            text: text,
+            text,
           },
         ],
       },
@@ -1105,7 +1234,7 @@ class RealtimeAgentService {
       item: {
         type: "function_call_output",
         call_id: callId,
-        output: output,
+        output,
       },
     });
 
@@ -1151,7 +1280,10 @@ class RealtimeAgentService {
           break;
 
         case "response.audio_transcript.done":
-          this.eventHandlers.onTranscriptDone?.(this.currentTranscript.assistant, "assistant");
+          this.eventHandlers.onTranscriptDone?.(
+            this.currentTranscript.assistant,
+            "assistant"
+          );
           this.currentTranscript.assistant = "";
           break;
 
@@ -1204,10 +1336,9 @@ class RealtimeAgentService {
           break;
 
         default:
-          // Silently ignore unhandled message types
+        // Silently ignore unhandled message types
       }
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   /**
@@ -1230,7 +1361,7 @@ class RealtimeAgentService {
    * Queue an audio chunk for playback
    */
   private queueAudioChunk(base64Audio: string): void {
-    if (!Audio || !FileSystem || Platform.OS === "web") {
+    if (!(Audio && FileSystem) || Platform.OS === "web") {
       // On web, we'd need Web Audio API - for now, just queue it
       this.audioQueue.push(base64Audio);
       return;
@@ -1250,8 +1381,7 @@ class RealtimeAgentService {
       if (!this.isPlayingAudio) {
         this.processAudioQueue();
       }
-    } catch (error) {
-    }
+    } catch (error) {}
   }
 
   /**
@@ -1268,7 +1398,7 @@ class RealtimeAgentService {
       // Accumulate chunks (up to a reasonable size for smooth playback)
       const chunks: Uint8Array[] = [];
       let totalLength = 0;
-      const maxChunkSize = 48000; // ~1 second of audio at 24kHz
+      const maxChunkSize = 48_000; // ~1 second of audio at 24kHz
 
       while (this.audioPlaybackQueue.length > 0 && totalLength < maxChunkSize) {
         const chunk = this.audioPlaybackQueue.shift();
@@ -1292,14 +1422,14 @@ class RealtimeAgentService {
       }
 
       // Convert PCM16 to WAV format
-      const wavData = this.pcm16ToWav(combinedData, 24000, 1); // 24kHz, mono
+      const wavData = this.pcm16ToWav(combinedData, 24_000, 1); // 24kHz, mono
 
       // Create a temporary file URI
       const tempUri = `${FileSystem.cacheDirectory}zeina_audio_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
-      
+
       // Convert WAV data to base64 for writing
       const base64Wav = this.arrayBufferToBase64(wavData.buffer);
-      
+
       // Set audio mode for playback (disable recording mode)
       if (Audio) {
         try {
@@ -1313,7 +1443,7 @@ class RealtimeAgentService {
           // Ignore audio mode errors
         }
       }
-      
+
       // Write the base64 data - expo-file-system will handle the conversion
       // Note: We write as base64 string, but the file will be read as binary by Audio.Sound
       try {
@@ -1379,7 +1509,11 @@ class RealtimeAgentService {
   /**
    * Convert PCM16 data to WAV format
    */
-  private pcm16ToWav(pcmData: Uint8Array, sampleRate: number, channels: number): Uint8Array {
+  private pcm16ToWav(
+    pcmData: Uint8Array,
+    sampleRate: number,
+    channels: number
+  ): Uint8Array {
     const length = pcmData.length;
     const buffer = new ArrayBuffer(44 + length);
     const view = new DataView(buffer);
@@ -1440,7 +1574,10 @@ class RealtimeAgentService {
         // "data"
         if (id0 === 0x64 && id1 === 0x61 && id2 === 0x74 && id3 === 0x61) {
           if (dataStart <= wavBytes.length) {
-            return wavBytes.slice(dataStart, Math.min(dataEnd, wavBytes.length));
+            return wavBytes.slice(
+              dataStart,
+              Math.min(dataEnd, wavBytes.length)
+            );
           }
           break;
         }
@@ -1472,8 +1609,7 @@ class RealtimeAgentService {
         await this.currentSound.stopAsync();
         await this.currentSound.unloadAsync();
         this.currentSound = null;
-      } catch (error) {
-      }
+      } catch (error) {}
     }
   }
 

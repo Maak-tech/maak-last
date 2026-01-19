@@ -1,12 +1,12 @@
 /**
  * Zeina Monitoring & Health Checks
- * 
+ *
  * Provides health check endpoints and monitoring utilities
  * for production deployment
  */
 
-import { logger } from '../../observability/logger';
-import { getMetrics } from './observability';
+import { logger } from "../../observability/logger";
+import { getMetrics } from "./observability";
 // Metrics type imported locally to avoid unused import warning
 
 /**
@@ -43,26 +43,28 @@ export async function healthCheck(): Promise<HealthStatus> {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      warnings.push('OpenAI API key not configured - running in deterministic mode');
+      warnings.push(
+        "OpenAI API key not configured - running in deterministic mode"
+      );
       checks.configuration = false;
     } else if (apiKey.length < 10) {
-      errors.push('OpenAI API key appears invalid');
+      errors.push("OpenAI API key appears invalid");
       checks.configuration = false;
     }
   } catch (error) {
-    errors.push('Failed to check API configuration');
+    errors.push("Failed to check API configuration");
     checks.configuration = false;
   }
 
   // Check metrics system
   try {
     const metrics = getMetrics();
-    if (typeof metrics !== 'object') {
-      errors.push('Metrics system not responding correctly');
+    if (typeof metrics !== "object") {
+      errors.push("Metrics system not responding correctly");
       checks.metrics = false;
     }
   } catch (error) {
-    errors.push('Failed to retrieve metrics');
+    errors.push("Failed to retrieve metrics");
     checks.metrics = false;
   }
 
@@ -71,7 +73,7 @@ export async function healthCheck(): Promise<HealthStatus> {
 
   const status: HealthStatus = {
     healthy,
-    version: '1.0.0',
+    version: "1.0.0",
     timestamp: new Date(),
     checks,
   };
@@ -91,11 +93,11 @@ export async function healthCheck(): Promise<HealthStatus> {
     // Metrics not critical for health check
   }
 
-  logger.info('Health check completed', {
+  logger.info("Health check completed", {
     healthy,
     warningCount: warnings.length,
     errorCount: errors.length,
-    fn: 'zeina.monitoring.healthCheck',
+    fn: "zeina.monitoring.healthCheck",
   });
 
   return status;
@@ -120,17 +122,20 @@ export interface ServiceStats {
 export function getServiceStats(): ServiceStats {
   const metrics = getMetrics();
 
-  const totalCalls = metrics['zeina.calls'] || 0;
-  const failures = metrics['zeina.failures'] || 0;
-  const guardrailBlocks = metrics['zeina.guardrail_blocks'] || 0;
-  const aiCalls = metrics['zeina.analysis_type.ai'] || 0;
-  const deterministicCalls = metrics['zeina.analysis_type.deterministic'] || 0;
+  const totalCalls = metrics["zeina.calls"] || 0;
+  const failures = metrics["zeina.failures"] || 0;
+  const guardrailBlocks = metrics["zeina.guardrail_blocks"] || 0;
+  const aiCalls = metrics["zeina.analysis_type.ai"] || 0;
+  const deterministicCalls = metrics["zeina.analysis_type.deterministic"] || 0;
 
-  const successRate = totalCalls > 0 ? ((totalCalls - failures) / totalCalls) * 100 : 100;
+  const successRate =
+    totalCalls > 0 ? ((totalCalls - failures) / totalCalls) * 100 : 100;
   const failureRate = totalCalls > 0 ? (failures / totalCalls) * 100 : 0;
-  const guardrailBlockRate = totalCalls > 0 ? (guardrailBlocks / totalCalls) * 100 : 0;
+  const guardrailBlockRate =
+    totalCalls > 0 ? (guardrailBlocks / totalCalls) * 100 : 0;
   const aiRate = totalCalls > 0 ? (aiCalls / totalCalls) * 100 : 0;
-  const deterministicRate = totalCalls > 0 ? (deterministicCalls / totalCalls) * 100 : 0;
+  const deterministicRate =
+    totalCalls > 0 ? (deterministicCalls / totalCalls) * 100 : 0;
 
   return {
     totalCalls,
@@ -148,8 +153,12 @@ export function getServiceStats(): ServiceStats {
 export interface AnomalyDetection {
   hasAnomalies: boolean;
   anomalies: Array<{
-    type: 'high_failure_rate' | 'high_guardrail_blocks' | 'no_ai_calls' | 'high_latency';
-    severity: 'warning' | 'error' | 'critical';
+    type:
+      | "high_failure_rate"
+      | "high_guardrail_blocks"
+      | "no_ai_calls"
+      | "high_latency";
+    severity: "warning" | "error" | "critical";
     message: string;
     value: number;
     threshold: number;
@@ -161,22 +170,22 @@ export interface AnomalyDetection {
  */
 export function detectAnomalies(): AnomalyDetection {
   const stats = getServiceStats();
-  const anomalies: AnomalyDetection['anomalies'] = [];
+  const anomalies: AnomalyDetection["anomalies"] = [];
 
   // High failure rate
   if (stats.failureRate > 10) {
     anomalies.push({
-      type: 'high_failure_rate',
-      severity: 'critical',
-      message: 'Failure rate exceeds 10%',
+      type: "high_failure_rate",
+      severity: "critical",
+      message: "Failure rate exceeds 10%",
       value: stats.failureRate,
       threshold: 10,
     });
   } else if (stats.failureRate > 5) {
     anomalies.push({
-      type: 'high_failure_rate',
-      severity: 'warning',
-      message: 'Failure rate exceeds 5%',
+      type: "high_failure_rate",
+      severity: "warning",
+      message: "Failure rate exceeds 5%",
       value: stats.failureRate,
       threshold: 5,
     });
@@ -185,17 +194,17 @@ export function detectAnomalies(): AnomalyDetection {
   // High guardrail block rate
   if (stats.guardrailBlockRate > 10) {
     anomalies.push({
-      type: 'high_guardrail_blocks',
-      severity: 'error',
-      message: 'Guardrail block rate exceeds 10%',
+      type: "high_guardrail_blocks",
+      severity: "error",
+      message: "Guardrail block rate exceeds 10%",
       value: stats.guardrailBlockRate,
       threshold: 10,
     });
   } else if (stats.guardrailBlockRate > 5) {
     anomalies.push({
-      type: 'high_guardrail_blocks',
-      severity: 'warning',
-      message: 'Guardrail block rate exceeds 5%',
+      type: "high_guardrail_blocks",
+      severity: "warning",
+      message: "Guardrail block rate exceeds 5%",
       value: stats.guardrailBlockRate,
       threshold: 5,
     });
@@ -204,9 +213,9 @@ export function detectAnomalies(): AnomalyDetection {
   // No AI calls (all deterministic)
   if (stats.totalCalls > 10 && stats.aiRate === 0) {
     anomalies.push({
-      type: 'no_ai_calls',
-      severity: 'warning',
-      message: 'No AI calls detected - running in deterministic mode',
+      type: "no_ai_calls",
+      severity: "warning",
+      message: "No AI calls detected - running in deterministic mode",
       value: stats.aiRate,
       threshold: 0,
     });
@@ -240,31 +249,41 @@ export async function generateMonitoringReport(): Promise<MonitoringReport> {
 
   // Generate recommendations based on stats and anomalies
   if (stats.failureRate > 5) {
-    recommendations.push('Investigate recent failures and consider adjusting timeout settings');
+    recommendations.push(
+      "Investigate recent failures and consider adjusting timeout settings"
+    );
   }
 
   if (stats.guardrailBlockRate > 5) {
-    recommendations.push('Review AI responses and consider adjusting prompt or validation rules');
+    recommendations.push(
+      "Review AI responses and consider adjusting prompt or validation rules"
+    );
   }
 
   if (stats.aiRate === 0 && stats.totalCalls > 10) {
-    recommendations.push('AI is not being used - verify OpenAI API key configuration');
+    recommendations.push(
+      "AI is not being used - verify OpenAI API key configuration"
+    );
   }
 
   if (stats.deterministicRate > 50) {
-    recommendations.push('High deterministic fallback rate - check LLM availability and performance');
+    recommendations.push(
+      "High deterministic fallback rate - check LLM availability and performance"
+    );
   }
 
   if (!health.healthy) {
-    recommendations.push('Service health check failed - review errors and warnings');
+    recommendations.push(
+      "Service health check failed - review errors and warnings"
+    );
   }
 
-  logger.info('Monitoring report generated', {
+  logger.info("Monitoring report generated", {
     healthy: health.healthy,
     totalCalls: stats.totalCalls,
     successRate: stats.successRate,
     hasAnomalies: anomalies.hasAnomalies,
-    fn: 'zeina.monitoring.generateMonitoringReport',
+    fn: "zeina.monitoring.generateMonitoringReport",
   });
 
   return {
@@ -282,7 +301,7 @@ export async function generateMonitoringReport(): Promise<MonitoringReport> {
 export async function logMonitoringSummary(): Promise<void> {
   const report = await generateMonitoringReport();
 
-  logger.info('Zeina monitoring summary', {
+  logger.info("Zeina monitoring summary", {
     healthy: report.health.healthy,
     totalCalls: report.stats.totalCalls,
     successRate: report.stats.successRate.toFixed(2),
@@ -292,6 +311,6 @@ export async function logMonitoringSummary(): Promise<void> {
     hasAnomalies: report.anomalies.hasAnomalies,
     anomalyCount: report.anomalies.anomalies.length,
     recommendations: report.recommendations,
-    fn: 'zeina.monitoring.logMonitoringSummary',
+    fn: "zeina.monitoring.logMonitoringSummary",
   });
 }

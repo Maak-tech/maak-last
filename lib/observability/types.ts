@@ -1,4 +1,4 @@
-export type ObservabilityDomain = 
+export type ObservabilityDomain =
   | "health_data"
   | "alerts"
   | "ai_assistant"
@@ -10,7 +10,12 @@ export type ObservabilityDomain =
 
 export type EventSeverity = "debug" | "info" | "warn" | "error" | "critical";
 
-export type EventStatus = "pending" | "success" | "failure" | "timeout" | "cancelled";
+export type EventStatus =
+  | "pending"
+  | "success"
+  | "failure"
+  | "timeout"
+  | "cancelled";
 
 export interface ObservabilityEvent {
   id?: string;
@@ -102,7 +107,13 @@ export interface IncidentTimelineEntry {
 export interface AlertAuditEntry {
   id?: string;
   alertId: string;
-  action: "created" | "acknowledged" | "escalated" | "resolved" | "expired" | "snoozed";
+  action:
+    | "created"
+    | "acknowledged"
+    | "escalated"
+    | "resolved"
+    | "expired"
+    | "snoozed";
   timestamp: Date;
   actorId?: string;
   actorType: "user" | "system" | "ai";

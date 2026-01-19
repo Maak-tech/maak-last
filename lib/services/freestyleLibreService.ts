@@ -4,19 +4,12 @@
  */
 
 import * as SecureStore from "expo-secure-store";
-import Constants from "expo-constants";
 import {
-  getAvailableMetricsForProvider,
-  getFreestyleLibreScopesForMetrics,
-  getMetricByKey,
-} from "../health/healthMetricsCatalog";
-import {
-  HEALTH_STORAGE_KEYS,
   type FreestyleLibreTokens,
+  HEALTH_STORAGE_KEYS,
   type NormalizedMetricPayload,
   type ProviderAvailability,
 } from "../health/healthTypes";
-import { saveProviderConnection } from "../health/healthSync";
 
 // Freestyle Libre API configuration
 // Note: Freestyle Libre uses different authentication - typically through patient account
@@ -33,7 +26,8 @@ export const freestyleLibreService = {
       // This would typically require partnership with Abbott
       return {
         available: false,
-        reason: "Freestyle Libre integration requires partnership with Abbott. Contact Abbott for API access.",
+        reason:
+          "Freestyle Libre integration requires partnership with Abbott. Contact Abbott for API access.",
       };
     } catch (error: any) {
       return {
@@ -49,9 +43,13 @@ export const freestyleLibreService = {
    */
   startAuth: async (selectedMetrics: string[]): Promise<void> => {
     try {
-      throw new Error("Freestyle Libre integration not yet implemented. Requires Abbott partnership.");
+      throw new Error(
+        "Freestyle Libre integration not yet implemented. Requires Abbott partnership."
+      );
     } catch (error: any) {
-      throw new Error(`Freestyle Libre authentication failed: ${error.message}`);
+      throw new Error(
+        `Freestyle Libre authentication failed: ${error.message}`
+      );
     }
   },
 
@@ -62,7 +60,9 @@ export const freestyleLibreService = {
     try {
       throw new Error("Freestyle Libre integration not yet implemented.");
     } catch (error: any) {
-      throw new Error(`Failed to complete Freestyle Libre authentication: ${error.message}`);
+      throw new Error(
+        `Failed to complete Freestyle Libre authentication: ${error.message}`
+      );
     }
   },
 
@@ -124,7 +124,9 @@ export const freestyleLibreService = {
       // Placeholder implementation
       throw new Error("Freestyle Libre API integration not yet implemented");
     } catch (error: any) {
-      throw new Error(`Failed to fetch Freestyle Libre metrics: ${error.message}`);
+      throw new Error(
+        `Failed to fetch Freestyle Libre metrics: ${error.message}`
+      );
     }
   },
 
@@ -157,7 +159,10 @@ export const freestyleLibreService = {
       switch (metricKey) {
         case "blood_glucose": {
           // Parse glucose readings from Freestyle Libre
-          if (data?.glucoseMeasurements && Array.isArray(data.glucoseMeasurements)) {
+          if (
+            data?.glucoseMeasurements &&
+            Array.isArray(data.glucoseMeasurements)
+          ) {
             data.glucoseMeasurements.forEach((reading: any) => {
               if (reading.value !== undefined) {
                 samples.push({
@@ -174,7 +179,10 @@ export const freestyleLibreService = {
 
         case "glucose_trend": {
           // Parse trend data if available
-          if (data?.glucoseMeasurements && Array.isArray(data.glucoseMeasurements)) {
+          if (
+            data?.glucoseMeasurements &&
+            Array.isArray(data.glucoseMeasurements)
+          ) {
             data.glucoseMeasurements.forEach((reading: any) => {
               if (reading.trend !== undefined) {
                 samples.push({
@@ -222,7 +230,9 @@ export const freestyleLibreService = {
    */
   disconnect: async (): Promise<void> => {
     try {
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS);
+      await SecureStore.deleteItemAsync(
+        HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS
+      );
     } catch (error) {
       throw error;
     }

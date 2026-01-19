@@ -1,10 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
-import { aiInsightsService, type AIInsightsDashboard as AIInsightsDashboardData } from '@/lib/services/aiInsightsService';
-import { correlationAnalysisService, type CorrelationInsight } from '@/lib/services/correlationAnalysisService';
-import { symptomPatternRecognitionService, type PatternAnalysisResult } from '@/lib/services/symptomPatternRecognitionService';
-import { riskAssessmentService, type HealthRiskAssessment } from '@/lib/services/riskAssessmentService';
-import { medicationInteractionService, type MedicationInteractionAlert } from '@/lib/services/medicationInteractionService';
-import { proactiveHealthSuggestionsService, type HealthSuggestion } from '@/lib/services/proactiveHealthSuggestionsService';
+import { useCallback, useEffect, useState } from "react";
+import {
+  type AIInsightsDashboard as AIInsightsDashboardData,
+  aiInsightsService,
+} from "@/lib/services/aiInsightsService";
+import {
+  type CorrelationInsight,
+  correlationAnalysisService,
+} from "@/lib/services/correlationAnalysisService";
+import {
+  type MedicationInteractionAlert,
+  medicationInteractionService,
+} from "@/lib/services/medicationInteractionService";
+import {
+  type HealthSuggestion,
+  proactiveHealthSuggestionsService,
+} from "@/lib/services/proactiveHealthSuggestionsService";
+import {
+  type HealthRiskAssessment,
+  riskAssessmentService,
+} from "@/lib/services/riskAssessmentService";
+import {
+  type PatternAnalysisResult,
+  symptomPatternRecognitionService,
+} from "@/lib/services/symptomPatternRecognitionService";
 
 interface UseAIInsightsOptions {
   autoLoad?: boolean;
@@ -46,16 +64,26 @@ export function useAIInsights(
   const {
     autoLoad = true,
     includeNarrative = true,
-    cacheTimeout = 30 // 30 minutes
+    cacheTimeout = 30, // 30 minutes
   } = options;
 
   // State
-  const [dashboard, setDashboard] = useState<AIInsightsDashboardData | null>(null);
-  const [correlations, setCorrelations] = useState<CorrelationInsight | null>(null);
-  const [symptomAnalysis, setSymptomAnalysis] = useState<PatternAnalysisResult | null>(null);
-  const [riskAssessment, setRiskAssessment] = useState<HealthRiskAssessment | null>(null);
-  const [medicationAlerts, setMedicationAlerts] = useState<MedicationInteractionAlert[]>([]);
-  const [healthSuggestions, setHealthSuggestions] = useState<HealthSuggestion[]>([]);
+  const [dashboard, setDashboard] = useState<AIInsightsDashboardData | null>(
+    null
+  );
+  const [correlations, setCorrelations] = useState<CorrelationInsight | null>(
+    null
+  );
+  const [symptomAnalysis, setSymptomAnalysis] =
+    useState<PatternAnalysisResult | null>(null);
+  const [riskAssessment, setRiskAssessment] =
+    useState<HealthRiskAssessment | null>(null);
+  const [medicationAlerts, setMedicationAlerts] = useState<
+    MedicationInteractionAlert[]
+  >([]);
+  const [healthSuggestions, setHealthSuggestions] = useState<
+    HealthSuggestion[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,47 +98,53 @@ export function useAIInsights(
   }, [lastLoadTime, cacheTimeout]);
 
   // Load full dashboard
-  const loadDashboard = useCallback(async (force = false) => {
-    if (!userId) return;
+  const loadDashboard = useCallback(
+    async (force = false) => {
+      if (!userId) return;
 
-    if (!force && isCacheValid() && dashboard) {
-      return; // Use cached data
-    }
+      if (!force && isCacheValid() && dashboard) {
+        return; // Use cached data
+      }
 
-    try {
-      setLoading(true);
-      setError(null);
+      try {
+        setLoading(true);
+        setError(null);
 
-      const result = await aiInsightsService.generateAIInsightsDashboard(
-        userId,
-        includeNarrative
-      );
+        const result = await aiInsightsService.generateAIInsightsDashboard(
+          userId,
+          includeNarrative
+        );
 
-      setDashboard(result);
-      setCorrelations(result.correlationAnalysis);
-      setSymptomAnalysis(result.symptomAnalysis);
-      setRiskAssessment(result.riskAssessment);
-      setMedicationAlerts(result.medicationAlerts);
-      setHealthSuggestions(result.healthSuggestions);
+        setDashboard(result);
+        setCorrelations(result.correlationAnalysis);
+        setSymptomAnalysis(result.symptomAnalysis);
+        setRiskAssessment(result.riskAssessment);
+        setMedicationAlerts(result.medicationAlerts);
+        setHealthSuggestions(result.healthSuggestions);
 
-      setLastLoadTime(new Date());
-    } catch (err) {
-      console.error('Failed to load AI insights dashboard:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load insights');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, includeNarrative, isCacheValid, dashboard]);
+        setLastLoadTime(new Date());
+      } catch (err) {
+        console.error("Failed to load AI insights dashboard:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load insights"
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userId, includeNarrative, isCacheValid, dashboard]
+  );
 
   // Load individual insights
   const loadCorrelations = useCallback(async () => {
     if (!userId) return;
 
     try {
-      const result = await correlationAnalysisService.generateCorrelationAnalysis(userId);
+      const result =
+        await correlationAnalysisService.generateCorrelationAnalysis(userId);
       setCorrelations(result);
     } catch (err) {
-      console.error('Failed to load correlations:', err);
+      console.error("Failed to load correlations:", err);
     }
   }, [userId]);
 
@@ -118,10 +152,14 @@ export function useAIInsights(
     if (!userId) return;
 
     try {
-      const symptoms = await symptomPatternRecognitionService.analyzeSymptomPatterns(userId, []);
+      const symptoms =
+        await symptomPatternRecognitionService.analyzeSymptomPatterns(
+          userId,
+          []
+        );
       setSymptomAnalysis(symptoms);
     } catch (err) {
-      console.error('Failed to load symptom analysis:', err);
+      console.error("Failed to load symptom analysis:", err);
     }
   }, [userId]);
 
@@ -132,7 +170,7 @@ export function useAIInsights(
       const result = await riskAssessmentService.generateRiskAssessment(userId);
       setRiskAssessment(result);
     } catch (err) {
-      console.error('Failed to load risk assessment:', err);
+      console.error("Failed to load risk assessment:", err);
     }
   }, [userId]);
 
@@ -140,10 +178,11 @@ export function useAIInsights(
     if (!userId) return;
 
     try {
-      const alerts = await medicationInteractionService.generateRealtimeAlerts(userId);
+      const alerts =
+        await medicationInteractionService.generateRealtimeAlerts(userId);
       setMedicationAlerts(alerts);
     } catch (err) {
-      console.error('Failed to load medication alerts:', err);
+      console.error("Failed to load medication alerts:", err);
     }
   }, [userId]);
 
@@ -151,10 +190,11 @@ export function useAIInsights(
     if (!userId) return;
 
     try {
-      const suggestions = await proactiveHealthSuggestionsService.generateSuggestions(userId);
+      const suggestions =
+        await proactiveHealthSuggestionsService.generateSuggestions(userId);
       setHealthSuggestions(suggestions);
     } catch (err) {
-      console.error('Failed to load health suggestions:', err);
+      console.error("Failed to load health suggestions:", err);
     }
   }, [userId]);
 
@@ -171,7 +211,8 @@ export function useAIInsights(
 
   // Get action plan
   const getActionPlan = useCallback(async () => {
-    if (!userId) return { immediate: [], shortTerm: [], longTerm: [], monitoring: [] };
+    if (!userId)
+      return { immediate: [], shortTerm: [], longTerm: [], monitoring: [] };
     return aiInsightsService.generateActionPlan(userId);
   }, [userId]);
 
@@ -213,6 +254,6 @@ export function useAIInsights(
     // Utilities
     getPrioritizedInsights,
     getActionPlan,
-    dismissInsight
+    dismissInsight,
   };
 }

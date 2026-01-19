@@ -15,13 +15,13 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { I18nManager, NativeModules, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import OfflineIndicator from "@/app/components/OfflineIndicator";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import OfflineIndicator from "@/app/components/OfflineIndicator";
+import i18n from "@/lib/i18n";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
-import i18n from "@/lib/i18n";
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync();
@@ -53,9 +53,12 @@ export default function RootLayout() {
         if (I18nManager.isRTL !== isRTL) {
           I18nManager.forceRTL(isRTL);
           I18nManager.allowRTL(isRTL);
-          
+
           // On Android, RTL changes require a reload
-          if (Platform.OS === "android" && NativeModules.UIManager?.setLayoutAnimationEnabledExperimental) {
+          if (
+            Platform.OS === "android" &&
+            NativeModules.UIManager?.setLayoutAnimationEnabledExperimental
+          ) {
             NativeModules.UIManager.setLayoutAnimationEnabledExperimental(true);
           }
         }
@@ -145,9 +148,15 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="profile" options={{ headerShown: false }} />
               <Stack.Screen name="family" options={{ headerShown: false }} />
-              <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="onboarding"
+                options={{ headerShown: false }}
+              />
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="voice-agent" options={{ headerShown: false, presentation: "modal" }} />
+              <Stack.Screen
+                name="voice-agent"
+                options={{ headerShown: false, presentation: "modal" }}
+              />
               <Stack.Screen name="+not-found" />
             </Stack>
           </FallDetectionProvider>

@@ -1,11 +1,11 @@
-import { LineChart } from "react-native-chart-kit";
-import { Dimensions, View } from "react-native";
+import { Minus, TrendingDown, TrendingUp } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { useTheme } from "@/contexts/ThemeContext";
-import { chartsService, type TrendPrediction } from "@/lib/services/chartsService";
-import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import { Dimensions, View } from "react-native";
+import { LineChart } from "react-native-chart-kit";
 import { Badge } from "@/components/design-system/AdditionalComponents";
-import { TrendingDown, TrendingUp, Minus } from "lucide-react-native";
+import { Caption, Heading } from "@/components/design-system/Typography";
+import { useTheme } from "@/contexts/ThemeContext";
+import type { TrendPrediction } from "@/lib/services/chartsService";
 
 interface TrendPredictionChartProps {
   prediction: TrendPrediction;
@@ -31,12 +31,18 @@ export default function TrendPredictionChart({
   const allLabels = [
     ...prediction.historical.map((p) =>
       typeof p.x === "string"
-        ? new Date(p.x).toLocaleDateString(locale, { month: "short", day: "numeric" })
+        ? new Date(p.x).toLocaleDateString(locale, {
+            month: "short",
+            day: "numeric",
+          })
         : String(p.x)
     ),
     ...prediction.predicted.map((p) =>
       typeof p.x === "string"
-        ? new Date(p.x).toLocaleDateString(locale, { month: "short", day: "numeric" })
+        ? new Date(p.x).toLocaleDateString(locale, {
+            month: "short",
+            day: "numeric",
+          })
         : String(p.x)
     ),
   ];
@@ -71,11 +77,11 @@ export default function TrendPredictionChart({
   const getTrendIcon = () => {
     switch (prediction.trend) {
       case "increasing":
-        return <TrendingUp size={16} color={theme.colors.accent.error} />;
+        return <TrendingUp color={theme.colors.accent.error} size={16} />;
       case "decreasing":
-        return <TrendingDown size={16} color={theme.colors.accent.success} />;
+        return <TrendingDown color={theme.colors.accent.success} size={16} />;
       default:
-        return <Minus size={16} color={theme.colors.text.secondary} />;
+        return <Minus color={theme.colors.text.secondary} size={16} />;
     }
   };
 
@@ -92,11 +98,23 @@ export default function TrendPredictionChart({
 
   return (
     <View style={{ marginVertical: 16 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, marginBottom: 8 }}>
-        <Heading level={6} style={{}}>{title}</Heading>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          marginBottom: 8,
+        }}
+      >
+        <Heading level={6} style={{}}>
+          {title}
+        </Heading>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {getTrendIcon()}
           <Badge
+            size="small"
+            style={{}}
             variant={
               prediction.trend === "increasing"
                 ? "error"
@@ -104,8 +122,6 @@ export default function TrendPredictionChart({
                   ? "success"
                   : "outline"
             }
-            size="small"
-            style={{}}
           >
             {getTrendLabel()}
           </Badge>
@@ -113,6 +129,8 @@ export default function TrendPredictionChart({
       </View>
 
       <LineChart
+        bezier
+        chartConfig={chartConfig}
         data={{
           labels: allLabels,
           datasets: [
@@ -123,24 +141,22 @@ export default function TrendPredictionChart({
             },
           ],
         }}
-        width={screenWidth - 32}
         height={height}
-        yAxisLabel={yAxisLabel || ""}
-        yAxisSuffix={yAxisSuffix}
-        chartConfig={chartConfig}
-        bezier
+        segments={4}
         style={{
           marginVertical: 8,
           borderRadius: 16,
           marginHorizontal: 16,
         }}
+        width={screenWidth - 32}
+        withDots={true}
+        withHorizontalLines={true}
         withInnerLines={true}
         withOuterLines={true}
-        withVerticalLines={true}
-        withHorizontalLines={true}
-        withDots={true}
         withShadow={false}
-        segments={4}
+        withVerticalLines={true}
+        yAxisLabel={yAxisLabel || ""}
+        yAxisSuffix={yAxisSuffix}
       />
 
       {/* Prediction indicator */}
@@ -165,13 +181,17 @@ export default function TrendPredictionChart({
           />
         </View>
         <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Caption style={{}} numberOfLines={1}>
+          <Caption numberOfLines={1} style={{}}>
             {t("historical", "Historical")}
           </Caption>
-          <Caption style={{}} numberOfLines={1}>
-            {t("predictedWithConfidence", "Predicted ({{percent}}% confidence)", {
-              percent: (prediction.confidence * 100).toFixed(0),
-            })}
+          <Caption numberOfLines={1} style={{}}>
+            {t(
+              "predictedWithConfidence",
+              "Predicted ({{percent}}% confidence)",
+              {
+                percent: (prediction.confidence * 100).toFixed(0),
+              }
+            )}
           </Caption>
         </View>
       </View>

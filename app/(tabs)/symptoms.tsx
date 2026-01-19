@@ -1,5 +1,12 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Edit,
+  MoreVertical,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,23 +16,22 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
+// Design System Components
+import { Button, Card, Input } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import type { Symptom, User as UserType } from "@/types";
-// Design System Components
-import { Button, Card, Input } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { Badge } from "@/components/design-system/AdditionalComponents";
 
 const COMMON_SYMPTOMS = [
   "headache",
@@ -90,177 +96,240 @@ export default function TrackScreen() {
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
-  const loadSymptoms = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadSymptoms = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    const startTime = Date.now();
-    let dataLoaded = false;
+      const startTime = Date.now();
+      let dataLoaded = false;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      logger.debug("Loading symptoms", {
-        userId: user.id,
-        filterType: selectedFilter.type,
-        isAdmin,
-        hasFamily: Boolean(user.familyId),
-      }, "SymptomsScreen");
-
-      // Always load family members first if user has family
-      let members: UserType[] = [];
-      if (user.familyId) {
-        members = await userService.getFamilyMembers(user.familyId);
-        setFamilyMembers(members);
-      }
-
-      // Load data based on selected filter
-      if (selectedFilter.type === "family" && user.familyId && isAdmin) {
-        // Load family symptoms and stats (admin only)
-        // Use Promise.allSettled to handle partial failures gracefully
-        const [symptomsResult, statsResult] = await Promise.allSettled([
-          symptomService.getFamilySymptoms(user.id, user.familyId, 50),
-          symptomService.getFamilySymptomStats(user.id, user.familyId, 7),
-        ]);
-
-        // Handle symptoms result
-        if (symptomsResult.status === "fulfilled") {
-          setSymptoms(symptomsResult.value);
-          dataLoaded = true;
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
         } else {
-          logger.error("Failed to load family symptoms", symptomsResult.reason, "SymptomsScreen");
-          setSymptoms([]); // Set empty array on error
+          setLoading(true);
         }
 
-        // Handle stats result
-        if (statsResult.status === "fulfilled") {
-          setStats(statsResult.value);
-        } else {
-          logger.error("Failed to load family stats", statsResult.reason, "SymptomsScreen");
-          setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
+        logger.debug(
+          "Loading symptoms",
+          {
+            userId: user.id,
+            filterType: selectedFilter.type,
+            isAdmin,
+            hasFamily: Boolean(user.familyId),
+          },
+          "SymptomsScreen"
+        );
+
+        // Always load family members first if user has family
+        let members: UserType[] = [];
+        if (user.familyId) {
+          members = await userService.getFamilyMembers(user.familyId);
+          setFamilyMembers(members);
         }
 
-        const durationMs = Date.now() - startTime;
-        logger.info("Family symptoms loaded", {
-          userId: user.id,
-          familyId: user.familyId,
-          symptomCount: symptomsResult.status === "fulfilled" ? symptomsResult.value.length : 0,
-          statsLoaded: statsResult.status === "fulfilled",
-          durationMs,
-        }, "SymptomsScreen");
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
-        // Load specific member symptoms and stats (admin only)
-        // Use Promise.allSettled to handle partial failures gracefully
-        const [symptomsResult, statsResult] = await Promise.allSettled([
-          symptomService.getMemberSymptoms(selectedFilter.memberId, 50),
-          symptomService.getMemberSymptomStats(selectedFilter.memberId, 7),
-        ]);
+        // Load data based on selected filter
+        if (selectedFilter.type === "family" && user.familyId && isAdmin) {
+          // Load family symptoms and stats (admin only)
+          // Use Promise.allSettled to handle partial failures gracefully
+          const [symptomsResult, statsResult] = await Promise.allSettled([
+            symptomService.getFamilySymptoms(user.id, user.familyId, 50),
+            symptomService.getFamilySymptomStats(user.id, user.familyId, 7),
+          ]);
 
-        // Handle symptoms result
-        if (symptomsResult.status === "fulfilled") {
-          setSymptoms(symptomsResult.value);
-          dataLoaded = true;
+          // Handle symptoms result
+          if (symptomsResult.status === "fulfilled") {
+            setSymptoms(symptomsResult.value);
+            dataLoaded = true;
+          } else {
+            logger.error(
+              "Failed to load family symptoms",
+              symptomsResult.reason,
+              "SymptomsScreen"
+            );
+            setSymptoms([]); // Set empty array on error
+          }
+
+          // Handle stats result
+          if (statsResult.status === "fulfilled") {
+            setStats(statsResult.value);
+          } else {
+            logger.error(
+              "Failed to load family stats",
+              statsResult.reason,
+              "SymptomsScreen"
+            );
+            setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
+          }
+
+          const durationMs = Date.now() - startTime;
+          logger.info(
+            "Family symptoms loaded",
+            {
+              userId: user.id,
+              familyId: user.familyId,
+              symptomCount:
+                symptomsResult.status === "fulfilled"
+                  ? symptomsResult.value.length
+                  : 0,
+              statsLoaded: statsResult.status === "fulfilled",
+              durationMs,
+            },
+            "SymptomsScreen"
+          );
+        } else if (
+          selectedFilter.type === "member" &&
+          selectedFilter.memberId &&
+          isAdmin
+        ) {
+          // Load specific member symptoms and stats (admin only)
+          // Use Promise.allSettled to handle partial failures gracefully
+          const [symptomsResult, statsResult] = await Promise.allSettled([
+            symptomService.getMemberSymptoms(selectedFilter.memberId, 50),
+            symptomService.getMemberSymptomStats(selectedFilter.memberId, 7),
+          ]);
+
+          // Handle symptoms result
+          if (symptomsResult.status === "fulfilled") {
+            setSymptoms(symptomsResult.value);
+            dataLoaded = true;
+          } else {
+            logger.error(
+              "Failed to load member symptoms",
+              symptomsResult.reason,
+              "SymptomsScreen"
+            );
+            setSymptoms([]); // Set empty array on error
+          }
+
+          // Handle stats result
+          if (statsResult.status === "fulfilled") {
+            setStats(statsResult.value);
+          } else {
+            logger.error(
+              "Failed to load member stats",
+              statsResult.reason,
+              "SymptomsScreen"
+            );
+            setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
+          }
+
+          const durationMs = Date.now() - startTime;
+          logger.info(
+            "Member symptoms loaded",
+            {
+              userId: user.id,
+              memberId: selectedFilter.memberId,
+              symptomCount:
+                symptomsResult.status === "fulfilled"
+                  ? symptomsResult.value.length
+                  : 0,
+              statsLoaded: statsResult.status === "fulfilled",
+              durationMs,
+            },
+            "SymptomsScreen"
+          );
         } else {
-          logger.error("Failed to load member symptoms", symptomsResult.reason, "SymptomsScreen");
-          setSymptoms([]); // Set empty array on error
-        }
+          // Load personal symptoms and stats (default)
+          // Use Promise.allSettled to handle partial failures gracefully
+          const [symptomsResult, statsResult] = await Promise.allSettled([
+            symptomService.getUserSymptoms(user.id, 50),
+            symptomService.getSymptomStats(user.id, 7),
+          ]);
 
-        // Handle stats result
-        if (statsResult.status === "fulfilled") {
-          setStats(statsResult.value);
-        } else {
-          logger.error("Failed to load member stats", statsResult.reason, "SymptomsScreen");
-          setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
-        }
+          // Handle symptoms result
+          if (symptomsResult.status === "fulfilled") {
+            setSymptoms(symptomsResult.value);
+            dataLoaded = true;
+          } else {
+            logger.error(
+              "Failed to load user symptoms",
+              symptomsResult.reason,
+              "SymptomsScreen"
+            );
+            setSymptoms([]); // Set empty array on error
+          }
 
-        const durationMs = Date.now() - startTime;
-        logger.info("Member symptoms loaded", {
-          userId: user.id,
-          memberId: selectedFilter.memberId,
-          symptomCount: symptomsResult.status === "fulfilled" ? symptomsResult.value.length : 0,
-          statsLoaded: statsResult.status === "fulfilled",
-          durationMs,
-        }, "SymptomsScreen");
-      } else {
-        // Load personal symptoms and stats (default)
-        // Use Promise.allSettled to handle partial failures gracefully
-        const [symptomsResult, statsResult] = await Promise.allSettled([
-          symptomService.getUserSymptoms(user.id, 50),
-          symptomService.getSymptomStats(user.id, 7),
-        ]);
+          // Handle stats result
+          if (statsResult.status === "fulfilled") {
+            setStats(statsResult.value);
+          } else {
+            logger.error(
+              "Failed to load symptom stats",
+              statsResult.reason,
+              "SymptomsScreen"
+            );
+            setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
+          }
 
-        // Handle symptoms result
-        if (symptomsResult.status === "fulfilled") {
-          setSymptoms(symptomsResult.value);
-          dataLoaded = true;
-        } else {
-          logger.error("Failed to load user symptoms", symptomsResult.reason, "SymptomsScreen");
-          setSymptoms([]); // Set empty array on error
-        }
-
-        // Handle stats result
-        if (statsResult.status === "fulfilled") {
-          setStats(statsResult.value);
-        } else {
-          logger.error("Failed to load symptom stats", statsResult.reason, "SymptomsScreen");
-          setStats({ totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] }); // Set default stats on error
-        }
-
-        const durationMs = Date.now() - startTime;
-        logger.info("User symptoms loaded", {
-          userId: user.id,
-          symptomCount: symptomsResult.status === "fulfilled" ? symptomsResult.value.length : 0,
-          statsLoaded: statsResult.status === "fulfilled",
-          durationMs,
-        }, "SymptomsScreen");
-      }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      
-      // Check if it's a Firestore index error
-      const isIndexError = error && typeof error === 'object' && 
-        'code' in error && error.code === 'failed-precondition';
-      
-      if (isIndexError) {
-        logger.warn("Firestore index not ready for symptoms query", {
-          userId: user.id,
-          filterType: selectedFilter.type,
-          durationMs,
-        }, "SymptomsScreen");
-        
-        // Only show alert if no data was loaded (fallback should have handled it)
-        if (!dataLoaded) {
-          Alert.alert(
-            isRTL ? "خطأ" : "Error",
-            isRTL 
-              ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
-              : "Database index not ready. Please try again in a moment."
+          const durationMs = Date.now() - startTime;
+          logger.info(
+            "User symptoms loaded",
+            {
+              userId: user.id,
+              symptomCount:
+                symptomsResult.status === "fulfilled"
+                  ? symptomsResult.value.length
+                  : 0,
+              statsLoaded: statsResult.status === "fulfilled",
+              durationMs,
+            },
+            "SymptomsScreen"
           );
         }
-      } else {
-        logger.error("Failed to load symptoms", error, "SymptomsScreen");
-        
-        // Only show alert if no data was loaded
-        if (!dataLoaded) {
-          // Provide more specific error message
-          const errorMessage = error instanceof Error 
-            ? error.message 
-            : isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
-          
-          Alert.alert(
-            isRTL ? "خطأ" : "Error",
-            errorMessage
+      } catch (error) {
+        const durationMs = Date.now() - startTime;
+
+        // Check if it's a Firestore index error
+        const isIndexError =
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "failed-precondition";
+
+        if (isIndexError) {
+          logger.warn(
+            "Firestore index not ready for symptoms query",
+            {
+              userId: user.id,
+              filterType: selectedFilter.type,
+              durationMs,
+            },
+            "SymptomsScreen"
           );
+
+          // Only show alert if no data was loaded (fallback should have handled it)
+          if (!dataLoaded) {
+            Alert.alert(
+              isRTL ? "خطأ" : "Error",
+              isRTL
+                ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
+                : "Database index not ready. Please try again in a moment."
+            );
+          }
+        } else {
+          logger.error("Failed to load symptoms", error, "SymptomsScreen");
+
+          // Only show alert if no data was loaded
+          if (!dataLoaded) {
+            // Provide more specific error message
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : isRTL
+                  ? "حدث خطأ في تحميل البيانات"
+                  : "Error loading data";
+
+            Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
+          }
         }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, selectedFilter, isAdmin, isRTL]);
+    },
+    [user, selectedFilter, isAdmin, isRTL]
+  );
 
   // Refresh data when tab is focused
   useFocusEffect(
@@ -462,13 +531,17 @@ export default function TrackScreen() {
               setShowActionsMenu(null);
               Alert.alert(
                 isRTL ? "تم الحذف" : "Deleted",
-                isRTL ? "تم حذف الأعراض الصحية بنجاح" : "Symptom deleted successfully"
+                isRTL
+                  ? "تم حذف الأعراض الصحية بنجاح"
+                  : "Symptom deleted successfully"
               );
             } catch (error) {
               // Silently handle symptom delete error
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
-                isRTL ? "حدث خطأ في حذف الأعراض الصحية" : "Error deleting symptom"
+                isRTL
+                  ? "حدث خطأ في حذف الأعراض الصحية"
+                  : "Error deleting symptom"
               );
             } finally {
               setLoading(false);
@@ -594,6 +667,7 @@ export default function TrackScreen() {
       </View>
 
       <ScrollView
+        contentContainerStyle={styles.contentInner}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadSymptoms(true)}
@@ -603,7 +677,6 @@ export default function TrackScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
-        contentContainerStyle={styles.contentInner}
       >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
@@ -617,15 +690,30 @@ export default function TrackScreen() {
 
         {/* Stats Section */}
         <View style={styles.statsSection}>
-          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading
+            level={5}
+            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+          >
             {t("thisWeek")}
           </Heading>
           <View style={styles.statsGrid}>
-            <Card variant="elevated" style={styles.statCard} onPress={undefined} contentStyle={undefined}>
-              <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
+            <Card
+              contentStyle={undefined}
+              onPress={undefined}
+              style={styles.statCard}
+              variant="elevated"
+            >
+              <Text
+                size="large"
+                style={[styles.statValue, isRTL && styles.rtlText]}
+                weight="bold"
+              >
                 {stats.totalSymptoms}
               </Text>
-              <Caption style={[styles.statLabel, isRTL && styles.rtlText]} numberOfLines={undefined}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.statLabel, isRTL && styles.rtlText]}
+              >
                 {selectedFilter.type === "family"
                   ? isRTL
                     ? "أعراض العائلة الصحية"
@@ -639,11 +727,23 @@ export default function TrackScreen() {
                       : "Total Symptoms"}
               </Caption>
             </Card>
-            <Card variant="elevated" style={styles.statCard} onPress={undefined} contentStyle={undefined}>
-              <Text weight="bold" size="large" style={[styles.statValue, isRTL && styles.rtlText]}>
+            <Card
+              contentStyle={undefined}
+              onPress={undefined}
+              style={styles.statCard}
+              variant="elevated"
+            >
+              <Text
+                size="large"
+                style={[styles.statValue, isRTL && styles.rtlText]}
+                weight="bold"
+              >
                 {stats.avgSeverity.toFixed(1)}
               </Text>
-              <Caption style={[styles.statLabel, isRTL && styles.rtlText]} numberOfLines={undefined}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.statLabel, isRTL && styles.rtlText]}
+              >
                 {isRTL ? "متوسط الشدة" : "Avg Severity"}
               </Caption>
             </Card>
@@ -652,7 +752,10 @@ export default function TrackScreen() {
 
         {/* Symptoms List */}
         <View style={styles.symptomsSection}>
-          <Heading level={5} style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Heading
+            level={5}
+            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+          >
             {selectedFilter.type === "family"
               ? isRTL
                 ? "أعراض العائلة الصحية الأخيرة"
@@ -680,16 +783,26 @@ export default function TrackScreen() {
             </View>
           ) : (
             symptoms.map((symptom) => (
-              <Card key={symptom.id} variant="elevated" style={styles.symptomCard} onPress={undefined} contentStyle={undefined}>
+              <Card
+                contentStyle={undefined}
+                key={symptom.id}
+                onPress={undefined}
+                style={styles.symptomCard}
+                variant="elevated"
+              >
                 <View style={styles.symptomHeader}>
                   <View style={styles.symptomInfo}>
-                    <Text weight="semibold" size="large" style={[styles.symptomType, isRTL && styles.rtlText]}>
+                    <Text
+                      size="large"
+                      style={[styles.symptomType, isRTL && styles.rtlText]}
+                      weight="semibold"
+                    >
                       {t(symptom.type)}
                     </Text>
                     <View style={styles.symptomMeta}>
                       <Caption
-                        style={[styles.symptomDate, isRTL && styles.rtlText]}
                         numberOfLines={undefined}
+                        style={[styles.symptomDate, isRTL && styles.rtlText]}
                       >
                         {formatDate(symptom.timestamp)}
                       </Caption>
@@ -706,12 +819,18 @@ export default function TrackScreen() {
                   </View>
                   <View style={styles.symptomActions}>
                     <Badge
-                      variant={symptom.severity <= 2 ? "success" : symptom.severity <= 3 ? "warning" : "error"}
                       size="small"
                       style={[
                         styles.severityBadge,
                         { backgroundColor: getSeverityColor(symptom.severity) },
                       ]}
+                      variant={
+                        symptom.severity <= 2
+                          ? "success"
+                          : symptom.severity <= 3
+                            ? "warning"
+                            : "error"
+                      }
                     >
                       {symptom.severity}
                     </Badge>
@@ -795,7 +914,10 @@ export default function TrackScreen() {
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Heading level={5} style={[styles.modalTitle, isRTL && styles.rtlText]}>
+            <Heading
+              level={5}
+              style={[styles.modalTitle, isRTL && styles.rtlText]}
+            >
               {editingSymptom
                 ? isRTL
                   ? "تعديل العرض"
@@ -912,7 +1034,10 @@ export default function TrackScreen() {
             {/* Custom Symptom */}
             <View style={styles.fieldGroup}>
               <Input
+                error={undefined}
+                helperText={undefined}
                 label={isRTL ? "أعراض مخصصة صحية" : "Custom Symptom"}
+                leftIcon={undefined}
                 onChangeText={(text: string) => {
                   setCustomSymptom(text);
                   if (text) setSelectedSymptom("");
@@ -920,13 +1045,10 @@ export default function TrackScreen() {
                 placeholder={
                   isRTL ? "أدخل نوع الأعراض الصحية..." : "Enter symptom type..."
                 }
+                rightIcon={undefined}
                 style={isRTL && styles.rtlTextInput}
                 textAlign={isRTL ? "right" : "left"}
                 value={customSymptom}
-                error={undefined}
-                helperText={undefined}
-                leftIcon={undefined}
-                rightIcon={undefined}
               />
             </View>
 
@@ -936,7 +1058,10 @@ export default function TrackScreen() {
             {/* Description */}
             <View style={styles.fieldGroup}>
               <Input
+                error={undefined}
+                helperText={undefined}
                 label={`${t("description")} (${isRTL ? "اختياري" : "Optional"})`}
+                leftIcon={undefined}
                 multiline
                 numberOfLines={3}
                 onChangeText={setDescription}
@@ -945,25 +1070,19 @@ export default function TrackScreen() {
                     ? "أضف وصفاً للأعراض الصحية..."
                     : "Add a description of the symptom..."
                 }
-                style={[
-                  styles.textArea,
-                  isRTL && styles.rtlTextInput,
-                ]}
+                rightIcon={undefined}
+                style={[styles.textArea, isRTL && styles.rtlTextInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={description}
-                error={undefined}
-                helperText={undefined}
-                leftIcon={undefined}
-                rightIcon={undefined}
               />
             </View>
 
             {/* Save Button */}
             <Button
               disabled={loading}
+              fullWidth
               loading={loading}
               onPress={handleAddSymptom}
-              fullWidth
               style={styles.saveButton}
               textStyle={undefined}
               title={

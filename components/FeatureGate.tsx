@@ -1,10 +1,19 @@
-import React from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useTranslation } from "react-i18next";
 import { Lock } from "lucide-react-native";
-import { useFeatureGate, type FeatureId } from "@/lib/services/featureGateService";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import {
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  type FeatureId,
+  useFeatureGate,
+} from "@/lib/services/featureGateService";
 import { RevenueCatPaywall } from "./RevenueCatPaywall";
-import { Modal } from "react-native";
 
 interface FeatureGateProps {
   /** Feature ID to check access for */
@@ -30,7 +39,8 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
   showUpgradePrompt = true,
   customMessage,
 }) => {
-  const { hasAccess, needsUpgrade, feature, isLoading } = useFeatureGate(featureId);
+  const { hasAccess, needsUpgrade, feature, isLoading } =
+    useFeatureGate(featureId);
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
   const [showPaywall, setShowPaywall] = React.useState(false);
@@ -85,9 +95,9 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
   return (
     <>
       <TouchableOpacity
-        style={styles.upgradeContainer}
-        onPress={handleUpgradePress}
         activeOpacity={0.7}
+        onPress={handleUpgradePress}
+        style={styles.upgradeContainer}
       >
         <View style={styles.upgradeContent}>
           <Lock color="#64748B" size={24} />
@@ -111,15 +121,15 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
       {/* Paywall Modal */}
       <Modal
         animationType="slide"
+        onRequestClose={() => setShowPaywall(false)}
         presentationStyle="pageSheet"
         visible={showPaywall}
-        onRequestClose={() => setShowPaywall(false)}
       >
         <RevenueCatPaywall
+          onDismiss={() => setShowPaywall(false)}
           onPurchaseComplete={() => {
             setShowPaywall(false);
           }}
-          onDismiss={() => setShowPaywall(false)}
         />
       </Modal>
     </>
@@ -131,7 +141,8 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
  * Use this when you need to conditionally render or execute code based on feature access
  */
 export function useFeatureAccess(featureId: FeatureId) {
-  const { hasAccess, needsUpgrade, feature, isLoading } = useFeatureGate(featureId);
+  const { hasAccess, needsUpgrade, feature, isLoading } =
+    useFeatureGate(featureId);
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
 
@@ -225,4 +236,3 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Regular",
   },
 });
-

@@ -28,12 +28,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import {
   getAllGroups,
   getAvailableMetricsForProvider,
-  getGroupDisplayName,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
 import { fitbitService } from "@/lib/services/fitbitService";
-import { saveProviderConnection } from "@/lib/health/healthSync";
-import type { ProviderConnection } from "@/lib/health/healthTypes";
 
 export default function FitbitPermissionsScreen() {
   const router = useRouter();
@@ -56,9 +53,7 @@ export default function FitbitPermissionsScreen() {
   );
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [fitbitAvailable, setFitbitAvailable] = useState<boolean | null>(
-    null
-  );
+  const [fitbitAvailable, setFitbitAvailable] = useState<boolean | null>(null);
   const [availabilityReason, setAvailabilityReason] = useState<
     string | undefined
   >();
@@ -164,10 +159,7 @@ export default function FitbitPermissionsScreen() {
         errorMessage = error.message;
       }
 
-      Alert.alert(
-        isRTL ? "خطأ في الإذن" : "Permission Error",
-        errorMessage
-      );
+      Alert.alert(isRTL ? "خطأ في الإذن" : "Permission Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -205,7 +197,8 @@ export default function FitbitPermissionsScreen() {
           <Text
             style={[styles.errorText, { color: theme.colors.text.primary }]}
           >
-            {availabilityReason || (isRTL ? "Fitbit غير متاح" : "Fitbit is not available")}
+            {availabilityReason ||
+              (isRTL ? "Fitbit غير متاح" : "Fitbit is not available")}
           </Text>
         </View>
       </SafeAreaView>
@@ -422,7 +415,8 @@ export default function FitbitPermissionsScreen() {
                                   isRTL && { textAlign: "left" },
                                 ]}
                               >
-                                {t(`healthMetrics.${metric.key}`) || metric.displayName}
+                                {t(`healthMetrics.${metric.key}`) ||
+                                  metric.displayName}
                               </Text>
                               {metric.unit && (
                                 <Text
@@ -682,4 +676,3 @@ const styles = StyleSheet.create({
     marginEnd: 8,
   },
 });
-

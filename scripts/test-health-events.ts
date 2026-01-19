@@ -3,9 +3,9 @@
  * Run with: npx tsx scripts/test-health-events.ts
  */
 
-import { evaluateVitals } from "../src/health/rules/evaluateVitals";
 import { createVitalAlertEvent } from "../src/health/events/createHealthEvent";
 import { getUserHealthEvents } from "../src/health/events/healthEventsService";
+import { evaluateVitals } from "../src/health/rules/evaluateVitals";
 
 async function testHealthEvents() {
   console.log("🧪 Testing Health Events Pipeline...\n");
@@ -86,7 +86,9 @@ async function testHealthEvents() {
     const events = await getUserHealthEvents(mockUserId, 10);
     console.log(`Found ${events.length} health events:`);
     events.forEach((event, index) => {
-      console.log(`  ${index + 1}. ${event.type} - ${event.severity} - ${event.status}`);
+      console.log(
+        `  ${index + 1}. ${event.type} - ${event.severity} - ${event.status}`
+      );
     });
   } catch (error) {
     console.log("❌ Failed to fetch health events:", error);

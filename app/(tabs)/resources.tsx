@@ -198,7 +198,11 @@ export default function ResourcesScreen() {
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content} contentContainerStyle={styles.contentInner}>
+      <ScrollView
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+        style={styles.content}
+      >
         {/* Coming Soon Badge */}
         <View style={styles.comingSoonCard}>
           <View style={styles.badge}>

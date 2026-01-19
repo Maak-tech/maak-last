@@ -3,13 +3,17 @@
  * Wraps Firebase Cloud Messaging multicast send
  */
 
-import * as admin from 'firebase-admin';
-import { logger } from '../../observability/logger';
-import type { NotificationPayload, NotificationType, MulticastResult } from './types';
+import * as admin from "firebase-admin";
+import { logger } from "../../observability/logger";
+import type {
+  MulticastResult,
+  NotificationPayload,
+  NotificationType,
+} from "./types";
 
 /**
  * Send push notification to multiple tokens via FCM multicast
- * 
+ *
  * @param options - Send options
  * @returns Result with success/failure counts and failed tokens
  */
@@ -22,11 +26,10 @@ export async function sendMulticast({
   notification: NotificationPayload;
   notificationType: NotificationType;
 }): Promise<MulticastResult> {
-
-  logger.debug('Sending FCM multicast', {
+  logger.debug("Sending FCM multicast", {
     tokenCount: tokens.length,
     notificationType,
-    fn: 'sendMulticast',
+    fn: "sendMulticast",
   });
 
   try {
@@ -41,30 +44,36 @@ export async function sendMulticast({
         ...(notification.data || {}),
         notificationType,
         timestamp: new Date().toISOString(),
-        clickAction: notification.clickAction || 'FLUTTER_NOTIFICATION_CLICK',
+        clickAction: notification.clickAction || "FLUTTER_NOTIFICATION_CLICK",
       },
       android: {
-        priority: notification.priority === 'high' ? ('high' as const) : ('normal' as const),
+        priority:
+          notification.priority === "high"
+            ? ("high" as const)
+            : ("normal" as const),
         notification: {
-          sound: notification.sound || 'default',
-          priority: notification.priority === 'high' ? ('high' as const) : ('default' as const),
+          sound: notification.sound || "default",
+          priority:
+            notification.priority === "high"
+              ? ("high" as const)
+              : ("default" as const),
           channelId: notificationType,
           tag: notification.tag,
-          color: notification.color || '#2563EB',
-          icon: 'ic_notification',
+          color: notification.color || "#2563EB",
+          icon: "ic_notification",
         },
       },
       apns: {
         payload: {
           aps: {
-            sound: notification.sound || 'default',
+            sound: notification.sound || "default",
             badge: notification.badge !== undefined ? notification.badge : 1,
-            'mutable-content': 1,
+            "mutable-content": 1,
             category: notificationType.toUpperCase(),
           },
         },
         headers: {
-          'apns-priority': notification.priority === 'high' ? '10' : '5',
+          "apns-priority": notification.priority === "high" ? "10" : "5",
         },
       },
       tokens,
@@ -83,11 +92,11 @@ export async function sendMulticast({
       });
     }
 
-    logger.info('FCM multicast sent', {
+    logger.info("FCM multicast sent", {
       notificationType,
       successCount: response.successCount,
       failureCount: response.failureCount,
-      fn: 'sendMulticast',
+      fn: "sendMulticast",
     });
 
     return {
@@ -96,10 +105,10 @@ export async function sendMulticast({
       failedTokens,
     };
   } catch (error) {
-    logger.error('Failed to send FCM multicast', error as Error, {
+    logger.error("Failed to send FCM multicast", error as Error, {
       tokenCount: tokens.length,
       notificationType,
-      fn: 'sendMulticast',
+      fn: "sendMulticast",
     });
 
     // Return all as failed

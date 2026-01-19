@@ -290,7 +290,11 @@ export default function HealthIntegrationsScreen() {
         {/* Providers List */}
         <View style={styles.providersSection}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
+            style={[
+              styles.sectionTitle,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
           >
             {t("availableProviders")}
           </Text>
@@ -374,7 +378,8 @@ export default function HealthIntegrationsScreen() {
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {t("connected")} • {connection.selectedMetrics.length} {t("metrics")}
+                        {t("connected")} • {connection.selectedMetrics.length}{" "}
+                        {t("metrics")}
                       </Text>
                     </View>
                   )}
@@ -409,14 +414,28 @@ export default function HealthIntegrationsScreen() {
         {/* Info Section */}
         <View style={styles.infoSection}>
           <Text
-            style={[styles.infoTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
+            style={[
+              styles.infoTitle,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
           >
             {t("aboutHealthIntegrations")}
           </Text>
           <Text
-            style={[styles.infoText, { color: theme.colors.text.secondary }, isRTL && { textAlign: "left" }]}
+            style={[
+              styles.infoText,
+              { color: theme.colors.text.secondary },
+              isRTL && { textAlign: "left" },
+            ]}
           >
-            {t("healthDataReadOnly")}{"\n"}{t("chooseMetricsToShare")}{"\n"}{t("dataEncrypted")}{"\n"}{t("disconnectAnytime")}
+            {t("healthDataReadOnly")}
+            {"\n"}
+            {t("chooseMetricsToShare")}
+            {"\n"}
+            {t("dataEncrypted")}
+            {"\n"}
+            {t("disconnectAnytime")}
           </Text>
         </View>
       </ScrollView>

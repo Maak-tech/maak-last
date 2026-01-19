@@ -13,7 +13,16 @@ export type MetricGroup =
   | "nutrition"
   | "glucose";
 
-export type HealthProvider = "apple_health" | "health_connect" | "fitbit" | "samsung_health" | "garmin" | "withings" | "oura" | "dexcom" | "freestyle_libre";
+export type HealthProvider =
+  | "apple_health"
+  | "health_connect"
+  | "fitbit"
+  | "samsung_health"
+  | "garmin"
+  | "withings"
+  | "oura"
+  | "dexcom"
+  | "freestyle_libre";
 
 export interface HealthMetric {
   key: string;
@@ -891,7 +900,10 @@ export const getMetricByKey = (key: string): HealthMetric | undefined =>
 /**
  * Get group display name
  */
-export const getGroupDisplayName = (group: MetricGroup, language: string = "en"): string => {
+export const getGroupDisplayName = (
+  group: MetricGroup,
+  language = "en"
+): string => {
   const namesEn: Record<MetricGroup, string> = {
     heart_cardiovascular: "Heart & Cardiovascular",
     respiratory: "Respiratory",
@@ -946,7 +958,9 @@ export const getFitbitScopesForMetrics = (metricKeys: string[]): string[] => {
 /**
  * Get Samsung Health scopes for selected metrics
  */
-export const getSamsungHealthScopesForMetrics = (metricKeys: string[]): string[] => {
+export const getSamsungHealthScopesForMetrics = (
+  metricKeys: string[]
+): string[] => {
   const scopes = new Set<string>();
   metricKeys.forEach((key) => {
     const metric = getMetricByKey(key);
@@ -1016,7 +1030,9 @@ export const getDexcomScopesForMetrics = (metricKeys: string[]): string[] => {
 /**
  * Get Freestyle Libre scopes for selected metrics
  */
-export const getFreestyleLibreScopesForMetrics = (metricKeys: string[]): string[] => {
+export const getFreestyleLibreScopesForMetrics = (
+  metricKeys: string[]
+): string[] => {
   const scopes = new Set<string>();
   metricKeys.forEach((key) => {
     const metric = getMetricByKey(key);

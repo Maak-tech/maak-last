@@ -3,19 +3,24 @@ require("dotenv").config();
 
 // Restore Google Services files from EAS environment variables during build
 // Skip restoration during config introspection to avoid parsing corrupted files
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 // Check if we're in config introspection mode (EAS Build uses this)
-const isConfigIntrospection = process.env.EXPO_CONFIG_TYPE === 'introspect' || 
-  (process.argv.includes('--type') && process.argv.includes('introspect'));
+const isConfigIntrospection =
+  process.env.EXPO_CONFIG_TYPE === "introspect" ||
+  (process.argv.includes("--type") && process.argv.includes("introspect"));
 
 // Helper to validate plist file
 function isValidPlist(filePath) {
   try {
     if (!fs.existsSync(filePath)) return false;
-    const content = fs.readFileSync(filePath, 'utf8');
-    return content.includes('<?xml') || content.includes('<!DOCTYPE plist') || content.includes('<plist');
+    const content = fs.readFileSync(filePath, "utf8");
+    return (
+      content.includes("<?xml") ||
+      content.includes("<!DOCTYPE plist") ||
+      content.includes("<plist")
+    );
   } catch {
     return false;
   }
@@ -24,19 +29,26 @@ function isValidPlist(filePath) {
 if (!isConfigIntrospection) {
   if (process.env.GOOGLE_SERVICES_JSON) {
     try {
-      const decoded = Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64');
-      fs.writeFileSync('./google-services.json', decoded);
+      const decoded = Buffer.from(process.env.GOOGLE_SERVICES_JSON, "base64");
+      fs.writeFileSync("./google-services.json", decoded);
     } catch (error) {
       // Silently handle restore error
     }
   }
   if (process.env.GOOGLE_SERVICE_INFO_PLIST) {
     try {
-      const decoded = Buffer.from(process.env.GOOGLE_SERVICE_INFO_PLIST, 'base64');
+      const decoded = Buffer.from(
+        process.env.GOOGLE_SERVICE_INFO_PLIST,
+        "base64"
+      );
       // Validate it's valid XML/plist before writing
-      const decodedStr = decoded.toString('utf8');
-      if (decodedStr.includes('<?xml') || decodedStr.includes('<!DOCTYPE plist') || decodedStr.includes('<plist')) {
-        fs.writeFileSync('./GoogleService-Info.plist', decoded);
+      const decodedStr = decoded.toString("utf8");
+      if (
+        decodedStr.includes("<?xml") ||
+        decodedStr.includes("<!DOCTYPE plist") ||
+        decodedStr.includes("<plist")
+      ) {
+        fs.writeFileSync("./GoogleService-Info.plist", decoded);
       }
     } catch (error) {
       // Silently handle restore error
@@ -45,7 +57,7 @@ if (!isConfigIntrospection) {
 }
 
 // Remove corrupted plist file if it exists and is invalid
-const plistPath = path.join(__dirname, 'GoogleService-Info.plist');
+const plistPath = path.join(__dirname, "GoogleService-Info.plist");
 if (fs.existsSync(plistPath) && !isValidPlist(plistPath)) {
   try {
     fs.unlinkSync(plistPath);
@@ -67,44 +79,54 @@ export default {
     splash: {
       image: "./assets/images/generated_image.png",
       resizeMode: "contain",
-      backgroundColor: "#F8FAFC"
+      backgroundColor: "#F8FAFC",
     },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.maak.health",
       buildNumber: "27",
       jsEngine: "hermes",
-      ...(fs.existsSync('./GoogleService-Info.plist') && isValidPlist('./GoogleService-Info.plist') 
-        ? { googleServicesFile: "./GoogleService-Info.plist" } 
+      ...(fs.existsSync("./GoogleService-Info.plist") &&
+      isValidPlist("./GoogleService-Info.plist")
+        ? { googleServicesFile: "./GoogleService-Info.plist" }
         : {}),
       splash: {
         image: "./assets/images/generated_image.png",
         resizeMode: "contain",
-        backgroundColor: "#F8FAFC"
+        backgroundColor: "#F8FAFC",
       },
       infoPlist: {
-        NSCameraUsageDescription: "Maak Health uses the camera to allow you to take profile photos, scan medication barcodes, and measure heart rate using PPG (photoplethysmography) for vital signs monitoring.",
-        NSPhotoLibraryUsageDescription: "Maak Health needs access to your photo library to select profile pictures and save health-related images.",
-        NSMotionUsageDescription: "Maak Health uses motion sensors to detect falls and automatically alert your emergency contacts for your safety.",
-        NSLocationWhenInUseUsageDescription: "Maak Health uses your location to share with emergency contacts during fall detection alerts, ensuring help can reach you quickly.",
-        NSHealthShareUsageDescription: "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
-        NSHealthUpdateUsageDescription: "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
-        NSUserTrackingUsageDescription: "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure.",
-        NSFaceIDUsageDescription: "Maak Health uses Face ID or Touch ID to securely authenticate your identity for biometric authentication.",
-        NSMicrophoneUsageDescription: "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant.",
+        NSCameraUsageDescription:
+          "Maak Health uses the camera to allow you to take profile photos, scan medication barcodes, and measure heart rate using PPG (photoplethysmography) for vital signs monitoring.",
+        NSPhotoLibraryUsageDescription:
+          "Maak Health needs access to your photo library to select profile pictures and save health-related images.",
+        NSMotionUsageDescription:
+          "Maak Health uses motion sensors to detect falls and automatically alert your emergency contacts for your safety.",
+        NSLocationWhenInUseUsageDescription:
+          "Maak Health uses your location to share with emergency contacts during fall detection alerts, ensuring help can reach you quickly.",
+        NSHealthShareUsageDescription:
+          "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
+        NSHealthUpdateUsageDescription:
+          "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
+        NSUserTrackingUsageDescription:
+          "This identifier helps us deliver personalized health insights and recommendations while keeping your data secure.",
+        NSFaceIDUsageDescription:
+          "Maak Health uses Face ID or Touch ID to securely authenticate your identity for biometric authentication.",
+        NSMicrophoneUsageDescription:
+          "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant.",
         ITSAppUsesNonExemptEncryption: false,
         UIBackgroundModes: ["location", "processing"],
-        UITextInputContextIdentifier: ""
+        UITextInputContextIdentifier: "",
       },
       entitlements: {
         "com.apple.developer.healthkit": true,
-        "com.apple.developer.healthkit.access": []
-      }
+        "com.apple.developer.healthkit.access": [],
+      },
     },
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/images/generated_image.png",
-        backgroundColor: "#2563EB"
+        backgroundColor: "#2563EB",
       },
       package: "com.maak.health",
       versionCode: 1,
@@ -113,7 +135,7 @@ export default {
       splash: {
         image: "./assets/images/generated_image.png",
         resizeMode: "contain",
-        backgroundColor: "#F8FAFC"
+        backgroundColor: "#F8FAFC",
       },
       permissions: [
         "CAMERA",
@@ -146,13 +168,13 @@ export default {
         "android.permission.health.READ_HEART_RATE_VARIABILITY",
         "android.permission.health.READ_BODY_FAT",
         "android.permission.health.READ_BASAL_METABOLIC_RATE",
-        "android.permission.health.READ_FLOORS_CLIMBED"
-      ]
+        "android.permission.health.READ_FLOORS_CLIMBED",
+      ],
     },
     web: {
       bundler: "metro",
       output: "single",
-      favicon: "./assets/images/favicon.png"
+      favicon: "./assets/images/favicon.png",
     },
     plugins: [
       "expo-router",
@@ -160,42 +182,48 @@ export default {
       [
         "expo-av",
         {
-          microphonePermission: "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant."
-        }
+          microphonePermission:
+            "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant.",
+        },
       ],
       [
         "expo-notifications",
         {
           icon: "./assets/images/generated_image.png",
-          color: "#2563EB"
-        }
+          color: "#2563EB",
+        },
       ],
       [
         "expo-camera",
         {
-          cameraPermission: "Required for PPG heart rate measurement and vital signs monitoring"
-        }
+          cameraPermission:
+            "Required for PPG heart rate measurement and vital signs monitoring",
+        },
       ],
       [
         "react-native-vision-camera",
         {
-          cameraPermissionText: "$(PRODUCT_NAME) needs access to your camera for real-time PPG heart rate measurement and vital signs monitoring using photoplethysmography.",
+          cameraPermissionText:
+            "$(PRODUCT_NAME) needs access to your camera for real-time PPG heart rate measurement and vital signs monitoring using photoplethysmography.",
           enableMicrophonePermission: false,
-          disableFrameProcessors: false // Enabled for real PPG pixel extraction
-        }
+          disableFrameProcessors: false, // Enabled for real PPG pixel extraction
+        },
       ],
       [
         "expo-sensors",
         {
-          motionPermission: "Allow $(PRODUCT_NAME) to access motion and fitness data for fall detection."
-        }
+          motionPermission:
+            "Allow $(PRODUCT_NAME) to access motion and fitness data for fall detection.",
+        },
       ],
       [
         "@kingstinct/react-native-healthkit",
         {
-          healthSharePermission: "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
-          healthUpdatePermission: "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records."
-        }
+          healthSharePermission:
+            "Maak Health reads health data to provide personalized health insights, track your wellness progress, and help you manage your medications effectively.",
+          healthUpdatePermission:
+            "Maak Health writes health data to keep your health information synchronized across all your devices and maintain accurate health records.",
+        },
       ],
       "@react-native-voice/voice",
       "expo-localization",
@@ -210,20 +238,20 @@ export default {
             buildReactNativeFromSource: true,
             // Use static frameworks for Firebase compatibility
             useFrameworks: "static",
-            deploymentTarget: "15.1"
-          }
-        }
+            deploymentTarget: "15.1",
+          },
+        },
       ],
-      "./plugins/withFollyFix.js"
+      "./plugins/withFollyFix.js",
     ],
     experiments: {
-      typedRoutes: true
+      typedRoutes: true,
     },
     newArchEnabled: false,
     extra: {
       router: {},
       eas: {
-        projectId: "4ee7df2f-34c7-4be6-aaa0-f6bfca8f98c0"
+        projectId: "4ee7df2f-34c7-4be6-aaa0-f6bfca8f98c0",
       },
       // API keys are loaded from environment variables for security
       // Create a .env file with these variables (see .env.example)
@@ -239,15 +267,17 @@ export default {
       ouraClientSecret: process.env.OURA_CLIENT_SECRET || "",
       dexcomClientId: process.env.DEXCOM_CLIENT_ID || "",
       dexcomClientSecret: process.env.DEXCOM_CLIENT_SECRET || "",
-      dexcomRedirectUri: process.env.DEXCOM_REDIRECT_URI || "https://maak-5caad.web.app/dexcom-callback",
+      dexcomRedirectUri:
+        process.env.DEXCOM_REDIRECT_URI ||
+        "https://maak-5caad.web.app/dexcom-callback",
       // Both regular and premium users use the same OpenAI API key
       openaiApiKey: process.env.OPENAI_API_KEY || "",
-      zeinaApiKey: process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY || "", // Prefer ZEINA_API_KEY if set
+      zeinaApiKey:
+        process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY || "", // Prefer ZEINA_API_KEY if set
       // RevenueCat API Key - REQUIRED for production
       // Use production key from RevenueCat dashboard for production builds
       // Test key is only used in development if env var is not set
-      revenueCatApiKey: process.env.REVENUECAT_API_KEY || ""
-    }
-  }
+      revenueCatApiKey: process.env.REVENUECAT_API_KEY || "",
+    },
+  },
 };
-

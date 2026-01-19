@@ -56,51 +56,50 @@ const getOnboardingSteps = (userRole: string) => {
         titleAr: "إدارة عائلتك",
         descEn:
           "Invite family members, share health data, and provide care for each other.",
-        descAr: "ادع أفراد العائلة، وشارك البيانات الصحية، واعتنوا ببعضكم البعض.",
+        descAr:
+          "ادع أفراد العائلة، وشارك البيانات الصحية، واعتنوا ببعضكم البعض.",
         onelinerEn: '"Health starts at home"',
         onelinerAr: '"خليهم دايمًا معك"',
       },
     ];
-  } else {
-    // Simplified onboarding for regular users
-    return [
-      {
-        key: "welcome",
-        image: require("@/assets/images/welcome.png"),
-        titleEn: "Welcome to Maak",
-        titleAr: "مرحباً بك في معك",
-        descEn:
-          "Your personal health companion. Track symptoms, medications, and get health insights.",
-        descAr: "رفيقك الصحي الشخصي. تابع الأعراض والأدوية واحصل على رؤى صحية.",
-        onelinerEn: '"Health starts at home"',
-        onelinerAr: '"الصحة تبدأ من المنزل"',
-      },
-      {
-        key: "track",
-        image: require("@/assets/images/track-health..png"),
-        titleEn: "Track Your Health",
-        titleAr: "تابع صحتك",
-        descEn:
-          "Easily log symptoms, manage medications, and monitor your vital signs.",
-        descAr:
-          "سجل الأعراض بسهولة، أدر الأدوية، وراقب العلامات الحيوية.",
-        onelinerEn: '"Stay on top of your health"',
-        onelinerAr: '"ابقَ على اطلاع بصحتك"',
-      },
-      {
-        key: "zeina",
-        image: require("@/assets/images/welcome.png"), // Using welcome image as placeholder
-        titleEn: "Meet Zeina",
-        titleAr: "تعرف على زينة",
-        descEn:
-          "Your AI health assistant is here to help answer questions and provide guidance.",
-        descAr:
-          "مساعدك الصحي الذكي هنا للمساعدة في الإجابة على الأسئلة وتقديم الإرشادات.",
-        onelinerEn: '"Your health companion"',
-        onelinerAr: '"رفيقك الصحي"',
-      },
-    ];
   }
+  // Simplified onboarding for regular users
+  return [
+    {
+      key: "welcome",
+      image: require("@/assets/images/welcome.png"),
+      titleEn: "Welcome to Maak",
+      titleAr: "مرحباً بك في معك",
+      descEn:
+        "Your personal health companion. Track symptoms, medications, and get health insights.",
+      descAr: "رفيقك الصحي الشخصي. تابع الأعراض والأدوية واحصل على رؤى صحية.",
+      onelinerEn: '"Health starts at home"',
+      onelinerAr: '"الصحة تبدأ من المنزل"',
+    },
+    {
+      key: "track",
+      image: require("@/assets/images/track-health..png"),
+      titleEn: "Track Your Health",
+      titleAr: "تابع صحتك",
+      descEn:
+        "Easily log symptoms, manage medications, and monitor your vital signs.",
+      descAr: "سجل الأعراض بسهولة، أدر الأدوية، وراقب العلامات الحيوية.",
+      onelinerEn: '"Stay on top of your health"',
+      onelinerAr: '"ابقَ على اطلاع بصحتك"',
+    },
+    {
+      key: "zeina",
+      image: require("@/assets/images/welcome.png"), // Using welcome image as placeholder
+      titleEn: "Meet Zeina",
+      titleAr: "تعرف على زينة",
+      descEn:
+        "Your AI health assistant is here to help answer questions and provide guidance.",
+      descAr:
+        "مساعدك الصحي الذكي هنا للمساعدة في الإجابة على الأسئلة وتقديم الإرشادات.",
+      onelinerEn: '"Your health companion"',
+      onelinerAr: '"رفيقك الصحي"',
+    },
+  ];
 };
 
 export default function OnboardingScreen() {

@@ -3,6 +3,7 @@
  * Allows users to manually enter blood pressure readings
  */
 
+import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { Droplet, X } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,18 +12,17 @@ import {
   Alert,
   Modal,
   SafeAreaView,
-  StyleProp,
+  type StyleProp,
   Text,
   TextInput,
-  TextStyle,
+  type TextStyle,
   TouchableOpacity,
   View,
-  ViewStyle,
+  type ViewStyle,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/lib/firebase";
-import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface BloodPressureEntryProps {
@@ -42,7 +42,7 @@ export default function BloodPressureEntry({
   const [systolic, setSystolic] = useState("");
   const [diastolic, setDiastolic] = useState("");
   const [saving, setSaving] = useState(false);
-  
+
   const isRTL = i18n.language === "ar";
 
   const styles = createThemedStyles((theme) => ({
@@ -80,7 +80,12 @@ export default function BloodPressureEntry({
       marginBottom: theme.spacing.xl,
     },
     label: {
-      ...getTextStyle(theme, "subheading", "semibold", theme.colors.text.primary),
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.text.primary
+      ),
       marginBottom: theme.spacing.sm,
     },
     inputContainer: {
@@ -146,10 +151,10 @@ export default function BloodPressureEntry({
   }))(theme);
 
   const validateInput = (): boolean => {
-    const sys = parseInt(systolic, 10);
-    const dia = parseInt(diastolic, 10);
+    const sys = Number.parseInt(systolic, 10);
+    const dia = Number.parseInt(diastolic, 10);
 
-    if (!systolic || !diastolic) {
+    if (!(systolic && diastolic)) {
       Alert.alert(t("invalidInput"), t("pleaseEnterBothValues"));
       return false;
     }
@@ -182,9 +187,9 @@ export default function BloodPressureEntry({
       return;
     }
 
-    const sys = parseInt(systolic, 10);
-    const dia = parseInt(diastolic, 10);
-    
+    const sys = Number.parseInt(systolic, 10);
+    const dia = Number.parseInt(diastolic, 10);
+
     // Use user from useAuth hook for more reliable auth state
     const currentUserId = user?.id || auth.currentUser?.uid;
 
@@ -211,7 +216,10 @@ export default function BloodPressureEntry({
 
       await addDoc(collection(db, "vitals"), bloodPressureData);
 
-      Alert.alert(t("bloodPressureSaved"), t("bloodPressureSavedLocallyMessage"));
+      Alert.alert(
+        t("bloodPressureSaved"),
+        t("bloodPressureSavedLocallyMessage")
+      );
 
       // Reset form
       setSystolic("");
@@ -220,10 +228,7 @@ export default function BloodPressureEntry({
       onSave?.();
       onClose();
     } catch (error: any) {
-      Alert.alert(
-        t("error"),
-        error?.message || t("failedToSaveBloodPressure")
-      );
+      Alert.alert(t("error"), error?.message || t("failedToSaveBloodPressure"));
     } finally {
       setSaving(false);
     }
@@ -239,21 +244,26 @@ export default function BloodPressureEntry({
 
   return (
     <Modal
-      visible={visible === true}
       animationType="slide"
-      transparent={false}
       onRequestClose={handleClose}
+      transparent={false}
+      visible={visible === true}
     >
       <SafeAreaView style={styles.modal as ViewStyle}>
         <View style={styles.container as ViewStyle}>
           <View style={styles.header as ViewStyle}>
-            <Text style={[styles.title as StyleProp<TextStyle>, isRTL && { textAlign: "right" }]}>
+            <Text
+              style={[
+                styles.title as StyleProp<TextStyle>,
+                isRTL && { textAlign: "right" },
+              ]}
+            >
               {t("bloodPressureEntry")}
             </Text>
             <TouchableOpacity
-              style={styles.closeButton as ViewStyle}
-              onPress={handleClose}
               disabled={saving}
+              onPress={handleClose}
+              style={styles.closeButton as ViewStyle}
             >
               <X color={theme.colors.text.primary} size={20} />
             </TouchableOpacity>
@@ -261,19 +271,33 @@ export default function BloodPressureEntry({
 
           <View style={styles.content as ViewStyle}>
             <View style={styles.formGroup as ViewStyle}>
-              <Text style={[styles.label as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>{t("bloodPressure")}</Text>
+              <Text
+                style={[
+                  styles.label as StyleProp<TextStyle>,
+                  isRTL && { textAlign: "right" },
+                ]}
+              >
+                {t("bloodPressure")}
+              </Text>
               <View style={styles.inputContainer as ViewStyle}>
                 <View style={styles.inputWrapper as ViewStyle}>
                   <TextInput
-                    style={styles.input as StyleProp<TextStyle>}
-                    value={systolic}
-                    onChangeText={setSystolic}
-                    placeholder="120"
+                    editable={!saving}
                     keyboardType="number-pad"
                     maxLength={3}
-                    editable={!saving}
+                    onChangeText={setSystolic}
+                    placeholder="120"
+                    style={styles.input as StyleProp<TextStyle>}
+                    value={systolic}
                   />
-                  <Text style={[styles.inputLabel as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>{t("systolic")}</Text>
+                  <Text
+                    style={[
+                      styles.inputLabel as StyleProp<TextStyle>,
+                      isRTL && { textAlign: "right" },
+                    ]}
+                  >
+                    {t("systolic")}
+                  </Text>
                 </View>
                 <View
                   style={{
@@ -284,7 +308,12 @@ export default function BloodPressureEntry({
                 >
                   <Text
                     style={{
-                      ...getTextStyle(theme, "heading", "bold", theme.colors.text.secondary),
+                      ...getTextStyle(
+                        theme,
+                        "heading",
+                        "bold",
+                        theme.colors.text.secondary
+                      ),
                       fontSize: 24,
                     }}
                   >
@@ -293,49 +322,70 @@ export default function BloodPressureEntry({
                 </View>
                 <View style={styles.inputWrapper as ViewStyle}>
                   <TextInput
-                    style={styles.input as StyleProp<TextStyle>}
-                    value={diastolic}
-                    onChangeText={setDiastolic}
-                    placeholder="80"
+                    editable={!saving}
                     keyboardType="number-pad"
                     maxLength={3}
-                    editable={!saving}
+                    onChangeText={setDiastolic}
+                    placeholder="80"
+                    style={styles.input as StyleProp<TextStyle>}
+                    value={diastolic}
                   />
-                  <Text style={[styles.inputLabel as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>{t("diastolic")}</Text>
+                  <Text
+                    style={[
+                      styles.inputLabel as StyleProp<TextStyle>,
+                      isRTL && { textAlign: "right" },
+                    ]}
+                  >
+                    {t("diastolic")}
+                  </Text>
                 </View>
               </View>
             </View>
 
-            <View style={[
-              styles.infoCard as ViewStyle,
-              isRTL && {
-                borderLeftWidth: 0,
-                borderRightWidth: 4,
-                borderRightColor: theme.colors.secondary.main,
-              }
-            ]}>
-              <Text style={[styles.infoText as (StyleProp<TextStyle>), isRTL && { textAlign: "right" }]}>
+            <View
+              style={[
+                styles.infoCard as ViewStyle,
+                isRTL && {
+                  borderLeftWidth: 0,
+                  borderRightWidth: 4,
+                  borderRightColor: theme.colors.secondary.main,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.infoText as StyleProp<TextStyle>,
+                  isRTL && { textAlign: "right" },
+                ]}
+              >
                 {t("normalBloodPressureInfo")}
               </Text>
             </View>
 
             <TouchableOpacity
+              disabled={saving}
+              onPress={handleSave}
               style={[
                 styles.button as ViewStyle,
                 saving && (styles.buttonDisabled as ViewStyle),
               ]}
-              onPress={handleSave}
-              disabled={saving}
             >
               {saving ? (
                 <>
-                  <ActivityIndicator color={theme.colors.neutral.white} size="small" />
-                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>{t("saving")}</Text>
+                  <ActivityIndicator
+                    color={theme.colors.neutral.white}
+                    size="small"
+                  />
+                  <Text style={styles.buttonText as StyleProp<TextStyle>}>
+                    {t("saving")}
+                  </Text>
                 </>
               ) : (
                 <>
                   <Droplet color={theme.colors.neutral.white} size={20} />
-                  <Text style={styles.buttonText as (StyleProp<TextStyle>)}>{t("save")}</Text>
+                  <Text style={styles.buttonText as StyleProp<TextStyle>}>
+                    {t("save")}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -345,4 +395,3 @@ export default function BloodPressureEntry({
     </Modal>
   );
 }
-

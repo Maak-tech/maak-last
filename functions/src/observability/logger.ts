@@ -4,9 +4,9 @@
  * Never logs PHI: no names, emails, notes, raw vitals arrays
  */
 
-import { getTraceId } from './correlation';
+import { getTraceId } from "./correlation";
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface LogContext {
   traceId?: string;
@@ -96,16 +96,16 @@ class Logger {
     const json = JSON.stringify(entry);
 
     switch (entry.level) {
-      case 'debug':
+      case "debug":
         console.debug(json);
         break;
-      case 'info':
+      case "info":
         console.info(json);
         break;
-      case 'warn':
+      case "warn":
         console.warn(json);
         break;
-      case 'error':
+      case "error":
         console.error(json);
         break;
     }
@@ -115,25 +115,29 @@ class Logger {
    * Log debug message
    */
   debug(msg: string, context?: LogContext): void {
-    this.write(this.createEntry('debug', msg, context));
+    this.write(this.createEntry("debug", msg, context));
   }
 
   /**
    * Log info message
    */
   info(msg: string, context?: LogContext): void {
-    this.write(this.createEntry('info', msg, context));
+    this.write(this.createEntry("info", msg, context));
   }
 
   /**
    * Log warning message
    */
-  warn(msg: string, errorOrContext?: Error | LogContext, context?: LogContext): void {
+  warn(
+    msg: string,
+    errorOrContext?: Error | LogContext,
+    context?: LogContext
+  ): void {
     // Handle overloaded parameters
     if (errorOrContext instanceof Error) {
-      this.write(this.createEntry('warn', msg, context, errorOrContext));
+      this.write(this.createEntry("warn", msg, context, errorOrContext));
     } else {
-      this.write(this.createEntry('warn', msg, errorOrContext));
+      this.write(this.createEntry("warn", msg, errorOrContext));
     }
   }
 
@@ -141,7 +145,7 @@ class Logger {
    * Log error message
    */
   error(msg: string, error?: Error, context?: LogContext): void {
-    this.write(this.createEntry('error', msg, context, error));
+    this.write(this.createEntry("error", msg, context, error));
   }
 
   /**

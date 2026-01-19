@@ -41,10 +41,14 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     try {
       setLoading(true);
 
-      logger.debug("Loading family emergency alerts", {
-        userId: user.id,
-        familyId: user.familyId,
-      }, "AlertsCard");
+      logger.debug(
+        "Loading family emergency alerts",
+        {
+          userId: user.id,
+          familyId: user.familyId,
+        },
+        "AlertsCard"
+      );
 
       const members = await userService.getFamilyMembers(user.familyId);
       setFamilyMembers(members);
@@ -54,26 +58,37 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       setAlerts(familyAlerts);
 
       const durationMs = Date.now() - startTime;
-      logger.info("Family emergency alerts loaded", {
-        userId: user.id,
-        familyId: user.familyId,
-        memberCount: members.length,
-        alertCount: familyAlerts.length,
-        durationMs,
-      }, "AlertsCard");
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      
-      // Check if it's an index error
-      const isIndexError = error && typeof error === 'object' && 
-        'code' in error && error.code === 'failed-precondition';
-      
-      if (isIndexError) {
-        logger.warn("Firestore index not ready for alerts query", {
+      logger.info(
+        "Family emergency alerts loaded",
+        {
           userId: user.id,
           familyId: user.familyId,
+          memberCount: members.length,
+          alertCount: familyAlerts.length,
           durationMs,
-        }, "AlertsCard");
+        },
+        "AlertsCard"
+      );
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+
+      // Check if it's an index error
+      const isIndexError =
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "failed-precondition";
+
+      if (isIndexError) {
+        logger.warn(
+          "Firestore index not ready for alerts query",
+          {
+            userId: user.id,
+            familyId: user.familyId,
+            durationMs,
+          },
+          "AlertsCard"
+        );
       } else {
         logger.error("Failed to load family alerts", error, "AlertsCard");
       }
@@ -90,20 +105,28 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     try {
       setRespondingTo(alertId);
 
-      logger.info("User responding to emergency alert", {
-        alertId,
-        userId: user.id,
-        role: user.role,
-      }, "AlertsCard");
+      logger.info(
+        "User responding to emergency alert",
+        {
+          alertId,
+          userId: user.id,
+          role: user.role,
+        },
+        "AlertsCard"
+      );
 
       await alertService.addResponder(alertId, user.id);
 
       const durationMs = Date.now() - startTime;
-      logger.info("Emergency alert response recorded", {
-        alertId,
-        userId: user.id,
-        durationMs,
-      }, "AlertsCard");
+      logger.info(
+        "Emergency alert response recorded",
+        {
+          alertId,
+          userId: user.id,
+          durationMs,
+        },
+        "AlertsCard"
+      );
 
       Alert.alert(
         isRTL ? "تم التجاوب" : "Response Recorded",
@@ -135,21 +158,29 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     const startTime = Date.now();
 
     try {
-      logger.info("User resolving emergency alert", {
-        alertId,
-        userId: user.id,
-        role: user.role,
-      }, "AlertsCard");
+      logger.info(
+        "User resolving emergency alert",
+        {
+          alertId,
+          userId: user.id,
+          role: user.role,
+        },
+        "AlertsCard"
+      );
 
       await alertService.resolveAlert(alertId, user.id);
       await loadAlerts();
 
       const durationMs = Date.now() - startTime;
-      logger.info("Emergency alert resolved successfully", {
-        alertId,
-        userId: user.id,
-        durationMs,
-      }, "AlertsCard");
+      logger.info(
+        "Emergency alert resolved successfully",
+        {
+          alertId,
+          userId: user.id,
+          durationMs,
+        },
+        "AlertsCard"
+      );
 
       Alert.alert(
         isRTL ? "تم الحل" : "Resolved",

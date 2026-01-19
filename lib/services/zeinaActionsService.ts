@@ -16,10 +16,10 @@
 
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { symptomService } from "./symptomService";
-import { medicationService } from "./medicationService";
-import { alertService } from "./alertService";
 import type { Symptom } from "@/types";
+import { alertService } from "./alertService";
+import { medicationService } from "./medicationService";
+import { symptomService } from "./symptomService";
 
 // Action result type for consistent responses
 export interface ActionResult {
@@ -37,13 +37,13 @@ const SYMPTOM_TYPE_MAP: Record<string, string> = {
   "head pain": "headache",
   migraine: "headache",
   "head hurts": "headache",
-  
+
   // Fever/Temperature
   fever: "fever",
   "feeling hot": "fever",
   chills: "fever",
   temperature: "fever",
-  
+
   // Respiratory
   cough: "cough",
   coughing: "cough",
@@ -55,7 +55,7 @@ const SYMPTOM_TYPE_MAP: Record<string, string> = {
   "shortness of breath": "shortnessOfBreath",
   "breathing difficulty": "shortnessOfBreath",
   "can't breathe": "shortnessOfBreath",
-  
+
   // Digestive
   nausea: "nausea",
   "feel sick": "nausea",
@@ -67,7 +67,7 @@ const SYMPTOM_TYPE_MAP: Record<string, string> = {
   "tummy ache": "stomachPain",
   constipation: "constipation",
   bloating: "bloating",
-  
+
   // Pain
   "back pain": "backPain",
   "chest pain": "chestPain",
@@ -78,7 +78,7 @@ const SYMPTOM_TYPE_MAP: Record<string, string> = {
   tiredness: "fatigue",
   exhaustion: "fatigue",
   weakness: "weakness",
-  
+
   // Mental/Emotional
   anxiety: "anxiety",
   anxious: "anxiety",
@@ -89,13 +89,13 @@ const SYMPTOM_TYPE_MAP: Record<string, string> = {
   insomnia: "insomnia",
   "can't sleep": "insomnia",
   "sleep problems": "insomnia",
-  
+
   // Skin
   rash: "rash",
   itching: "itchiness",
   itchiness: "itchiness",
   swelling: "swelling",
-  
+
   // Other
   dizziness: "dizziness",
   dizzy: "dizziness",
@@ -150,7 +150,7 @@ class ZeinaActionsService {
           success: false,
           action: "log_symptom",
           message: "User not authenticated",
-          speakableResponse: isArabic 
+          speakableResponse: isArabic
             ? "عذراً، لم أتمكن من تسجيل هذا العرض. تحتاج إلى تسجيل الدخول أولاً."
             : "I'm sorry, but I couldn't log that symptom. You need to be logged in first.",
         };
@@ -158,24 +158,32 @@ class ZeinaActionsService {
 
       // Normalize symptom name to type
       const normalizedName = symptomName.toLowerCase().trim();
-      const symptomType = SYMPTOM_TYPE_MAP[normalizedName] || this.toSymptomType(normalizedName);
-      
+      const symptomType =
+        SYMPTOM_TYPE_MAP[normalizedName] || this.toSymptomType(normalizedName);
+
       // Normalize body part
-      const normalizedBodyPart = bodyPart 
-        ? BODY_PART_MAP[bodyPart.toLowerCase()] || bodyPart 
+      const normalizedBodyPart = bodyPart
+        ? BODY_PART_MAP[bodyPart.toLowerCase()] || bodyPart
         : this.inferBodyPart(symptomType);
 
       // Map severity from 1-10 to 1-5 scale
-      const mappedSeverity = severity 
-        ? Math.max(1, Math.min(5, Math.ceil(severity / 2))) as 1 | 2 | 3 | 4 | 5
-        : 3 as 1 | 2 | 3 | 4 | 5; // Default to moderate (3/5)
+      const mappedSeverity = severity
+        ? (Math.max(1, Math.min(5, Math.ceil(severity / 2))) as
+            | 1
+            | 2
+            | 3
+            | 4
+            | 5)
+        : (3 as 1 | 2 | 3 | 4 | 5); // Default to moderate (3/5)
 
       // Create symptom data (matching the Symptom interface)
       const symptomData: Omit<Symptom, "id"> = {
         userId,
         type: symptomType,
         severity: mappedSeverity,
-        description: notes || `${this.capitalizeFirstLetter(symptomName)}${normalizedBodyPart ? ` - Location: ${normalizedBodyPart}` : ""}${duration ? ` - Duration: ${duration}` : ""}`,
+        description:
+          notes ||
+          `${this.capitalizeFirstLetter(symptomName)}${normalizedBodyPart ? ` - Location: ${normalizedBodyPart}` : ""}${duration ? ` - Duration: ${duration}` : ""}`,
         location: normalizedBodyPart,
         timestamp: new Date(),
       };
@@ -184,8 +192,12 @@ class ZeinaActionsService {
       const symptomId = await symptomService.addSymptom(symptomData);
 
       const severityText = this.getSeverityText(symptomData.severity, isArabic);
-      const symptomAdvice = this.getSymptomAdvice(symptomType, symptomData.severity * 2, isArabic);
-      
+      const symptomAdvice = this.getSymptomAdvice(
+        symptomType,
+        symptomData.severity * 2,
+        isArabic
+      );
+
       return {
         success: true,
         action: "log_symptom",
@@ -204,7 +216,8 @@ class ZeinaActionsService {
         success: false,
         action: "log_symptom",
         message: `Failed to log symptom: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't log that symptom right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't log that symptom right now. Please try again later.",
       };
     }
   }
@@ -225,7 +238,8 @@ class ZeinaActionsService {
           success: false,
           action: "add_medication",
           message: "User not authenticated",
-          speakableResponse: "I couldn't add that medication. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't add that medication. You need to be logged in first.",
         };
       }
 
@@ -240,7 +254,8 @@ class ZeinaActionsService {
         reminders: [],
       };
 
-      const medicationId = await medicationService.addMedication(medicationData);
+      const medicationId =
+        await medicationService.addMedication(medicationData);
 
       return {
         success: true,
@@ -258,7 +273,8 @@ class ZeinaActionsService {
         success: false,
         action: "add_medication",
         message: `Failed to add medication: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't add that medication right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't add that medication right now. Please try again later.",
       };
     }
   }
@@ -267,7 +283,11 @@ class ZeinaActionsService {
    * Create an alert for family members
    */
   async alertFamily(
-    alertType: "check_in" | "symptom_alert" | "medication_reminder" | "emergency",
+    alertType:
+      | "check_in"
+      | "symptom_alert"
+      | "medication_reminder"
+      | "emergency",
     message: string
   ): Promise<ActionResult> {
     try {
@@ -277,7 +297,8 @@ class ZeinaActionsService {
           success: false,
           action: "alert_family",
           message: "User not authenticated",
-          speakableResponse: "I couldn't send that alert. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't send that alert. You need to be logged in first.",
         };
       }
 
@@ -324,7 +345,8 @@ class ZeinaActionsService {
         success: false,
         action: "alert_family",
         message: `Failed to alert family: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't send that alert right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't send that alert right now. Please try again later.",
       };
     }
   }
@@ -353,7 +375,7 @@ class ZeinaActionsService {
       }
 
       const displayUnit = unit || this.getVitalUnit(vitalType);
-      
+
       // Save vital to Firestore directly
       const vitalData: any = {
         userId,
@@ -388,7 +410,8 @@ class ZeinaActionsService {
         success: false,
         action: "log_vital",
         message: `Failed to log vital sign: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't log that vital sign right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't log that vital sign right now. Please try again later.",
       };
     }
   }
@@ -399,7 +422,7 @@ class ZeinaActionsService {
   async setMedicationReminder(
     medicationName: string,
     time: string,
-    recurring: boolean = true
+    recurring = true
   ): Promise<ActionResult> {
     try {
       const userId = auth.currentUser?.uid;
@@ -408,14 +431,15 @@ class ZeinaActionsService {
           success: false,
           action: "set_reminder",
           message: "User not authenticated",
-          speakableResponse: "I couldn't set that reminder. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't set that reminder. You need to be logged in first.",
         };
       }
 
       // Find the medication
       const medications = await medicationService.getUserMedications(userId);
-      const medication = medications.find(
-        (m) => m.name.toLowerCase().includes(medicationName.toLowerCase())
+      const medication = medications.find((m) =>
+        m.name.toLowerCase().includes(medicationName.toLowerCase())
       );
 
       if (!medication) {
@@ -430,12 +454,12 @@ class ZeinaActionsService {
       // Update medication with new reminder (reminders is an array of MedicationReminder objects)
       const currentReminders = medication.reminders || [];
       const reminderExists = currentReminders.some((r) => r.time === time);
-      
+
       if (!reminderExists) {
         // Create a new reminder object
         const newReminder = {
           id: `reminder_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-          time: time,
+          time,
           taken: false,
         };
         currentReminders.push(newReminder);
@@ -459,7 +483,8 @@ class ZeinaActionsService {
         success: false,
         action: "set_reminder",
         message: `Failed to set reminder: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't set that reminder right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't set that reminder right now. Please try again later.",
       };
     }
   }
@@ -475,7 +500,8 @@ class ZeinaActionsService {
           success: false,
           action: "request_check_in",
           message: "User not authenticated",
-          speakableResponse: "I couldn't process that request. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't process that request. You need to be logged in first.",
         };
       }
 
@@ -493,7 +519,7 @@ class ZeinaActionsService {
         success: true,
         action: "request_check_in",
         message: "Check-in requested",
-        speakableResponse: reason 
+        speakableResponse: reason
           ? `I've noted your check-in request. ${reason}`
           : "I've logged your check-in. How are you feeling right now?",
       };
@@ -524,15 +550,21 @@ class ZeinaActionsService {
           success: false,
           action: "log_mood",
           message: "User not authenticated",
-          speakableResponse: "I couldn't log your mood. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't log your mood. You need to be logged in first.",
         };
       }
 
       // Map natural language to mood types
       const normalizedMood = this.normalizeMoodType(moodType);
-      const mappedIntensity = intensity 
-        ? Math.max(1, Math.min(5, Math.ceil(intensity / 2))) as 1 | 2 | 3 | 4 | 5
-        : 3 as 1 | 2 | 3 | 4 | 5;
+      const mappedIntensity = intensity
+        ? (Math.max(1, Math.min(5, Math.ceil(intensity / 2))) as
+            | 1
+            | 2
+            | 3
+            | 4
+            | 5)
+        : (3 as 1 | 2 | 3 | 4 | 5);
 
       // Save mood to Firestore
       const moodData = {
@@ -546,7 +578,10 @@ class ZeinaActionsService {
 
       await addDoc(collection(db, "moods"), moodData);
 
-      const moodFeedback = this.getMoodFeedback(normalizedMood, mappedIntensity);
+      const moodFeedback = this.getMoodFeedback(
+        normalizedMood,
+        mappedIntensity
+      );
 
       return {
         success: true,
@@ -561,7 +596,8 @@ class ZeinaActionsService {
         success: false,
         action: "log_mood",
         message: `Failed to log mood: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't log your mood right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't log your mood right now. Please try again later.",
       };
     }
   }
@@ -570,7 +606,10 @@ class ZeinaActionsService {
    * Get navigation instructions for app sections
    */
   getNavigationTarget(target: string): ActionResult {
-    const navigationMap: Record<string, { screen: string; description: string }> = {
+    const navigationMap: Record<
+      string,
+      { screen: string; description: string }
+    > = {
       medications: { screen: "medications", description: "your medications" },
       meds: { screen: "medications", description: "your medications" },
       symptoms: { screen: "symptoms", description: "your symptoms" },
@@ -622,14 +661,15 @@ class ZeinaActionsService {
           success: false,
           action: "mark_medication_taken",
           message: "User not authenticated",
-          speakableResponse: "I couldn't update your medication. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't update your medication. You need to be logged in first.",
         };
       }
 
       // Find the medication
       const medications = await medicationService.getUserMedications(userId);
-      const medication = medications.find(
-        (m) => m.name.toLowerCase().includes(medicationName.toLowerCase())
+      const medication = medications.find((m) =>
+        m.name.toLowerCase().includes(medicationName.toLowerCase())
       );
 
       if (!medication) {
@@ -645,16 +685,20 @@ class ZeinaActionsService {
       const now = new Date();
       const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
-      
+
       // Find the closest reminder
       let closestReminder = medication.reminders?.[0];
-      let smallestDiff = Infinity;
-      
+      let smallestDiff = Number.POSITIVE_INFINITY;
+
       for (const reminder of medication.reminders || []) {
         const [hourStr, minuteStr] = reminder.time.split(":");
-        const reminderHour = parseInt(hourStr);
-        const reminderMinute = parseInt(minuteStr);
-        const diff = Math.abs((reminderHour * 60 + reminderMinute) - (currentHour * 60 + currentMinute));
+        const reminderHour = Number.parseInt(hourStr);
+        const reminderMinute = Number.parseInt(minuteStr);
+        const diff = Math.abs(
+          reminderHour * 60 +
+            reminderMinute -
+            (currentHour * 60 + currentMinute)
+        );
         if (diff < smallestDiff) {
           smallestDiff = diff;
           closestReminder = reminder;
@@ -662,8 +706,11 @@ class ZeinaActionsService {
       }
 
       if (closestReminder && !closestReminder.taken) {
-        await medicationService.markMedicationTaken(medication.id, closestReminder.id);
-        
+        await medicationService.markMedicationTaken(
+          medication.id,
+          closestReminder.id
+        );
+
         return {
           success: true,
           action: "mark_medication_taken",
@@ -685,7 +732,8 @@ class ZeinaActionsService {
         success: false,
         action: "mark_medication_taken",
         message: `Failed to mark medication as taken: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't update your medication status right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't update your medication status right now. Please try again later.",
       };
     }
   }
@@ -695,49 +743,49 @@ class ZeinaActionsService {
   private normalizeMoodType(mood: string): string {
     const moodMap: Record<string, string> = {
       // Happy variants
-      "happy": "happy",
-      "good": "happy",
-      "great": "veryHappy",
-      "amazing": "veryHappy",
-      "wonderful": "veryHappy",
-      "fantastic": "veryHappy",
-      "excellent": "veryHappy",
-      "okay": "content",
-      "fine": "content",
-      "alright": "content",
-      
+      happy: "happy",
+      good: "happy",
+      great: "veryHappy",
+      amazing: "veryHappy",
+      wonderful: "veryHappy",
+      fantastic: "veryHappy",
+      excellent: "veryHappy",
+      okay: "content",
+      fine: "content",
+      alright: "content",
+
       // Negative variants
-      "sad": "sad",
-      "down": "sad",
-      "unhappy": "sad",
-      "depressed": "depression",
+      sad: "sad",
+      down: "sad",
+      unhappy: "sad",
+      depressed: "depression",
       "very sad": "verySad",
-      "terrible": "verySad",
-      "awful": "verySad",
-      "anxious": "anxious",
-      "worried": "anxious",
-      "nervous": "anxious",
-      "stressed": "stressed",
-      "overwhelmed": "overwhelmed",
-      "angry": "angry",
-      "mad": "angry",
-      "frustrated": "frustrated",
-      "irritable": "irritable",
-      "tired": "tired",
-      "exhausted": "tired",
-      
+      terrible: "verySad",
+      awful: "verySad",
+      anxious: "anxious",
+      worried: "anxious",
+      nervous: "anxious",
+      stressed: "stressed",
+      overwhelmed: "overwhelmed",
+      angry: "angry",
+      mad: "angry",
+      frustrated: "frustrated",
+      irritable: "irritable",
+      tired: "tired",
+      exhausted: "tired",
+
       // Neutral
-      "neutral": "neutral",
-      "meh": "neutral",
+      neutral: "neutral",
+      meh: "neutral",
       "so-so": "neutral",
-      
+
       // Positive
-      "calm": "calm",
-      "peaceful": "peaceful",
-      "relaxed": "peaceful",
-      "grateful": "grateful",
-      "hopeful": "hopeful",
-      "excited": "excited",
+      calm: "calm",
+      peaceful: "peaceful",
+      relaxed: "peaceful",
+      grateful: "grateful",
+      hopeful: "hopeful",
+      excited: "excited",
     };
 
     const normalizedInput = mood.toLowerCase().trim();
@@ -768,8 +816,27 @@ class ZeinaActionsService {
   }
 
   private getMoodFeedback(mood: string, intensity: number): string {
-    const positiveMoods = ["veryHappy", "happy", "content", "calm", "peaceful", "grateful", "excited", "hopeful"];
-    const negativeMoods = ["sad", "verySad", "anxious", "stressed", "tired", "frustrated", "angry", "overwhelmed", "depression"];
+    const positiveMoods = [
+      "veryHappy",
+      "happy",
+      "content",
+      "calm",
+      "peaceful",
+      "grateful",
+      "excited",
+      "hopeful",
+    ];
+    const negativeMoods = [
+      "sad",
+      "verySad",
+      "anxious",
+      "stressed",
+      "tired",
+      "frustrated",
+      "angry",
+      "overwhelmed",
+      "depression",
+    ];
 
     if (positiveMoods.includes(mood)) {
       return "That's wonderful to hear! I'm glad you're doing well.";
@@ -801,7 +868,8 @@ class ZeinaActionsService {
           success: false,
           action: "add_allergy",
           message: "User not authenticated",
-          speakableResponse: "I couldn't add that allergy. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't add that allergy. You need to be logged in first.",
         };
       }
 
@@ -834,7 +902,8 @@ class ZeinaActionsService {
         success: false,
         action: "add_allergy",
         message: `Failed to add allergy: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't add that allergy right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't add that allergy right now. Please try again later.",
       };
     }
   }
@@ -855,7 +924,8 @@ class ZeinaActionsService {
           success: false,
           action: "add_medical_history",
           message: "User not authenticated",
-          speakableResponse: "I couldn't add that to your medical history. You need to be logged in first.",
+          speakableResponse:
+            "I couldn't add that to your medical history. You need to be logged in first.",
         };
       }
 
@@ -864,16 +934,23 @@ class ZeinaActionsService {
       const historyData = {
         userId,
         condition: this.capitalizeFirstLetter(condition),
-        diagnosisDate: diagnosisDate ? this.parseDateString(diagnosisDate) : new Date(),
+        diagnosisDate: diagnosisDate
+          ? this.parseDateString(diagnosisDate)
+          : new Date(),
         status: status || "active",
         notes: notes || "",
-        severity: this.inferConditionSeverity(condition) as "mild" | "moderate" | "severe",
+        severity: this.inferConditionSeverity(condition) as
+          | "mild"
+          | "moderate"
+          | "severe",
         timestamp: new Date(),
       };
 
-      const historyId = await medicalHistoryService.addMedicalHistory(historyData);
+      const historyId =
+        await medicalHistoryService.addMedicalHistory(historyData);
 
-      const statusText = status && status !== "active" ? ` as ${status.replace("_", " ")}` : "";
+      const statusText =
+        status && status !== "active" ? ` as ${status.replace("_", " ")}` : "";
 
       return {
         success: true,
@@ -888,21 +965,57 @@ class ZeinaActionsService {
         success: false,
         action: "add_medical_history",
         message: `Failed to add medical history: ${error instanceof Error ? error.message : "Unknown error"}`,
-        speakableResponse: "I'm sorry, I couldn't add that to your medical history right now. Please try again later.",
+        speakableResponse:
+          "I'm sorry, I couldn't add that to your medical history right now. Please try again later.",
       };
     }
   }
 
-  private inferAllergyType(allergen: string): "medication" | "food" | "environmental" | "other" {
+  private inferAllergyType(
+    allergen: string
+  ): "medication" | "food" | "environmental" | "other" {
     const lowerAllergen = allergen.toLowerCase();
-    
-    const medications = ["penicillin", "aspirin", "ibuprofen", "sulfa", "codeine", "morphine", "amoxicillin", "antibiotic"];
-    const foods = ["peanut", "shellfish", "dairy", "milk", "egg", "wheat", "soy", "fish", "tree nut", "gluten", "lactose"];
-    const environmental = ["dust", "pollen", "mold", "pet", "cat", "dog", "grass", "ragweed", "bee", "wasp"];
-    
-    if (medications.some(m => lowerAllergen.includes(m))) return "medication";
-    if (foods.some(f => lowerAllergen.includes(f))) return "food";
-    if (environmental.some(e => lowerAllergen.includes(e))) return "environmental";
+
+    const medications = [
+      "penicillin",
+      "aspirin",
+      "ibuprofen",
+      "sulfa",
+      "codeine",
+      "morphine",
+      "amoxicillin",
+      "antibiotic",
+    ];
+    const foods = [
+      "peanut",
+      "shellfish",
+      "dairy",
+      "milk",
+      "egg",
+      "wheat",
+      "soy",
+      "fish",
+      "tree nut",
+      "gluten",
+      "lactose",
+    ];
+    const environmental = [
+      "dust",
+      "pollen",
+      "mold",
+      "pet",
+      "cat",
+      "dog",
+      "grass",
+      "ragweed",
+      "bee",
+      "wasp",
+    ];
+
+    if (medications.some((m) => lowerAllergen.includes(m))) return "medication";
+    if (foods.some((f) => lowerAllergen.includes(f))) return "food";
+    if (environmental.some((e) => lowerAllergen.includes(e)))
+      return "environmental";
     return "other";
   }
 
@@ -918,21 +1031,38 @@ class ZeinaActionsService {
 
   private inferConditionSeverity(condition: string): string {
     const lowerCondition = condition.toLowerCase();
-    const severeConditions = ["cancer", "heart disease", "stroke", "kidney failure", "liver failure"];
-    const moderateConditions = ["diabetes", "hypertension", "asthma", "arthritis", "copd"];
-    
-    if (severeConditions.some(c => lowerCondition.includes(c))) return "severe";
-    if (moderateConditions.some(c => lowerCondition.includes(c))) return "moderate";
+    const severeConditions = [
+      "cancer",
+      "heart disease",
+      "stroke",
+      "kidney failure",
+      "liver failure",
+    ];
+    const moderateConditions = [
+      "diabetes",
+      "hypertension",
+      "asthma",
+      "arthritis",
+      "copd",
+    ];
+
+    if (severeConditions.some((c) => lowerCondition.includes(c)))
+      return "severe";
+    if (moderateConditions.some((c) => lowerCondition.includes(c)))
+      return "moderate";
     return "mild";
   }
 
   private getMedicalHistoryAdvice(condition: string): string {
     const lowerCondition = condition.toLowerCase();
-    
+
     if (lowerCondition.includes("diabetes")) {
       return "I'll help you track your blood sugar levels regularly.";
     }
-    if (lowerCondition.includes("hypertension") || lowerCondition.includes("blood pressure")) {
+    if (
+      lowerCondition.includes("hypertension") ||
+      lowerCondition.includes("blood pressure")
+    ) {
       return "Regular blood pressure monitoring is important. Let me know when you check it.";
     }
     if (lowerCondition.includes("heart")) {
@@ -944,19 +1074,27 @@ class ZeinaActionsService {
   private parseDateString(dateStr: string): Date {
     const lowerDate = dateStr.toLowerCase();
     const now = new Date();
-    
+
     if (lowerDate.includes("year")) {
       const match = lowerDate.match(/(\d+)/);
       if (match) {
-        const years = parseInt(match[1]);
-        return new Date(now.getFullYear() - years, now.getMonth(), now.getDate());
+        const years = Number.parseInt(match[1]);
+        return new Date(
+          now.getFullYear() - years,
+          now.getMonth(),
+          now.getDate()
+        );
       }
     }
     if (lowerDate.includes("month")) {
       const match = lowerDate.match(/(\d+)/);
       if (match) {
-        const months = parseInt(match[1]);
-        return new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+        const months = Number.parseInt(match[1]);
+        return new Date(
+          now.getFullYear(),
+          now.getMonth() - months,
+          now.getDate()
+        );
       }
     }
     if (lowerDate.includes("last year")) {
@@ -965,12 +1103,12 @@ class ZeinaActionsService {
     if (lowerDate.includes("yesterday")) {
       return new Date(now.getTime() - 24 * 60 * 60 * 1000);
     }
-    
+
     const yearMatch = lowerDate.match(/^(\d{4})$/);
     if (yearMatch) {
-      return new Date(parseInt(yearMatch[1]), 0, 1);
+      return new Date(Number.parseInt(yearMatch[1]), 0, 1);
     }
-    
+
     const parsed = new Date(dateStr);
     return isNaN(parsed.getTime()) ? now : parsed;
   }
@@ -1023,9 +1161,13 @@ class ZeinaActionsService {
     return " as severe";
   }
 
-  private getSymptomAdvice(symptomType: string, severity: number, isArabic = false): string {
+  private getSymptomAdvice(
+    symptomType: string,
+    severity: number,
+    isArabic = false
+  ): string {
     if (severity >= 8) {
-      return isArabic 
+      return isArabic
         ? "يبدو هذا شديداً جداً. هل تريد مني تنبيه عائلتك أو تقديم معلومات الاتصال للطوارئ؟"
         : "This seems quite severe. Would you like me to alert your family or provide emergency contact information?";
     }
@@ -1073,7 +1215,7 @@ class ZeinaActionsService {
     if (advice) {
       return isArabic ? advice.ar : advice.en;
     }
-    return isArabic 
+    return isArabic
       ? "سأستمر في متابعة هذا لك. أخبرني إذا تغير شيء."
       : "I'll keep tracking this for you. Let me know if anything changes.";
   }
@@ -1108,11 +1250,15 @@ class ZeinaActionsService {
     return vitalType;
   }
 
-  private getVitalAdvice(vitalType: string, value: number, isArabic = false): string {
+  private getVitalAdvice(
+    vitalType: string,
+    value: number,
+    isArabic = false
+  ): string {
     switch (vitalType) {
       case "heartRate":
         if (value < 60) {
-          return isArabic 
+          return isArabic
             ? "معدل نبضات قلبك منخفض قليلاً. هل تشعر بأنك بخير؟"
             : "Your heart rate is a bit low. Are you feeling okay?";
         }
@@ -1121,7 +1267,9 @@ class ZeinaActionsService {
             ? "معدل نبضات قلبك مرتفع. حاول الراحة والهدوء."
             : "Your heart rate is elevated. Try to rest and stay calm.";
         }
-        return isArabic ? "معدل نبضات قلبك جيد." : "Your heart rate looks good.";
+        return isArabic
+          ? "معدل نبضات قلبك جيد."
+          : "Your heart rate looks good.";
       case "bloodGlucose":
         if (value < 70) {
           return isArabic
@@ -1133,7 +1281,7 @@ class ZeinaActionsService {
             ? "سكر الدم مرتفع. يرجى المراقبة عن كثب واتباع خطة الرعاية."
             : "Your blood sugar is high. Please monitor closely and follow your care plan.";
         }
-        return isArabic 
+        return isArabic
           ? "مستوى سكر الدم في النطاق الطبيعي."
           : "Your blood sugar level is in a normal range.";
       case "oxygenSaturation":
@@ -1142,9 +1290,11 @@ class ZeinaActionsService {
             ? "مستوى الأكسجين منخفض قليلاً. إذا شعرت بضيق في التنفس، يرجى طلب الرعاية الطبية."
             : "Your oxygen level is a bit low. If you feel short of breath, please seek medical attention.";
         }
-        return isArabic ? "مستوى الأكسجين جيد." : "Your oxygen level looks good.";
+        return isArabic
+          ? "مستوى الأكسجين جيد."
+          : "Your oxygen level looks good.";
       default:
-        return isArabic 
+        return isArabic
           ? "تم تسجيل هذا القياس لك."
           : "I've recorded this measurement for you.";
     }

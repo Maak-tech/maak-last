@@ -1,13 +1,13 @@
-import { symptomService } from "./symptomService";
+import type { Medication, Symptom } from "@/types";
 import { medicationService } from "./medicationService";
-import type { Symptom, Medication } from "@/types";
+import { symptomService } from "./symptomService";
 
 /**
  * Health Score Calculation Service
- * 
+ *
  * Provides a standardized, evidence-based health score calculation
  * across the entire application.
- * 
+ *
  * Score Range: 0-100
  * - 90-100: Excellent health
  * - 80-89: Good health
@@ -37,10 +37,10 @@ export interface HealthScoreResult {
  * Based on 1-10 severity scale
  */
 const SYMPTOM_SEVERITY_WEIGHTS = {
-  mild: 1.0,      // Severity 1-3
-  moderate: 2.0,  // Severity 4-6
-  severe: 3.5,    // Severity 7-8
-  critical: 5.0,  // Severity 9-10
+  mild: 1.0, // Severity 1-3
+  moderate: 2.0, // Severity 4-6
+  severe: 3.5, // Severity 7-8
+  critical: 5.0, // Severity 9-10
 };
 
 /**
@@ -63,7 +63,9 @@ const MEDICATION_COMPLIANCE_WEIGHT = 15;
 /**
  * Get symptom severity category
  */
-function getSymptomSeverityCategory(severity: number): keyof typeof SYMPTOM_SEVERITY_WEIGHTS {
+function getSymptomSeverityCategory(
+  severity: number
+): keyof typeof SYMPTOM_SEVERITY_WEIGHTS {
   if (severity >= 9) return "critical";
   if (severity >= 7) return "severe";
   if (severity >= 4) return "moderate";
@@ -73,7 +75,10 @@ function getSymptomSeverityCategory(severity: number): keyof typeof SYMPTOM_SEVE
 /**
  * Calculate symptom penalty based on count and severity
  */
-function calculateSymptomPenalty(symptoms: Symptom[]): { penalty: number; avgSeverity: number } {
+function calculateSymptomPenalty(symptoms: Symptom[]): {
+  penalty: number;
+  avgSeverity: number;
+} {
   if (symptoms.length === 0) {
     return { penalty: 0, avgSeverity: 0 };
   }
@@ -86,7 +91,7 @@ function calculateSymptomPenalty(symptoms: Symptom[]): { penalty: number; avgSev
     const severity = symptom.severity || 5; // Default to moderate if not specified
     const category = getSymptomSeverityCategory(severity);
     const weight = SYMPTOM_SEVERITY_WEIGHTS[category];
-    
+
     totalWeightedPenalty += weight;
     totalSeverity += severity;
   });
@@ -115,22 +120,22 @@ function calculateMedicationBonus(
   if (compliancePercentage >= 90) {
     return MEDICATION_COMPLIANCE_WEIGHT;
   }
-  
+
   // Good compliance (80-89%): +10 points
   if (compliancePercentage >= 80) {
     return MEDICATION_COMPLIANCE_WEIGHT * 0.67;
   }
-  
+
   // Fair compliance (60-79%): +5 points
   if (compliancePercentage >= 60) {
     return MEDICATION_COMPLIANCE_WEIGHT * 0.33;
   }
-  
+
   // Poor compliance (40-59%): 0 points
   if (compliancePercentage >= 40) {
     return 0;
   }
-  
+
   // Very poor compliance (<40%): -10 points (penalty)
   return -MEDICATION_COMPLIANCE_WEIGHT * 0.67;
 }
@@ -179,11 +184,13 @@ function getHealthRating(score: number): HealthScoreResult["rating"] {
 
 /**
  * Calculate comprehensive health score for a user
- * 
+ *
  * @param userId - User ID to calculate score for
  * @returns Health score result with detailed breakdown
  */
-export async function calculateHealthScore(userId: string): Promise<HealthScoreResult> {
+export async function calculateHealthScore(
+  userId: string
+): Promise<HealthScoreResult> {
   try {
     // Fetch recent symptoms and medications in parallel
     const [symptoms, medications] = await Promise.all([
@@ -194,12 +201,13 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
     // Filter symptoms to last 7 days
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - HEALTH_SCORE_WINDOW_DAYS);
-    
+
     const recentSymptoms = symptoms.filter((symptom) => {
       if (!symptom.timestamp) return false;
-      const symptomDate = symptom.timestamp instanceof Date 
-        ? symptom.timestamp 
-        : new Date(symptom.timestamp);
+      const symptomDate =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
       return !isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
     });
 
@@ -207,16 +215,21 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
     const activeMedications = medications.filter((med) => med.isActive);
 
     // Calculate compliance for today's medications
-    const todaysMedications = activeMedications.filter((med) => {
-      return Array.isArray(med.reminders) && med.reminders.length > 0;
-    });
-    
-    const compliancePercentage = calculateCompliancePercentage(todaysMedications);
+    const todaysMedications = activeMedications.filter(
+      (med) => Array.isArray(med.reminders) && med.reminders.length > 0
+    );
+
+    const compliancePercentage =
+      calculateCompliancePercentage(todaysMedications);
 
     // Calculate components
     const baseScore = 100;
-    const { penalty: symptomPenalty, avgSeverity } = calculateSymptomPenalty(recentSymptoms);
-    const medicationBonus = calculateMedicationBonus(activeMedications, compliancePercentage);
+    const { penalty: symptomPenalty, avgSeverity } =
+      calculateSymptomPenalty(recentSymptoms);
+    const medicationBonus = calculateMedicationBonus(
+      activeMedications,
+      compliancePercentage
+    );
 
     // Calculate final score (clamped between 0 and 100)
     const rawScore = baseScore - symptomPenalty + medicationBonus;
@@ -260,7 +273,7 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
 /**
  * Calculate health score using pre-fetched data (more efficient)
  * Use this when you already have symptoms and medications loaded
- * 
+ *
  * @param symptoms - User's symptoms
  * @param medications - User's medications
  * @returns Health score result with detailed breakdown
@@ -273,12 +286,13 @@ export function calculateHealthScoreFromData(
     // Filter symptoms to last 7 days
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - HEALTH_SCORE_WINDOW_DAYS);
-    
+
     const recentSymptoms = symptoms.filter((symptom) => {
       if (!symptom.timestamp) return false;
-      const symptomDate = symptom.timestamp instanceof Date 
-        ? symptom.timestamp 
-        : new Date(symptom.timestamp);
+      const symptomDate =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
       return !isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
     });
 
@@ -286,16 +300,21 @@ export function calculateHealthScoreFromData(
     const activeMedications = medications.filter((med) => med.isActive);
 
     // Calculate compliance for today's medications
-    const todaysMedications = activeMedications.filter((med) => {
-      return Array.isArray(med.reminders) && med.reminders.length > 0;
-    });
-    
-    const compliancePercentage = calculateCompliancePercentage(todaysMedications);
+    const todaysMedications = activeMedications.filter(
+      (med) => Array.isArray(med.reminders) && med.reminders.length > 0
+    );
+
+    const compliancePercentage =
+      calculateCompliancePercentage(todaysMedications);
 
     // Calculate components
     const baseScore = 100;
-    const { penalty: symptomPenalty, avgSeverity } = calculateSymptomPenalty(recentSymptoms);
-    const medicationBonus = calculateMedicationBonus(activeMedications, compliancePercentage);
+    const { penalty: symptomPenalty, avgSeverity } =
+      calculateSymptomPenalty(recentSymptoms);
+    const medicationBonus = calculateMedicationBonus(
+      activeMedications,
+      compliancePercentage
+    );
 
     // Calculate final score (clamped between 0 and 100)
     const rawScore = baseScore - symptomPenalty + medicationBonus;

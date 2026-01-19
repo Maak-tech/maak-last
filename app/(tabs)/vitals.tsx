@@ -47,13 +47,15 @@ import { useTheme } from "@/contexts/ThemeContext";
 import {
   getAllGroups,
   getAvailableMetricsForProvider,
-  getGroupDisplayName,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
 // Lazy import to prevent early native module loading
 // import { appleHealthService } from "@/lib/services/appleHealthService";
 // import { googleHealthService } from "@/lib/services/googleHealthService";
-import { saveProviderConnection, syncHealthData } from "@/lib/health/healthSync";
+import {
+  saveProviderConnection,
+  syncHealthData,
+} from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
 import {
   type HealthDataSummary,
@@ -426,49 +428,55 @@ export default function VitalsScreen() {
     },
   }))(theme);
 
-  const loadVitalsData = useCallback(async (isRefresh = false) => {
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+  const loadVitalsData = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        // Check permissions first
+        const permissions = await healthDataService.hasHealthPermissions();
+        setHasPermissions(permissions);
+
+        if (permissions) {
+          // Get latest vitals and summary
+          const [vitalsData, summaryData] = await Promise.all([
+            healthDataService.getLatestVitals(),
+            healthDataService.getHealthSummary(),
+          ]);
+
+          setVitals(vitalsData);
+          setSummary(summaryData);
+          setLastSync(new Date());
+
+          // Automatically sync to Firestore so family members can see the data
+          // This runs in background and doesn't block UI
+          const provider =
+            Platform.OS === "ios" ? "apple_health" : "health_connect";
+          syncHealthData(provider).catch(() => {
+            // Silently fail - sync is not critical for displaying vitals
+          });
+        }
+
+        // Mark initial load as completed
+        initialLoadCompleted.current = true;
+      } catch (error) {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL
+            ? "حدث خطأ في تحميل البيانات الصحية"
+            : "Error loading health data"
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      // Check permissions first
-      const permissions = await healthDataService.hasHealthPermissions();
-      setHasPermissions(permissions);
-
-      if (permissions) {
-        // Get latest vitals and summary
-        const [vitalsData, summaryData] = await Promise.all([
-          healthDataService.getLatestVitals(),
-          healthDataService.getHealthSummary(),
-        ]);
-
-        setVitals(vitalsData);
-        setSummary(summaryData);
-        setLastSync(new Date());
-
-        // Automatically sync to Firestore so family members can see the data
-        // This runs in background and doesn't block UI
-        const provider = Platform.OS === "ios" ? "apple_health" : "health_connect";
-        syncHealthData(provider).catch(() => {
-          // Silently fail - sync is not critical for displaying vitals
-        });
-      }
-      
-      // Mark initial load as completed
-      initialLoadCompleted.current = true;
-    } catch (error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في تحميل البيانات الصحية" : "Error loading health data"
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [isRTL]);
+    },
+    [isRTL]
+  );
 
   useEffect(() => {
     // CRITICAL: Delay loading vitals data to prevent HealthKit from loading at app startup
@@ -525,7 +533,7 @@ export default function VitalsScreen() {
         const { appleHealthService } = await import(
           "@/lib/services/appleHealthService"
         );
-        
+
         // Retry logic for native bridge readiness
         let availability;
         let retries = 0;
@@ -718,9 +726,7 @@ export default function VitalsScreen() {
             Alert.alert(
               isRTL ? "HealthKit غير متاح" : "HealthKit Not Available",
               availability?.reason ||
-                (isRTL
-                  ? "HealthKit غير متاح."
-                  : "HealthKit is not available.")
+                (isRTL ? "HealthKit غير متاح." : "HealthKit is not available.")
             );
             return;
           }
@@ -794,7 +800,9 @@ export default function VitalsScreen() {
                   {
                     text: isRTL ? "فتح" : "Open",
                     onPress: () => {
-                      const installUrl = availability.installUrl || "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata";
+                      const installUrl =
+                        availability.installUrl ||
+                        "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata";
                       Linking.openURL(installUrl);
                     },
                   },
@@ -808,16 +816,20 @@ export default function VitalsScreen() {
           const { getHealthConnectPermissionsForMetrics } = await import(
             "@/lib/health/healthMetricsCatalog"
           );
-          
+
           // Expand "all" to actual metric keys
-          const allAvailableMetrics = getAvailableMetricsForProvider("health_connect").map((m) => m.key);
+          const allAvailableMetrics = getAvailableMetricsForProvider(
+            "health_connect"
+          ).map((m) => m.key);
           const expandedSelected = selectedMetrics.has("all")
             ? allAvailableMetrics
             : Array.from(selectedMetrics);
-          
-          const permissions = getHealthConnectPermissionsForMetrics(expandedSelected);
-          const authorized = await healthConnectService.authorize(expandedSelected);
-          
+
+          const permissions =
+            getHealthConnectPermissionsForMetrics(expandedSelected);
+          const authorized =
+            await healthConnectService.authorize(expandedSelected);
+
           // Health Connect returns boolean, but we need to map back to permissions
           // For now, if authorized is true, assume all requested permissions were granted
           // In a real implementation, you'd check each permission individually
@@ -911,7 +923,9 @@ export default function VitalsScreen() {
     } catch (error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في مزامنة البيانات الصحية" : "Error syncing health data"
+        isRTL
+          ? "حدث خطأ في مزامنة البيانات الصحية"
+          : "Error syncing health data"
       );
     }
   };
@@ -1428,9 +1442,9 @@ export default function VitalsScreen() {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
         <ScrollView
+          contentContainerStyle={styles.contentInner as ViewStyle}
           showsVerticalScrollIndicator={false}
           style={styles.content as ViewStyle}
-          contentContainerStyle={styles.contentInner as ViewStyle}
         >
           {/* Header */}
           <View
@@ -1674,7 +1688,8 @@ export default function VitalsScreen() {
                                     ] as StyleProp<TextStyle>
                                   }
                                 >
-                                  {t(`healthMetrics.${metric.key}`) || metric.displayName}
+                                  {t(`healthMetrics.${metric.key}`) ||
+                                    metric.displayName}
                                 </Text>
                                 {metric.unit && (
                                   <Text
@@ -1736,7 +1751,7 @@ export default function VitalsScreen() {
                 {isRTL
                   ? Platform.OS === "ios"
                     ? 'بعد النقر على "تفويض"، ستظهر شاشة أذن البيانات الصحية على iOS حيث يمكنك اختيار المقاييس المحددة. يمكنك تغيير اذن البيانات الصحية لاحقًا في إعدادات iOS → الخصوصية والأمان → الصحة'
-                      : "يمكنك تغيير اذن البيانات الصحية لاحقًا في تطبيق Health Connect → الاذونات"
+                    : "يمكنك تغيير اذن البيانات الصحية لاحقًا في تطبيق Health Connect → الاذونات"
                   : Platform.OS === "ios"
                     ? 'After clicking "Authorize", the iOS permission screen will appear where you can grant access to the selected metrics. You can change these permissions later in iOS Settings → Privacy & Security → Health'
                     : "You can change these permissions later in the Health Connect app → Permissions"}
@@ -1834,9 +1849,7 @@ export default function VitalsScreen() {
               <Heart color={theme.colors.neutral.white} size={20} />
             )}
             <Text style={styles.enableButtonText as StyleProp<TextStyle>}>
-              {isRTL
-                ? "إعداد التكامل"
-                : "Set Up Integration"}
+              {isRTL ? "إعداد التكامل" : "Set Up Integration"}
             </Text>
           </TouchableOpacity>
 
@@ -1940,6 +1953,7 @@ export default function VitalsScreen() {
       </View>
 
       <ScrollView
+        contentContainerStyle={styles.contentInner as ViewStyle}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadVitalsData(true)}
@@ -1949,7 +1963,6 @@ export default function VitalsScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
-        contentContainerStyle={styles.contentInner as ViewStyle}
       >
         {/* Vitals Grid */}
         <View style={styles.vitalsGrid as ViewStyle}>

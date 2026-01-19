@@ -12,7 +12,7 @@ interface CircuitBreakerOptions {
 const DEFAULT_OPTIONS: CircuitBreakerOptions = {
   failureThreshold: 5,
   successThreshold: 2,
-  timeout: 30000,
+  timeout: 30_000,
   halfOpenRequests: 3,
 };
 
@@ -21,7 +21,10 @@ class CircuitBreaker {
   private options: Map<string, CircuitBreakerOptions> = new Map();
   private halfOpenSuccesses: Map<string, number> = new Map();
 
-  configure(serviceName: string, options: Partial<CircuitBreakerOptions>): void {
+  configure(
+    serviceName: string,
+    options: Partial<CircuitBreakerOptions>
+  ): void {
     this.options.set(serviceName, { ...DEFAULT_OPTIONS, ...options });
   }
 
@@ -42,7 +45,7 @@ class CircuitBreaker {
 
   isOpen(serviceName: string): boolean {
     const state = this.getState(serviceName);
-    
+
     if (state.state === "open") {
       if (state.nextRetryAt && new Date() >= state.nextRetryAt) {
         this.transitionToHalfOpen(serviceName);
@@ -50,17 +53,17 @@ class CircuitBreaker {
       }
       return true;
     }
-    
+
     return false;
   }
 
   canExecute(serviceName: string): boolean {
     const state = this.getState(serviceName);
-    
+
     if (state.state === "closed") {
       return true;
     }
-    
+
     if (state.state === "open") {
       if (state.nextRetryAt && new Date() >= state.nextRetryAt) {
         this.transitionToHalfOpen(serviceName);
@@ -68,13 +71,13 @@ class CircuitBreaker {
       }
       return false;
     }
-    
+
     if (state.state === "half_open") {
       const options = this.getOptions(serviceName);
       const currentSuccesses = this.halfOpenSuccesses.get(serviceName) || 0;
       return currentSuccesses < options.halfOpenRequests;
     }
-    
+
     return true;
   }
 
@@ -104,13 +107,20 @@ class CircuitBreaker {
 
     if (state.state === "half_open") {
       this.transitionToOpen(serviceName, options.timeout);
-    } else if (state.state === "closed" && state.failureCount >= options.failureThreshold) {
+    } else if (
+      state.state === "closed" &&
+      state.failureCount >= options.failureThreshold
+    ) {
       this.transitionToOpen(serviceName, options.timeout);
     }
 
     logger.warn(
       `Circuit breaker failure recorded for ${serviceName}`,
-      { failureCount: state.failureCount, state: state.state, error: error?.message },
+      {
+        failureCount: state.failureCount,
+        state: state.state,
+        error: error?.message,
+      },
       "CircuitBreaker"
     );
   }
@@ -118,7 +128,7 @@ class CircuitBreaker {
   private transitionToOpen(serviceName: string, timeout: number): void {
     const state = this.getState(serviceName);
     const previousState = state.state;
-    
+
     state.state = "open";
     state.nextRetryAt = new Date(Date.now() + timeout);
     this.halfOpenSuccesses.delete(serviceName);
@@ -209,7 +219,9 @@ class CircuitBreaker {
       if (fallback) {
         return fallback();
       }
-      throw new Error(`Service ${serviceName} is currently unavailable (circuit breaker open)`);
+      throw new Error(
+        `Service ${serviceName} is currently unavailable (circuit breaker open)`
+      );
     }
 
     const startTime = Date.now();
@@ -257,7 +269,11 @@ class CircuitBreaker {
   reset(serviceName: string): void {
     this.states.delete(serviceName);
     this.halfOpenSuccesses.delete(serviceName);
-    logger.info(`Circuit breaker reset for ${serviceName}`, {}, "CircuitBreaker");
+    logger.info(
+      `Circuit breaker reset for ${serviceName}`,
+      {},
+      "CircuitBreaker"
+    );
   }
 
   resetAll(): void {
@@ -273,11 +289,11 @@ export function withCircuitBreaker<T>(
   serviceName: string,
   fallback?: () => T | Promise<T>
 ) {
-  return function (
+  return (
     _target: any,
     _propertyKey: string,
     descriptor: PropertyDescriptor
-  ) {
+  ) => {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {

@@ -1,12 +1,12 @@
-import Purchases, {
-  CustomerInfo,
-  PurchasesError,
-  PurchasesOffering,
-  PurchasesPackage,
-  PurchasesStoreProduct,
-} from "react-native-purchases";
-import { Platform } from "react-native";
 import Constants from "expo-constants";
+import { Platform } from "react-native";
+import Purchases, {
+  type CustomerInfo,
+  type PurchasesError,
+  type PurchasesOffering,
+  type PurchasesPackage,
+  type PurchasesStoreProduct,
+} from "react-native-purchases";
 import { logger } from "@/lib/utils/logger";
 import { ensureRevenueCatDirectory } from "@/modules/expo-revenuecat-directory";
 
@@ -16,22 +16,22 @@ const getRevenueCatApiKey = (): string => {
   // Check app config first (from environment variables)
   const config = Constants.expoConfig?.extra;
   const envKey = config?.revenueCatApiKey;
-  
+
   // If environment variable is set and not empty, use it
-  if (envKey && typeof envKey === 'string' && envKey.trim() !== '') {
+  if (envKey && typeof envKey === "string" && envKey.trim() !== "") {
     const trimmedKey = envKey.trim();
     // Warn if using test key in production build
-    if (!__DEV__ && trimmedKey.startsWith('test_')) {
+    if (!__DEV__ && trimmedKey.startsWith("test_")) {
       logger.error(
         "CRITICAL: Test RevenueCat API key detected in production build! " +
-        "This will cause App Store rejection. Please set REVENUECAT_API_KEY with production key.",
+          "This will cause App Store rejection. Please set REVENUECAT_API_KEY with production key.",
         undefined,
         "RevenueCatService"
       );
     }
     return trimmedKey;
   }
-  
+
   // Fallback to test key only in development (__DEV__)
   // In production, this should never be reached if env vars are set correctly
   if (__DEV__) {
@@ -42,7 +42,7 @@ const getRevenueCatApiKey = (): string => {
     );
     return "test_vluBajsHEoAjMjzoArPVpklOCRc";
   }
-  
+
   // Production builds MUST have the API key set
   // Don't throw at module load - throw during initialization instead
   // This allows the app to load but RevenueCat won't initialize
@@ -123,38 +123,38 @@ class RevenueCatService {
             // This handles race conditions where RevenueCat tries to access the directory immediately
             let directoryCreated = false;
             const maxRetries = 3;
-            
+
             for (let attempt = 0; attempt < maxRetries; attempt++) {
               directoryCreated = await ensureRevenueCatDirectory();
-              
+
               if (directoryCreated) {
                 // Verify directory is actually writable before proceeding
                 // Add a small delay to ensure filesystem operations are complete
                 await new Promise((resolve) => setTimeout(resolve, 100));
                 break;
               }
-              
+
               // If failed, wait before retrying
               if (attempt < maxRetries - 1) {
                 await new Promise((resolve) => setTimeout(resolve, 200));
               }
             }
-            
-            if (!directoryCreated) {
-              logger.warn(
-                "Failed to ensure RevenueCat directory exists after retries. " +
-                "RevenueCat may log cache errors but will create the directory automatically.",
-                undefined,
-                "RevenueCatService"
-              );
-            } else {
+
+            if (directoryCreated) {
               logger.info(
                 "RevenueCat cache directory ensured successfully",
                 undefined,
                 "RevenueCatService"
               );
+            } else {
+              logger.warn(
+                "Failed to ensure RevenueCat directory exists after retries. " +
+                  "RevenueCat may log cache errors but will create the directory automatically.",
+                undefined,
+                "RevenueCatService"
+              );
             }
-            
+
             // Add an additional delay after directory creation to ensure it's fully ready
             // This prevents race conditions where RevenueCat tries to cache immediately after configure
             await new Promise((resolve) => setTimeout(resolve, 300));
@@ -171,12 +171,12 @@ class RevenueCatService {
         }
 
         // Validate API key before configuring
-        if (!REVENUECAT_API_KEY || REVENUECAT_API_KEY.trim() === '') {
+        if (!REVENUECAT_API_KEY || REVENUECAT_API_KEY.trim() === "") {
           const errorMessage = __DEV__
             ? "RevenueCat API key not configured. Using test key for development."
             : "RevenueCat API key is required for production builds. " +
               "Please set REVENUECAT_API_KEY in your environment variables or EAS secrets.";
-          
+
           if (__DEV__) {
             logger.warn(errorMessage, undefined, "RevenueCatService");
             // Use test key in development
@@ -205,7 +205,11 @@ class RevenueCatService {
 
         this.isInitialized = true;
       } catch (error) {
-        logger.error("RevenueCat initialization failed", error, "RevenueCatService");
+        logger.error(
+          "RevenueCat initialization failed",
+          error,
+          "RevenueCatService"
+        );
         // Clear the promise on error so it can be retried
         this.initializationPromise = null;
         throw new Error("Failed to initialize RevenueCat SDK");
@@ -226,7 +230,11 @@ class RevenueCatService {
       await this.initialize();
     } catch (initError) {
       // If initialization fails, log but don't throw - allow app to continue
-      logger.error("RevenueCat initialization failed in setUserId", initError, "RevenueCatService");
+      logger.error(
+        "RevenueCat initialization failed in setUserId",
+        initError,
+        "RevenueCatService"
+      );
       // Don't throw - allow the app to continue without RevenueCat
       return;
     }
@@ -253,7 +261,11 @@ class RevenueCatService {
       } catch (checkError: any) {
         // If we can't get customer info (e.g., first time user, network error, etc.), proceed with login
         // This is not critical, so we continue with the login attempt
-        logger.error("Failed to check current RevenueCat user ID", checkError, "RevenueCatService");
+        logger.error(
+          "Failed to check current RevenueCat user ID",
+          checkError,
+          "RevenueCatService"
+        );
       }
 
       // User ID is different or couldn't be determined, proceed with login
@@ -263,7 +275,11 @@ class RevenueCatService {
     } catch (error) {
       // Don't throw RevenueCat errors - they shouldn't block authentication
       // Log the error but allow the app to continue
-      logger.error("Failed to set RevenueCat user ID", error, "RevenueCatService");
+      logger.error(
+        "Failed to set RevenueCat user ID",
+        error,
+        "RevenueCatService"
+      );
       // Don't throw - RevenueCat errors shouldn't prevent user from signing in
     }
   }
@@ -296,8 +312,9 @@ class RevenueCatService {
       // RevenueCat throws an error if logOut is called on an anonymous user
       try {
         const customerInfo = await Purchases.getCustomerInfo();
-        const isAnonymous = customerInfo.originalAppUserId.startsWith("$RCAnonymousID:");
-        
+        const isAnonymous =
+          customerInfo.originalAppUserId.startsWith("$RCAnonymousID:");
+
         if (isAnonymous) {
           // User is already anonymous, no need to log out
           this.currentCustomerInfo = null;
@@ -315,19 +332,25 @@ class RevenueCatService {
       // RevenueCat throws this error when logOut is called on an anonymous user
       const errorMessage = error?.message || String(error) || "";
       const errorString = errorMessage.toLowerCase();
-      
+
       if (
         errorString.includes("anonymous") ||
-        errorString.includes("logout was called but the current user is anonymous")
+        errorString.includes(
+          "logout was called but the current user is anonymous"
+        )
       ) {
         // User is anonymous, which is fine - just clear the cached info silently
         // This is not an error condition, just a no-op
         this.currentCustomerInfo = null;
         return;
       }
-      
+
       // Only log actual errors, not the anonymous user case
-      logger.error("Failed to log out from RevenueCat", error, "RevenueCatService");
+      logger.error(
+        "Failed to log out from RevenueCat",
+        error,
+        "RevenueCatService"
+      );
       throw error;
     }
   }
@@ -363,7 +386,11 @@ class RevenueCatService {
       this.currentCustomerInfo = customerInfo;
       return customerInfo;
     } catch (error) {
-      logger.error("Failed to refresh customer info", error, "RevenueCatService");
+      logger.error(
+        "Failed to refresh customer info",
+        error,
+        "RevenueCatService"
+      );
       throw error;
     }
   }
@@ -396,14 +423,13 @@ class RevenueCatService {
     }
 
     try {
-      const { customerInfo } = await Purchases.purchasePackage(
-        packageToPurchase
-      );
+      const { customerInfo } =
+        await Purchases.purchasePackage(packageToPurchase);
       this.currentCustomerInfo = customerInfo;
       return customerInfo;
     } catch (error: unknown) {
       // Safe type checking before accessing PurchasesError properties
-      if (error && typeof error === 'object' && 'userCancelled' in error) {
+      if (error && typeof error === "object" && "userCancelled" in error) {
         const purchasesError = error as PurchasesError;
         if (purchasesError.userCancelled) {
           throw new Error("Purchase was cancelled");
@@ -443,10 +469,15 @@ class RevenueCatService {
       const activeEntitlements = customerInfo.entitlements.active;
       return (
         activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN] !== undefined ||
-        activeEntitlements[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN] !== undefined
+        activeEntitlements[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN] !==
+          undefined
       );
     } catch (error) {
-      logger.error("Failed to check subscription status", error, "RevenueCatService");
+      logger.error(
+        "Failed to check subscription status",
+        error,
+        "RevenueCatService"
+      );
       return false;
     }
   }
@@ -461,7 +492,11 @@ class RevenueCatService {
         customerInfo.entitlements.active[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN];
       return entitlement !== undefined;
     } catch (error) {
-      logger.error("Failed to check Family Plan entitlement", error, "RevenueCatService");
+      logger.error(
+        "Failed to check Family Plan entitlement",
+        error,
+        "RevenueCatService"
+      );
       return false;
     }
   }
@@ -473,10 +508,16 @@ class RevenueCatService {
     try {
       const customerInfo = await this.getCustomerInfo();
       const entitlement =
-        customerInfo.entitlements.active[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN];
+        customerInfo.entitlements.active[
+          ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN
+        ];
       return entitlement !== undefined;
     } catch (error) {
-      logger.error("Failed to check Individual Plan entitlement", error, "RevenueCatService");
+      logger.error(
+        "Failed to check Individual Plan entitlement",
+        error,
+        "RevenueCatService"
+      );
       return false;
     }
   }
@@ -488,14 +529,15 @@ class RevenueCatService {
     try {
       const customerInfo = await this.getCustomerInfo();
       const activeEntitlements = customerInfo.entitlements.active;
-      
+
       // Check for Family Plan first (higher priority)
       let entitlement = activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN];
       let isFamilyPlan = true;
-      
+
       // If no Family Plan, check for Individual Plan
       if (!entitlement) {
-        entitlement = activeEntitlements[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN];
+        entitlement =
+          activeEntitlements[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN];
         isFamilyPlan = false;
       }
 
@@ -514,8 +556,11 @@ class RevenueCatService {
       const subscriptionType: SubscriptionType = isFamilyPlan
         ? "family"
         : "individual";
-      const subscriptionPeriod: SubscriptionPeriod =
-        productIdentifier.includes("Yearly") ? "yearly" : "monthly";
+      const subscriptionPeriod: SubscriptionPeriod = productIdentifier.includes(
+        "Yearly"
+      )
+        ? "yearly"
+        : "monthly";
 
       return {
         isActive: true,
@@ -528,7 +573,11 @@ class RevenueCatService {
         productIdentifier,
       };
     } catch (error) {
-      logger.error("Failed to get subscription status", error, "RevenueCatService");
+      logger.error(
+        "Failed to get subscription status",
+        error,
+        "RevenueCatService"
+      );
       return {
         isActive: false,
         isFamilyPlan: false,
@@ -609,7 +658,9 @@ class RevenueCatService {
   /**
    * Get plan limits for the current subscription
    */
-  async getPlanLimits(): Promise<typeof PLAN_LIMITS.INDIVIDUAL | typeof PLAN_LIMITS.FAMILY | null> {
+  async getPlanLimits(): Promise<
+    typeof PLAN_LIMITS.INDIVIDUAL | typeof PLAN_LIMITS.FAMILY | null
+  > {
     try {
       const status = await this.getSubscriptionStatus();
       if (!status.isActive) {
@@ -630,7 +681,11 @@ class RevenueCatService {
       const limits = await this.getPlanLimits();
       return limits?.familyMembers ?? 0;
     } catch (error) {
-      logger.error("Failed to get max family members", error, "RevenueCatService");
+      logger.error(
+        "Failed to get max family members",
+        error,
+        "RevenueCatService"
+      );
       return 0;
     }
   }
@@ -643,11 +698,14 @@ class RevenueCatService {
       const limits = await this.getPlanLimits();
       return limits?.totalMembers ?? 0;
     } catch (error) {
-      logger.error("Failed to get max total members", error, "RevenueCatService");
+      logger.error(
+        "Failed to get max total members",
+        error,
+        "RevenueCatService"
+      );
       return 0;
     }
   }
 }
 
 export const revenueCatService = new RevenueCatService();
-

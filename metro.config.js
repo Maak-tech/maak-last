@@ -37,8 +37,8 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (
     typeof moduleName === "string" &&
     (moduleName === "react-native-reanimated/src/component/Text" ||
-     moduleName.endsWith("/react-native-reanimated/src/component/Text") ||
-     moduleName.endsWith("/react-native-reanimated/src/component/Text.ts"))
+      moduleName.endsWith("/react-native-reanimated/src/component/Text") ||
+      moduleName.endsWith("/react-native-reanimated/src/component/Text.ts"))
   ) {
     return {
       filePath: path.resolve(__dirname, "lib/polyfills/reanimatedText.js"),

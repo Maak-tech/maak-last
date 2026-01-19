@@ -6,16 +6,16 @@
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { MetricSample } from "@/lib/health/healthTypes";
-import { dexcomService } from "./dexcomService";
-import { freestyleLibreService } from "./freestyleLibreService";
 import {
-  healthRulesEngine,
-  observabilityEmitter,
-  healthTimelineService,
   escalationService,
+  healthRulesEngine,
+  healthTimelineService,
+  observabilityEmitter,
   type VitalReading,
 } from "@/lib/observability";
 import { alertService } from "./alertService";
+import { dexcomService } from "./dexcomService";
+import { freestyleLibreService } from "./freestyleLibreService";
 import { userService } from "./userService";
 
 /**
@@ -109,7 +109,14 @@ async function saveVitalSample(
 
     // Evaluate vitals for health events (only for critical vitals)
     // We'll collect vitals and evaluate them in batches to avoid too many evaluations
-    await evaluateAndCreateHealthEventIfNeeded(userId, vitalType, value, timestamp, source, metadata);
+    await evaluateAndCreateHealthEventIfNeeded(
+      userId,
+      vitalType,
+      value,
+      timestamp,
+      source,
+      metadata
+    );
   } catch (error) {
     throw error;
   }
@@ -159,15 +166,19 @@ async function evaluateAndCreateHealthEventIfNeeded(
     await healthTimelineService.addEvent({
       userId,
       eventType: evaluation.triggered ? "vital_abnormal" : "vital_recorded",
-      title: evaluation.triggered 
+      title: evaluation.triggered
         ? evaluation.message || `Abnormal ${vitalType} detected`
         : `${vitalType} recorded`,
       description: evaluation.triggered
         ? evaluation.recommendedAction
         : `${value} ${reading.unit} from ${source}`,
       timestamp,
-      severity: evaluation.triggered 
-        ? (evaluation.severity === "critical" ? "critical" : evaluation.severity === "error" ? "error" : "warn")
+      severity: evaluation.triggered
+        ? evaluation.severity === "critical"
+          ? "critical"
+          : evaluation.severity === "error"
+            ? "error"
+            : "warn"
         : "info",
       icon: evaluation.triggered ? "alert-circle" : "heart-pulse",
       metadata: {
@@ -180,7 +191,10 @@ async function evaluateAndCreateHealthEventIfNeeded(
       actorType: "system",
     });
 
-    if (evaluation.triggered && (evaluation.severity === "error" || evaluation.severity === "critical")) {
+    if (
+      evaluation.triggered &&
+      (evaluation.severity === "error" || evaluation.severity === "critical")
+    ) {
       await observabilityEmitter.emitHealthEvent(
         "vital_threshold_breach",
         evaluation.message || `${vitalType} out of range`,
@@ -194,13 +208,16 @@ async function evaluateAndCreateHealthEventIfNeeded(
         }
       );
 
-      const alertType = evaluation.severity === "critical" ? "vital_critical" : "vital_error";
-      
+      const alertType =
+        evaluation.severity === "critical" ? "vital_critical" : "vital_error";
+
       const alertId = await alertService.createAlert({
         userId,
         type: alertType as any,
         severity: evaluation.severity === "critical" ? "critical" : "high",
-        message: evaluation.message || `Abnormal ${vitalType} detected: ${value} ${reading.unit}`,
+        message:
+          evaluation.message ||
+          `Abnormal ${vitalType} detected: ${value} ${reading.unit}`,
         timestamp: new Date(),
         resolved: false,
         responders: [],
@@ -288,7 +305,7 @@ export async function saveIntegrationVitalsToFirestore(
           if (typeof sample.value === "number") {
             value = sample.value;
           } else if (typeof sample.value === "string") {
-            value = parseFloat(sample.value);
+            value = Number.parseFloat(sample.value);
             if (isNaN(value)) {
               continue; // Skip invalid values
             }
@@ -301,7 +318,7 @@ export async function saveIntegrationVitalsToFirestore(
             const metadata = (sample as any).metadata;
             const systolic = metadata.systolic || value;
             const diastolic = metadata.diastolic;
-            
+
             if (diastolic !== undefined) {
               // Save systolic value with metadata
               await saveVitalSample(
@@ -352,15 +369,13 @@ export async function saveIntegrationVitalsToFirestore(
  * Save vitals from sync payload
  * Called after successful health data sync
  */
-export async function saveSyncVitalsToFirestore(
-  payload: {
-    provider: string;
-    metrics: Array<{
-      metricKey: string;
-      samples: MetricSample[];
-    }>;
-  }
-): Promise<number> {
+export async function saveSyncVitalsToFirestore(payload: {
+  provider: string;
+  metrics: Array<{
+    metricKey: string;
+    samples: MetricSample[];
+  }>;
+}): Promise<number> {
   const currentUser = auth.currentUser;
   if (!currentUser?.uid) {
     throw new Error("User must be authenticated");

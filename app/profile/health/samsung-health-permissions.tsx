@@ -5,13 +5,7 @@
  */
 
 import { useNavigation, useRouter } from "expo-router";
-import {
-  ArrowLeft,
-  Check,
-  ChevronRight,
-  Heart,
-  Info,
-} from "lucide-react-native";
+import { ArrowLeft, Check, ChevronRight, Info } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -19,7 +13,6 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -34,8 +27,6 @@ import {
   type MetricGroup,
 } from "@/lib/health/healthMetricsCatalog";
 import { samsungHealthService } from "@/lib/services/samsungHealthService";
-import { saveProviderConnection } from "@/lib/health/healthSync";
-import type { ProviderConnection } from "@/lib/health/healthTypes";
 
 export default function SamsungHealthPermissionsScreen() {
   const router = useRouter();
@@ -54,7 +45,9 @@ export default function SamsungHealthPermissionsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(new Set());
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(
+    new Set()
+  );
   const [availableMetrics, setAvailableMetrics] = useState<HealthMetric[]>([]);
   const [groups, setGroups] = useState<MetricGroup[]>([]);
 
@@ -139,9 +132,8 @@ export default function SamsungHealthPermissionsScreen() {
     setSelectedMetrics(newSelected);
   };
 
-  const getMetricsInGroup = (groupKey: MetricGroup) => {
-    return availableMetrics.filter((m) => m.group === groupKey);
-  };
+  const getMetricsInGroup = (groupKey: MetricGroup) =>
+    availableMetrics.filter((m) => m.group === groupKey);
 
   const isGroupFullySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
@@ -153,7 +145,9 @@ export default function SamsungHealthPermissionsScreen() {
 
   const isGroupPartiallySelected = (groupKey: MetricGroup) => {
     const groupMetrics = getMetricsInGroup(groupKey);
-    const selectedCount = groupMetrics.filter((m) => selectedMetrics.has(m.key)).length;
+    const selectedCount = groupMetrics.filter((m) =>
+      selectedMetrics.has(m.key)
+    ).length;
     return selectedCount > 0 && selectedCount < groupMetrics.length;
   };
 
@@ -183,14 +177,18 @@ export default function SamsungHealthPermissionsScreen() {
         [
           {
             text: isRTL ? "موافق" : "OK",
-            onPress: () => router.replace("/profile/health-integrations" as any),
+            onPress: () =>
+              router.replace("/profile/health-integrations" as any),
           },
         ]
       );
     } catch (error: any) {
       Alert.alert(
         isRTL ? "فشل الربط" : "Connection Failed",
-        error.message || (isRTL ? "فشل في ربط سامسونج هيلث" : "Failed to connect Samsung Health")
+        error.message ||
+          (isRTL
+            ? "فشل في ربط سامسونج هيلث"
+            : "Failed to connect Samsung Health")
       );
     } finally {
       setConnecting(false);
@@ -253,8 +251,8 @@ export default function SamsungHealthPermissionsScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {/* Info Section */}
         <View style={styles.infoSection}>
@@ -338,8 +336,11 @@ export default function SamsungHealthPermissionsScreen() {
                       { color: theme.colors.text.tertiary },
                     ]}
                   >
-                    {groupMetrics.filter((m) => selectedMetrics.has(m.key)).length}/
-                    {groupMetrics.length}
+                    {
+                      groupMetrics.filter((m) => selectedMetrics.has(m.key))
+                        .length
+                    }
+                    /{groupMetrics.length}
                   </Text>
                 </TouchableOpacity>
 
@@ -352,7 +353,8 @@ export default function SamsungHealthPermissionsScreen() {
                       <View
                         style={[
                           styles.metricCheckbox,
-                          selectedMetrics.has(metric.key) && styles.metricCheckboxChecked,
+                          selectedMetrics.has(metric.key) &&
+                            styles.metricCheckboxChecked,
                         ]}
                       >
                         {selectedMetrics.has(metric.key) && (
@@ -392,8 +394,8 @@ export default function SamsungHealthPermissionsScreen() {
         {/* Connect Button */}
         <View style={styles.connectSection}>
           <TouchableOpacity
-            onPress={handleConnect}
             disabled={connecting}
+            onPress={handleConnect}
             style={[
               styles.connectButton,
               { backgroundColor: "#22C55E" },

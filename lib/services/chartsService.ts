@@ -1,4 +1,4 @@
-import type { Symptom, Medication, VitalSign, Mood, LabResult } from "@/types";
+import type { Medication, Symptom, VitalSign } from "@/types";
 
 export interface ChartDataPoint {
   x: string | number; // Date or timestamp
@@ -34,10 +34,7 @@ class ChartsService {
   /**
    * Prepare time-series data for symptoms
    */
-  prepareSymptomTimeSeries(
-    symptoms: Symptom[],
-    days: number = 30
-  ): TimeSeriesData {
+  prepareSymptomTimeSeries(symptoms: Symptom[], days = 30): TimeSeriesData {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
@@ -47,9 +44,8 @@ class ChartsService {
 
     symptoms
       .filter((s) => {
-        const symptomDate = s.timestamp instanceof Date
-          ? s.timestamp
-          : new Date(s.timestamp);
+        const symptomDate =
+          s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp);
         return symptomDate >= startDate && symptomDate <= endDate;
       })
       .forEach((symptom) => {
@@ -69,9 +65,10 @@ class ChartsService {
       date.setDate(date.getDate() + i);
       const dateKey = this.formatDateKey(date);
       const severities = dailyData.get(dateKey) || [];
-      const avgSeverity = severities.length > 0
-        ? severities.reduce((a, b) => a + b, 0) / severities.length
-        : 0;
+      const avgSeverity =
+        severities.length > 0
+          ? severities.reduce((a, b) => a + b, 0) / severities.length
+          : 0;
 
       labels.push(this.formatDateLabel(date));
       data.push(avgSeverity);
@@ -95,7 +92,7 @@ class ChartsService {
   prepareVitalTimeSeries(
     vitals: VitalSign[],
     type: VitalSign["type"],
-    days: number = 30
+    days = 30
   ): TimeSeriesData {
     const endDate = new Date();
     const startDate = new Date();
@@ -103,9 +100,8 @@ class ChartsService {
 
     const filteredVitals = vitals.filter((v) => {
       if (v.type !== type) return false;
-      const vitalDate = v.timestamp instanceof Date
-        ? v.timestamp
-        : new Date(v.timestamp);
+      const vitalDate =
+        v.timestamp instanceof Date ? v.timestamp : new Date(v.timestamp);
       return vitalDate >= startDate && vitalDate <= endDate;
     });
 
@@ -129,9 +125,10 @@ class ChartsService {
       date.setDate(date.getDate() + i);
       const dateKey = this.formatDateKey(date);
       const values = dailyData.get(dateKey) || [];
-      const avgValue = values.length > 0
-        ? values.reduce((a, b) => a + b, 0) / values.length
-        : 0;
+      const avgValue =
+        values.length > 0
+          ? values.reduce((a, b) => a + b, 0) / values.length
+          : 0;
 
       labels.push(this.formatDateLabel(date));
       data.push(avgValue);
@@ -150,7 +147,8 @@ class ChartsService {
       datasets: [
         {
           data,
-          color: colorMap[type] || ((opacity) => `rgba(100, 100, 100, ${opacity})`),
+          color:
+            colorMap[type] || ((opacity) => `rgba(100, 100, 100, ${opacity})`),
           strokeWidth: 2,
         },
       ],
@@ -162,7 +160,7 @@ class ChartsService {
    */
   prepareMedicationComplianceTimeSeries(
     medications: Medication[],
-    days: number = 30
+    days = 30
   ): TimeSeriesData {
     const endDate = new Date();
     const startDate = new Date();
@@ -180,13 +178,14 @@ class ChartsService {
       let takenReminders = 0;
 
       medications.forEach((med) => {
-        if (!med.reminders || !Array.isArray(med.reminders)) return;
+        if (!(med.reminders && Array.isArray(med.reminders))) return;
 
         med.reminders.forEach((reminder) => {
           if (reminder.taken && reminder.takenAt) {
-            const takenDate = reminder.takenAt instanceof Date
-              ? reminder.takenAt
-              : new Date(reminder.takenAt);
+            const takenDate =
+              reminder.takenAt instanceof Date
+                ? reminder.takenAt
+                : new Date(reminder.takenAt);
             if (takenDate.toDateString() === dateKey) {
               takenReminders++;
             }
@@ -195,9 +194,8 @@ class ChartsService {
         });
       });
 
-      const compliance = totalReminders > 0
-        ? (takenReminders / totalReminders) * 100
-        : 100;
+      const compliance =
+        totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
 
       labels.push(this.formatDateLabel(date));
       data.push(Math.round(compliance));
@@ -221,7 +219,7 @@ class ChartsService {
   calculateCorrelation(
     symptoms: Symptom[],
     medications: Medication[],
-    days: number = 30
+    days = 30
   ): CorrelationData {
     const endDate = new Date();
     const startDate = new Date();
@@ -231,9 +229,8 @@ class ChartsService {
     const symptomData = new Map<string, number>();
     symptoms
       .filter((s) => {
-        const symptomDate = s.timestamp instanceof Date
-          ? s.timestamp
-          : new Date(s.timestamp);
+        const symptomDate =
+          s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp);
         return symptomDate >= startDate && symptomDate <= endDate;
       })
       .forEach((symptom) => {
@@ -245,13 +242,14 @@ class ChartsService {
     // Calculate medication compliance by date
     const medicationData = new Map<string, number>();
     medications.forEach((med) => {
-      if (!med.reminders || !Array.isArray(med.reminders)) return;
+      if (!(med.reminders && Array.isArray(med.reminders))) return;
 
       med.reminders.forEach((reminder) => {
         if (reminder.taken && reminder.takenAt) {
-          const takenDate = reminder.takenAt instanceof Date
-            ? reminder.takenAt
-            : new Date(reminder.takenAt);
+          const takenDate =
+            reminder.takenAt instanceof Date
+              ? reminder.takenAt
+              : new Date(reminder.takenAt);
           if (takenDate >= startDate && takenDate <= endDate) {
             const dateKey = this.formatDateKey(takenDate);
             const current = medicationData.get(dateKey) || 0;
@@ -289,17 +287,19 @@ class ChartsService {
       yLabel: "Symptom Severity",
       dataPoints,
       correlation,
-      trend: correlation > 0.3 ? "negative" : correlation < -0.3 ? "positive" : "none",
+      trend:
+        correlation > 0.3
+          ? "negative"
+          : correlation < -0.3
+            ? "positive"
+            : "none",
     };
   }
 
   /**
    * Predict trend based on historical data
    */
-  predictTrend(
-    dataPoints: ChartDataPoint[],
-    futureDays: number = 7
-  ): TrendPrediction {
+  predictTrend(dataPoints: ChartDataPoint[], futureDays = 7): TrendPrediction {
     if (dataPoints.length < 7) {
       return {
         historical: dataPoints,
@@ -354,14 +354,18 @@ class ChartsService {
 
     // Calculate confidence based on data variance
     const mean = sumY / n;
-    const variance = yValues.reduce((sum, y) => sum + Math.pow(y - mean, 2), 0) / n;
-    const confidence = Math.max(0, Math.min(1, 1 - variance / (mean * mean || 1)));
+    const variance = yValues.reduce((sum, y) => sum + (y - mean) ** 2, 0) / n;
+    const confidence = Math.max(
+      0,
+      Math.min(1, 1 - variance / (mean * mean || 1))
+    );
 
     return {
       historical: dataPoints,
       predicted,
       confidence,
-      trend: slope > 0.1 ? "increasing" : slope < -0.1 ? "decreasing" : "stable",
+      trend:
+        slope > 0.1 ? "increasing" : slope < -0.1 ? "decreasing" : "stable",
     };
   }
 
@@ -385,10 +389,7 @@ class ChartsService {
   /**
    * Calculate Pearson correlation coefficient
    */
-  private calculateCorrelationCoefficient(
-    x: number[],
-    y: number[]
-  ): number {
+  private calculateCorrelationCoefficient(x: number[], y: number[]): number {
     if (x.length !== y.length || x.length === 0) return 0;
 
     const n = x.length;
@@ -417,16 +418,19 @@ class ChartsService {
     previous: TimeSeriesData;
     change: number; // Percentage change
   } {
-    const currentAvg = currentData.reduce((sum, p) => sum + p.y, 0) / currentData.length;
-    const previousAvg = previousData.reduce((sum, p) => sum + p.y, 0) / previousData.length;
-    const change = previousAvg > 0
-      ? ((currentAvg - previousAvg) / previousAvg) * 100
-      : 0;
+    const currentAvg =
+      currentData.reduce((sum, p) => sum + p.y, 0) / currentData.length;
+    const previousAvg =
+      previousData.reduce((sum, p) => sum + p.y, 0) / previousData.length;
+    const change =
+      previousAvg > 0 ? ((currentAvg - previousAvg) / previousAvg) * 100 : 0;
 
     return {
       current: {
         labels: currentData.map((p) =>
-          typeof p.x === "string" ? this.formatDateLabel(new Date(p.x)) : String(p.x)
+          typeof p.x === "string"
+            ? this.formatDateLabel(new Date(p.x))
+            : String(p.x)
         ),
         datasets: [
           {
@@ -438,7 +442,9 @@ class ChartsService {
       },
       previous: {
         labels: previousData.map((p) =>
-          typeof p.x === "string" ? this.formatDateLabel(new Date(p.x)) : String(p.x)
+          typeof p.x === "string"
+            ? this.formatDateLabel(new Date(p.x))
+            : String(p.x)
         ),
         datasets: [
           {

@@ -1,61 +1,71 @@
-import React, { useState, useEffect } from "react";
 import {
-  View,
+  Activity,
+  AlertTriangle,
+  Brain,
+  ChevronRight,
+  Heart,
+  Info,
+  Lightbulb,
+  Pill,
+  Shield,
+  Target,
+  TrendingUp,
+  Users,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ActivityIndicator,
+  Dimensions,
   ScrollView,
   Text,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Dimensions
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
-import { aiInsightsService, type AIInsightsDashboard as AIInsightsDashboardData } from "@/lib/services/aiInsightsService";
-import { correlationAnalysisService } from "@/lib/services/correlationAnalysisService";
-import { symptomPatternRecognitionService } from "@/lib/services/symptomPatternRecognitionService";
-import { riskAssessmentService } from "@/lib/services/riskAssessmentService";
-import { medicationInteractionService } from "@/lib/services/medicationInteractionService";
-import { proactiveHealthSuggestionsService } from "@/lib/services/proactiveHealthSuggestionsService";
 import { Button, Card } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  AlertTriangle,
-  Bot,
-  Shield,
-  Target,
-  Brain,
-  ChevronRight,
-  Activity,
-  Pill,
-  Lightbulb,
-  Info,
-  TrendingUp,
-  Heart,
-  Users
-} from "lucide-react-native";
+  type AIInsightsDashboard as AIInsightsDashboardData,
+  aiInsightsService,
+} from "@/lib/services/aiInsightsService";
 
 // Icon mapping function
 const getIcon = (name: string, size: number, color: string) => {
   switch (name) {
-    case "Brain": return <Brain size={size} color={color} />;
-    case "AlertTriangle": return <AlertTriangle size={size} color={color} />;
-    case "Shield": return <Shield size={size} color={color} />;
-    case "Target": return <Target size={size} color={color} />;
-    case "ChevronRight": return <ChevronRight size={size} color={color} />;
-    case "Activity": return <Activity size={size} color={color} />;
-    case "Pill": return <Pill size={size} color={color} />;
-    case "Lightbulb": return <Lightbulb size={size} color={color} />;
-    case "Info": return <Info size={size} color={color} />;
-    case "TrendingUp": return <TrendingUp size={size} color={color} />;
-    case "Heart": return <Heart size={size} color={color} />;
-    case "Users": return <Users size={size} color={color} />;
-    default: return <Brain size={size} color={color} />;
+    case "Brain":
+      return <Brain color={color} size={size} />;
+    case "AlertTriangle":
+      return <AlertTriangle color={color} size={size} />;
+    case "Shield":
+      return <Shield color={color} size={size} />;
+    case "Target":
+      return <Target color={color} size={size} />;
+    case "ChevronRight":
+      return <ChevronRight color={color} size={size} />;
+    case "Activity":
+      return <Activity color={color} size={size} />;
+    case "Pill":
+      return <Pill color={color} size={size} />;
+    case "Lightbulb":
+      return <Lightbulb color={color} size={size} />;
+    case "Info":
+      return <Info color={color} size={size} />;
+    case "TrendingUp":
+      return <TrendingUp color={color} size={size} />;
+    case "Heart":
+      return <Heart color={color} size={size} />;
+    case "Users":
+      return <Users color={color} size={size} />;
+    default:
+      return <Brain color={color} size={size} />;
   }
 };
+
 import { StyleSheet } from "react-native";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 // Base styles
 const styles = StyleSheet.create({
@@ -63,12 +73,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   center: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   p4: {
     padding: 16,
@@ -102,36 +112,36 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 14,
-    color: '#1F2937',
+    color: "#1F2937",
   },
   textSm: {
     fontSize: 12,
   },
   textMuted: {
-    color: '#6B7280',
+    color: "#6B7280",
   },
   textCenter: {
-    textAlign: 'center',
+    textAlign: "center",
   },
   title: {
     fontSize: 24,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
   },
   lineHeight: {
     lineHeight: 20,
   },
   fontBold: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
   py4: {
     paddingVertical: 16,
@@ -146,25 +156,25 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginRight: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    flexDirection: 'row' as const,
-    alignItems: 'center',
+    backgroundColor: "#F3F4F6",
+    flexDirection: "row" as const,
+    alignItems: "center",
   },
   categoryTabActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: "#3B82F6",
   },
   categoryTabText: {
     marginLeft: 6,
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   categoryTabTextActive: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: "600",
+    color: "#1F2937",
   },
 });
 
@@ -175,15 +185,17 @@ interface AIInsightsDashboardProps {
 
 function AIInsightsDashboard({
   onInsightPress,
-  compact = false
+  compact = false,
 }: AIInsightsDashboardProps) {
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
-  const [insights, setInsights] = useState<AIInsightsDashboardData | null>(null);
+  const [insights, setInsights] = useState<AIInsightsDashboardData | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('overview');
+  const [selectedCategory, setSelectedCategory] = useState<string>("overview");
 
   useEffect(() => {
     loadInsights();
@@ -195,11 +207,15 @@ function AIInsightsDashboard({
     try {
       setLoading(true);
       setError(null);
-      const dashboard = await aiInsightsService.generateAIInsightsDashboard(user.id);
+      const dashboard = await aiInsightsService.generateAIInsightsDashboard(
+        user.id
+      );
       setInsights(dashboard);
     } catch (err) {
-      console.error('Failed to load AI insights:', err);
-      setError(t("failedToLoadInsights", "Failed to load insights. Please try again."));
+      console.error("Failed to load AI insights:", err);
+      setError(
+        t("failedToLoadInsights", "Failed to load insights. Please try again.")
+      );
     } finally {
       setLoading(false);
     }
@@ -208,7 +224,7 @@ function AIInsightsDashboard({
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator color="#3B82F6" size="large" />
         <Text style={[styles.text, styles.mt2]}>
           {t("aiInsightsAnalyzing", "Analyzing your health data...")}
         </Text>
@@ -219,26 +235,32 @@ function AIInsightsDashboard({
   if (error || !insights) {
     return (
       <View style={styles.center}>
-        <AlertTriangle size={48} color="#EF4444" />
+        <AlertTriangle color="#EF4444" size={48} />
         <Text style={[styles.text, styles.mt2, styles.textCenter]}>
           {error || t("aiInsightsUnableToLoad", "Unable to load insights")}
         </Text>
         <Button
-          title={t("retry", "Retry")}
           onPress={loadInsights}
           style={styles.mt4}
+          title={t("retry", "Retry")}
         />
       </View>
     );
   }
 
   if (compact) {
-    return <CompactInsightsView insights={insights} onPress={onInsightPress} isRTL={isRTL} />;
+    return (
+      <CompactInsightsView
+        insights={insights}
+        isRTL={isRTL}
+        onPress={onInsightPress}
+      />
+    );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
         <View style={styles.p4}>
           {/* Header */}
           <View style={styles.mb4}>
@@ -256,22 +278,22 @@ function AIInsightsDashboard({
           {/* Summary Cards */}
           <View style={[styles.row, styles.mb4]}>
             <SummaryCard
+              color="#3B82F6"
+              icon="Brain"
               title={t("totalInsights", "Total Insights")}
               value={insights.insightsSummary.totalInsights.toString()}
-              icon="Brain"
-              color="#3B82F6"
             />
             <SummaryCard
+              color="#EF4444"
+              icon="AlertTriangle"
               title={t("highPriority", "High Priority")}
               value={insights.insightsSummary.highPriorityItems.toString()}
-              icon="AlertTriangle"
-              color="#EF4444"
             />
             <SummaryCard
+              color={getRiskColor(insights.riskAssessment.riskLevel)}
+              icon="Shield"
               title={t("riskLevel", "Risk Level")}
               value={insights.riskAssessment.riskLevel}
-              icon="Shield"
-              color={getRiskColor(insights.riskAssessment.riskLevel)}
             />
           </View>
 
@@ -282,26 +304,57 @@ function AIInsightsDashboard({
             style={styles.mb4}
           >
             {[
-              { key: 'overview', label: t("insightsOverview", "Overview"), icon: 'Home' },
-              { key: 'correlations', label: t("insightsCorrelations", "Correlations"), icon: 'TrendingUp' },
-              { key: 'patterns', label: t("insightsPatterns", "Patterns"), icon: 'Activity' },
-              { key: 'risk', label: t("insightsRiskAssessment", "Risk Assessment"), icon: 'Shield' },
-              { key: 'medications', label: t("medications", "Medications"), icon: 'Pill' },
-              { key: 'suggestions', label: t("recommendations", "Recommendations"), icon: 'Lightbulb' }
-            ].map(category => (
+              {
+                key: "overview",
+                label: t("insightsOverview", "Overview"),
+                icon: "Home",
+              },
+              {
+                key: "correlations",
+                label: t("insightsCorrelations", "Correlations"),
+                icon: "TrendingUp",
+              },
+              {
+                key: "patterns",
+                label: t("insightsPatterns", "Patterns"),
+                icon: "Activity",
+              },
+              {
+                key: "risk",
+                label: t("insightsRiskAssessment", "Risk Assessment"),
+                icon: "Shield",
+              },
+              {
+                key: "medications",
+                label: t("medications", "Medications"),
+                icon: "Pill",
+              },
+              {
+                key: "suggestions",
+                label: t("recommendations", "Recommendations"),
+                icon: "Lightbulb",
+              },
+            ].map((category) => (
               <TouchableOpacity
                 key={category.key}
+                onPress={() => setSelectedCategory(category.key)}
                 style={[
                   styles.categoryTab,
-                  selectedCategory === category.key && styles.categoryTabActive
+                  selectedCategory === category.key && styles.categoryTabActive,
                 ]}
-                onPress={() => setSelectedCategory(category.key)}
               >
-                {getIcon(category.icon, 16, selectedCategory === category.key ? '#FFFFFF' : '#6B7280')}
-                <Text style={[
-                  styles.categoryTabText,
-                  selectedCategory === category.key && styles.categoryTabTextActive
-                ]}>
+                {getIcon(
+                  category.icon,
+                  16,
+                  selectedCategory === category.key ? "#FFFFFF" : "#6B7280"
+                )}
+                <Text
+                  style={[
+                    styles.categoryTabText,
+                    selectedCategory === category.key &&
+                      styles.categoryTabTextActive,
+                  ]}
+                >
                   {category.label}
                 </Text>
               </TouchableOpacity>
@@ -317,7 +370,11 @@ function AIInsightsDashboard({
 
           {/* AI Narrative */}
           {insights.aiNarrative && (
-            <Card style={styles.mb4} onPress={() => {}} contentStyle={undefined}>
+            <Card
+              contentStyle={undefined}
+              onPress={() => {}}
+              style={styles.mb4}
+            >
               <View style={styles.row}>
                 {getIcon("Bot", 20, "#3B82F6")}
                 <Text style={[styles.cardTitle, styles.ml2]}>
@@ -343,7 +400,7 @@ function SummaryCard({
   title,
   value,
   icon,
-  color
+  color,
 }: {
   title: string;
   value: string;
@@ -351,7 +408,14 @@ function SummaryCard({
   color: string;
 }) {
   return (
-    <Card style={[styles.summaryCard, { borderLeftColor: color, borderLeftWidth: 4 }]} onPress={() => {}} contentStyle={undefined}>
+    <Card
+      contentStyle={undefined}
+      onPress={() => {}}
+      style={[
+        styles.summaryCard,
+        { borderLeftColor: color, borderLeftWidth: 4 },
+      ]}
+    >
       <View style={styles.row}>
         {getIcon(icon, 24, color)}
         <View style={styles.ml3}>
@@ -367,34 +431,57 @@ function SummaryCard({
 function CategoryContent({
   category,
   insights,
-  onInsightPress
+  onInsightPress,
 }: {
   category: string;
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
 }) {
   switch (category) {
-    case 'overview':
-      return <OverviewContent insights={insights} onInsightPress={onInsightPress} />;
-    case 'correlations':
-      return <CorrelationsContent insights={insights} onInsightPress={onInsightPress} />;
-    case 'patterns':
-      return <PatternsContent insights={insights} onInsightPress={onInsightPress} />;
-    case 'risk':
-      return <RiskContent insights={insights} onInsightPress={onInsightPress} />;
-    case 'medications':
-      return <MedicationsContent insights={insights} onInsightPress={onInsightPress} />;
-    case 'suggestions':
-      return <SuggestionsContent insights={insights} onInsightPress={onInsightPress} />;
+    case "overview":
+      return (
+        <OverviewContent insights={insights} onInsightPress={onInsightPress} />
+      );
+    case "correlations":
+      return (
+        <CorrelationsContent
+          insights={insights}
+          onInsightPress={onInsightPress}
+        />
+      );
+    case "patterns":
+      return (
+        <PatternsContent insights={insights} onInsightPress={onInsightPress} />
+      );
+    case "risk":
+      return (
+        <RiskContent insights={insights} onInsightPress={onInsightPress} />
+      );
+    case "medications":
+      return (
+        <MedicationsContent
+          insights={insights}
+          onInsightPress={onInsightPress}
+        />
+      );
+    case "suggestions":
+      return (
+        <SuggestionsContent
+          insights={insights}
+          onInsightPress={onInsightPress}
+        />
+      );
     default:
-      return <OverviewContent insights={insights} onInsightPress={onInsightPress} />;
+      return (
+        <OverviewContent insights={insights} onInsightPress={onInsightPress} />
+      );
   }
 }
 
 // Overview Content
 function OverviewContent({
   insights,
-  onInsightPress
+  onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
@@ -403,15 +490,15 @@ function OverviewContent({
     ...insights.medicationAlerts.slice(0, 2),
     ...insights.symptomAnalysis.diagnosisSuggestions.slice(0, 2),
     ...insights.correlationAnalysis.correlationResults.slice(0, 2),
-    ...insights.healthSuggestions.slice(0, 2)
+    ...insights.healthSuggestions.slice(0, 2),
   ];
 
   return (
     <View>
       {topInsights.map((insight, index) => (
         <InsightCard
-          key={`overview-${index}`}
           insight={insight}
+          key={`overview-${index}`}
           onPress={() => onInsightPress?.(insight)}
         />
       ))}
@@ -422,7 +509,7 @@ function OverviewContent({
 // Correlations Content
 function CorrelationsContent({
   insights,
-  onInsightPress
+  onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
@@ -433,13 +520,15 @@ function CorrelationsContent({
       <Text style={[styles.sectionTitle, styles.mb3]}>
         {t("insightsHealthDataCorrelationsTitle", "Health Data Correlations")}
       </Text>
-      {insights.correlationAnalysis.correlationResults.map((correlation: any, index: number) => (
-        <CorrelationCard
-          key={`correlation-${index}`}
-          correlation={correlation}
-          onPress={() => onInsightPress?.(correlation)}
-        />
-      ))}
+      {insights.correlationAnalysis.correlationResults.map(
+        (correlation: any, index: number) => (
+          <CorrelationCard
+            correlation={correlation}
+            key={`correlation-${index}`}
+            onPress={() => onInsightPress?.(correlation)}
+          />
+        )
+      )}
       {insights.correlationAnalysis.correlationResults.length === 0 && (
         <EmptyState
           message={t(
@@ -455,7 +544,7 @@ function CorrelationsContent({
 // Patterns Content
 function PatternsContent({
   insights,
-  onInsightPress
+  onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
@@ -466,29 +555,31 @@ function PatternsContent({
       <Text style={[styles.sectionTitle, styles.mb3]}>
         {t("insightsSymptomPatternsTitle", "Symptom Patterns & Diagnosis")}
       </Text>
-      {insights.symptomAnalysis.diagnosisSuggestions.map((diagnosis: any, index: number) => (
-        <DiagnosisCard
-          key={`diagnosis-${index}`}
-          diagnosis={diagnosis}
-          onPress={() => onInsightPress?.(diagnosis)}
-        />
-      ))}
+      {insights.symptomAnalysis.diagnosisSuggestions.map(
+        (diagnosis: any, index: number) => (
+          <DiagnosisCard
+            diagnosis={diagnosis}
+            key={`diagnosis-${index}`}
+            onPress={() => onInsightPress?.(diagnosis)}
+          />
+        )
+      )}
       {insights.symptomAnalysis.patterns.map((pattern: any, index: number) => (
         <PatternCard
           key={`pattern-${index}`}
-          pattern={pattern}
           onPress={() => onInsightPress?.(pattern)}
+          pattern={pattern}
         />
       ))}
       {insights.symptomAnalysis.diagnosisSuggestions.length === 0 &&
-       insights.symptomAnalysis.patterns.length === 0 && (
-        <EmptyState
-          message={t(
-            "insightsNoSignificantSymptomPatterns",
-            "No significant symptom patterns detected."
-          )}
-        />
-      )}
+        insights.symptomAnalysis.patterns.length === 0 && (
+          <EmptyState
+            message={t(
+              "insightsNoSignificantSymptomPatterns",
+              "No significant symptom patterns detected."
+            )}
+          />
+        )}
     </View>
   );
 }
@@ -496,7 +587,7 @@ function PatternsContent({
 // Risk Content
 function RiskContent({
   insights,
-  onInsightPress
+  onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
@@ -510,12 +601,13 @@ function RiskContent({
         {t("insightsRiskAssessmentTitle", "Health Risk Assessment")}
       </Text>
 
-      <Card style={styles.mb3} onPress={() => {}} contentStyle={undefined}>
+      <Card contentStyle={undefined} onPress={() => {}} style={styles.mb3}>
         <View style={styles.row}>
           {getIcon("Shield", 24, getRiskColor(risk.riskLevel))}
           <View style={styles.ml3}>
             <Text style={styles.cardTitle}>
-              {t("overallRiskLabel", "Overall Risk")}: {risk.riskLevel.toUpperCase()}
+              {t("overallRiskLabel", "Overall Risk")}:{" "}
+              {risk.riskLevel.toUpperCase()}
             </Text>
             <Text style={[styles.text, styles.mt1]}>
               {t("scoreLabel", "Score")}: {risk.overallRiskScore}/100
@@ -524,7 +616,8 @@ function RiskContent({
         </View>
 
         <Text style={[styles.text, styles.mt3]}>
-          {t("nextAssessmentLabel", "Next Assessment")}: {risk.nextAssessmentDate.toLocaleDateString()}
+          {t("nextAssessmentLabel", "Next Assessment")}:{" "}
+          {risk.nextAssessmentDate.toLocaleDateString()}
         </Text>
       </Card>
 
@@ -533,8 +626,8 @@ function RiskContent({
       </Text>
       {risk.riskFactors.slice(0, 5).map((factor: any, index: number) => (
         <RiskFactorCard
-          key={`risk-factor-${index}`}
           factor={factor}
+          key={`risk-factor-${index}`}
           onPress={() => onInsightPress?.(factor)}
         />
       ))}
@@ -545,8 +638,10 @@ function RiskContent({
       {risk.preventiveRecommendations.map((rec: any, index: number) => (
         <RecommendationCard
           key={`rec-${index}`}
+          onPress={() =>
+            onInsightPress?.({ type: "recommendation", content: rec })
+          }
           recommendation={rec}
-          onPress={() => onInsightPress?.({ type: 'recommendation', content: rec })}
         />
       ))}
     </View>
@@ -556,7 +651,7 @@ function RiskContent({
 // Medications Content
 function MedicationsContent({
   insights,
-  onInsightPress
+  onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
@@ -569,8 +664,8 @@ function MedicationsContent({
       </Text>
       {insights.medicationAlerts.map((alert: any, index: number) => (
         <MedicationAlertCard
-          key={`med-alert-${index}`}
           alert={alert}
+          key={`med-alert-${index}`}
           onPress={() => onInsightPress?.(alert)}
         />
       ))}
@@ -589,7 +684,7 @@ function MedicationsContent({
 // Suggestions Content
 function SuggestionsContent({
   insights,
-  onInsightPress
+  onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
@@ -598,36 +693,44 @@ function SuggestionsContent({
   return (
     <View>
       <Text style={[styles.sectionTitle, styles.mb3]}>
-        {t("insightsPersonalizedRecommendationsTitle", "Personalized Recommendations")}
+        {t(
+          "insightsPersonalizedRecommendationsTitle",
+          "Personalized Recommendations"
+        )}
       </Text>
       {insights.healthSuggestions.map((suggestion: any, index: number) => (
         <SuggestionCard
           key={`suggestion-${index}`}
-          suggestion={suggestion}
           onPress={() => onInsightPress?.(suggestion)}
+          suggestion={suggestion}
         />
       ))}
       {insights.personalizedTips.map((tip: any, index: number) => (
         <TipCard
           key={`tip-${index}`}
+          onPress={() => onInsightPress?.({ type: "tip", content: tip })}
           tip={tip}
-          onPress={() => onInsightPress?.({ type: 'tip', content: tip })}
         />
       ))}
-      {insights.healthSuggestions.length === 0 && insights.personalizedTips.length === 0 && (
-        <EmptyState
-          message={t(
-            "insightsNoRecommendationsYet",
-            "No specific recommendations at this time. Keep tracking your health!"
-          )}
-        />
-      )}
+      {insights.healthSuggestions.length === 0 &&
+        insights.personalizedTips.length === 0 && (
+          <EmptyState
+            message={t(
+              "insightsNoRecommendationsYet",
+              "No specific recommendations at this time. Keep tracking your health!"
+            )}
+          />
+        )}
     </View>
   );
 }
 
 // Action Plan Section
-function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) {
+function ActionPlanSection({
+  insights,
+}: {
+  insights: AIInsightsDashboardData;
+}) {
   const { t } = useTranslation();
   const [actionPlan, setActionPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -640,14 +743,14 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
       const plan = await aiInsightsService.generateActionPlan(insights.userId);
       setActionPlan(plan);
     } catch (error) {
-      console.error('Failed to load action plan:', error);
+      console.error("Failed to load action plan:", error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card style={styles.mb4} onPress={() => {}} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={() => {}} style={styles.mb4}>
       <View style={styles.row}>
         {getIcon("Target", 20, "#3B82F6")}
         <Text style={[styles.cardTitle, styles.ml2]}>
@@ -655,22 +758,20 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
         </Text>
       </View>
 
-      {!actionPlan ? (
-        <Button
-          title={t("generateActionPlan", "Generate Action Plan")}
-          onPress={loadActionPlan}
-          loading={loading}
-          style={styles.mt3}
-        />
-      ) : (
+      {actionPlan ? (
         <View style={styles.mt3}>
           {actionPlan.immediate.length > 0 && (
             <View style={styles.mb3}>
-              <Text style={[styles.textSm, styles.fontBold, { color: '#EF4444' }]}>
+              <Text
+                style={[styles.textSm, styles.fontBold, { color: "#EF4444" }]}
+              >
                 {t("immediateActions", "Immediate Actions")}
               </Text>
               {actionPlan.immediate.map((action: string, index: number) => (
-                <Text key={`immediate-${index}`} style={[styles.text, styles.mt1]}>
+                <Text
+                  key={`immediate-${index}`}
+                  style={[styles.text, styles.mt1]}
+                >
                   • {action}
                 </Text>
               ))}
@@ -679,7 +780,9 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
 
           {actionPlan.shortTerm.length > 0 && (
             <View style={styles.mb3}>
-              <Text style={[styles.textSm, styles.fontBold, { color: '#F59E0B' }]}>
+              <Text
+                style={[styles.textSm, styles.fontBold, { color: "#F59E0B" }]}
+              >
                 {t("shortTermGoals", "Short-term Goals")}
               </Text>
               {actionPlan.shortTerm.map((action: string, index: number) => (
@@ -692,7 +795,9 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
 
           {actionPlan.longTerm.length > 0 && (
             <View style={styles.mb3}>
-              <Text style={[styles.textSm, styles.fontBold, { color: '#10B981' }]}>
+              <Text
+                style={[styles.textSm, styles.fontBold, { color: "#10B981" }]}
+              >
                 {t("longTermGoals", "Long-term Goals")}
               </Text>
               {actionPlan.longTerm.map((action: string, index: number) => (
@@ -705,17 +810,29 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
 
           {actionPlan.monitoring.length > 0 && (
             <View>
-              <Text style={[styles.textSm, styles.fontBold, { color: '#6B7280' }]}>
+              <Text
+                style={[styles.textSm, styles.fontBold, { color: "#6B7280" }]}
+              >
                 Ongoing Monitoring
               </Text>
               {actionPlan.monitoring.map((item: string, index: number) => (
-                <Text key={`monitor-${index}`} style={[styles.text, styles.mt1]}>
+                <Text
+                  key={`monitor-${index}`}
+                  style={[styles.text, styles.mt1]}
+                >
                   • {item}
                 </Text>
               ))}
             </View>
           )}
         </View>
+      ) : (
+        <Button
+          loading={loading}
+          onPress={loadActionPlan}
+          style={styles.mt3}
+          title={t("generateActionPlan", "Generate Action Plan")}
+        />
       )}
     </Card>
   );
@@ -725,29 +842,41 @@ function ActionPlanSection({ insights }: { insights: AIInsightsDashboardData }) 
 function CompactInsightsView({
   insights,
   onPress,
-  isRTL = false
+  isRTL = false,
 }: {
   insights: AIInsightsDashboardData;
   onPress?: (insight: any) => void;
   isRTL?: boolean;
 }) {
-  const prioritizedInsights = insights.insightsSummary.highPriorityItems > 0
-    ? (isRTL ? "هناك عناصر ذات أولوية عالية تحتاج إلى الاهتمام" : "High priority items need attention")
-    : (isRTL ? "بياناتك الصحية تبدو جيدة" : "Your health data looks good");
+  const prioritizedInsights =
+    insights.insightsSummary.highPriorityItems > 0
+      ? isRTL
+        ? "هناك عناصر ذات أولوية عالية تحتاج إلى الاهتمام"
+        : "High priority items need attention"
+      : isRTL
+        ? "بياناتك الصحية تبدو جيدة"
+        : "Your health data looks good";
 
   return (
-    <Card style={styles.mb3} onPress={() => onPress?.(insights)} contentStyle={undefined}>
+    <Card
+      contentStyle={undefined}
+      onPress={() => onPress?.(insights)}
+      style={styles.mb3}
+    >
       <View style={styles.row}>
         {getIcon("Brain", 24, "#3B82F6")}
         <View style={styles.ml3}>
-          <Text style={styles.cardTitle}>{isRTL ? "الرؤى الصحية" : "Health Insights"}</Text>
+          <Text style={styles.cardTitle}>
+            {isRTL ? "الرؤى الصحية" : "Health Insights"}
+          </Text>
           <Text style={[styles.text, styles.textMuted]}>
             {prioritizedInsights}
           </Text>
           <View style={[styles.row, styles.mt1]}>
             <Badge style={{}}>{insights.riskAssessment.riskLevel}</Badge>
             <Text style={[styles.textSm, styles.textMuted, styles.ml2]}>
-              {insights.insightsSummary.totalInsights} {isRTL ? "رؤى" : "insights"}
+              {insights.insightsSummary.totalInsights}{" "}
+              {isRTL ? "رؤى" : "insights"}
             </Text>
           </View>
         </View>
@@ -758,25 +887,48 @@ function CompactInsightsView({
 }
 
 // Helper Components
-function InsightCard({ insight, onPress }: { insight: any; onPress?: () => void }) {
+function InsightCard({
+  insight,
+  onPress,
+}: {
+  insight: any;
+  onPress?: () => void;
+}) {
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
-      <Text style={styles.cardTitle}>{insight.title || insight.condition || 'Insight'}</Text>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
+      <Text style={styles.cardTitle}>
+        {insight.title || insight.condition || "Insight"}
+      </Text>
       <Text style={[styles.text, styles.mt1]}>
-        {insight.description || insight.reasoning || 'Details available'}
+        {insight.description || insight.reasoning || "Details available"}
       </Text>
     </Card>
   );
 }
 
-function CorrelationCard({ correlation, onPress }: { correlation: any; onPress?: () => void }) {
-  const strengthColor = correlation.strength > 0.7 ? '#10B981' : correlation.strength > 0.3 ? '#F59E0B' : '#6B7280';
+function CorrelationCard({
+  correlation,
+  onPress,
+}: {
+  correlation: any;
+  onPress?: () => void;
+}) {
+  const strengthColor =
+    correlation.strength > 0.7
+      ? "#10B981"
+      : correlation.strength > 0.3
+        ? "#F59E0B"
+        : "#6B7280";
 
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
-        <Text style={styles.cardTitle}>{correlation.data.factor1} ↔ {correlation.data.factor2}</Text>
-        <Badge style={{}}>{`${(correlation.strength * 100).toFixed(0)}%`}</Badge>
+        <Text style={styles.cardTitle}>
+          {correlation.data.factor1} ↔ {correlation.data.factor2}
+        </Text>
+        <Badge
+          style={{}}
+        >{`${(correlation.strength * 100).toFixed(0)}%`}</Badge>
       </View>
       <Text style={[styles.text, styles.mt1]}>{correlation.description}</Text>
       {correlation.recommendation && (
@@ -788,17 +940,23 @@ function CorrelationCard({ correlation, onPress }: { correlation: any; onPress?:
   );
 }
 
-function DiagnosisCard({ diagnosis, onPress }: { diagnosis: any; onPress?: () => void }) {
+function DiagnosisCard({
+  diagnosis,
+  onPress,
+}: {
+  diagnosis: any;
+  onPress?: () => void;
+}) {
   const urgencyMap: { [key: string]: string } = {
-    emergency: '#EF4444',
-    high: '#EF4444',
-    medium: '#F59E0B',
-    low: '#10B981'
+    emergency: "#EF4444",
+    high: "#EF4444",
+    medium: "#F59E0B",
+    low: "#10B981",
   };
-  const urgencyColor = urgencyMap[String(diagnosis.urgency)] || '#6B7280';
+  const urgencyColor = urgencyMap[String(diagnosis.urgency)] || "#6B7280";
 
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         <Text style={styles.cardTitle}>{diagnosis.condition}</Text>
         <Badge style={{}}>{`${diagnosis.confidence}%`}</Badge>
@@ -816,9 +974,15 @@ function DiagnosisCard({ diagnosis, onPress }: { diagnosis: any; onPress?: () =>
   );
 }
 
-function PatternCard({ pattern, onPress }: { pattern: any; onPress?: () => void }) {
+function PatternCard({
+  pattern,
+  onPress,
+}: {
+  pattern: any;
+  onPress?: () => void;
+}) {
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         <Text style={styles.cardTitle}>{pattern.name}</Text>
         <Badge style={{}}>{`${pattern.confidence}%`}</Badge>
@@ -828,11 +992,18 @@ function PatternCard({ pattern, onPress }: { pattern: any; onPress?: () => void 
   );
 }
 
-function RiskFactorCard({ factor, onPress }: { factor: any; onPress?: () => void }) {
-  const impactColor = factor.impact > 25 ? '#EF4444' : factor.impact > 15 ? '#F59E0B' : '#10B981';
+function RiskFactorCard({
+  factor,
+  onPress,
+}: {
+  factor: any;
+  onPress?: () => void;
+}) {
+  const impactColor =
+    factor.impact > 25 ? "#EF4444" : factor.impact > 15 ? "#F59E0B" : "#10B981";
 
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         <Text style={styles.cardTitle}>{factor.name}</Text>
         <Badge style={{}}>{`Impact: ${factor.impact}`}</Badge>
@@ -842,16 +1013,22 @@ function RiskFactorCard({ factor, onPress }: { factor: any; onPress?: () => void
   );
 }
 
-function MedicationAlertCard({ alert, onPress }: { alert: any; onPress?: () => void }) {
+function MedicationAlertCard({
+  alert,
+  onPress,
+}: {
+  alert: any;
+  onPress?: () => void;
+}) {
   const severityMap: { [key: string]: string } = {
-    major: '#EF4444',
-    moderate: '#F59E0B',
-    minor: '#10B981'
+    major: "#EF4444",
+    moderate: "#F59E0B",
+    minor: "#10B981",
   };
-  const severityColor = severityMap[String(alert.severity)] || '#6B7280';
+  const severityColor = severityMap[String(alert.severity)] || "#6B7280";
 
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         {getIcon("AlertTriangle", 20, severityColor)}
         <Text style={[styles.cardTitle, styles.ml2]}>{alert.title}</Text>
@@ -866,23 +1043,36 @@ function MedicationAlertCard({ alert, onPress }: { alert: any; onPress?: () => v
   );
 }
 
-function SuggestionCard({ suggestion, onPress }: { suggestion: any; onPress?: () => void }) {
+function SuggestionCard({
+  suggestion,
+  onPress,
+}: {
+  suggestion: any;
+  onPress?: () => void;
+}) {
   const priorityMap: { [key: string]: string } = {
-    high: '#EF4444',
-    medium: '#F59E0B',
-    low: '#10B981'
+    high: "#EF4444",
+    medium: "#F59E0B",
+    low: "#10B981",
   };
-  const priorityColor = priorityMap[String(suggestion.priority)] || '#6B7280';
+  const priorityColor = priorityMap[String(suggestion.priority)] || "#6B7280";
 
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         <Text style={styles.cardTitle}>{suggestion.title}</Text>
         <Badge style={{}}>{suggestion.priority}</Badge>
       </View>
       <Text style={[styles.text, styles.mt1]}>{suggestion.description}</Text>
       {suggestion.action?.label && (
-        <Text style={[styles.textSm, styles.fontBold, styles.mt1, { color: '#3B82F6' }]}>
+        <Text
+          style={[
+            styles.textSm,
+            styles.fontBold,
+            styles.mt1,
+            { color: "#3B82F6" },
+          ]}
+        >
           {suggestion.action.label}
         </Text>
       )}
@@ -890,9 +1080,15 @@ function SuggestionCard({ suggestion, onPress }: { suggestion: any; onPress?: ()
   );
 }
 
-function RecommendationCard({ recommendation, onPress }: { recommendation: string; onPress?: () => void }) {
+function RecommendationCard({
+  recommendation,
+  onPress,
+}: {
+  recommendation: string;
+  onPress?: () => void;
+}) {
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <Text style={[styles.text, styles.textCenter]}>• {recommendation}</Text>
     </Card>
   );
@@ -900,7 +1096,7 @@ function RecommendationCard({ recommendation, onPress }: { recommendation: strin
 
 function TipCard({ tip, onPress }: { tip: string; onPress?: () => void }) {
   return (
-    <Card style={styles.mb2} onPress={onPress} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         {getIcon("Lightbulb", 16, "#F59E0B")}
         <Text style={[styles.text, styles.ml2]}>{tip}</Text>
@@ -913,7 +1109,9 @@ function EmptyState({ message }: { message: string }) {
   return (
     <View style={[styles.center, styles.py4]}>
       {getIcon("Info", 32, "#9CA3AF")}
-      <Text style={[styles.text, styles.textMuted, styles.mt2, styles.textCenter]}>
+      <Text
+        style={[styles.text, styles.textMuted, styles.mt2, styles.textCenter]}
+      >
         {message}
       </Text>
     </View>
@@ -923,13 +1121,18 @@ function EmptyState({ message }: { message: string }) {
 // Helper functions
 function getRiskColor(riskLevel: string): string {
   switch (riskLevel) {
-    case 'very_high': return '#EF4444';
-    case 'high': return '#F59E0B';
-    case 'moderate': return '#F59E0B';
-    case 'low': return '#10B981';
-    default: return '#6B7280';
+    case "very_high":
+      return "#EF4444";
+    case "high":
+      return "#F59E0B";
+    case "moderate":
+      return "#F59E0B";
+    case "low":
+      return "#10B981";
+    default:
+      return "#6B7280";
   }
 }
 
-
 export { AIInsightsDashboard };
+export default AIInsightsDashboard;

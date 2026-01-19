@@ -3,33 +3,33 @@
  *
  * A real-time speech-to-speech voice assistant powered by OpenAI's Realtime API.
  * Features audio visualization, conversation transcript, and health-focused tools.
- * 
+ *
  * ENHANCEMENTS:
- * 
+ *
  * 1. INTELLIGENT ANALYSIS:
  *    - Health trend analysis and pattern detection
  *    - Proactive health insights and recommendations
  *    - Medication adherence tracking and suggestions
  *    - Contextual health suggestions based on user data
- * 
+ *
  * 2. CONVERSATION & MEMORY:
  *    - Conversation history persistence to Firestore
  *    - Context awareness across sessions
  *    - Personalized welcome messages based on health status
  *    - Natural conversation flow with follow-up questions
- * 
+ *
  * 3. USER EXPERIENCE:
  *    - Quick action shortcuts for common tasks
  *    - Enhanced UI with better visual feedback and animations
  *    - Proactive health monitoring and pattern detection
  *    - Tool call status indicators with animations
- * 
+ *
  * 4. PROACTIVE FEATURES:
  *    - Automatic pattern detection (frequent symptoms, medication adherence)
  *    - Proactive suggestions based on health data
  *    - Health trend analysis after logging data
  *    - Contextual recommendations
- * 
+ *
  * 5. MULTI-LANGUAGE SUPPORT:
  *    - English and Arabic support
  *    - Proper medical terminology in both languages
@@ -39,7 +39,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
@@ -55,17 +66,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
-
+import { auth, db } from "@/lib/firebase";
+import healthContextService from "@/lib/services/healthContextService";
 import {
-  realtimeAgentService,
   type ConnectionState,
   type RealtimeEventHandlers,
+  realtimeAgentService,
 } from "@/lib/services/realtimeAgentService";
-import healthContextService from "@/lib/services/healthContextService";
 import { zeinaActionsService } from "@/lib/services/zeinaActionsService";
-import { auth, db } from "@/lib/firebase";
-import { collection, addDoc, Timestamp, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 
 // Audio recording imports
 let Audio: any = null;
@@ -84,7 +92,7 @@ try {
       FileSystem = require("expo-file-system");
     }
     isAudioAvailable = !!Audio && !!FileSystem;
-    
+
     if (!Audio) {
       audioLoadError = "expo-av loaded but Audio module not found";
     } else if (!FileSystem) {
@@ -121,14 +129,15 @@ export default function VoiceAgentScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
-  
+
   // Log audio availability on mount for debugging
   useEffect(() => {
     // Audio availability check for debugging (removed console logs)
   }, []);
 
   // Connection and session state
-  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const [connectionState, setConnectionState] =
+    useState<ConnectionState>("disconnected");
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -227,31 +236,34 @@ export default function VoiceAgentScreen() {
   }, [isSpeaking]);
 
   // Save conversation message to Firestore
-  const saveConversationMessage = useCallback(async (message: ConversationMessage) => {
-    try {
-      const userId = auth.currentUser?.uid;
-      if (!userId) return;
+  const saveConversationMessage = useCallback(
+    async (message: ConversationMessage) => {
+      try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
 
-      // Create or get session ID
-      let currentSessionId = sessionId;
-      if (!currentSessionId) {
-        currentSessionId = `zeina_session_${Date.now()}`;
-        setSessionId(currentSessionId);
+        // Create or get session ID
+        let currentSessionId = sessionId;
+        if (!currentSessionId) {
+          currentSessionId = `zeina_session_${Date.now()}`;
+          setSessionId(currentSessionId);
+        }
+
+        await addDoc(collection(db, "zeina_conversations"), {
+          userId,
+          sessionId: currentSessionId,
+          role: message.role,
+          content: message.content,
+          timestamp: Timestamp.fromDate(message.timestamp),
+          createdAt: Timestamp.now(),
+        });
+      } catch (error) {
+        // Silently handle errors - don't interrupt conversation flow
+        console.error("Failed to save conversation:", error);
       }
-
-      await addDoc(collection(db, "zeina_conversations"), {
-        userId,
-        sessionId: currentSessionId,
-        role: message.role,
-        content: message.content,
-        timestamp: Timestamp.fromDate(message.timestamp),
-        createdAt: Timestamp.now(),
-      });
-    } catch (error) {
-      // Silently handle errors - don't interrupt conversation flow
-      console.error("Failed to save conversation:", error);
-    }
-  }, [sessionId]);
+    },
+    [sessionId]
+  );
 
   // Load recent conversation context
   const loadRecentContext = useCallback(async () => {
@@ -272,7 +284,7 @@ export default function VoiceAgentScreen() {
       // Get the most recent session ID
       const mostRecentDoc = snapshot.docs[0];
       const recentSessionId = mostRecentDoc.data().sessionId;
-      
+
       // Load messages from the same session
       const sessionMessagesQuery = query(
         collection(db, "zeina_conversations"),
@@ -283,15 +295,17 @@ export default function VoiceAgentScreen() {
       );
 
       const sessionSnapshot = await getDocs(sessionMessagesQuery);
-      const contextMessages: ConversationMessage[] = sessionSnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          role: data.role as "user" | "assistant",
-          content: data.content,
-          timestamp: data.timestamp.toDate(),
-        };
-      });
+      const contextMessages: ConversationMessage[] = sessionSnapshot.docs.map(
+        (doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            role: data.role as "user" | "assistant",
+            content: data.content,
+            timestamp: data.timestamp.toDate(),
+          };
+        }
+      );
 
       return contextMessages;
     } catch (error) {
@@ -311,41 +325,50 @@ export default function VoiceAgentScreen() {
         // Create new session ID
         const newSessionId = `zeina_session_${Date.now()}`;
         setSessionId(newSessionId);
-        
+
         // Load recent context for better continuity
         const recentContext = await loadRecentContext();
-        
+
         // Add enhanced welcome message with proactive health check
-        const welcomeMessage = t("voiceAgentWelcome", "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness.");
-        
+        const welcomeMessage = t(
+          "voiceAgentWelcome",
+          "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness."
+        );
+
         // Try to get a quick health summary for personalized greeting
         try {
           const healthSummary = await healthContextService.getHealthSummary();
-          const hasRecentSymptoms = healthSummary.symptoms && healthSummary.symptoms.length > 0;
-          const hasMedications = healthSummary.medications && healthSummary.medications.filter((m: any) => m.isActive).length > 0;
-          
+          const hasRecentSymptoms =
+            healthSummary.symptoms && healthSummary.symptoms.length > 0;
+          const hasMedications =
+            healthSummary.medications &&
+            healthSummary.medications.filter((m: any) => m.isActive).length > 0;
+
           let personalizedGreeting = welcomeMessage;
-          
+
           // Add context from recent conversation if available
           if (recentContext && recentContext.length > 0) {
             personalizedGreeting += " I'm back! ";
           }
-          
+
           if (hasRecentSymptoms) {
-            personalizedGreeting += " I noticed you've been tracking some symptoms recently. How are you feeling today?";
+            personalizedGreeting +=
+              " I noticed you've been tracking some symptoms recently. How are you feeling today?";
           } else if (hasMedications) {
-            personalizedGreeting += " I'm here to help you manage your medications and track your health. What would you like to do today?";
+            personalizedGreeting +=
+              " I'm here to help you manage your medications and track your health. What would you like to do today?";
           } else {
-            personalizedGreeting += " I can help you track symptoms, medications, vitals, and more. What can I help you with?";
+            personalizedGreeting +=
+              " I can help you track symptoms, medications, vitals, and more. What can I help you with?";
           }
-          
+
           const welcomeMsg: ConversationMessage = {
             id: "welcome",
             role: "assistant",
             content: personalizedGreeting,
             timestamp: new Date(),
           };
-          
+
           setMessages([welcomeMsg]);
           await saveConversationMessage(welcomeMsg);
         } catch (error) {
@@ -399,7 +422,7 @@ export default function VoiceAgentScreen() {
           };
           setMessages((prev) => [...prev, newMessage]);
           setCurrentTranscript("");
-          
+
           // Save to conversation history
           await saveConversationMessage(newMessage);
         } else if (role === "assistant") {
@@ -411,10 +434,7 @@ export default function VoiceAgentScreen() {
               saveConversationMessage(completedMessage).catch(() => {
                 // Silently handle errors
               });
-              return [
-                ...prev.slice(0, -1),
-                completedMessage,
-              ];
+              return [...prev.slice(0, -1), completedMessage];
             }
             return prev;
           });
@@ -459,8 +479,11 @@ export default function VoiceAgentScreen() {
 
         // Execute the tool
         try {
-          const result = await executeHealthTool(toolCall.name, JSON.parse(toolCall.arguments));
-          
+          const result = await executeHealthTool(
+            toolCall.name,
+            JSON.parse(toolCall.arguments)
+          );
+
           setToolCalls((prev) =>
             prev.map((tc) =>
               tc.id === toolCall.call_id
@@ -470,7 +493,10 @@ export default function VoiceAgentScreen() {
           );
 
           // Submit the tool output
-          realtimeAgentService.submitToolOutput(toolCall.call_id, JSON.stringify(result));
+          realtimeAgentService.submitToolOutput(
+            toolCall.call_id,
+            JSON.stringify(result)
+          );
         } catch (error) {
           setToolCalls((prev) =>
             prev.map((tc) =>
@@ -491,7 +517,9 @@ export default function VoiceAgentScreen() {
         setIsProcessing(false);
         // Clear completed tool calls after a delay
         setTimeout(() => {
-          setToolCalls((prev) => prev.filter((tc) => tc.status !== "completed"));
+          setToolCalls((prev) =>
+            prev.filter((tc) => tc.status !== "completed")
+          );
         }, 3000);
       },
 
@@ -501,35 +529,38 @@ export default function VoiceAgentScreen() {
         setIsSpeaking(false);
 
         // Provide more helpful error messages
-        let errorMessage = error?.message || t("connectionError", "Connection error occurred");
-        
+        let errorMessage =
+          error?.message || t("connectionError", "Connection error occurred");
+
         // Check for common WebSocket errors
-        if (errorMessage.includes("WebSocket") || errorMessage.includes("headers")) {
-          errorMessage = 
+        if (
+          errorMessage.includes("WebSocket") ||
+          errorMessage.includes("headers")
+        ) {
+          errorMessage =
             "WebSocket connection failed. This is likely because React Native's WebSocket doesn't support custom headers. " +
             "To fix this, you may need to:\n\n" +
             "1. Install a WebSocket library that supports headers (e.g., 'react-native-websocket')\n" +
             "2. Or use a proxy/middleware server\n" +
             "3. Or ensure your API key is properly configured\n\n" +
             `Original error: ${errorMessage}`;
-        } else if (errorMessage.includes("API key") || errorMessage.includes("authentication")) {
-          errorMessage = 
+        } else if (
+          errorMessage.includes("API key") ||
+          errorMessage.includes("authentication")
+        ) {
+          errorMessage =
             "Authentication failed. Please ensure OPENAI_API_KEY is set in your environment variables.\n\n" +
             `Error: ${errorMessage}`;
         }
 
-        Alert.alert(
-          t("error", "Error"),
-          errorMessage,
-          [
-            { text: t("ok", "OK"), style: "default" },
-            { 
-              text: t("retry", "Retry"), 
-              onPress: () => handleConnect(),
-              style: "default"
-            }
-          ]
-        );
+        Alert.alert(t("error", "Error"), errorMessage, [
+          { text: t("ok", "OK"), style: "default" },
+          {
+            text: t("retry", "Retry"),
+            onPress: () => handleConnect(),
+            style: "default",
+          },
+        ]);
       },
     };
 
@@ -553,10 +584,15 @@ export default function VoiceAgentScreen() {
         );
 
       case "get_recent_vitals":
-        return await healthContextService.getRecentVitals(args.vital_type, args.days);
+        return await healthContextService.getRecentVitals(
+          args.vital_type,
+          args.days
+        );
 
       case "check_medication_interactions":
-        return await healthContextService.checkMedicationInteractions(args.new_medication);
+        return await healthContextService.checkMedicationInteractions(
+          args.new_medication
+        );
 
       case "schedule_reminder":
         return { success: true, message: "Reminder scheduled successfully" };
@@ -571,7 +607,7 @@ export default function VoiceAgentScreen() {
           args.severity,
           args.allergy_type
         );
-      
+
       case "add_medical_history":
         return await zeinaActionsService.addMedicalHistory(
           args.condition || "unknown",
@@ -581,13 +617,20 @@ export default function VoiceAgentScreen() {
         );
 
       case "analyze_health_trends":
-        return await analyzeHealthTrends(args.metric_type, args.time_period, args.focus_area);
+        return await analyzeHealthTrends(
+          args.metric_type,
+          args.time_period,
+          args.focus_area
+        );
 
       case "get_health_insights":
         return await getHealthInsights(args.insight_type, args.context);
 
       case "check_medication_adherence":
-        return await checkMedicationAdherence(args.medication_name, args.time_period);
+        return await checkMedicationAdherence(
+          args.medication_name,
+          args.time_period
+        );
 
       case "suggest_health_actions":
         return await suggestHealthActions(args.trigger, args.priority);
@@ -604,11 +647,20 @@ export default function VoiceAgentScreen() {
     focusArea?: string
   ): Promise<any> => {
     try {
-      const days = timePeriod === "week" ? 7 : timePeriod === "month" ? 30 : timePeriod === "3months" ? 90 : timePeriod === "6months" ? 180 : 365;
-      
+      const days =
+        timePeriod === "week"
+          ? 7
+          : timePeriod === "month"
+            ? 30
+            : timePeriod === "3months"
+              ? 90
+              : timePeriod === "6months"
+                ? 180
+                : 365;
+
       const healthSummary = await healthContextService.getHealthSummary();
       const vitals = await healthContextService.getRecentVitals("all", days);
-      
+
       const trends: any = {
         period: timePeriod || "month",
         insights: [],
@@ -616,90 +668,109 @@ export default function VoiceAgentScreen() {
       };
 
       // Analyze vital trends
-      if (metricType === "vitals" || metricType === "all" || !metricType) {
-        if (vitals && vitals.length > 0) {
-          // Group by vital type
-          const vitalsByType: Record<string, any[]> = {};
-          vitals.forEach((v: any) => {
-            if (!vitalsByType[v.type]) vitalsByType[v.type] = [];
-            vitalsByType[v.type].push(v);
+      if (
+        (metricType === "vitals" || metricType === "all" || !metricType) &&
+        vitals &&
+        vitals.length > 0
+      ) {
+        // Group by vital type
+        const vitalsByType: Record<string, any[]> = {};
+        vitals.forEach((v: any) => {
+          if (!vitalsByType[v.type]) vitalsByType[v.type] = [];
+          vitalsByType[v.type].push(v);
+        });
+
+        // Analyze each vital type
+        Object.keys(vitalsByType).forEach((type) => {
+          const samples = vitalsByType[type];
+          if (samples.length < 2) return;
+
+          const values = samples
+            .map((s: any) => s.value)
+            .filter((v: any) => typeof v === "number");
+          if (values.length < 2) return;
+
+          const avg =
+            values.reduce((a: number, b: number) => a + b, 0) / values.length;
+          const recent = values.slice(-Math.floor(values.length / 3));
+          const older = values.slice(0, Math.floor((values.length * 2) / 3));
+          const recentAvg =
+            recent.reduce((a: number, b: number) => a + b, 0) / recent.length;
+          const olderAvg =
+            older.reduce((a: number, b: number) => a + b, 0) / older.length;
+
+          const trend =
+            recentAvg > olderAvg * 1.05
+              ? "increasing"
+              : recentAvg < olderAvg * 0.95
+                ? "decreasing"
+                : "stable";
+
+          trends.patterns.push({
+            metric: type,
+            trend,
+            current: recentAvg,
+            average: avg,
+            change: (((recentAvg - olderAvg) / olderAvg) * 100).toFixed(1),
           });
 
-          // Analyze each vital type
-          Object.keys(vitalsByType).forEach((type) => {
-            const samples = vitalsByType[type];
-            if (samples.length < 2) return;
-
-            const values = samples.map((s: any) => s.value).filter((v: any) => typeof v === "number");
-            if (values.length < 2) return;
-
-            const avg = values.reduce((a: number, b: number) => a + b, 0) / values.length;
-            const recent = values.slice(-Math.floor(values.length / 3));
-            const older = values.slice(0, Math.floor(values.length * 2 / 3));
-            const recentAvg = recent.reduce((a: number, b: number) => a + b, 0) / recent.length;
-            const olderAvg = older.reduce((a: number, b: number) => a + b, 0) / older.length;
-
-            const trend = recentAvg > olderAvg * 1.05 ? "increasing" : recentAvg < olderAvg * 0.95 ? "decreasing" : "stable";
-            
-            trends.patterns.push({
-              metric: type,
-              trend,
-              current: recentAvg,
-              average: avg,
-              change: ((recentAvg - olderAvg) / olderAvg * 100).toFixed(1),
-            });
-
-            if (trend !== "stable") {
-              trends.insights.push(
-                `Your ${type.replace(/([A-Z])/g, " $1").toLowerCase()} has been ${trend} over the past ${timePeriod || "month"}.`
-              );
-            }
-          });
-        }
+          if (trend !== "stable") {
+            trends.insights.push(
+              `Your ${type.replace(/([A-Z])/g, " $1").toLowerCase()} has been ${trend} over the past ${timePeriod || "month"}.`
+            );
+          }
+        });
       }
 
       // Analyze symptom patterns
-      if (metricType === "symptoms" || metricType === "all" || !metricType) {
-        if (healthSummary.symptoms && healthSummary.symptoms.length > 0) {
-          const symptomCounts: Record<string, number> = {};
-          healthSummary.symptoms.forEach((s: any) => {
-            const name = s.name || s.type || "unknown";
-            symptomCounts[name] = (symptomCounts[name] || 0) + 1;
+      if (
+        (metricType === "symptoms" || metricType === "all" || !metricType) &&
+        healthSummary.symptoms &&
+        healthSummary.symptoms.length > 0
+      ) {
+        const symptomCounts: Record<string, number> = {};
+        healthSummary.symptoms.forEach((s: any) => {
+          const name = s.name || s.type || "unknown";
+          symptomCounts[name] = (symptomCounts[name] || 0) + 1;
+        });
+
+        const frequentSymptoms = Object.entries(symptomCounts)
+          .filter(([_, count]) => count >= 3)
+          .map(([name, count]) => ({ name, frequency: count }));
+
+        if (frequentSymptoms.length > 0) {
+          trends.patterns.push({
+            metric: "symptoms",
+            frequent: frequentSymptoms,
           });
-
-          const frequentSymptoms = Object.entries(symptomCounts)
-            .filter(([_, count]) => count >= 3)
-            .map(([name, count]) => ({ name, frequency: count }));
-
-          if (frequentSymptoms.length > 0) {
-            trends.patterns.push({
-              metric: "symptoms",
-              frequent: frequentSymptoms,
-            });
-            trends.insights.push(
-              `You've been experiencing ${frequentSymptoms.map((s) => s.name).join(", ")} frequently. Consider tracking these patterns.`
-            );
-          }
+          trends.insights.push(
+            `You've been experiencing ${frequentSymptoms.map((s) => s.name).join(", ")} frequently. Consider tracking these patterns.`
+          );
         }
       }
 
       return {
         success: true,
         trends,
-        summary: trends.insights.length > 0 
-          ? trends.insights.join(" ") 
-          : "Your health data shows stable patterns. Keep up the good work!",
+        summary:
+          trends.insights.length > 0
+            ? trends.insights.join(" ")
+            : "Your health data shows stable patterns. Keep up the good work!",
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to analyze trends",
+        error:
+          error instanceof Error ? error.message : "Failed to analyze trends",
       };
     }
   };
 
   // Helper function to get health insights
-  const getHealthInsights = async (insightType?: string, context?: string): Promise<any> => {
+  const getHealthInsights = async (
+    insightType?: string,
+    context?: string
+  ): Promise<any> => {
     try {
       const healthSummary = await healthContextService.getHealthSummary();
       const insights: string[] = [];
@@ -709,9 +780,17 @@ export default function VoiceAgentScreen() {
         const medications = healthSummary.medications || [];
         if (medications.length > 0) {
           const activeMeds = medications.filter((m: any) => m.isActive);
-          insights.push(`You have ${activeMeds.length} active medication${activeMeds.length !== 1 ? "s" : ""} in your list.`);
-          if (activeMeds.some((m: any) => !m.reminders || m.reminders.length === 0)) {
-            recommendations.push("Consider setting up reminders for your medications to improve adherence.");
+          insights.push(
+            `You have ${activeMeds.length} active medication${activeMeds.length !== 1 ? "s" : ""} in your list.`
+          );
+          if (
+            activeMeds.some(
+              (m: any) => !m.reminders || m.reminders.length === 0
+            )
+          ) {
+            recommendations.push(
+              "Consider setting up reminders for your medications to improve adherence."
+            );
           }
         }
       }
@@ -720,9 +799,13 @@ export default function VoiceAgentScreen() {
         const symptoms = healthSummary.symptoms || [];
         if (symptoms.length > 0) {
           const recentSymptoms = symptoms.slice(0, 5);
-          insights.push(`You've logged ${symptoms.length} symptom${symptoms.length !== 1 ? "s" : ""} recently.`);
+          insights.push(
+            `You've logged ${symptoms.length} symptom${symptoms.length !== 1 ? "s" : ""} recently.`
+          );
           if (symptoms.length >= 3) {
-            recommendations.push("If symptoms persist or worsen, consider consulting with your healthcare provider.");
+            recommendations.push(
+              "If symptoms persist or worsen, consider consulting with your healthcare provider."
+            );
           }
         }
       }
@@ -730,13 +813,20 @@ export default function VoiceAgentScreen() {
       if (insightType === "vital_ranges" || !insightType) {
         const vitals = healthSummary.vitalSigns;
         if (vitals) {
-          if (vitals.heartRate && (vitals.heartRate < 60 || vitals.heartRate > 100)) {
-            recommendations.push("Your heart rate is outside the normal range. Consider discussing this with your doctor.");
+          if (
+            vitals.heartRate &&
+            (vitals.heartRate < 60 || vitals.heartRate > 100)
+          ) {
+            recommendations.push(
+              "Your heart rate is outside the normal range. Consider discussing this with your doctor."
+            );
           }
           if (vitals.bloodPressure) {
             const bp = vitals.bloodPressure.split("/").map(Number);
             if (bp[0] > 140 || bp[1] > 90) {
-              recommendations.push("Your blood pressure readings suggest monitoring. Keep tracking and share with your healthcare provider.");
+              recommendations.push(
+                "Your blood pressure readings suggest monitoring. Keep tracking and share with your healthcare provider."
+              );
             }
           }
         }
@@ -744,23 +834,33 @@ export default function VoiceAgentScreen() {
 
       return {
         success: true,
-        insights: insights.length > 0 ? insights : ["Your health data looks good overall."],
-        recommendations: recommendations.length > 0 ? recommendations : ["Keep up your healthy habits!"],
+        insights:
+          insights.length > 0
+            ? insights
+            : ["Your health data looks good overall."],
+        recommendations:
+          recommendations.length > 0
+            ? recommendations
+            : ["Keep up your healthy habits!"],
         context: context || "general health overview",
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to get insights",
+        error:
+          error instanceof Error ? error.message : "Failed to get insights",
       };
     }
   };
 
   // Helper function to check medication adherence
-  const checkMedicationAdherence = async (medicationName?: string, timePeriod?: string): Promise<any> => {
+  const checkMedicationAdherence = async (
+    medicationName?: string,
+    timePeriod?: string
+  ): Promise<any> => {
     try {
       const medications = await healthContextService.getMedications(true);
-      
+
       if (!medications || medications.length === 0) {
         return {
           success: true,
@@ -769,59 +869,75 @@ export default function VoiceAgentScreen() {
         };
       }
 
-      const targetMed = medicationName 
-        ? medications.find((m: any) => m.name.toLowerCase().includes(medicationName.toLowerCase()))
+      const targetMed = medicationName
+        ? medications.find((m: any) =>
+            m.name.toLowerCase().includes(medicationName.toLowerCase())
+          )
         : null;
 
       const medsToCheck = targetMed ? [targetMed] : medications;
-      
+
       const adherenceResults = medsToCheck.map((med: any) => {
         const reminders = med.reminders || [];
         const hasReminders = reminders.length > 0;
-        
+
         return {
           medication: med.name,
           hasReminders,
           reminderCount: reminders.length,
           adherence: hasReminders ? "good" : "needs_improvement",
-          recommendation: hasReminders 
-            ? "Great! You have reminders set up." 
+          recommendation: hasReminders
+            ? "Great! You have reminders set up."
             : "Consider setting up reminders to improve adherence.",
         };
       });
 
-      const overallAdherence = adherenceResults.every((r: any) => r.hasReminders) ? "excellent" : 
-                               adherenceResults.some((r: any) => r.hasReminders) ? "good" : "needs_improvement";
+      const overallAdherence = adherenceResults.every(
+        (r: any) => r.hasReminders
+      )
+        ? "excellent"
+        : adherenceResults.some((r: any) => r.hasReminders)
+          ? "good"
+          : "needs_improvement";
 
       return {
         success: true,
         adherence: overallAdherence,
         results: adherenceResults,
         period: timePeriod || "current",
-        message: overallAdherence === "excellent" 
-          ? "Excellent medication adherence! You have reminders set up for all your medications."
-          : overallAdherence === "good"
-          ? "Good adherence. Consider setting up reminders for medications that don't have them yet."
-          : "Consider setting up medication reminders to help you stay on track.",
+        message:
+          overallAdherence === "excellent"
+            ? "Excellent medication adherence! You have reminders set up for all your medications."
+            : overallAdherence === "good"
+              ? "Good adherence. Consider setting up reminders for medications that don't have them yet."
+              : "Consider setting up medication reminders to help you stay on track.",
       };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to check adherence",
+        error:
+          error instanceof Error ? error.message : "Failed to check adherence",
       };
     }
   };
 
   // Helper function to suggest health actions
-  const suggestHealthActions = async (trigger?: string, priority?: string): Promise<any> => {
+  const suggestHealthActions = async (
+    trigger?: string,
+    priority?: string
+  ): Promise<any> => {
     try {
       const suggestions: any[] = [];
 
-      if (trigger?.toLowerCase().includes("blood pressure") || trigger?.toLowerCase().includes("hypertension")) {
+      if (
+        trigger?.toLowerCase().includes("blood pressure") ||
+        trigger?.toLowerCase().includes("hypertension")
+      ) {
         suggestions.push({
           action: "Monitor blood pressure regularly",
           priority: priority || "high",
-          reason: "Regular monitoring helps track changes and effectiveness of treatment.",
+          reason:
+            "Regular monitoring helps track changes and effectiveness of treatment.",
         });
         suggestions.push({
           action: "Reduce sodium intake",
@@ -830,7 +946,10 @@ export default function VoiceAgentScreen() {
         });
       }
 
-      if (trigger?.toLowerCase().includes("headache") || trigger?.toLowerCase().includes("head pain")) {
+      if (
+        trigger?.toLowerCase().includes("headache") ||
+        trigger?.toLowerCase().includes("head pain")
+      ) {
         suggestions.push({
           action: "Track headache patterns",
           priority: priority || "medium",
@@ -843,7 +962,10 @@ export default function VoiceAgentScreen() {
         });
       }
 
-      if (trigger?.toLowerCase().includes("medication") || trigger?.toLowerCase().includes("adherence")) {
+      if (
+        trigger?.toLowerCase().includes("medication") ||
+        trigger?.toLowerCase().includes("adherence")
+      ) {
         suggestions.push({
           action: "Set up medication reminders",
           priority: priority || "high",
@@ -851,11 +973,15 @@ export default function VoiceAgentScreen() {
         });
       }
 
-      if (trigger?.toLowerCase().includes("symptom") || trigger?.toLowerCase().includes("pain")) {
+      if (
+        trigger?.toLowerCase().includes("symptom") ||
+        trigger?.toLowerCase().includes("pain")
+      ) {
         suggestions.push({
           action: "Log symptoms regularly",
           priority: priority || "medium",
-          reason: "Tracking symptoms helps identify patterns and communicate with your doctor.",
+          reason:
+            "Tracking symptoms helps identify patterns and communicate with your doctor.",
         });
       }
 
@@ -882,7 +1008,10 @@ export default function VoiceAgentScreen() {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to generate suggestions",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate suggestions",
       };
     }
   };
@@ -894,14 +1023,19 @@ export default function VoiceAgentScreen() {
 
       // Get personalized health context for the instructions with current language
       const currentLanguage = i18n.language || "en";
-      const healthContext = await healthContextService.getContextualPrompt(undefined, currentLanguage);
+      const healthContext = await healthContextService.getContextualPrompt(
+        undefined,
+        currentLanguage
+      );
       const customInstructions = `${realtimeAgentService.getDefaultInstructions()}\n\n# User Health Context\n${healthContext}`;
 
       await realtimeAgentService.connect(customInstructions);
     } catch (error) {
       Alert.alert(
         t("connectionFailed", "Connection Failed"),
-        error instanceof Error ? error.message : t("unableToConnect", "Unable to connect to voice service")
+        error instanceof Error
+          ? error.message
+          : t("unableToConnect", "Unable to connect to voice service")
       );
     }
   };
@@ -943,7 +1077,9 @@ export default function VoiceAgentScreen() {
   }, [connectionState, handleConnect]);
 
   // Convert audio file to PCM16 base64 for the Realtime API
-  const convertAudioToBase64PCM = async (uri: string): Promise<string | null> => {
+  const convertAudioToBase64PCM = async (
+    uri: string
+  ): Promise<string | null> => {
     try {
       // Read the audio file as base64
       const base64Audio = await FileSystem.readAsStringAsync(uri, {
@@ -952,7 +1088,7 @@ export default function VoiceAgentScreen() {
       // Basic sanity check: WAV files start with "RIFF" which base64-encodes to "UklG".
       // If we send non-PCM audio (e.g. AAC/M4A) to the Realtime API while configured for PCM16,
       // the assistant can appear "stuck listening" with no transcript.
-      if (!base64Audio || !base64Audio.startsWith("UklG")) {
+      if (!(base64Audio && base64Audio.startsWith("UklG"))) {
         return null;
       }
       return base64Audio;
@@ -963,25 +1099,36 @@ export default function VoiceAgentScreen() {
 
   // Start/stop recording
   const toggleRecording = async () => {
-    if (!Audio || !FileSystem || !isAudioAvailable) {
+    if (!(Audio && FileSystem && isAudioAvailable)) {
       // Provide detailed error message
-      let errorTitle = t("audioNotAvailable", "Audio recording not available");
+      const errorTitle = t(
+        "audioNotAvailable",
+        "Audio recording not available"
+      );
       let errorMessage = "";
-      
+
       if (Platform.OS === "web") {
-        errorMessage = t("useTextInput", "Please use text input to communicate with Zeina on this platform.");
+        errorMessage = t(
+          "useTextInput",
+          "Please use text input to communicate with Zeina on this platform."
+        );
       } else if (audioLoadError) {
         errorMessage = `Audio recording failed to initialize:\n\n${audioLoadError}\n\n`;
-        
+
         if (audioLoadError.includes("expo-av")) {
-          errorMessage += "Please ensure expo-av is properly installed:\n\nbun install expo-av\n\nThen restart the app.";
+          errorMessage +=
+            "Please ensure expo-av is properly installed:\n\nbun install expo-av\n\nThen restart the app.";
         } else if (Platform.OS === "ios" || Platform.OS === "android") {
-          errorMessage += "This may happen on simulators/emulators. Try using a physical device.";
+          errorMessage +=
+            "This may happen on simulators/emulators. Try using a physical device.";
         }
       } else {
-        errorMessage = t("audioNotAvailable", "Audio recording not available on this platform. Please ensure expo-av is properly installed.");
+        errorMessage = t(
+          "audioNotAvailable",
+          "Audio recording not available on this platform. Please ensure expo-av is properly installed."
+        );
       }
-      
+
       Alert.alert(errorTitle, errorMessage, [
         { text: t("ok", "OK"), style: "cancel" },
       ]);
@@ -993,36 +1140,39 @@ export default function VoiceAgentScreen() {
       try {
         if (recordingRef.current) {
           await recordingRef.current.stopAndUnloadAsync();
-          
+
           // Get the recorded audio URI
           const uri = recordingRef.current.getURI();
           recordingRef.current = null;
-          
+
           if (uri) {
             let didAppendAudio = false;
             // If we're not connected, we can't send the audio anywhere.
-            if (!realtimeAgentService.isConnected()) {
+            if (realtimeAgentService.isConnected()) {
+              // Read and send the audio to the API
+              const audioBase64 = await convertAudioToBase64PCM(uri);
+              if (audioBase64) {
+                realtimeAgentService.sendAudioData(audioBase64);
+                didAppendAudio = true;
+              } else {
+                Alert.alert(
+                  t("unsupportedAudioFormat", "Unsupported audio format"),
+                  t(
+                    "unsupportedAudioFormatBody",
+                    "Zeina couldn't read the recording as a PCM WAV file. This can happen if the device records AAC/M4A instead of PCM. Try again on a physical iOS device, or use text input."
+                  )
+                );
+              }
+            } else {
               Alert.alert(
                 t("notConnected", "Not Connected"),
-                t("pleaseConnectFirst", "Please connect Zeina (tap the radio icon) and try again.")
-              );
-            } else {
-            // Read and send the audio to the API
-            const audioBase64 = await convertAudioToBase64PCM(uri);
-            if (audioBase64) {
-              realtimeAgentService.sendAudioData(audioBase64);
-              didAppendAudio = true;
-            } else {
-              Alert.alert(
-                t("unsupportedAudioFormat", "Unsupported audio format"),
                 t(
-                  "unsupportedAudioFormatBody",
-                  "Zeina couldn't read the recording as a PCM WAV file. This can happen if the device records AAC/M4A instead of PCM. Try again on a physical iOS device, or use text input."
+                  "pleaseConnectFirst",
+                  "Please connect Zeina (tap the radio icon) and try again."
                 )
               );
             }
-            }
-            
+
             // Clean up the temporary file
             try {
               await FileSystem.deleteAsync(uri, { idempotent: true });
@@ -1061,7 +1211,13 @@ export default function VoiceAgentScreen() {
         // Request permissions
         const permission = await Audio.requestPermissionsAsync();
         if (permission.status !== "granted") {
-          Alert.alert(t("permissionDenied", "Permission Denied"), t("microphonePermissionRequired", "Microphone permission is required"));
+          Alert.alert(
+            t("permissionDenied", "Permission Denied"),
+            t(
+              "microphonePermissionRequired",
+              "Microphone permission is required"
+            )
+          );
           return;
         }
 
@@ -1087,17 +1243,19 @@ export default function VoiceAgentScreen() {
             extension: ".wav",
             outputFormat: Audio.AndroidOutputFormat?.DEFAULT || 0,
             audioEncoder: Audio.AndroidAudioEncoder?.DEFAULT || 0,
-            sampleRate: 24000,
+            sampleRate: 24_000,
             numberOfChannels: 1,
-            bitRate: 384000,
+            bitRate: 384_000,
           },
           ios: {
             extension: ".wav",
-            ...(iosLinearPcmOutputFormat != null ? { outputFormat: iosLinearPcmOutputFormat } : {}),
+            ...(iosLinearPcmOutputFormat != null
+              ? { outputFormat: iosLinearPcmOutputFormat }
+              : {}),
             audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
-            sampleRate: 24000,
+            sampleRate: 24_000,
             numberOfChannels: 1,
-            bitRate: 384000,
+            bitRate: 384_000,
             linearPCMBitDepth: 16,
             linearPCMIsBigEndian: false,
             linearPCMIsFloat: false,
@@ -1109,7 +1267,10 @@ export default function VoiceAgentScreen() {
         recordingRef.current = recording;
         setIsListening(true);
       } catch (error) {
-        Alert.alert(t("error", "Error"), t("recordingFailed", "Failed to start recording"));
+        Alert.alert(
+          t("error", "Error"),
+          t("recordingFailed", "Failed to start recording")
+        );
       }
     }
   };
@@ -1123,63 +1284,80 @@ export default function VoiceAgentScreen() {
   }, [messages]);
 
   // Send text message (alternative to voice)
-  const sendTextMessage = useCallback((text: string) => {
-    if (!text.trim() || connectionState !== "connected") return;
+  const sendTextMessage = useCallback(
+    (text: string) => {
+      if (!text.trim() || connectionState !== "connected") return;
 
-    const newMessage: ConversationMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: text,
-      timestamp: new Date(),
-    };
+      const newMessage: ConversationMessage = {
+        id: Date.now().toString(),
+        role: "user",
+        content: text,
+        timestamp: new Date(),
+      };
 
-    setMessages((prev) => [...prev, newMessage]);
-    
-    // Save to conversation history
-    saveConversationMessage(newMessage).catch(() => {
-      // Silently handle errors
-    });
+      setMessages((prev) => [...prev, newMessage]);
 
-    realtimeAgentService.sendTextMessage(text);
-    setIsProcessing(true);
-  }, [connectionState, saveConversationMessage]);
+      // Save to conversation history
+      saveConversationMessage(newMessage).catch(() => {
+        // Silently handle errors
+      });
+
+      realtimeAgentService.sendTextMessage(text);
+      setIsProcessing(true);
+    },
+    [connectionState, saveConversationMessage]
+  );
 
   // Quick action handlers
-  const handleQuickAction = useCallback(async (action: string) => {
-    if (connectionState !== "connected") {
-      await handleConnect();
-      // Wait a moment for connection
-      setTimeout(() => {
+  const handleQuickAction = useCallback(
+    async (action: string) => {
+      if (connectionState !== "connected") {
+        await handleConnect();
+        // Wait a moment for connection
+        setTimeout(() => {
+          sendTextMessage(action);
+        }, 1000);
+      } else {
         sendTextMessage(action);
-      }, 1000);
-    } else {
-      sendTextMessage(action);
-    }
-    setShowQuickActions(false);
-  }, [connectionState, sendTextMessage]);
+      }
+      setShowQuickActions(false);
+    },
+    [connectionState, sendTextMessage]
+  );
 
   // Proactive health monitoring - check for concerning patterns (non-intrusive)
   useEffect(() => {
-    if (connectionState === "connected" && !isListening && !isSpeaking && !isProcessing && messages.length > 0) {
+    if (
+      connectionState === "connected" &&
+      !isListening &&
+      !isSpeaking &&
+      !isProcessing &&
+      messages.length > 0
+    ) {
       const checkHealthPatterns = async () => {
         try {
           // Only check if user has been inactive for a while (not immediately)
           const lastMessage = messages[messages.length - 1];
-          const timeSinceLastMessage = Date.now() - lastMessage.timestamp.getTime();
-          
+          const timeSinceLastMessage =
+            Date.now() - lastMessage.timestamp.getTime();
+
           // Only check after 2 minutes of inactivity
-          if (timeSinceLastMessage < 120000) return;
-          
+          if (timeSinceLastMessage < 120_000) return;
+
           const healthSummary = await healthContextService.getHealthSummary();
-          
+
           // Check for frequent symptoms (only suggest once per session)
           const recentSymptoms = healthSummary.symptoms?.slice(0, 7) || [];
-          const hasSuggestedPattern = messages.some(m => 
-            m.role === "assistant" && m.content.includes("noticed you've been experiencing")
+          const hasSuggestedPattern = messages.some(
+            (m) =>
+              m.role === "assistant" &&
+              m.content.includes("noticed you've been experiencing")
           );
-          
+
           if (recentSymptoms.length >= 5 && !hasSuggestedPattern) {
-            const symptomTypes = new Set(recentSymptoms.map((s: any) => s.name || s.type));
+            const symptomTypes = new Set(
+              recentSymptoms.map((s: any) => s.name || s.type)
+            );
             if (symptomTypes.size <= 2) {
               // Same symptom repeated frequently - add to context for next interaction
               // Don't send automatically, but make it available for when user asks
@@ -1192,19 +1370,20 @@ export default function VoiceAgentScreen() {
           // Silently handle errors
         }
       };
-      
+
       // Check patterns periodically (every 2 minutes)
-      const monitoringTimer = setInterval(checkHealthPatterns, 120000);
+      const monitoringTimer = setInterval(checkHealthPatterns, 120_000);
       return () => clearInterval(monitoringTimer);
     }
   }, [connectionState, isListening, isSpeaking, isProcessing, messages]);
 
   // Cleanup on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       handleDisconnect();
-    };
-  }, []);
+    },
+    []
+  );
 
   // Connection button styles
   const getConnectionButtonStyle = () => {
@@ -1263,28 +1442,44 @@ export default function VoiceAgentScreen() {
         colors={["#0a0a1a", "#1a1a2e", "#16213e"]}
         style={styles.gradient}
       >
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={28} color="#fff" />
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Ionicons color="#fff" name="chevron-back" size={28} />
             </TouchableOpacity>
             <View style={styles.headerTitleContainer}>
               <Text style={styles.headerTitle}>{t("zeina", "Zeina")}</Text>
-              <Text style={styles.headerSubtitle}>{t("voiceMode", "Voice Mode")}</Text>
-              <View style={[styles.statusDot, connectionState === "connected" && styles.statusDotConnected]} />
+              <Text style={styles.headerSubtitle}>
+                {t("voiceMode", "Voice Mode")}
+              </Text>
+              <View
+                style={[
+                  styles.statusDot,
+                  connectionState === "connected" && styles.statusDotConnected,
+                ]}
+              />
             </View>
             <TouchableOpacity
-              onPress={connectionState === "connected" ? handleDisconnect : handleConnect}
+              onPress={
+                connectionState === "connected"
+                  ? handleDisconnect
+                  : handleConnect
+              }
               style={[styles.connectionButton, getConnectionButtonStyle()]}
             >
               {connectionState === "connecting" ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <Ionicons
-                  name={connectionState === "connected" ? "radio" : "radio-outline"}
-                  size={20}
                   color="#fff"
+                  name={
+                    connectionState === "connected" ? "radio" : "radio-outline"
+                  }
+                  size={20}
                 />
               )}
             </TouchableOpacity>
@@ -1304,8 +1499,8 @@ export default function VoiceAgentScreen() {
               >
                 <LinearGradient
                   colors={["#667eea", "#764ba2", "#f093fb"]}
-                  start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
+                  start={{ x: 0, y: 0 }}
                   style={styles.ringGradient}
                 />
               </Animated.View>
@@ -1333,22 +1528,24 @@ export default function VoiceAgentScreen() {
                     isListening
                       ? ["#ff6b6b", "#ee5a5a"]
                       : isSpeaking
-                      ? ["#4ecdc4", "#44a08d"]
-                      : connectionState === "connected"
-                      ? ["#667eea", "#764ba2"]
-                      : ["#2d3436", "#636e72"]
+                        ? ["#4ecdc4", "#44a08d"]
+                        : connectionState === "connected"
+                          ? ["#667eea", "#764ba2"]
+                          : ["#2d3436", "#636e72"]
                   }
                   style={styles.circleGradient}
                 >
                   {isSpeaking ? (
-                    <View style={styles.waveformContainer}>{renderWaveformBars()}</View>
+                    <View style={styles.waveformContainer}>
+                      {renderWaveformBars()}
+                    </View>
                   ) : isListening ? (
-                    <Ionicons name="mic" size={48} color="#fff" />
+                    <Ionicons color="#fff" name="mic" size={48} />
                   ) : (
                     <Ionicons
+                      color="#fff"
                       name={connectionState === "connected" ? "ear" : "mic-off"}
                       size={48}
-                      color="#fff"
                     />
                   )}
                 </LinearGradient>
@@ -1361,24 +1558,32 @@ export default function VoiceAgentScreen() {
                 {isListening
                   ? t("listening", "Listening...")
                   : isSpeaking
-                  ? t("zeinaSpeaking", "Zeina is speaking...")
-                  : isProcessing
-                  ? t("processing", "Processing...")
-                  : connectionState === "connected"
-                  ? t("tapToSpeak", "Tap the button to speak")
-                  : t("connectToStart", "Connect to start")}
+                    ? t("zeinaSpeaking", "Zeina is speaking...")
+                    : isProcessing
+                      ? t("processing", "Processing...")
+                      : connectionState === "connected"
+                        ? t("tapToSpeak", "Tap the button to speak")
+                        : t("connectToStart", "Connect to start")}
               </Text>
-              {connectionState === "connected" && !isListening && !isSpeaking && !isProcessing && (
-                <Text style={styles.statusHint}>
-                  {t("zeinaReady", "I'm here to help with your health questions and track your symptoms, medications, and vitals.")}
-                </Text>
-              )}
+              {connectionState === "connected" &&
+                !isListening &&
+                !isSpeaking &&
+                !isProcessing && (
+                  <Text style={styles.statusHint}>
+                    {t(
+                      "zeinaReady",
+                      "I'm here to help with your health questions and track your symptoms, medications, and vitals."
+                    )}
+                  </Text>
+                )}
             </View>
 
             {/* Current transcript while speaking */}
             {currentTranscript && (
               <View style={styles.transcriptPreview}>
-                <Text style={styles.transcriptPreviewText}>{currentTranscript}</Text>
+                <Text style={styles.transcriptPreviewText}>
+                  {currentTranscript}
+                </Text>
               </View>
             )}
 
@@ -1386,25 +1591,45 @@ export default function VoiceAgentScreen() {
             {toolCalls.length > 0 && (
               <View style={styles.toolCallsContainer}>
                 {toolCalls.map((tc) => (
-                  <Animated.View 
-                    key={tc.id} 
+                  <Animated.View
+                    key={tc.id}
                     style={[
                       styles.toolCallBadge,
-                      tc.status === "executing" && styles.toolCallBadgeExecuting,
-                      tc.status === "completed" && styles.toolCallBadgeCompleted,
+                      tc.status === "executing" &&
+                        styles.toolCallBadgeExecuting,
+                      tc.status === "completed" &&
+                        styles.toolCallBadgeCompleted,
                       tc.status === "error" && styles.toolCallBadgeError,
                     ]}
                   >
                     <Ionicons
-                      name={tc.status === "executing" ? "sync" : tc.status === "completed" ? "checkmark-circle" : "alert-circle"}
+                      color={
+                        tc.status === "completed"
+                          ? "#4ecdc4"
+                          : tc.status === "error"
+                            ? "#ff6b6b"
+                            : "#fff"
+                      }
+                      name={
+                        tc.status === "executing"
+                          ? "sync"
+                          : tc.status === "completed"
+                            ? "checkmark-circle"
+                            : "alert-circle"
+                      }
                       size={16}
-                      color={tc.status === "completed" ? "#4ecdc4" : tc.status === "error" ? "#ff6b6b" : "#fff"}
                     />
                     <Text style={styles.toolCallText}>
-                      {tc.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                      {tc.name
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase())}
                     </Text>
                     {tc.status === "executing" && (
-                      <ActivityIndicator size="small" color="#fff" style={{ marginLeft: 6 }} />
+                      <ActivityIndicator
+                        color="#fff"
+                        size="small"
+                        style={{ marginLeft: 6 }}
+                      />
                     )}
                   </Animated.View>
                 ))}
@@ -1415,30 +1640,34 @@ export default function VoiceAgentScreen() {
           {/* Conversation messages */}
           <View style={styles.messagesContainer}>
             <ScrollView
-              ref={scrollViewRef}
-              style={styles.messagesScroll}
               contentContainerStyle={styles.messagesContent}
+              ref={scrollViewRef}
               showsVerticalScrollIndicator={false}
+              style={styles.messagesScroll}
             >
               {messages.map((message) => (
                 <View
                   key={message.id}
                   style={[
                     styles.messageBubble,
-                    message.role === "user" ? styles.userMessage : styles.assistantMessage,
+                    message.role === "user"
+                      ? styles.userMessage
+                      : styles.assistantMessage,
                   ]}
                 >
                   <Text
                     style={[
                       styles.messageText,
-                      message.role === "user" ? styles.userMessageText : styles.assistantMessageText,
+                      message.role === "user"
+                        ? styles.userMessageText
+                        : styles.assistantMessageText,
                     ]}
                   >
                     {message.content}
                   </Text>
                   {message.isStreaming && (
                     <View style={styles.streamingIndicator}>
-                      <ActivityIndicator size="small" color="#667eea" />
+                      <ActivityIndicator color="#667eea" size="small" />
                     </View>
                   )}
                 </View>
@@ -1447,97 +1676,113 @@ export default function VoiceAgentScreen() {
           </View>
 
           {/* Quick Actions */}
-          {connectionState === "connected" && !isListening && !isSpeaking && !isProcessing && (
-            <View style={styles.quickActionsContainer}>
-              <TouchableOpacity
-                onPress={() => setShowQuickActions(!showQuickActions)}
-                style={styles.quickActionsToggle}
-              >
-                <Ionicons name={showQuickActions ? "chevron-up" : "chevron-down"} size={20} color="#fff" />
-                <Text style={styles.quickActionsToggleText}>
-                  {showQuickActions
-                    ? t("hideQuickActions", "Hide Quick Actions")
-                    : t("quickActions", "Quick Actions")}
-                </Text>
-              </TouchableOpacity>
-              
-              {showQuickActions && (
-                <View style={styles.quickActionsGrid}>
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={() => handleQuickAction("Log my symptoms")}
-                  >
-                    <Ionicons name="medical" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>
-                      {t("quickActionLogSymptom", "Log Symptom")}
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={() => handleQuickAction("What are my medications?")}
-                  >
-                    <Ionicons name="medical" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>
-                      {t("quickActionMyMedications", "My Medications")}
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={() => handleQuickAction("Show my health summary")}
-                  >
-                    <Ionicons name="heart" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>
-                      {t("quickActionHealthSummary", "Health Summary")}
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={() => handleQuickAction("Check my recent vitals")}
-                  >
-                    <Ionicons name="pulse" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>
-                      {t("quickActionRecentVitals", "Recent Vitals")}
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={() => handleQuickAction("How am I doing today?")}
-                  >
-                    <Ionicons name="happy" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>
-                      {t("quickActionHowAmI", "How Am I?")}
-                    </Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={styles.quickActionButton}
-                    onPress={() => handleQuickAction("Analyze my health trends")}
-                  >
-                    <Ionicons name="trending-up" size={20} color="#fff" />
-                    <Text style={styles.quickActionText}>
-                      {t("quickActionHealthTrends", "Health Trends")}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
+          {connectionState === "connected" &&
+            !isListening &&
+            !isSpeaking &&
+            !isProcessing && (
+              <View style={styles.quickActionsContainer}>
+                <TouchableOpacity
+                  onPress={() => setShowQuickActions(!showQuickActions)}
+                  style={styles.quickActionsToggle}
+                >
+                  <Ionicons
+                    color="#fff"
+                    name={showQuickActions ? "chevron-up" : "chevron-down"}
+                    size={20}
+                  />
+                  <Text style={styles.quickActionsToggleText}>
+                    {showQuickActions
+                      ? t("hideQuickActions", "Hide Quick Actions")
+                      : t("quickActions", "Quick Actions")}
+                  </Text>
+                </TouchableOpacity>
+
+                {showQuickActions && (
+                  <View style={styles.quickActionsGrid}>
+                    <TouchableOpacity
+                      onPress={() => handleQuickAction("Log my symptoms")}
+                      style={styles.quickActionButton}
+                    >
+                      <Ionicons color="#fff" name="medical" size={20} />
+                      <Text style={styles.quickActionText}>
+                        {t("quickActionLogSymptom", "Log Symptom")}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleQuickAction("What are my medications?")
+                      }
+                      style={styles.quickActionButton}
+                    >
+                      <Ionicons color="#fff" name="medical" size={20} />
+                      <Text style={styles.quickActionText}>
+                        {t("quickActionMyMedications", "My Medications")}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleQuickAction("Show my health summary")
+                      }
+                      style={styles.quickActionButton}
+                    >
+                      <Ionicons color="#fff" name="heart" size={20} />
+                      <Text style={styles.quickActionText}>
+                        {t("quickActionHealthSummary", "Health Summary")}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleQuickAction("Check my recent vitals")
+                      }
+                      style={styles.quickActionButton}
+                    >
+                      <Ionicons color="#fff" name="pulse" size={20} />
+                      <Text style={styles.quickActionText}>
+                        {t("quickActionRecentVitals", "Recent Vitals")}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleQuickAction("How am I doing today?")}
+                      style={styles.quickActionButton}
+                    >
+                      <Ionicons color="#fff" name="happy" size={20} />
+                      <Text style={styles.quickActionText}>
+                        {t("quickActionHowAmI", "How Am I?")}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleQuickAction("Analyze my health trends")
+                      }
+                      style={styles.quickActionButton}
+                    >
+                      <Ionicons color="#fff" name="trending-up" size={20} />
+                      <Text style={styles.quickActionText}>
+                        {t("quickActionHealthTrends", "Health Trends")}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
 
           {/* Control buttons */}
           <View style={styles.controlsContainer}>
             {isAudioAvailable ? (
               <>
                 <TouchableOpacity
-                  onPress={toggleRecording}
                   disabled={connectionState !== "connected" || isProcessing}
+                  onPress={toggleRecording}
                   style={[
                     styles.talkButton,
                     isListening && styles.talkButtonActive,
-                    (connectionState !== "connected" || isProcessing) && styles.talkButtonDisabled,
+                    (connectionState !== "connected" || isProcessing) &&
+                      styles.talkButtonDisabled,
                   ]}
                 >
                   <LinearGradient
@@ -1545,15 +1790,15 @@ export default function VoiceAgentScreen() {
                       isListening
                         ? ["#ff6b6b", "#ee5a5a"]
                         : connectionState === "connected"
-                        ? ["#667eea", "#764ba2"]
-                        : ["#636e72", "#2d3436"]
+                          ? ["#667eea", "#764ba2"]
+                          : ["#636e72", "#2d3436"]
                     }
                     style={styles.talkButtonGradient}
                   >
                     <Ionicons
+                      color="#fff"
                       name={isListening ? "stop" : "mic"}
                       size={32}
-                      color="#fff"
                     />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -1562,41 +1807,48 @@ export default function VoiceAgentScreen() {
                   {connectionState !== "connected"
                     ? t("pressConnectFirst", "Press connect first")
                     : isListening
-                    ? t("releaseToSend", "Tap to stop")
-                    : t("holdToTalk", "Tap to talk")}
+                      ? t("releaseToSend", "Tap to stop")
+                      : t("holdToTalk", "Tap to talk")}
                 </Text>
               </>
             ) : (
               <View style={styles.textInputContainer}>
                 <TextInput
-                  style={styles.textInput}
-                  placeholder={t("typeMessage", "Type your message...")}
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={textInput}
-                  onChangeText={setTextInput}
-                  multiline
                   editable={connectionState === "connected" && !isProcessing}
+                  multiline
+                  onChangeText={setTextInput}
                   onSubmitEditing={() => {
                     if (textInput.trim() && connectionState === "connected") {
                       sendTextMessage(textInput.trim());
                       setTextInput("");
                     }
                   }}
+                  placeholder={t("typeMessage", "Type your message...")}
+                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
+                  style={styles.textInput}
+                  value={textInput}
                 />
                 <TouchableOpacity
+                  disabled={
+                    !textInput.trim() ||
+                    connectionState !== "connected" ||
+                    isProcessing
+                  }
                   onPress={() => {
                     if (textInput.trim() && connectionState === "connected") {
                       sendTextMessage(textInput.trim());
                       setTextInput("");
                     }
                   }}
-                  disabled={!textInput.trim() || connectionState !== "connected" || isProcessing}
                   style={[
                     styles.sendButton,
-                    (!textInput.trim() || connectionState !== "connected" || isProcessing) && styles.sendButtonDisabled,
+                    (!textInput.trim() ||
+                      connectionState !== "connected" ||
+                      isProcessing) &&
+                      styles.sendButtonDisabled,
                   ]}
                 >
-                  <Ionicons name="send" size={20} color="#fff" />
+                  <Ionicons color="#fff" name="send" size={20} />
                 </TouchableOpacity>
               </View>
             )}

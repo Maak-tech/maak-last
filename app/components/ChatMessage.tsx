@@ -75,9 +75,9 @@ export default function ChatMessage({
             <Ionicons
               color={isSpeaking ? "#007AFF" : "#666"}
               name={isSpeaking ? "volume-high" : "volume-medium"}
+              onPress={() => onSpeak(content)}
               size={16}
               style={styles.speakerIcon}
-              onPress={() => onSpeak(content)}
             />
           )}
         </View>

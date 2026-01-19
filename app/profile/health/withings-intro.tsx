@@ -9,9 +9,8 @@ import {
   ChevronRight,
   Heart,
   Lock,
-  Settings,
-  Shield,
   Scale,
+  Shield,
 } from "lucide-react-native";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -72,8 +71,8 @@ export default function WithingsIntroScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -125,7 +124,9 @@ export default function WithingsIntroScreen() {
 
           <View style={styles.benefitsList}>
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#3B82F6" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#3B82F6" }]}
+              >
                 <Scale color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -153,7 +154,9 @@ export default function WithingsIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#10B981" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#10B981" }]}
+              >
                 <Heart color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -181,7 +184,9 @@ export default function WithingsIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}
+              >
                 <Shield color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -246,9 +251,7 @@ export default function WithingsIntroScreen() {
                   isRTL && styles.rtlText,
                 ]}
               >
-                {isRTL
-                  ? "امتثال كامل للائحة GDPR"
-                  : "Full GDPR compliance"}
+                {isRTL ? "امتثال كامل للائحة GDPR" : "Full GDPR compliance"}
               </Text>
             </View>
           </View>

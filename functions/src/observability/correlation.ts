@@ -3,8 +3,8 @@
  * Generates and manages trace IDs for distributed tracing
  */
 
-import { randomUUID } from 'crypto';
-import { AsyncLocalStorage } from 'async_hooks';
+import { AsyncLocalStorage } from "async_hooks";
+import { randomUUID } from "crypto";
 
 // Store trace context per async execution
 const asyncLocalStorage = new AsyncLocalStorage<{ traceId: string }>();

@@ -4,29 +4,30 @@
  * Supports comprehensive health data including body measurements, vitals, and activity
  */
 
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import Constants from "expo-constants";
 import {
   getAvailableMetricsForProvider,
-  getWithingsScopesForMetrics,
   getMetricByKey,
+  getWithingsScopesForMetrics,
 } from "../health/healthMetricsCatalog";
+import { saveProviderConnection } from "../health/healthSync";
 import {
   HEALTH_STORAGE_KEYS,
-  type WithingsTokens,
+  type MetricSample,
   type NormalizedMetricPayload,
   type ProviderAvailability,
-  type MetricSample,
+  type WithingsTokens,
 } from "../health/healthTypes";
-import { saveProviderConnection } from "../health/healthSync";
 
 // Withings OAuth configuration
 const WITHINGS_CLIENT_ID =
   Constants.expoConfig?.extra?.withingsClientId || "YOUR_WITHINGS_CLIENT_ID";
 const WITHINGS_CLIENT_SECRET =
-  Constants.expoConfig?.extra?.withingsClientSecret || "YOUR_WITHINGS_CLIENT_SECRET";
+  Constants.expoConfig?.extra?.withingsClientSecret ||
+  "YOUR_WITHINGS_CLIENT_SECRET";
 const WITHINGS_AUTH_URL = "https://account.withings.com/oauth2_user/authorize2";
 const WITHINGS_TOKEN_URL = "https://wbsapi.withings.net/v2/oauth2";
 const WITHINGS_API_BASE = "https://wbsapi.withings.net";
@@ -117,13 +118,16 @@ export const withingsService = {
 
       const authUrl =
         `${WITHINGS_AUTH_URL}?` +
-        `response_type=code&` +
+        "response_type=code&" +
         `client_id=${encodeURIComponent(WITHINGS_CLIENT_ID)}&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
         `scope=${encodeURIComponent(scopes.join(","))}&` +
         `state=${encodeURIComponent("withings_auth")}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        REDIRECT_URI
+      );
 
       if (result.type === "success" && result.url) {
         await withingsService.handleRedirect(result.url, selectedMetrics);
@@ -138,7 +142,10 @@ export const withingsService = {
   /**
    * Handle OAuth redirect callback
    */
-  handleRedirect: async (url: string, selectedMetrics?: string[]): Promise<void> => {
+  handleRedirect: async (
+    url: string,
+    selectedMetrics?: string[]
+  ): Promise<void> => {
     try {
       const urlObj = new URL(url);
       const code = urlObj.searchParams.get("code");
@@ -190,7 +197,9 @@ export const withingsService = {
         selectedMetrics: selectedMetrics || [],
       });
     } catch (error: any) {
-      throw new Error(`Failed to complete Withings authentication: ${error.message}`);
+      throw new Error(
+        `Failed to complete Withings authentication: ${error.message}`
+      );
     }
   },
 
@@ -303,7 +312,10 @@ export const withingsService = {
         for (const group of measureData.body.measuregrps) {
           const timestamp = new Date(group.date * 1000);
           for (const measure of group.measures) {
-            const measureType = WITHINGS_MEASURE_TYPES[measure.type as keyof typeof WITHINGS_MEASURE_TYPES];
+            const measureType =
+              WITHINGS_MEASURE_TYPES[
+                measure.type as keyof typeof WITHINGS_MEASURE_TYPES
+              ];
             if (!measureType) continue;
 
             const metricKey = measureType.key;
@@ -314,7 +326,7 @@ export const withingsService = {
             }
 
             // Calculate actual value using the unit (power of 10)
-            const value = measure.value * Math.pow(10, measure.unit);
+            const value = measure.value * 10 ** measure.unit;
 
             // Convert height from meters to cm if needed
             let finalValue = value;
@@ -335,7 +347,15 @@ export const withingsService = {
       }
 
       // Fetch heart rate data from heart endpoint
-      if (metricKeys.some((k) => ["heart_rate", "blood_pressure_systolic", "blood_pressure_diastolic"].includes(k))) {
+      if (
+        metricKeys.some((k) =>
+          [
+            "heart_rate",
+            "blood_pressure_systolic",
+            "blood_pressure_diastolic",
+          ].includes(k)
+        )
+      ) {
         try {
           const heartResponse = await fetch(`${WITHINGS_API_BASE}/v2/heart`, {
             method: "POST",
@@ -400,17 +420,20 @@ export const withingsService = {
 
             for (const item of sleepData.body.series) {
               // Total sleep in hours
-              const totalSleep = (
-                (item.data?.lightsleepduration || 0) +
-                (item.data?.deepsleepduration || 0) +
-                (item.data?.remsleepduration || 0)
-              ) / 3600;
+              const totalSleep =
+                ((item.data?.lightsleepduration || 0) +
+                  (item.data?.deepsleepduration || 0) +
+                  (item.data?.remsleepduration || 0)) /
+                3600;
 
               samplesByMetric["sleep_analysis"].push({
                 value: totalSleep,
                 unit: "hours",
-                startDate: item.date || new Date(item.startdate * 1000).toISOString(),
-                endDate: item.enddate ? new Date(item.enddate * 1000).toISOString() : undefined,
+                startDate:
+                  item.date || new Date(item.startdate * 1000).toISOString(),
+                endDate: item.enddate
+                  ? new Date(item.enddate * 1000).toISOString()
+                  : undefined,
                 source: "Withings Sleep",
               });
             }
@@ -421,20 +444,27 @@ export const withingsService = {
       }
 
       // Fetch activity data (steps, calories)
-      if (metricKeys.some((k) => ["steps", "active_energy", "distance_walking_running"].includes(k))) {
+      if (
+        metricKeys.some((k) =>
+          ["steps", "active_energy", "distance_walking_running"].includes(k)
+        )
+      ) {
         try {
-          const activityResponse = await fetch(`${WITHINGS_API_BASE}/v2/measure`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: new URLSearchParams({
-              action: "getactivity",
-              startdateymd: formatDate(startDate),
-              enddateymd: formatDate(endDate),
-            }).toString(),
-          });
+          const activityResponse = await fetch(
+            `${WITHINGS_API_BASE}/v2/measure`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: new URLSearchParams({
+                action: "getactivity",
+                startdateymd: formatDate(startDate),
+                enddateymd: formatDate(endDate),
+              }).toString(),
+            }
+          );
 
           const activityData = await activityResponse.json();
 
@@ -466,7 +496,10 @@ export const withingsService = {
                 });
               }
 
-              if (metricKeys.includes("distance_walking_running") && activity.distance) {
+              if (
+                metricKeys.includes("distance_walking_running") &&
+                activity.distance
+              ) {
                 if (!samplesByMetric["distance_walking_running"]) {
                   samplesByMetric["distance_walking_running"] = [];
                 }
@@ -523,9 +556,8 @@ export const withingsService = {
     metricKeys: string[],
     startDate: Date,
     endDate: Date
-  ): Promise<NormalizedMetricPayload[]> => {
-    return withingsService.fetchHealthData(metricKeys, startDate, endDate);
-  },
+  ): Promise<NormalizedMetricPayload[]> =>
+    withingsService.fetchHealthData(metricKeys, startDate, endDate),
 
   /**
    * Disconnect Withings integration

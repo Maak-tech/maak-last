@@ -50,7 +50,11 @@ export default function AppleHealthIntroScreen() {
       >
         <View style={styles.errorContainer}>
           <Text
-            style={[styles.errorText, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
+            style={[
+              styles.errorText,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
           >
             {t("appleHealthOnlyIOS")}
           </Text>
@@ -113,7 +117,11 @@ export default function AppleHealthIntroScreen() {
         {/* Benefits Section */}
         <View style={styles.section}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
+            style={[
+              styles.sectionTitle,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
           >
             {t("whatYoullGet")}
           </Text>
@@ -194,7 +202,11 @@ export default function AppleHealthIntroScreen() {
         {/* Privacy Promise Section */}
         <View style={styles.section}>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.text.primary }, isRTL && { textAlign: "left" }]}
+            style={[
+              styles.sectionTitle,
+              { color: theme.colors.text.primary },
+              isRTL && { textAlign: "left" },
+            ]}
           >
             {t("yourPrivacyPromise")}
           </Text>
@@ -320,7 +332,11 @@ export default function AppleHealthIntroScreen() {
                 isRTL && { textAlign: "left" },
               ]}
             >
-              {t("readOnlyAccess")}{"\n"}{t("dataEncryptedSynced")}{"\n"}{t("usedForCaregiving")}
+              {t("readOnlyAccess")}
+              {"\n"}
+              {t("dataEncryptedSynced")}
+              {"\n"}
+              {t("usedForCaregiving")}
             </Text>
           </View>
         </View>
@@ -337,7 +353,11 @@ export default function AppleHealthIntroScreen() {
             ]}
           >
             <Text style={styles.primaryButtonText}>{t("continue")}</Text>
-            <ChevronRight color="#FFFFFF" size={20} style={[isRTL && { transform: [{ rotate: "180deg" }] }]} />
+            <ChevronRight
+              color="#FFFFFF"
+              size={20}
+              style={[isRTL && { transform: [{ rotate: "180deg" }] }]}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity

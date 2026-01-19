@@ -3,7 +3,6 @@ import {
   Activity,
   AlertTriangle,
   Calendar,
-  Check,
   ChevronRight,
   Heart,
   Lightbulb,
@@ -17,23 +16,25 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  RefreshControl,
   ScrollView,
-  Text,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from "react-native";
+import { Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import {
+  Caption,
+  Heading,
+  Text as TypographyText,
+} from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
-  proactiveHealthSuggestionsService,
   type HealthSuggestion,
+  proactiveHealthSuggestionsService,
 } from "@/lib/services/proactiveHealthSuggestionsService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Card } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
 
 interface ProactiveHealthSuggestionsProps {
   maxSuggestions?: number;
@@ -66,7 +67,12 @@ export default function ProactiveHealthSuggestions({
       alignItems: "center" as const,
       marginBottom: theme.spacing.base,
     } as ViewStyle,
-    headerTitle: getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
+    headerTitle: getTextStyle(
+      theme,
+      "subheading",
+      "bold",
+      theme.colors.text.primary
+    ),
     suggestionCard: {
       marginBottom: theme.spacing.base,
       borderLeftWidth: 4,
@@ -93,8 +99,18 @@ export default function ProactiveHealthSuggestions({
     suggestionContent: {
       flex: 1,
     } as ViewStyle,
-    suggestionTitle: getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
-    suggestionDescription: getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+    suggestionTitle: getTextStyle(
+      theme,
+      "subheading",
+      "bold",
+      theme.colors.text.primary
+    ),
+    suggestionDescription: getTextStyle(
+      theme,
+      "body",
+      "regular",
+      theme.colors.text.secondary
+    ),
     suggestionAction: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
@@ -108,42 +124,54 @@ export default function ProactiveHealthSuggestions({
       padding: theme.spacing.xl,
       alignItems: "center" as const,
     } as ViewStyle,
-    emptyText: getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+    emptyText: getTextStyle(
+      theme,
+      "body",
+      "regular",
+      theme.colors.text.secondary
+    ),
     rtlText: {
-      textAlign: (isRTL ? "right" : "left") as "left" | "right" | "center" | "justify" | "auto",
+      textAlign: (isRTL ? "right" : "left") as
+        | "left"
+        | "right"
+        | "center"
+        | "justify"
+        | "auto",
     },
   }))(theme) as any;
 
-  const loadSuggestions = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadSuggestions = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        const allSuggestions =
+          await proactiveHealthSuggestionsService.generateSuggestions(
+            user.id,
+            isRTL
+          );
+
+        // Filter out dismissed suggestions
+        const filteredSuggestions = allSuggestions.filter(
+          (s) => !dismissedIds.has(s.id)
+        );
+
+        setSuggestions(filteredSuggestions.slice(0, maxSuggestions));
+      } catch (error) {
+        // Silently handle error
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      const allSuggestions = await proactiveHealthSuggestionsService.generateSuggestions(
-        user.id,
-        isRTL
-      );
-
-      // Filter out dismissed suggestions
-      const filteredSuggestions = allSuggestions.filter(
-        (s) => !dismissedIds.has(s.id)
-      );
-
-      setSuggestions(
-        filteredSuggestions.slice(0, maxSuggestions)
-      );
-    } catch (error) {
-      // Silently handle error
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, maxSuggestions, dismissedIds, isRTL]);
+    },
+    [user, maxSuggestions, dismissedIds, isRTL]
+  );
 
   useEffect(() => {
     loadSuggestions();
@@ -164,10 +192,14 @@ export default function ProactiveHealthSuggestions({
     if (onSuggestionTap) {
       onSuggestionTap(suggestion);
     } else if (suggestion.action?.route) {
-      if (comingSoonRoutes.some(route => suggestion.action?.route?.includes(route))) {
+      if (
+        comingSoonRoutes.some((route) =>
+          suggestion.action?.route?.includes(route)
+        )
+      ) {
         Alert.alert(
           isRTL ? "قريباً" : "Coming Soon",
-          isRTL 
+          isRTL
             ? "هذه الميزة قيد التطوير وستكون متاحة قريباً."
             : "This feature is under development and will be available soon.",
           [{ text: isRTL ? "حسناً" : "OK" }]
@@ -235,7 +267,7 @@ export default function ProactiveHealthSuggestions({
     return (
       <View style={styles.container}>
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="small" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="small" />
         </View>
       </View>
     );
@@ -248,23 +280,27 @@ export default function ProactiveHealthSuggestions({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Heading level={6} style={[styles.headerTitle, isRTL && styles.rtlText]}>
+        <Heading
+          level={6}
+          style={[styles.headerTitle, isRTL && styles.rtlText]}
+        >
           {isRTL ? "اقتراحات صحية" : "Health Suggestions"}
         </Heading>
-        <Badge variant="outline" size="small" style={{}}>
+        <Badge size="small" style={{}} variant="outline">
           {suggestions.length}
         </Badge>
       </View>
 
       <ScrollView
+        contentContainerStyle={{ paddingRight: theme.spacing.base }}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: theme.spacing.base }}
       >
         {suggestions.map((suggestion) => (
           <Card
+            contentStyle={{}}
             key={suggestion.id}
-            variant="elevated"
+            onPress={() => handleSuggestionTap(suggestion)}
             style={[
               styles.suggestionCard,
               {
@@ -272,8 +308,7 @@ export default function ProactiveHealthSuggestions({
                 borderLeftColor: getPriorityColor(suggestion.priority),
               },
             ]}
-            contentStyle={{}}
-            onPress={() => handleSuggestionTap(suggestion)}
+            variant="elevated"
           >
             <View style={styles.suggestionHeader}>
               <View style={styles.suggestionLeft}>
@@ -287,23 +322,23 @@ export default function ProactiveHealthSuggestions({
                 </View>
                 <View style={styles.suggestionContent}>
                   <TypographyText
-                    weight="bold"
                     style={[styles.suggestionTitle, isRTL && styles.rtlText]}
+                    weight="bold"
                   >
                     {suggestion.title}
                   </TypographyText>
                   <Badge
-                    variant="outline"
                     size="small"
                     style={{
                       marginBottom: theme.spacing.xs,
                       alignSelf: "flex-start",
                       borderColor: getCategoryColor(suggestion.category),
                     }}
+                    variant="outline"
                   >
-                    <Caption 
-                      style={{ color: getCategoryColor(suggestion.category) }}
+                    <Caption
                       numberOfLines={1}
+                      style={{ color: getCategoryColor(suggestion.category) }}
                     >
                       {suggestion.category}
                     </Caption>
@@ -314,7 +349,7 @@ export default function ProactiveHealthSuggestions({
                 onPress={() => handleDismiss(suggestion.id)}
                 style={styles.dismissButton}
               >
-                <X size={16} color={theme.colors.text.secondary} />
+                <X color={theme.colors.text.secondary} size={16} />
               </TouchableOpacity>
             </View>
 
@@ -330,14 +365,14 @@ export default function ProactiveHealthSuggestions({
                 style={styles.suggestionAction}
               >
                 <TypographyText
-                  weight="semibold"
                   style={{ color: getPriorityColor(suggestion.priority) }}
+                  weight="semibold"
                 >
                   {suggestion.action.label}
                 </TypographyText>
                 <ChevronRight
-                  size={16}
                   color={getPriorityColor(suggestion.priority)}
+                  size={16}
                 />
               </TouchableOpacity>
             )}

@@ -3,13 +3,13 @@
  * Handles retrieval of family member relationships
  */
 
-import * as admin from 'firebase-admin';
-import { logger } from '../../observability/logger';
+import * as admin from "firebase-admin";
+import { logger } from "../../observability/logger";
 
 /**
  * Get family member IDs for a user
  * Looks up the user's familyId and returns all members of that family
- * 
+ *
  * @param userId - The user ID to get family for
  * @param excludeUserId - Whether to exclude the user from results (default: true)
  * @param traceId - Optional correlation ID for logging
@@ -17,26 +17,26 @@ import { logger } from '../../observability/logger';
  */
 export async function getFamilyMemberIds(
   userId: string,
-  excludeUserId: boolean = true,
+  excludeUserId = true,
   traceId?: string
 ): Promise<string[]> {
-  logger.debug('Getting family member IDs', {
+  logger.debug("Getting family member IDs", {
     traceId,
     uid: userId,
     excludeUserId,
-    fn: 'getFamilyMemberIds',
+    fn: "getFamilyMemberIds",
   });
 
   try {
     const db = admin.firestore();
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 
     if (!userData?.familyId) {
-      logger.debug('User has no familyId', {
+      logger.debug("User has no familyId", {
         traceId,
         uid: userId,
-        fn: 'getFamilyMemberIds',
+        fn: "getFamilyMemberIds",
       });
       return [];
     }
@@ -45,8 +45,8 @@ export async function getFamilyMemberIds(
 
     // Get all family members
     const familySnapshot = await db
-      .collection('users')
-      .where('familyId', '==', familyId)
+      .collection("users")
+      .where("familyId", "==", familyId)
       .get();
 
     const memberIds: string[] = [];
@@ -56,20 +56,20 @@ export async function getFamilyMemberIds(
       }
     });
 
-    logger.debug('Family members retrieved', {
+    logger.debug("Family members retrieved", {
       traceId,
       uid: userId,
       familyId,
       memberCount: memberIds.length,
-      fn: 'getFamilyMemberIds',
+      fn: "getFamilyMemberIds",
     });
 
     return memberIds;
   } catch (error) {
-    logger.error('Failed to get family member IDs', error as Error, {
+    logger.error("Failed to get family member IDs", error as Error, {
       traceId,
       uid: userId,
-      fn: 'getFamilyMemberIds',
+      fn: "getFamilyMemberIds",
     });
     return [];
   }

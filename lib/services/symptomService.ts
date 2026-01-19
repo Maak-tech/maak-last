@@ -12,10 +12,10 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { healthTimelineService } from "@/lib/observability";
 import type { Symptom } from "@/types";
 import { offlineService } from "./offlineService";
 import { userService } from "./userService";
-import { healthTimelineService, observabilityEmitter } from "@/lib/observability";
 
 export const symptomService = {
   // Add new symptom (offline-first)
@@ -35,16 +35,26 @@ export const symptomService = {
         const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
         // Cache the result for offline access
         const newSymptom = { id: docRef.id, ...symptomData };
-        const currentSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
-        await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
+        const currentSymptoms =
+          await offlineService.getOfflineCollection<Symptom>("symptoms");
+        await offlineService.storeOfflineData("symptoms", [
+          ...currentSymptoms,
+          newSymptom,
+        ]);
 
         await healthTimelineService.addEvent({
           userId: symptomData.userId,
           eventType: "symptom_logged",
           title: `Symptom logged: ${symptomData.type}`,
-          description: symptomData.description || `Severity: ${symptomData.severity}/5`,
+          description:
+            symptomData.description || `Severity: ${symptomData.severity}/5`,
           timestamp: symptomData.timestamp,
-          severity: symptomData.severity >= 4 ? "error" : symptomData.severity >= 3 ? "warn" : "info",
+          severity:
+            symptomData.severity >= 4
+              ? "error"
+              : symptomData.severity >= 3
+                ? "warn"
+                : "info",
           icon: "thermometer",
           metadata: {
             symptomId: docRef.id,
@@ -59,20 +69,23 @@ export const symptomService = {
         });
 
         return docRef.id;
-      } else {
-        // Offline - queue the operation
-        const operationId = await offlineService.queueOperation({
-          type: "create",
-          collection: "symptoms",
-          data: { ...symptomData, userId: symptomData.userId },
-        });
-        // Store locally for immediate UI update
-        const tempId = `offline_${operationId}`;
-        const newSymptom = { id: tempId, ...symptomData };
-        const currentSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
-        await offlineService.storeOfflineData("symptoms", [...currentSymptoms, newSymptom]);
-        return tempId;
       }
+      // Offline - queue the operation
+      const operationId = await offlineService.queueOperation({
+        type: "create",
+        collection: "symptoms",
+        data: { ...symptomData, userId: symptomData.userId },
+      });
+      // Store locally for immediate UI update
+      const tempId = `offline_${operationId}`;
+      const newSymptom = { id: tempId, ...symptomData };
+      const currentSymptoms =
+        await offlineService.getOfflineCollection<Symptom>("symptoms");
+      await offlineService.storeOfflineData("symptoms", [
+        ...currentSymptoms,
+        newSymptom,
+      ]);
+      return tempId;
     } catch (error) {
       // If online but fails, queue for retry
       if (isOnline) {
@@ -143,30 +156,37 @@ export const symptomService = {
         // Cache for offline access
         await offlineService.storeOfflineData("symptoms", symptoms);
         return symptoms;
-      } else {
-        // Offline - use cached data filtered by userId
-        const cachedSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
-        return cachedSymptoms
-          .filter((s) => {
-            if (s.userId !== userId) return false;
-            if (!s.timestamp) return false;
-            // Ensure timestamp is a Date object
-            if (!(s.timestamp instanceof Date)) {
-              s.timestamp = new Date(s.timestamp);
-            }
-            return !isNaN(s.timestamp.getTime());
-          })
-          .sort((a, b) => {
-            const aTime = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
-            const bTime = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
-            return bTime - aTime;
-          })
-          .slice(0, limitCount);
       }
+      // Offline - use cached data filtered by userId
+      const cachedSymptoms =
+        await offlineService.getOfflineCollection<Symptom>("symptoms");
+      return cachedSymptoms
+        .filter((s) => {
+          if (s.userId !== userId) return false;
+          if (!s.timestamp) return false;
+          // Ensure timestamp is a Date object
+          if (!(s.timestamp instanceof Date)) {
+            s.timestamp = new Date(s.timestamp);
+          }
+          return !isNaN(s.timestamp.getTime());
+        })
+        .sort((a, b) => {
+          const aTime =
+            a.timestamp instanceof Date
+              ? a.timestamp.getTime()
+              : new Date(a.timestamp).getTime();
+          const bTime =
+            b.timestamp instanceof Date
+              ? b.timestamp.getTime()
+              : new Date(b.timestamp).getTime();
+          return bTime - aTime;
+        })
+        .slice(0, limitCount);
     } catch (error) {
       // If online but fails, try offline cache
       if (isOnline) {
-        const cachedSymptoms = await offlineService.getOfflineCollection<Symptom>("symptoms");
+        const cachedSymptoms =
+          await offlineService.getOfflineCollection<Symptom>("symptoms");
         return cachedSymptoms
           .filter((s) => {
             if (s.userId !== userId) return false;
@@ -178,8 +198,14 @@ export const symptomService = {
             return !isNaN(s.timestamp.getTime());
           })
           .sort((a, b) => {
-            const aTime = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
-            const bTime = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
+            const aTime =
+              a.timestamp instanceof Date
+                ? a.timestamp.getTime()
+                : new Date(a.timestamp).getTime();
+            const bTime =
+              b.timestamp instanceof Date
+                ? b.timestamp.getTime()
+                : new Date(b.timestamp).getTime();
             return bTime - aTime;
           })
           .slice(0, limitCount);
@@ -189,10 +215,16 @@ export const symptomService = {
   },
 
   // Check if user has permission to access family data (admin or caregiver)
-  async checkFamilyAccessPermission(userId: string, familyId: string): Promise<boolean> {
+  async checkFamilyAccessPermission(
+    userId: string,
+    familyId: string
+  ): Promise<boolean> {
     try {
       const user = await userService.getUser(userId);
-      return user?.familyId === familyId && (user?.role === "admin" || user?.role === "caregiver");
+      return (
+        user?.familyId === familyId &&
+        (user?.role === "admin" || user?.role === "caregiver")
+      );
     } catch (error) {
       return false;
     }
@@ -206,9 +238,14 @@ export const symptomService = {
   ): Promise<Symptom[]> {
     try {
       // Check permissions
-      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      const hasPermission = await this.checkFamilyAccessPermission(
+        userId,
+        familyId
+      );
       if (!hasPermission) {
-        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+        throw new Error(
+          "Access denied: Only admins and caregivers can access family medical data"
+        );
       }
       // First get all family members
       const familyMembersQuery = query(
@@ -226,7 +263,9 @@ export const symptomService = {
       if (memberIds.length > 10) {
         // If more than 10 members, fetch symptoms for each member separately and combine
         const symptomPromises = memberIds.map((memberId) =>
-          this.getUserSymptoms(memberId, limitCount).catch(() => [] as Symptom[])
+          this.getUserSymptoms(memberId, limitCount).catch(
+            () => [] as Symptom[]
+          )
         );
         const allSymptomsArrays = await Promise.all(symptomPromises);
         const allSymptoms = allSymptomsArrays.flat();
@@ -274,7 +313,9 @@ export const symptomService = {
           }
 
           const symptomPromises = memberIds.map((memberId) =>
-            this.getUserSymptoms(memberId, limitCount).catch(() => [] as Symptom[])
+            this.getUserSymptoms(memberId, limitCount).catch(
+              () => [] as Symptom[]
+            )
           );
           const allSymptomsArrays = await Promise.all(symptomPromises);
           const allSymptoms = allSymptomsArrays.flat();
@@ -283,7 +324,9 @@ export const symptomService = {
             .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
             .slice(0, limitCount);
         } catch (fallbackError) {
-          throw new Error(`Failed to load family symptoms: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`);
+          throw new Error(
+            `Failed to load family symptoms: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`
+          );
         }
       }
       throw error;
@@ -307,9 +350,14 @@ export const symptomService = {
   }> {
     try {
       // Check permissions
-      const hasPermission = await this.checkFamilyAccessPermission(userId, familyId);
+      const hasPermission = await this.checkFamilyAccessPermission(
+        userId,
+        familyId
+      );
       if (!hasPermission) {
-        throw new Error("Access denied: Only admins and caregivers can access family medical data");
+        throw new Error(
+          "Access denied: Only admins and caregivers can access family medical data"
+        );
       }
 
       const startDate = new Date();
@@ -325,7 +373,12 @@ export const symptomService = {
       const membersMap = new Map();
       familyMembersSnapshot.docs.forEach((doc) => {
         const data = doc.data();
-        membersMap.set(doc.id, data.name || `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Unknown");
+        membersMap.set(
+          doc.id,
+          data.name ||
+            `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
+            "Unknown"
+        );
       });
 
       if (memberIds.length === 0) {
@@ -333,8 +386,8 @@ export const symptomService = {
       }
 
       // Firestore 'in' queries are limited to 10 items, so we need to batch if needed
-      let symptoms: Symptom[] = [];
-      
+      const symptoms: Symptom[] = [];
+
       if (memberIds.length > 10) {
         // If more than 10 members, fetch stats for each member separately and combine
         const statsPromises = memberIds.map((memberId) =>
@@ -345,14 +398,24 @@ export const symptomService = {
           }))
         );
         const allStats = await Promise.all(statsPromises);
-        
+
         // Combine stats
-        const totalSymptoms = allStats.reduce((sum, stat) => sum + stat.totalSymptoms, 0);
-        const totalSeverity = allStats.reduce((sum, stat) => sum + (stat.avgSeverity * stat.totalSymptoms), 0);
-        const avgSeverity = totalSymptoms > 0 ? totalSeverity / totalSymptoms : 0;
-        
+        const totalSymptoms = allStats.reduce(
+          (sum, stat) => sum + stat.totalSymptoms,
+          0
+        );
+        const totalSeverity = allStats.reduce(
+          (sum, stat) => sum + stat.avgSeverity * stat.totalSymptoms,
+          0
+        );
+        const avgSeverity =
+          totalSymptoms > 0 ? totalSeverity / totalSymptoms : 0;
+
         // Combine common symptoms
-        const symptomCounts = new Map<string, { count: number; users: Set<string> }>();
+        const symptomCounts = new Map<
+          string,
+          { count: number; users: Set<string> }
+        >();
         allStats.forEach((stat, index) => {
           stat.commonSymptoms.forEach((cs) => {
             const key = cs.type;
@@ -364,7 +427,7 @@ export const symptomService = {
             entry.users.add(memberIds[index]);
           });
         });
-        
+
         const commonSymptoms = Array.from(symptomCounts.entries())
           .map(([type, data]) => ({
             type,
@@ -377,7 +440,7 @@ export const symptomService = {
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 5);
-        
+
         return {
           totalSymptoms,
           avgSeverity: Math.round(avgSeverity * 10) / 10,
@@ -458,7 +521,12 @@ export const symptomService = {
           const membersMap = new Map();
           familyMembersSnapshot.docs.forEach((doc) => {
             const data = doc.data();
-            membersMap.set(doc.id, data.name || `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Unknown");
+            membersMap.set(
+              doc.id,
+              data.name ||
+                `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
+                "Unknown"
+            );
           });
 
           if (memberIds.length === 0) {
@@ -473,14 +541,24 @@ export const symptomService = {
             }))
           );
           const allStats = await Promise.all(statsPromises);
-          
+
           // Combine stats
-          const totalSymptoms = allStats.reduce((sum, stat) => sum + stat.totalSymptoms, 0);
-          const totalSeverity = allStats.reduce((sum, stat) => sum + (stat.avgSeverity * stat.totalSymptoms), 0);
-          const avgSeverity = totalSymptoms > 0 ? totalSeverity / totalSymptoms : 0;
-          
+          const totalSymptoms = allStats.reduce(
+            (sum, stat) => sum + stat.totalSymptoms,
+            0
+          );
+          const totalSeverity = allStats.reduce(
+            (sum, stat) => sum + stat.avgSeverity * stat.totalSymptoms,
+            0
+          );
+          const avgSeverity =
+            totalSymptoms > 0 ? totalSeverity / totalSymptoms : 0;
+
           // Combine common symptoms
-          const symptomCounts = new Map<string, { count: number; users: Set<string> }>();
+          const symptomCounts = new Map<
+            string,
+            { count: number; users: Set<string> }
+          >();
           allStats.forEach((stat, index) => {
             stat.commonSymptoms.forEach((cs) => {
               const key = cs.type;
@@ -492,7 +570,7 @@ export const symptomService = {
               entry.users.add(memberIds[index]);
             });
           });
-          
+
           const commonSymptoms = Array.from(symptomCounts.entries())
             .map(([type, data]) => ({
               type,
@@ -505,7 +583,7 @@ export const symptomService = {
             }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 5);
-          
+
           return {
             totalSymptoms,
             avgSeverity: Math.round(avgSeverity * 10) / 10,
@@ -610,7 +688,7 @@ export const symptomService = {
           const allSymptoms = await this.getUserSymptoms(userId, 1000); // Get more than needed
           const startDate = new Date();
           startDate.setDate(startDate.getDate() - days);
-          
+
           // Filter by date in memory
           const symptoms = allSymptoms.filter(
             (s) => s.timestamp.getTime() >= startDate.getTime()

@@ -3,22 +3,22 @@
  * OAuth 2.0 integration with Fitbit API for health data
  */
 
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import Constants from "expo-constants";
 import {
   getAvailableMetricsForProvider,
   getFitbitScopesForMetrics,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
+import { saveProviderConnection } from "../health/healthSync";
 import {
-  HEALTH_STORAGE_KEYS,
   type FitbitTokens,
+  HEALTH_STORAGE_KEYS,
   type NormalizedMetricPayload,
   type ProviderAvailability,
 } from "../health/healthTypes";
-import { saveProviderConnection } from "../health/healthSync";
 
 // Fitbit OAuth configuration
 // Note: These should be set as environment variables in production
@@ -50,7 +50,8 @@ export const fitbitService = {
       ) {
         return {
           available: false,
-          reason: "Fitbit credentials not configured. Please set FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET in app.json extra config.",
+          reason:
+            "Fitbit credentials not configured. Please set FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET in app.json extra config.",
         };
       }
 
@@ -72,20 +73,21 @@ export const fitbitService = {
     try {
       // Get required scopes for selected metrics
       const scopes = getFitbitScopesForMetrics(selectedMetrics);
-      
+
       // Add profile scope for user info
       if (!scopes.includes("profile")) {
         scopes.push("profile");
       }
 
       // Build authorization URL
-      const authUrl = `${FITBIT_AUTH_URL}?` +
-        `response_type=code&` +
+      const authUrl =
+        `${FITBIT_AUTH_URL}?` +
+        "response_type=code&" +
         `client_id=${encodeURIComponent(FITBIT_CLIENT_ID)}&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
         `scope=${encodeURIComponent(scopes.join(" "))}&` +
         `code_challenge=${encodeURIComponent("challenge")}&` +
-        `code_challenge_method=plain`;
+        "code_challenge_method=plain";
 
       // Open browser for OAuth
       const result = await WebBrowser.openAuthSessionAsync(
@@ -125,7 +127,7 @@ export const fitbitService = {
       // Create base64 encoded credentials
       const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
       const base64Credentials = btoa(credentials);
-      
+
       const tokenResponse = await fetch(FITBIT_TOKEN_URL, {
         method: "POST",
         headers: {
@@ -149,11 +151,14 @@ export const fitbitService = {
       const tokenData = await tokenResponse.json();
 
       // Get user profile to get user ID
-      const profileResponse = await fetch(`${FITBIT_API_BASE}/user/-/profile.json`, {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      });
+      const profileResponse = await fetch(
+        `${FITBIT_API_BASE}/user/-/profile.json`,
+        {
+          headers: {
+            Authorization: `Bearer ${tokenData.access_token}`,
+          },
+        }
+      );
 
       if (!profileResponse.ok) {
         throw new Error("Failed to fetch user profile");
@@ -166,7 +171,7 @@ export const fitbitService = {
       const tokens: FitbitTokens = {
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token,
-        expiresAt: Date.now() + (tokenData.expires_in * 1000),
+        expiresAt: Date.now() + tokenData.expires_in * 1000,
         userId,
         scope: tokenData.scope || "",
       };
@@ -191,7 +196,9 @@ export const fitbitService = {
         grantedMetrics: selectedMetricKeys,
       });
     } catch (error: any) {
-      throw new Error(`Failed to complete Fitbit authentication: ${error.message}`);
+      throw new Error(
+        `Failed to complete Fitbit authentication: ${error.message}`
+      );
     }
   },
 
@@ -219,7 +226,7 @@ export const fitbitService = {
       // Create base64 encoded credentials
       const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
       const base64Credentials = btoa(credentials);
-      
+
       const refreshResponse = await fetch(FITBIT_TOKEN_URL, {
         method: "POST",
         headers: {
@@ -243,7 +250,7 @@ export const fitbitService = {
         ...tokens,
         accessToken: refreshData.access_token,
         refreshToken: refreshData.refresh_token || tokens.refreshToken,
-        expiresAt: Date.now() + (refreshData.expires_in * 1000),
+        expiresAt: Date.now() + refreshData.expires_in * 1000,
       };
 
       await SecureStore.setItemAsync(
@@ -295,7 +302,7 @@ export const fitbitService = {
         // Fetch metrics in parallel
         const metricPromises = selectedMetrics.map(async (metricKey) => {
           const metric = getMetricByKey(metricKey);
-          if (!metric?.fitbit?.available || !metric.fitbit.endpoint) {
+          if (!(metric?.fitbit?.available && metric.fitbit.endpoint)) {
             return null;
           }
 
@@ -321,7 +328,7 @@ export const fitbitService = {
         });
 
         const metricResults = await Promise.all(metricPromises);
-        
+
         // Process results and convert to normalized format
         for (const result of metricResults) {
           if (!result) continue;
@@ -386,8 +393,8 @@ export const fitbitService = {
       switch (metricKey) {
         case "heart_rate": {
           // Fitbit heart rate endpoint returns intraday data
-          const dataset = data?.["activities-heart"]?.[0]?.value
-            ?.restingHeartRate;
+          const dataset =
+            data?.["activities-heart"]?.[0]?.value?.restingHeartRate;
           if (dataset !== undefined) {
             samples.push({
               value: dataset,
@@ -400,8 +407,7 @@ export const fitbitService = {
         }
 
         case "resting_heart_rate": {
-          const rhr = data?.["activities-heart"]?.[0]?.value
-            ?.restingHeartRate;
+          const rhr = data?.["activities-heart"]?.[0]?.value?.restingHeartRate;
           if (rhr !== undefined) {
             samples.push({
               value: rhr,
@@ -417,7 +423,7 @@ export const fitbitService = {
           const steps = data?.["activities-steps"]?.[0]?.value;
           if (steps !== undefined) {
             samples.push({
-              value: parseInt(steps, 10),
+              value: Number.parseInt(steps, 10),
               unit: "count",
               startDate: `${dateStr}T00:00:00Z`,
               endDate: `${dateStr}T23:59:59Z`,
@@ -431,7 +437,7 @@ export const fitbitService = {
           const calories = data?.["activities-calories"]?.[0]?.value;
           if (calories !== undefined) {
             samples.push({
-              value: parseInt(calories, 10),
+              value: Number.parseInt(calories, 10),
               unit: "kcal",
               startDate: `${dateStr}T00:00:00Z`,
               endDate: `${dateStr}T23:59:59Z`,
@@ -445,7 +451,7 @@ export const fitbitService = {
           const distance = data?.["activities-distance"]?.[0]?.value;
           if (distance !== undefined) {
             // Convert from km to meters, then to km (Fitbit returns km as string)
-            const km = parseFloat(distance);
+            const km = Number.parseFloat(distance);
             samples.push({
               value: km,
               unit: "km",
@@ -461,7 +467,7 @@ export const fitbitService = {
           const floors = data?.["activities-floors"]?.[0]?.value;
           if (floors !== undefined) {
             samples.push({
-              value: parseInt(floors, 10),
+              value: Number.parseInt(floors, 10),
               unit: "count",
               startDate: `${dateStr}T00:00:00Z`,
               endDate: `${dateStr}T23:59:59Z`,
@@ -545,7 +551,7 @@ export const fitbitService = {
             sleep.forEach((entry: any) => {
               if (entry.duration !== undefined) {
                 samples.push({
-                  value: entry.duration / 60000, // Convert ms to minutes
+                  value: entry.duration / 60_000, // Convert ms to minutes
                   unit: "min",
                   startDate: entry.startTime || `${dateStr}T00:00:00Z`,
                   endDate: entry.endTime,
@@ -597,7 +603,7 @@ export const fitbitService = {
           // Create base64 encoded credentials
           const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
           const base64Credentials = btoa(credentials);
-          
+
           await fetch(`${FITBIT_TOKEN_URL}/revoke`, {
             method: "POST",
             headers: {

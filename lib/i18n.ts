@@ -52,8 +52,10 @@ const resources = {
       profile: "Profile",
 
       // Zeina Chat
-      zeinaWelcome: "Hello! I'm Zeina, your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?",
-      zeinaUnavailable: "Zeina is temporarily unavailable. Please contact support.",
+      zeinaWelcome:
+        "Hello! I'm Zeina, your personal health AI assistant. I have access to your health profile, medications, symptoms, and family information. How can I help you today?",
+      zeinaUnavailable:
+        "Zeina is temporarily unavailable. Please contact support.",
       serviceUnavailable: "Service Unavailable",
       chatWithZeina: "Chat with Zeina",
       askZeina: "Ask Zeina about your health, medications, symptoms...",
@@ -78,16 +80,19 @@ const resources = {
       mustBeLoggedIn: "You must be logged in to delete chat sessions",
       failedToGetResponse: "Failed to get response. Please try again.",
       clearAllHistory: "Clear All History",
-      confirmClearAllHistory: "Are you sure you want to delete all chat sessions? This action cannot be undone.",
+      confirmClearAllHistory:
+        "Are you sure you want to delete all chat sessions? This action cannot be undone.",
       clearAll: "Clear All",
       allHistoryCleared: "All chat history has been cleared",
       failedToClearHistory: "Failed to clear chat history. Please try again.",
       selectLanguage: "Select Language",
-      languageNote: "Language selection affects speech recognition and AI responses",
+      languageNote:
+        "Language selection affects speech recognition and AI responses",
 
       // Voice Features
       microphonePermissionRequired: "Microphone Permission Required",
-      microphonePermissionMessage: "Microphone access is needed for voice input. Please grant permission in your device settings.",
+      microphonePermissionMessage:
+        "Microphone access is needed for voice input. Please grant permission in your device settings.",
       voiceError: "Voice Error",
       failedToStartRecording: "Failed to start voice recording",
       speechError: "Speech Error",
@@ -95,21 +100,24 @@ const resources = {
       // Voice Agent
       voiceAgent: "Voice Agent",
       voiceMode: "Voice Mode",
-      voiceAgentWelcome: "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness.",
+      voiceAgentWelcome:
+        "Hello! I'm Zeina, your health assistant. I'm listening - feel free to ask me anything about your health, medications, or wellness.",
       listening: "Listening...",
       zeinaSpeaking: "Zeina is speaking...",
       processing: "Processing...",
       tapToSpeak: "Tap the button to speak",
       connectToStart: "Connect to start",
       typeMessage: "Type your message...",
-      useTextInput: "Please use text input to communicate with Zeina on this platform.",
+      useTextInput:
+        "Please use text input to communicate with Zeina on this platform.",
       holdToTalk: "Tap to talk",
       releaseToSend: "Tap to stop",
       pressConnectFirst: "Press connect first",
       connectionFailed: "Connection Failed",
       unableToConnect: "Unable to connect to voice service",
       audioNotAvailable: "Audio recording not available on this platform",
-      simulatorNotSupported: "Audio recording is not available on Simulator. Please use a physical device for voice features.",
+      simulatorNotSupported:
+        "Audio recording is not available on Simulator. Please use a physical device for voice features.",
       retry: "Retry",
       connectionError: "Connection error occurred",
       recordingFailed: "Failed to start recording",
@@ -124,7 +132,8 @@ const resources = {
       physicalDeviceRequired: "Physical Device Required",
       audioUnavailable: "Audio Unavailable",
       configurationError: "Configuration Error",
-      apiKeyMissing: "Please configure your OpenAI API key in the app settings.",
+      apiKeyMissing:
+        "Please configure your OpenAI API key in the app settings.",
       tryAsking: "Try asking:",
       trySaying: "Try saying:",
       tipHealthSummary: "What's my health summary?",
@@ -162,7 +171,7 @@ const resources = {
       inviteFamily: "Invite Family Member",
       familyMembers: "Family Members",
       healthStatus: "Health Status",
-      
+
       // Attention Reasons
       attentionReasonLowHealthScore: "Low health score",
       attentionReasonPoorCompliance: "Poor medication compliance",
@@ -283,9 +292,11 @@ const resources = {
       individualPlanDescription: "1 admin + 1 family member",
       familyPlanDescription: "1 admin + 3 family members",
       purchaseSuccess: "Purchase Successful",
-      purchaseSuccessMessage: "Your subscription has been activated successfully!",
+      purchaseSuccessMessage:
+        "Your subscription has been activated successfully!",
       purchaseError: "Purchase Failed",
-      purchaseErrorMessage: "There was an error processing your purchase. Please try again.",
+      purchaseErrorMessage:
+        "There was an error processing your purchase. Please try again.",
       restoreSuccess: "Purchases Restored",
       restoreSuccessMessage: "Your purchases have been restored successfully.",
       loadError: "Failed to load subscription information. Please try again.",
@@ -298,7 +309,7 @@ const resources = {
       account: "Account",
       settings: "Settings",
       support: "Support",
-      
+
       // Admin Settings
       adminSettings: "Admin Settings",
       accountManagement: "Account Management",
@@ -329,9 +340,11 @@ const resources = {
       avatarSavedSuccessfully: "Avatar saved successfully",
       failedToSaveAvatar: "Failed to save avatar",
       exportInProgress: "Export in Progress",
-      exportInProgressMessage: "An export is already in progress. Please wait for it to complete.",
+      exportInProgressMessage:
+        "An export is already in progress. Please wait for it to complete.",
       exportSuccessful: "Export Successful",
-      exportSuccessfulMessage: "Health metrics exported successfully. Use the share option to save the file.",
+      exportSuccessfulMessage:
+        "Health metrics exported successfully. Use the share option to save the file.",
       exportError: "Export Error",
       exportErrorMessage: "An error occurred while exporting health metrics",
       errorExportingMetrics: "Error exporting metrics",
@@ -397,21 +410,31 @@ const resources = {
       invalidInput: "Invalid Input",
       pleaseEnterBothValues: "Please enter both systolic and diastolic values.",
       pleaseEnterValidNumbers: "Please enter valid numbers.",
-      systolicRangeError: "Systolic pressure should be between 50 and 250 mmHg.",
-      diastolicRangeError: "Diastolic pressure should be between 30 and 150 mmHg.",
-      systolicMustBeGreater: "Systolic pressure must be greater than diastolic pressure.",
+      systolicRangeError:
+        "Systolic pressure should be between 50 and 250 mmHg.",
+      diastolicRangeError:
+        "Diastolic pressure should be between 30 and 150 mmHg.",
+      systolicMustBeGreater:
+        "Systolic pressure must be greater than diastolic pressure.",
       permissionDenied: "Permission Denied",
-      healthKitPermissionMessage: "Please grant write permissions for blood pressure in Settings > Privacy & Security > Health > [App Name] > Blood Pressure.",
+      healthKitPermissionMessage:
+        "Please grant write permissions for blood pressure in Settings > Privacy & Security > Health > [App Name] > Blood Pressure.",
       exportFailed: "Export Failed",
-      healthKitExportFailed: "Failed to export blood pressure to HealthKit. Please try again or check your settings.",
+      healthKitExportFailed:
+        "Failed to export blood pressure to HealthKit. Please try again or check your settings.",
       savedLocally: "Saved Locally",
-      savedLocallyMessage: "Blood pressure saved to your health records. HealthKit export failed or is not available.",
+      savedLocallyMessage:
+        "Blood pressure saved to your health records. HealthKit export failed or is not available.",
       bloodPressureSaved: "Success",
-      bloodPressureSavedMessage: "Blood pressure saved and exported to HealthKit!",
-      bloodPressureSavedLocallyMessage: "Blood pressure saved to your health records!",
+      bloodPressureSavedMessage:
+        "Blood pressure saved and exported to HealthKit!",
+      bloodPressureSavedLocallyMessage:
+        "Blood pressure saved to your health records!",
       pleaseLogInToSave: "Please log in to save blood pressure readings.",
-      failedToSaveBloodPressure: "Failed to save blood pressure. Please try again.",
-      normalBloodPressureInfo: "Normal blood pressure is typically below 120/80 mmHg. High blood pressure (hypertension) is 130/80 mmHg or higher.",
+      failedToSaveBloodPressure:
+        "Failed to save blood pressure. Please try again.",
+      normalBloodPressureInfo:
+        "Normal blood pressure is typically below 120/80 mmHg. High blood pressure (hypertension) is 130/80 mmHg or higher.",
       enter: "Enter",
       vitalSigns: "Vital Signs",
       view: "View",
@@ -439,39 +462,52 @@ const resources = {
       ppgErrorSignalVariationTooLow: "Signal variation too low.",
       ppgErrorHeartRateOutOfNormalRange: "Heart rate out of normal range.",
       ppgErrorProcessingError: "PPG processing error.",
-      ppgEstimateWarning: "Low confidence reading — shown as an estimate. Please retry with your finger fully covering the back camera and flash, and hold still.",
+      ppgEstimateWarning:
+        "Low confidence reading — shown as an estimate. Please retry with your finger fully covering the back camera and flash, and hold still.",
       readyToMeasureHeartRate: "Ready to measure heart rate",
       howToMeasure: "How to Measure",
       instructionFindComfortablePlace: "Find a comfortable place to sit",
-      instructionPositionFinger: "Position your index finger or thumb over the BACK camera lens and flash",
-      instructionPositionFingerAlt: "Position your index finger or thumb over the BACK camera lens and flash - either hand works equally well",
-      instructionCoverCamera: "Cover the back camera lens and flash completely - no gaps or light leaks",
+      instructionPositionFinger:
+        "Position your index finger or thumb over the BACK camera lens and flash",
+      instructionPositionFingerAlt:
+        "Position your index finger or thumb over the BACK camera lens and flash - either hand works equally well",
+      instructionCoverCamera:
+        "Cover the back camera lens and flash completely - no gaps or light leaks",
       instructionKeepFingerStill: "Keep your finger still and relaxed",
       instructionHoldStill: "Hold still for 60 seconds without moving",
-      instructionScreenBrightness: "Your screen brightness will increase automatically to provide light",
-      cameraViewDarkNote: "Note: The camera view may appear dark when your finger covers it - this is normal!",
+      instructionScreenBrightness:
+        "Your screen brightness will increase automatically to provide light",
+      cameraViewDarkNote:
+        "Note: The camera view may appear dark when your finger covers it - this is normal!",
       realPPGTechnology: "Real PPG Technology",
-      realPPGTechnologyDesc: "This version uses real camera data to measure your heart rate by detecting blood volume changes in your fingertip. Medical-grade accuracy with 60-second measurement.",
+      realPPGTechnologyDesc:
+        "This version uses real camera data to measure your heart rate by detecting blood volume changes in your fingertip. Medical-grade accuracy with 60-second measurement.",
       why60Seconds: "Why 60 seconds?",
-      why60SecondsDesc: "• Captures 60-90 heartbeats for statistical reliability\n• Enables medical-grade HRV analysis\n• Achieves 95-97% authentication accuracy\n• 0.2% false acceptance rate (bank-grade security)",
+      why60SecondsDesc:
+        "• Captures 60-90 heartbeats for statistical reliability\n• Enables medical-grade HRV analysis\n• Achieves 95-97% authentication accuracy\n• 0.2% false acceptance rate (bank-grade security)",
       tipsForBestResults: "Tips for Best Results",
       tipKeepHandSteady: "Keep your hand steady and relaxed",
       tipDontPressHard: "Don't press too hard - gentle contact works best",
       tipFingerWarm: "Make sure your finger is warm (not cold)",
-      tipEitherHand: "Either hand works equally well - use whichever is more comfortable",
-      tipPlaceFingerGently: "Place your finger gently over the back camera lens and flash - the flash provides the illumination for PPG",
+      tipEitherHand:
+        "Either hand works equally well - use whichever is more comfortable",
+      tipPlaceFingerGently:
+        "Place your finger gently over the back camera lens and flash - the flash provides the illumination for PPG",
       tipStayCalm: "Stay calm and breathe normally",
       processingYourHeartRate: "Processing your heart rate...",
       cameraPermissionRequired: "Camera Permission Required",
-      onceFingerInPlace: "Once your finger is in place, tap the button below to start measurement.",
+      onceFingerInPlace:
+        "Once your finger is in place, tap the button below to start measurement.",
       startMeasurement: "Start Measurement",
       fingerInPlaceStartMeasurement: "✓ Finger in Place - Start Measurement",
       grantCameraPermission: "Grant Camera Permission",
       done: "Done",
       realPPG: "REAL PPG",
       beta: "BETA",
-      vitalSignsMonitorDescription: "Measures heart rate, HRV, and respiratory rate using real camera data (PPG technology)",
-      vitalSignsSaved: "Your vital signs have been saved to your health records.",
+      vitalSignsMonitorDescription:
+        "Measures heart rate, HRV, and respiratory rate using real camera data (PPG technology)",
+      vitalSignsSaved:
+        "Your vital signs have been saved to your health records.",
       intensity: "Intensity",
       todaysMedications: "Today's Medications",
       recentMedicalHistory: "Recent Medical History",
@@ -520,32 +556,43 @@ const resources = {
       enterNewPassword: "Enter new password",
       send: "Send",
       noMetricsSelected: "No Metrics Selected",
-      pleaseSelectAtLeastOneMetric: "Please select at least one metric to continue.",
+      pleaseSelectAtLeastOneMetric:
+        "Please select at least one metric to continue.",
       notificationSent: "Notification Sent",
-      emergencyNotificationSent: "Emergency notification sent to all family members",
-      failedToSendNotification: "Failed to send notification. Please try again.",
+      emergencyNotificationSent:
+        "Emergency notification sent to all family members",
+      failedToSendNotification:
+        "Failed to send notification. Please try again.",
 
       // Interactive Notifications
       morningCheckinTitle: "🌅 Good Morning! How are you feeling?",
-      morningCheckinBody: "Quick check-in: Rate your energy level and note any symptoms. Building healthy habits together!",
+      morningCheckinBody:
+        "Quick check-in: Rate your energy level and note any symptoms. Building healthy habits together!",
       eveningReflectionTitle: "🌙 Evening Health Reflection",
-      eveningReflectionBody: "How was your day? Log your mood, symptoms, and medication adherence. Building healthy habits together!",
+      eveningReflectionBody:
+        "How was your day? Log your mood, symptoms, and medication adherence. Building healthy habits together!",
 
       // Streak Notifications
       streakCelebrationTitle: "🔥 {{streak}} Day Streak!",
-      streakCelebrationBody: "Amazing! You've been consistently tracking your health for {{streak}} days. Keep up the fantastic work!",
+      streakCelebrationBody:
+        "Amazing! You've been consistently tracking your health for {{streak}} days. Keep up the fantastic work!",
       streakRiskTitle: "⚠️ Don't Break Your Streak!",
-      streakRiskBody: "You haven't logged any health data today. Just a quick check-in to maintain your {{streak}}-day streak!",
+      streakRiskBody:
+        "You haven't logged any health data today. Just a quick check-in to maintain your {{streak}}-day streak!",
       streakRecoveryTitle: "💪 Ready to Restart Your Streak?",
-      streakRecoveryBody: "It's been {{days}} days since your last health log. Your longest streak was {{longest}} days - you can do it!",
+      streakRecoveryBody:
+        "It's been {{days}} days since your last health log. Your longest streak was {{longest}} days - you can do it!",
 
       // Activity Alerts
       missedSymptomsTitle: "📝 Symptom Check-in",
-      missedSymptomsBody: "It's been {{days}} days since your last symptom log. How are you feeling today? Regular tracking helps you stay on top of your health.",
+      missedSymptomsBody:
+        "It's been {{days}} days since your last symptom log. How are you feeling today? Regular tracking helps you stay on top of your health.",
       medicationComplianceTitle: "💊 Medication Check",
-      medicationComplianceBody: "We noticed your medication compliance is at {{compliance}}%. Everything okay? Tap to update your medication status.",
+      medicationComplianceBody:
+        "We noticed your medication compliance is at {{compliance}}%. Everything okay? Tap to update your medication status.",
       weeklySummaryTitle: "📊 Weekly Health Check",
-      weeklySummaryBody: "It's been a week since your last health activity. Time for a quick health summary and goal check-in?",
+      weeklySummaryBody:
+        "It's been a week since your last health activity. Time for a quick health summary and goal check-in?",
 
       // Achievement Notifications
       achievementUnlockedTitle: "🏆 {{title}}",
@@ -569,27 +616,36 @@ const resources = {
 
       // Phase 2: Condition-Specific Reminders
       diabetesBloodSugarTitle: "🩸 Blood Sugar Check",
-      diabetesBloodSugarBody: "Regular blood sugar monitoring is key to managing diabetes. Time for your daily check?",
+      diabetesBloodSugarBody:
+        "Regular blood sugar monitoring is key to managing diabetes. Time for your daily check?",
       hypertensionBPTitle: "❤️ Blood Pressure Check",
-      hypertensionBPBody: "Keeping track of your blood pressure helps manage hypertension. Let's check it today.",
+      hypertensionBPBody:
+        "Keeping track of your blood pressure helps manage hypertension. Let's check it today.",
       respiratoryCheckTitle: "🫁 Respiratory Check",
-      respiratoryCheckBody: "Monitoring your breathing rate helps manage respiratory conditions. Let's do a quick check.",
+      respiratoryCheckBody:
+        "Monitoring your breathing rate helps manage respiratory conditions. Let's do a quick check.",
       mentalHealthCheckTitle: "😊 Mental Health Check",
-      mentalHealthCheckBody: "Taking a moment for your mental well-being is important. How are you feeling today?",
+      mentalHealthCheckBody:
+        "Taking a moment for your mental well-being is important. How are you feeling today?",
 
       // Phase 2: Vital Sign Prompts
       weightCheckTitle: "⚖️ Monthly Weight Check",
-      weightCheckBody: "Regular weight monitoring is important for overall health. Let's check your weight this month.",
+      weightCheckBody:
+        "Regular weight monitoring is important for overall health. Let's check your weight this month.",
       temperatureCheckTitle: "🌡️ Temperature Check",
-      temperatureCheckBody: "Regular temperature monitoring helps catch potential issues early. Time for a quick check?",
+      temperatureCheckBody:
+        "Regular temperature monitoring helps catch potential issues early. Time for a quick check?",
 
       // Phase 2: Medication Adherence
       adherenceEncouragementTitle: "💪 Medication Adherence Help",
-      adherenceEncouragementBody: "We noticed your medication compliance is below 60%. Would you like help setting up reminders or organizing your medications?",
+      adherenceEncouragementBody:
+        "We noticed your medication compliance is below 60%. Would you like help setting up reminders or organizing your medications?",
       adherenceMotivationTitle: "🎯 Stay on Track",
-      adherenceMotivationBody: "You're at {{compliance}}% medication compliance. Let's work together to improve this!",
+      adherenceMotivationBody:
+        "You're at {{compliance}}% medication compliance. Let's work together to improve this!",
       complexRegimenTitle: "📋 Medication Organization Help",
-      complexRegimenBody: "With multiple medications, organization is key. Would you like help organizing your medication schedule?",
+      complexRegimenBody:
+        "With multiple medications, organization is key. Would you like help organizing your medication schedule?",
 
       // Phase 2: Quick Actions
       quickActionLogReading: "📝 Log Reading",
@@ -622,19 +678,25 @@ const resources = {
 
       // Phase 3: Family Health Updates
       familyHealthSummaryTitle: "👨‍👩‍👧‍👦 Family Health Update",
-      familyHealthSummaryBody: "{{count}} family member(s) may need attention. Check the Family tab for details.",
+      familyHealthSummaryBody:
+        "{{count}} family member(s) may need attention. Check the Family tab for details.",
       familyMedicationCoordinationTitle: "💊 Family Medication Time",
-      familyMedicationCoordinationBody: "{{count}} family member(s) have medications due soon. Help coordinate their care.",
+      familyMedicationCoordinationBody:
+        "{{count}} family member(s) have medications due soon. Help coordinate their care.",
       familyMemberAchievementTitle: "🎉 Family Achievement",
-      familyMemberAchievementBody: "{{name}} reached a health milestone: {{achievement}}",
+      familyMemberAchievementBody:
+        "{{name}} reached a health milestone: {{achievement}}",
 
       // Phase 3: Caregiver Coordination
       emergencyCoordinationTitle: "🚨 Emergency Coordination Needed",
-      emergencyCoordinationBody: "{{count}} family member(s) have triggered emergency alerts. Immediate attention required.",
+      emergencyCoordinationBody:
+        "{{count}} family member(s) have triggered emergency alerts. Immediate attention required.",
       careHandoffTitle: "🤝 Care Coordination",
-      careHandoffBody: "Time for care handoff. Update family members on recent health developments.",
+      careHandoffBody:
+        "Time for care handoff. Update family members on recent health developments.",
       appointmentCoordinationTitle: "📅 Appointment Coordination",
-      appointmentCoordinationBody: "{{count}} upcoming appointments need coordination. Review and confirm attendance.",
+      appointmentCoordinationBody:
+        "{{count}} upcoming appointments need coordination. Review and confirm attendance.",
 
       // Phase 3: Achievement Celebrations
       achievementTypeStreak: "Streak",
@@ -673,40 +735,51 @@ const resources = {
       notAvailableOnPlatform: "Not available on this platform",
       notAvailable: "Not Available",
       aboutHealthIntegrations: "About Health Integrations",
-      healthDataReadOnly: "• Health data is read-only and fully under your control",
+      healthDataReadOnly:
+        "• Health data is read-only and fully under your control",
       chooseMetricsToShare: "• You choose exactly which metrics to share",
       dataEncrypted: "• Data is encrypted and securely synced",
       disconnectAnytime: "• You can disconnect anytime",
       // Apple Health Intro
       connectAppleHealth: "Connect Apple Health",
-      syncHealthDataBetterInsights: "Sync your health data to provide better care insights",
+      syncHealthDataBetterInsights:
+        "Sync your health data to provide better care insights",
       whatYoullGet: "What You'll Get",
       completeHealthPicture: "Complete Health Picture",
-      completeHealthPictureDesc: "View all your health metrics in one place for better care coordination",
+      completeHealthPictureDesc:
+        "View all your health metrics in one place for better care coordination",
       earlyRiskDetection: "Early Risk Detection",
-      earlyRiskDetectionDesc: "Track trends and identify potential health issues early",
+      earlyRiskDetectionDesc:
+        "Track trends and identify potential health issues early",
       yourDataYourControl: "Your Data, Your Control",
-      yourDataYourControlDesc: "You choose exactly which metrics to share. Read-only access.",
+      yourDataYourControlDesc:
+        "You choose exactly which metrics to share. Read-only access.",
       yourPrivacyPromise: "Your Privacy Promise",
       weOnlyReadWhatYouChoose: "We only read what you choose",
-      weOnlyReadWhatYouChooseDesc: "You have complete control. Select exactly which metrics to share, and we'll only access those.",
+      weOnlyReadWhatYouChooseDesc:
+        "You have complete control. Select exactly which metrics to share, and we'll only access those.",
       weNeverSellHealthData: "We never sell or share health data",
-      weNeverSellHealthDataDesc: "Your health data is yours alone. We never sell it, share it with third parties, or use it for advertising.",
+      weNeverSellHealthDataDesc:
+        "Your health data is yours alone. We never sell it, share it with third parties, or use it for advertising.",
       changePermissionsAnytime: "You can change permissions anytime",
-      changePermissionsAnytimeDesc: "Update your selections or disconnect completely at any time through the app or iOS Settings.",
+      changePermissionsAnytimeDesc:
+        "Update your selections or disconnect completely at any time through the app or iOS Settings.",
       readOnlyAccess: "• Read-only access - we never write to your health data",
       dataEncryptedSynced: "• Data is encrypted and securely synced",
-      usedForCaregiving: "• Used only for caregiving insights and health tracking",
+      usedForCaregiving:
+        "• Used only for caregiving insights and health tracking",
       notNow: "Not Now",
       appleHealthOnlyIOS: "Apple Health is only available on iOS devices.",
       // Apple Health Permissions
       selectMetrics: "Select Metrics",
-      chooseHealthMetricsToSync: "Choose which health metrics to sync from Apple Health",
+      chooseHealthMetricsToSync:
+        "Choose which health metrics to sync from Apple Health",
       selectAll: "Select All",
       allSelected: "✓ All Selected",
       authorizeMetrics: "Authorize",
       metric: "Metric",
-      changePermissionsLater: "You can change these permissions later in iOS Settings → Privacy & Security → Health",
+      changePermissionsLater:
+        "You can change these permissions later in iOS Settings → Privacy & Security → Health",
       appleHealthPermissions: "Apple Health Permissions",
       // Fitbit Intro
       connectFitbit: "Connect Fitbit",
@@ -714,7 +787,8 @@ const resources = {
       yourPrivacy: "Your Privacy",
       // Fitbit Permissions
       fitbitPermissions: "Fitbit Permissions",
-      chooseHealthMetricsToSyncFitbit: "Choose which health metrics to sync from Fitbit",
+      chooseHealthMetricsToSyncFitbit:
+        "Choose which health metrics to sync from Fitbit",
       // Health Metrics (moved to nested healthMetrics object below)
       restingHeartRate: "Resting Heart Rate",
       heartRateVariability: "Heart Rate Variability",
@@ -809,7 +883,8 @@ const resources = {
       openAIQuotaExceededMessage:
         "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing.",
       invalidApiKey: "Invalid API Key",
-      invalidApiKeyMessage: "The API key appears to be invalid. Please check and update it.",
+      invalidApiKeyMessage:
+        "The API key appears to be invalid. Please check and update it.",
       pleaseEnterValidApiKey: "Please enter a valid API key",
       settingsSavedSuccessfully: "Settings saved successfully!",
       openAIApiKey: "OpenAI API Key",
@@ -833,7 +908,8 @@ const resources = {
       failedToLoadInsights: "Failed to load insights. Please try again.",
       aiInsightsAnalyzing: "Analyzing your health data...",
       aiInsightsUnableToLoad: "Unable to load insights",
-      healthInsightsSubtitle: "Personalized analysis of your health patterns and recommendations",
+      healthInsightsSubtitle:
+        "Personalized analysis of your health patterns and recommendations",
       totalInsights: "Total Insights",
       highPriority: "High Priority",
       riskLevel: "Risk Level",
@@ -843,18 +919,22 @@ const resources = {
       insightsRiskAssessment: "Risk Assessment",
       recommendations: "Recommendations",
       insightsHealthDataCorrelationsTitle: "Health Data Correlations",
-      insightsNoSignificantCorrelations: "No significant correlations found in your recent health data.",
+      insightsNoSignificantCorrelations:
+        "No significant correlations found in your recent health data.",
       insightsSymptomPatternsTitle: "Symptom Patterns & Diagnosis",
-      insightsNoSignificantSymptomPatterns: "No significant symptom patterns detected.",
+      insightsNoSignificantSymptomPatterns:
+        "No significant symptom patterns detected.",
       insightsRiskAssessmentTitle: "Health Risk Assessment",
       overallRiskLabel: "Overall Risk",
       scoreLabel: "Score",
       nextAssessmentLabel: "Next Assessment",
       keyRiskFactors: "Key Risk Factors",
       insightsMedicationInsightsTitle: "Medication Insights",
-      insightsNoMedicationConcerns: "No medication interaction concerns detected.",
+      insightsNoMedicationConcerns:
+        "No medication interaction concerns detected.",
       insightsPersonalizedRecommendationsTitle: "Personalized Recommendations",
-      insightsNoRecommendationsYet: "No specific recommendations at this time. Keep tracking your health!",
+      insightsNoRecommendationsYet:
+        "No specific recommendations at this time. Keep tracking your health!",
       healthActionPlan: "Health Action Plan",
       generateActionPlan: "Generate Action Plan",
       immediateActions: "Immediate Actions",
@@ -876,7 +956,8 @@ const resources = {
         "Real camera heart rate measurement requires a native build with react-native-vision-camera.\n\nExpo Go cannot be used for this feature as it requires real-time camera frame processing for accurate PPG readings.",
       ppgUseNativeBuild: "Please use a native app build for real measurements.",
       realCameraPPGMeasurement: "Real Camera PPG Measurement",
-      usingBackCameraAndFlash: "Using back camera and flash for heart rate measurement",
+      usingBackCameraAndFlash:
+        "Using back camera and flash for heart rate measurement",
 
       // Integrations
       syncNow: "Sync Now",
@@ -945,7 +1026,8 @@ const resources = {
       profile: "الملف الشخصي",
 
       // Zeina Chat
-      zeinaWelcome: "مرحباً! أنا زينة، مساعدك الصحي الذكي الشخصي. لدي إمكانية الوصول إلى ملفك الصحي، الأدوية، الأعراض، ومعلومات العائلة. كيف يمكنني مساعدتك اليوم؟",
+      zeinaWelcome:
+        "مرحباً! أنا زينة، مساعدك الصحي الذكي الشخصي. لدي إمكانية الوصول إلى ملفك الصحي، الأدوية، الأعراض، ومعلومات العائلة. كيف يمكنني مساعدتك اليوم؟",
       zeinaUnavailable: "زينة غير متاحة مؤقتاً. يرجى الاتصال بالدعم.",
       serviceUnavailable: "الخدمة غير متاحة",
       chatWithZeina: "محادثة مع زينة",
@@ -971,16 +1053,19 @@ const resources = {
       mustBeLoggedIn: "يجب تسجيل الدخول لحذف جلسات المحادثة",
       failedToGetResponse: "فشل الحصول على رد. يرجى المحاولة مرة أخرى.",
       clearAllHistory: "مسح كل السجل",
-      confirmClearAllHistory: "هل أنت متأكد من حذف جميع جلسات المحادثة؟ لا يمكن التراجع عن هذا الإجراء.",
+      confirmClearAllHistory:
+        "هل أنت متأكد من حذف جميع جلسات المحادثة؟ لا يمكن التراجع عن هذا الإجراء.",
       clearAll: "مسح الكل",
       allHistoryCleared: "تم مسح كل سجل المحادثات",
       failedToClearHistory: "فشل مسح سجل المحادثات. يرجى المحاولة مرة أخرى.",
       selectLanguage: "اختر اللغة",
-      languageNote: "اختيار اللغة يؤثر على التعرف على الكلام وردود الذكاء الاصطناعي",
+      languageNote:
+        "اختيار اللغة يؤثر على التعرف على الكلام وردود الذكاء الاصطناعي",
 
       // Voice Features - Arabic
       microphonePermissionRequired: "إذن الميكروفون مطلوب",
-      microphonePermissionMessage: "وصول الميكروفون مطلوب للإدخال الصوتي. يرجى منح الإذن في إعدادات جهازك.",
+      microphonePermissionMessage:
+        "وصول الميكروفون مطلوب للإدخال الصوتي. يرجى منح الإذن في إعدادات جهازك.",
       voiceError: "خطأ صوتي",
       failedToStartRecording: "فشل بدء التسجيل الصوتي",
       speechError: "خطأ في النطق",
@@ -988,7 +1073,8 @@ const resources = {
       // Voice Agent - Arabic
       voiceAgent: "المساعد الصوتي",
       voiceMode: "وضع الصوت",
-      voiceAgentWelcome: "مرحباً! أنا زينة، مساعدتك الصحية. أنا أستمع - لا تتردد في سؤالي عن أي شيء يتعلق بصحتك أو أدويتك أو رفاهيتك.",
+      voiceAgentWelcome:
+        "مرحباً! أنا زينة، مساعدتك الصحية. أنا أستمع - لا تتردد في سؤالي عن أي شيء يتعلق بصحتك أو أدويتك أو رفاهيتك.",
       listening: "جارٍ الاستماع...",
       zeinaSpeaking: "زينة تتحدث...",
       processing: "جارٍ المعالجة...",
@@ -1053,7 +1139,7 @@ const resources = {
       inviteFamily: "دعوة فرد من العائلة",
       familyMembers: "أفراد العائلة",
       healthStatus: "الحالة الصحية",
-      
+
       // Attention Reasons
       attentionReasonLowHealthScore: "نقاط صحية منخفضة",
       attentionReasonPoorCompliance: "التزام ضعيف بالأدوية",
@@ -1176,7 +1262,8 @@ const resources = {
       purchaseSuccess: "تم الشراء بنجاح",
       purchaseSuccessMessage: "تم تفعيل اشتراكك بنجاح!",
       purchaseError: "فشل الشراء",
-      purchaseErrorMessage: "حدث خطأ أثناء معالجة عملية الشراء. يرجى المحاولة مرة أخرى.",
+      purchaseErrorMessage:
+        "حدث خطأ أثناء معالجة عملية الشراء. يرجى المحاولة مرة أخرى.",
       restoreSuccess: "تم استعادة المشتريات",
       restoreSuccessMessage: "تم استعادة مشترياتك بنجاح.",
       loadError: "فشل تحميل معلومات الاشتراك. يرجى المحاولة مرة أخرى.",
@@ -1189,7 +1276,7 @@ const resources = {
       account: "الحساب",
       settings: "الإعدادات",
       support: "الدعم",
-      
+
       // Admin Settings
       adminSettings: "إعدادات المسؤول",
       accountManagement: "إدارة الحساب",
@@ -1221,9 +1308,11 @@ const resources = {
       avatarSavedSuccessfully: "تم حفظ الصورة الرمزية بنجاح",
       failedToSaveAvatar: "فشل حفظ الصورة الرمزية",
       exportInProgress: "جاري التصدير",
-      exportInProgressMessage: "يتم تصدير المقاييس الصحية حالياً. يرجى الانتظار حتى يكتمل التصدير.",
+      exportInProgressMessage:
+        "يتم تصدير المقاييس الصحية حالياً. يرجى الانتظار حتى يكتمل التصدير.",
       exportSuccessful: "نجح التصدير",
-      exportSuccessfulMessage: "تم تصدير المقاييس الصحية بنجاح. استخدم خيار المشاركة لحفظ الملف.",
+      exportSuccessfulMessage:
+        "تم تصدير المقاييس الصحية بنجاح. استخدم خيار المشاركة لحفظ الملف.",
       exportError: "خطأ في التصدير",
       exportErrorMessage: "حدث خطأ أثناء تصدير المقاييس الصحية",
       errorExportingMetrics: "حدث خطأ في التصدير",
@@ -1288,21 +1377,28 @@ const resources = {
       invalidInput: "إدخال غير صحيح",
       pleaseEnterBothValues: "يرجى إدخال قيم الانقباضي والانبساطي.",
       pleaseEnterValidNumbers: "يرجى إدخال أرقام صحيحة.",
-      systolicRangeError: "يجب أن يكون ضغط الدم الانقباضي بين 50 و 250 ملم زئبق.",
-      diastolicRangeError: "يجب أن يكون ضغط الدم الانبساطي بين 30 و 150 ملم زئبق.",
-      systolicMustBeGreater: "يجب أن يكون ضغط الدم الانقباضي أكبر من الانبساطي.",
+      systolicRangeError:
+        "يجب أن يكون ضغط الدم الانقباضي بين 50 و 250 ملم زئبق.",
+      diastolicRangeError:
+        "يجب أن يكون ضغط الدم الانبساطي بين 30 و 150 ملم زئبق.",
+      systolicMustBeGreater:
+        "يجب أن يكون ضغط الدم الانقباضي أكبر من الانبساطي.",
       permissionDenied: "تم رفض الإذن",
-      healthKitPermissionMessage: "يرجى منح أذونات الكتابة لضغط الدم في الإعدادات > الخصوصية والأمان > الصحة > [اسم التطبيق] > ضغط الدم.",
+      healthKitPermissionMessage:
+        "يرجى منح أذونات الكتابة لضغط الدم في الإعدادات > الخصوصية والأمان > الصحة > [اسم التطبيق] > ضغط الدم.",
       exportFailed: "فشل التصدير",
-      healthKitExportFailed: "فشل تصدير ضغط الدم إلى HealthKit. يرجى المحاولة مرة أخرى أو التحقق من إعداداتك.",
+      healthKitExportFailed:
+        "فشل تصدير ضغط الدم إلى HealthKit. يرجى المحاولة مرة أخرى أو التحقق من إعداداتك.",
       savedLocally: "تم الحفظ محلياً",
-      savedLocallyMessage: "تم حفظ ضغط الدم في سجلاتك الصحية. فشل تصدير HealthKit أو غير متاح.",
+      savedLocallyMessage:
+        "تم حفظ ضغط الدم في سجلاتك الصحية. فشل تصدير HealthKit أو غير متاح.",
       bloodPressureSaved: "نجح",
       bloodPressureSavedMessage: "تم حفظ ضغط الدم وتصديره إلى HealthKit!",
       bloodPressureSavedLocallyMessage: "تم حفظ ضغط الدم في سجلاتك الصحية!",
       pleaseLogInToSave: "يرجى تسجيل الدخول لحفظ قراءات ضغط الدم.",
       failedToSaveBloodPressure: "فشل حفظ ضغط الدم. يرجى المحاولة مرة أخرى.",
-      normalBloodPressureInfo: "ضغط الدم الطبيعي عادة ما يكون أقل من 120/80 ملم زئبق. ارتفاع ضغط الدم (ارتفاع ضغط الدم) هو 130/80 ملم زئبق أو أعلى.",
+      normalBloodPressureInfo:
+        "ضغط الدم الطبيعي عادة ما يكون أقل من 120/80 ملم زئبق. ارتفاع ضغط الدم (ارتفاع ضغط الدم) هو 130/80 ملم زئبق أو أعلى.",
       enter: "إدخال",
       vitalSigns: "المؤشرات الحيوية",
       view: "عرض",
@@ -1326,42 +1422,54 @@ const resources = {
         "• أن تبقى ثابتاً أثناء القياس",
       ppgFailedToProcess: "فشل في معالجة إشارة PPG. يرجى المحاولة مرة أخرى.",
       ppgErrorInsufficientSignalData: "بيانات الإشارة غير كافية.",
-      ppgErrorTooManyInvalidSignalValues: "توجد قيم غير صالحة كثيرة في الإشارة.",
+      ppgErrorTooManyInvalidSignalValues:
+        "توجد قيم غير صالحة كثيرة في الإشارة.",
       ppgErrorSignalVariationTooLow: "تغير الإشارة منخفض جداً.",
-      ppgErrorHeartRateOutOfNormalRange: "معدل ضربات القلب خارج النطاق الطبيعي.",
+      ppgErrorHeartRateOutOfNormalRange:
+        "معدل ضربات القلب خارج النطاق الطبيعي.",
       ppgErrorProcessingError: "حدث خطأ أثناء معالجة إشارة PPG.",
-      ppgEstimateWarning: "قراءة منخفضة الثقة — يتم عرضها كتقدير. يرجى إعادة المحاولة مع تغطية عدسة الكاميرا الخلفية والفلاش بالكامل والثبات دون حركة.",
+      ppgEstimateWarning:
+        "قراءة منخفضة الثقة — يتم عرضها كتقدير. يرجى إعادة المحاولة مع تغطية عدسة الكاميرا الخلفية والفلاش بالكامل والثبات دون حركة.",
       readyToMeasureHeartRate: "جاهز لقياس معدل ضربات القلب",
       howToMeasure: "كيفية القياس",
       instructionFindComfortablePlace: "ابحث عن مكان مريح للجلوس",
-      instructionPositionFinger: "ضع إصبعك السبابة أو الإبهام على عدسة الكاميرا الخلفية والفلاش",
-      instructionPositionFingerAlt: "ضع إصبعك السبابة أو الإبهام على عدسة الكاميرا الخلفية والفلاش - أي يد تعمل بنفس الكفاءة",
-      instructionCoverCamera: "غطّ عدسة الكاميرا الخلفية والفلاش بالكامل - بدون فجوات أو تسريب للضوء",
+      instructionPositionFinger:
+        "ضع إصبعك السبابة أو الإبهام على عدسة الكاميرا الخلفية والفلاش",
+      instructionPositionFingerAlt:
+        "ضع إصبعك السبابة أو الإبهام على عدسة الكاميرا الخلفية والفلاش - أي يد تعمل بنفس الكفاءة",
+      instructionCoverCamera:
+        "غطّ عدسة الكاميرا الخلفية والفلاش بالكامل - بدون فجوات أو تسريب للضوء",
       instructionKeepFingerStill: "أبقِ إصبعك ثابتاً ومسترخياً",
       instructionHoldStill: "أبقِ ثابتاً لمدة 60 ثانية دون حركة",
       instructionScreenBrightness: "ستزداد سطوع الشاشة تلقائياً لتوفير الضوء",
-      cameraViewDarkNote: "ملاحظة: قد تظهر الكاميرا مظلمة عند تغطيتها بإصبعك - هذا طبيعي!",
+      cameraViewDarkNote:
+        "ملاحظة: قد تظهر الكاميرا مظلمة عند تغطيتها بإصبعك - هذا طبيعي!",
       realPPGTechnology: "تقنية PPG الحقيقية",
-      realPPGTechnologyDesc: "تستخدم هذه النسخة بيانات الكاميرا الحقيقية لقياس معدل ضربات القلب من خلال اكتشاف تغيرات حجم الدم في أطراف أصابعك. دقة طبية مع قياس لمدة 60 ثانية.",
+      realPPGTechnologyDesc:
+        "تستخدم هذه النسخة بيانات الكاميرا الحقيقية لقياس معدل ضربات القلب من خلال اكتشاف تغيرات حجم الدم في أطراف أصابعك. دقة طبية مع قياس لمدة 60 ثانية.",
       why60Seconds: "لماذا 60 ثانية؟",
-      why60SecondsDesc: "• التقاط 60-90 نبضة قلب للحصول على موثوقية إحصائية\n• تمكين تحليل HRV بدرجة طبية\n• تحقيق دقة مصادقة 95-97%\n• معدل قبول خاطئ 0.2% (أمان على مستوى البنوك)",
+      why60SecondsDesc:
+        "• التقاط 60-90 نبضة قلب للحصول على موثوقية إحصائية\n• تمكين تحليل HRV بدرجة طبية\n• تحقيق دقة مصادقة 95-97%\n• معدل قبول خاطئ 0.2% (أمان على مستوى البنوك)",
       tipsForBestResults: "نصائح للحصول على أفضل النتائج",
       tipKeepHandSteady: "أبقِ يدك ثابتة ومسترخية",
       tipDontPressHard: "لا تضغط بقوة - الاتصال اللطيف يعمل بشكل أفضل",
       tipFingerWarm: "تأكد من أن إصبعك دافئ (وليس بارداً)",
       tipEitherHand: "أي يد تعمل بنفس الكفاءة - استخدم الأكثر راحة",
-      tipPlaceFingerGently: "ضع إصبعك بلطف على عدسة الكاميرا الخلفية والفلاش - الفلاش يوفر الإضاءة لقياس PPG",
+      tipPlaceFingerGently:
+        "ضع إصبعك بلطف على عدسة الكاميرا الخلفية والفلاش - الفلاش يوفر الإضاءة لقياس PPG",
       tipStayCalm: "ابق هادئاً وتنفس بشكل طبيعي",
       processingYourHeartRate: "جاري معالجة معدل ضربات القلب...",
       cameraPermissionRequired: "إذن الكاميرا مطلوب",
-      onceFingerInPlace: "بمجرد وضع إصبعك في مكانه، اضغط على الزر أدناه لبدء القياس.",
+      onceFingerInPlace:
+        "بمجرد وضع إصبعك في مكانه، اضغط على الزر أدناه لبدء القياس.",
       startMeasurement: "بدء القياس",
       fingerInPlaceStartMeasurement: "✓ الإصبع في المكان - بدء القياس",
       grantCameraPermission: "منح إذن الكاميرا",
       done: "تم",
       realPPG: "PPG حقيقي",
       beta: "تجريبي",
-      vitalSignsMonitorDescription: "يقيس معدل ضربات القلب وتغير معدل ضربات القلب ومعدل التنفس باستخدام بيانات الكاميرا الحقيقية (تقنية PPG)",
+      vitalSignsMonitorDescription:
+        "يقيس معدل ضربات القلب وتغير معدل ضربات القلب ومعدل التنفس باستخدام بيانات الكاميرا الحقيقية (تقنية PPG)",
       vitalSignsSaved: "تم حفظ علاماتك الحيوية في سجلاتك الصحية.",
       intensity: "شدة",
       todaysMedications: "أدوية اليوم",
@@ -1418,25 +1526,33 @@ const resources = {
 
       // Interactive Notifications - Arabic
       morningCheckinTitle: "🌅 صباح الخير! كيف تشعر اليوم؟",
-      morningCheckinBody: "تحقق سريع: قيم مستوى طاقتك ولاحظ أي أعراض. نبني عادات صحية معاً!",
+      morningCheckinBody:
+        "تحقق سريع: قيم مستوى طاقتك ولاحظ أي أعراض. نبني عادات صحية معاً!",
       eveningReflectionTitle: "🌙 تأمل صحي مسائي",
-      eveningReflectionBody: "كيف كان يومك؟ سجل مزاجك وأعراضك وامتثالك للأدوية. نبني عادات صحية معاً!",
+      eveningReflectionBody:
+        "كيف كان يومك؟ سجل مزاجك وأعراضك وامتثالك للأدوية. نبني عادات صحية معاً!",
 
       // Streak Notifications - Arabic
       streakCelebrationTitle: "🔥 {{streak}} يوم متتالي!",
-      streakCelebrationBody: "رائع! لقد كنت تتابع صحتك بانتظام لمدة {{streak}} يوم. استمر في العمل الرائع!",
+      streakCelebrationBody:
+        "رائع! لقد كنت تتابع صحتك بانتظام لمدة {{streak}} يوم. استمر في العمل الرائع!",
       streakRiskTitle: "⚠️ لا تكسر سلسلتك!",
-      streakRiskBody: "لم تقم بتسجيل أي بيانات صحية اليوم. مجرد تحقق سريع للحفاظ على سلسلتك البالغة {{streak}} يوم!",
+      streakRiskBody:
+        "لم تقم بتسجيل أي بيانات صحية اليوم. مجرد تحقق سريع للحفاظ على سلسلتك البالغة {{streak}} يوم!",
       streakRecoveryTitle: "💪 جاهز لإعادة بدء سلسلتك؟",
-      streakRecoveryBody: "مر {{days}} يوم منذ آخر تسجيل صحي لك. أطول سلسلة لديك كانت {{longest}} يوم - يمكنك فعل ذلك!",
+      streakRecoveryBody:
+        "مر {{days}} يوم منذ آخر تسجيل صحي لك. أطول سلسلة لديك كانت {{longest}} يوم - يمكنك فعل ذلك!",
 
       // Activity Alerts - Arabic
       missedSymptomsTitle: "📝 تحقق من الأعراض",
-      missedSymptomsBody: "مر {{days}} يوم منذ آخر تسجيل للأعراض. كيف تشعر اليوم؟ التتبع المنتظم يساعدك على البقاء على اطلاع بصحتك.",
+      missedSymptomsBody:
+        "مر {{days}} يوم منذ آخر تسجيل للأعراض. كيف تشعر اليوم؟ التتبع المنتظم يساعدك على البقاء على اطلاع بصحتك.",
       medicationComplianceTitle: "💊 فحص الأدوية",
-      medicationComplianceBody: "لاحظنا أن امتثالك للأدوية عند {{compliance}}%. كل شيء بخير؟ اضغط لتحديث حالة أدويتك.",
+      medicationComplianceBody:
+        "لاحظنا أن امتثالك للأدوية عند {{compliance}}%. كل شيء بخير؟ اضغط لتحديث حالة أدويتك.",
       weeklySummaryTitle: "📊 فحص صحي أسبوعي",
-      weeklySummaryBody: "مر أسبوع منذ آخر نشاط صحي لك. وقت لملخص صحي سريع وفحص الأهداف؟",
+      weeklySummaryBody:
+        "مر أسبوع منذ آخر نشاط صحي لك. وقت لملخص صحي سريع وفحص الأهداف؟",
 
       // Achievement Notifications - Arabic
       achievementUnlockedTitle: "🏆 {{title}}",
@@ -1460,27 +1576,35 @@ const resources = {
 
       // Phase 2: Condition-Specific Reminders - Arabic
       diabetesBloodSugarTitle: "🩸 فحص سكر الدم",
-      diabetesBloodSugarBody: "مراقبة سكر الدم بانتظام هي المفتاح لإدارة السكري. وقت للفحص اليومي؟",
+      diabetesBloodSugarBody:
+        "مراقبة سكر الدم بانتظام هي المفتاح لإدارة السكري. وقت للفحص اليومي؟",
       hypertensionBPTitle: "❤️ فحص ضغط الدم",
-      hypertensionBPBody: "تتبع ضغط الدم يساعد في إدارة ارتفاع ضغط الدم. دعنا نفحصه اليوم.",
+      hypertensionBPBody:
+        "تتبع ضغط الدم يساعد في إدارة ارتفاع ضغط الدم. دعنا نفحصه اليوم.",
       respiratoryCheckTitle: "🫁 فحص التنفس",
-      respiratoryCheckBody: "مراقبة معدل التنفس يساعد في إدارة حالات الجهاز التنفسي. دعنا نفعل فحص سريع.",
+      respiratoryCheckBody:
+        "مراقبة معدل التنفس يساعد في إدارة حالات الجهاز التنفسي. دعنا نفعل فحص سريع.",
       mentalHealthCheckTitle: "😊 فحص الصحة النفسية",
       mentalHealthCheckBody: "أخذ لحظة لصحتك النفسية مهم. كيف تشعر اليوم؟",
 
       // Phase 2: Vital Sign Prompts - Arabic
       weightCheckTitle: "⚖️ فحص الوزن الشهري",
-      weightCheckBody: "مراقبة الوزن بانتظام مهمة للصحة العامة. دعنا نفحص وزنك هذا الشهر.",
+      weightCheckBody:
+        "مراقبة الوزن بانتظام مهمة للصحة العامة. دعنا نفحص وزنك هذا الشهر.",
       temperatureCheckTitle: "🌡️ فحص درجة الحرارة",
-      temperatureCheckBody: "مراقبة درجة الحرارة بانتظام تساعد في اكتشاف المشاكل المحتملة مبكراً. وقت لفحص سريع؟",
+      temperatureCheckBody:
+        "مراقبة درجة الحرارة بانتظام تساعد في اكتشاف المشاكل المحتملة مبكراً. وقت لفحص سريع؟",
 
       // Phase 2: Medication Adherence - Arabic
       adherenceEncouragementTitle: "💪 مساعدة الالتزام بالأدوية",
-      adherenceEncouragementBody: "لاحظنا أن الامتثال للأدوية أقل من 60%. هل تريد مساعدة في إعداد تذكيرات أو تنظيم أدويتك؟",
+      adherenceEncouragementBody:
+        "لاحظنا أن الامتثال للأدوية أقل من 60%. هل تريد مساعدة في إعداد تذكيرات أو تنظيم أدويتك؟",
       adherenceMotivationTitle: "🎯 ابق على المسار",
-      adherenceMotivationBody: "أنت عند {{compliance}}% من الامتثال للأدوية. دعنا نعمل معاً لتحسين هذا!",
+      adherenceMotivationBody:
+        "أنت عند {{compliance}}% من الامتثال للأدوية. دعنا نعمل معاً لتحسين هذا!",
       complexRegimenTitle: "📋 مساعدة تنظيم الأدوية",
-      complexRegimenBody: "مع أدوية متعددة، التنظيم هو المفتاح. هل تريد مساعدة في تنظيم جدول أدويتك؟",
+      complexRegimenBody:
+        "مع أدوية متعددة، التنظيم هو المفتاح. هل تريد مساعدة في تنظيم جدول أدويتك؟",
 
       // Phase 2: Quick Actions - Arabic
       quickActionLogReading: "📝 سجل القراءة",
@@ -1513,19 +1637,24 @@ const resources = {
 
       // Phase 3: Family Health Updates - Arabic
       familyHealthSummaryTitle: "👨‍👩‍👧‍👦 تحديث صحة العائلة",
-      familyHealthSummaryBody: "{{count}} فرد من العائلة قد يحتاج إلى الانتباه. تحقق من تبويب العائلة للتفاصيل.",
+      familyHealthSummaryBody:
+        "{{count}} فرد من العائلة قد يحتاج إلى الانتباه. تحقق من تبويب العائلة للتفاصيل.",
       familyMedicationCoordinationTitle: "💊 وقت أدوية العائلة",
-      familyMedicationCoordinationBody: "{{count}} فرد من العائلة لديهم أدوية مستحقة قريباً. ساعد في تنسيق رعايتهم.",
+      familyMedicationCoordinationBody:
+        "{{count}} فرد من العائلة لديهم أدوية مستحقة قريباً. ساعد في تنسيق رعايتهم.",
       familyMemberAchievementTitle: "🎉 إنجاز عائلي",
       familyMemberAchievementBody: "{{name}} وصل إلى معلم صحي: {{achievement}}",
 
       // Phase 3: Caregiver Coordination - Arabic
       emergencyCoordinationTitle: "🚨 يلزم تنسيق طوارئ",
-      emergencyCoordinationBody: "{{count}} فرد من العائلة أطلقوا إنذارات طوارئ. يلزم الانتباه الفوري.",
+      emergencyCoordinationBody:
+        "{{count}} فرد من العائلة أطلقوا إنذارات طوارئ. يلزم الانتباه الفوري.",
       careHandoffTitle: "🤝 تنسيق الرعاية",
-      careHandoffBody: "وقت تسليم الرعاية. حدث أفراد العائلة حول التطورات الصحية الأخيرة.",
+      careHandoffBody:
+        "وقت تسليم الرعاية. حدث أفراد العائلة حول التطورات الصحية الأخيرة.",
       appointmentCoordinationTitle: "📅 تنسيق المواعيد",
-      appointmentCoordinationBody: "{{count}} مواعيد قادمة تحتاج إلى تنسيق. راجع وأكد الحضور.",
+      appointmentCoordinationBody:
+        "{{count}} مواعيد قادمة تحتاج إلى تنسيق. راجع وأكد الحضور.",
 
       // Phase 3: Achievement Celebrations - Arabic
       achievementTypeStreak: "سلسلة",
@@ -1570,21 +1699,28 @@ const resources = {
       disconnectAnytime: "• يمكنك قطع الاتصال في أي وقت",
       // Apple Health Intro
       connectAppleHealth: "ربط Apple Health",
-      syncHealthDataBetterInsights: "قم بمزامنة بياناتك الصحية لتوفير رؤى رعاية أفضل",
+      syncHealthDataBetterInsights:
+        "قم بمزامنة بياناتك الصحية لتوفير رؤى رعاية أفضل",
       whatYoullGet: "ما ستحصل عليه",
       completeHealthPicture: "صورة صحية كاملة",
-      completeHealthPictureDesc: "اعرض جميع مقاييس صحتك في مكان واحد لتنسيق رعاية أفضل",
+      completeHealthPictureDesc:
+        "اعرض جميع مقاييس صحتك في مكان واحد لتنسيق رعاية أفضل",
       earlyRiskDetection: "الكشف المبكر عن المخاطر",
-      earlyRiskDetectionDesc: "تتبع الاتجاهات وتحديد المشاكل الصحية المحتملة مبكراً",
+      earlyRiskDetectionDesc:
+        "تتبع الاتجاهات وتحديد المشاكل الصحية المحتملة مبكراً",
       yourDataYourControl: "بياناتك، سيطرتك",
-      yourDataYourControlDesc: "تختار بالضبط المقاييس التي تريد مشاركتها. وصول للقراءة فقط.",
+      yourDataYourControlDesc:
+        "تختار بالضبط المقاييس التي تريد مشاركتها. وصول للقراءة فقط.",
       yourPrivacyPromise: "وعد الخصوصية الخاص بك",
       weOnlyReadWhatYouChoose: "نقرأ فقط ما تختاره",
-      weOnlyReadWhatYouChooseDesc: "لديك سيطرة كاملة. اختر بالضبط المقاييس التي تريد مشاركتها، وسنصل فقط إلى تلك.",
+      weOnlyReadWhatYouChooseDesc:
+        "لديك سيطرة كاملة. اختر بالضبط المقاييس التي تريد مشاركتها، وسنصل فقط إلى تلك.",
       weNeverSellHealthData: "لا نبيع أو نشارك بياناتك الصحية أبداً",
-      weNeverSellHealthDataDesc: "بياناتك الصحية ملكك وحدك. لا نبيعها أو نشاركها مع أطراف ثالثة أو نستخدمها للإعلان.",
+      weNeverSellHealthDataDesc:
+        "بياناتك الصحية ملكك وحدك. لا نبيعها أو نشاركها مع أطراف ثالثة أو نستخدمها للإعلان.",
       changePermissionsAnytime: "يمكنك تغيير الأذونات في أي وقت",
-      changePermissionsAnytimeDesc: "قم بتحديث اختياراتك أو قطع الاتصال تماماً في أي وقت من خلال التطبيق أو إعدادات iOS.",
+      changePermissionsAnytimeDesc:
+        "قم بتحديث اختياراتك أو قطع الاتصال تماماً في أي وقت من خلال التطبيق أو إعدادات iOS.",
       readOnlyAccess: "• وصول للقراءة فقط - لا نكتب أبداً في بياناتك الصحية",
       dataEncryptedSynced: "• البيانات مشفرة ومزامنة بشكل آمن",
       usedForCaregiving: "• تُستخدم فقط لرؤى الرعاية وتتبع الصحة",
@@ -1592,12 +1728,14 @@ const resources = {
       appleHealthOnlyIOS: "Apple Health متاح فقط على أجهزة iOS.",
       // Apple Health Permissions
       selectMetrics: "اختر المقاييس",
-      chooseHealthMetricsToSync: "اختر مقاييس الصحة التي تريد مزامنتها من Apple Health",
+      chooseHealthMetricsToSync:
+        "اختر مقاييس الصحة التي تريد مزامنتها من Apple Health",
       selectAll: "تحديد الكل",
       allSelected: "✓ تم تحديد الكل",
       authorizeMetrics: "تفويض",
       metric: "مقياس",
-      changePermissionsLater: "يمكنك تغيير هذه الأذونات لاحقاً في إعدادات iOS → الخصوصية والأمان → الصحة",
+      changePermissionsLater:
+        "يمكنك تغيير هذه الأذونات لاحقاً في إعدادات iOS → الخصوصية والأمان → الصحة",
       appleHealthPermissions: "أذونات Apple Health",
       // Fitbit Intro
       connectFitbit: "ربط Fitbit",
@@ -1605,7 +1743,8 @@ const resources = {
       yourPrivacy: "خصوصيتك",
       // Fitbit Permissions
       fitbitPermissions: "أذونات Fitbit",
-      chooseHealthMetricsToSyncFitbit: "اختر مقاييس الصحة التي تريد مزامنتها من Fitbit",
+      chooseHealthMetricsToSyncFitbit:
+        "اختر مقاييس الصحة التي تريد مزامنتها من Fitbit",
       // Health Metrics (moved to nested healthMetrics object below)
       restingHeartRate: "معدل ضربات القلب أثناء الراحة",
       heartRateVariability: "تغير معدل ضربات القلب",
@@ -1700,16 +1839,19 @@ const resources = {
       openAIQuotaExceededMessage:
         "لقد تجاوز حساب OpenAI الخاص بك حصة الاستخدام.\n\nالخيارات:\n1. إضافة الدفع إلى حساب OpenAI\n2. التبديل إلى GPT-3.5 Turbo (أرخص)\n3. انتظار إعادة تعيين الحصة\n\nقم بزيارة platform.openai.com لإدارة الفوترة.",
       invalidApiKey: "مفتاح API غير صالح",
-      invalidApiKeyMessage: "يبدو أن مفتاح API غير صالح. يرجى التحقق منه وتحديثه.",
+      invalidApiKeyMessage:
+        "يبدو أن مفتاح API غير صالح. يرجى التحقق منه وتحديثه.",
       pleaseEnterValidApiKey: "يرجى إدخال مفتاح API صالح",
       settingsSavedSuccessfully: "تم حفظ الإعدادات بنجاح!",
       openAIApiKey: "مفتاح OpenAI API",
       getApiKeyFromOpenAI: "احصل على مفتاح API من platform.openai.com",
       aiModel: "نموذج الذكاء الاصطناعي",
-      aiModelRecommendationHint: "يوصى بـ GPT-3.5 Turbo لتحقيق أفضل توازن بين التكلفة والأداء",
+      aiModelRecommendationHint:
+        "يوصى بـ GPT-3.5 Turbo لتحقيق أفضل توازن بين التكلفة والأداء",
       voiceSettings: "إعدادات الصوت",
       voiceOutput: "إخراج صوتي",
-      voiceOutputDescription: "تفعيل تحويل النص إلى كلام لردود الذكاء الاصطناعي",
+      voiceOutputDescription:
+        "تفعيل تحويل النص إلى كلام لردود الذكاء الاصطناعي",
       voiceInput: "إدخال صوتي",
       voiceInputDescription: "تفعيل تحويل الكلام إلى نص للأوامر الصوتية",
       voiceLanguage: "لغة الصوت",
@@ -1733,7 +1875,8 @@ const resources = {
       insightsRiskAssessment: "تقييم المخاطر",
       recommendations: "التوصيات",
       insightsHealthDataCorrelationsTitle: "ارتباطات البيانات الصحية",
-      insightsNoSignificantCorrelations: "لم يتم العثور على ارتباطات مهمة في بيانات صحتك الأخيرة.",
+      insightsNoSignificantCorrelations:
+        "لم يتم العثور على ارتباطات مهمة في بيانات صحتك الأخيرة.",
       insightsSymptomPatternsTitle: "أنماط الأعراض والتشخيص",
       insightsNoSignificantSymptomPatterns: "لم يتم اكتشاف أنماط أعراض مهمة.",
       insightsRiskAssessmentTitle: "تقييم مخاطر الصحة",
@@ -1744,7 +1887,8 @@ const resources = {
       insightsMedicationInsightsTitle: "رؤى الأدوية",
       insightsNoMedicationConcerns: "لم يتم اكتشاف مخاوف تداخلات دوائية.",
       insightsPersonalizedRecommendationsTitle: "توصيات مخصصة",
-      insightsNoRecommendationsYet: "لا توجد توصيات محددة حالياً. استمر في تتبع صحتك!",
+      insightsNoRecommendationsYet:
+        "لا توجد توصيات محددة حالياً. استمر في تتبع صحتك!",
       healthActionPlan: "خطة العمل الصحية",
       generateActionPlan: "إنشاء خطة عمل",
       immediateActions: "إجراءات فورية",
@@ -1764,9 +1908,11 @@ const resources = {
       ppgMeasurementUnavailable: "قياس PPG غير متاح",
       ppgRequiresNativeBuild:
         "يتطلب قياس معدل ضربات القلب بالكاميرا إصدارًا أصليًا مع react-native-vision-camera.\n\nلا يمكن استخدام Expo Go لهذه الميزة لأنها تتطلب معالجة إطارات الكاميرا في الوقت الفعلي للحصول على قراءات PPG دقيقة.",
-      ppgUseNativeBuild: "يرجى استخدام إصدار التطبيق الأصلي للحصول على قياسات حقيقية.",
+      ppgUseNativeBuild:
+        "يرجى استخدام إصدار التطبيق الأصلي للحصول على قياسات حقيقية.",
       realCameraPPGMeasurement: "قياس PPG بالكاميرا الحقيقية",
-      usingBackCameraAndFlash: "استخدام الكاميرا الخلفية والفلاش لقياس معدل ضربات القلب",
+      usingBackCameraAndFlash:
+        "استخدام الكاميرا الخلفية والفلاش لقياس معدل ضربات القلب",
 
       // Integrations
       syncNow: "مزامنة الآن",
@@ -1803,7 +1949,9 @@ const initI18n = async () => {
   // Get initial language from storage or default to English
   let initialLang = "en";
   try {
-    const AsyncStorage = await import("@react-native-async-storage/async-storage");
+    const AsyncStorage = await import(
+      "@react-native-async-storage/async-storage"
+    );
     const savedLanguage = await AsyncStorage.default.getItem("app_language");
     if (savedLanguage) {
       initialLang = savedLanguage;
@@ -1840,28 +1988,32 @@ const initI18n = async () => {
 };
 
 // Initialize i18n
-initI18n().then(() => {
-  // Override changeLanguage to also update RTL direction after initialization
-  if (i18n.changeLanguage) {
-    const originalChangeLanguage = i18n.changeLanguage.bind(i18n);
-    i18n.changeLanguage = async (lng?: string) => {
-      const newLang = lng || i18n.language;
-      const isRTL = newLang === "ar";
-      setRTL(isRTL);
-      
-      // Save language preference
-      try {
-        const AsyncStorage = await import("@react-native-async-storage/async-storage");
-        await AsyncStorage.default.setItem("app_language", newLang);
-      } catch {
-        // Silently handle error
-      }
-      
-      return originalChangeLanguage(lng);
-    };
-  }
-}).catch(() => {
-  // Silently handle error
-});
+initI18n()
+  .then(() => {
+    // Override changeLanguage to also update RTL direction after initialization
+    if (i18n.changeLanguage) {
+      const originalChangeLanguage = i18n.changeLanguage.bind(i18n);
+      i18n.changeLanguage = async (lng?: string) => {
+        const newLang = lng || i18n.language;
+        const isRTL = newLang === "ar";
+        setRTL(isRTL);
+
+        // Save language preference
+        try {
+          const AsyncStorage = await import(
+            "@react-native-async-storage/async-storage"
+          );
+          await AsyncStorage.default.setItem("app_language", newLang);
+        } catch {
+          // Silently handle error
+        }
+
+        return originalChangeLanguage(lng);
+      };
+    }
+  })
+  .catch(() => {
+    // Silently handle error
+  });
 
 export default i18n;

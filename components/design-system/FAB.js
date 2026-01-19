@@ -1,18 +1,13 @@
-import React, { useRef } from 'react';
-import {
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  View,
-} from 'react-native';
-import { colors, spacing, borderRadius, shadows } from './theme';
+import { useRef } from "react";
+import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
+import { colors, shadows, spacing } from "./theme";
 
 const FAB = ({
   onPress,
   icon,
   size = 56,
   backgroundColor = colors.primary,
-  position = 'bottom-right', // bottom-right, bottom-left, bottom-center
+  position = "bottom-right", // bottom-right, bottom-left, bottom-center
   style,
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -34,9 +29,9 @@ const FAB = ({
   };
 
   const positionStyles = {
-    'bottom-right': styles.bottomRight,
-    'bottom-left': styles.bottomLeft,
-    'bottom-center': styles.bottomCenter,
+    "bottom-right": styles.bottomRight,
+    "bottom-left": styles.bottomLeft,
+    "bottom-center": styles.bottomCenter,
   }[position];
 
   return (
@@ -51,6 +46,10 @@ const FAB = ({
       ]}
     >
       <TouchableOpacity
+        activeOpacity={1}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         style={[
           styles.fab,
           shadows.large,
@@ -61,10 +60,6 @@ const FAB = ({
             backgroundColor,
           },
         ]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={1}
       >
         <View style={styles.iconContainer}>{icon}</View>
       </TouchableOpacity>
@@ -74,7 +69,7 @@ const FAB = ({
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
+    position: "absolute",
   },
   bottomRight: {
     bottom: spacing.lg,
@@ -86,15 +81,15 @@ const styles = StyleSheet.create({
   },
   bottomCenter: {
     bottom: spacing.lg,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   fab: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

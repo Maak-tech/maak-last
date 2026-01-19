@@ -1,5 +1,12 @@
 import { router, useFocusEffect } from "expo-router";
-import { ArrowLeft, Edit, MoreVertical, Plus, Trash2, X } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Edit,
+  MoreVertical,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -40,8 +47,18 @@ const MOOD_OPTIONS = [
   { value: "verySad", emoji: "😢", label: "verySad", category: "negative" },
   { value: "anxious", emoji: "😰", label: "anxious", category: "negative" },
   { value: "angry", emoji: "😠", label: "angry", category: "negative" },
-  { value: "frustrated", emoji: "😤", label: "frustrated", category: "negative" },
-  { value: "overwhelmed", emoji: "😵", label: "overwhelmed", category: "negative" },
+  {
+    value: "frustrated",
+    emoji: "😤",
+    label: "frustrated",
+    category: "negative",
+  },
+  {
+    value: "overwhelmed",
+    emoji: "😵",
+    label: "overwhelmed",
+    category: "negative",
+  },
   { value: "hopeless", emoji: "😞", label: "hopeless", category: "negative" },
   { value: "guilty", emoji: "😟", label: "guilty", category: "negative" },
   { value: "ashamed", emoji: "😳", label: "ashamed", category: "negative" },
@@ -89,162 +106,216 @@ export default function MoodsScreen() {
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
 
-  const loadMoods = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadMoods = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    const startTime = Date.now();
-    let dataLoaded = false;
+      const startTime = Date.now();
+      let dataLoaded = false;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      logger.debug("Loading moods", {
-        userId: user.id,
-        filterType: selectedFilter.type,
-        isAdmin,
-        hasFamily: Boolean(user.familyId),
-      }, "MoodsScreen");
-
-      // Always load family members first if user has family
-      let members: UserType[] = [];
-      if (user.familyId) {
-        members = await userService.getFamilyMembers(user.familyId);
-        setFamilyMembers(members);
-      }
-
-      // Load data based on selected filter
-      // Use Promise.allSettled to handle partial failures gracefully
-      if (selectedFilter.type === "family" && user.familyId && isAdmin) {
-        // Load family moods and stats (admin only)
-        const [moodsResult, statsResult] = await Promise.allSettled([
-          moodService.getFamilyMoods(user.id, user.familyId, 50),
-          moodService.getFamilyMoodStats(user.id, user.familyId, 7),
-        ]);
-
-        if (moodsResult.status === "fulfilled") {
-          setMoods(moodsResult.value);
-          dataLoaded = true;
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
         } else {
-          logger.error("Failed to load family moods", moodsResult.reason, "MoodsScreen");
-          setMoods([]);
+          setLoading(true);
         }
 
-        if (statsResult.status === "fulfilled") {
-          setStats(statsResult.value);
-        } else {
-          logger.error("Failed to load family mood stats", statsResult.reason, "MoodsScreen");
-          setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
-        }
-      } else if (selectedFilter.type === "member" && selectedFilter.memberId && isAdmin) {
-        // Load specific member moods and stats (admin only)
-        const [moodsResult, statsResult] = await Promise.allSettled([
-          moodService.getMemberMoods(selectedFilter.memberId, 50),
-          moodService.getMemberMoodStats(selectedFilter.memberId, 7),
-        ]);
+        logger.debug(
+          "Loading moods",
+          {
+            userId: user.id,
+            filterType: selectedFilter.type,
+            isAdmin,
+            hasFamily: Boolean(user.familyId),
+          },
+          "MoodsScreen"
+        );
 
-        if (moodsResult.status === "fulfilled") {
-          setMoods(moodsResult.value);
-          dataLoaded = true;
-        } else {
-          logger.error("Failed to load member moods", moodsResult.reason, "MoodsScreen");
-          setMoods([]);
+        // Always load family members first if user has family
+        let members: UserType[] = [];
+        if (user.familyId) {
+          members = await userService.getFamilyMembers(user.familyId);
+          setFamilyMembers(members);
         }
 
-        if (statsResult.status === "fulfilled") {
-          setStats(statsResult.value);
-        } else {
-          logger.error("Failed to load member mood stats", statsResult.reason, "MoodsScreen");
-          setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
-        }
-      } else {
-        // Load personal moods and stats (default)
-        const [moodsResult, statsResult] = await Promise.allSettled([
-          moodService.getUserMoods(user.id, 50),
-          moodService.getMoodStats(user.id, 7),
-        ]);
+        // Load data based on selected filter
+        // Use Promise.allSettled to handle partial failures gracefully
+        if (selectedFilter.type === "family" && user.familyId && isAdmin) {
+          // Load family moods and stats (admin only)
+          const [moodsResult, statsResult] = await Promise.allSettled([
+            moodService.getFamilyMoods(user.id, user.familyId, 50),
+            moodService.getFamilyMoodStats(user.id, user.familyId, 7),
+          ]);
 
-        if (moodsResult.status === "fulfilled") {
-          setMoods(moodsResult.value);
-          dataLoaded = true;
-        } else {
-          logger.error("Failed to load user moods", moodsResult.reason, "MoodsScreen");
-          setMoods([]);
-        }
-
-        if (statsResult.status === "fulfilled") {
-          setStats(statsResult.value);
-        } else {
-          logger.error("Failed to load mood stats", statsResult.reason, "MoodsScreen");
-          setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
-        }
-      }
-
-      const durationMs = Date.now() - startTime;
-      logger.info("Moods loaded", {
-        userId: user.id,
-        filterType: selectedFilter.type,
-        moodCount: moods.length,
-        statsLoaded: stats.totalMoods > 0 || stats.avgIntensity > 0,
-        durationMs,
-      }, "MoodsScreen");
-    } catch (error: any) {
-      const durationMs = Date.now() - startTime;
-      
-      // Check if it's a Firestore index error
-      const isIndexError = error && typeof error === 'object' && 
-        'code' in error && error.code === 'failed-precondition';
-      
-      if (isIndexError) {
-        logger.warn("Firestore index not ready for moods query", {
-          userId: user.id,
-          filterType: selectedFilter.type,
-          durationMs,
-        }, "MoodsScreen");
-        
-        // Only show alert if no data was loaded (fallback should have handled it)
-        if (!dataLoaded) {
-          Alert.alert(
-            isRTL ? "خطأ" : "Error",
-            isRTL 
-              ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
-              : "Database index not ready. Please try again in a moment."
-          );
-        }
-      } else {
-        logger.error("Failed to load moods", error, "MoodsScreen");
-        
-        // Only show alert if no data was loaded
-        if (!dataLoaded) {
-          let errorMessage = isRTL ? "حدث خطأ في تحميل البيانات" : "Error loading data";
-          
-          if (error?.message) {
-            if (error.message.includes("permission") || error.message.includes("Permission")) {
-              errorMessage = isRTL
-                ? "ليس لديك صلاحية لعرض البيانات. يرجى التحقق من إعدادات الحساب."
-                : "You don't have permission to view data. Please check your account settings.";
-            } else if (error.message.includes("network") || error.message.includes("Network")) {
-              errorMessage = isRTL
-                ? "خطأ في الاتصال بالإنترنت. يرجى المحاولة مرة أخرى."
-                : "Network error. Please try again.";
-            } else {
-              errorMessage = isRTL
-                ? `حدث خطأ في تحميل البيانات: ${error.message}`
-                : `Error loading data: ${error.message}`;
-            }
+          if (moodsResult.status === "fulfilled") {
+            setMoods(moodsResult.value);
+            dataLoaded = true;
+          } else {
+            logger.error(
+              "Failed to load family moods",
+              moodsResult.reason,
+              "MoodsScreen"
+            );
+            setMoods([]);
           }
-          
-          Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
+
+          if (statsResult.status === "fulfilled") {
+            setStats(statsResult.value);
+          } else {
+            logger.error(
+              "Failed to load family mood stats",
+              statsResult.reason,
+              "MoodsScreen"
+            );
+            setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
+          }
+        } else if (
+          selectedFilter.type === "member" &&
+          selectedFilter.memberId &&
+          isAdmin
+        ) {
+          // Load specific member moods and stats (admin only)
+          const [moodsResult, statsResult] = await Promise.allSettled([
+            moodService.getMemberMoods(selectedFilter.memberId, 50),
+            moodService.getMemberMoodStats(selectedFilter.memberId, 7),
+          ]);
+
+          if (moodsResult.status === "fulfilled") {
+            setMoods(moodsResult.value);
+            dataLoaded = true;
+          } else {
+            logger.error(
+              "Failed to load member moods",
+              moodsResult.reason,
+              "MoodsScreen"
+            );
+            setMoods([]);
+          }
+
+          if (statsResult.status === "fulfilled") {
+            setStats(statsResult.value);
+          } else {
+            logger.error(
+              "Failed to load member mood stats",
+              statsResult.reason,
+              "MoodsScreen"
+            );
+            setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
+          }
+        } else {
+          // Load personal moods and stats (default)
+          const [moodsResult, statsResult] = await Promise.allSettled([
+            moodService.getUserMoods(user.id, 50),
+            moodService.getMoodStats(user.id, 7),
+          ]);
+
+          if (moodsResult.status === "fulfilled") {
+            setMoods(moodsResult.value);
+            dataLoaded = true;
+          } else {
+            logger.error(
+              "Failed to load user moods",
+              moodsResult.reason,
+              "MoodsScreen"
+            );
+            setMoods([]);
+          }
+
+          if (statsResult.status === "fulfilled") {
+            setStats(statsResult.value);
+          } else {
+            logger.error(
+              "Failed to load mood stats",
+              statsResult.reason,
+              "MoodsScreen"
+            );
+            setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
+          }
         }
+
+        const durationMs = Date.now() - startTime;
+        logger.info(
+          "Moods loaded",
+          {
+            userId: user.id,
+            filterType: selectedFilter.type,
+            moodCount: moods.length,
+            statsLoaded: stats.totalMoods > 0 || stats.avgIntensity > 0,
+            durationMs,
+          },
+          "MoodsScreen"
+        );
+      } catch (error: any) {
+        const durationMs = Date.now() - startTime;
+
+        // Check if it's a Firestore index error
+        const isIndexError =
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "failed-precondition";
+
+        if (isIndexError) {
+          logger.warn(
+            "Firestore index not ready for moods query",
+            {
+              userId: user.id,
+              filterType: selectedFilter.type,
+              durationMs,
+            },
+            "MoodsScreen"
+          );
+
+          // Only show alert if no data was loaded (fallback should have handled it)
+          if (!dataLoaded) {
+            Alert.alert(
+              isRTL ? "خطأ" : "Error",
+              isRTL
+                ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
+                : "Database index not ready. Please try again in a moment."
+            );
+          }
+        } else {
+          logger.error("Failed to load moods", error, "MoodsScreen");
+
+          // Only show alert if no data was loaded
+          if (!dataLoaded) {
+            let errorMessage = isRTL
+              ? "حدث خطأ في تحميل البيانات"
+              : "Error loading data";
+
+            if (error?.message) {
+              if (
+                error.message.includes("permission") ||
+                error.message.includes("Permission")
+              ) {
+                errorMessage = isRTL
+                  ? "ليس لديك صلاحية لعرض البيانات. يرجى التحقق من إعدادات الحساب."
+                  : "You don't have permission to view data. Please check your account settings.";
+              } else if (
+                error.message.includes("network") ||
+                error.message.includes("Network")
+              ) {
+                errorMessage = isRTL
+                  ? "خطأ في الاتصال بالإنترنت. يرجى المحاولة مرة أخرى."
+                  : "Network error. Please try again.";
+              } else {
+                errorMessage = isRTL
+                  ? `حدث خطأ في تحميل البيانات: ${error.message}`
+                  : `Error loading data: ${error.message}`;
+              }
+            }
+
+            Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
+          }
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, selectedFilter, isAdmin, isRTL]);
+    },
+    [user, selectedFilter, isAdmin, isRTL]
+  );
 
   // Refresh data when tab is focused
   useFocusEffect(
@@ -476,7 +547,9 @@ export default function MoodsScreen() {
               setShowActionsMenu(null);
               Alert.alert(
                 isRTL ? "تم الحذف" : "Deleted",
-                isRTL ? "تم حذف الحالة النفسية بنجاح" : "Mood deleted successfully"
+                isRTL
+                  ? "تم حذف الحالة النفسية بنجاح"
+                  : "Mood deleted successfully"
               );
             } catch (error) {
               // Silently handle mood delete error
@@ -666,6 +739,7 @@ export default function MoodsScreen() {
       </View>
 
       <ScrollView
+        contentContainerStyle={styles.contentInner}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadMoods(true)}
@@ -675,7 +749,6 @@ export default function MoodsScreen() {
         }
         showsVerticalScrollIndicator={false}
         style={styles.content}
-        contentContainerStyle={styles.contentInner}
       >
         {/* Enhanced Data Filter */}
         <FamilyDataFilter
@@ -951,38 +1024,42 @@ export default function MoodsScreen() {
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
                 {isRTL ? "اختر الحالة النفسية" : "Select Mood"}
               </Text>
-              
+
               {/* Positive Emotions */}
               <View style={styles.moodCategory}>
                 <Text style={[styles.categoryLabel, isRTL && styles.rtlText]}>
                   {isRTL ? "مشاعر إيجابية" : "Positive Emotions"}
                 </Text>
                 <View style={styles.moodsGrid}>
-                  {MOOD_OPTIONS.filter(m => m.category === "positive").map((moodOption) => (
-                    <TouchableOpacity
-                      key={moodOption.value}
-                      onPress={() => setSelectedMood(moodOption.value as MoodType)}
-                      style={[
-                        styles.moodOption,
-                        selectedMood === moodOption.value &&
-                          styles.moodOptionSelected,
-                      ]}
-                    >
-                      <Text style={styles.moodOptionEmoji}>
-                        {moodOption.emoji}
-                      </Text>
-                      <Text
+                  {MOOD_OPTIONS.filter((m) => m.category === "positive").map(
+                    (moodOption) => (
+                      <TouchableOpacity
+                        key={moodOption.value}
+                        onPress={() =>
+                          setSelectedMood(moodOption.value as MoodType)
+                        }
                         style={[
-                          styles.moodOptionText,
+                          styles.moodOption,
                           selectedMood === moodOption.value &&
-                            styles.moodOptionTextSelected,
-                          isRTL && styles.rtlText,
+                            styles.moodOptionSelected,
                         ]}
                       >
-                        {t(moodOption.label)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text style={styles.moodOptionEmoji}>
+                          {moodOption.emoji}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.moodOptionText,
+                            selectedMood === moodOption.value &&
+                              styles.moodOptionTextSelected,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {t(moodOption.label)}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  )}
                 </View>
               </View>
 
@@ -992,31 +1069,35 @@ export default function MoodsScreen() {
                   {isRTL ? "مشاعر سلبية" : "Negative Emotions"}
                 </Text>
                 <View style={styles.moodsGrid}>
-                  {MOOD_OPTIONS.filter(m => m.category === "negative").map((moodOption) => (
-                    <TouchableOpacity
-                      key={moodOption.value}
-                      onPress={() => setSelectedMood(moodOption.value as MoodType)}
-                      style={[
-                        styles.moodOption,
-                        selectedMood === moodOption.value &&
-                          styles.moodOptionSelected,
-                      ]}
-                    >
-                      <Text style={styles.moodOptionEmoji}>
-                        {moodOption.emoji}
-                      </Text>
-                      <Text
+                  {MOOD_OPTIONS.filter((m) => m.category === "negative").map(
+                    (moodOption) => (
+                      <TouchableOpacity
+                        key={moodOption.value}
+                        onPress={() =>
+                          setSelectedMood(moodOption.value as MoodType)
+                        }
                         style={[
-                          styles.moodOptionText,
+                          styles.moodOption,
                           selectedMood === moodOption.value &&
-                            styles.moodOptionTextSelected,
-                          isRTL && styles.rtlText,
+                            styles.moodOptionSelected,
                         ]}
                       >
-                        {t(moodOption.label)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text style={styles.moodOptionEmoji}>
+                          {moodOption.emoji}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.moodOptionText,
+                            selectedMood === moodOption.value &&
+                              styles.moodOptionTextSelected,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {t(moodOption.label)}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  )}
                 </View>
               </View>
 
@@ -1026,31 +1107,35 @@ export default function MoodsScreen() {
                   {isRTL ? "حالات نفسية أخرى" : "Other Moods"}
                 </Text>
                 <View style={styles.moodsGrid}>
-                  {MOOD_OPTIONS.filter(m => m.category === "neutral").map((moodOption) => (
-                    <TouchableOpacity
-                      key={moodOption.value}
-                      onPress={() => setSelectedMood(moodOption.value as MoodType)}
-                      style={[
-                        styles.moodOption,
-                        selectedMood === moodOption.value &&
-                          styles.moodOptionSelected,
-                      ]}
-                    >
-                      <Text style={styles.moodOptionEmoji}>
-                        {moodOption.emoji}
-                      </Text>
-                      <Text
+                  {MOOD_OPTIONS.filter((m) => m.category === "neutral").map(
+                    (moodOption) => (
+                      <TouchableOpacity
+                        key={moodOption.value}
+                        onPress={() =>
+                          setSelectedMood(moodOption.value as MoodType)
+                        }
                         style={[
-                          styles.moodOptionText,
+                          styles.moodOption,
                           selectedMood === moodOption.value &&
-                            styles.moodOptionTextSelected,
-                          isRTL && styles.rtlText,
+                            styles.moodOptionSelected,
                         ]}
                       >
-                        {t(moodOption.label)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text style={styles.moodOptionEmoji}>
+                          {moodOption.emoji}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.moodOptionText,
+                            selectedMood === moodOption.value &&
+                              styles.moodOptionTextSelected,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {t(moodOption.label)}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  )}
                 </View>
               </View>
             </View>

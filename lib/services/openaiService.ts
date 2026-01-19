@@ -56,8 +56,14 @@ class OpenAIService {
     try {
       // Prefer runtime key stored on device.
       if (SecureStore?.getItemAsync) {
-        const storedKey = await SecureStore.getItemAsync(RUNTIME_OPENAI_KEY_STORAGE);
-        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+        const storedKey = await SecureStore.getItemAsync(
+          RUNTIME_OPENAI_KEY_STORAGE
+        );
+        if (
+          storedKey &&
+          typeof storedKey === "string" &&
+          storedKey.trim() !== ""
+        ) {
           const trimmed = storedKey.trim();
           this.apiKey = trimmed;
           this.zeinaApiKey = trimmed;
@@ -67,8 +73,14 @@ class OpenAIService {
 
       // Fallback: some environments/dev-clients can fail SecureStore; keep a non-secure fallback for dev reliability.
       if (AsyncStorage?.getItem) {
-        const storedKey = await AsyncStorage.getItem(RUNTIME_OPENAI_KEY_STORAGE);
-        if (storedKey && typeof storedKey === "string" && storedKey.trim() !== "") {
+        const storedKey = await AsyncStorage.getItem(
+          RUNTIME_OPENAI_KEY_STORAGE
+        );
+        if (
+          storedKey &&
+          typeof storedKey === "string" &&
+          storedKey.trim() !== ""
+        ) {
           const trimmed = storedKey.trim();
           this.apiKey = trimmed;
           this.zeinaApiKey = trimmed;
@@ -79,22 +91,21 @@ class OpenAIService {
       // Get API keys from app config (server-side, not user-provided)
       // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
-      
-      
+
       // Treat empty strings as null - normalize API keys
       const normalizeKey = (key: any): string | null => {
-        if (!key || typeof key !== 'string') return null;
+        if (!key || typeof key !== "string") return null;
         const trimmed = key.trim();
         return trimmed === "" ? null : trimmed;
       };
-      
+
       const openaiKey = normalizeKey(config?.openaiApiKey);
       const zeinaKey = normalizeKey(config?.zeinaApiKey);
-      
+
       this.apiKey = openaiKey;
       // Fallback to openaiApiKey if zeinaApiKey not set or empty
       this.zeinaApiKey = zeinaKey || openaiKey;
-      
+
       // API key validation handled in getApiKey method
     } catch (error) {
       if (__DEV__) {
@@ -106,28 +117,36 @@ class OpenAIService {
     // Use only the provided parameter to ensure context-specific behavior
     // Do not rely on instance state from previous calls
     const shouldUseZeinaKey = usePremiumKey;
-    
+
     // Initialize only once if keys are not already loaded
-    if ((!this.apiKey && !shouldUseZeinaKey) || (!this.zeinaApiKey && shouldUseZeinaKey)) {
+    if (
+      !(this.apiKey || shouldUseZeinaKey) ||
+      (!this.zeinaApiKey && shouldUseZeinaKey)
+    ) {
       await this.initialize(shouldUseZeinaKey);
     }
-    
+
     // Return the requested key type, fail explicitly if not available
     if (shouldUseZeinaKey) {
-      if (!this.zeinaApiKey || (typeof this.zeinaApiKey === 'string' && this.zeinaApiKey.trim() === "")) {
+      if (
+        !this.zeinaApiKey ||
+        (typeof this.zeinaApiKey === "string" && this.zeinaApiKey.trim() === "")
+      ) {
         throw new Error(
           "Zeina API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY / ZEINA_API_KEY at build time."
         );
       }
       return this.zeinaApiKey;
-    } else {
-      if (!this.apiKey || (typeof this.apiKey === 'string' && this.apiKey.trim() === "")) {
-        throw new Error(
-          "OpenAI API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY at build time."
-        );
-      }
-      return this.apiKey;
     }
+    if (
+      !this.apiKey ||
+      (typeof this.apiKey === "string" && this.apiKey.trim() === "")
+    ) {
+      throw new Error(
+        "OpenAI API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY at build time."
+      );
+    }
+    return this.apiKey;
   }
 
   async getModel(): Promise<string> {
@@ -192,12 +211,15 @@ class OpenAIService {
     }
   }
 
-  async createChatCompletion(messages: ChatMessage[], usePremiumKey = false): Promise<string> {
+  async createChatCompletion(
+    messages: ChatMessage[],
+    usePremiumKey = false
+  ): Promise<string> {
     return aiInstrumenter.track(
       "chat_completion",
       async () => {
         const activeApiKey = await this.getApiKey(usePremiumKey);
-        
+
         if (!activeApiKey) {
           throw new Error(
             "OpenAI API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY at build time."
@@ -268,7 +290,10 @@ class OpenAIService {
     );
   }
 
-  async generateHealthInsights(prompt: string, usePremiumKey = false): Promise<any> {
+  async generateHealthInsights(
+    prompt: string,
+    usePremiumKey = false
+  ): Promise<any> {
     try {
       // Avoid noisy stack traces when the app hasn't been configured with an API key yet.
       // Let callers fall back gracefully.
@@ -282,7 +307,8 @@ class OpenAIService {
         {
           id: `msg-${Date.now()}`,
           role: "system",
-          content: "You are a helpful health AI assistant. Always respond with valid JSON format.",
+          content:
+            "You are a helpful health AI assistant. Always respond with valid JSON format.",
           timestamp: new Date(),
         },
         {
@@ -294,7 +320,7 @@ class OpenAIService {
       ];
 
       const response = await this.createChatCompletion(messages, usePremiumKey);
-      
+
       // Try to parse JSON from the response
       try {
         // Extract JSON from markdown code blocks if present

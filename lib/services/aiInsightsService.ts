@@ -1,10 +1,25 @@
-import type { User, Symptom, Medication, MedicalHistory } from "@/types";
-import { correlationAnalysisService, type CorrelationInsight } from "./correlationAnalysisService";
-import { symptomPatternRecognitionService, type PatternAnalysisResult } from "./symptomPatternRecognitionService";
-import { riskAssessmentService, type HealthRiskAssessment } from "./riskAssessmentService";
-import { medicationInteractionService, type MedicationInteractionAlert } from "./medicationInteractionService";
-import { proactiveHealthSuggestionsService, type HealthSuggestion } from "./proactiveHealthSuggestionsService";
+import type { MedicalHistory, Medication, Symptom } from "@/types";
+import {
+  type CorrelationInsight,
+  correlationAnalysisService,
+} from "./correlationAnalysisService";
+import {
+  type MedicationInteractionAlert,
+  medicationInteractionService,
+} from "./medicationInteractionService";
 import openaiService from "./openaiService";
+import {
+  type HealthSuggestion,
+  proactiveHealthSuggestionsService,
+} from "./proactiveHealthSuggestionsService";
+import {
+  type HealthRiskAssessment,
+  riskAssessmentService,
+} from "./riskAssessmentService";
+import {
+  type PatternAnalysisResult,
+  symptomPatternRecognitionService,
+} from "./symptomPatternRecognitionService";
 
 export interface AIInsightsDashboard {
   id: string;
@@ -45,7 +60,7 @@ class AIInsightsService {
    */
   async generateAIInsightsDashboard(
     userId: string,
-    includeAINarrative: boolean = true
+    includeAINarrative = true
   ): Promise<AIInsightsDashboard> {
     console.log(`Generating AI insights dashboard for user ${userId}`);
 
@@ -56,14 +71,14 @@ class AIInsightsService {
       riskAssessment,
       medicationAlerts,
       healthSuggestions,
-      personalizedTips
+      personalizedTips,
     ] = await Promise.all([
       correlationAnalysisService.generateCorrelationAnalysis(userId),
       this.generateSymptomAnalysis(userId),
       riskAssessmentService.generateRiskAssessment(userId),
       medicationInteractionService.generateRealtimeAlerts(userId),
       proactiveHealthSuggestionsService.generateSuggestions(userId),
-      proactiveHealthSuggestionsService.getPersonalizedTips(userId)
+      proactiveHealthSuggestionsService.getPersonalizedTips(userId),
     ]);
 
     // Generate AI narrative if requested
@@ -97,7 +112,7 @@ class AIInsightsService {
       healthSuggestions,
       personalizedTips,
       insightsSummary,
-      aiNarrative
+      aiNarrative,
     };
 
     return dashboard;
@@ -106,7 +121,9 @@ class AIInsightsService {
   /**
    * Generate symptom analysis with pattern recognition
    */
-  private async generateSymptomAnalysis(userId: string): Promise<PatternAnalysisResult> {
+  private async generateSymptomAnalysis(
+    userId: string
+  ): Promise<PatternAnalysisResult> {
     const symptoms = await this.getRecentSymptoms(userId);
     const medicalHistory = await this.getMedicalHistory(userId);
     const medications = await this.getMedications(userId);
@@ -131,25 +148,31 @@ class AIInsightsService {
     try {
       // Prepare context for AI narrative generation
       const context = {
-        correlations: correlationAnalysis.correlationResults.slice(0, 3).map(c => ({
-          type: c.type,
-          strength: c.strength.toFixed(2),
-          description: c.description
-        })),
-        symptomPatterns: symptomAnalysis.patterns.slice(0, 2).map(p => ({
+        correlations: correlationAnalysis.correlationResults
+          .slice(0, 3)
+          .map((c) => ({
+            type: c.type,
+            strength: c.strength.toFixed(2),
+            description: c.description,
+          })),
+        symptomPatterns: symptomAnalysis.patterns.slice(0, 2).map((p) => ({
           name: p.name,
           confidence: p.confidence,
-          severity: p.severity
+          severity: p.severity,
         })),
-        diagnosisSuggestions: symptomAnalysis.diagnosisSuggestions.slice(0, 2).map(d => ({
-          condition: d.condition,
-          confidence: d.confidence,
-          urgency: d.urgency
-        })),
+        diagnosisSuggestions: symptomAnalysis.diagnosisSuggestions
+          .slice(0, 2)
+          .map((d) => ({
+            condition: d.condition,
+            confidence: d.confidence,
+            urgency: d.urgency,
+          })),
         riskLevel: riskAssessment.riskLevel,
         riskScore: riskAssessment.overallRiskScore,
-        topRiskFactors: riskAssessment.riskFactors.slice(0, 3).map(f => f.name),
-        topSuggestions: healthSuggestions.slice(0, 3).map(s => s.title)
+        topRiskFactors: riskAssessment.riskFactors
+          .slice(0, 3)
+          .map((f) => f.name),
+        topSuggestions: healthSuggestions.slice(0, 3).map((s) => s.title),
       };
 
       const prompt = `
@@ -160,12 +183,12 @@ class AIInsightsService {
         4. Maintains a supportive, non-alarming tone
 
         Health Data Summary:
-        - Correlation Analysis: ${context.correlations.map(c => `${c.type} (${c.strength}): ${c.description}`).join(', ')}
-        - Symptom Patterns: ${context.symptomPatterns.map(p => `${p.name} (${p.confidence}% confidence)`).join(', ')}
-        - Diagnosis Suggestions: ${context.diagnosisSuggestions.map(d => `${d.condition} (${d.confidence}% confidence, ${d.urgency} urgency)`).join(', ')}
+        - Correlation Analysis: ${context.correlations.map((c) => `${c.type} (${c.strength}): ${c.description}`).join(", ")}
+        - Symptom Patterns: ${context.symptomPatterns.map((p) => `${p.name} (${p.confidence}% confidence)`).join(", ")}
+        - Diagnosis Suggestions: ${context.diagnosisSuggestions.map((d) => `${d.condition} (${d.confidence}% confidence, ${d.urgency} urgency)`).join(", ")}
         - Overall Risk Level: ${context.riskLevel} (${context.riskScore}/100)
-        - Key Risk Factors: ${context.topRiskFactors.join(', ')}
-        - Top Recommendations: ${context.topSuggestions.join(', ')}
+        - Key Risk Factors: ${context.topRiskFactors.join(", ")}
+        - Top Recommendations: ${context.topSuggestions.join(", ")}
 
         Write the narrative in a warm, supportive voice that empowers the user to take control of their health.
       `;
@@ -182,8 +205,10 @@ class AIInsightsService {
         diagnosisSuggestions: [],
         riskLevel: riskAssessment.riskLevel,
         riskScore: riskAssessment.overallRiskScore,
-        topRiskFactors: riskAssessment.riskFactors.slice(0, 3).map(f => f.name),
-        topSuggestions: healthSuggestions.slice(0, 3).map(s => s.title)
+        topRiskFactors: riskAssessment.riskFactors
+          .slice(0, 3)
+          .map((f) => f.name),
+        topSuggestions: healthSuggestions.slice(0, 3).map((s) => s.title),
       });
     }
   }
@@ -194,11 +219,11 @@ class AIInsightsService {
   private generateFallbackNarrative(context: any): string {
     return `Your health data shows ${context.riskLevel} overall risk with a score of ${context.riskScore}/100. ${
       context.topRiskFactors.length > 0
-        ? `Key areas to focus on include: ${context.topRiskFactors.join(', ')}. `
-        : ''
-    }Consider the following recommendations to support your health journey: ${
-      context.topSuggestions.join(', ')
-    }. Remember, small consistent steps lead to meaningful improvements in your well-being.`;
+        ? `Key areas to focus on include: ${context.topRiskFactors.join(", ")}. `
+        : ""
+    }Consider the following recommendations to support your health journey: ${context.topSuggestions.join(
+      ", "
+    )}. Remember, small consistent steps lead to meaningful improvements in your well-being.`;
   }
 
   /**
@@ -219,16 +244,19 @@ class AIInsightsService {
       medicationAlerts.length;
 
     const highPriorityItems =
-      correlationAnalysis.correlationResults.filter(c => c.confidence > 80).length +
-      symptomAnalysis.diagnosisSuggestions.filter(d => d.urgency === 'high' || d.urgency === 'emergency').length +
-      healthSuggestions.filter(s => s.priority === 'high').length +
-      medicationAlerts.filter(a => a.severity === 'major').length;
+      correlationAnalysis.correlationResults.filter((c) => c.confidence > 80)
+        .length +
+      symptomAnalysis.diagnosisSuggestions.filter(
+        (d) => d.urgency === "high" || d.urgency === "emergency"
+      ).length +
+      healthSuggestions.filter((s) => s.priority === "high").length +
+      medicationAlerts.filter((a) => a.severity === "major").length;
 
     return {
       totalInsights,
       highPriorityItems,
       riskLevel: riskAssessment.riskLevel,
-      nextAssessmentDate: riskAssessment.nextAssessmentDate
+      nextAssessmentDate: riskAssessment.nextAssessmentDate,
     };
   }
 
@@ -249,55 +277,58 @@ class AIInsightsService {
     const low: any[] = [];
 
     // Medication alerts
-    dashboard.medicationAlerts.forEach(alert => {
-      if (alert.severity === 'major') {
-        critical.push({ type: 'medication_alert', data: alert });
-      } else if (alert.severity === 'moderate') {
-        high.push({ type: 'medication_alert', data: alert });
+    dashboard.medicationAlerts.forEach((alert) => {
+      if (alert.severity === "major") {
+        critical.push({ type: "medication_alert", data: alert });
+      } else if (alert.severity === "moderate") {
+        high.push({ type: "medication_alert", data: alert });
       } else {
-        medium.push({ type: 'medication_alert', data: alert });
+        medium.push({ type: "medication_alert", data: alert });
       }
     });
 
     // Diagnosis suggestions
-    dashboard.symptomAnalysis.diagnosisSuggestions.forEach(suggestion => {
-      if (suggestion.urgency === 'emergency') {
-        critical.push({ type: 'diagnosis_suggestion', data: suggestion });
-      } else if (suggestion.urgency === 'high') {
-        high.push({ type: 'diagnosis_suggestion', data: suggestion });
-      } else if (suggestion.urgency === 'medium') {
-        medium.push({ type: 'diagnosis_suggestion', data: suggestion });
+    dashboard.symptomAnalysis.diagnosisSuggestions.forEach((suggestion) => {
+      if (suggestion.urgency === "emergency") {
+        critical.push({ type: "diagnosis_suggestion", data: suggestion });
+      } else if (suggestion.urgency === "high") {
+        high.push({ type: "diagnosis_suggestion", data: suggestion });
+      } else if (suggestion.urgency === "medium") {
+        medium.push({ type: "diagnosis_suggestion", data: suggestion });
       } else {
-        low.push({ type: 'diagnosis_suggestion', data: suggestion });
+        low.push({ type: "diagnosis_suggestion", data: suggestion });
       }
     });
 
     // Risk assessment
-    if (dashboard.riskAssessment.riskLevel === 'very_high') {
-      critical.push({ type: 'risk_assessment', data: dashboard.riskAssessment });
-    } else if (dashboard.riskAssessment.riskLevel === 'high') {
-      high.push({ type: 'risk_assessment', data: dashboard.riskAssessment });
+    if (dashboard.riskAssessment.riskLevel === "very_high") {
+      critical.push({
+        type: "risk_assessment",
+        data: dashboard.riskAssessment,
+      });
+    } else if (dashboard.riskAssessment.riskLevel === "high") {
+      high.push({ type: "risk_assessment", data: dashboard.riskAssessment });
     }
 
     // Health suggestions
-    dashboard.healthSuggestions.forEach(suggestion => {
-      if (suggestion.priority === 'high') {
-        high.push({ type: 'health_suggestion', data: suggestion });
-      } else if (suggestion.priority === 'medium') {
-        medium.push({ type: 'health_suggestion', data: suggestion });
+    dashboard.healthSuggestions.forEach((suggestion) => {
+      if (suggestion.priority === "high") {
+        high.push({ type: "health_suggestion", data: suggestion });
+      } else if (suggestion.priority === "medium") {
+        medium.push({ type: "health_suggestion", data: suggestion });
       } else {
-        low.push({ type: 'health_suggestion', data: suggestion });
+        low.push({ type: "health_suggestion", data: suggestion });
       }
     });
 
     // Correlation insights
-    dashboard.correlationAnalysis.correlationResults.forEach(correlation => {
+    dashboard.correlationAnalysis.correlationResults.forEach((correlation) => {
       if (correlation.confidence > 90) {
-        high.push({ type: 'correlation', data: correlation });
+        high.push({ type: "correlation", data: correlation });
       } else if (correlation.confidence > 70) {
-        medium.push({ type: 'correlation', data: correlation });
+        medium.push({ type: "correlation", data: correlation });
       } else {
-        low.push({ type: 'correlation', data: correlation });
+        low.push({ type: "correlation", data: correlation });
       }
     });
 
@@ -307,21 +338,24 @@ class AIInsightsService {
   /**
    * Get insights by category
    */
-  async getInsightsByCategory(userId: string, category: string): Promise<any[]> {
+  async getInsightsByCategory(
+    userId: string,
+    category: string
+  ): Promise<any[]> {
     const dashboard = await this.generateAIInsightsDashboard(userId, false);
 
     switch (category) {
-      case 'correlations':
+      case "correlations":
         return dashboard.correlationAnalysis.correlationResults;
-      case 'symptoms':
+      case "symptoms":
         return dashboard.symptomAnalysis.patterns;
-      case 'diagnosis':
+      case "diagnosis":
         return dashboard.symptomAnalysis.diagnosisSuggestions;
-      case 'risk':
+      case "risk":
         return [dashboard.riskAssessment];
-      case 'medications':
+      case "medications":
         return dashboard.medicationAlerts;
-      case 'suggestions':
+      case "suggestions":
         return dashboard.healthSuggestions;
       default:
         return [];
@@ -346,34 +380,36 @@ class AIInsightsService {
 
     // Immediate actions from critical insights
     dashboard.medicationAlerts
-      .filter(a => a.severity === 'major')
-      .forEach(alert => {
+      .filter((a) => a.severity === "major")
+      .forEach((alert) => {
         immediate.push(`Address medication interaction: ${alert.title}`);
       });
 
     dashboard.symptomAnalysis.diagnosisSuggestions
-      .filter(d => d.urgency === 'emergency' || d.urgency === 'high')
-      .forEach(suggestion => {
-        immediate.push(`Seek medical attention for possible ${suggestion.condition}`);
+      .filter((d) => d.urgency === "emergency" || d.urgency === "high")
+      .forEach((suggestion) => {
+        immediate.push(
+          `Seek medical attention for possible ${suggestion.condition}`
+        );
       });
 
     // Short-term actions
     dashboard.healthSuggestions
-      .filter(s => s.priority === 'high')
-      .forEach(suggestion => {
+      .filter((s) => s.priority === "high")
+      .forEach((suggestion) => {
         shortTerm.push(suggestion.title);
       });
 
     dashboard.riskAssessment.preventiveRecommendations
       .slice(0, 3)
-      .forEach(rec => {
+      .forEach((rec) => {
         shortTerm.push(rec);
       });
 
     // Long-term actions
     dashboard.correlationAnalysis.correlationResults
-      .filter(c => c.actionable)
-      .forEach(correlation => {
+      .filter((c) => c.actionable)
+      .forEach((correlation) => {
         if (correlation.recommendation) {
           longTerm.push(correlation.recommendation);
         }
@@ -382,10 +418,14 @@ class AIInsightsService {
     // Monitoring actions
     monitoring.push("Continue tracking symptoms and vital signs regularly");
     monitoring.push("Monitor medication effectiveness and side effects");
-    monitoring.push("Schedule regular health check-ups based on risk assessment");
+    monitoring.push(
+      "Schedule regular health check-ups based on risk assessment"
+    );
 
     if (dashboard.riskAssessment.nextAssessmentDate) {
-      monitoring.push(`Next comprehensive assessment: ${dashboard.riskAssessment.nextAssessmentDate.toLocaleDateString()}`);
+      monitoring.push(
+        `Next comprehensive assessment: ${dashboard.riskAssessment.nextAssessmentDate.toLocaleDateString()}`
+      );
     }
 
     return { immediate, shortTerm, longTerm, monitoring };

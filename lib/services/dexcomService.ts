@@ -3,22 +3,21 @@
  * OAuth 2.0 integration with Dexcom CGM API for continuous glucose monitoring
  */
 
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
-import Constants from "expo-constants";
 import {
-  getAvailableMetricsForProvider,
   getDexcomScopesForMetrics,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
+import { saveProviderConnection } from "../health/healthSync";
 import {
-  HEALTH_STORAGE_KEYS,
   type DexcomTokens,
+  HEALTH_STORAGE_KEYS,
   type NormalizedMetricPayload,
   type ProviderAvailability,
 } from "../health/healthTypes";
-import { saveProviderConnection } from "../health/healthSync";
 
 // Dexcom OAuth configuration
 const DEXCOM_CLIENT_ID =
@@ -85,12 +84,15 @@ export const dexcomService = {
         `${DEXCOM_AUTH_URL}?` +
         `client_id=${encodeURIComponent(DEXCOM_CLIENT_ID)}&` +
         `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
-        `response_type=code&` +
+        "response_type=code&" +
         `scope=${encodeURIComponent(scopes.join(" "))}&` +
         `state=${encodeURIComponent("dexcom_auth")}`;
 
       // Use HTTPS redirect URI for Dexcom (required), expo-web-browser handles HTTPS redirects
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        REDIRECT_URI
+      );
 
       if (result.type === "success" && result.url) {
         await dexcomService.handleRedirect(result.url, selectedMetrics);
@@ -105,7 +107,10 @@ export const dexcomService = {
   /**
    * Handle OAuth redirect callback
    */
-  handleRedirect: async (url: string, selectedMetrics?: string[]): Promise<void> => {
+  handleRedirect: async (
+    url: string,
+    selectedMetrics?: string[]
+  ): Promise<void> => {
     try {
       const urlObj = new URL(url);
       const code = urlObj.searchParams.get("code");
@@ -146,14 +151,11 @@ export const dexcomService = {
       let userId = "self"; // Default to "self" as Dexcom uses /users/self endpoints
       try {
         // Try to get user info if available
-        const userResponse = await fetch(
-          `${DEXCOM_API_BASE}/v2/users/self`,
-          {
-            headers: {
-              Authorization: `Bearer ${tokens.access_token}`,
-            },
-          }
-        );
+        const userResponse = await fetch(`${DEXCOM_API_BASE}/v2/users/self`, {
+          headers: {
+            Authorization: `Bearer ${tokens.access_token}`,
+          },
+        });
         if (userResponse.ok) {
           const userData = await userResponse.json();
           userId = userData.accountId || userData.userId || "self";
@@ -168,7 +170,7 @@ export const dexcomService = {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
-        userId: userId,
+        userId,
         scope: tokens.scope,
       });
 
@@ -180,7 +182,9 @@ export const dexcomService = {
         selectedMetrics: selectedMetrics || ["blood_glucose"],
       });
     } catch (error: any) {
-      throw new Error(`Failed to complete Dexcom authentication: ${error.message}`);
+      throw new Error(
+        `Failed to complete Dexcom authentication: ${error.message}`
+      );
     }
   },
 
@@ -365,9 +369,8 @@ export const dexcomService = {
   getGlucoseHistory: async (
     startDate: Date,
     endDate: Date
-  ): Promise<NormalizedMetricPayload[]> => {
-    return dexcomService.fetchMetrics(["blood_glucose"], startDate, endDate);
-  },
+  ): Promise<NormalizedMetricPayload[]> =>
+    dexcomService.fetchMetrics(["blood_glucose"], startDate, endDate),
 
   /**
    * Disconnect Dexcom integration
@@ -377,8 +380,7 @@ export const dexcomService = {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.DEXCOM_TOKENS);
       // Connection data is stored in AsyncStorage via saveProviderConnection
       // and will be cleared by disconnectProvider in healthSync.ts
-    } catch (error) {
-    }
+    } catch (error) {}
   },
 };
 

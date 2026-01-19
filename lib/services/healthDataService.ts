@@ -127,8 +127,10 @@ export const healthDataService = {
       } else if (Platform.OS === "android") {
         // For Android, use Health Connect
         try {
-          const { healthConnectService } = await import("./healthConnectService");
-          
+          const { healthConnectService } = await import(
+            "./healthConnectService"
+          );
+
           // Check if Health Connect is available
           const availability = await healthConnectService.checkAvailability();
           if (!availability.available) {
@@ -158,24 +160,26 @@ export const healthDataService = {
   async hasHealthPermissions(): Promise<boolean> {
     try {
       // Check stored connection status (more reliable than AsyncStorage flag)
-      const { getProviderConnection, disconnectProvider } = await import("../health/healthSync");
-      
+      const { getProviderConnection, disconnectProvider } = await import(
+        "../health/healthSync"
+      );
+
       // Check Fitbit connection first (works on both iOS and Android)
       const fitbitConnection = await getProviderConnection("fitbit");
       if (fitbitConnection && fitbitConnection.connected) {
         return true;
       }
-      
+
       if (Platform.OS === "ios") {
         const connection = await getProviderConnection("apple_health");
         if (connection && connection.connected) {
           // Validate that HealthKit permissions are still actually granted
           // Only validate occasionally to avoid performance issues
           // Check connection age - only validate if connection is older than 1 hour
-          const connectionAge = connection.connectedAt 
+          const connectionAge = connection.connectedAt
             ? Date.now() - new Date(connection.connectedAt).getTime()
-            : Infinity;
-          
+            : Number.POSITIVE_INFINITY;
+
           // Only validate if connection is older than 1 hour (to avoid frequent checks)
           if (connectionAge > 60 * 60 * 1000) {
             try {
@@ -189,10 +193,12 @@ export const healthDataService = {
 
               // Try a simple query to validate permissions are still granted
               // Use a common type that's likely to be authorized
-              const { queryQuantitySamples } = await import("@kingstinct/react-native-healthkit");
+              const { queryQuantitySamples } = await import(
+                "@kingstinct/react-native-healthkit"
+              );
               const now = new Date();
               const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-              
+
               // Try querying step count (most common metric)
               // Even if no data exists, the query should succeed if permissions are granted
               await queryQuantitySamples("HKQuantityTypeIdentifierStepCount", {
@@ -205,7 +211,7 @@ export const healthDataService = {
                 limit: 1,
                 ascending: false,
               });
-              
+
               // Query succeeded, permissions are still valid
               return true;
             } catch (error: any) {
@@ -213,29 +219,35 @@ export const healthDataService = {
               // HealthKit error code 5 = authorization denied or not determined
               const errorCode = error?.code;
               const errorDomain = error?.domain;
-              const errorMessage = String(error?.message || error).toLowerCase();
-              
-              const isAuthError = 
+              const errorMessage = String(
+                error?.message || error
+              ).toLowerCase();
+
+              const isAuthError =
                 errorCode === 5 ||
                 (errorDomain === "com.apple.healthkit" && errorCode === 5) ||
                 errorMessage.includes("authorization denied") ||
-                errorMessage.includes("authorization status is not determined") ||
-                (errorMessage.includes("com.apple.healthkit") && errorMessage.includes("code=5")) ||
-                (errorMessage.includes("com.apple.healthkit") && errorMessage.includes("code 5"));
-              
+                errorMessage.includes(
+                  "authorization status is not determined"
+                ) ||
+                (errorMessage.includes("com.apple.healthkit") &&
+                  errorMessage.includes("code=5")) ||
+                (errorMessage.includes("com.apple.healthkit") &&
+                  errorMessage.includes("code 5"));
+
               if (isAuthError) {
                 // Permissions were revoked, disconnect
                 await disconnectProvider("apple_health");
                 await this.savePermissionStatus(false);
                 return false;
               }
-              
+
               // Other error (no data, network issue, etc.) - permissions might still be valid
               // Don't disconnect on non-auth errors - return true to keep connection active
               return true;
             }
           }
-          
+
           // Connection is recent, trust stored status
           return true;
         }
@@ -267,7 +279,7 @@ export const healthDataService = {
   async getLatestVitals(): Promise<VitalSigns | null> {
     try {
       const { getProviderConnection } = await import("../health/healthSync");
-      
+
       // Check Fitbit first (works on both platforms)
       const fitbitConnection = await getProviderConnection("fitbit");
       if (fitbitConnection && fitbitConnection.connected) {
@@ -486,7 +498,7 @@ export const healthDataService = {
       // Check if Health Connect connection exists
       const { getProviderConnection } = await import("../health/healthSync");
       const connection = await getProviderConnection("health_connect");
-      
+
       if (!(connection && connection.connected)) {
         // In production, return null instead of simulated data
         return __DEV__ ? this.getSimulatedVitals() : null;
@@ -503,7 +515,13 @@ export const healthDataService = {
         const metrics = await healthConnectService.fetchMetrics(
           connection.selectedMetrics.length > 0
             ? connection.selectedMetrics
-            : ["heart_rate", "steps", "active_energy", "sleep_analysis", "weight"],
+            : [
+                "heart_rate",
+                "steps",
+                "active_energy",
+                "sleep_analysis",
+                "weight",
+              ],
           yesterday,
           today
         );
@@ -619,7 +637,7 @@ export const healthDataService = {
     try {
       const { getProviderConnection } = await import("../health/healthSync");
       const connection = await getProviderConnection("fitbit");
-      
+
       if (!(connection && connection.connected)) {
         // In production, return null instead of simulated data
         return __DEV__ ? this.getSimulatedVitals() : null;
@@ -636,7 +654,13 @@ export const healthDataService = {
         const metrics = await fitbitService.fetchMetrics(
           connection.selectedMetrics.length > 0
             ? connection.selectedMetrics
-            : ["heart_rate", "steps", "active_energy", "sleep_analysis", "weight"],
+            : [
+                "heart_rate",
+                "steps",
+                "active_energy",
+                "sleep_analysis",
+                "weight",
+              ],
           yesterday,
           today
         );

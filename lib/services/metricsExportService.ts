@@ -7,6 +7,8 @@
 import * as FileSystem from "expo-file-system";
 import { Paths } from "expo-file-system";
 import { Platform, Share } from "react-native";
+import { logger } from "@/lib/utils/logger";
+import type { MedicalHistory, Medication, Mood, Symptom } from "@/types";
 import { auth } from "../firebase";
 import type { HealthProvider } from "../health/healthMetricsCatalog";
 import { getProviderConnection } from "../health/healthSync";
@@ -15,8 +17,6 @@ import { medicalHistoryService } from "./medicalHistoryService";
 import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
 import { symptomService } from "./symptomService";
-import { logger } from "@/lib/utils/logger";
-import type { MedicalHistory, Medication, Mood, Symptom } from "@/types";
 
 export type ExportFormat = "csv" | "pdf";
 
@@ -200,7 +200,8 @@ const fetchAllHealthData = async (
       medications = await medicationService.getUserMedications(userId);
 
       // Fetch medical history (not filtered by date)
-      medicalHistory = await medicalHistoryService.getUserMedicalHistory(userId);
+      medicalHistory =
+        await medicalHistoryService.getUserMedicalHistory(userId);
 
       // Fetch moods within date range
       const allMoods = await moodService.getUserMoods(userId, 1000);
@@ -241,20 +242,29 @@ const DAILY_AGGREGATE_METRICS = [
  * Aggregate samples by day for metrics that need daily aggregation
  */
 const aggregateSamplesByDay = (
-  samples: Array<{ value: number | string; startDate: string; endDate?: string; source?: string }>,
+  samples: Array<{
+    value: number | string;
+    startDate: string;
+    endDate?: string;
+    source?: string;
+  }>,
   metricKey: string
 ): Array<{ value: number; date: string; sources: string[] }> => {
   if (!DAILY_AGGREGATE_METRICS.includes(metricKey)) {
     // Return samples as-is for non-aggregate metrics
     return samples.map((s) => ({
-      value: typeof s.value === "number" ? s.value : parseFloat(s.value.toString()) || 0,
+      value:
+        typeof s.value === "number"
+          ? s.value
+          : Number.parseFloat(s.value.toString()) || 0,
       date: s.startDate,
       sources: s.source ? [s.source] : [],
     }));
   }
 
   // Group samples by day
-  const dailyGroups: Record<string, { value: number; sources: Set<string> }> = {};
+  const dailyGroups: Record<string, { value: number; sources: Set<string> }> =
+    {};
 
   for (const sample of samples) {
     const sampleDate = new Date(sample.startDate);
@@ -264,9 +274,12 @@ const aggregateSamplesByDay = (
       dailyGroups[dayKey] = { value: 0, sources: new Set() };
     }
 
-    const numValue = typeof sample.value === "number" ? sample.value : parseFloat(sample.value.toString()) || 0;
+    const numValue =
+      typeof sample.value === "number"
+        ? sample.value
+        : Number.parseFloat(sample.value.toString()) || 0;
     dailyGroups[dayKey].value += numValue;
-    
+
     if (sample.source) {
       dailyGroups[dayKey].sources.add(sample.source);
     }
@@ -297,8 +310,11 @@ const convertToCSV = (data: HealthReportData): string => {
     rows.push("Metric,Display Name,Unit,Value,Date,Source");
     for (const metric of data.vitals) {
       // Aggregate samples by day for daily aggregate metrics
-      const aggregatedSamples = aggregateSamplesByDay(metric.samples, metric.metricKey);
-      
+      const aggregatedSamples = aggregateSamplesByDay(
+        metric.samples,
+        metric.metricKey
+      );
+
       for (const aggregated of aggregatedSamples) {
         const row = [
           metric.metricKey,
@@ -306,7 +322,9 @@ const convertToCSV = (data: HealthReportData): string => {
           metric.unit || "",
           aggregated.value.toString(),
           aggregated.date,
-          aggregated.sources.length > 0 ? aggregated.sources.join("; ") : metric.provider,
+          aggregated.sources.length > 0
+            ? aggregated.sources.join("; ")
+            : metric.provider,
         ];
         rows.push(row.join(","));
       }
@@ -357,7 +375,9 @@ const convertToCSV = (data: HealthReportData): string => {
     rows.push("Condition,Diagnosed Date,Severity,Status,Notes,Is Family");
     rows.push("No medical history recorded");
   } else {
-    rows.push("Condition,Diagnosed Date,Severity,Status,Notes,Is Family,Relation");
+    rows.push(
+      "Condition,Diagnosed Date,Severity,Status,Notes,Is Family,Relation"
+    );
     for (const history of data.medicalHistory) {
       const row = [
         `"${history.condition.replace(/"/g, '""')}"`,
@@ -630,9 +650,12 @@ const convertToPDFHTML = (
 
     if (metric.samples.length > 0) {
       // Aggregate samples by day for daily aggregate metrics
-      const aggregatedSamples = aggregateSamplesByDay(metric.samples, metric.metricKey);
+      const aggregatedSamples = aggregateSamplesByDay(
+        metric.samples,
+        metric.metricKey
+      );
       const isAggregated = DAILY_AGGREGATE_METRICS.includes(metric.metricKey);
-      
+
       html += `
           <table>
             <thead>
@@ -640,7 +663,7 @@ const convertToPDFHTML = (
                 <th>Value</th>
                 <th>Unit</th>
                 <th>${isAggregated ? "Date" : "Start Date"}</th>
-                ${!isAggregated ? "<th>End Date</th>" : ""}
+                ${isAggregated ? "" : "<th>End Date</th>"}
                 <th>Source</th>
               </tr>
             </thead>
@@ -657,7 +680,7 @@ const convertToPDFHTML = (
                 <td>${aggregated.value}</td>
                 <td>${metric.unit || ""}</td>
                 <td>${dateFormatted}</td>
-                ${!isAggregated ? "<td>N/A</td>" : ""}
+                ${isAggregated ? "" : "<td>N/A</td>"}
                 <td>${aggregated.sources.length > 0 ? aggregated.sources.join("; ") : metric.provider}</td>
               </tr>
         `;
@@ -846,7 +869,10 @@ const convertToPDFHTML = (
       moodCounts[mood.mood] = (moodCounts[mood.mood] || 0) + 1;
       totalIntensity += mood.intensity;
     });
-    const avgIntensity = data.moods.length > 0 ? (totalIntensity / data.moods.length).toFixed(1) : "0";
+    const avgIntensity =
+      data.moods.length > 0
+        ? (totalIntensity / data.moods.length).toFixed(1)
+        : "0";
 
     html += `
           <div style="margin-bottom: 15px; padding: 10px; background: #f8f8f8; border-radius: 6px;">
@@ -992,7 +1018,8 @@ export const exportMetrics = async (
         fileUri = uri;
       } catch (error: unknown) {
         // Check if it's a native module error or function not found
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         const errorCode = (error as { code?: string })?.code;
         const isNativeModuleError =
           errorMessage.includes("native module") ||
@@ -1074,11 +1101,7 @@ export const exportMetrics = async (
       }
     }
   } catch (error: unknown) {
-    logger.error(
-      "Export error",
-      error,
-      "MetricsExportService"
-    );
+    logger.error("Export error", error, "MetricsExportService");
     throw error;
   }
 };

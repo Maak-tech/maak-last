@@ -1,13 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  ScrollView,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from "react-native";
+import { Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -15,9 +17,6 @@ import {
   type PatternInsight,
   type WeeklySummary,
 } from "@/lib/services/healthInsightsService";
-import { Card } from "@/components/design-system";
-import { Heading, Text, Caption } from "@/components/design-system/Typography";
-import { Badge } from "@/components/design-system/AdditionalComponents";
 
 interface HealthInsightsCardProps {
   onViewDetails?: () => void;
@@ -93,9 +92,9 @@ export default function HealthInsightsCard({
 
   if (loading) {
     return (
-      <Card style={styles.card} onPress={undefined} contentStyle={undefined}>
+      <Card contentStyle={undefined} onPress={undefined} style={styles.card}>
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="small" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="small" />
           <Caption numberOfLines={1} style={styles.loadingText}>
             {isRTL ? "جاري تحليل البيانات..." : "Analyzing data..."}
           </Caption>
@@ -109,17 +108,17 @@ export default function HealthInsightsCard({
   }
 
   return (
-    <Card style={styles.card} onPress={undefined} contentStyle={undefined}>
+    <Card contentStyle={undefined} onPress={undefined} style={styles.card}>
       <TouchableOpacity
+        activeOpacity={0.7}
         onPress={() => setExpanded(!expanded)}
         style={styles.header}
-        activeOpacity={0.7}
       >
         <View style={styles.headerLeft}>
           <Ionicons
+            color={theme.colors.primary.main}
             name="analytics-outline"
             size={24}
-            color={theme.colors.primary.main}
             style={styles.icon}
           />
           <View style={styles.headerText}>
@@ -134,9 +133,9 @@ export default function HealthInsightsCard({
           </View>
         </View>
         <Ionicons
+          color={theme.colors.text.secondary}
           name={expanded ? "chevron-up" : "chevron-down"}
           size={20}
-          color={theme.colors.text.secondary}
         />
       </TouchableOpacity>
 
@@ -175,17 +174,17 @@ export default function HealthInsightsCard({
             {weeklySummary.symptoms.trend !== "stable" && (
               <View style={styles.trendItem}>
                 <Ionicons
+                  color={
+                    weeklySummary.symptoms.trend === "increasing"
+                      ? theme.colors.accent.error || "#EF4444"
+                      : theme.colors.accent.success || "#10B981"
+                  }
                   name={
                     weeklySummary.symptoms.trend === "increasing"
                       ? "trending-up"
                       : "trending-down"
                   }
                   size={16}
-                  color={
-                    weeklySummary.symptoms.trend === "increasing"
-                      ? theme.colors.accent.error || "#EF4444"
-                      : theme.colors.accent.success || "#10B981"
-                  }
                 />
                 <Caption
                   numberOfLines={1}
@@ -212,17 +211,17 @@ export default function HealthInsightsCard({
             {weeklySummary.moods.trend !== "stable" && (
               <View style={styles.trendItem}>
                 <Ionicons
+                  color={
+                    weeklySummary.moods.trend === "improving"
+                      ? theme.colors.accent.success || "#10B981"
+                      : theme.colors.accent.error || "#EF4444"
+                  }
                   name={
                     weeklySummary.moods.trend === "improving"
                       ? "trending-up"
                       : "trending-down"
                   }
                   size={16}
-                  color={
-                    weeklySummary.moods.trend === "improving"
-                      ? theme.colors.accent.success || "#10B981"
-                      : theme.colors.accent.error || "#EF4444"
-                  }
                 />
                 <Caption
                   numberOfLines={1}
@@ -251,32 +250,33 @@ export default function HealthInsightsCard({
           {/* Insights */}
           {insights.length > 0 && (
             <View style={styles.insightsSection}>
-              <Text style={styles.sectionTitle}>
-                {t("keyInsights")}
-              </Text>
+              <Text style={styles.sectionTitle}>{t("keyInsights")}</Text>
               {insights.map((insight, index) => (
                 <View key={index} style={styles.insightItem}>
                   <View style={styles.insightHeader}>
                     <Ionicons
+                      color={theme.colors.primary.main}
                       name={getInsightIcon(insight.type)}
                       size={20}
-                      color={theme.colors.primary.main}
                       style={styles.insightIcon}
                     />
                     <View style={styles.insightText}>
                       <Text style={styles.insightTitle}>{insight.title}</Text>
-                      <Caption numberOfLines={2} style={styles.insightDescription}>
+                      <Caption
+                        numberOfLines={2}
+                        style={styles.insightDescription}
+                      >
                         {insight.description}
                       </Caption>
                     </View>
                     <Badge
-                      variant="outline"
                       style={[
                         styles.confidenceBadge,
                         {
                           borderColor: getConfidenceColor(insight.confidence),
                         },
                       ]}
+                      variant="outline"
                     >
                       <Text
                         style={[
@@ -290,7 +290,10 @@ export default function HealthInsightsCard({
                   </View>
                   {insight.recommendation && (
                     <View style={styles.recommendationBox}>
-                      <Caption numberOfLines={3} style={styles.recommendationText}>
+                      <Caption
+                        numberOfLines={3}
+                        style={styles.recommendationText}
+                      >
                         {insight.recommendation}
                       </Caption>
                     </View>
@@ -308,7 +311,7 @@ export default function HealthInsightsCard({
               </Text>
               <View style={styles.tagsContainer}>
                 {weeklySummary.symptoms.mostCommon.map((symptom, index) => (
-                  <Badge key={index} variant="outline" style={styles.tag}>
+                  <Badge key={index} style={styles.tag} variant="outline">
                     <Text style={styles.tagText}>
                       {symptom.type} ({symptom.count})
                     </Text>
@@ -320,17 +323,17 @@ export default function HealthInsightsCard({
 
           {onViewDetails && (
             <TouchableOpacity
+              activeOpacity={0.7}
               onPress={onViewDetails}
               style={styles.viewAllButton}
-              activeOpacity={0.7}
             >
               <Text style={styles.viewAllText}>
                 {isRTL ? "عرض التفاصيل الكاملة" : "View Full Details"}
               </Text>
               <Ionicons
+                color={theme.colors.primary.main}
                 name={isRTL ? "arrow-forward" : "arrow-forward"}
                 size={16}
-                color={theme.colors.primary.main}
               />
             </TouchableOpacity>
           )}
@@ -470,7 +473,8 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   recommendationBox: {
     marginTop: theme.spacing.sm,
     padding: theme.spacing.sm,
-    backgroundColor: theme.colors.primary.light || theme.colors.background.secondary,
+    backgroundColor:
+      theme.colors.primary.light || theme.colors.background.secondary,
     borderRadius: theme.borderRadius.sm,
   },
   recommendationText: {

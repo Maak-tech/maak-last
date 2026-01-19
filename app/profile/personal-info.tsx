@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   Calendar,
   Edit3,
-  Heart,
   Mail,
   MapPin,
   Phone,
@@ -27,9 +26,9 @@ import {
   View,
 } from "react-native";
 import Avatar from "@/components/Avatar";
-import type { AvatarType } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
+import type { AvatarType } from "@/types";
 
 export const options = {
   headerShown: false,
@@ -129,7 +128,12 @@ export default function PersonalInfoScreen() {
             {value}
           </Text>
           {description && (
-            <Text style={[styles.infoCardDescription, isRTL && { textAlign: "left" }]}>
+            <Text
+              style={[
+                styles.infoCardDescription,
+                isRTL && { textAlign: "left" },
+              ]}
+            >
               {description}
             </Text>
           )}
@@ -343,7 +347,9 @@ export default function PersonalInfoScreen() {
         {/* Edit Profile Button */}
         <TouchableOpacity onPress={handleEdit} style={styles.editProfileButton}>
           <Edit3 color="#FFFFFF" size={20} />
-          <Text style={[styles.editProfileText, isRTL && { textAlign: "left" }]}>
+          <Text
+            style={[styles.editProfileText, isRTL && { textAlign: "left" }]}
+          >
             {isRTL ? "تعديل الملف الشخصي" : "Edit Profile"}
           </Text>
         </TouchableOpacity>
@@ -418,7 +424,12 @@ export default function PersonalInfoScreen() {
                 textAlign={isRTL ? "right" : "left"}
                 value={editForm.phoneNumber}
               />
-              <Text style={[styles.fieldDescription, isRTL && { textAlign: "left" }]}>
+              <Text
+                style={[
+                  styles.fieldDescription,
+                  isRTL && { textAlign: "left" },
+                ]}
+              >
                 {isRTL
                   ? "سيستخدم للطوارئ والإشعارات المهمة"
                   : "Used for emergencies and important notifications"}
@@ -454,8 +465,8 @@ export default function PersonalInfoScreen() {
       <Modal
         animationType="slide"
         onRequestClose={() => setAvatarCreatorVisible(false)}
-        visible={avatarCreatorVisible}
         transparent={true}
+        visible={avatarCreatorVisible}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -471,13 +482,18 @@ export default function PersonalInfoScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.avatarGrid}>
-              {(["man", "woman", "boy", "girl", "grandpa", "grandma"] as AvatarType[]).map((type) => (
+              {(
+                [
+                  "man",
+                  "woman",
+                  "boy",
+                  "girl",
+                  "grandpa",
+                  "grandma",
+                ] as AvatarType[]
+              ).map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={[
-                    styles.avatarOption,
-                    user?.avatarType === type && styles.avatarOptionSelected,
-                  ]}
                   onPress={async () => {
                     try {
                       setLoading(true);
@@ -507,9 +523,19 @@ export default function PersonalInfoScreen() {
                       setLoading(false);
                     }
                   }}
+                  style={[
+                    styles.avatarOption,
+                    user?.avatarType === type && styles.avatarOptionSelected,
+                  ]}
                 >
-                  <Avatar avatarType={type} size="xl" style={{ width: 80, height: 80 }} />
-                  <Text style={[styles.avatarLabel, isRTL && { textAlign: "left" }]}>
+                  <Avatar
+                    avatarType={type}
+                    size="xl"
+                    style={{ width: 80, height: 80 }}
+                  />
+                  <Text
+                    style={[styles.avatarLabel, isRTL && { textAlign: "left" }]}
+                  >
                     {type === "man" && (isRTL ? "رجل" : "Man")}
                     {type === "woman" && (isRTL ? "امرأة" : "Woman")}
                     {type === "boy" && (isRTL ? "صبي" : "Boy")}

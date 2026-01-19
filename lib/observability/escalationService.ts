@@ -6,16 +6,16 @@ import {
   getDoc,
   getDocs,
   query,
+  Timestamp,
   updateDoc,
   where,
-  Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { logger } from "@/lib/utils/logger";
-import { observabilityEmitter } from "./eventEmitter";
-import type { EscalationPolicy, EscalationLevel } from "./types";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
 import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
+import { observabilityEmitter } from "./eventEmitter";
+import type { EscalationLevel, EscalationPolicy } from "./types";
 
 interface ActiveEscalation {
   id?: string;
@@ -50,21 +50,24 @@ const DEFAULT_ESCALATION_POLICIES: EscalationPolicy[] = [
         delayMinutes: 0,
         notifyRoles: ["caregiver"],
         action: "notify",
-        message: "Critical health alert for your family member. Please check on them immediately.",
+        message:
+          "Critical health alert for your family member. Please check on them immediately.",
       },
       {
         level: 2,
         delayMinutes: 5,
         notifyRoles: ["caregiver", "secondary_contact"],
         action: "call",
-        message: "URGENT: No response to critical alert. Please contact your family member immediately.",
+        message:
+          "URGENT: No response to critical alert. Please contact your family member immediately.",
       },
       {
         level: 3,
         delayMinutes: 10,
         notifyRoles: ["emergency"],
         action: "seek_care_guidance",
-        message: "Emergency escalation: No response after 10 minutes. Consider calling emergency services.",
+        message:
+          "Emergency escalation: No response after 10 minutes. Consider calling emergency services.",
       },
     ],
   },
@@ -78,7 +81,8 @@ const DEFAULT_ESCALATION_POLICIES: EscalationPolicy[] = [
         delayMinutes: 0,
         notifyRoles: ["caregiver"],
         action: "notify",
-        message: "Health alert: Abnormal vital signs detected. Please check when convenient.",
+        message:
+          "Health alert: Abnormal vital signs detected. Please check when convenient.",
       },
       {
         level: 2,
@@ -106,7 +110,8 @@ const DEFAULT_ESCALATION_POLICIES: EscalationPolicy[] = [
         delayMinutes: 60,
         notifyRoles: ["caregiver"],
         action: "notify",
-        message: "Medication still not taken. Please remind your family member.",
+        message:
+          "Medication still not taken. Please remind your family member.",
       },
     ],
   },
@@ -131,7 +136,11 @@ class EscalationService {
   ): Promise<string | null> {
     const policy = this.getPolicyForAlertType(alertType);
     if (!policy) {
-      logger.info(`No escalation policy found for alert type: ${alertType}`, {}, "EscalationService");
+      logger.info(
+        `No escalation policy found for alert type: ${alertType}`,
+        {},
+        "EscalationService"
+      );
       return null;
     }
 
@@ -155,12 +164,16 @@ class EscalationService {
         ...escalation,
         createdAt: Timestamp.fromDate(escalation.createdAt),
         lastEscalatedAt: Timestamp.fromDate(escalation.lastEscalatedAt),
-        nextEscalationAt: escalation.nextEscalationAt 
+        nextEscalationAt: escalation.nextEscalationAt
           ? Timestamp.fromDate(escalation.nextEscalationAt)
           : null,
       });
 
-      await this.executeEscalationLevel(docRef.id, escalation, policy.levels[0]);
+      await this.executeEscalationLevel(
+        docRef.id,
+        escalation,
+        policy.levels[0]
+      );
 
       await observabilityEmitter.emitAlertEvent(
         "escalation_started",
@@ -186,7 +199,11 @@ class EscalationService {
 
       return docRef.id;
     } catch (error) {
-      logger.error("Failed to start escalation", { alertId, error }, "EscalationService");
+      logger.error(
+        "Failed to start escalation",
+        { alertId, error },
+        "EscalationService"
+      );
       return null;
     }
   }
@@ -240,7 +257,11 @@ class EscalationService {
 
       return true;
     } catch (error) {
-      logger.error("Failed to acknowledge escalation", { escalationId, error }, "EscalationService");
+      logger.error(
+        "Failed to acknowledge escalation",
+        { escalationId, error },
+        "EscalationService"
+      );
       return false;
     }
   }
@@ -256,9 +277,9 @@ class EscalationService {
         where("alertId", "==", alertId),
         where("status", "in", ["active", "acknowledged"])
       );
-      
+
       const querySnapshot = await getDocs(q);
-      
+
       if (querySnapshot.empty) {
         return false;
       }
@@ -304,7 +325,11 @@ class EscalationService {
 
       return true;
     } catch (error) {
-      logger.error("Failed to resolve escalation", { alertId, error }, "EscalationService");
+      logger.error(
+        "Failed to resolve escalation",
+        { alertId, error },
+        "EscalationService"
+      );
       return false;
     }
   }
@@ -332,11 +357,17 @@ class EscalationService {
         await this.escalateToNextLevel(escalation);
       }
     } catch (error) {
-      logger.error("Failed to process escalations", { error }, "EscalationService");
+      logger.error(
+        "Failed to process escalations",
+        { error },
+        "EscalationService"
+      );
     }
   }
 
-  private async escalateToNextLevel(escalation: ActiveEscalation): Promise<void> {
+  private async escalateToNextLevel(
+    escalation: ActiveEscalation
+  ): Promise<void> {
     const policy = this.policies.find((p) => p.id === escalation.policyId);
     if (!policy) return;
 
@@ -363,7 +394,9 @@ class EscalationService {
     await updateDoc(doc(db, ESCALATIONS_COLLECTION, escalation.id!), {
       currentLevel: nextLevel,
       lastEscalatedAt: Timestamp.now(),
-      nextEscalationAt: nextEscalationAt ? Timestamp.fromDate(nextEscalationAt) : null,
+      nextEscalationAt: nextEscalationAt
+        ? Timestamp.fromDate(nextEscalationAt)
+        : null,
     });
 
     await this.executeEscalationLevel(escalation.id!, escalation, levelConfig);
@@ -412,14 +445,21 @@ class EscalationService {
 
     try {
       if (!escalation.familyId) {
-        logger.warn("No familyId for escalation, cannot notify caregivers", { escalationId }, "EscalationService");
+        logger.warn(
+          "No familyId for escalation, cannot notify caregivers",
+          { escalationId },
+          "EscalationService"
+        );
         return;
       }
 
-      const familyMembers = await userService.getFamilyMembers(escalation.familyId);
+      const familyMembers = await userService.getFamilyMembers(
+        escalation.familyId
+      );
       const user = await userService.getUser(escalation.userId);
-      const userName = user 
-        ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Family member"
+      const userName = user
+        ? `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+          "Family member"
         : "Family member";
 
       const recipientsToNotify: string[] = [];
@@ -444,11 +484,19 @@ class EscalationService {
         (id) => id !== escalation.userId
       );
 
-      const notificationTitle = this.getNotificationTitle(escalation.alertType, level.level);
+      const notificationTitle = this.getNotificationTitle(
+        escalation.alertType,
+        level.level
+      );
       const notificationBody = level.message.replace("{userName}", userName);
-      const sound = level.level >= 3 ? "emergency" as const : 
-                    level.level >= 2 ? "alarm" as const : "default" as const;
-      const priority = level.level >= 2 ? "high" as const : "normal" as const;
+      const sound =
+        level.level >= 3
+          ? ("emergency" as const)
+          : level.level >= 2
+            ? ("alarm" as const)
+            : ("default" as const);
+      const priority =
+        level.level >= 2 ? ("high" as const) : ("normal" as const);
 
       for (const recipientId of uniqueRecipients) {
         await pushNotificationService.sendToUser(recipientId, {
@@ -458,7 +506,12 @@ class EscalationService {
             type: "escalation_alert",
             alertId: escalation.alertId,
             userId: escalation.userId,
-            severity: level.level >= 3 ? "critical" : level.level >= 2 ? "high" : "medium",
+            severity:
+              level.level >= 3
+                ? "critical"
+                : level.level >= 2
+                  ? "high"
+                  : "medium",
             familyId: escalation.familyId,
           },
           sound,
@@ -472,17 +525,26 @@ class EscalationService {
 
       logger.info(
         `Sent escalation notifications to ${uniqueRecipients.length} recipients`,
-        { escalationId, level: level.level, recipients: uniqueRecipients.length },
+        {
+          escalationId,
+          level: level.level,
+          recipients: uniqueRecipients.length,
+        },
         "EscalationService"
       );
     } catch (error) {
-      logger.error("Failed to execute escalation level", { escalationId, error }, "EscalationService");
+      logger.error(
+        "Failed to execute escalation level",
+        { escalationId, error },
+        "EscalationService"
+      );
     }
   }
 
   private getNotificationTitle(alertType: string, level: number): string {
-    const urgencyPrefix = level >= 3 ? "🚨 EMERGENCY: " : level >= 2 ? "⚠️ URGENT: " : "📋 ";
-    
+    const urgencyPrefix =
+      level >= 3 ? "🚨 EMERGENCY: " : level >= 2 ? "⚠️ URGENT: " : "📋 ";
+
     switch (alertType) {
       case "vital_critical":
         return `${urgencyPrefix}Critical Vital Sign Alert`;
@@ -504,18 +566,20 @@ class EscalationService {
     currentLevel: number
   ): Date | undefined {
     if (currentLevel >= policy.levels.length) {
-      return undefined;
+      return;
     }
 
     const nextLevel = policy.levels[currentLevel];
-    if (!nextLevel) return undefined;
+    if (!nextLevel) return;
 
     const nextTime = new Date();
     nextTime.setMinutes(nextTime.getMinutes() + nextLevel.delayMinutes);
     return nextTime;
   }
 
-  async getActiveEscalationsForFamily(familyId: string): Promise<ActiveEscalation[]> {
+  async getActiveEscalationsForFamily(
+    familyId: string
+  ): Promise<ActiveEscalation[]> {
     try {
       const q = query(
         collection(db, ESCALATIONS_COLLECTION),
@@ -532,7 +596,11 @@ class EscalationService {
         nextEscalationAt: doc.data().nextEscalationAt?.toDate(),
       })) as ActiveEscalation[];
     } catch (error) {
-      logger.error("Failed to get active escalations", { familyId, error }, "EscalationService");
+      logger.error(
+        "Failed to get active escalations",
+        { familyId, error },
+        "EscalationService"
+      );
       return [];
     }
   }

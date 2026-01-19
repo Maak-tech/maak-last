@@ -72,8 +72,8 @@ export default function SamsungHealthIntroScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -125,7 +125,9 @@ export default function SamsungHealthIntroScreen() {
 
           <View style={styles.benefitsList}>
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#22C55E" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#22C55E" }]}
+              >
                 <Heart color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -153,7 +155,9 @@ export default function SamsungHealthIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#3B82F6" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#3B82F6" }]}
+              >
                 <Settings color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -181,7 +185,9 @@ export default function SamsungHealthIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}
+              >
                 <Shield color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -201,7 +207,9 @@ export default function SamsungHealthIntroScreen() {
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {isRTL ? "الوزن، الطول، ونسبة الدهون في الجسم" : "Weight, height, and body fat percentage"}
+                  {isRTL
+                    ? "الوزن، الطول، ونسبة الدهون في الجسم"
+                    : "Weight, height, and body fat percentage"}
                 </Text>
               </View>
             </View>
@@ -244,9 +252,7 @@ export default function SamsungHealthIntroScreen() {
                   isRTL && styles.rtlText,
                 ]}
               >
-                {isRTL
-                  ? "نحن لا نبيع بياناتك أبداً"
-                  : "We never sell your data"}
+                {isRTL ? "نحن لا نبيع بياناتك أبداً" : "We never sell your data"}
               </Text>
             </View>
           </View>
@@ -255,7 +261,9 @@ export default function SamsungHealthIntroScreen() {
         {/* Connect Button */}
         <View style={styles.connectSection}>
           <TouchableOpacity
-            onPress={() => router.push("/profile/health/samsung-health-permissions")}
+            onPress={() =>
+              router.push("/profile/health/samsung-health-permissions")
+            }
             style={[styles.connectButton, { backgroundColor: "#22C55E" }]}
           >
             <Text style={styles.connectButtonText}>

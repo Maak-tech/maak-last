@@ -139,14 +139,16 @@ const calculateJerk = (
 const calculateOrientation = (x: number, y: number, z: number): number => {
   // Calculate pitch angle (rotation around X axis) with bounds checking
   const denominator = Math.hypot(x, z);
-  return denominator > 0 ? Math.atan2(y, denominator) * 57.29577951308232 : 0; // 180/π precomputed
+  return denominator > 0
+    ? Math.atan2(y, denominator) * 57.295_779_513_082_32
+    : 0; // 180/π precomputed
 };
 
 // Optimized moving average with early return - avoids creating intermediate arrays
 const movingAverage = (values: number[], windowSize: number): number => {
   const len = values.length;
   if (len === 0) return 0;
-  
+
   // Calculate start index without creating a new array
   const startIndex = Math.max(0, len - windowSize);
   const actualWindowSize = len - startIndex;
@@ -161,13 +163,13 @@ const movingAverage = (values: number[], windowSize: number): number => {
 const calculateVariance = (values: number[]): number => {
   const len = values.length;
   if (len === 0) return 0;
-  
+
   let sum = 0;
   for (let i = 0; i < len; i++) {
     sum += values[i];
   }
   const mean = sum / len;
-  
+
   let variance = 0;
   for (let i = 0; i < len; i++) {
     const diff = values[i] - mean;
@@ -180,7 +182,7 @@ const calculateVariance = (values: number[]): number => {
 const calculateRMS = (values: number[]): number => {
   const len = values.length;
   if (len === 0) return 0;
-  
+
   let sumSquares = 0;
   for (let i = 0; i < len; i++) {
     sumSquares += values[i] * values[i];
@@ -258,7 +260,7 @@ const findMaxValue = (values: number[]): number => {
   const len = values.length;
   if (len === 0) return 0;
   if (len === 1) return values[0];
-  
+
   let max = values[0];
   for (let i = 1; i < len; i++) {
     const val = values[i];
@@ -268,7 +270,9 @@ const findMaxValue = (values: number[]): number => {
 };
 
 // Helper function to calculate maximum orientation change
-const calculateMaxOrientationChange = (orientationChanges: number[]): number => {
+const calculateMaxOrientationChange = (
+  orientationChanges: number[]
+): number => {
   if (orientationChanges.length < 2) return 0;
   const changes: number[] = [];
   for (let i = 1; i < orientationChanges.length; i++) {
@@ -291,11 +295,12 @@ const calculateOrientationConfidence = (
   ) {
     return 0;
   }
-  
+
   const threshold = FALL_CONFIG.ORIENTATION_CHANGE_THRESHOLD;
   if (maxOrientationChange >= threshold) {
     return 0.3;
-  } else if (maxOrientationChange >= threshold * 0.5) {
+  }
+  if (maxOrientationChange >= threshold * 0.5) {
     return 0.15;
   }
   return 0;
@@ -469,7 +474,6 @@ export const useFallDetection = (
                     timestamp: now,
                   };
 
-
                   // Calculate raw acceleration magnitude
                   const rawAccel = calculateMagnitude(
                     currentData.acceleration.x,
@@ -513,15 +517,18 @@ export const useFallDetection = (
                           rawAccel) /
                         newSampleCount;
                       baseline.sampleCount = newSampleCount;
-                      
+
                       // Ensure we don't divide by zero and handle orientation safely
-                      if (baseline.sampleCount > 0 && isFinite(currentOrientation)) {
+                      if (
+                        baseline.sampleCount > 0 &&
+                        isFinite(currentOrientation)
+                      ) {
                         baseline.baselineOrientation =
                           (baseline.baselineOrientation *
                             (baseline.sampleCount - 1) +
                             currentOrientation) /
                           baseline.sampleCount;
-                        
+
                         // Validate result
                         if (!isFinite(baseline.baselineOrientation)) {
                           baseline.baselineOrientation = 0;
@@ -534,7 +541,6 @@ export const useFallDetection = (
                       baseline.baselineOrientation = 0;
                       baseline.avgActivity = 0.5;
                     }
-
                   }
 
                   // Check for outliers and filter them
@@ -545,32 +551,35 @@ export const useFallDetection = (
                         .map((d) => {
                           const accel = d.acceleration;
                           // Validate acceleration values
-                          return typeof accel === "number" && isFinite(accel) && accel >= 0 && accel < 100
+                          return typeof accel === "number" &&
+                            isFinite(accel) &&
+                            accel >= 0 &&
+                            accel < 100
                             ? accel
                             : 1.0; // Default safe value
                         });
-                      
+
                       if (recentAccels.length > 0) {
                         const mean = movingAverage(
                           recentAccels,
                           recentAccels.length
                         );
-                        
+
                         // Validate mean before calculating variance
                         if (isFinite(mean) && mean >= 0) {
                           const stdDev = calculateVariance(recentAccels);
-                          
+
                           // Validate stdDev before outlier check
                           if (isFinite(stdDev) && stdDev >= 0) {
                             if (isOutlier(rawAccel, mean, stdDev)) {
                               outlierCountRef.current++;
-                            if (
-                              outlierCountRef.current >
-                              FALL_CONFIG.MAX_OUTLIER_COUNT
-                            ) {
-                              // Skip processing this outlier value
-                              return;
-                            }
+                              if (
+                                outlierCountRef.current >
+                                FALL_CONFIG.MAX_OUTLIER_COUNT
+                              ) {
+                                // Skip processing this outlier value
+                                return;
+                              }
                             } else {
                               outlierCountRef.current = 0;
                             }
@@ -593,11 +602,18 @@ export const useFallDetection = (
                   // Optimized: extract accelerations directly without intermediate arrays
                   const windowStart = Math.max(
                     0,
-                    filteredDataRef.current.length - FALL_CONFIG.FILTER_WINDOW_SIZE
+                    filteredDataRef.current.length -
+                      FALL_CONFIG.FILTER_WINDOW_SIZE
                   );
                   const smoothingAccels: number[] = [];
-                  for (let i = windowStart; i < filteredDataRef.current.length; i++) {
-                    smoothingAccels.push(filteredDataRef.current[i].acceleration);
+                  for (
+                    let i = windowStart;
+                    i < filteredDataRef.current.length;
+                    i++
+                  ) {
+                    smoothingAccels.push(
+                      filteredDataRef.current[i].acceleration
+                    );
                   }
                   smoothingAccels.push(emaAccelRef.current);
                   const filteredAccel = movingAverage(
@@ -684,13 +700,19 @@ export const useFallDetection = (
 
                   // Store filtered data - validate values before creating object
                   // This prevents creating objects with invalid data
-                  const safeFilteredAccel = isFinite(filteredAccel) && filteredAccel >= 0 
-                    ? filteredAccel 
-                    : previousAccelRef.current;
+                  const safeFilteredAccel =
+                    isFinite(filteredAccel) && filteredAccel >= 0
+                      ? filteredAccel
+                      : previousAccelRef.current;
                   const safeJerk = isFinite(jerk) && jerk >= 0 ? jerk : 0;
-                  const safeOrientation = isFinite(currentOrientation) ? currentOrientation : previousOrientationRef.current;
-                  const safeRotationRate = isFinite(rotationRate) && rotationRate >= 0 ? rotationRate : undefined;
-                  
+                  const safeOrientation = isFinite(currentOrientation)
+                    ? currentOrientation
+                    : previousOrientationRef.current;
+                  const safeRotationRate =
+                    isFinite(rotationRate) && rotationRate >= 0
+                      ? rotationRate
+                      : undefined;
+
                   const filteredData: FilteredData = {
                     acceleration: safeFilteredAccel,
                     jerk: safeJerk,
@@ -704,7 +726,7 @@ export const useFallDetection = (
                   // Add to raw data window and clean up efficiently
                   dataWindowRef.current.push(currentData);
                   filteredDataRef.current.push(filteredData);
-                  
+
                   // Use efficient cleanup - only when arrays exceed threshold (reduces unnecessary operations)
                   if (
                     dataWindowRef.current.length > DATA_WINDOW_SIZE ||
@@ -735,8 +757,14 @@ export const useFallDetection = (
                     filteredDataRef.current.length - FALL_CONFIG.RMS_WINDOW
                   );
                   const recentAccelerations: number[] = [];
-                  for (let i = rmsStart; i < filteredDataRef.current.length; i++) {
-                    recentAccelerations.push(filteredDataRef.current[i].acceleration);
+                  for (
+                    let i = rmsStart;
+                    i < filteredDataRef.current.length;
+                    i++
+                  ) {
+                    recentAccelerations.push(
+                      filteredDataRef.current[i].acceleration
+                    );
                   }
                   const rmsActivity = calculateRMS(recentAccelerations);
                   const avgActivity = movingAverage(
@@ -902,14 +930,14 @@ export const useFallDetection = (
                         const orientationChanges = recentFilteredData
                           .slice(-10)
                           .map((d) => d.orientation);
-                        
+
                         if (orientationChanges.length >= 5) {
-                          const maxOrientationChange = calculateMaxOrientationChange(
-                            orientationChanges
-                          );
-                          const orientationConfidence = calculateOrientationConfidence(
-                            maxOrientationChange
-                          );
+                          const maxOrientationChange =
+                            calculateMaxOrientationChange(orientationChanges);
+                          const orientationConfidence =
+                            calculateOrientationConfidence(
+                              maxOrientationChange
+                            );
                           confidence += orientationConfidence;
                         }
 
@@ -920,14 +948,19 @@ export const useFallDetection = (
                           const recentData = recentFilteredData.slice(-10);
                           for (const d of recentData) {
                             const rate = d.rotationRate;
-                            if (typeof rate === "number" && isFinite(rate) && rate > 0 && rate < 100) {
+                            if (
+                              typeof rate === "number" &&
+                              isFinite(rate) &&
+                              rate > 0 &&
+                              rate < 100
+                            ) {
                               rotationRates.push(rate);
                             }
                           }
                         } catch (rotationError) {
                           // Silently handle rotation rate extraction errors
                         }
-                        
+
                         if (rotationRates.length >= 3) {
                           const avgRotationRate = movingAverage(
                             rotationRates,
@@ -970,14 +1003,13 @@ export const useFallDetection = (
                         // Helper function to simplify type predicate
                         const isValidDirection = (
                           direction: string | undefined
-                        ): direction is "forward" | "backward" | "sideways" => {
-                          return (
-                            direction !== undefined &&
-                            direction !== null &&
-                            direction !== "unknown" &&
-                            ["forward", "backward", "sideways"].includes(direction)
+                        ): direction is "forward" | "backward" | "sideways" =>
+                          direction !== undefined &&
+                          direction !== null &&
+                          direction !== "unknown" &&
+                          ["forward", "backward", "sideways"].includes(
+                            direction
                           );
-                        };
 
                         const recentDirections = filteredDataRef.current
                           .slice(-10)

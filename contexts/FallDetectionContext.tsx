@@ -108,7 +108,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Extract isActive into state to avoid dependency issues with object identity
   const [isActive, setIsActive] = useState(false);
-  
+
   // Update isActive state when fallDetection.isActive changes
   useEffect(() => {
     setIsActive(fallDetection.isActive);
@@ -192,7 +192,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   const value: FallDetectionContextType = useMemo(
     () => ({
       isEnabled,
-      isActive: isActive,
+      isActive,
       isInitialized,
       toggleFallDetection,
       startFallDetection,
@@ -201,7 +201,17 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       runDiagnostics,
       lastAlert,
     }),
-    [isEnabled, isActive, isInitialized, toggleFallDetection, startFallDetection, stopFallDetection, testFallDetection, runDiagnostics, lastAlert]
+    [
+      isEnabled,
+      isActive,
+      isInitialized,
+      toggleFallDetection,
+      startFallDetection,
+      stopFallDetection,
+      testFallDetection,
+      runDiagnostics,
+      lastAlert,
+    ]
   );
 
   return (

@@ -6,18 +6,18 @@
  */
 
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import * as Device from "expo-device";
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  KeyboardAvoidingView,
   Dimensions,
   Easing,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -28,15 +28,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useTranslation } from "react-i18next";
-
-import {
-  realtimeAgentService,
-  type ConnectionState,
-  type RealtimeEventHandlers,
-} from "@/lib/services/realtimeAgentService";
 import healthContextService from "@/lib/services/healthContextService";
 import openaiService from "@/lib/services/openaiService";
+import {
+  type ConnectionState,
+  type RealtimeEventHandlers,
+  realtimeAgentService,
+} from "@/lib/services/realtimeAgentService";
 import { voiceService } from "@/lib/services/voiceService";
 import { zeinaActionsService } from "@/lib/services/zeinaActionsService";
 
@@ -88,7 +86,8 @@ export default function ZeinaScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Connection state
-  const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
+  const [connectionState, setConnectionState] =
+    useState<ConnectionState>("disconnected");
   const [isActive, setIsActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -186,10 +185,11 @@ export default function ZeinaScreen() {
   }, [clearSpeechWatchdog, safeCommitAudioBuffer]);
 
   const startZeina = useCallback(async () => {
-    if (!isAudioAvailable || !Audio) {
+    if (!(isAudioAvailable && Audio)) {
       Alert.alert(
         t("audioUnavailable", "Audio Unavailable"),
-        audioLoadError || t("audioNotAvailable", "Audio is not available on this device.")
+        audioLoadError ||
+          t("audioNotAvailable", "Audio is not available on this device.")
       );
       return;
     }
@@ -254,7 +254,10 @@ export default function ZeinaScreen() {
         });
     } catch (error) {
       setIsActive(false);
-      const msg = error instanceof Error ? error.message : t("unableToConnect", "Unable to connect");
+      const msg =
+        error instanceof Error
+          ? error.message
+          : t("unableToConnect", "Unable to connect");
       setLastError(msg);
       const needsApiKey =
         msg.toLowerCase().includes("api key") ||
@@ -262,21 +265,17 @@ export default function ZeinaScreen() {
         msg.toLowerCase().includes("missing authentication") ||
         msg.toLowerCase().includes("invalid api key");
       if (needsApiKey) {
-        Alert.alert(
-          t("connectionFailed", "Connection Failed"),
-          msg,
-          [
-            {
-              text: t("pasteApiKey", "Paste API key"),
-              onPress: () => setShowApiKeyModal(true),
-            },
-            {
-              text: t("openSettings", "Open Settings"),
-              onPress: () => router.push("/ai-assistant?openSettings=1"),
-            },
-            { text: t("ok", "OK"), style: "cancel" },
-          ]
-        );
+        Alert.alert(t("connectionFailed", "Connection Failed"), msg, [
+          {
+            text: t("pasteApiKey", "Paste API key"),
+            onPress: () => setShowApiKeyModal(true),
+          },
+          {
+            text: t("openSettings", "Open Settings"),
+            onPress: () => router.push("/ai-assistant?openSettings=1"),
+          },
+          { text: t("ok", "OK"), style: "cancel" },
+        ]);
       } else {
         Alert.alert(t("connectionFailed", "Connection Failed"), msg);
       }
@@ -318,12 +317,18 @@ export default function ZeinaScreen() {
   const saveApiKeyAndReconnect = useCallback(async () => {
     const key = apiKeyDraft.trim();
     if (!key) {
-      Alert.alert(t("error", "Error"), t("pleaseEnterValidApiKey", "Please enter a valid API key"));
+      Alert.alert(
+        t("error", "Error"),
+        t("pleaseEnterValidApiKey", "Please enter a valid API key")
+      );
       return;
     }
     setIsSavingApiKey(true);
     try {
-      await Promise.all([openaiService.setApiKey(key), realtimeAgentService.setApiKey(key)]);
+      await Promise.all([
+        openaiService.setApiKey(key),
+        realtimeAgentService.setApiKey(key),
+      ]);
       setApiKeyDraft("");
       setShowApiKeyModal(false);
       setLastError(null);
@@ -381,40 +386,56 @@ export default function ZeinaScreen() {
     } finally {
       setIsSpeaking(false);
       isAutoWelcomingRef.current = false;
-      if (isActiveRef.current && realtimeAgentService.isConnected() && !isManualRecordingRef.current) {
+      if (
+        isActiveRef.current &&
+        realtimeAgentService.isConnected() &&
+        !isManualRecordingRef.current
+      ) {
         startContinuousListening();
       }
     }
-  }, [i18n.language, setPlaybackAudioMode, startContinuousListening, stopContinuousListening]);
+  }, [
+    i18n.language,
+    setPlaybackAudioMode,
+    startContinuousListening,
+    stopContinuousListening,
+  ]);
 
-  const extractAssistantTextFromResponse = useCallback((response: any): string | null => {
-    try {
-      if (!response) return null;
-      if (typeof response.output_text === "string" && response.output_text.trim()) {
-        return response.output_text.trim();
-      }
-
-      const output = response.output;
-      if (!Array.isArray(output)) return null;
-
-      for (const item of output) {
-        // Common shape: { type: "message", content: [...] }
-        if (item?.type === "message" && Array.isArray(item.content)) {
-          for (const c of item.content) {
-            const text = c?.text ?? c?.transcript;
-            if (typeof text === "string" && text.trim()) return text.trim();
-          }
+  const extractAssistantTextFromResponse = useCallback(
+    (response: any): string | null => {
+      try {
+        if (!response) return null;
+        if (
+          typeof response.output_text === "string" &&
+          response.output_text.trim()
+        ) {
+          return response.output_text.trim();
         }
 
-        // Alternate shapes
-        const directText = item?.text ?? item?.transcript;
-        if (typeof directText === "string" && directText.trim()) return directText.trim();
+        const output = response.output;
+        if (!Array.isArray(output)) return null;
+
+        for (const item of output) {
+          // Common shape: { type: "message", content: [...] }
+          if (item?.type === "message" && Array.isArray(item.content)) {
+            for (const c of item.content) {
+              const text = c?.text ?? c?.transcript;
+              if (typeof text === "string" && text.trim()) return text.trim();
+            }
+          }
+
+          // Alternate shapes
+          const directText = item?.text ?? item?.transcript;
+          if (typeof directText === "string" && directText.trim())
+            return directText.trim();
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    }
-    return null;
-  }, []);
+      return null;
+    },
+    []
+  );
 
   // Auto mode: when you open the Zeina tab, connect + listen automatically.
   // Note: we intentionally DO NOT auto-stop on blur to keep Zeina truly "automatic"
@@ -424,7 +445,7 @@ export default function ZeinaScreen() {
       startZeina().catch(() => {});
       // Talk immediately when the user lands on the Zeina tab.
       speakWelcome().catch(() => {});
-      return undefined;
+      return;
     }, [startZeina, speakWelcome, stopZeinaSideEffects])
   );
 
@@ -473,7 +494,14 @@ export default function ZeinaScreen() {
     }, 300);
 
     return () => clearInterval(intervalId);
-  }, [clearSpeechWatchdog, connectionState, currentTranscript, isActive, isProcessing, isSpeaking]);
+  }, [
+    clearSpeechWatchdog,
+    connectionState,
+    currentTranscript,
+    isActive,
+    isProcessing,
+    isSpeaking,
+  ]);
 
   // Hard fallback: if Zeina is stuck in "Listening..." too long, end the turn and request a reply.
   useEffect(() => {
@@ -506,7 +534,9 @@ export default function ZeinaScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const breatheAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const waveAnims = useRef([...Array(5)].map(() => new Animated.Value(0.3))).current;
+  const waveAnims = useRef(
+    [...Array(5)].map(() => new Animated.Value(0.3))
+  ).current;
   const orbitAnim = useRef(new Animated.Value(0)).current;
 
   // Breathing animation (always on when active)
@@ -530,9 +560,8 @@ export default function ZeinaScreen() {
       );
       breathe.start();
       return () => breathe.stop();
-    } else {
-      breatheAnim.setValue(1);
     }
+    breatheAnim.setValue(1);
   }, [isActive, connectionState]);
 
   // Orbit animation
@@ -540,7 +569,7 @@ export default function ZeinaScreen() {
     const orbit = Animated.loop(
       Animated.timing(orbitAnim, {
         toValue: 1,
-        duration: 10000,
+        duration: 10_000,
         easing: Easing.linear,
         useNativeDriver: true,
       })
@@ -578,14 +607,13 @@ export default function ZeinaScreen() {
       }).start();
 
       return () => pulse.stop();
-    } else {
-      pulseAnim.setValue(1);
-      Animated.timing(glowAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
     }
+    pulseAnim.setValue(1);
+    Animated.timing(glowAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   }, [isListening]);
 
   // Wave animation when Zeina is speaking
@@ -609,9 +637,8 @@ export default function ZeinaScreen() {
       );
       animations.forEach((a) => a.start());
       return () => animations.forEach((a) => a.stop());
-    } else {
-      waveAnims.forEach((anim) => anim.setValue(0.3));
     }
+    waveAnims.forEach((anim) => anim.setValue(0.3));
   }, [isSpeaking]);
 
   // Set up event handlers for the realtime service
@@ -703,7 +730,11 @@ export default function ZeinaScreen() {
         setIsProcessing(false);
         clearSpeechWatchdog();
         // Resume listening after Zeina finishes speaking
-        if (isActiveRef.current && realtimeAgentService.isConnected() && !isManualRecordingRef.current) {
+        if (
+          isActiveRef.current &&
+          realtimeAgentService.isConnected() &&
+          !isManualRecordingRef.current
+        ) {
           startContinuousListening();
         }
       },
@@ -718,7 +749,7 @@ export default function ZeinaScreen() {
           } catch (parseError) {
             console.warn("Failed to parse tool arguments:", parseError);
           }
-          
+
           const result = await executeHealthTool(toolCall.name, args);
           realtimeAgentService.submitToolOutput(
             toolCall.call_id,
@@ -755,18 +786,30 @@ export default function ZeinaScreen() {
         // If we got a text reply but no audio chunks, speak it via device TTS.
         if (assistantText && !didReceiveAssistantAudioRef.current) {
           try {
-            stopContinuousListening({ updateState: true, clearInputBuffer: false });
+            stopContinuousListening({
+              updateState: true,
+              clearInputBuffer: false,
+            });
             setIsListening(false);
             setIsSpeaking(true);
             await setPlaybackAudioMode();
 
-            const lang = (i18n.language || "en").startsWith("ar") ? "ar-SA" : "en-US";
-            await voiceService.speak(assistantText, { language: lang, volume: 1.0 });
+            const lang = (i18n.language || "en").startsWith("ar")
+              ? "ar-SA"
+              : "en-US";
+            await voiceService.speak(assistantText, {
+              language: lang,
+              volume: 1.0,
+            });
           } catch {
             setLastError(t("ttsFailed", "Text-to-speech failed"));
           } finally {
             setIsSpeaking(false);
-            if (isActiveRef.current && realtimeAgentService.isConnected() && !isManualRecordingRef.current) {
+            if (
+              isActiveRef.current &&
+              realtimeAgentService.isConnected() &&
+              !isManualRecordingRef.current
+            ) {
               startContinuousListening();
             }
           }
@@ -818,27 +861,37 @@ export default function ZeinaScreen() {
   }, [t, isActive, connectionState, clearSpeechWatchdog, startSpeechWatchdog]);
 
   // Execute health-related tools - routes to appropriate service
-  const executeHealthTool = async (name: string, args: any = {}): Promise<any> => {
+  const executeHealthTool = async (
+    name: string,
+    args: any = {}
+  ): Promise<any> => {
     // Ensure args is always an object
     const safeArgs = args || {};
-    
+
     switch (name) {
       // ===== INFORMATION RETRIEVAL TOOLS =====
       case "get_health_summary":
         return await healthContextService.getHealthSummary();
-      
+
       case "get_medications":
-        return await healthContextService.getMedications(safeArgs.active_only ?? true);
-      
+        return await healthContextService.getMedications(
+          safeArgs.active_only ?? true
+        );
+
       case "get_recent_vitals":
-        return await healthContextService.getRecentVitals(safeArgs.vital_type, safeArgs.days);
-      
+        return await healthContextService.getRecentVitals(
+          safeArgs.vital_type,
+          safeArgs.days
+        );
+
       case "check_medication_interactions":
-        return await healthContextService.checkMedicationInteractions(safeArgs.new_medication);
-      
+        return await healthContextService.checkMedicationInteractions(
+          safeArgs.new_medication
+        );
+
       case "emergency_contact":
         return await healthContextService.getEmergencyContacts(safeArgs.action);
-      
+
       // ===== AUTOMATED ACTION TOOLS (via ZeinaActionsService) =====
       case "log_symptom":
         return await zeinaActionsService.logSymptom(
@@ -848,7 +901,7 @@ export default function ZeinaScreen() {
           safeArgs.body_part,
           safeArgs.duration
         );
-      
+
       case "add_medication":
         return await zeinaActionsService.addMedication(
           safeArgs.name || "unknown",
@@ -856,12 +909,13 @@ export default function ZeinaScreen() {
           safeArgs.frequency,
           safeArgs.notes
         );
-      
+
       case "log_vital_sign": {
         // Handle blood pressure specially (has systolic/diastolic)
-        const metadata = safeArgs.systolic && safeArgs.diastolic 
-          ? { systolic: safeArgs.systolic, diastolic: safeArgs.diastolic }
-          : undefined;
+        const metadata =
+          safeArgs.systolic && safeArgs.diastolic
+            ? { systolic: safeArgs.systolic, diastolic: safeArgs.diastolic }
+            : undefined;
         return await zeinaActionsService.logVitalSign(
           safeArgs.vital_type || "unknown",
           safeArgs.value ?? 0,
@@ -869,29 +923,29 @@ export default function ZeinaScreen() {
           metadata
         );
       }
-      
+
       case "set_medication_reminder":
         return await zeinaActionsService.setMedicationReminder(
           safeArgs.medication_name || "unknown",
           safeArgs.time || "09:00",
           safeArgs.recurring ?? true
         );
-      
+
       case "alert_family":
         return await zeinaActionsService.alertFamily(
           safeArgs.alert_type || "check_in",
           safeArgs.message
         );
-      
+
       case "schedule_reminder":
         // For general reminders, create a check-in with the reason
         return await zeinaActionsService.requestCheckIn(
           `Reminder: ${safeArgs.title || "reminder"} at ${safeArgs.time || "later"}`
         );
-      
+
       case "request_check_in":
         return await zeinaActionsService.requestCheckIn(safeArgs.reason);
-      
+
       case "log_mood":
         return await zeinaActionsService.logMood(
           safeArgs.mood_type || "neutral",
@@ -899,13 +953,17 @@ export default function ZeinaScreen() {
           safeArgs.notes,
           safeArgs.activities
         );
-      
+
       case "mark_medication_taken":
-        return await zeinaActionsService.markMedicationTaken(safeArgs.medication_name || "");
-      
+        return await zeinaActionsService.markMedicationTaken(
+          safeArgs.medication_name || ""
+        );
+
       case "navigate_to":
-        return zeinaActionsService.getNavigationTarget(safeArgs.target || "home");
-      
+        return zeinaActionsService.getNavigationTarget(
+          safeArgs.target || "home"
+        );
+
       case "add_allergy":
         return await zeinaActionsService.addAllergy(
           safeArgs.allergen || "unknown",
@@ -913,7 +971,7 @@ export default function ZeinaScreen() {
           safeArgs.severity,
           safeArgs.allergy_type
         );
-      
+
       case "add_medical_history":
         return await zeinaActionsService.addMedicalHistory(
           safeArgs.condition || "unknown",
@@ -921,15 +979,18 @@ export default function ZeinaScreen() {
           safeArgs.status,
           safeArgs.notes
         );
-      
+
       default:
-        return { error: "Unknown tool", message: `Tool "${name}" is not supported` };
+        return {
+          error: "Unknown tool",
+          message: `Tool "${name}" is not supported`,
+        };
     }
   };
 
   // Start continuous audio streaming for VAD
   const startContinuousListening = async () => {
-    if (!Audio || !FileSystem || !isAudioAvailable) {
+    if (!(Audio && FileSystem && isAudioAvailable)) {
       return;
     }
     if (isManualRecordingRef.current) return;
@@ -965,7 +1026,7 @@ export default function ZeinaScreen() {
 
       // Start streaming audio in chunks
       const streamAudioChunk = async () => {
-        if (!isStreamingRef.current || !realtimeAgentService.isConnected()) {
+        if (!(isStreamingRef.current && realtimeAgentService.isConnected())) {
           return;
         }
         if (isChunkInFlightRef.current) return;
@@ -986,17 +1047,19 @@ export default function ZeinaScreen() {
               extension: ".wav",
               outputFormat: Audio.AndroidOutputFormat?.DEFAULT || 0,
               audioEncoder: Audio.AndroidAudioEncoder?.DEFAULT || 0,
-              sampleRate: 24000,
+              sampleRate: 24_000,
               numberOfChannels: 1,
-              bitRate: 384000,
+              bitRate: 384_000,
             },
             ios: {
               extension: ".wav",
-              ...(iosLinearPcmOutputFormat != null ? { outputFormat: iosLinearPcmOutputFormat } : {}),
+              ...(iosLinearPcmOutputFormat != null
+                ? { outputFormat: iosLinearPcmOutputFormat }
+                : {}),
               audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
-              sampleRate: 24000,
+              sampleRate: 24_000,
               numberOfChannels: 1,
-              bitRate: 384000,
+              bitRate: 384_000,
               linearPCMBitDepth: 16,
               linearPCMIsBigEndian: false,
               linearPCMIsFloat: false,
@@ -1081,7 +1144,9 @@ export default function ZeinaScreen() {
             }
 
             // Clean up
-            await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+            await FileSystem.deleteAsync(uri, { idempotent: true }).catch(
+              () => {}
+            );
           }
         } catch (error) {
           // Continue streaming despite errors, but surface persistent failures
@@ -1109,7 +1174,10 @@ export default function ZeinaScreen() {
   };
 
   // Stop continuous listening
-  const stopContinuousListening = (options?: { updateState?: boolean; clearInputBuffer?: boolean }) => {
+  const stopContinuousListening = (options?: {
+    updateState?: boolean;
+    clearInputBuffer?: boolean;
+  }) => {
     const shouldUpdateState = options?.updateState !== false;
     const shouldClearInputBuffer = options?.clearInputBuffer !== false;
     isStreamingRef.current = false;
@@ -1136,16 +1204,20 @@ export default function ZeinaScreen() {
   };
 
   const togglePushToTalk = useCallback(async () => {
-    if (!Audio || !FileSystem || !isAudioAvailable) {
+    if (!(Audio && FileSystem && isAudioAvailable)) {
       Alert.alert(
         t("audioUnavailable", "Audio Unavailable"),
-        audioLoadError || t("audioNotAvailable", "Audio is not available on this device.")
+        audioLoadError ||
+          t("audioNotAvailable", "Audio is not available on this device.")
       );
       return;
     }
 
     if (connectionState !== "connected") {
-      Alert.alert(t("notConnected", "Not Connected"), t("connecting", "Connecting..."));
+      Alert.alert(
+        t("notConnected", "Not Connected"),
+        t("connecting", "Connecting...")
+      );
       return;
     }
 
@@ -1176,9 +1248,11 @@ export default function ZeinaScreen() {
           });
 
           // Clean up temp file
-          await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+          await FileSystem.deleteAsync(uri, { idempotent: true }).catch(
+            () => {}
+          );
 
-          if (!base64Audio || !base64Audio.startsWith("UklG")) {
+          if (!(base64Audio && base64Audio.startsWith("UklG"))) {
             Alert.alert(
               t("unsupportedAudioFormat", "Unsupported audio format"),
               t(
@@ -1226,24 +1300,28 @@ export default function ZeinaScreen() {
 
       // expo-av supports different constant names across versions; pick the best available.
       const iosLinearPcmOutputFormat =
-        Audio?.IOSOutputFormat?.LINEARPCM ?? Audio?.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM ?? null;
+        Audio?.IOSOutputFormat?.LINEARPCM ??
+        Audio?.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM ??
+        null;
 
       await recording.prepareToRecordAsync({
         android: {
           extension: ".wav",
           outputFormat: Audio.AndroidOutputFormat?.DEFAULT || 0,
           audioEncoder: Audio.AndroidAudioEncoder?.DEFAULT || 0,
-          sampleRate: 24000,
+          sampleRate: 24_000,
           numberOfChannels: 1,
-          bitRate: 384000,
+          bitRate: 384_000,
         },
         ios: {
           extension: ".wav",
-          ...(iosLinearPcmOutputFormat != null ? { outputFormat: iosLinearPcmOutputFormat } : {}),
+          ...(iosLinearPcmOutputFormat != null
+            ? { outputFormat: iosLinearPcmOutputFormat }
+            : {}),
           audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
-          sampleRate: 24000,
+          sampleRate: 24_000,
           numberOfChannels: 1,
-          bitRate: 384000,
+          bitRate: 384_000,
           linearPCMBitDepth: 16,
           linearPCMIsBigEndian: false,
           linearPCMIsFloat: false,
@@ -1262,9 +1340,20 @@ export default function ZeinaScreen() {
       isManualRecordingRef.current = false;
       recordingRef.current = null;
       setIsListening(false);
-      Alert.alert(t("microphoneError", "Microphone Error"), t("recordingFailed", "Failed to start recording"));
+      Alert.alert(
+        t("microphoneError", "Microphone Error"),
+        t("recordingFailed", "Failed to start recording")
+      );
     }
-  }, [Audio, FileSystem, audioLoadError, connectionState, safeCommitAudioBuffer, stopContinuousListening, t]);
+  }, [
+    Audio,
+    FileSystem,
+    audioLoadError,
+    connectionState,
+    safeCommitAudioBuffer,
+    stopContinuousListening,
+    t,
+  ]);
 
   const forceReply = useCallback(() => {
     if (!realtimeAgentService.isConnected()) return;
@@ -1291,12 +1380,13 @@ export default function ZeinaScreen() {
   }, [messages]);
 
   // Cleanup on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       stopContinuousListening({ updateState: false });
       realtimeAgentService.disconnect();
-    };
-  }, []);
+    },
+    []
+  );
 
   const orbitRotate = orbitAnim.interpolate({
     inputRange: [0, 1],
@@ -1312,9 +1402,12 @@ export default function ZeinaScreen() {
   const getStatusMessage = () => {
     if (!isActive) return t("tapToActivate", "Tap to activate Zeina");
     if (lastError) return `${t("error", "Error")}: ${lastError}`;
-    if (connectionState === "disconnected") return t("disconnected", "Disconnected");
-    if (connectionState === "error") return t("connectionError", "Connection error");
-    if (connectionState === "connecting") return t("connecting", "Connecting...");
+    if (connectionState === "disconnected")
+      return t("disconnected", "Disconnected");
+    if (connectionState === "error")
+      return t("connectionError", "Connection error");
+    if (connectionState === "connecting")
+      return t("connecting", "Connecting...");
     if (isSpeaking) return ""; // Don't show text when Zeina is speaking
     if (isProcessing) return t("thinking", "Thinking...");
     if (isListening) return t("listening", "Listening...");
@@ -1346,7 +1439,7 @@ export default function ZeinaScreen() {
         colors={["#0a0a0f", "#12121a", "#1a1a28"]}
         style={styles.gradient}
       >
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
           {/* Minimal header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{t("zeina", "Zeina")}</Text>
@@ -1357,9 +1450,9 @@ export default function ZeinaScreen() {
                   style={styles.transcriptToggle}
                 >
                   <Ionicons
+                    color="rgba(255,255,255,0.6)"
                     name={debugEnabled ? "bug" : "bug-outline"}
                     size={22}
-                    color="rgba(255,255,255,0.6)"
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1367,9 +1460,11 @@ export default function ZeinaScreen() {
                   style={styles.transcriptToggle}
                 >
                   <Ionicons
-                    name={showTranscript ? "chatbubbles" : "chatbubbles-outline"}
-                    size={22}
                     color="rgba(255,255,255,0.6)"
+                    name={
+                      showTranscript ? "chatbubbles" : "chatbubbles-outline"
+                    }
+                    size={22}
                   />
                 </TouchableOpacity>
               </View>
@@ -1402,9 +1497,9 @@ export default function ZeinaScreen() {
 
             {/* Main orb */}
             <TouchableOpacity
-              onPress={activateZeina}
-              onLongPress={() => setDebugEnabled((prev) => !prev)}
               activeOpacity={0.9}
+              onLongPress={() => setDebugEnabled((prev) => !prev)}
+              onPress={activateZeina}
               style={styles.orbTouchable}
             >
               <Animated.View
@@ -1419,12 +1514,12 @@ export default function ZeinaScreen() {
               >
                 <LinearGradient
                   colors={orbColors}
-                  start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
+                  start={{ x: 0, y: 0 }}
                   style={styles.orbGradient}
                 >
                   {connectionState === "connecting" ? (
-                    <ActivityIndicator size="large" color="#fff" />
+                    <ActivityIndicator color="#fff" size="large" />
                   ) : isSpeaking ? (
                     // Sound wave visualization
                     <View style={styles.waveContainer}>
@@ -1453,7 +1548,7 @@ export default function ZeinaScreen() {
                           />
                         </View>
                       ) : (
-                        <Ionicons name="mic" size={56} color="#fff" />
+                        <Ionicons color="#fff" name="mic" size={56} />
                       )}
                     </View>
                   )}
@@ -1471,23 +1566,34 @@ export default function ZeinaScreen() {
             {debugEnabled && isActive && connectionState === "connected" && (
               <View style={styles.controlsRow}>
                 <TouchableOpacity
-                  onPress={togglePushToTalk}
                   activeOpacity={0.85}
-                  style={[styles.controlButton, isManualRecordingRef.current && styles.controlButtonActive]}
+                  onPress={togglePushToTalk}
+                  style={[
+                    styles.controlButton,
+                    isManualRecordingRef.current && styles.controlButtonActive,
+                  ]}
                 >
-                  <Ionicons name={isManualRecordingRef.current ? "stop" : "mic"} size={18} color="#fff" />
+                  <Ionicons
+                    color="#fff"
+                    name={isManualRecordingRef.current ? "stop" : "mic"}
+                    size={18}
+                  />
                   <Text style={styles.controlButtonText}>
-                    {isManualRecordingRef.current ? t("tapToSend", "Tap to send") : t("tapToTalk", "Tap to talk")}
+                    {isManualRecordingRef.current
+                      ? t("tapToSend", "Tap to send")
+                      : t("tapToTalk", "Tap to talk")}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={forceReply}
                   activeOpacity={0.85}
+                  onPress={forceReply}
                   style={[styles.controlButton, styles.controlButtonSecondary]}
                 >
-                  <Ionicons name="send" size={18} color="#fff" />
-                  <Text style={styles.controlButtonText}>{t("forceReply", "Force reply")}</Text>
+                  <Ionicons color="#fff" name="send" size={18} />
+                  <Text style={styles.controlButtonText}>
+                    {t("forceReply", "Force reply")}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1506,10 +1612,10 @@ export default function ZeinaScreen() {
           {isActive && showTranscript && messages.length > 0 && (
             <View style={styles.transcriptContainer}>
               <ScrollView
-                ref={scrollViewRef}
-                style={styles.transcriptScroll}
                 contentContainerStyle={styles.transcriptContent}
+                ref={scrollViewRef}
                 showsVerticalScrollIndicator={false}
+                style={styles.transcriptScroll}
               >
                 {messages.map((message) => (
                   <View
@@ -1540,7 +1646,9 @@ export default function ZeinaScreen() {
           {/* Quick tips when inactive */}
           {!isActive && (
             <View style={styles.tipsContainer}>
-              <Text style={styles.tipsTitle}>{t("trySaying", "Try saying:")}</Text>
+              <Text style={styles.tipsTitle}>
+                {t("trySaying", "Try saying:")}
+              </Text>
               <Text style={styles.tipText}>
                 "{t("tipHeadache", "I have a headache")}"
               </Text>
@@ -1559,18 +1667,20 @@ export default function ZeinaScreen() {
           {/* API key modal (in-place fix if Zeina can't authenticate) */}
           <Modal
             animationType="slide"
-            transparent
-            visible={showApiKeyModal}
             onRequestClose={() => {
               if (!isSavingApiKey) setShowApiKeyModal(false);
             }}
+            transparent
+            visible={showApiKeyModal}
           >
             <View style={styles.modalBackdrop}>
               <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
                 style={styles.modalCard}
               >
-                <Text style={styles.modalTitle}>{t("configureApiKey", "Configure API Key")}</Text>
+                <Text style={styles.modalTitle}>
+                  {t("configureApiKey", "Configure API Key")}
+                </Text>
                 <Text style={styles.modalSubtitle}>
                   {t(
                     "configureApiKeyBody",
@@ -1579,21 +1689,21 @@ export default function ZeinaScreen() {
                 </Text>
 
                 <TextInput
-                  value={apiKeyDraft}
-                  onChangeText={setApiKeyDraft}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  editable={!isSavingApiKey}
+                  onChangeText={setApiKeyDraft}
                   placeholder="sk-..."
                   placeholderTextColor="rgba(255,255,255,0.35)"
                   secureTextEntry
                   style={styles.modalInput}
-                  editable={!isSavingApiKey}
+                  value={apiKeyDraft}
                 />
 
                 <View style={styles.modalButtons}>
                   <TouchableOpacity
-                    onPress={() => setShowApiKeyModal(false)}
                     disabled={isSavingApiKey}
+                    onPress={() => setShowApiKeyModal(false)}
                     style={[styles.modalButton, styles.modalButtonSecondary]}
                   >
                     <Text style={styles.modalButtonText}>
@@ -1602,14 +1712,16 @@ export default function ZeinaScreen() {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    onPress={saveApiKeyAndReconnect}
                     disabled={isSavingApiKey}
+                    onPress={saveApiKeyAndReconnect}
                     style={[styles.modalButton, styles.modalButtonPrimary]}
                   >
                     {isSavingApiKey ? (
                       <ActivityIndicator color="#fff" />
                     ) : (
-                      <Text style={styles.modalButtonText}>{t("save", "Save")}</Text>
+                      <Text style={styles.modalButtonText}>
+                        {t("save", "Save")}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 </View>

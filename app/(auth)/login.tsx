@@ -1,8 +1,9 @@
 import { Link, useRouter } from "expo-router";
+import type { ConfirmationResult } from "firebase/auth";
+import { PhoneAuthProvider, signInWithCredential } from "firebase/auth";
 import { Mail, Phone, Users } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import i18nInstance from "@/lib/i18n";
 import {
   Alert,
   Image,
@@ -18,8 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase";
-import { PhoneAuthProvider, signInWithCredential } from "firebase/auth";
-import type { ConfirmationResult } from "firebase/auth";
+import i18nInstance from "@/lib/i18n";
 
 // Type for React Native Firebase confirmation result
 interface RNFirebaseConfirmationResult {
@@ -27,7 +27,9 @@ interface RNFirebaseConfirmationResult {
 }
 
 // Combined confirmation result type (matches AuthContext)
-type PhoneConfirmationResult = ConfirmationResult | RNFirebaseConfirmationResult;
+type PhoneConfirmationResult =
+  | ConfirmationResult
+  | RNFirebaseConfirmationResult;
 
 export default function LoginScreen() {
   const { t, i18n } = useTranslation();
@@ -38,7 +40,8 @@ export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<PhoneConfirmationResult | null>(null);
+  const [confirmationResult, setConfirmationResult] =
+    useState<PhoneConfirmationResult | null>(null);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);
@@ -60,9 +63,7 @@ export default function LoginScreen() {
     if (loginMethod === "email") {
       if (!(email && password)) {
         setErrors({
-          general: isRTL
-            ? "يرجى ملء جميع الحقول"
-            : "Please fill in all fields",
+          general: isRTL ? "يرجى ملء جميع الحقول" : "Please fill in all fields",
         });
         return;
       }
@@ -101,17 +102,20 @@ export default function LoginScreen() {
         // once the auth state has fully updated
       } catch (error: any) {
         // Silently handle error
-        const errorMessage = error.message || (isRTL
-          ? "فشل تسجيل الدخول. يرجى المحاولة مرة أخرى."
-          : "Login failed. Please try again.");
+        const errorMessage =
+          error.message ||
+          (isRTL
+            ? "فشل تسجيل الدخول. يرجى المحاولة مرة أخرى."
+            : "Login failed. Please try again.");
         setErrors({
           general: errorMessage,
         });
         Alert.alert(
           isRTL ? "فشل تسجيل الدخول" : "Login Failed",
-          error.message || (isRTL
-            ? "يرجى التحقق من بيانات الاعتماد والمحاولة مرة أخرى."
-            : "Please check your credentials and try again.")
+          error.message ||
+            (isRTL
+              ? "يرجى التحقق من بيانات الاعتماد والمحاولة مرة أخرى."
+              : "Please check your credentials and try again.")
         );
       }
     } else {
@@ -127,8 +131,9 @@ export default function LoginScreen() {
 
       // Validate phone number format - must include country code
       const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
-      const hasCountryCode = cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
-      
+      const hasCountryCode =
+        cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
+
       if (!hasCountryCode && cleanedPhone.length < 10) {
         setErrors({
           general: isRTL
@@ -158,9 +163,11 @@ export default function LoginScreen() {
         setConfirmationResult(confirmation);
         setShowOtpInput(true);
       } catch (error: any) {
-        const errorMessage = error.message || (isRTL
-          ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
-          : "Failed to send verification code. Please try again.");
+        const errorMessage =
+          error.message ||
+          (isRTL
+            ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
+            : "Failed to send verification code. Please try again.");
         setErrors({
           general: errorMessage,
         });
@@ -192,7 +199,7 @@ export default function LoginScreen() {
     try {
       // Verify OTP - this will sign in the user
       // Check if it's a web SDK ConfirmationResult (has verificationId) or RN Firebase (has confirm method)
-      if ('verificationId' in confirmationResult) {
+      if ("verificationId" in confirmationResult) {
         // Web SDK path
         const credential = PhoneAuthProvider.credential(
           confirmationResult.verificationId,
@@ -212,9 +219,11 @@ export default function LoginScreen() {
         );
       }
     } catch (error: any) {
-      const errorMessage = error.message || (isRTL
-        ? "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى."
-        : "Invalid verification code. Please try again.");
+      const errorMessage =
+        error.message ||
+        (isRTL
+          ? "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى."
+          : "Invalid verification code. Please try again.");
       setErrors({
         general: errorMessage,
       });
@@ -242,16 +251,18 @@ export default function LoginScreen() {
       <ScrollView
         bounces={false}
         contentContainerStyle={styles.scrollContainer}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="automatic"
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
           style={styles.keyboardContainer}
         >
-          <View style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}>
+          <View
+            style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}
+          >
             <TouchableOpacity
               onPress={toggleLanguage}
               style={styles.languageButton}
@@ -285,7 +296,9 @@ export default function LoginScreen() {
 
             {errors.general && (
               <View style={styles.errorContainer}>
-                <Text style={[styles.errorText, isRTL && styles.rtlText]}>{errors.general}</Text>
+                <Text style={[styles.errorText, isRTL && styles.rtlText]}>
+                  {errors.general}
+                </Text>
               </View>
             )}
 
@@ -304,8 +317,8 @@ export default function LoginScreen() {
                 ]}
               >
                 <Mail
-                  size={20}
                   color={loginMethod === "email" ? "#2563EB" : "#64748B"}
+                  size={20}
                 />
                 <Text
                   style={[
@@ -330,8 +343,8 @@ export default function LoginScreen() {
                 ]}
               >
                 <Phone
-                  size={20}
                   color={loginMethod === "phone" ? "#2563EB" : "#64748B"}
+                  size={20}
                 />
                 <Text
                   style={[
@@ -374,7 +387,9 @@ export default function LoginScreen() {
                     autoComplete="off"
                     onChangeText={setPassword}
                     passwordRules=""
-                    placeholder={isRTL ? "ادخل كلمة المرور" : "Enter your password"}
+                    placeholder={
+                      isRTL ? "ادخل كلمة المرور" : "Enter your password"
+                    }
                     secureTextEntry
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
@@ -394,7 +409,9 @@ export default function LoginScreen() {
                     keyboardType="phone-pad"
                     onChangeText={setPhoneNumber}
                     placeholder={
-                      isRTL ? "مثال: +1234567890 أو +966501234567" : "Example: +1234567890 or +966501234567"
+                      isRTL
+                        ? "مثال: +1234567890 أو +966501234567"
+                        : "Example: +1234567890 or +966501234567"
                     }
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
@@ -417,7 +434,9 @@ export default function LoginScreen() {
                       maxLength={6}
                       onChangeText={setOtpCode}
                       placeholder={
-                        isRTL ? "ادخل رمز التحقق المكون من 6 أرقام" : "Enter 6-digit verification code"
+                        isRTL
+                          ? "ادخل رمز التحقق المكون من 6 أرقام"
+                          : "Enter 6-digit verification code"
                       }
                       style={[styles.input, isRTL && styles.rtlInput]}
                       textAlign={isRTL ? "right" : "left"}
@@ -450,7 +469,11 @@ export default function LoginScreen() {
               >
                 <Users color="#2563EB" size={20} />
                 <Text
-                  style={[styles.familyToggleText, isRTL && styles.rtlText, isRTL ? { marginEnd: 8 } : { marginStart: 8 }]}
+                  style={[
+                    styles.familyToggleText,
+                    isRTL && styles.rtlText,
+                    isRTL ? { marginEnd: 8 } : { marginStart: 8 },
+                  ]}
                 >
                   {isRTL ? "الانضمام إلى عائلة موجودة" : "Join existing family"}
                 </Text>
@@ -487,7 +510,9 @@ export default function LoginScreen() {
             </View>
 
             {loginMethod === "email" && (
-              <TouchableOpacity style={[styles.forgotButton, isRTL && styles.forgotButtonRTL]}>
+              <TouchableOpacity
+                style={[styles.forgotButton, isRTL && styles.forgotButtonRTL]}
+              >
                 <Text style={[styles.forgotText, isRTL && styles.rtlText]}>
                   {t("forgotPassword")}
                 </Text>
@@ -515,8 +540,19 @@ export default function LoginScreen() {
               </TouchableOpacity>
             )}
 
-            <View style={[styles.registerContainer, isRTL && styles.registerContainerRTL]}>
-              <Text style={[styles.registerText, isRTL && styles.rtlText, isRTL && { marginStart: 4 }]}>
+            <View
+              style={[
+                styles.registerContainer,
+                isRTL && styles.registerContainerRTL,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.registerText,
+                  isRTL && styles.rtlText,
+                  isRTL && { marginStart: 4 },
+                ]}
+              >
                 {t("dontHaveAccount")}
               </Text>
               <Link asChild href="/(auth)/register">

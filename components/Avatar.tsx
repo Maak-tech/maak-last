@@ -53,10 +53,10 @@ export const Avatar: React.FC<AvatarProps> = ({
       boy: "👦🏻",
       girl: "👧🏻",
       grandma: "👵🏻",
-      grandpa: "👴🏻"
+      grandpa: "👴🏻",
     };
 
-    if (!type || !avatarEmojis[type]) {
+    if (!(type && avatarEmojis[type])) {
       return "";
     }
 

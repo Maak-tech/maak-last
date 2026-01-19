@@ -1,9 +1,4 @@
-import {
-  doc,
-  getDoc,
-  setDoc,
-  Timestamp,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export type WidgetId =
@@ -80,9 +75,9 @@ class DashboardWidgetService {
   async saveDashboardConfig(config: DashboardConfig): Promise<void> {
     try {
       const docRef = doc(db, "dashboardConfigs", config.userId);
-      
+
       // Ensure widgets array is valid
-      if (!config.widgets || !Array.isArray(config.widgets)) {
+      if (!(config.widgets && Array.isArray(config.widgets))) {
         throw new Error("Invalid widgets configuration");
       }
 
@@ -95,10 +90,11 @@ class DashboardWidgetService {
 
       await setDoc(docRef, firestoreData, { merge: true });
     } catch (error: any) {
-      
       // Provide more detailed error message
       const errorMessage = error?.message || "Unknown error";
-      throw new Error(`Failed to save dashboard configuration: ${errorMessage}`);
+      throw new Error(
+        `Failed to save dashboard configuration: ${errorMessage}`
+      );
     }
   }
 
@@ -110,9 +106,7 @@ class DashboardWidgetService {
     widgetOrders: { id: WidgetId; order: number }[]
   ): Promise<void> {
     const config = await this.getDashboardConfig(userId);
-    const widgetMap = new Map(
-      widgetOrders.map((w) => [w.id, w.order])
-    );
+    const widgetMap = new Map(widgetOrders.map((w) => [w.id, w.order]));
 
     config.widgets = config.widgets.map((widget) => ({
       ...widget,

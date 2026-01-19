@@ -74,7 +74,9 @@ export const VITAL_THRESHOLDS: VitalThresholdsMap = {
 /**
  * Get thresholds for a specific vital type
  */
-export function getVitalThresholds(vitalType: string): VitalThresholds | undefined {
+export function getVitalThresholds(
+  vitalType: string
+): VitalThresholds | undefined {
   return VITAL_THRESHOLDS[vitalType];
 }
 
@@ -85,7 +87,10 @@ export function isInNormalRange(vitalType: string, value: number): boolean {
   const thresholds = getVitalThresholds(vitalType);
   if (!thresholds) return true; // If no thresholds defined, assume normal
 
-  return value >= (thresholds.min || -Infinity) && value <= (thresholds.max || Infinity);
+  return (
+    value >= (thresholds.min || Number.NEGATIVE_INFINITY) &&
+    value <= (thresholds.max || Number.POSITIVE_INFINITY)
+  );
 }
 
 /**
@@ -113,11 +118,13 @@ export function calculateSeverity(
 
   // Determine severity based on thresholds
   const urgentThreshold = thresholds.urgentThreshold || thresholds.max || 0;
-  const attentionThreshold = thresholds.attentionThreshold || urgentThreshold * 0.5;
+  const attentionThreshold =
+    thresholds.attentionThreshold || urgentThreshold * 0.5;
 
   if (deviation >= urgentThreshold) {
     return { severity: "urgent", deviation };
-  } else if (deviation >= attentionThreshold) {
+  }
+  if (deviation >= attentionThreshold) {
     return { severity: "attention", deviation };
   }
 

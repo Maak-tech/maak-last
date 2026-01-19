@@ -1,18 +1,17 @@
-import React from 'react';
 import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
   ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
   View,
-} from 'react-native';
-import { colors, typography, spacing, borderRadius, shadows } from './theme';
+} from "react-native";
+import { borderRadius, colors, shadows, spacing, typography } from "./theme";
 
 const Button = ({
   title,
   onPress,
-  variant = 'primary', // primary, secondary, outline, ghost, danger
-  size = 'medium', // small, medium, large
+  variant = "primary", // primary, secondary, outline, ghost, danger
+  size = "medium", // small, medium, large
   disabled = false,
   loading = false,
   icon = null,
@@ -22,46 +21,46 @@ const Button = ({
 }) => {
   const getButtonStyle = () => {
     const baseStyle = [styles.button, styles[`button_${size}`]];
-    
+
     if (fullWidth) {
       baseStyle.push(styles.fullWidth);
     }
-    
+
     if (disabled) {
       baseStyle.push(styles.disabled);
     } else {
       baseStyle.push(styles[`button_${variant}`]);
-      if (variant === 'primary' || variant === 'secondary') {
+      if (variant === "primary" || variant === "secondary") {
         baseStyle.push(shadows.medium);
       }
     }
-    
+
     return baseStyle;
   };
 
   const getTextStyle = () => {
     const baseStyle = [styles.text, styles[`text_${size}`]];
-    
+
     if (disabled) {
       baseStyle.push(styles.textDisabled);
     } else {
       baseStyle.push(styles[`text_${variant}`]);
     }
-    
+
     return baseStyle;
   };
 
   return (
     <TouchableOpacity
-      style={[...getButtonStyle(), style]}
-      onPress={onPress}
-      disabled={disabled || loading}
       activeOpacity={0.7}
+      disabled={disabled || loading}
+      onPress={onPress}
+      style={[...getButtonStyle(), style]}
     >
       {loading ? (
         <ActivityIndicator
           color={
-            variant === 'outline' || variant === 'ghost'
+            variant === "outline" || variant === "ghost"
               ? colors.primary
               : colors.textLight
           }
@@ -79,12 +78,12 @@ const Button = ({
 const styles = StyleSheet.create({
   button: {
     borderRadius: borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     marginBottom: spacing.sm,
   },
-  
+
   // Sizes
   button_small: {
     paddingVertical: spacing.sm,
@@ -101,7 +100,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     minHeight: 56,
   },
-  
+
   // Variants
   button_primary: {
     backgroundColor: colors.primary,
@@ -110,30 +109,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary,
   },
   button_outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 2,
     borderColor: colors.primary,
   },
   button_ghost: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   button_danger: {
     backgroundColor: colors.error,
   },
-  
+
   // States
   disabled: {
     backgroundColor: colors.border,
     opacity: 0.6,
   },
   fullWidth: {
-    width: '100%',
+    width: "100%",
   },
-  
+
   // Text styles
   text: {
     fontWeight: typography.weightSemiBold,
-    textAlign: 'center',
+    textAlign: "center",
   },
   text_small: {
     fontSize: typography.bodySmall,
@@ -144,7 +143,7 @@ const styles = StyleSheet.create({
   text_large: {
     fontSize: typography.h6,
   },
-  
+
   // Text variants
   text_primary: {
     color: colors.textLight,
@@ -164,11 +163,11 @@ const styles = StyleSheet.create({
   textDisabled: {
     color: colors.textDisabled,
   },
-  
+
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   icon: {
     marginEnd: spacing.sm,

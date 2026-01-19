@@ -5,14 +5,12 @@
 
 import { useNavigation, useRouter } from "expo-router";
 import {
-  ArrowLeft,
-  ChevronRight,
-  Heart,
-  Lock,
-  Settings,
-  Shield,
   Activity,
   AlertTriangle,
+  ArrowLeft,
+  Heart,
+  Lock,
+  Shield,
 } from "lucide-react-native";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -73,8 +71,8 @@ export default function FreestyleLibreIntroScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -153,7 +151,9 @@ export default function FreestyleLibreIntroScreen() {
 
           <View style={styles.benefitsList}>
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#EF4444" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#EF4444" }]}
+              >
                 <Activity color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -181,7 +181,9 @@ export default function FreestyleLibreIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#F59E0B" }]}
+              >
                 <Heart color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -209,7 +211,9 @@ export default function FreestyleLibreIntroScreen() {
             </View>
 
             <View style={styles.benefitItem}>
-              <View style={[styles.benefitIcon, { backgroundColor: "#10B981" }]}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: "#10B981" }]}
+              >
                 <Shield color="#FFFFFF" size={20} />
               </View>
               <View style={styles.benefitContent}>
@@ -274,9 +278,7 @@ export default function FreestyleLibreIntroScreen() {
                   isRTL && styles.rtlText,
                 ]}
               >
-                {isRTL
-                  ? "امتثال كامل لمعايير HIPAA"
-                  : "Full HIPAA compliance"}
+                {isRTL ? "امتثال كامل لمعايير HIPAA" : "Full HIPAA compliance"}
               </Text>
             </View>
           </View>

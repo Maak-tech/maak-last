@@ -1,7 +1,6 @@
-import type { Medication, Symptom, Mood } from "@/types";
 import { medicationService } from "./medicationService";
-import { symptomService } from "./symptomService";
 import { moodService } from "./moodService";
+import { symptomService } from "./symptomService";
 import { userService } from "./userService";
 
 export interface SearchResult {
@@ -37,7 +36,7 @@ class GlobalSearchService {
     userId: string,
     query: string,
     filters?: SearchFilters,
-    limit: number = 50
+    limit = 50
   ): Promise<SearchResult[]> {
     if (!query.trim()) return [];
 
@@ -45,7 +44,11 @@ class GlobalSearchService {
 
     try {
       // Search medications
-      const medicationResults = await this.searchMedications(userId, query, filters);
+      const medicationResults = await this.searchMedications(
+        userId,
+        query,
+        filters
+      );
       results.push(...medicationResults);
 
       // Search symptoms
@@ -61,8 +64,8 @@ class GlobalSearchService {
       results.push(...familyResults);
 
       // Sort by relevance and apply filters
-      let filteredResults = results
-        .filter(result => this.matchesFilters(result, filters))
+      const filteredResults = results
+        .filter((result) => this.matchesFilters(result, filters))
         .sort((a, b) => b.relevance - a.relevance)
         .slice(0, limit);
 
@@ -84,7 +87,7 @@ class GlobalSearchService {
       const medications = await medicationService.getUserMedications(userId);
       const results: SearchResult[] = [];
 
-      medications.forEach(medication => {
+      medications.forEach((medication) => {
         const relevance = this.calculateRelevance(query, [
           medication.name,
           medication.dosage,
@@ -128,13 +131,16 @@ class GlobalSearchService {
       const symptoms = await symptomService.getUserSymptoms(userId, 365); // Last year
       const results: SearchResult[] = [];
 
-      symptoms.forEach(symptom => {
+      symptoms.forEach((symptom) => {
         const relevance = this.calculateRelevance(query, [
           symptom.type,
           symptom.description || "",
         ]);
 
-        if (relevance > 0 && this.matchesSeverityFilter(symptom.severity, filters)) {
+        if (
+          relevance > 0 &&
+          this.matchesSeverityFilter(symptom.severity, filters)
+        ) {
           results.push({
             id: symptom.id,
             type: "symptom",
@@ -170,7 +176,7 @@ class GlobalSearchService {
       const moods = await moodService.getUserMoods(userId, 365); // Last year
       const results: SearchResult[] = [];
 
-      moods.forEach(mood => {
+      moods.forEach((mood) => {
         const relevance = this.calculateRelevance(query, [
           this.getMoodLabel(mood.intensity),
           mood.mood,
@@ -213,7 +219,7 @@ class GlobalSearchService {
       const familyMembers = await userService.getFamilyMembers(userId);
       const results: SearchResult[] = [];
 
-      familyMembers.forEach(member => {
+      familyMembers.forEach((member) => {
         const relevance = this.calculateRelevance(query, [
           member.firstName || "",
           member.lastName || "",
@@ -227,7 +233,8 @@ class GlobalSearchService {
             type: "family",
             title: `${member.firstName} ${member.lastName}`,
             subtitle: member.role || "Family Member",
-            description: member.email || member.phoneNumber || "No contact info",
+            description:
+              member.email || member.phoneNumber || "No contact info",
             timestamp: member.createdAt,
             relevance,
             action: {
@@ -252,7 +259,7 @@ class GlobalSearchService {
     const queryLower = query.toLowerCase();
     let score = 0;
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
       const fieldLower = field.toLowerCase();
 
       // Exact match gets highest score
@@ -269,8 +276,8 @@ class GlobalSearchService {
       }
       // Word-level matching
       else {
-        const queryWords = queryLower.split(' ');
-        queryWords.forEach(word => {
+        const queryWords = queryLower.split(" ");
+        queryWords.forEach((word) => {
           if (fieldLower.includes(word)) {
             score += 10;
           }
@@ -284,19 +291,27 @@ class GlobalSearchService {
   /**
    * Check if result matches filters
    */
-  private matchesFilters(result: SearchResult, filters?: SearchFilters): boolean {
+  private matchesFilters(
+    result: SearchResult,
+    filters?: SearchFilters
+  ): boolean {
     if (!filters) return true;
 
     // Type filter
-    if (filters.types && filters.types.length > 0) {
-      if (!filters.types.includes(result.type)) return false;
-    }
+    if (
+      filters.types &&
+      filters.types.length > 0 &&
+      !filters.types.includes(result.type)
+    )
+      return false;
 
     // Date range filter
-    if (filters.dateRange) {
-      if (result.timestamp < filters.dateRange.start || result.timestamp > filters.dateRange.end) {
-        return false;
-      }
+    if (
+      filters.dateRange &&
+      (result.timestamp < filters.dateRange.start ||
+        result.timestamp > filters.dateRange.end)
+    ) {
+      return false;
     }
 
     // Category filter (for symptoms)
@@ -311,7 +326,10 @@ class GlobalSearchService {
   /**
    * Check if symptom severity matches filter
    */
-  private matchesSeverityFilter(severity: number, filters?: SearchFilters): boolean {
+  private matchesSeverityFilter(
+    severity: number,
+    filters?: SearchFilters
+  ): boolean {
     if (!filters?.severity || filters.severity.length === 0) return true;
     return filters.severity.includes(severity);
   }
@@ -339,20 +357,20 @@ class GlobalSearchService {
 
       // Get recent medications
       const medications = await medicationService.getUserMedications(userId);
-      medications.slice(0, 5).forEach(med => {
+      medications.slice(0, 5).forEach((med) => {
         suggestions.push(med.name);
       });
 
       // Get common symptoms
       const symptoms = await symptomService.getUserSymptoms(userId, 30);
-      const symptomTypes = [...new Set(symptoms.map(s => s.type))];
-      symptomTypes.slice(0, 5).forEach(type => {
+      const symptomTypes = [...new Set(symptoms.map((s) => s.type))];
+      symptomTypes.slice(0, 5).forEach((type) => {
         suggestions.push(type);
       });
 
       // Get family member names
       const familyMembers = await userService.getFamilyMembers(userId);
-      familyMembers.slice(0, 3).forEach(member => {
+      familyMembers.slice(0, 3).forEach((member) => {
         suggestions.push(`${member.firstName} ${member.lastName}`);
       });
 

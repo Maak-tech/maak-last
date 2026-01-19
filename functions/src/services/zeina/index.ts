@@ -1,52 +1,52 @@
 /**
  * Zeina AI Analysis Service - Public API
- * 
+ *
  * HIPAA-SAFE AI ORCHESTRATION:
  * - Accepts raw alert context (with PHI)
  * - Strips PHI before AI processing
  * - Returns structured, validated output
- * 
+ *
  * FAIL CLOSED: If Zeina fails, system falls back to standard alerts
  * - Never blocks critical health alerts
  * - Always returns a valid result
  * - Failures are logged but don't break the alert flow
  */
 
-import { logger } from '../../observability/logger';
-import type {
-  AlertContext,
-  ZeinaAnalysisRequest,
-  ZeinaAnalysisResult,
-  ZeinaOutput,
-  BackendActions,
-} from './types';
-import { buildZeinaInput, buildAnalysisPrompt } from './inputBuilder';
+import { logger } from "../../observability/logger";
+import { callLLM, generateDeterministicResponse } from "./analyze";
 import {
-  validateAlertContext,
-  validateAIResponse,
   sanitizeToZeinaOutput,
-} from './guardrails';
-import { callLLM, generateDeterministicResponse } from './analyze';
-import { mapToBackendActions, formatForAudit } from './outputMapper';
+  validateAIResponse,
+  validateAlertContext,
+} from "./guardrails";
+import { buildAnalysisPrompt, buildZeinaInput } from "./inputBuilder";
 import {
-  trackZeinaCall,
-  trackZeinaComplete,
-  trackZeinaFailure,
   trackGuardrailBlock,
   trackLLMCall,
   trackLLMTimeout,
-} from './observability';
+  trackZeinaCall,
+  trackZeinaComplete,
+  trackZeinaFailure,
+} from "./observability";
+import { formatForAudit, mapToBackendActions } from "./outputMapper";
+import type {
+  AlertContext,
+  BackendActions,
+  ZeinaAnalysisRequest,
+  ZeinaAnalysisResult,
+  ZeinaOutput,
+} from "./types";
 
 /**
  * Run Zeina AI analysis on alert
- * 
+ *
  * This is the main entry point for Zeina analysis
- * 
+ *
  * FAIL CLOSED BEHAVIOR:
  * - If any step fails, returns deterministic fallback
  * - Never throws errors that would break alert flow
  * - Always returns success=true with valid output
- * 
+ *
  * @param request - Analysis request with traceId and alertContext
  * @returns ZeinaAnalysisResult with output or error
  */
@@ -67,10 +67,10 @@ export async function runZeinaAnalysis(
       trackGuardrailBlock(
         traceId,
         alertContext.alertId,
-        'input_validation',
+        "input_validation",
         inputValidation.errors
       );
-      
+
       // FAIL CLOSED: Use deterministic fallback
       return createDeterministicFallback(alertContext, traceId, startTime);
     }
@@ -81,9 +81,9 @@ export async function runZeinaAnalysis(
 
     // Step 3: Call LLM or use deterministic fallback
     const llmStartTime = Date.now();
-    const useAI = process.env.ZEINA_ENABLED !== 'false'; // Default enabled
+    const useAI = process.env.ZEINA_ENABLED !== "false"; // Default enabled
     let rawResponse = null;
-    let analysisType: 'ai' | 'deterministic' = 'deterministic';
+    let analysisType: "ai" | "deterministic" = "deterministic";
 
     if (useAI) {
       try {
@@ -91,25 +91,25 @@ export async function runZeinaAnalysis(
         const llmDuration = Date.now() - llmStartTime;
 
         if (rawResponse) {
-          analysisType = 'ai';
-          trackLLMCall(traceId, 'openai', true, llmDuration);
+          analysisType = "ai";
+          trackLLMCall(traceId, "openai", true, llmDuration);
         } else {
-          trackLLMCall(traceId, 'openai', false, llmDuration);
+          trackLLMCall(traceId, "openai", false, llmDuration);
         }
       } catch (error) {
         const llmDuration = Date.now() - llmStartTime;
-        
-        if ((error as Error).message.includes('timeout')) {
-          trackLLMTimeout(traceId, 'openai');
+
+        if ((error as Error).message.includes("timeout")) {
+          trackLLMTimeout(traceId, "openai");
         } else {
-          trackLLMCall(traceId, 'openai', false, llmDuration);
+          trackLLMCall(traceId, "openai", false, llmDuration);
         }
-        
+
         // FAIL CLOSED: Continue to deterministic fallback
-        logger.warn('LLM call failed, using deterministic fallback', {
+        logger.warn("LLM call failed, using deterministic fallback", {
           traceId,
           error: (error as Error).message,
-          fn: 'zeina.runZeinaAnalysis',
+          fn: "zeina.runZeinaAnalysis",
         });
       }
     }
@@ -117,23 +117,23 @@ export async function runZeinaAnalysis(
     // If no AI response, generate deterministic
     if (!rawResponse) {
       rawResponse = generateDeterministicResponse(zeinaInput, traceId);
-      analysisType = 'deterministic';
+      analysisType = "deterministic";
     }
 
     // Step 4: Validate AI response
-    if (analysisType === 'ai') {
+    if (analysisType === "ai") {
       const responseValidation = validateAIResponse(rawResponse, traceId);
       if (!responseValidation.valid) {
         trackGuardrailBlock(
           traceId,
           alertContext.alertId,
-          'response_validation',
+          "response_validation",
           responseValidation.errors
         );
 
         // FAIL CLOSED: Fall back to deterministic
         rawResponse = generateDeterministicResponse(zeinaInput, traceId);
-        analysisType = 'deterministic';
+        analysisType = "deterministic";
       }
     }
 
@@ -142,7 +142,7 @@ export async function runZeinaAnalysis(
       rawResponse,
       alertContext,
       traceId,
-      analysisType === 'ai' ? 'gpt-4o-mini' : undefined
+      analysisType === "ai" ? "gpt-4o-mini" : undefined
     );
     output.metadata.analysisType = analysisType;
 
@@ -161,10 +161,9 @@ export async function runZeinaAnalysis(
       output,
       traceId,
     };
-
   } catch (error) {
     // FAIL CLOSED: Return deterministic fallback even on unexpected errors
-    errorType = (error as Error).name || 'unknown_error';
+    errorType = (error as Error).name || "unknown_error";
     trackZeinaFailure(traceId, alertContext.alertId, errorType, error as Error);
 
     return createDeterministicFallback(alertContext, traceId, startTime);
@@ -183,14 +182,14 @@ function createDeterministicFallback(
   const zeinaInput = buildZeinaInput(alertContext, traceId);
   const rawResponse = generateDeterministicResponse(zeinaInput, traceId);
   const output = sanitizeToZeinaOutput(rawResponse, alertContext, traceId);
-  output.metadata.analysisType = 'deterministic';
+  output.metadata.analysisType = "deterministic";
 
   const duration = Date.now() - startTime;
   trackZeinaComplete(
     traceId,
     alertContext.alertId,
     duration,
-    'deterministic',
+    "deterministic",
     output.riskScore
   );
 
@@ -212,13 +211,13 @@ export async function executeZeinaActions(
 ): Promise<BackendActions> {
   const actions = mapToBackendActions(output, traceId);
 
-  logger.info('Executing Zeina backend actions', {
+  logger.info("Executing Zeina backend actions", {
     traceId,
     alertId: alertContext.alertId,
     sendAlert: actions.sendAlert,
     recipientCount: actions.alertRecipients.length,
     autoActionCount: actions.autoActions.length,
-    fn: 'zeina.executeZeinaActions',
+    fn: "zeina.executeZeinaActions",
   });
 
   // Return actions for caller to execute
@@ -237,60 +236,57 @@ export async function auditZeinaAnalysis(
 ): Promise<void> {
   const auditData = formatForAudit(output, traceId, alertContext.alertId);
 
-  logger.info('Zeina analysis audit', {
+  logger.info("Zeina analysis audit", {
     ...auditData,
-    fn: 'zeina.auditZeinaAnalysis',
+    fn: "zeina.auditZeinaAnalysis",
   });
 
   // TODO: Implement actual audit log storage
   // Could write to Firestore audit collection, CloudWatch, etc.
 }
 
-// Re-export types for external use
-export type {
-  AlertContext,
-  ZeinaInput,
-  ZeinaOutput,
-  ZeinaAnalysisRequest,
-  ZeinaAnalysisResult,
-  BackendActions,
-  RecommendedActionCode,
-  EscalationLevel,
-} from './types';
-
-// Re-export observability functions
-export {
-  getMetrics,
-  resetMetrics,
-  logMetricsSummary,
-} from './observability';
+// Re-export vitals summary (for backward compatibility)
+export { getRecentVitalsSummary } from "../../modules/vitals/recentSummary";
+// Re-export backward compatibility adapter
+export { analyze } from "./adapter";
 
 // Re-export monitoring functions
 export {
-  healthCheck,
-  getServiceStats,
+  type AnomalyDetection,
   detectAnomalies,
   generateMonitoringReport,
-  logMonitoringSummary,
+  getServiceStats,
   type HealthStatus,
-  type ServiceStats,
-  type AnomalyDetection,
+  healthCheck,
+  logMonitoringSummary,
   type MonitoringReport,
-} from './monitoring';
-
-// Re-export backward compatibility adapter
-export { analyze } from './adapter';
-
-// Re-export vitals summary (for backward compatibility)
-export { getRecentVitalsSummary } from '../../modules/vitals/recentSummary';
+  type ServiceStats,
+} from "./monitoring";
+// Re-export observability functions
+export {
+  getMetrics,
+  logMetricsSummary,
+  resetMetrics,
+} from "./observability";
+// Re-export types for external use
+export type {
+  AlertContext,
+  BackendActions,
+  EscalationLevel,
+  RecommendedActionCode,
+  ZeinaAnalysisRequest,
+  ZeinaAnalysisResult,
+  ZeinaInput,
+  ZeinaOutput,
+} from "./types";
 
 // Re-export utility functions (for development/testing)
 export {
-  createTestAlertContext,
-  runTestAnalysis,
   benchmarkAnalysis,
-  testPHISanitization,
+  createTestAlertContext,
   printMetrics,
-  simulateAlerts,
   resetAllMetrics,
-} from './utils';
+  runTestAnalysis,
+  simulateAlerts,
+  testPHISanitization,
+} from "./utils";

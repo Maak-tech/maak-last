@@ -1,49 +1,71 @@
-import { Wifi, WifiOff, RefreshCw } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { RefreshCw, Wifi, WifiOff } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Animated, TouchableOpacity, View } from "react-native";
+import { Caption, Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import { offlineService } from "@/lib/services/offlineService";
-import { Caption, Text } from "@/components/design-system/Typography";
 
 export default function OfflineIndicator() {
+  // Call all hooks unconditionally at the top
   const { t, i18n } = useTranslation();
   const { theme } = useTheme();
-  const isRTL = i18n.language === "ar";
-
   const [isOnline, setIsOnline] = useState(true);
   const [queueLength, setQueueLength] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [slideAnim] = useState(new Animated.Value(-100));
 
+  // Use ref to track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  // Memoize isRTL to avoid recalculating on every render
+  const isRTL = i18n.language === "ar";
+
   const checkStatus = useCallback(async () => {
+    if (!isMountedRef.current) return;
     const status = await offlineService.getSyncStatus();
-    setQueueLength(status.queueLength);
-    setIsOnline(status.isOnline);
+    if (isMountedRef.current) {
+      setQueueLength(status.queueLength);
+      setIsOnline(status.isOnline);
+    }
   }, []);
 
-  useEffect(() => {
-    // Check initial status
-    checkStatus();
-
-    // Subscribe to network changes
-    const unsubscribe = offlineService.onNetworkStatusChange((online) => {
+  // Memoize the network status change handler to ensure stable reference
+  const handleNetworkStatusChange = useCallback(
+    (online: boolean) => {
+      if (!isMountedRef.current) return;
       setIsOnline(online);
       if (online) {
         checkStatus();
       }
-    });
+    },
+    [checkStatus]
+  );
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    // Check initial status
+    checkStatus();
+
+    // Subscribe to network changes
+    const unsubscribe = offlineService.onNetworkStatusChange(
+      handleNetworkStatusChange
+    );
 
     // Poll queue length periodically
     const interval = setInterval(() => {
-      checkStatus();
+      if (isMountedRef.current) {
+        checkStatus();
+      }
     }, 5000);
 
     return () => {
+      isMountedRef.current = false;
       unsubscribe();
       clearInterval(interval);
     };
-  }, [checkStatus]);
+  }, [checkStatus, handleNetworkStatusChange]);
 
   useEffect(() => {
     // Animate slide in/out based on online status and queue
@@ -108,9 +130,9 @@ export default function OfflineIndicator() {
         }}
       >
         {isOnline ? (
-          <Wifi size={16} color={theme.colors.neutral.white} />
+          <Wifi color={theme.colors.neutral.white} size={16} />
         ) : (
-          <WifiOff size={16} color={theme.colors.neutral.white} />
+          <WifiOff color={theme.colors.neutral.white} size={16} />
         )}
         <Text
           style={{
@@ -130,8 +152,8 @@ export default function OfflineIndicator() {
       </View>
       {isOnline && queueLength > 0 && (
         <TouchableOpacity
-          onPress={handleSync}
           disabled={syncing}
+          onPress={handleSync}
           style={{
             flexDirection: isRTL ? "row-reverse" : "row",
             alignItems: "center",
@@ -139,8 +161,8 @@ export default function OfflineIndicator() {
           }}
         >
           <RefreshCw
-            size={14}
             color={theme.colors.neutral.white}
+            size={14}
             style={{
               opacity: syncing ? 0.5 : 1,
             }}

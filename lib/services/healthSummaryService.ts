@@ -1,10 +1,13 @@
-import type { Medication, Symptom, Mood } from "@/types";
+import type { Medication, Mood, Symptom } from "@/types";
 import { medicationService } from "./medicationService";
-import { symptomService } from "./symptomService";
 import { moodService } from "./moodService";
-import { healthScoreService } from "./healthScoreService";
+import { symptomService } from "./symptomService";
 
-const getLocalizedText = (key: string, isArabic: boolean, params?: Record<string, string | number>): string => {
+const getLocalizedText = (
+  key: string,
+  isArabic: boolean,
+  params?: Record<string, string | number>
+): string => {
   const texts: Record<string, { en: string; ar: string }> = {
     symptomImprovement: {
       en: "Symptom Improvement",
@@ -240,7 +243,11 @@ class HealthSummaryService {
   /**
    * Generate weekly health summary
    */
-  async generateWeeklySummary(userId: string, weekStart?: Date, isArabic = false): Promise<HealthSummary> {
+  async generateWeeklySummary(
+    userId: string,
+    weekStart?: Date,
+    isArabic = false
+  ): Promise<HealthSummary> {
     const startDate = weekStart || this.getWeekStart(new Date());
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 6);
@@ -251,13 +258,23 @@ class HealthSummaryService {
   /**
    * Generate monthly health summary
    */
-  async generateMonthlySummary(userId: string, monthStart?: Date, isArabic = false): Promise<HealthSummary> {
+  async generateMonthlySummary(
+    userId: string,
+    monthStart?: Date,
+    isArabic = false
+  ): Promise<HealthSummary> {
     const startDate = monthStart || this.getMonthStart(new Date());
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + 1);
     endDate.setDate(0); // Last day of the month
 
-    return this.generateSummary(userId, "monthly", startDate, endDate, isArabic);
+    return this.generateSummary(
+      userId,
+      "monthly",
+      startDate,
+      endDate,
+      isArabic
+    );
   }
 
   /**
@@ -272,32 +289,56 @@ class HealthSummaryService {
   ): Promise<HealthSummary> {
     try {
       // Fetch all relevant data for the period
-      const [
+      const [symptoms, medications, moods, previousPeriodData] =
+        await Promise.all([
+          this.getSymptomsInPeriod(userId, startDate, endDate),
+          this.getMedicationsInPeriod(userId, startDate, endDate),
+          this.getMoodsInPeriod(userId, startDate, endDate),
+          this.getPreviousPeriodData(userId, period, startDate),
+        ]);
+
+      // Calculate overview metrics
+      const overview = this.calculateOverviewMetrics(
+        symptoms,
+        medications,
+        moods
+      );
+
+      // Generate insights
+      const insights = this.generateInsights(
         symptoms,
         medications,
         moods,
-        previousPeriodData
-      ] = await Promise.all([
-        this.getSymptomsInPeriod(userId, startDate, endDate),
-        this.getMedicationsInPeriod(userId, startDate, endDate),
-        this.getMoodsInPeriod(userId, startDate, endDate),
-        this.getPreviousPeriodData(userId, period, startDate)
-      ]);
-
-      // Calculate overview metrics
-      const overview = this.calculateOverviewMetrics(symptoms, medications, moods);
-
-      // Generate insights
-      const insights = this.generateInsights(symptoms, medications, moods, previousPeriodData, period, isArabic);
+        previousPeriodData,
+        period,
+        isArabic
+      );
 
       // Detect patterns
-      const patterns = this.detectPatterns(symptoms, medications, moods, period, isArabic);
+      const patterns = this.detectPatterns(
+        symptoms,
+        medications,
+        moods,
+        period,
+        isArabic
+      );
 
       // Generate recommendations
-      const recommendations = this.generateRecommendations(insights, patterns, overview, isArabic);
+      const recommendations = this.generateRecommendations(
+        insights,
+        patterns,
+        overview,
+        isArabic
+      );
 
       // Calculate trends
-      const trends = this.calculateTrends(symptoms, medications, moods, previousPeriodData, period);
+      const trends = this.calculateTrends(
+        symptoms,
+        medications,
+        moods,
+        previousPeriodData,
+        period
+      );
 
       return {
         period,
@@ -333,11 +374,16 @@ class HealthSummaryService {
   /**
    * Get symptoms within a date range
    */
-  private async getSymptomsInPeriod(userId: string, startDate: Date, endDate: Date): Promise<Symptom[]> {
+  private async getSymptomsInPeriod(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<Symptom[]> {
     try {
       const allSymptoms = await symptomService.getUserSymptoms(userId, 365);
-      return allSymptoms.filter(symptom =>
-        symptom.timestamp >= startDate && symptom.timestamp <= endDate
+      return allSymptoms.filter(
+        (symptom) =>
+          symptom.timestamp >= startDate && symptom.timestamp <= endDate
       );
     } catch (error) {
       return [];
@@ -347,7 +393,11 @@ class HealthSummaryService {
   /**
    * Get medications within a date range
    */
-  private async getMedicationsInPeriod(userId: string, startDate: Date, endDate: Date): Promise<Medication[]> {
+  private async getMedicationsInPeriod(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<Medication[]> {
     try {
       return await medicationService.getUserMedications(userId);
     } catch (error) {
@@ -358,11 +408,15 @@ class HealthSummaryService {
   /**
    * Get moods within a date range
    */
-  private async getMoodsInPeriod(userId: string, startDate: Date, endDate: Date): Promise<Mood[]> {
+  private async getMoodsInPeriod(
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<Mood[]> {
     try {
       const allMoods = await moodService.getUserMoods(userId, 365);
-      return allMoods.filter(mood =>
-        mood.timestamp >= startDate && mood.timestamp <= endDate
+      return allMoods.filter(
+        (mood) => mood.timestamp >= startDate && mood.timestamp <= endDate
       );
     } catch (error) {
       return [];
@@ -408,24 +462,38 @@ class HealthSummaryService {
   /**
    * Calculate overview metrics
    */
-  private calculateOverviewMetrics(symptoms: Symptom[], medications: Medication[], moods: Mood[]) {
+  private calculateOverviewMetrics(
+    symptoms: Symptom[],
+    medications: Medication[],
+    moods: Mood[]
+  ) {
     // Calculate average severity
-    const avgSeverity = symptoms.length > 0
-      ? symptoms.reduce((sum, s) => sum + s.severity, 0) / symptoms.length
-      : 0;
+    const avgSeverity =
+      symptoms.length > 0
+        ? symptoms.reduce((sum, s) => sum + s.severity, 0) / symptoms.length
+        : 0;
 
     // Calculate medication adherence (simplified)
-    const medicationAdherence = medications.length > 0
-      ? medications.filter(m => m.isActive).length / medications.length * 100
-      : 100;
+    const medicationAdherence =
+      medications.length > 0
+        ? (medications.filter((m) => m.isActive).length / medications.length) *
+          100
+        : 100;
 
     // Calculate average mood score
-    const moodScore = moods.length > 0
-      ? moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / moods.length
-      : 3; // Neutral default
+    const moodScore =
+      moods.length > 0
+        ? moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) /
+          moods.length
+        : 3; // Neutral default
 
     // Calculate health score (simplified algorithm)
-    const healthScore = this.calculateHealthScore(avgSeverity, medicationAdherence, moodScore, symptoms.length);
+    const healthScore = this.calculateHealthScore(
+      avgSeverity,
+      medicationAdherence,
+      moodScore,
+      symptoms.length
+    );
 
     return {
       totalSymptoms: symptoms.length,
@@ -446,13 +514,18 @@ class HealthSummaryService {
     symptomCount: number
   ): number {
     // Normalize and weight different factors
-    const severityScore = Math.max(0, 100 - (avgSeverity * 20)); // Lower severity = higher score
+    const severityScore = Math.max(0, 100 - avgSeverity * 20); // Lower severity = higher score
     const adherenceScore = medicationAdherence; // Direct percentage
     const moodScoreNormalized = (moodScore / 5) * 100; // Convert 1-5 scale to 0-100
-    const activityScore = Math.max(0, 100 - (symptomCount * 2)); // Fewer symptoms = higher score
+    const activityScore = Math.max(0, 100 - symptomCount * 2); // Fewer symptoms = higher score
 
     // Weighted average
-    const weights = { severity: 0.3, adherence: 0.25, mood: 0.25, activity: 0.2 };
+    const weights = {
+      severity: 0.3,
+      adherence: 0.25,
+      mood: 0.25,
+      activity: 0.2,
+    };
     return (
       severityScore * weights.severity +
       adherenceScore * weights.adherence +
@@ -476,16 +549,24 @@ class HealthSummaryService {
 
     // Symptom insights
     if (symptoms.length > 0) {
-      const avgSeverity = symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / symptoms.length;
-      const prevAvgSeverity = previousData.symptoms.length > 0
-        ? previousData.symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / previousData.symptoms.length
-        : avgSeverity;
+      const avgSeverity =
+        symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) /
+        symptoms.length;
+      const prevAvgSeverity =
+        previousData.symptoms.length > 0
+          ? previousData.symptoms.reduce(
+              (sum: number, s: Symptom) => sum + s.severity,
+              0
+            ) / previousData.symptoms.length
+          : avgSeverity;
 
       if (avgSeverity < prevAvgSeverity) {
         insights.push({
           type: "positive",
           title: getLocalizedText("symptomImprovement", isArabic),
-          description: getLocalizedText("symptomImprovementDesc", isArabic, { period }),
+          description: getLocalizedText("symptomImprovementDesc", isArabic, {
+            period,
+          }),
           metric: "severity",
           change: prevAvgSeverity - avgSeverity,
           trend: "improving",
@@ -494,7 +575,9 @@ class HealthSummaryService {
         insights.push({
           type: "concerning",
           title: getLocalizedText("increasedSymptoms", isArabic),
-          description: getLocalizedText("increasedSymptomsDesc", isArabic, { period }),
+          description: getLocalizedText("increasedSymptomsDesc", isArabic, {
+            period,
+          }),
           metric: "severity",
           change: avgSeverity - prevAvgSeverity,
           trend: "declining",
@@ -503,23 +586,34 @@ class HealthSummaryService {
     }
 
     // Medication adherence insights
-    const activeMeds = medications.filter(m => m.isActive).length;
-    const prevActiveMeds = previousData.medications.filter((m: Medication) => m.isActive).length;
+    const activeMeds = medications.filter((m) => m.isActive).length;
+    const prevActiveMeds = previousData.medications.filter(
+      (m: Medication) => m.isActive
+    ).length;
 
     if (activeMeds > prevActiveMeds) {
       insights.push({
         type: "neutral",
         title: getLocalizedText("newMedications", isArabic),
-        description: getLocalizedText("newMedicationsDesc", isArabic, { count: activeMeds - prevActiveMeds, period }),
+        description: getLocalizedText("newMedicationsDesc", isArabic, {
+          count: activeMeds - prevActiveMeds,
+          period,
+        }),
       });
     }
 
     // Mood insights
     if (moods.length > 0) {
-      const avgMood = moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / moods.length;
-      const prevAvgMood = previousData.moods.length > 0
-        ? previousData.moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / previousData.moods.length
-        : avgMood;
+      const avgMood =
+        moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) /
+        moods.length;
+      const prevAvgMood =
+        previousData.moods.length > 0
+          ? previousData.moods.reduce(
+              (sum: number, m: Mood) => sum + m.intensity,
+              0
+            ) / previousData.moods.length
+          : avgMood;
 
       if (avgMood > prevAvgMood + 0.5) {
         insights.push({
@@ -554,7 +648,10 @@ class HealthSummaryService {
     const patterns: HealthPattern[] = [];
 
     // Temporal patterns (weekdays vs weekends)
-    const weekdayVsWeekend = this.detectWeekdayWeekendPatterns(symptoms, isArabic);
+    const weekdayVsWeekend = this.detectWeekdayWeekendPatterns(
+      symptoms,
+      isArabic
+    );
     if (weekdayVsWeekend.confidence > 0.6) {
       patterns.push(weekdayVsWeekend);
     }
@@ -566,13 +663,20 @@ class HealthSummaryService {
     }
 
     // Symptom correlations
-    const symptomCorrelations = this.detectSymptomCorrelations(symptoms, isArabic);
+    const symptomCorrelations = this.detectSymptomCorrelations(
+      symptoms,
+      isArabic
+    );
     if (symptomCorrelations.length > 0) {
       patterns.push(...symptomCorrelations);
     }
 
     // Medication effectiveness patterns
-    const medicationPatterns = this.detectMedicationPatterns(symptoms, medications, isArabic);
+    const medicationPatterns = this.detectMedicationPatterns(
+      symptoms,
+      medications,
+      isArabic
+    );
     if (medicationPatterns.length > 0) {
       patterns.push(...medicationPatterns);
     }
@@ -583,24 +687,31 @@ class HealthSummaryService {
   /**
    * Detect weekday vs weekend symptom patterns
    */
-  private detectWeekdayWeekendPatterns(symptoms: Symptom[], isArabic = false): HealthPattern {
-    const weekdaySymptoms = symptoms.filter(s => {
+  private detectWeekdayWeekendPatterns(
+    symptoms: Symptom[],
+    isArabic = false
+  ): HealthPattern {
+    const weekdaySymptoms = symptoms.filter((s) => {
       const day = s.timestamp.getDay();
       return day >= 1 && day <= 5; // Monday to Friday
     });
 
-    const weekendSymptoms = symptoms.filter(s => {
+    const weekendSymptoms = symptoms.filter((s) => {
       const day = s.timestamp.getDay();
       return day === 0 || day === 6; // Sunday or Saturday
     });
 
-    const weekdayAvgSeverity = weekdaySymptoms.length > 0
-      ? weekdaySymptoms.reduce((sum, s) => sum + s.severity, 0) / weekdaySymptoms.length
-      : 0;
+    const weekdayAvgSeverity =
+      weekdaySymptoms.length > 0
+        ? weekdaySymptoms.reduce((sum, s) => sum + s.severity, 0) /
+          weekdaySymptoms.length
+        : 0;
 
-    const weekendAvgSeverity = weekendSymptoms.length > 0
-      ? weekendSymptoms.reduce((sum, s) => sum + s.severity, 0) / weekendSymptoms.length
-      : 0;
+    const weekendAvgSeverity =
+      weekendSymptoms.length > 0
+        ? weekendSymptoms.reduce((sum, s) => sum + s.severity, 0) /
+          weekendSymptoms.length
+        : 0;
 
     const difference = Math.abs(weekendAvgSeverity - weekdayAvgSeverity);
     const confidence = Math.min(difference / 2, 1); // Scale confidence
@@ -624,8 +735,12 @@ class HealthSummaryService {
       description,
       confidence,
       examples: [
-        getLocalizedText("weekdayAvgSeverity", isArabic, { value: weekdayAvgSeverity.toFixed(1) }),
-        getLocalizedText("weekendAvgSeverity", isArabic, { value: weekendAvgSeverity.toFixed(1) }),
+        getLocalizedText("weekdayAvgSeverity", isArabic, {
+          value: weekdayAvgSeverity.toFixed(1),
+        }),
+        getLocalizedText("weekendAvgSeverity", isArabic, {
+          value: weekendAvgSeverity.toFixed(1),
+        }),
       ],
       recommendation,
     };
@@ -634,21 +749,30 @@ class HealthSummaryService {
   /**
    * Detect time of day patterns
    */
-  private detectTimeOfDayPatterns(symptoms: Symptom[], isArabic = false): HealthPattern[] {
+  private detectTimeOfDayPatterns(
+    symptoms: Symptom[],
+    isArabic = false
+  ): HealthPattern[] {
     const patterns: HealthPattern[] = [];
-    const hourGroups = symptoms.reduce((acc, symptom) => {
-      const hour = symptom.timestamp.getHours();
-      if (!acc[hour]) acc[hour] = [];
-      acc[hour].push(symptom);
-      return acc;
-    }, {} as Record<number, Symptom[]>);
+    const hourGroups = symptoms.reduce(
+      (acc, symptom) => {
+        const hour = symptom.timestamp.getHours();
+        if (!acc[hour]) acc[hour] = [];
+        acc[hour].push(symptom);
+        return acc;
+      },
+      {} as Record<number, Symptom[]>
+    );
 
     // Find hours with highest symptom frequency
-    const hourStats = Object.entries(hourGroups).map(([hour, symptoms]) => ({
-      hour: parseInt(hour),
-      count: symptoms.length,
-      avgSeverity: symptoms.reduce((sum, s) => sum + s.severity, 0) / symptoms.length,
-    })).sort((a, b) => b.count - a.count);
+    const hourStats = Object.entries(hourGroups)
+      .map(([hour, symptoms]) => ({
+        hour: Number.parseInt(hour),
+        count: symptoms.length,
+        avgSeverity:
+          symptoms.reduce((sum, s) => sum + s.severity, 0) / symptoms.length,
+      }))
+      .sort((a, b) => b.count - a.count);
 
     if (hourStats.length > 0 && hourStats[0].count >= 3) {
       const peakHour = hourStats[0].hour;
@@ -657,20 +781,26 @@ class HealthSummaryService {
       patterns.push({
         type: "temporal",
         title: getLocalizedText("symptomPattern", isArabic, { timeOfDay }),
-        description: getLocalizedText("symptomPatternDesc", isArabic, { 
-          timeOfDay: timeOfDay.toLowerCase(), 
-          hour: this.formatHour(peakHour) 
+        description: getLocalizedText("symptomPatternDesc", isArabic, {
+          timeOfDay: timeOfDay.toLowerCase(),
+          hour: this.formatHour(peakHour),
         }),
         confidence: Math.min(hourStats[0].count / 10, 1),
         examples: [
-          getLocalizedText("symptomsRecorded", isArabic, { 
-            count: hourStats[0].count, 
-            startHour: this.formatHour(peakHour), 
-            endHour: this.formatHour(peakHour + 1) 
+          getLocalizedText("symptomsRecorded", isArabic, {
+            count: hourStats[0].count,
+            startHour: this.formatHour(peakHour),
+            endHour: this.formatHour(peakHour + 1),
           }),
-          getLocalizedText("averageSeverity", isArabic, { value: hourStats[0].avgSeverity.toFixed(1) }),
+          getLocalizedText("averageSeverity", isArabic, {
+            value: hourStats[0].avgSeverity.toFixed(1),
+          }),
         ],
-        recommendation: getLocalizedText("symptomPatternRecommendation", isArabic, { timeOfDay: timeOfDay.toLowerCase() }),
+        recommendation: getLocalizedText(
+          "symptomPatternRecommendation",
+          isArabic,
+          { timeOfDay: timeOfDay.toLowerCase() }
+        ),
       });
     }
 
@@ -680,19 +810,23 @@ class HealthSummaryService {
   /**
    * Detect symptom correlations
    */
-  private detectSymptomCorrelations(symptoms: Symptom[], isArabic = false): HealthPattern[] {
+  private detectSymptomCorrelations(
+    symptoms: Symptom[],
+    isArabic = false
+  ): HealthPattern[] {
     const patterns: HealthPattern[] = [];
 
     // Find frequently co-occurring symptoms
     const coOccurrences: Record<string, Record<string, number>> = {};
 
-    symptoms.forEach(symptom => {
-      const sameDaySymptoms = symptoms.filter(s =>
-        s.timestamp.toDateString() === symptom.timestamp.toDateString() &&
-        s.id !== symptom.id
+    symptoms.forEach((symptom) => {
+      const sameDaySymptoms = symptoms.filter(
+        (s) =>
+          s.timestamp.toDateString() === symptom.timestamp.toDateString() &&
+          s.id !== symptom.id
       );
 
-      sameDaySymptoms.forEach(coSymptom => {
+      sameDaySymptoms.forEach((coSymptom) => {
         if (!coOccurrences[symptom.type]) coOccurrences[symptom.type] = {};
         coOccurrences[symptom.type][coSymptom.type] =
           (coOccurrences[symptom.type][coSymptom.type] || 0) + 1;
@@ -706,12 +840,16 @@ class HealthSummaryService {
           patterns.push({
             type: "symptom",
             title: getLocalizedText("symptomCorrelation", isArabic),
-            description: getLocalizedText("symptomCorrelationDesc", isArabic, { symptom1: symptom, symptom2: coSymptom }),
+            description: getLocalizedText("symptomCorrelationDesc", isArabic, {
+              symptom1: symptom,
+              symptom2: coSymptom,
+            }),
             confidence: Math.min(count / 10, 1),
-            examples: [
-              getLocalizedText("coOccurred", isArabic, { count }),
-            ],
-            recommendation: getLocalizedText("symptomCorrelationRecommendation", isArabic),
+            examples: [getLocalizedText("coOccurred", isArabic, { count })],
+            recommendation: getLocalizedText(
+              "symptomCorrelationRecommendation",
+              isArabic
+            ),
           });
         }
       });
@@ -723,12 +861,16 @@ class HealthSummaryService {
   /**
    * Detect medication effectiveness patterns
    */
-  private detectMedicationPatterns(symptoms: Symptom[], medications: Medication[], isArabic = false): HealthPattern[] {
+  private detectMedicationPatterns(
+    symptoms: Symptom[],
+    medications: Medication[],
+    isArabic = false
+  ): HealthPattern[] {
     const patterns: HealthPattern[] = [];
 
     // This is a simplified analysis - in practice, you'd need more sophisticated
     // time-series analysis to determine medication effectiveness
-    const activeMedications = medications.filter(m => m.isActive);
+    const activeMedications = medications.filter((m) => m.isActive);
 
     if (activeMedications.length > 0 && symptoms.length > 5) {
       patterns.push({
@@ -737,10 +879,17 @@ class HealthSummaryService {
         description: getLocalizedText("medicationEffectivenessDesc", isArabic),
         confidence: 0.7,
         examples: [
-          getLocalizedText("activeMedications", isArabic, { count: activeMedications.length }),
-          getLocalizedText("symptomsRecordedCount", isArabic, { count: symptoms.length }),
+          getLocalizedText("activeMedications", isArabic, {
+            count: activeMedications.length,
+          }),
+          getLocalizedText("symptomsRecordedCount", isArabic, {
+            count: symptoms.length,
+          }),
         ],
-        recommendation: getLocalizedText("medicationEffectivenessRecommendation", isArabic),
+        recommendation: getLocalizedText(
+          "medicationEffectivenessRecommendation",
+          isArabic
+        ),
       });
     }
 
@@ -759,16 +908,24 @@ class HealthSummaryService {
     const recommendations: string[] = [];
 
     // Based on insights
-    insights.forEach(insight => {
+    insights.forEach((insight) => {
       if (insight.type === "positive") {
-        recommendations.push(getLocalizedText("keepUpGoodWork", isArabic, { topic: insight.title.toLowerCase() }));
+        recommendations.push(
+          getLocalizedText("keepUpGoodWork", isArabic, {
+            topic: insight.title.toLowerCase(),
+          })
+        );
       } else if (insight.type === "concerning") {
-        recommendations.push(getLocalizedText("consultProvider", isArabic, { topic: insight.title.toLowerCase() }));
+        recommendations.push(
+          getLocalizedText("consultProvider", isArabic, {
+            topic: insight.title.toLowerCase(),
+          })
+        );
       }
     });
 
     // Based on patterns
-    patterns.forEach(pattern => {
+    patterns.forEach((pattern) => {
       if (pattern.recommendation) {
         recommendations.push(pattern.recommendation);
       }
@@ -817,42 +974,66 @@ class HealthSummaryService {
       currentValue: currentSymptomCount,
       previousValue: previousSymptomCount,
       change: currentSymptomCount - previousSymptomCount,
-      trend: currentSymptomCount > previousSymptomCount ? "up" :
-             currentSymptomCount < previousSymptomCount ? "down" : "stable",
+      trend:
+        currentSymptomCount > previousSymptomCount
+          ? "up"
+          : currentSymptomCount < previousSymptomCount
+            ? "down"
+            : "stable",
       period,
     });
 
     // Average severity trend
-    const currentAvgSeverity = symptoms.length > 0
-      ? symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / symptoms.length
-      : 0;
-    const previousAvgSeverity = previousData.symptoms.length > 0
-      ? previousData.symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) / previousData.symptoms.length
-      : 0;
+    const currentAvgSeverity =
+      symptoms.length > 0
+        ? symptoms.reduce((sum: number, s: Symptom) => sum + s.severity, 0) /
+          symptoms.length
+        : 0;
+    const previousAvgSeverity =
+      previousData.symptoms.length > 0
+        ? previousData.symptoms.reduce(
+            (sum: number, s: Symptom) => sum + s.severity,
+            0
+          ) / previousData.symptoms.length
+        : 0;
     trends.push({
       metric: "Average Severity",
       currentValue: Math.round(currentAvgSeverity * 10) / 10,
       previousValue: Math.round(previousAvgSeverity * 10) / 10,
       change: currentAvgSeverity - previousAvgSeverity,
-      trend: currentAvgSeverity > previousAvgSeverity ? "up" :
-             currentAvgSeverity < previousAvgSeverity ? "down" : "stable",
+      trend:
+        currentAvgSeverity > previousAvgSeverity
+          ? "up"
+          : currentAvgSeverity < previousAvgSeverity
+            ? "down"
+            : "stable",
       period,
     });
 
     // Mood trend
-    const currentAvgMood = moods.length > 0
-      ? moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / moods.length
-      : 3;
-    const previousAvgMood = previousData.moods.length > 0
-      ? previousData.moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) / previousData.moods.length
-      : 3;
+    const currentAvgMood =
+      moods.length > 0
+        ? moods.reduce((sum: number, m: Mood) => sum + m.intensity, 0) /
+          moods.length
+        : 3;
+    const previousAvgMood =
+      previousData.moods.length > 0
+        ? previousData.moods.reduce(
+            (sum: number, m: Mood) => sum + m.intensity,
+            0
+          ) / previousData.moods.length
+        : 3;
     trends.push({
       metric: "Mood",
       currentValue: Math.round(currentAvgMood * 10) / 10,
       previousValue: Math.round(previousAvgMood * 10) / 10,
       change: currentAvgMood - previousAvgMood,
-      trend: currentAvgMood > previousAvgMood ? "up" :
-             currentAvgMood < previousAvgMood ? "down" : "stable",
+      trend:
+        currentAvgMood > previousAvgMood
+          ? "up"
+          : currentAvgMood < previousAvgMood
+            ? "down"
+            : "stable",
       period,
     });
 

@@ -1,4 +1,4 @@
-import { router, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -20,21 +20,28 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
+  type StyleProp,
   Text,
   TextInput,
+  type TextStyle,
   TouchableOpacity,
   View,
-  type StyleProp,
-  type TextStyle,
   type ViewStyle,
 } from "react-native";
+import { Card } from "@/components/design-system";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import {
+  Caption,
+  Heading,
+  Text as TypographyText,
+} from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { timelineService, type TimelineEvent } from "@/lib/services/timelineService";
+import {
+  type TimelineEvent,
+  timelineService,
+} from "@/lib/services/timelineService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Card } from "@/components/design-system";
-import { Caption, Heading, Text as TypographyText } from "@/components/design-system/Typography";
 
 type ViewMode = "day" | "week" | "month" | "year";
 type FilterType = TimelineEvent["type"] | "all";
@@ -55,7 +62,9 @@ export default function TimelineScreen() {
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(
+    null
+  );
   const [showEventModal, setShowEventModal] = useState(false);
 
   const styles = createThemedStyles((theme) => ({
@@ -146,7 +155,12 @@ export default function TimelineScreen() {
       paddingVertical: theme.spacing.sm,
     },
     dateText: {
-      ...getTextStyle(theme, "subheading", "semibold", theme.colors.text.primary),
+      ...getTextStyle(
+        theme,
+        "subheading",
+        "semibold",
+        theme.colors.text.primary
+      ),
       flex: 1,
       textAlign: "center",
     },
@@ -251,64 +265,77 @@ export default function TimelineScreen() {
     },
   }))(theme);
 
-  const loadTimeline = useCallback(async (isRefresh = false) => {
-    if (!user) return;
+  const loadTimeline = useCallback(
+    async (isRefresh = false) => {
+      if (!user) return;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        let timelineEvents: TimelineEvent[] = [];
+
+        switch (viewMode) {
+          case "day":
+            timelineEvents = await timelineService.getEventsForDay(
+              user.id,
+              currentDate
+            );
+            break;
+          case "week": {
+            const weekStart = new Date(currentDate);
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            timelineEvents = await timelineService.getEventsForWeek(
+              user.id,
+              weekStart
+            );
+            break;
+          }
+          case "month": {
+            const monthStart = new Date(
+              currentDate.getFullYear(),
+              currentDate.getMonth(),
+              1
+            );
+            timelineEvents = await timelineService.getEventsForMonth(
+              user.id,
+              monthStart
+            );
+            break;
+          }
+          case "year": {
+            const yearStart = new Date(currentDate.getFullYear(), 0, 1);
+            const yearEnd = new Date(
+              currentDate.getFullYear(),
+              11,
+              31,
+              23,
+              59,
+              59
+            );
+            timelineEvents = await timelineService.getHealthTimeline(
+              user.id,
+              yearStart,
+              yearEnd
+            );
+            break;
+          }
+        }
+
+        setEvents(timelineEvents);
+        applyFilters(timelineEvents);
+      } catch (error) {
+        // Handle error silently
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      let timelineEvents: TimelineEvent[] = [];
-
-      switch (viewMode) {
-        case "day":
-          timelineEvents = await timelineService.getEventsForDay(
-            user.id,
-            currentDate
-          );
-          break;
-        case "week":
-          const weekStart = new Date(currentDate);
-          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-          timelineEvents = await timelineService.getEventsForWeek(
-            user.id,
-            weekStart
-          );
-          break;
-        case "month":
-          const monthStart = new Date(
-            currentDate.getFullYear(),
-            currentDate.getMonth(),
-            1
-          );
-          timelineEvents = await timelineService.getEventsForMonth(
-            user.id,
-            monthStart
-          );
-          break;
-        case "year":
-          const yearStart = new Date(currentDate.getFullYear(), 0, 1);
-          const yearEnd = new Date(currentDate.getFullYear(), 11, 31, 23, 59, 59);
-          timelineEvents = await timelineService.getHealthTimeline(
-            user.id,
-            yearStart,
-            yearEnd
-          );
-          break;
-      }
-
-      setEvents(timelineEvents);
-      applyFilters(timelineEvents);
-    } catch (error) {
-      // Handle error silently
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, viewMode, currentDate]);
+    },
+    [user, viewMode, currentDate]
+  );
 
   const applyFilters = useCallback(
     (eventsToFilter: TimelineEvent[]) => {
@@ -372,7 +399,7 @@ export default function TimelineScreen() {
           month: "long",
           day: "numeric",
         });
-      case "week":
+      case "week": {
         const weekStart = new Date(currentDate);
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         const weekEnd = new Date(weekStart);
@@ -385,6 +412,7 @@ export default function TimelineScreen() {
           day: "numeric",
           year: "numeric",
         })}`;
+      }
       case "month":
         return currentDate.toLocaleDateString(isRTL ? "ar" : "en-US", {
           month: "long",
@@ -458,7 +486,10 @@ export default function TimelineScreen() {
       <View style={styles.header as ViewStyle}>
         <TouchableOpacity
           onPress={() => timelineRouter.back()}
-          style={[styles.backButton as ViewStyle, isRTL && (styles.backButtonRTL as ViewStyle)]}
+          style={[
+            styles.backButton as ViewStyle,
+            isRTL && (styles.backButtonRTL as ViewStyle),
+          ]}
         >
           <ArrowLeft
             color={theme.colors.text.primary}
@@ -468,7 +499,15 @@ export default function TimelineScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerLeft as ViewStyle}>
-          <Heading level={4} style={[styles.headerTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as StyleProp<TextStyle>}>
+          <Heading
+            level={4}
+            style={
+              [
+                styles.headerTitle as TextStyle,
+                isRTL && (styles.rtlText as TextStyle),
+              ] as StyleProp<TextStyle>
+            }
+          >
             {isRTL ? "السجل الزمني الصحي" : "Health Timeline"}
           </Heading>
         </View>
@@ -477,17 +516,20 @@ export default function TimelineScreen() {
       {/* Search */}
       <View style={styles.searchContainer as ViewStyle}>
         <TextInput
-          style={[styles.searchInput as TextStyle, isRTL && (styles.rtlText as TextStyle)]}
+          onChangeText={setSearchQuery}
           placeholder={isRTL ? "بحث..." : "Search..."}
           placeholderTextColor={theme.colors.text.secondary}
+          style={[
+            styles.searchInput as TextStyle,
+            isRTL && (styles.rtlText as TextStyle),
+          ]}
           value={searchQuery}
-          onChangeText={setSearchQuery}
         />
         <TouchableOpacity
           onPress={() => setShowFilters(true)}
           style={styles.filterButton as ViewStyle}
         >
-          <Filter size={20} color={theme.colors.text.primary} />
+          <Filter color={theme.colors.text.primary} size={20} />
         </TouchableOpacity>
       </View>
 
@@ -505,7 +547,8 @@ export default function TimelineScreen() {
             <Text
               style={[
                 styles.viewModeButtonText as TextStyle,
-                viewMode === mode && (styles.viewModeButtonTextActive as TextStyle),
+                viewMode === mode &&
+                  (styles.viewModeButtonTextActive as TextStyle),
               ]}
             >
               {isRTL
@@ -525,45 +568,57 @@ export default function TimelineScreen() {
       {/* Date Navigation */}
       <View style={styles.dateNavigation as ViewStyle}>
         <TouchableOpacity onPress={() => navigateDate("prev")}>
-          <ChevronLeft size={24} color={theme.colors.text.primary} />
+          <ChevronLeft color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.dateText as TextStyle, isRTL && (styles.rtlText as TextStyle)]}>
+        <Text
+          style={[
+            styles.dateText as TextStyle,
+            isRTL && (styles.rtlText as TextStyle),
+          ]}
+        >
           {formatDateRange()}
         </Text>
         <TouchableOpacity onPress={() => navigateDate("next")}>
-          <ChevronRight size={24} color={theme.colors.text.primary} />
+          <ChevronRight color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
       </View>
 
       {/* Timeline */}
       {loading ? (
         <View style={styles.emptyContainer as ViewStyle}>
-          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
         </View>
       ) : filteredEvents.length === 0 ? (
         <ScrollView
           contentContainerStyle={styles.emptyContainer as ViewStyle}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
               onRefresh={() => loadTimeline(true)}
+              refreshing={refreshing}
             />
           }
         >
-          <FileText size={64} color={theme.colors.text.secondary} />
-          <Text style={[styles.emptyText as TextStyle, isRTL && (styles.rtlText as TextStyle)]}>
-            {isRTL ? "لا توجد أحداث صحية في هذا الفترة" : "No events in this period"}
+          <FileText color={theme.colors.text.secondary} size={64} />
+          <Text
+            style={[
+              styles.emptyText as TextStyle,
+              isRTL && (styles.rtlText as TextStyle),
+            ]}
+          >
+            {isRTL
+              ? "لا توجد أحداث صحية في هذا الفترة"
+              : "No events in this period"}
           </Text>
         </ScrollView>
       ) : (
         <ScrollView
-          style={styles.timelineContainer as ViewStyle}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
               onRefresh={() => loadTimeline(true)}
+              refreshing={refreshing}
             />
           }
+          style={styles.timelineContainer as ViewStyle}
         >
           {sortedDates.map((dateKey, dateIndex) => {
             const dateEvents = groupedEvents.get(dateKey) || [];
@@ -573,8 +628,13 @@ export default function TimelineScreen() {
               <View key={dateKey} style={styles.timelineDateGroup as ViewStyle}>
                 <View style={styles.dateHeader as ViewStyle}>
                   <TypographyText
+                    style={
+                      [
+                        styles.dateHeaderText as TextStyle,
+                        isRTL && (styles.rtlText as TextStyle),
+                      ] as any
+                    }
                     weight="bold"
-                    style={[styles.dateHeaderText as TextStyle, isRTL && (styles.rtlText as TextStyle)] as any}
                   >
                     {date.toLocaleDateString(isRTL ? "ar" : "en-US", {
                       weekday: "long",
@@ -583,7 +643,7 @@ export default function TimelineScreen() {
                       day: "numeric",
                     })}
                   </TypographyText>
-                  <Badge variant="outline" size="small" style={{}}>
+                  <Badge size="small" style={{}} variant="outline">
                     {dateEvents.length}
                   </Badge>
                 </View>
@@ -602,39 +662,52 @@ export default function TimelineScreen() {
                           ]}
                         >
                           <IconComponent
-                            size={18}
                             color={theme.colors.neutral.white}
+                            size={18}
                           />
                         </View>
-                        {!isLast && <View style={styles.timelineLine as ViewStyle} />}
+                        {!isLast && (
+                          <View style={styles.timelineLine as ViewStyle} />
+                        )}
                       </View>
                       <View style={styles.eventContent as ViewStyle}>
                         <Card
-                          variant="elevated"
-                          style={styles.eventCard as ViewStyle}
                           contentStyle={{}}
                           onPress={() => {
                             setSelectedEvent(event);
                             setShowEventModal(true);
                           }}
+                          style={styles.eventCard as ViewStyle}
+                          variant="elevated"
                         >
                           <View style={styles.eventHeader as ViewStyle}>
                             <View style={{ flex: 1 }}>
                               <TypographyText
+                                style={
+                                  [
+                                    styles.eventTitle as TextStyle,
+                                    isRTL && (styles.rtlText as TextStyle),
+                                  ] as any
+                                }
                                 weight="bold"
-                                style={[styles.eventTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as any}
                               >
                                 {event.title}
                               </TypographyText>
                               <Badge
-                                variant="outline"
                                 size="small"
-                                style={{ marginTop: 4, alignSelf: "flex-start" }}
+                                style={{
+                                  marginTop: 4,
+                                  alignSelf: "flex-start",
+                                }}
+                                variant="outline"
                               >
                                 {getEventTypeLabel(event.type)}
                               </Badge>
                             </View>
-                            <Caption style={styles.eventTime as TextStyle} numberOfLines={1}>
+                            <Caption
+                              numberOfLines={1}
+                              style={styles.eventTime as TextStyle}
+                            >
                               {event.timestamp.toLocaleTimeString(
                                 isRTL ? "ar" : "en-US",
                                 {
@@ -646,10 +719,12 @@ export default function TimelineScreen() {
                           </View>
                           {event.description && (
                             <TypographyText
-                              style={[
-                                styles.eventDescription as TextStyle,
-                                isRTL && (styles.rtlText as TextStyle),
-                              ] as any}
+                              style={
+                                [
+                                  styles.eventDescription as TextStyle,
+                                  isRTL && (styles.rtlText as TextStyle),
+                                ] as any
+                              }
                             >
                               {event.description}
                             </TypographyText>
@@ -667,10 +742,10 @@ export default function TimelineScreen() {
 
       {/* Filter Modal */}
       <Modal
-        visible={showFilters}
         animationType="slide"
-        transparent={true}
         onRequestClose={() => setShowFilters(false)}
+        transparent={true}
+        visible={showFilters}
       >
         <View
           style={{
@@ -692,7 +767,9 @@ export default function TimelineScreen() {
                 {isRTL ? "تصفية الأحداث الصحية" : "Filter"}
               </Heading>
               <TouchableOpacity onPress={() => setShowFilters(false)}>
-                <Text style={{ fontSize: 18, color: theme.colors.primary.main }}>
+                <Text
+                  style={{ fontSize: 18, color: theme.colors.primary.main }}
+                >
                   {isRTL ? "إغلاق" : "Close"}
                 </Text>
               </TouchableOpacity>
@@ -729,17 +806,25 @@ export default function TimelineScreen() {
 
       {/* Event Detail Modal */}
       <Modal
-        visible={showEventModal && !!selectedEvent}
         animationType="slide"
-        presentationStyle="pageSheet"
         onRequestClose={() => {
           setShowEventModal(false);
           setSelectedEvent(null);
         }}
+        presentationStyle="pageSheet"
+        visible={showEventModal && !!selectedEvent}
       >
         <SafeAreaView style={styles.container as ViewStyle}>
           <View style={styles.header as ViewStyle}>
-            <Heading level={5} style={[styles.headerTitle as TextStyle, isRTL && (styles.rtlText as TextStyle)] as any}>
+            <Heading
+              level={5}
+              style={
+                [
+                  styles.headerTitle as TextStyle,
+                  isRTL && (styles.rtlText as TextStyle),
+                ] as any
+              }
+            >
               {selectedEvent?.title}
             </Heading>
             <TouchableOpacity
@@ -757,15 +842,21 @@ export default function TimelineScreen() {
             {selectedEvent && (
               <>
                 <View style={{ marginBottom: theme.spacing.base }}>
-                  <Badge variant="outline" size="small" style={{}}>
+                  <Badge size="small" style={{}} variant="outline">
                     {getEventTypeLabel(selectedEvent.type)}
                   </Badge>
                 </View>
                 <View style={{ marginBottom: theme.spacing.base }}>
-                  <TypographyText weight="semibold" style={[styles.rtlText as TextStyle] as any}>
+                  <TypographyText
+                    style={[styles.rtlText as TextStyle] as any}
+                    weight="semibold"
+                  >
                     {isRTL ? "التاريخ والوقت" : "Date & Time"}
                   </TypographyText>
-                  <Caption style={[styles.rtlText as TextStyle] as any} numberOfLines={1}>
+                  <Caption
+                    numberOfLines={1}
+                    style={[styles.rtlText as TextStyle] as any}
+                  >
                     {selectedEvent.timestamp.toLocaleString(
                       isRTL ? "ar" : "en-US"
                     )}
@@ -773,10 +864,16 @@ export default function TimelineScreen() {
                 </View>
                 {selectedEvent.description && (
                   <View style={{ marginBottom: theme.spacing.base }}>
-                    <TypographyText weight="semibold" style={[styles.rtlText as TextStyle] as any}>
+                    <TypographyText
+                      style={[styles.rtlText as TextStyle] as any}
+                      weight="semibold"
+                    >
                       {isRTL ? "الوصف الصحي" : "Description"}
                     </TypographyText>
-                    <Caption style={[styles.rtlText as TextStyle] as any} numberOfLines={10}>
+                    <Caption
+                      numberOfLines={10}
+                      style={[styles.rtlText as TextStyle] as any}
+                    >
                       {selectedEvent.description}
                     </Caption>
                   </View>

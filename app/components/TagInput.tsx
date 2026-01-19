@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ScrollView,
@@ -8,11 +8,11 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Caption, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { tagService } from "@/lib/services/tagService";
-import { Badge } from "@/components/design-system/AdditionalComponents";
-import { Text, Caption } from "@/components/design-system/Typography";
 
 interface TagInputProps {
   tags: string[];
@@ -53,11 +53,7 @@ export default function TagInput({
     if (!user) return;
 
     try {
-      const suggested = await tagService.getSuggestedTags(
-        user.id,
-        tags,
-        5
-      );
+      const suggested = await tagService.getSuggestedTags(user.id, tags, 5);
       const filtered = suggested.filter((tag) =>
         tag.toLowerCase().includes(inputValue.toLowerCase())
       );
@@ -110,17 +106,17 @@ export default function TagInput({
       {tags.length > 0 && (
         <View style={styles.tagsContainer}>
           {tags.map((tag, index) => (
-            <Badge key={index} variant="outline" style={styles.tag}>
+            <Badge key={index} style={styles.tag} variant="outline">
               <Text style={styles.tagText}>{tag}</Text>
               <TouchableOpacity
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                 onPress={() => handleRemoveTag(tag)}
                 style={styles.removeTagButton}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
                 <Ionicons
+                  color={theme.colors.text.secondary}
                   name="close-circle"
                   size={16}
-                  color={theme.colors.text.secondary}
                 />
               </TouchableOpacity>
             </Badge>
@@ -131,34 +127,32 @@ export default function TagInput({
       {/* Input */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
-          placeholder={
-            placeholder ||
-            (isRTL
-              ? "أضف علامة (اضغط Enter)"
-              : "Add tag (press Enter)")
-          }
-          placeholderTextColor={theme.colors.text.secondary}
-          value={inputValue}
+          maxLength={30}
           onChangeText={setInputValue}
           onSubmitEditing={handleInputSubmit}
+          placeholder={
+            placeholder ||
+            (isRTL ? "أضف علامة (اضغط Enter)" : "Add tag (press Enter)")
+          }
+          placeholderTextColor={theme.colors.text.secondary}
           returnKeyType="done"
-          maxLength={30}
+          style={styles.input}
+          value={inputValue}
         />
         {tags.length < maxTags && (
           <TouchableOpacity
+            disabled={!inputValue.trim()}
             onPress={() => handleAddTag()}
             style={styles.addButton}
-            disabled={!inputValue.trim()}
           >
             <Ionicons
-              name="add-circle"
-              size={24}
               color={
                 inputValue.trim()
                   ? theme.colors.primary.main
                   : theme.colors.text.secondary
               }
+              name="add-circle"
+              size={24}
             />
           </TouchableOpacity>
         )}
@@ -203,7 +197,9 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     marginBottom: theme.spacing.base,
   },
   tagsContainer: {
-    flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+    flexDirection: (isRTL
+      ? "row-reverse"
+      : "row") as ViewStyle["flexDirection"],
     flexWrap: "wrap" as ViewStyle["flexWrap"],
     gap: theme.spacing.xs,
     marginBottom: theme.spacing.sm,
@@ -225,7 +221,9 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     marginRight: isRTL ? theme.spacing.xs / 2 : 0,
   },
   inputContainer: {
-    flexDirection: (isRTL ? "row-reverse" : "row") as ViewStyle["flexDirection"],
+    flexDirection: (isRTL
+      ? "row-reverse"
+      : "row") as ViewStyle["flexDirection"],
     alignItems: "center" as ViewStyle["alignItems"],
     borderWidth: 1,
     borderColor: theme.colors.border,

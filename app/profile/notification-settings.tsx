@@ -27,9 +27,9 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
-import { userService } from "@/lib/services/userService";
 import { useNotifications } from "@/hooks/useNotifications";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
+import { userService } from "@/lib/services/userService";
 
 interface NotificationSettings {
   enabled: boolean;
@@ -50,7 +50,10 @@ export default function NotificationSettingsScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
-  const { cancelAllMedicationNotifications, clearDuplicateMedicationNotifications } = useNotifications();
+  const {
+    cancelAllMedicationNotifications,
+    clearDuplicateMedicationNotifications,
+  } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<NotificationSettings>({
@@ -178,7 +181,8 @@ export default function NotificationSettingsScreen() {
         const { Platform } = await import("react-native");
         if (Platform.OS !== "web") {
           const Notifications = await import("expo-notifications");
-          const allScheduled = await Notifications.getAllScheduledNotificationsAsync();
+          const allScheduled =
+            await Notifications.getAllScheduledNotificationsAsync();
 
           for (const notification of allScheduled as any[]) {
             const data = notification?.content?.data;
@@ -190,7 +194,9 @@ export default function NotificationSettingsScreen() {
 
             if (isCheckin) {
               try {
-                await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+                await Notifications.cancelScheduledNotificationAsync(
+                  notification.identifier
+                );
               } catch {
                 // Silently handle individual cancellation error
               }
@@ -219,7 +225,9 @@ export default function NotificationSettingsScreen() {
           <Text style={[styles.settingTitle, isRTL && { textAlign: "left" }]}>
             {title}
           </Text>
-          <Text style={[styles.settingSubtitle, isRTL && { textAlign: "left" }]}>
+          <Text
+            style={[styles.settingSubtitle, isRTL && { textAlign: "left" }]}
+          >
             {subtitle}
           </Text>
         </View>
@@ -267,7 +275,9 @@ export default function NotificationSettingsScreen() {
           {saving ? (
             <ActivityIndicator color="#2563EB" size="small" />
           ) : (
-            <Text style={[styles.saveButtonText, isRTL && { textAlign: "left" }]}>
+            <Text
+              style={[styles.saveButtonText, isRTL && { textAlign: "left" }]}
+            >
               {isRTL ? "حفظ" : "Save"}
             </Text>
           )}
@@ -286,12 +296,18 @@ export default function NotificationSettingsScreen() {
               )}
               <View style={styles.masterToggleInfo}>
                 <Text
-                  style={[styles.masterToggleTitle, isRTL && { textAlign: "left" }]}
+                  style={[
+                    styles.masterToggleTitle,
+                    isRTL && { textAlign: "left" },
+                  ]}
                 >
                   {isRTL ? "الإشعارات" : "Notifications"}
                 </Text>
                 <Text
-                  style={[styles.masterToggleSubtitle, isRTL && { textAlign: "left" }]}
+                  style={[
+                    styles.masterToggleSubtitle,
+                    isRTL && { textAlign: "left" },
+                  ]}
                 >
                   {settings.enabled
                     ? isRTL
@@ -411,7 +427,9 @@ export default function NotificationSettingsScreen() {
           {settings.quietHoursEnabled && (
             <View style={styles.quietHoursSettings}>
               <View style={styles.timeRow}>
-                <Text style={[styles.timeLabel, isRTL && { textAlign: "left" }]}>
+                <Text
+                  style={[styles.timeLabel, isRTL && { textAlign: "left" }]}
+                >
                   {isRTL ? "من" : "From"}
                 </Text>
                 <TouchableOpacity style={styles.timeButton}>
@@ -421,7 +439,9 @@ export default function NotificationSettingsScreen() {
                 </TouchableOpacity>
               </View>
               <View style={styles.timeRow}>
-                <Text style={[styles.timeLabel, isRTL && { textAlign: "left" }]}>
+                <Text
+                  style={[styles.timeLabel, isRTL && { textAlign: "left" }]}
+                >
                   {isRTL ? "إلى" : "To"}
                 </Text>
                 <TouchableOpacity style={styles.timeButton}>
@@ -439,7 +459,6 @@ export default function NotificationSettingsScreen() {
           </Text>
 
           <TouchableOpacity
-            style={styles.clearButton}
             onPress={async () => {
               Alert.alert(
                 isRTL ? "مسح الإشعارات" : "Clear Notifications",
@@ -464,7 +483,7 @@ export default function NotificationSettingsScreen() {
                           isRTL ? "تم" : "Done",
                           isRTL
                             ? `تم إلغاء ${result.cancelled} إشعار`
-                            : `Cancelled ${result.cancelled} notification${result.cancelled !== 1 ? 's' : ''}`,
+                            : `Cancelled ${result.cancelled} notification${result.cancelled !== 1 ? "s" : ""}`,
                           [{ text: isRTL ? "موافق" : "OK" }]
                         );
                       } catch (error) {
@@ -480,6 +499,7 @@ export default function NotificationSettingsScreen() {
                 ]
               );
             }}
+            style={styles.clearButton}
           >
             <BellOff color="#EF4444" size={20} />
             <Text style={styles.clearButtonText}>
@@ -491,13 +511,14 @@ export default function NotificationSettingsScreen() {
 
           {isAdmin && user?.familyId && (
             <TouchableOpacity
-              style={[styles.clearButton, { marginTop: 12, borderColor: "#DBEAFE" }]}
               onPress={async () => {
                 try {
                   await pushNotificationService.sendFamilyUpdateToAdmins({
                     familyId: user.familyId,
                     actorUserId: user.id,
-                    title: isRTL ? "👨‍👩‍👧‍👦 تحديث عائلي (اختبار)" : "👨‍👩‍👧‍👦 Family Update (Test)",
+                    title: isRTL
+                      ? "👨‍👩‍👧‍👦 تحديث عائلي (اختبار)"
+                      : "👨‍👩‍👧‍👦 Family Update (Test)",
                     body: isRTL
                       ? "إذا رأيت هذا الإشعار، فـ Family Updates تعمل لحساب الأدمن."
                       : "If you see this, Family Updates are working for the admin account.",
@@ -514,14 +535,22 @@ export default function NotificationSettingsScreen() {
                 } catch {
                   Alert.alert(
                     isRTL ? "خطأ" : "Error",
-                    isRTL ? "فشل إرسال إشعار الاختبار" : "Failed to send test notification"
+                    isRTL
+                      ? "فشل إرسال إشعار الاختبار"
+                      : "Failed to send test notification"
                   );
                 }
               }}
+              style={[
+                styles.clearButton,
+                { marginTop: 12, borderColor: "#DBEAFE" },
+              ]}
             >
               <Users color="#2563EB" size={20} />
               <Text style={[styles.clearButtonText, { color: "#2563EB" }]}>
-                {isRTL ? "إرسال تحديث عائلي (اختبار للأدمن)" : "Send Family Update (Admin Test)"}
+                {isRTL
+                  ? "إرسال تحديث عائلي (اختبار للأدمن)"
+                  : "Send Family Update (Admin Test)"}
               </Text>
             </TouchableOpacity>
           )}

@@ -5,7 +5,7 @@
 
 import { useNavigation, useRouter } from "expo-router";
 import { ArrowLeft, Eye, EyeOff, Lock, Save } from "lucide-react-native";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -267,29 +267,20 @@ export default function ChangePasswordScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => router.back()}
-            style={[
-              styles.backButton,
-              isRTL && styles.backButtonRTL,
-            ]}
+            style={[styles.backButton, isRTL && styles.backButtonRTL]}
           >
-            <ArrowLeft 
-              color={theme.colors.text.primary} 
+            <ArrowLeft
+              color={theme.colors.text.primary}
               size={24}
               style={isRTL && { transform: [{ rotate: "180deg" }] }}
             />
           </TouchableOpacity>
           <Lock color={theme.colors.primary.main} size={32} />
-          <Text style={[
-            styles.title, 
-            { color: theme.colors.text.primary },
-          ]}>
+          <Text style={[styles.title, { color: theme.colors.text.primary }]}>
             {isRTL ? "تغيير كلمة المرور" : "Change Password"}
           </Text>
           <Text
-            style={[
-              styles.subtitle, 
-              { color: theme.colors.text.secondary },
-            ]}
+            style={[styles.subtitle, { color: theme.colors.text.secondary }]}
           >
             {isRTL
               ? "قم بتحديث كلمة المرور لحسابك"
@@ -298,18 +289,20 @@ export default function ChangePasswordScreen() {
         </View>
 
         <ScrollView
+          contentContainerStyle={isRTL && styles.contentRTL}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           style={styles.content}
-          contentContainerStyle={isRTL && styles.contentRTL}
         >
           {/* Current Password */}
           <View style={styles.inputGroup}>
-            <Text style={[
-              styles.label, 
-              { color: theme.colors.text.primary },
-              isRTL && styles.rtlText
-            ]}>
+            <Text
+              style={[
+                styles.label,
+                { color: theme.colors.text.primary },
+                isRTL && styles.rtlText,
+              ]}
+            >
               {isRTL ? "كلمة المرور الحالية" : "Current Password"}
             </Text>
             <View style={styles.inputContainer}>
@@ -348,10 +341,7 @@ export default function ChangePasswordScreen() {
               />
               <TouchableOpacity
                 onPress={() => setShowCurrentPassword(!showCurrentPassword)}
-                style={[
-                  styles.eyeButton,
-                  isRTL && styles.eyeButtonRTL,
-                ]}
+                style={[styles.eyeButton, isRTL && styles.eyeButtonRTL]}
               >
                 {showCurrentPassword ? (
                   <EyeOff color={theme.colors.text.secondary} size={20} />
@@ -361,10 +351,7 @@ export default function ChangePasswordScreen() {
               </TouchableOpacity>
             </View>
             {errors.currentPassword && (
-              <Text style={[
-                styles.errorText,
-                isRTL && styles.rtlText
-              ]}>
+              <Text style={[styles.errorText, isRTL && styles.rtlText]}>
                 {errors.currentPassword}
               </Text>
             )}
@@ -377,11 +364,13 @@ export default function ChangePasswordScreen() {
                 isRTL && styles.forgotPasswordLinkRTL,
               ]}
             >
-              <Text style={[
-                styles.forgotPasswordText, 
-                { color: "#FF8C42" },
-                isRTL && styles.rtlText
-              ]}>
+              <Text
+                style={[
+                  styles.forgotPasswordText,
+                  { color: "#FF8C42" },
+                  isRTL && styles.rtlText,
+                ]}
+              >
                 {isRTL ? "نسيت كلمة المرور؟" : "Forgot Password?"}
               </Text>
             </TouchableOpacity>
@@ -389,11 +378,13 @@ export default function ChangePasswordScreen() {
 
           {/* New Password */}
           <View style={styles.inputGroup}>
-            <Text style={[
-              styles.label, 
-              { color: theme.colors.text.primary },
-              isRTL && styles.rtlText
-            ]}>
+            <Text
+              style={[
+                styles.label,
+                { color: theme.colors.text.primary },
+                isRTL && styles.rtlText,
+              ]}
+            >
               {isRTL ? "كلمة المرور الجديدة" : "New Password"}
             </Text>
             <View style={styles.inputContainer}>
@@ -432,10 +423,7 @@ export default function ChangePasswordScreen() {
               />
               <TouchableOpacity
                 onPress={() => setShowNewPassword(!showNewPassword)}
-                style={[
-                  styles.eyeButton,
-                  isRTL && styles.eyeButtonRTL,
-                ]}
+                style={[styles.eyeButton, isRTL && styles.eyeButtonRTL]}
               >
                 {showNewPassword ? (
                   <EyeOff color={theme.colors.text.secondary} size={20} />
@@ -445,10 +433,7 @@ export default function ChangePasswordScreen() {
               </TouchableOpacity>
             </View>
             {errors.newPassword && (
-              <Text style={[
-                styles.errorText,
-                isRTL && styles.rtlText
-              ]}>
+              <Text style={[styles.errorText, isRTL && styles.rtlText]}>
                 {errors.newPassword}
               </Text>
             )}
@@ -467,11 +452,13 @@ export default function ChangePasswordScreen() {
 
           {/* Confirm Password */}
           <View style={styles.inputGroup}>
-            <Text style={[
-              styles.label, 
-              { color: theme.colors.text.primary },
-              isRTL && styles.rtlText
-            ]}>
+            <Text
+              style={[
+                styles.label,
+                { color: theme.colors.text.primary },
+                isRTL && styles.rtlText,
+              ]}
+            >
               {isRTL ? "تأكيد كلمة المرور" : "Confirm New Password"}
             </Text>
             <View style={styles.inputContainer}>
@@ -512,10 +499,7 @@ export default function ChangePasswordScreen() {
               />
               <TouchableOpacity
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={[
-                  styles.eyeButton,
-                  isRTL && styles.eyeButtonRTL,
-                ]}
+                style={[styles.eyeButton, isRTL && styles.eyeButtonRTL]}
               >
                 {showConfirmPassword ? (
                   <EyeOff color={theme.colors.text.secondary} size={20} />
@@ -525,10 +509,7 @@ export default function ChangePasswordScreen() {
               </TouchableOpacity>
             </View>
             {errors.confirmPassword && (
-              <Text style={[
-                styles.errorText,
-                isRTL && styles.rtlText
-              ]}>
+              <Text style={[styles.errorText, isRTL && styles.rtlText]}>
                 {errors.confirmPassword}
               </Text>
             )}

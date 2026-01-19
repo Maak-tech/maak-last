@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { doc, getDoc } from "firebase/firestore";
 import {
   Activity,
   AlertTriangle,
@@ -39,17 +40,23 @@ import {
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { alertService } from "@/lib/services/alertService";
 import { db } from "@/lib/firebase";
-import { userService } from "@/lib/services/userService";
+import { alertService } from "@/lib/services/alertService";
+import { allergyService } from "@/lib/services/allergyService";
 import healthContextService from "@/lib/services/healthContextService";
 import type { VitalSigns } from "@/lib/services/healthDataService";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
-import { allergyService } from "@/lib/services/allergyService";
-import { doc, getDoc } from "firebase/firestore";
-import type { Allergy, EmergencyAlert, Medication, MedicalHistory, Symptom, User } from "@/types";
+import { userService } from "@/lib/services/userService";
+import type {
+  Allergy,
+  EmergencyAlert,
+  MedicalHistory,
+  Medication,
+  Symptom,
+  User,
+} from "@/types";
 
 export default function FamilyMemberHealthView() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
@@ -70,100 +77,103 @@ export default function FamilyMemberHealthView() {
   const [vitals, setVitals] = useState<VitalSigns | null>(null);
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
 
-  const loadMemberHealthData = useCallback(async (isRefresh = false) => {
-    if (!memberId) return;
+  const loadMemberHealthData = useCallback(
+    async (isRefresh = false) => {
+      if (!memberId) return;
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      // Load member data
-      const memberData = await userService.getUser(memberId);
-      setMember(memberData);
-
-      // Get relationship from user document (might be stored as relationship or relation)
-      if (memberData) {
-        const userDoc = await getDoc(doc(db, "users", memberId));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const rel = userData.relationship || userData.relation || "";
-          setRelationship(rel || "");
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
         } else {
-          // Fallback to empty string - will show role in UI
-          setRelationship("");
+          setLoading(true);
         }
+
+        // Load member data
+        const memberData = await userService.getUser(memberId);
+        setMember(memberData);
+
+        // Get relationship from user document (might be stored as relationship or relation)
+        if (memberData) {
+          const userDoc = await getDoc(doc(db, "users", memberId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const rel = userData.relationship || userData.relation || "";
+            setRelationship(rel || "");
+          } else {
+            // Fallback to empty string - will show role in UI
+            setRelationship("");
+          }
+        }
+
+        // Load all health data in parallel
+        const [
+          memberSymptoms,
+          memberMedicalHistory,
+          memberMedications,
+          memberAllergies,
+          memberAlerts,
+          healthContext,
+        ] = await Promise.all([
+          symptomService.getUserSymptoms(memberId),
+          medicalHistoryService.getUserMedicalHistory(memberId),
+          medicationService.getUserMedications(memberId),
+          allergyService.getUserAllergies(memberId),
+          alertService.getActiveAlerts(memberId),
+          healthContextService.getUserHealthContext(memberId).catch(() => null),
+        ]);
+
+        setSymptoms(memberSymptoms);
+        setMedicalHistory(memberMedicalHistory);
+        setMedications(memberMedications.filter((m) => m.isActive));
+        setAllergies(memberAllergies);
+        setAlerts(memberAlerts);
+
+        // Extract vitals from health context
+        if (healthContext?.vitalSigns) {
+          const vs = healthContext.vitalSigns;
+          setVitals({
+            heartRate: vs.heartRate,
+            restingHeartRate: vs.restingHeartRate,
+            walkingHeartRateAverage: vs.walkingHeartRateAverage,
+            heartRateVariability: vs.heartRateVariability,
+            bloodPressure: vs.bloodPressure
+              ? (() => {
+                  const bp = vs.bloodPressure.split("/");
+                  if (bp.length === 2) {
+                    return {
+                      systolic: Number.parseFloat(bp[0]),
+                      diastolic: Number.parseFloat(bp[1]),
+                    };
+                  }
+                  return;
+                })()
+              : undefined,
+            respiratoryRate: vs.respiratoryRate,
+            bodyTemperature: vs.temperature,
+            oxygenSaturation: vs.oxygenLevel,
+            bloodGlucose: vs.glucoseLevel,
+            weight: vs.weight,
+            height: vs.height,
+            bodyFatPercentage: vs.bodyFatPercentage,
+            steps: vs.steps,
+            sleepHours: vs.sleepHours,
+            activeEnergy: vs.activeEnergy,
+            distanceWalkingRunning: vs.distanceWalkingRunning,
+            waterIntake: vs.waterIntake,
+            timestamp: vs.lastUpdated || new Date(),
+          });
+        } else {
+          setVitals(null);
+        }
+      } catch (error) {
+        // Silently handle error
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      // Load all health data in parallel
-      const [
-        memberSymptoms,
-        memberMedicalHistory,
-        memberMedications,
-        memberAllergies,
-        memberAlerts,
-        healthContext,
-      ] = await Promise.all([
-        symptomService.getUserSymptoms(memberId),
-        medicalHistoryService.getUserMedicalHistory(memberId),
-        medicationService.getUserMedications(memberId),
-        allergyService.getUserAllergies(memberId),
-        alertService.getActiveAlerts(memberId),
-        healthContextService.getUserHealthContext(memberId).catch(() => null),
-      ]);
-
-      setSymptoms(memberSymptoms);
-      setMedicalHistory(memberMedicalHistory);
-      setMedications(memberMedications.filter((m) => m.isActive));
-      setAllergies(memberAllergies);
-      setAlerts(memberAlerts);
-
-      // Extract vitals from health context
-      if (healthContext?.vitalSigns) {
-        const vs = healthContext.vitalSigns;
-        setVitals({
-          heartRate: vs.heartRate,
-          restingHeartRate: vs.restingHeartRate,
-          walkingHeartRateAverage: vs.walkingHeartRateAverage,
-          heartRateVariability: vs.heartRateVariability,
-          bloodPressure: vs.bloodPressure
-            ? (() => {
-                const bp = vs.bloodPressure.split("/");
-                if (bp.length === 2) {
-                  return {
-                    systolic: Number.parseFloat(bp[0]),
-                    diastolic: Number.parseFloat(bp[1]),
-                  };
-                }
-                return undefined;
-              })()
-            : undefined,
-          respiratoryRate: vs.respiratoryRate,
-          bodyTemperature: vs.temperature,
-          oxygenSaturation: vs.oxygenLevel,
-          bloodGlucose: vs.glucoseLevel,
-          weight: vs.weight,
-          height: vs.height,
-          bodyFatPercentage: vs.bodyFatPercentage,
-          steps: vs.steps,
-          sleepHours: vs.sleepHours,
-          activeEnergy: vs.activeEnergy,
-          distanceWalkingRunning: vs.distanceWalkingRunning,
-          waterIntake: vs.waterIntake,
-          timestamp: vs.lastUpdated || new Date(),
-        });
-      } else {
-        setVitals(null);
-      }
-    } catch (error) {
-      // Silently handle error
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [memberId]);
+    },
+    [memberId]
+  );
 
   useEffect(() => {
     loadMemberHealthData();
@@ -198,37 +208,37 @@ export default function FamilyMemberHealthView() {
     return isRTL ? "خفيف" : "Mild";
   };
 
-  const changeMemberRole = async (targetUserId: string, newRole: "member" | "caregiver") => {
+  const changeMemberRole = async (
+    targetUserId: string,
+    newRole: "member" | "caregiver"
+  ) => {
     if (!user?.id) return;
 
     try {
       await userService.updateUserRole(targetUserId, newRole, user.id);
 
       // Update local member state
-      setMember(prev => prev ? { ...prev, role: newRole } : null);
+      setMember((prev) => (prev ? { ...prev, role: newRole } : null));
 
       Alert.alert(
         isRTL ? "نجح" : "Success",
-        isRTL
-          ? `تم تحديث دور العضو بنجاح`
-          : `Member role updated successfully`
+        isRTL ? "تم تحديث دور العضو بنجاح" : "Member role updated successfully"
       );
     } catch (error: any) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        error.message || (isRTL ? "فشل في تحديث الدور" : "Failed to update role")
+        error.message ||
+          (isRTL ? "فشل في تحديث الدور" : "Failed to update role")
       );
     }
   };
 
   const sendCaregiverAlert = () => {
-    if (!user?.id || !member?.id) return;
+    if (!(user?.id && member?.id)) return;
 
     Alert.prompt(
       isRTL ? "إرسال تنبيه للمدير" : "Send Alert to Admin",
-      isRTL
-        ? "اكتب رسالة التنبيه للمدير:"
-        : "Enter alert message for admin:",
+      isRTL ? "اكتب رسالة التنبيه للمدير:" : "Enter alert message for admin:",
       [
         { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
         {
@@ -252,11 +262,12 @@ export default function FamilyMemberHealthView() {
             } catch (error: any) {
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
-                error.message || (isRTL ? "فشل في إرسال التنبيه" : "Failed to send alert")
+                error.message ||
+                  (isRTL ? "فشل في إرسال التنبيه" : "Failed to send alert")
               );
             }
-          }
-        }
+          },
+        },
       ],
       "plain-text",
       "",
@@ -342,8 +353,7 @@ export default function FamilyMemberHealthView() {
   const recentSymptoms = symptoms
     .filter(
       (s) =>
-        new Date(s.timestamp).getTime() >
-        Date.now() - 30 * 24 * 60 * 60 * 1000
+        new Date(s.timestamp).getTime() > Date.now() - 30 * 24 * 60 * 60 * 1000
     )
     .slice(0, 10);
 
@@ -365,8 +375,8 @@ export default function FamilyMemberHealthView() {
       <ScrollView
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
             onRefresh={() => loadMemberHealthData(true)}
+            refreshing={refreshing}
             tintColor="#2563EB"
           />
         }
@@ -421,7 +431,8 @@ export default function FamilyMemberHealthView() {
                   <Text
                     style={[
                       styles.roleButtonText,
-                      member.role === "caregiver" && styles.roleButtonTextActive,
+                      member.role === "caregiver" &&
+                        styles.roleButtonTextActive,
                     ]}
                   >
                     {isRTL ? "مرافق صحي" : "Caregiver"}
@@ -432,17 +443,18 @@ export default function FamilyMemberHealthView() {
           )}
 
           {/* Caregiver Alert Button */}
-          {user?.role === "caregiver" && user?.familyId === member?.familyId && (
-            <TouchableOpacity
-              onPress={() => sendCaregiverAlert()}
-              style={styles.caregiverAlertButton}
-            >
-              <AlertTriangle color="#FFFFFF" size={20} />
-              <Text style={styles.caregiverAlertText}>
-                {isRTL ? "إرسال تنبيه لمدير العائلة" : "Send Alert to Admin"}
-              </Text>
-            </TouchableOpacity>
-          )}
+          {user?.role === "caregiver" &&
+            user?.familyId === member?.familyId && (
+              <TouchableOpacity
+                onPress={() => sendCaregiverAlert()}
+                style={styles.caregiverAlertButton}
+              >
+                <AlertTriangle color="#FFFFFF" size={20} />
+                <Text style={styles.caregiverAlertText}>
+                  {isRTL ? "إرسال تنبيه لمدير العائلة" : "Send Alert to Admin"}
+                </Text>
+              </TouchableOpacity>
+            )}
         </View>
 
         {/* Alerts Section */}
@@ -630,7 +642,9 @@ export default function FamilyMemberHealthView() {
                 <View style={styles.vitalCard}>
                   <Footprints color="#22C55E" size={24} />
                   <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
-                    {vitals.steps > 1000 ? `${(vitals.steps / 1000).toFixed(1)}k` : vitals.steps}
+                    {vitals.steps > 1000
+                      ? `${(vitals.steps / 1000).toFixed(1)}k`
+                      : vitals.steps}
                   </Text>
                   <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
                     {isRTL ? "خطوات" : "Steps"}
@@ -674,7 +688,9 @@ export default function FamilyMemberHealthView() {
                 <View style={styles.vitalCard}>
                   <Waves color="#06B6D4" size={24} />
                   <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
-                    {vitals.waterIntake > 1000 ? `${(vitals.waterIntake / 1000).toFixed(1)}L` : `${Math.round(vitals.waterIntake)}ml`}
+                    {vitals.waterIntake > 1000
+                      ? `${(vitals.waterIntake / 1000).toFixed(1)}L`
+                      : `${Math.round(vitals.waterIntake)}ml`}
                   </Text>
                   <Text style={[styles.vitalLabel, isRTL && styles.rtlText]}>
                     {isRTL ? "ماء" : "Water"}
@@ -715,10 +731,7 @@ export default function FamilyMemberHealthView() {
                   <View style={styles.symptomContent}>
                     <View style={styles.symptomHeader}>
                       <Text
-                        style={[
-                          styles.symptomType,
-                          isRTL && styles.rtlText,
-                        ]}
+                        style={[styles.symptomType, isRTL && styles.rtlText]}
                       >
                         {symptom.type}
                       </Text>
@@ -746,7 +759,8 @@ export default function FamilyMemberHealthView() {
                       </Text>
                     )}
                     <Text style={[styles.symptomTime, isRTL && styles.rtlText]}>
-                      {formatDate(symptom.timestamp)} {formatTime(symptom.timestamp)}
+                      {formatDate(symptom.timestamp)}{" "}
+                      {formatTime(symptom.timestamp)}
                     </Text>
                   </View>
                 </View>
@@ -778,20 +792,19 @@ export default function FamilyMemberHealthView() {
             <View style={styles.medicationsList}>
               {medications.map((medication) => {
                 const today = new Date().toDateString();
-                const remindersToday = medication.reminders.filter((reminder) => {
-                  if (!reminder.takenAt) return false;
-                  const takenDate = new Date(reminder.takenAt).toDateString();
-                  return takenDate === today;
-                });
+                const remindersToday = medication.reminders.filter(
+                  (reminder) => {
+                    if (!reminder.takenAt) return false;
+                    const takenDate = new Date(reminder.takenAt).toDateString();
+                    return takenDate === today;
+                  }
+                );
 
                 return (
                   <View key={medication.id} style={styles.medicationItem}>
                     <View style={styles.medicationHeader}>
                       <Text
-                        style={[
-                          styles.medicationName,
-                          isRTL && styles.rtlText,
-                        ]}
+                        style={[styles.medicationName, isRTL && styles.rtlText]}
                       >
                         {medication.name}
                       </Text>
@@ -804,10 +817,7 @@ export default function FamilyMemberHealthView() {
                       </View>
                     </View>
                     <Text
-                      style={[
-                        styles.medicationDosage,
-                        isRTL && styles.rtlText,
-                      ]}
+                      style={[styles.medicationDosage, isRTL && styles.rtlText]}
                     >
                       {medication.dosage} - {medication.frequency}
                     </Text>
@@ -826,10 +836,7 @@ export default function FamilyMemberHealthView() {
                             reminder.takenAt &&
                             new Date(reminder.takenAt).toDateString() === today;
                           return (
-                            <View
-                              key={reminder.id}
-                              style={styles.reminderItem}
-                            >
+                            <View key={reminder.id} style={styles.reminderItem}>
                               <Text
                                 style={[
                                   styles.reminderTime,
@@ -865,9 +872,7 @@ export default function FamilyMemberHealthView() {
           ) : (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL
-                  ? "لا توجد أدوية فعالة"
-                  : "No active medications"}
+                {isRTL ? "لا توجد أدوية فعالة" : "No active medications"}
               </Text>
             </View>
           )}
@@ -928,7 +933,10 @@ export default function FamilyMemberHealthView() {
                     <View style={styles.historyDate}>
                       <Calendar color="#64748B" size={14} />
                       <Text
-                        style={[styles.historyDateText, isRTL && styles.rtlText]}
+                        style={[
+                          styles.historyDateText,
+                          isRTL && styles.rtlText,
+                        ]}
                       >
                         {isRTL ? "تم التشخيص: " : "Diagnosed: "}
                         {formatDate(history.diagnosedDate)}
@@ -936,7 +944,9 @@ export default function FamilyMemberHealthView() {
                     </View>
                   )}
                   {history.notes && (
-                    <Text style={[styles.historyNotes, isRTL && styles.rtlText]}>
+                    <Text
+                      style={[styles.historyNotes, isRTL && styles.rtlText]}
+                    >
                       {history.notes}
                     </Text>
                   )}
@@ -970,9 +980,7 @@ export default function FamilyMemberHealthView() {
               {allergies.map((allergy) => (
                 <View key={allergy.id} style={styles.allergyItem}>
                   <View style={styles.allergyHeader}>
-                    <Text
-                      style={[styles.allergyName, isRTL && styles.rtlText]}
-                    >
+                    <Text style={[styles.allergyName, isRTL && styles.rtlText]}>
                       {allergy.name}
                     </Text>
                     <View
@@ -1010,13 +1018,17 @@ export default function FamilyMemberHealthView() {
                     </View>
                   </View>
                   {allergy.reaction && (
-                    <Text style={[styles.allergyReaction, isRTL && styles.rtlText]}>
+                    <Text
+                      style={[styles.allergyReaction, isRTL && styles.rtlText]}
+                    >
                       {isRTL ? "رد الفعل: " : "Reaction: "}
                       {allergy.reaction}
                     </Text>
                   )}
                   {allergy.notes && (
-                    <Text style={[styles.allergyNotes, isRTL && styles.rtlText]}>
+                    <Text
+                      style={[styles.allergyNotes, isRTL && styles.rtlText]}
+                    >
                       {allergy.notes}
                     </Text>
                   )}
@@ -1026,9 +1038,7 @@ export default function FamilyMemberHealthView() {
           ) : (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL
-                  ? "لا توجد حساسية مسجلة"
-                  : "No allergies recorded"}
+                {isRTL ? "لا توجد حساسية مسجلة" : "No allergies recorded"}
               </Text>
             </View>
           )}
@@ -1468,4 +1478,3 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Regular",
   },
 });
-

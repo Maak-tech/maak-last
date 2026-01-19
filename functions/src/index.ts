@@ -1,13 +1,12 @@
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
-
+import { ingestVital } from "./api/vitals";
+import { getFamilyAdmins } from "./modules/family/admins";
+import { getFamilyMemberIds } from "./modules/family/familyMembers";
+import { createTraceId } from "./observability/correlation";
 // New structure imports
 import { logger } from "./observability/logger";
-import { createTraceId } from "./observability/correlation";
-import { ingestVital } from "./api/vitals";
-import { getFamilyMemberIds } from "./modules/family/familyMembers";
-import { getFamilyAdmins } from "./modules/family/admins";
 import { sendPushNotificationInternal } from "./services/notifications";
 
 // Initialize Firebase Admin
@@ -25,9 +24,7 @@ export const testHello = functions.https.onRequest((req, res) => {
 
 // Vitals ingestion endpoint
 export const ingestVitalReading = functions.https.onCall(
-  async (data: any, context: any) => {
-    return ingestVital(data, context);
-  }
+  async (data: any, context: any) => ingestVital(data, context)
 );
 
 // Alternative HTTP endpoint for push notifications (no auth required)
@@ -89,11 +86,7 @@ export const sendPushNotificationHttp = functions.https.onRequest(
 export const sendPushNotification = functions.https.onCall(
   async (data: any, context: any) => {
     const traceId = createTraceId();
-    const {
-      userIds,
-      notification,
-      notificationType = "general",
-    } = data;
+    const { userIds, notification, notificationType = "general" } = data;
 
     if (!(userIds && notification)) {
       throw new functions.https.HttpsError(
@@ -136,7 +129,7 @@ export const saveFCMToken = functions.https.onCall(
 
     // Require authentication or userId for production security
     const targetUserId = context.auth?.uid || userId;
-    
+
     if (!targetUserId) {
       throw new functions.https.HttpsError(
         "unauthenticated",
@@ -223,9 +216,11 @@ export const sendFallAlert = functions.https.onCall(
       const adminIds = await getFamilyAdmins(userData.familyId);
       // Also get all family members (for emergency situations, notify everyone)
       const familyMemberIds = await getFamilyMemberIds(userId);
-      
+
       // Combine admins and family members, removing duplicates
-      const allRecipients = Array.from(new Set([...adminIds, ...familyMemberIds]));
+      const allRecipients = Array.from(
+        new Set([...adminIds, ...familyMemberIds])
+      );
 
       if (allRecipients.length === 0) {
         return { success: true, message: "No family members to notify" };
@@ -426,6 +421,80 @@ export const sendSymptomAlert = functions.https.onCall(
 // Re-export scheduled medication reminders job
 export { scheduledMedicationReminders } from "./jobs/medicationReminders";
 
+// PPG ML Analysis endpoint
+export const analyzePPGWithML = functions.https.onCall(
+  async (data: any, context: any) => {
+    const traceId = createTraceId();
+    const { signal, frameRate, userId } = data;
+
+    logger.info("PPG ML analysis requested", {
+      traceId,
+      uid: context.auth?.uid,
+      userId: userId || context.auth?.uid,
+      signalLength: signal?.length,
+      frameRate,
+      fn: "analyzePPGWithML",
+    });
+
+    if (!(context.auth || userId)) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
+
+    if (!(signal && Array.isArray(signal)) || signal.length < 30) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid PPG signal array with at least 30 samples is required"
+      );
+    }
+
+    if (!frameRate || frameRate <= 0) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid frameRate > 0 is required"
+      );
+    }
+
+    try {
+      // Import ML service (lazy import to avoid startup issues if service unavailable)
+      const { analyzePPGWithML: mlAnalyze } = await import(
+        "./services/ppgMLService.js"
+      );
+
+      const targetUserId = userId || context.auth?.uid;
+      const result = await mlAnalyze(signal, frameRate, targetUserId);
+
+      logger.info("PPG ML analysis completed", {
+        traceId,
+        uid: context.auth?.uid,
+        success: result.success,
+        heartRate: result.heartRate,
+        signalQuality: result.signalQuality,
+        fn: "analyzePPGWithML",
+      });
+
+      return result;
+    } catch (error: any) {
+      logger.error("Error in PPG ML analysis", error as Error, {
+        traceId,
+        uid: context.auth?.uid,
+        fn: "analyzePPGWithML",
+      });
+
+      // Return fallback response instead of throwing error
+      // This allows the app to gracefully degrade to traditional processing
+      return {
+        success: false,
+        signalQuality: 0,
+        warnings: ["ML service unavailable, using traditional processing"],
+        error: error.message || "ML analysis failed",
+      };
+    }
+  }
+);
+
 // Function to update notification preferences
 export const updateNotificationPreferences = functions.https.onCall(
   async (data: any, context: any) => {
@@ -473,17 +542,20 @@ export const generateBiometricToken = functions.https.onCall(
     try {
       // Verify that biometric authentication was successful by checking auth_logs
       const db = admin.firestore();
-      
+
       // Check if there's a recent successful biometric auth log
       if (authLogId) {
-        const authLogDoc = await db.collection("auth_logs").doc(authLogId).get();
+        const authLogDoc = await db
+          .collection("auth_logs")
+          .doc(authLogId)
+          .get();
         if (!authLogDoc.exists) {
           throw new functions.https.HttpsError(
             "failed-precondition",
             "Biometric authentication verification failed"
           );
         }
-        
+
         const authLogData = authLogDoc.data();
         if (!authLogData?.success || authLogData?.userId !== userId) {
           throw new functions.https.HttpsError(
@@ -491,7 +563,7 @@ export const generateBiometricToken = functions.https.onCall(
             "Biometric authentication verification failed"
           );
         }
-        
+
         // Check that the auth log is recent (within last 5 minutes)
         const logTime = authLogData.timestamp?.toMillis() || 0;
         const now = Date.now();
@@ -532,10 +604,7 @@ export const generateBiometricToken = functions.https.onCall(
       // Verify user exists
       const userDoc = await db.collection("users").doc(userId).get();
       if (!userDoc.exists) {
-        throw new functions.https.HttpsError(
-          "not-found",
-          "User not found"
-        );
+        throw new functions.https.HttpsError("not-found", "User not found");
       }
 
       // Generate custom token
@@ -559,17 +628,15 @@ export const generateBiometricToken = functions.https.onCall(
 
 // Vital benchmarks and checking logic moved to modules/alerts/engine.ts
 
+// Re-export health trends analysis job
+export { analyzeHealthTrends } from "./jobs/healthTrends";
 /**
  * Get admin users for a family
  */
 // Export sendVitalAlertToAdmins for backward compatibility
 export { sendVitalAlertToAdmins } from "./modules/alerts/vitalAlert";
 
-// Re-export vitals trigger
-export { checkVitalBenchmarks } from "./triggers/vitals";
-
 // Re-export symptoms trigger
 export { checkSymptomBenchmarks } from "./triggers/symptoms";
-
-// Re-export health trends analysis job
-export { analyzeHealthTrends } from "./jobs/healthTrends";
+// Re-export vitals trigger
+export { checkVitalBenchmarks } from "./triggers/vitals";

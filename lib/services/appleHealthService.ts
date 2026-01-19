@@ -108,22 +108,24 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
       "HKQuantityTypeIdentifierBodyMass",
       "HKQuantityTypeIdentifierHeight",
     ];
-    
-    const commonCategoryTypes = [
-      "HKCategoryTypeIdentifierSleepAnalysis",
-    ];
-    
+
+    const commonCategoryTypes = ["HKCategoryTypeIdentifierSleepAnalysis"];
+
     // Find a test type from the requested permissions
-    const testQuantityType = commonQuantityTypes.find((type) => readPermissions.includes(type));
-    const testCategoryType = commonCategoryTypes.find((type) => readPermissions.includes(type));
+    const testQuantityType = commonQuantityTypes.find((type) =>
+      readPermissions.includes(type)
+    );
+    const testCategoryType = commonCategoryTypes.find((type) =>
+      readPermissions.includes(type)
+    );
     const testType = testQuantityType || testCategoryType || readPermissions[0];
-    
+
     if (testType) {
       try {
         // Try to query a recent sample to check if we already have authorization
         const now = new Date();
         const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        
+
         if (testType.includes("Category")) {
           // Test with category type
           await queryCategorySamples(testType as CategoryTypeIdentifier, {
@@ -149,7 +151,7 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
             ascending: false,
           });
         }
-        
+
         // If query succeeds, we already have authorization
         // No need to request again - this prevents showing the permission dialog unnecessarily
         authorizationRequested = true;
@@ -186,36 +188,40 @@ const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
  */
 const isAuthorizationDeniedError = (error: any): boolean => {
   if (!error) return false;
-  
+
   // Check for HealthKit error code 5 (Authorization Denied or Not Determined)
   const errorString = String(error);
   const errorMessage = error?.message || errorString;
   const errorCode = error?.code;
   const errorDomain = error?.domain;
-  
+
   // Also check UserInfo/NSLocalizedDescription for native iOS errors
   const userInfo = error?.userInfo || error?.UserInfo || {};
-  const localizedDescription = userInfo?.NSLocalizedDescription || userInfo?.NSLocalizedDescription || "";
-  
+  const localizedDescription =
+    userInfo?.NSLocalizedDescription || userInfo?.NSLocalizedDescription || "";
+
   // Combine all error text for case-insensitive matching
-  const allErrorText = `${errorString} ${errorMessage} ${localizedDescription}`.toLowerCase();
-  
+  const allErrorText =
+    `${errorString} ${errorMessage} ${localizedDescription}`.toLowerCase();
+
   // HealthKit error code 5 means authorization denied or not determined
   if (errorCode === 5) return true;
-  
+
   // Check if domain is HealthKit and code is 5
   if (errorDomain === "com.apple.healthkit" && errorCode === 5) {
     return true;
   }
-  
+
   // Check error domain and code in error message/string (handles formats like "error domain=com.apple.healthkit code=5")
   if (
     allErrorText.includes("com.apple.healthkit") &&
-    (allErrorText.includes("code=5") || allErrorText.includes("code 5") || allErrorText.includes("code:5"))
+    (allErrorText.includes("code=5") ||
+      allErrorText.includes("code 5") ||
+      allErrorText.includes("code:5"))
   ) {
     return true;
   }
-  
+
   // Check error message for authorization denied patterns (case-insensitive)
   if (
     allErrorText.includes("authorization denied") ||
@@ -224,17 +230,19 @@ const isAuthorizationDeniedError = (error: any): boolean => {
   ) {
     return true;
   }
-  
+
   // Check for "not determined" errors (also HealthKit error code 5)
   // This happens when authorization hasn't been requested for a specific type
   if (
     allErrorText.includes("authorization status is not determined") ||
     allErrorText.includes("not determined") ||
-    allErrorText.includes("authorization status is not determined for all types")
+    allErrorText.includes(
+      "authorization status is not determined for all types"
+    )
   ) {
     return true;
   }
-  
+
   return false;
 };
 
@@ -331,12 +339,14 @@ const fetchMetricSamples = async (
       // This includes both "denied" and "not determined" cases (both are HealthKit error code 5)
       // Throw a custom error so it can be caught and tracked in fetchMetrics
       // This allows us to track which metrics failed due to authorization
-      const authError = new Error(`Authorization not determined or denied for ${healthKitType}`);
+      const authError = new Error(
+        `Authorization not determined or denied for ${healthKitType}`
+      );
       (authError as any).isAuthorizationDenied = true;
       (authError as any).healthKitType = healthKitType;
       throw authError;
     }
-    
+
     throw error;
   }
 };
@@ -404,13 +414,13 @@ const fetchMetrics = async (
         }
       } catch (error: any) {
         // Check if this is an authorization-denied or not-determined error
-        if (isAuthorizationDeniedError(error) || (error as any).isAuthorizationDenied) {
+        if (
+          isAuthorizationDeniedError(error) ||
+          (error as any).isAuthorizationDenied
+        ) {
           authorizationDeniedMetrics.push(metric.displayName || metric.key);
-          // Silently skip metrics that require authorization - this is expected behavior
-          // Authorization may not have been requested for all types, or user may have denied specific types
-          continue;
         }
-        
+
         // Continue with other metrics even if one fails
       }
     }

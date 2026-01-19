@@ -1,9 +1,9 @@
-import { LineChart } from "react-native-chart-kit";
-import { Dimensions, View, ScrollView, TouchableOpacity } from "react-native";
 import { useState } from "react";
-import { useTheme } from "@/contexts/ThemeContext";
-import { chartsService, type TimeSeriesData } from "@/lib/services/chartsService";
+import { Dimensions, ScrollView, View } from "react-native";
+import { LineChart } from "react-native-chart-kit";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import { useTheme } from "@/contexts/ThemeContext";
+import type { TimeSeriesData } from "@/lib/services/chartsService";
 
 interface HealthChartProps {
   data: TimeSeriesData;
@@ -55,7 +55,9 @@ export default function HealthChart({
     labels: data.labels,
     datasets: data.datasets.map((dataset) => ({
       data: dataset.data,
-      color: dataset.color || ((opacity: number) => `rgba(59, 130, 246, ${opacity})`),
+      color:
+        dataset.color ||
+        ((opacity: number) => `rgba(59, 130, 246, ${opacity})`),
       strokeWidth: dataset.strokeWidth || 2,
     })),
   };
@@ -74,36 +76,36 @@ export default function HealthChart({
         </Heading>
       )}
       <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 16 }}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
       >
         <View>
           <LineChart
+            bezier
+            chartConfig={chartConfig}
             data={{
               labels: chartData.labels,
               datasets: chartData.datasets,
             }}
-            width={Math.max(screenWidth - 32, chartData.labels.length * 40)}
             height={height}
-            yAxisLabel={yAxisLabel || ""}
-            yAxisSuffix={yAxisSuffix}
-            chartConfig={chartConfig}
-            bezier
+            onDataPointClick={(dataPoint) => {
+              setSelectedIndex(dataPoint.index);
+            }}
+            segments={4}
             style={{
               marginVertical: 8,
               borderRadius: 16,
             }}
+            width={Math.max(screenWidth - 32, chartData.labels.length * 40)}
+            withDots={true}
+            withHorizontalLines={showGrid}
             withInnerLines={showGrid}
             withOuterLines={showGrid}
-            withVerticalLines={showGrid}
-            withHorizontalLines={showGrid}
-            withDots={true}
             withShadow={false}
-            segments={4}
-            onDataPointClick={(dataPoint) => {
-              setSelectedIndex(dataPoint.index);
-            }}
+            withVerticalLines={showGrid}
+            yAxisLabel={yAxisLabel || ""}
+            yAxisSuffix={yAxisSuffix}
           />
           {/* Tooltip for selected data point */}
           {selectedIndex !== null && chartData.labels[selectedIndex] && (
@@ -111,7 +113,12 @@ export default function HealthChart({
               style={{
                 position: "absolute",
                 top: 20,
-                left: 16 + (selectedIndex * Math.max(screenWidth - 32, chartData.labels.length * 40)) / chartData.labels.length - 50,
+                left:
+                  16 +
+                  (selectedIndex *
+                    Math.max(screenWidth - 32, chartData.labels.length * 40)) /
+                    chartData.labels.length -
+                  50,
                 backgroundColor: theme.colors.background.primary,
                 padding: 8,
                 borderRadius: 8,
@@ -125,15 +132,26 @@ export default function HealthChart({
                 zIndex: 1000,
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: "600", color: theme.colors.text.primary }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: theme.colors.text.primary,
+                }}
+              >
                 {chartData.labels[selectedIndex]}
               </Text>
               {chartData.datasets.map((dataset, idx) => (
                 <Text
                   key={idx}
-                  style={{ fontSize: 11, color: theme.colors.text.secondary, marginTop: 2 }}
+                  style={{
+                    fontSize: 11,
+                    color: theme.colors.text.secondary,
+                    marginTop: 2,
+                  }}
                 >
-                  {yAxisLabel} {dataset.data[selectedIndex]?.toFixed(1)}{yAxisSuffix}
+                  {yAxisLabel} {dataset.data[selectedIndex]?.toFixed(1)}
+                  {yAxisSuffix}
                 </Text>
               ))}
             </View>
@@ -166,11 +184,14 @@ export default function HealthChart({
                   width: 12,
                   height: 12,
                   borderRadius: 6,
-                  backgroundColor: dataset.color?.(1) || theme.colors.primary.main,
+                  backgroundColor:
+                    dataset.color?.(1) || theme.colors.primary.main,
                   marginRight: 6,
                 }}
               />
-              <Caption style={{}} numberOfLines={undefined}>Dataset {index + 1}</Caption>
+              <Caption numberOfLines={undefined} style={{}}>
+                Dataset {index + 1}
+              </Caption>
             </View>
           ))}
         </View>
