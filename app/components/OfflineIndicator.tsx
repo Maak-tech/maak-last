@@ -1,25 +1,55 @@
 import { RefreshCw, Wifi, WifiOff } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, TouchableOpacity, View } from "react-native";
 import { Caption, Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
+import i18n from "@/lib/i18n";
 import { offlineService } from "@/lib/services/offlineService";
 
 export default function OfflineIndicator() {
-  // Call all hooks unconditionally at the top
-  const { t, i18n } = useTranslation();
+  // Call all hooks unconditionally at the top - MUST be in same order every render
+  // IMPORTANT: Import i18n directly instead of using useTranslation hook to avoid hook order issues
   const { theme } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [queueLength, setQueueLength] = useState(0);
   const [syncing, setSyncing] = useState(false);
-  const [slideAnim] = useState(new Animated.Value(-100));
+  const [slideAnim] = useState(() => new Animated.Value(-100));
 
   // Use ref to track if component is mounted to prevent state updates after unmount
   const isMountedRef = useRef(true);
 
-  // Memoize isRTL to avoid recalculating on every render
-  const isRTL = i18n.language === "ar";
+  // Track language for RTL support - use state to trigger re-renders on language change
+  const [currentLanguage, setCurrentLanguage] = useState(() => {
+    try {
+      return i18n?.language || "en";
+    } catch {
+      return "en";
+    }
+  });
+
+  // Memoize isRTL to avoid recalculating on every render and ensure stable reference
+  const isRTL = useMemo(() => currentLanguage === "ar", [currentLanguage]);
+
+  // Listen for language changes
+  useEffect(() => {
+    const updateLanguage = () => {
+      try {
+        setCurrentLanguage(i18n?.language || "en");
+      } catch {
+        setCurrentLanguage("en");
+      }
+    };
+
+    // Set initial language
+    updateLanguage();
+
+    // Listen for language changes
+    i18n.on("languageChanged", updateLanguage);
+
+    return () => {
+      i18n.off("languageChanged", updateLanguage);
+    };
+  }, []);
 
   const checkStatus = useCallback(async () => {
     if (!isMountedRef.current) return;
@@ -98,9 +128,9 @@ export default function OfflineIndicator() {
     }
   };
 
-  if (isOnline && queueLength === 0) {
-    return null;
-  }
+  // Always render to ensure hooks are called consistently
+  // Hide visually when online and no queue
+  const shouldShow = !isOnline || queueLength > 0;
 
   return (
     <Animated.View
@@ -119,6 +149,8 @@ export default function OfflineIndicator() {
         flexDirection: isRTL ? "row-reverse" : "row",
         alignItems: "center",
         justifyContent: "space-between",
+        opacity: shouldShow ? 1 : 0,
+        pointerEvents: shouldShow ? "auto" : "none",
       }}
     >
       <View

@@ -36,6 +36,7 @@ interface ProviderOption {
   icon: typeof Heart;
   available: boolean;
   recommended?: boolean;
+  comingSoon?: boolean;
   route: string;
 }
 
@@ -85,7 +86,8 @@ export default function HealthIntegrationsScreen() {
       name: t("fitbit"),
       description: t("fitbitDescription"),
       icon: Heart,
-      available: true,
+      available: false,
+      comingSoon: true,
       route: "/profile/health/fitbit-intro",
     },
     {
@@ -93,7 +95,8 @@ export default function HealthIntegrationsScreen() {
       name: "Samsung Health",
       description: "Comprehensive health tracking from Samsung devices",
       icon: Heart,
-      available: true,
+      available: false,
+      comingSoon: true,
       route: "/profile/health/samsung-health-intro",
     },
     {
@@ -101,7 +104,8 @@ export default function HealthIntegrationsScreen() {
       name: "Garmin Connect",
       description: "Advanced fitness and health data from Garmin devices",
       icon: Heart,
-      available: true,
+      available: false,
+      comingSoon: true,
       route: "/profile/health/garmin-intro",
     },
     {
@@ -109,7 +113,8 @@ export default function HealthIntegrationsScreen() {
       name: "Withings",
       description: "Smart scales and health monitors",
       icon: Heart,
-      available: true,
+      available: false,
+      comingSoon: true,
       route: "/profile/health/withings-intro",
     },
     {
@@ -117,7 +122,8 @@ export default function HealthIntegrationsScreen() {
       name: "Oura Ring",
       description: "Sleep and readiness tracking with Oura Ring",
       icon: Heart,
-      available: true,
+      available: false,
+      comingSoon: true,
       route: "/profile/health/oura-intro",
     },
     {
@@ -125,7 +131,8 @@ export default function HealthIntegrationsScreen() {
       name: "Dexcom CGM",
       description: "Continuous glucose monitoring for diabetes management",
       icon: Heart,
-      available: true,
+      available: false,
+      comingSoon: true,
       route: "/profile/health/dexcom-intro",
     },
     {
@@ -164,10 +171,17 @@ export default function HealthIntegrationsScreen() {
 
   const handleProviderPress = (provider: ProviderOption) => {
     if (!provider.available) {
-      Alert.alert(
-        t("notAvailable"),
-        `${provider.name} ${isRTL ? "غير متاح على" : "is not available on"} ${Platform.OS === "ios" ? "iOS" : "Android"}.`
-      );
+      if (provider.comingSoon) {
+        Alert.alert(
+          isRTL ? "قريباً" : "Coming Soon",
+          `${provider.name} ${isRTL ? "سيصبح متاحاً قريباً" : "will be available soon"}.`
+        );
+      } else {
+        Alert.alert(
+          t("notAvailable"),
+          `${provider.name} ${isRTL ? "غير متاح على" : "is not available on"} ${Platform.OS === "ios" ? "iOS" : "Android"}.`
+        );
+      }
       return;
     }
 
@@ -305,7 +319,7 @@ export default function HealthIntegrationsScreen() {
 
             return (
               <TouchableOpacity
-                disabled={!provider.available}
+                disabled={!(provider.available || provider.comingSoon)}
                 key={provider.id}
                 onPress={() => handleProviderPress(provider)}
                 style={[
@@ -313,7 +327,8 @@ export default function HealthIntegrationsScreen() {
                   {
                     backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
                     borderColor: isDark ? "#334155" : "#E2E8F0",
-                    opacity: provider.available ? 1 : 0.5,
+                    opacity:
+                      provider.available || provider.comingSoon ? 1 : 0.5,
                   },
                 ]}
               >
@@ -356,6 +371,21 @@ export default function HealthIntegrationsScreen() {
                         </Text>
                       </View>
                     )}
+                    {provider.comingSoon && (
+                      <View
+                        style={[styles.badge, { backgroundColor: "#FF6B3520" }]}
+                      >
+                        <Text
+                          style={[
+                            styles.badgeText,
+                            { color: "#FF6B35" },
+                            isRTL && { textAlign: "left" },
+                          ]}
+                        >
+                          {isRTL ? "قريباً" : "Coming Soon"}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   <Text
@@ -384,7 +414,7 @@ export default function HealthIntegrationsScreen() {
                     </View>
                   )}
 
-                  {!provider.available && (
+                  {!(provider.available || provider.comingSoon) && (
                     <View style={styles.statusRow}>
                       <AlertCircle
                         color={theme.colors.text.secondary}
@@ -403,7 +433,7 @@ export default function HealthIntegrationsScreen() {
                   )}
                 </View>
 
-                {provider.available && (
+                {(provider.available || provider.comingSoon) && (
                   <ChevronRight color={theme.colors.text.secondary} size={20} />
                 )}
               </TouchableOpacity>

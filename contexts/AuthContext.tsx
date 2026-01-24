@@ -17,7 +17,7 @@ import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Alert, Platform } from "react-native";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, getFirebaseConfig } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
@@ -29,9 +29,93 @@ import type { AvatarType, User } from "@/types";
 let rnFirebaseAuth:
   | typeof import("@react-native-firebase/auth").default
   | null = null;
+let rnFirebaseApp: any = null;
+const getRnFirebaseApps = () => {
+  if (!rnFirebaseApp) return [];
+  if (typeof rnFirebaseApp.apps === "function") {
+    return rnFirebaseApp.apps();
+  }
+  return rnFirebaseApp.apps ?? [];
+};
+
+const ensureRnFirebaseInitialized = () => {
+  if (!rnFirebaseApp) return false;
+
+  // First, check if apps already exist
+  const apps = getRnFirebaseApps();
+  if (Array.isArray(apps) && apps.length > 0) {
+    return true;
+  }
+
+  // Try to get the default app - this will succeed if already initialized
+  // React Native Firebase auto-initializes from native config files
+  try {
+    rnFirebaseApp.app();
+    return true;
+  } catch (getAppError: any) {
+    // App doesn't exist, try to initialize it manually as fallback
+    // But only if the error indicates it's truly not initialized
+    if (
+      getAppError?.code === "app/no-app" ||
+      getAppError?.message?.includes("No Firebase App") ||
+      getAppError?.message?.includes("has not been initialized")
+    ) {
+      try {
+        const config = getFirebaseConfig();
+        // Construct databaseURL from projectId (required by React Native Firebase)
+        // Format: https://{projectId}-default-rtdb.firebaseio.com
+        const databaseURL = config.projectId
+          ? `https://${config.projectId}-default-rtdb.firebaseio.com`
+          : undefined;
+        rnFirebaseApp.initializeApp({
+          apiKey: config.apiKey,
+          appId: config.appId,
+          projectId: config.projectId,
+          messagingSenderId: config.messagingSenderId,
+          storageBucket: config.storageBucket,
+          databaseURL,
+        });
+        return true;
+      } catch (initError: any) {
+        // If initialization fails because app is already configured, that's fine
+        // This can happen during hot reload or if native config initialized it
+        if (
+          initError?.code === "app/unknown" ||
+          initError?.message?.includes("already been configured") ||
+          initError?.message?.includes("already initialized") ||
+          initError?.message?.includes(
+            "Default app has already been configured"
+          )
+        ) {
+          // App was already initialized (likely by native config), verify we can access it
+          try {
+            rnFirebaseApp.app();
+            return true;
+          } catch {
+            // Can't access app even though it says it's configured
+            return false;
+          }
+        }
+        // Other initialization errors - return false
+        return false;
+      }
+    }
+    // For other errors when getting app, assume it might not be initialized
+    return false;
+  }
+};
 if (Platform.OS !== "web") {
   try {
+    // Import React Native Firebase app module first to ensure initialization
+    rnFirebaseApp = require("@react-native-firebase/app").default;
+    // Then import auth module
     rnFirebaseAuth = require("@react-native-firebase/auth").default;
+
+    // React Native Firebase auto-initializes from native config files
+    // (GoogleService-Info.plist for iOS, google-services.json for Android)
+    // We don't need to initialize it here - it will be initialized automatically
+    // The ensureRnFirebaseInitialized() function will be called lazily when needed
+    // (e.g., when using phone authentication)
   } catch (e) {
     // React Native Firebase not available, will fall back to web SDK
     logger.info(
@@ -354,6 +438,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  const hasActiveFamilyMembership = async (
+    userId: string,
+    familyId: string | null | undefined
+  ): Promise<boolean> => {
+    if (!familyId) {
+      return false;
+    }
+
+    try {
+      const familyDoc = await getDoc(doc(db, "families", familyId));
+      if (!familyDoc.exists()) {
+        await userService.updateUser(userId, { familyId: null, role: "admin" });
+        return false;
+      }
+
+      const familyData = familyDoc.data();
+      const status = familyData.status ?? "active";
+      const members: string[] = familyData.members ?? [];
+      const hasMembers = members.length > 0;
+      const isMember = members.includes(userId);
+      const isActive = status !== "inactive";
+      const hasActiveFamily = isActive && (!hasMembers || isMember);
+
+      if (!hasActiveFamily) {
+        await userService.updateUser(userId, { familyId: null, role: "admin" });
+      }
+
+      return hasActiveFamily;
+    } catch (error) {
+      logger.error("Failed to check family membership", error, "AuthContext");
+      // Be conservative: return false when unable to verify membership
+      // This prevents users from proceeding with family operations when verification fails
+      return false;
+    }
+  };
+
   const processPendingFamilyCode = async (
     userId: string,
     isMounted: boolean
@@ -366,6 +486,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await AsyncStorage.default.getItem("pendingFamilyCode");
 
       if (pendingCode) {
+        // Check if user already has an active family before processing code
+        const currentUser = await userService.getUser(userId);
+        const hasActiveFamily = await hasActiveFamilyMembership(
+          userId,
+          currentUser?.familyId
+        );
+
+        if (hasActiveFamily) {
+          // User already has a family - show message but don't consume the code
+          await AsyncStorage.default.removeItem("pendingFamilyCode");
+          setTimeout(() => {
+            Alert.alert(
+              "Already in a Family",
+              "You are already a member of a family. Please leave your current family first if you want to join a different one."
+            );
+          }, 2000);
+          return false;
+        }
+
         try {
           const result = await familyInviteService.useInvitationCode(
             pendingCode,
@@ -374,6 +513,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
           if (result.success && result.familyId) {
             await userService.joinFamily(userId, result.familyId);
+
             await AsyncStorage.default.removeItem("pendingFamilyCode");
 
             if (!isMounted) return false;
@@ -394,26 +534,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             return true;
           }
 
+          // Code failed - show error message and don't create default family
           await AsyncStorage.default.removeItem("pendingFamilyCode");
           setTimeout(() => {
             Alert.alert(
               "Family Code Issue",
               result.message +
-                " A default family has been created for you instead."
+                " Please try using the code manually in the Family tab."
             );
           }, 2000);
+          // Return false so ensureUserHasFamily can create a default family if needed
+          return false;
         } catch (error: any) {
           await AsyncStorage.default
             .removeItem("pendingFamilyCode")
             .catch(() => {
               // Ignore cleanup errors
             });
+
+          const errorMessage =
+            error?.message ||
+            "There was an issue processing your family invitation.";
+
           setTimeout(() => {
             Alert.alert(
               "Family Code Error",
-              "There was an issue processing your family invitation. A default family has been created for you. Please try using the code manually in the Family tab."
+              errorMessage +
+                " Please try using the code manually in the Family tab."
             );
           }, 2000);
+          // Return false so ensureUserHasFamily can create a default family if needed
+          return false;
         }
       }
 
@@ -431,7 +582,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      if (!currentUser.familyId) {
+      const hasActiveFamily = await hasActiveFamilyMembership(
+        userId,
+        currentUser.familyId
+      );
+
+      if (!hasActiveFamily) {
         const fullName =
           currentUser.firstName && currentUser.lastName
             ? `${currentUser.firstName} ${currentUser.lastName}`
@@ -572,6 +728,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<PhoneConfirmationResult> => {
     setLoading(true);
     try {
+      // Ensure Firebase is initialized before proceeding
+      try {
+        const { getApp, getApps } = await import("firebase/app");
+        const apps = getApps();
+        if (apps.length === 0) {
+          // Firebase not initialized - this should not happen if firebase.ts is imported correctly
+          logger.error("Firebase app not initialized", {}, "AuthContext");
+          throw new Error(
+            "Firebase is not initialized. Please restart the app and try again."
+          );
+        }
+        // Verify auth is available
+        if (!auth) {
+          throw new Error("Firebase Auth is not available");
+        }
+      } catch (initError: any) {
+        logger.error(
+          "Firebase initialization check failed",
+          { error: initError?.message || initError },
+          "AuthContext"
+        );
+        throw new Error(
+          initError?.message ||
+            "Firebase is not initialized. Please restart the app and try again."
+        );
+      }
+
       // Clean and validate phone number
       const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
 
@@ -625,16 +808,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Use React Native Firebase on native platforms, web SDK on web
       if (Platform.OS !== "web" && rnFirebaseAuth) {
-        // Use React Native Firebase for native phone auth
-        const confirmation =
-          await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
-        logger.info(
-          "Verification code sent successfully via RN Firebase",
-          { formattedPhone },
-          "AuthContext"
-        );
-        setLoading(false);
-        return confirmation;
+        // Ensure React Native Firebase is initialized
+        try {
+          if (!ensureRnFirebaseInitialized()) {
+            logger.error(
+              "React Native Firebase app not ready",
+              {},
+              "AuthContext"
+            );
+            throw new Error(
+              "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
+            );
+          }
+
+          // Use React Native Firebase for native phone auth
+          const confirmation =
+            await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);
+          logger.info(
+            "Verification code sent successfully via RN Firebase",
+            { formattedPhone },
+            "AuthContext"
+          );
+          setLoading(false);
+          return confirmation;
+        } catch (rnError: any) {
+          // Check if error is about Firebase not being initialized
+          if (
+            rnError?.message?.includes("No Firebase App") ||
+            rnError?.message?.includes("initializeApp") ||
+            rnError?.code === "app/no-app"
+          ) {
+            logger.error(
+              "React Native Firebase not initialized",
+              { error: rnError?.message || rnError, code: rnError?.code },
+              "AuthContext"
+            );
+            throw new Error(
+              "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
+            );
+          }
+          throw rnError;
+        }
       }
       if (Platform.OS === "web") {
         // Use web SDK for web platform - requires reCAPTCHA verifier
@@ -902,6 +1116,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Use React Native Firebase on native platforms, web SDK on web
       if (Platform.OS !== "web" && rnFirebaseAuth) {
+        if (!ensureRnFirebaseInitialized()) {
+          logger.error(
+            "React Native Firebase app not ready",
+            {},
+            "AuthContext"
+          );
+          throw new Error(
+            "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
+          );
+        }
         // Use React Native Firebase for native phone auth
         const confirmation =
           await rnFirebaseAuth().signInWithPhoneNumber(formattedPhone);

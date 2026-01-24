@@ -253,8 +253,9 @@ export default {
       eas: {
         projectId: "4ee7df2f-34c7-4be6-aaa0-f6bfca8f98c0",
       },
-      // API keys are loaded from environment variables for security
-      // Create a .env file with these variables (see .env.example)
+      // API keys are loaded from Expo Secrets (EAS) for security
+      // These are automatically available as environment variables during build time
+      // Set them using: eas secret:create --scope project --name OPENAI_API_KEY --value your-key
       fitbitClientId: process.env.FITBIT_CLIENT_ID || "",
       fitbitClientSecret: process.env.FITBIT_CLIENT_SECRET || "",
       samsungHealthClientId: process.env.SAMSUNG_HEALTH_CLIENT_ID || "",
@@ -270,13 +271,13 @@ export default {
       dexcomRedirectUri:
         process.env.DEXCOM_REDIRECT_URI ||
         "https://maak-5caad.web.app/dexcom-callback",
-      // Both regular and premium users use the same OpenAI API key
+      // OpenAI API keys are stored in Expo Secrets
+      // Zeina uses ZEINA_API_KEY if set, otherwise falls back to OPENAI_API_KEY
       openaiApiKey: process.env.OPENAI_API_KEY || "",
       zeinaApiKey:
         process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY || "", // Prefer ZEINA_API_KEY if set
       // RevenueCat API Key - REQUIRED for production
-      // Use production key from RevenueCat dashboard for production builds
-      // Test key is only used in development if env var is not set
+      // Stored in Expo Secrets, use production key from RevenueCat dashboard for production builds
       revenueCatApiKey: process.env.REVENUECAT_API_KEY || "",
     },
   },

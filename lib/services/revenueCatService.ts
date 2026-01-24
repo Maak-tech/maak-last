@@ -96,6 +96,12 @@ class RevenueCatService {
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
   private currentCustomerInfo: CustomerInfo | null = null;
+  private cachedOfferings: PurchasesOffering | null = null;
+  private offeringsCacheTimestamp = 0;
+  private offeringsFetchPromise: Promise<PurchasesOffering | null> | null =
+    null;
+  private readonly OFFERINGS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly OFFERINGS_TIMEOUT = 10_000; // 10 seconds
 
   /**
    * Initialize RevenueCat SDK
@@ -129,14 +135,14 @@ class RevenueCatService {
 
               if (directoryCreated) {
                 // Verify directory is actually writable before proceeding
-                // Add a small delay to ensure filesystem operations are complete
-                await new Promise((resolve) => setTimeout(resolve, 100));
+                // Minimal delay to ensure filesystem operations are complete
+                await new Promise((resolve) => setTimeout(resolve, 50));
                 break;
               }
 
               // If failed, wait before retrying
               if (attempt < maxRetries - 1) {
-                await new Promise((resolve) => setTimeout(resolve, 200));
+                await new Promise((resolve) => setTimeout(resolve, 100));
               }
             }
 
@@ -146,6 +152,8 @@ class RevenueCatService {
                 undefined,
                 "RevenueCatService"
               );
+              // Minimal delay after directory creation
+              await new Promise((resolve) => setTimeout(resolve, 100));
             } else {
               logger.warn(
                 "Failed to ensure RevenueCat directory exists after retries. " +
@@ -154,10 +162,6 @@ class RevenueCatService {
                 "RevenueCatService"
               );
             }
-
-            // Add an additional delay after directory creation to ensure it's fully ready
-            // This prevents race conditions where RevenueCat tries to cache immediately after configure
-            await new Promise((resolve) => setTimeout(resolve, 300));
           } catch (dirError) {
             // Log but don't fail initialization - RevenueCat SDK will handle retry
             logger.warn(
@@ -165,8 +169,8 @@ class RevenueCatService {
               dirError,
               "RevenueCatService"
             );
-            // Add a delay before proceeding to allow any native operations to complete
-            await new Promise((resolve) => setTimeout(resolve, 300));
+            // Minimal delay before proceeding
+            await new Promise((resolve) => setTimeout(resolve, 100));
           }
         }
 
@@ -327,6 +331,9 @@ class RevenueCatService {
 
       await Purchases.logOut();
       this.currentCustomerInfo = null;
+      // Clear offerings cache on logout as they may be user-specific
+      this.cachedOfferings = null;
+      this.offeringsCacheTimestamp = 0;
     } catch (error: any) {
       // Check if error is specifically about anonymous user
       // RevenueCat throws this error when logOut is called on an anonymous user
@@ -397,19 +404,93 @@ class RevenueCatService {
 
   /**
    * Get available offerings (products)
+   * Uses caching to avoid repeated network requests
    */
-  async getOfferings(): Promise<PurchasesOffering | null> {
+  async getOfferings(forceRefresh = false): Promise<PurchasesOffering | null> {
     if (!this.isInitialized) {
       await this.initialize();
     }
 
-    try {
-      const offerings = await Purchases.getOfferings();
-      return offerings.current;
-    } catch (error) {
-      logger.error("Failed to get offerings", error, "RevenueCatService");
-      throw error;
+    // Check cache first (unless force refresh)
+    const now = Date.now();
+    if (
+      !forceRefresh &&
+      this.cachedOfferings !== null &&
+      now - this.offeringsCacheTimestamp < this.OFFERINGS_CACHE_TTL
+    ) {
+      logger.debug(
+        "Returning cached offerings",
+        { age: now - this.offeringsCacheTimestamp },
+        "RevenueCatService"
+      );
+      return this.cachedOfferings;
     }
+
+    // If a fetch is already in progress, return that promise
+    if (this.offeringsFetchPromise) {
+      logger.debug(
+        "Offerings fetch already in progress, waiting...",
+        undefined,
+        "RevenueCatService"
+      );
+      return this.offeringsFetchPromise;
+    }
+
+    // Create a new fetch promise with timeout
+    this.offeringsFetchPromise = (async () => {
+      const fetchStartTime = Date.now();
+      try {
+        // Create a timeout promise
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(
+            () => reject(new Error("Offerings fetch timeout")),
+            this.OFFERINGS_TIMEOUT
+          );
+        });
+
+        // Race between the actual fetch and timeout
+        const offerings = await Promise.race([
+          Purchases.getOfferings(),
+          timeoutPromise,
+        ]);
+
+        const currentOfferings = offerings.current;
+
+        // Update cache
+        this.cachedOfferings = currentOfferings;
+        this.offeringsCacheTimestamp = Date.now();
+
+        logger.debug(
+          "Offerings fetched successfully",
+          { cached: true },
+          "RevenueCatService"
+        );
+
+        return currentOfferings;
+      } catch (error) {
+        // If timeout or other error, try to return cached data if available
+        const cacheAge = Date.now() - this.offeringsCacheTimestamp;
+        if (
+          this.cachedOfferings !== null &&
+          cacheAge < this.OFFERINGS_CACHE_TTL * 2
+        ) {
+          logger.warn(
+            "Offerings fetch failed, returning stale cache",
+            { error, cacheAge },
+            "RevenueCatService"
+          );
+          return this.cachedOfferings;
+        }
+
+        logger.error("Failed to get offerings", error, "RevenueCatService");
+        throw error;
+      } finally {
+        // Clear the fetch promise so a new fetch can be initiated
+        this.offeringsFetchPromise = null;
+      }
+    })();
+
+    return this.offeringsFetchPromise;
   }
 
   /**
@@ -646,6 +727,15 @@ class RevenueCatService {
    */
   getCachedCustomerInfo(): CustomerInfo | null {
     return this.currentCustomerInfo;
+  }
+
+  /**
+   * Clear offerings cache
+   * Useful when you want to force a refresh on next getOfferings call
+   */
+  clearOfferingsCache(): void {
+    this.cachedOfferings = null;
+    this.offeringsCacheTimestamp = 0;
   }
 
   /**

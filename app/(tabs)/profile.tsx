@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Bell,
   BookOpen,
+  Brain,
   Calendar,
   Calendar as CalendarIcon,
   Check,
@@ -48,6 +49,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import GlobalSearch from "@/app/components/GlobalSearch";
 import Avatar from "@/components/Avatar";
 import {
@@ -206,11 +208,25 @@ export default function ProfileScreen() {
       } else {
         setLoading(true);
       }
-      const [symptoms, medications, healthScoreResult] = await Promise.all([
+
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Health data loading timeout")),
+          15_000
+        )
+      );
+
+      const dataPromise = Promise.all([
         symptomService.getUserSymptoms(user.id),
         medicationService.getUserMedications(user.id),
         healthScoreService.calculateHealthScore(user.id),
       ]);
+
+      const [symptoms, medications, healthScoreResult] = (await Promise.race([
+        dataPromise,
+        timeoutPromise,
+      ])) as [Symptom[], Medication[], HealthScoreResult];
 
       // Filter recent symptoms for display
       const recentSymptoms = symptoms.filter(
@@ -227,7 +243,13 @@ export default function ProfileScreen() {
         healthScoreResult,
       });
     } catch (error) {
-      // Silently handle error
+      // Silently handle error - set default values to prevent infinite loading
+      setHealthData({
+        symptoms: [],
+        medications: [],
+        healthScore: 85,
+        healthScoreResult: null,
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -716,6 +738,11 @@ export default function ProfileScreen() {
                 onPress: () => router.push("/health-summary"),
               },
               {
+                icon: Brain,
+                label: t("healthInsights"),
+                onPress: () => router.push("/profile/health-insights"),
+              },
+              {
                 icon: Activity,
                 label: t("healthIntegrations"),
                 onPress: () =>
@@ -963,6 +990,16 @@ export default function ProfileScreen() {
               </View>
             </View>
           )}
+        </View>
+
+        {/* AI Insights Dashboard */}
+        <View style={styles.aiInsightsSection}>
+          <AIInsightsDashboard
+            compact={true}
+            onInsightPress={() => {
+              router.push("/profile/health-insights");
+            }}
+          />
         </View>
 
         {/* Settings Sections */}
@@ -2204,7 +2241,6 @@ export default function ProfileScreen() {
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => {
-                      console.log("Date picker pressed");
                       setShowStartDatePicker(true);
                     }}
                     style={{
@@ -2242,7 +2278,6 @@ export default function ProfileScreen() {
                     <TouchableOpacity
                       activeOpacity={0.7}
                       onPress={() => {
-                        console.log("Time picker pressed");
                         setShowStartTimePicker(true);
                       }}
                       style={{
@@ -2293,7 +2328,6 @@ export default function ProfileScreen() {
                     <TouchableOpacity
                       activeOpacity={0.7}
                       onPress={() => {
-                        console.log("End date picker pressed");
                         setShowEndDatePicker(true);
                       }}
                       style={{
@@ -2336,7 +2370,6 @@ export default function ProfileScreen() {
                       <TouchableOpacity
                         activeOpacity={0.7}
                         onPress={() => {
-                          console.log("End time picker pressed");
                           setShowEndTimePicker(true);
                         }}
                         style={{
@@ -3106,6 +3139,10 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
     lineHeight: 14,
+  },
+  aiInsightsSection: {
+    marginBottom: 20,
+    paddingHorizontal: 0,
   },
   section: {
     marginBottom: 20,

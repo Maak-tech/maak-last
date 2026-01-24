@@ -14,6 +14,21 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { I18nManager, NativeModules, Platform } from "react-native";
+
+// Initialize React Native Firebase early (must be imported before any Firebase operations)
+// This ensures the default Firebase app is initialized from native config files
+// React Native Firebase auto-initializes from GoogleService-Info.plist (iOS) and google-services.json (Android)
+if (Platform.OS !== "web") {
+  try {
+    // Import React Native Firebase app module - this initializes Firebase from native config
+    require("@react-native-firebase/app");
+  } catch (error) {
+    // React Native Firebase not available (e.g., in Expo Go or web)
+    // This is expected and will be handled gracefully in AuthContext
+  }
+}
+
+import { I18nextProvider } from "react-i18next";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import OfflineIndicator from "@/app/components/OfflineIndicator";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -138,30 +153,32 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <FallDetectionProvider>
-            <StatusBar style="auto" />
-            <OfflineIndicator />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="profile" options={{ headerShown: false }} />
-              <Stack.Screen name="family" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="onboarding"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="voice-agent"
-                options={{ headerShown: false, presentation: "modal" }}
-              />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-          </FallDetectionProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <I18nextProvider i18n={i18n}>
+        <ThemeProvider>
+          <AuthProvider>
+            <FallDetectionProvider>
+              <StatusBar style="auto" />
+              <OfflineIndicator />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="profile" options={{ headerShown: false }} />
+                <Stack.Screen name="family" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="onboarding"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="voice-agent"
+                  options={{ headerShown: false, presentation: "modal" }}
+                />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+            </FallDetectionProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </I18nextProvider>
     </SafeAreaProvider>
   );
 }

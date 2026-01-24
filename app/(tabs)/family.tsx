@@ -228,6 +228,9 @@ export default function FamilyScreen() {
   const isAdmin = user?.role === "admin" || user?.role === "caregiver";
   const hasFamily = Boolean(user?.familyId);
   const viewModeInitialized = useRef(false);
+  const loadMemberMetricsRef = useRef<
+    ((members: User[]) => Promise<void>) | null
+  >(null);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
     type: "personal",
@@ -247,10 +250,6 @@ export default function FamilyScreen() {
   };
 
   useEffect(() => {
-    loadFamilyMembers();
-  }, [user]);
-
-  useEffect(() => {
     const loadMedicationAlertsSetting = async () => {
       try {
         const enabled = await AsyncStorage.getItem("medication_alerts_enabled");
@@ -266,103 +265,183 @@ export default function FamilyScreen() {
     loadMedicationAlertsSetting();
   }, []);
 
-  const loadFamilyMembers = async (isRefresh = false) => {
-    if (!user?.familyId) {
+  const loadFamilyMembers = useCallback(
+    async (isRefresh = false) => {
+      // Prevent concurrent loads
+      if (!isRefresh && loading) return;
+      if (isRefresh && refreshing) return;
+
+      if (!user?.familyId) {
+        // If no familyId, we still want to show the UI (empty state)
+        setLoading(false);
+        setRefreshing(false);
+        setFamilyMembers([]);
+        setMemberMetrics([]);
+        return;
+      }
+
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Family members loading timeout")),
+            15_000
+          )
+        );
+
+        const membersPromise = userService.getFamilyMembers(user.familyId);
+        const members = (await Promise.race([
+          membersPromise,
+          timeoutPromise,
+        ])) as User[];
+
+        setFamilyMembers(members);
+
+        // Load metrics in the background (non-blocking) for attention items
+        // This allows the UI to render immediately while metrics load
+        // Use the ref if available (it will be set after loadMemberMetrics is defined)
+        if (members.length > 0 && loadMemberMetricsRef.current) {
+          loadMemberMetricsRef.current(members).catch((error) => {
+            // Silently handle errors - metrics are not critical for initial render
+            if (__DEV__) {
+              console.error("Error loading member metrics:", error);
+            }
+          });
+        }
+        // Note: If ref is not set yet, metrics will be loaded by useFocusEffect
+      } catch (error) {
+        // Set empty array to prevent infinite loading
+        setFamilyMembers([]);
+        setMemberMetrics([]);
+        // Only show alert if it's not a timeout (to avoid spam)
+        if (error instanceof Error && !error.message.includes("timeout")) {
+          Alert.alert(
+            isRTL ? "خطأ" : "Error",
+            isRTL
+              ? "فشل في تحميل أعضاء العائلة"
+              : "Failed to load family members"
+          );
+        }
+      } finally {
+        // Always ensure loading state is cleared
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [user?.familyId, isRTL, loading, refreshing]
+  );
+
+  // Load family members when user changes
+  useEffect(() => {
+    if (!user) {
+      // If no user, set loading to false immediately
       setLoading(false);
-      setRefreshing(false);
       return;
     }
 
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      const members = await userService.getFamilyMembers(user.familyId);
-      setFamilyMembers(members);
-
-      // Always load metrics for attention items
-      await loadMemberMetrics(members);
-    } catch (error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في تحميل أعضاء العائلة" : "Failed to load family members"
-      );
-    } finally {
+    if (user?.id || user?.familyId) {
+      loadFamilyMembers();
+    } else {
+      // If user exists but no id/familyId, set loading to false
       setLoading(false);
-      setRefreshing(false);
     }
-  };
 
-  const loadEvents = async (isRefresh = false) => {
-    if (!user?.id) return;
-
-    const startTime = Date.now();
-
-    try {
-      if (isRefresh) {
-        setLoadingEvents(true);
+    // Safety timeout: ensure loading is never stuck true for more than 20 seconds
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      if (__DEV__) {
+        console.warn("Family tab loading timeout - forcing loading to false");
       }
+    }, 20_000);
 
-      // For admins with family, load all family member events
-      if (isAdmin && user.familyId && familyMembers.length > 0) {
-        logger.debug(
-          "Loading family health events",
-          {
-            userId: user.id,
-            familyId: user.familyId,
-            memberCount: familyMembers.length,
-          },
-          "FamilyScreen"
-        );
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.familyId]);
 
-        const userIds = familyMembers.map((member) => member.id);
-        const familyEvents = await getFamilyHealthEvents(userIds);
-        setEvents(familyEvents);
+  const loadEvents = useCallback(
+    async (isRefresh = false, membersOverride?: typeof familyMembers) => {
+      // Prevent concurrent loads
+      if (!isRefresh && loadingEvents) return;
 
+      if (!user?.id) return;
+
+      const startTime = Date.now();
+
+      // Use provided members or fall back to state (for backward compatibility)
+      const membersToUse = membersOverride ?? familyMembers;
+
+      try {
+        if (isRefresh) {
+          setLoadingEvents(true);
+        } else {
+          setLoadingEvents(true);
+        }
+
+        // For admins with family, load all family member events
+        if (isAdmin && user.familyId && membersToUse.length > 0) {
+          logger.debug(
+            "Loading family health events",
+            {
+              userId: user.id,
+              familyId: user.familyId,
+              memberCount: membersToUse.length,
+            },
+            "FamilyScreen"
+          );
+
+          const userIds = membersToUse.map((member) => member.id);
+          const familyEvents = await getFamilyHealthEvents(userIds);
+          setEvents(familyEvents);
+
+          const durationMs = Date.now() - startTime;
+          logger.info(
+            "Family health events loaded",
+            {
+              userId: user.id,
+              eventCount: familyEvents.length,
+              durationMs,
+            },
+            "FamilyScreen"
+          );
+        } else {
+          // For non-admins or users without family, load only their own events
+          logger.debug(
+            "Loading user health events",
+            {
+              userId: user.id,
+            },
+            "FamilyScreen"
+          );
+
+          const userEvents = await getUserHealthEvents(user.id);
+          setEvents(userEvents);
+
+          const durationMs = Date.now() - startTime;
+          logger.info(
+            "User health events loaded",
+            {
+              userId: user.id,
+              eventCount: userEvents.length,
+              durationMs,
+            },
+            "FamilyScreen"
+          );
+        }
+      } catch (error) {
         const durationMs = Date.now() - startTime;
-        logger.info(
-          "Family health events loaded",
-          {
-            userId: user.id,
-            eventCount: familyEvents.length,
-            durationMs,
-          },
-          "FamilyScreen"
-        );
-      } else {
-        // For non-admins or users without family, load only their own events
-        logger.debug(
-          "Loading user health events",
-          {
-            userId: user.id,
-          },
-          "FamilyScreen"
-        );
-
-        const userEvents = await getUserHealthEvents(user.id);
-        setEvents(userEvents);
-
-        const durationMs = Date.now() - startTime;
-        logger.info(
-          "User health events loaded",
-          {
-            userId: user.id,
-            eventCount: userEvents.length,
-            durationMs,
-          },
-          "FamilyScreen"
-        );
+        logger.error("Failed to load health events", error, "FamilyScreen");
+      } finally {
+        setLoadingEvents(false);
       }
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-      logger.error("Failed to load health events", error, "FamilyScreen");
-    } finally {
-      setLoadingEvents(false);
-    }
-  };
+    },
+    [user?.id, user?.familyId, isAdmin, loadingEvents]
+  );
 
   const handleAcknowledgeEvent = async (eventId: string) => {
     if (!user?.id) return;
@@ -564,7 +643,7 @@ export default function FamilyScreen() {
     }
   };
 
-  const loadMemberMetrics = async (members: User[]) => {
+  const loadMemberMetrics = useCallback(async (members: User[]) => {
     if (!members.length) {
       setMemberMetrics([]);
       return;
@@ -572,18 +651,41 @@ export default function FamilyScreen() {
 
     try {
       setLoadingMetrics(true);
+
+      // Add timeout to prevent infinite loading (reduced from 20s to 15s)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Member metrics loading timeout")),
+          15_000
+        )
+      );
+
       const metricsPromises = members.map(async (member) => {
         try {
           // Fetch symptoms, medications, alerts, and vitals for each member
+          // Limit symptoms to recent ones (last 7 days) for faster loading
+          // Use shorter timeout for individual member to fail fast
+          const dataPromise = Promise.all([
+            symptomService.getUserSymptoms(member.id, 7), // Limit to 7 recent symptoms for faster loading
+            medicationService.getUserMedications(member.id),
+            alertService.getActiveAlertsCount(member.id),
+            healthContextService
+              .getUserHealthContext(member.id)
+              .catch(() => null),
+          ]);
+
+          // Add timeout for individual member data fetch (reduced from 10s to 5s)
+          const memberTimeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Member data timeout")), 5000)
+          );
+
           const [symptoms, medications, alertsCount, healthContext] =
-            await Promise.all([
-              symptomService.getUserSymptoms(member.id),
-              medicationService.getUserMedications(member.id),
-              alertService.getActiveAlertsCount(member.id),
-              healthContextService
-                .getUserHealthContext(member.id)
-                .catch(() => null),
-            ]);
+            (await Promise.race([dataPromise, memberTimeoutPromise])) as [
+              any[],
+              any[],
+              number,
+              any,
+            ];
 
           // Calculate health score using the centralized service
           const healthScoreResult =
@@ -652,17 +754,50 @@ export default function FamilyScreen() {
         }
       });
 
-      const metrics = await Promise.all(metricsPromises);
+      const metricsPromise = Promise.all(metricsPromises);
+      const metrics = (await Promise.race([
+        metricsPromise,
+        timeoutPromise,
+      ])) as FamilyMemberMetrics[];
+
       setMemberMetrics(metrics);
     } catch (error) {
-      // Silently handle error
+      // Set empty metrics to prevent infinite loading
+      setMemberMetrics([]);
     } finally {
       setLoadingMetrics(false);
     }
-  };
+  }, []);
+
+  // Store reference after function is defined
+  // Also trigger metrics load if family members are already loaded
+  useEffect(() => {
+    loadMemberMetricsRef.current = loadMemberMetrics;
+
+    // If we already have family members but no metrics, load them now
+    if (
+      familyMembers.length > 0 &&
+      memberMetrics.length === 0 &&
+      !loadingMetrics
+    ) {
+      loadMemberMetrics(familyMembers).catch((error) => {
+        if (__DEV__) {
+          console.error("Error loading member metrics after ref set:", error);
+        }
+      });
+    }
+  }, [
+    loadMemberMetrics,
+    familyMembers.length,
+    memberMetrics.length,
+    loadingMetrics,
+  ]);
 
   // Load caregiver dashboard data
   const loadCaregiverDashboard = useCallback(async () => {
+    // Prevent concurrent loads
+    if (loadingCaregiverDashboard) return;
+
     if (
       !(user && user.familyId) ||
       (user.role !== "admin" && user.role !== "caregiver")
@@ -685,7 +820,7 @@ export default function FamilyScreen() {
     } finally {
       setLoadingCaregiverDashboard(false);
     }
-  }, [user]);
+  }, [user?.id, user?.familyId, user?.role, loadingCaregiverDashboard]);
 
   // Load medication schedule data
   const loadMedicationSchedule = useCallback(
@@ -699,7 +834,15 @@ export default function FamilyScreen() {
           setLoadingMedicationSchedule(true);
         }
 
-        const [entries, today, upcoming] = await Promise.all([
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Medication schedule loading timeout")),
+            15_000
+          )
+        );
+
+        const dataPromise = Promise.all([
           sharedMedicationScheduleService.getFamilyMedicationSchedules(
             user.familyId,
             user.id
@@ -708,11 +851,23 @@ export default function FamilyScreen() {
           sharedMedicationScheduleService.getUpcomingSchedule(user.familyId, 7),
         ]);
 
+        const [entries, today, upcoming] = (await Promise.race([
+          dataPromise,
+          timeoutPromise,
+        ])) as [
+          MedicationScheduleEntry[],
+          SharedScheduleDay | null,
+          SharedScheduleDay[],
+        ];
+
         setMedicationScheduleEntries(entries);
         setTodaySchedule(today);
         setUpcomingSchedule(upcoming);
       } catch (error) {
-        // Silently handle error
+        // Set empty state to prevent infinite loading
+        setMedicationScheduleEntries([]);
+        setTodaySchedule(null);
+        setUpcomingSchedule([]);
       } finally {
         setLoadingMedicationSchedule(false);
       }
@@ -722,24 +877,12 @@ export default function FamilyScreen() {
 
   // Load medication schedule when family members are loaded
   useEffect(() => {
-    if (user?.familyId) {
+    if (user?.familyId && !loadingMedicationSchedule) {
       loadMedicationSchedule();
     }
-  }, [user?.familyId, loadMedicationSchedule]);
+  }, [user?.familyId]);
 
-  // Load metrics when family members change
-  useEffect(() => {
-    if (familyMembers.length > 0) {
-      loadMemberMetrics(familyMembers);
-    }
-  }, [familyMembers.length]);
-
-  // Load events when family members are loaded (for admin)
-  useEffect(() => {
-    if (familyMembers.length > 0 && isAdmin) {
-      loadEvents();
-    }
-  }, [familyMembers.length, isAdmin]);
+  // Note: Metrics and events are now loaded in useFocusEffect to avoid duplicate loading
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
@@ -892,6 +1035,8 @@ export default function FamilyScreen() {
     if (hasPremium) {
       // Check if family has reached the limit
       if (currentMemberCount >= maxMembers) {
+        // Close invite modal first
+        setShowInviteModal(false);
         Alert.alert(
           isRTL ? "تم الوصول للحد الأقصى" : "Member Limit Reached",
           isRTL
@@ -906,13 +1051,17 @@ export default function FamilyScreen() {
               text: isRTL
                 ? "ترقية إلى الاشتراك العائلي"
                 : "Upgrade to Family Plan",
-              onPress: () => setShowPaywall(true),
+              onPress: () => {
+                setShowPaywall(true);
+              },
             },
           ]
         );
         return;
       }
     } else if (currentMemberCount >= 1) {
+      // Close invite modal first
+      setShowInviteModal(false);
       Alert.alert(
         isRTL ? "خطأ" : "Premium Required",
         isRTL
@@ -925,9 +1074,42 @@ export default function FamilyScreen() {
           },
           {
             text: isRTL ? "عرض الاشتراكات العائلية" : "View Family Plans",
-            onPress: () => setShowPaywall(true),
+            onPress: () => {
+              setShowPaywall(true);
+            },
           },
         ]
+      );
+      return;
+    }
+
+    // Validate user authentication and permissions
+    if (!user?.id) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يجب تسجيل الدخول أولاً"
+          : "You must be logged in to invite members"
+      );
+      return;
+    }
+
+    if (!user.familyId) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يجب أن تكون جزءاً من عائلة لدعوة أعضاء"
+          : "You must be part of a family to invite members"
+      );
+      return;
+    }
+
+    if (user.role !== "admin") {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يجب أن تكون مديراً للعائلة لدعوة أعضاء جدد"
+          : "You must be a family admin to invite new members"
       );
       return;
     }
@@ -946,12 +1128,15 @@ export default function FamilyScreen() {
       const memberName = inviteForm.name;
       setInviteForm({ name: "", relation: "" });
 
+      // Close the invite modal after successful creation
+      setShowInviteModal(false);
+
       // Prepare sharing message
       const shareMessage = isRTL
         ? `مرحباً ${memberName}! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi ${memberName}! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
 
-      // Show options to share or copy
+      // Show options to share or copy with clearer labels
       Alert.alert(
         isRTL ? "تم إنشاء الدعوة" : "Invitation Created",
         isRTL
@@ -959,7 +1144,7 @@ export default function FamilyScreen() {
           : `Invitation code created for ${memberName}: ${code}\n\nWhat would you like to do?`,
         [
           {
-            text: isRTL ? "مشاركة" : "Share",
+            text: isRTL ? "مشاركة عبر التطبيقات" : "Share via Apps",
             onPress: async () => {
               try {
                 await Share.share({
@@ -981,19 +1166,19 @@ export default function FamilyScreen() {
             },
           },
           {
-            text: isRTL ? "نسخ" : "Copy",
+            text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
             onPress: async () => {
-              await Clipboard.setString(shareMessage);
+              await Clipboard.setString(code);
               Alert.alert(
                 isRTL ? "تم النسخ" : "Copied",
                 isRTL
-                  ? "تم نسخ رسالة الدعوة إلى الحافظة"
-                  : "Invitation message copied to clipboard"
+                  ? `تم نسخ رمز الدعوة: ${code}`
+                  : `Invitation code copied: ${code}`
               );
             },
           },
           {
-            text: isRTL ? "حسناً" : "OK",
+            text: isRTL ? "إلغاء" : "Cancel",
             style: "cancel",
           },
         ]
@@ -1369,7 +1554,11 @@ export default function FamilyScreen() {
 
   const loadElderlyDashboard = useCallback(
     async (isRefresh = false) => {
-      if (!user) return;
+      // Prevent concurrent loads
+      if (!isRefresh && loadingElderlyDashboard) return;
+      if (isRefresh && refreshingElderlyDashboard) return;
+
+      if (!user?.id) return;
 
       try {
         if (isRefresh) {
@@ -1392,7 +1581,7 @@ export default function FamilyScreen() {
         setRefreshingElderlyDashboard(false);
       }
     },
-    [user, isRTL]
+    [user?.id, isRTL, loadingElderlyDashboard, refreshingElderlyDashboard]
   );
 
   // Set default view mode to dashboard for admins when user loads (only once)
@@ -1413,34 +1602,84 @@ export default function FamilyScreen() {
 
   // Load caregiver dashboard when view mode changes to dashboard and user is admin
   useEffect(() => {
-    if (viewMode === "dashboard" && isAdmin) {
+    if (viewMode === "dashboard" && isAdmin && user?.id && user?.familyId) {
       loadCaregiverDashboard();
-    } else if (viewMode === "dashboard" && !isAdmin) {
+    } else if (viewMode === "dashboard" && !isAdmin && user?.id) {
       // Load elderly dashboard for non-admin users
       loadElderlyDashboard();
     }
-  }, [viewMode, isAdmin, loadCaregiverDashboard, loadElderlyDashboard]);
+  }, [viewMode, isAdmin, user?.id, user?.familyId]);
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused - load in parallel for better performance
   useFocusEffect(
     useCallback(() => {
-      loadFamilyMembers();
-      if (user?.id) {
-        loadEvents();
+      // Only load if we have a user
+      if (!user?.id) return;
+
+      // If we already have family members loaded, just refresh metrics and other data
+      // Otherwise, let the useEffect handle the initial load
+      if (familyMembers.length === 0 && loading) {
+        // Initial load is happening via useEffect, don't interfere
+        return;
       }
-      if (viewMode === "dashboard" && isAdmin) {
-        loadCaregiverDashboard();
-      } else if (viewMode === "dashboard" && !isAdmin) {
-        loadElderlyDashboard();
-      }
-      loadMedicationSchedule();
+
+      // Load all data efficiently - show UI immediately, load heavy data in background
+      const loadData = async () => {
+        try {
+          // Step 1: Load family members first and show immediately (if not already loaded)
+          let members: typeof familyMembers = familyMembers;
+          if (user?.familyId && members.length === 0) {
+            members = await userService.getFamilyMembers(user.familyId);
+            // Update state immediately so UI can render
+            setFamilyMembers(members);
+          }
+
+          // Always load metrics in background (non-blocking) if we have members
+          if (members.length > 0) {
+            loadMemberMetrics(members).catch((error) => {
+              if (__DEV__) {
+                console.error("Error loading member metrics:", error);
+              }
+            });
+          }
+
+          // Step 2: Load remaining data in parallel (don't wait for metrics)
+          const promises: Promise<void>[] = [];
+
+          if (user?.id) {
+            // Pass members directly to avoid stale state issue
+            promises.push(loadEvents(false, members));
+          }
+
+          if (viewMode === "dashboard" && isAdmin) {
+            promises.push(loadCaregiverDashboard());
+          } else if (viewMode === "dashboard" && !isAdmin) {
+            promises.push(loadElderlyDashboard());
+          }
+
+          if (user?.familyId) {
+            promises.push(loadMedicationSchedule());
+          }
+
+          // Wait for critical operations to complete (but not metrics)
+          await Promise.allSettled(promises);
+        } catch (error) {
+          // Error handling is done in individual load functions
+          // This catch prevents unhandled promise rejection
+          if (__DEV__) {
+            console.error("Error loading family data:", error);
+          }
+        }
+      };
+
+      loadData();
     }, [
-      user,
+      user?.id,
+      user?.familyId,
       viewMode,
       isAdmin,
-      loadCaregiverDashboard,
-      loadElderlyDashboard,
-      loadMedicationSchedule,
+      loading,
+      familyMembers.length,
     ])
   );
 
@@ -1494,10 +1733,52 @@ export default function FamilyScreen() {
   };
 
   const copyInviteCode = async () => {
-    if (!user?.familyId) {
+    // Validate user authentication and permissions
+    if (!user?.id) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يجب تسجيل الدخول أولاً"
+          : "You must be logged in to generate invite codes"
+      );
+      return;
+    }
+
+    if (!user.familyId) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "لا توجد عائلة متصلة بك" : "No family found"
+      );
+      return;
+    }
+
+    if (user.role !== "admin") {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "يجب أن تكون مديراً للعائلة لإنشاء رموز الدعوة"
+          : "You must be a family admin to generate invite codes"
+      );
+      return;
+    }
+
+    // Check if user has premium subscription
+    if (!isPremium) {
+      Alert.alert(
+        isRTL ? "اشتراك مطلوب" : "Premium Required",
+        isRTL
+          ? "يجب أن يكون لديك اشتراك مميز لإنشاء رموز الدعوة"
+          : "You need a premium subscription to generate invite codes",
+        [
+          {
+            text: isRTL ? "إلغاء" : "Cancel",
+            style: "cancel",
+          },
+          {
+            text: isRTL ? "عرض الخطط" : "View Plans",
+            onPress: () => setShowPaywall(true),
+          },
+        ]
       );
       return;
     }
@@ -1515,7 +1796,7 @@ export default function FamilyScreen() {
         ? `مرحباً! تم دعوتك للانضمام إلى مجموعة العائلة الصحية على تطبيق معك.\n\nرمز الدعوة: ${code}\n\n1. حمل تطبيق معك\n2. سجل دخولك أو أنشئ حساب جديد\n3. استخدم رمز الدعوة: ${code}\n\nهذا الرمز صالح لمدة 7 أيام.`
         : `Hi! You've been invited to join our family health group on Maak app.\n\nInvitation Code: ${code}\n\n1. Download the Maak app\n2. Sign in or create a new account\n3. Use invitation code: ${code}\n\nThis code expires in 7 days.`;
 
-      // Show options to share or copy
+      // Show options to share or copy with clearer labels
       Alert.alert(
         isRTL ? "رمز الدعوة جاهز" : "Invitation Code Ready",
         isRTL
@@ -1523,7 +1804,7 @@ export default function FamilyScreen() {
           : `Invitation Code: ${code}\n\nChoose how to share:`,
         [
           {
-            text: isRTL ? "مشاركة" : "Share",
+            text: isRTL ? "مشاركة عبر التطبيقات" : "Share via Apps",
             onPress: async () => {
               try {
                 await Share.share({
@@ -1545,19 +1826,7 @@ export default function FamilyScreen() {
             },
           },
           {
-            text: isRTL ? "نسخ الرسالة" : "Copy Message",
-            onPress: async () => {
-              await Clipboard.setString(shareMessage);
-              Alert.alert(
-                isRTL ? "تم النسخ" : "Copied",
-                isRTL
-                  ? "تم نسخ رسالة الدعوة إلى الحافظة"
-                  : "Full invitation message copied to clipboard"
-              );
-            },
-          },
-          {
-            text: isRTL ? "نسخ الرمز فقط" : "Copy Code Only",
+            text: isRTL ? "نسخ رمز الدعوة فقط" : "Copy Invitation Code Only",
             onPress: async () => {
               await Clipboard.setString(code);
               Alert.alert(
@@ -4120,15 +4389,17 @@ export default function FamilyScreen() {
               isRTL && { flexDirection: "row-reverse" },
             ]}
           >
-            <TouchableOpacity
-              onPress={copyInviteCode}
-              style={styles.quickActionButton}
-            >
-              <Share2 color="#2563EB" size={24} />
-              <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
-                {isRTL ? "دعوة عضو عائلة" : "Invite a Family Member"}
-              </Text>
-            </TouchableOpacity>
+            {user?.role === "admin" && (
+              <TouchableOpacity
+                onPress={copyInviteCode}
+                style={styles.quickActionButton}
+              >
+                <Share2 color="#2563EB" size={24} />
+                <Text style={[styles.quickActionText, isRTL && styles.rtlText]}>
+                  {isRTL ? "دعوة عضو عائلة" : "Invite a Family Member"}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/profile?openCalendar=true")}
@@ -4258,11 +4529,21 @@ export default function FamilyScreen() {
             </View>
 
             <TouchableOpacity
+              disabled={inviteLoading}
               onPress={handleInviteMember}
-              style={styles.inviteButton}
+              style={[
+                styles.inviteButton,
+                inviteLoading && styles.inviteButtonDisabled,
+              ]}
             >
               <Text style={styles.inviteButtonText}>
-                {isRTL ? "إرسال الدعوة" : "Send Invitation"}
+                {inviteLoading
+                  ? isRTL
+                    ? "جاري الإرسال..."
+                    : "Sending..."
+                  : isRTL
+                    ? "إرسال الدعوة"
+                    : "Send Invitation"}
               </Text>
             </TouchableOpacity>
 

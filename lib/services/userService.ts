@@ -418,12 +418,6 @@ export const userService = {
         throw new Error("Only admins can remove family members");
       }
 
-      console.log("[removeFamilyMember] Starting removal:", {
-        memberUserId,
-        familyId,
-        requestingUserId,
-      });
-
       // Remove from family members array first
       try {
         const familyDoc = await getDoc(doc(db, "families", familyId));
@@ -434,13 +428,9 @@ export const userService = {
             (memberId: string) => memberId !== memberUserId
           );
 
-          console.log("[removeFamilyMember] Updating families collection");
           await updateDoc(doc(db, "families", familyId), {
             members: updatedMembers,
           });
-          console.log(
-            "[removeFamilyMember] Families collection updated successfully"
-          );
         }
       } catch (familyError: any) {
         console.error(
@@ -455,16 +445,11 @@ export const userService = {
 
       // Update the user's document to remove family association
       try {
-        console.log(
-          "[removeFamilyMember] Updating user document for:",
-          memberUserId
-        );
         // Use null instead of deleteField() for better compatibility with Firestore rules
         await updateDoc(doc(db, "users", memberUserId), {
           familyId: null,
           role: "admin", // They become admin of their own (empty) account
         });
-        console.log("[removeFamilyMember] User document updated successfully");
       } catch (userError: any) {
         console.error(
           "[removeFamilyMember] Error updating user:",

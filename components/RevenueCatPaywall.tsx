@@ -1,6 +1,13 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import type {
   CustomerInfo,
   PurchasesError,
@@ -23,28 +30,49 @@ export function RevenueCatPaywall({
   onDismiss,
 }: RevenueCatPaywallProps) {
   const { t } = useTranslation();
-  const { isLoading, offerings, error } = useRevenueCat();
+  const { isLoading, offerings, error, refreshOfferings } = useRevenueCat();
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
+  // All hooks must be called before any conditional returns
   useEffect(() => {
     if (error) {
       Alert.alert(t("error"), error.message || t("subscription.loadError"));
     }
   }, [error, t]);
 
-  if (!(offerings || isLoading)) {
+  const handleRetry = async () => {
+    try {
+      await refreshOfferings();
+    } catch (err) {
+      // Error is already handled by the hook
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+        <Text style={styles.loadingText}>
+          {t("subscription.loading", "Loading subscription plans...")}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!offerings) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>
-          {t("subscription.noOfferingsAvailable")}
+          {t(
+            "subscription.noOfferingsAvailable",
+            "No subscription plans available at this time."
+          )}
         </Text>
+        <TouchableOpacity onPress={handleRetry} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>{t("retry", "Retry")}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onDismiss} style={styles.dismissButton}>
+          <Text style={styles.dismissButtonText}>{t("close", "Close")}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -101,6 +129,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
   },
   errorContainer: {
     flex: 1,
@@ -112,5 +147,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     textAlign: "center",
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  dismissButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  dismissButtonText: {
+    color: "#64748B",
+    fontSize: 16,
   },
 });

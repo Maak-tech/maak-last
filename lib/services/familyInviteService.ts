@@ -26,6 +26,37 @@ export const familyInviteService = {
     invitedUserRelation: string
   ): Promise<string> {
     try {
+      // Validate required parameters
+      if (!(familyId && invitedBy && invitedUserName && invitedUserRelation)) {
+        throw new Error(
+          `Missing required parameters: familyId=${!!familyId}, invitedBy=${!!invitedBy}, invitedUserName=${!!invitedUserName}, invitedUserRelation=${!!invitedUserRelation}`
+        );
+      }
+
+      // Verify user document exists and has correct familyId before attempting to create invitation
+      const { getDoc, doc: firestoreDoc } = await import("firebase/firestore");
+      const userDocRef = firestoreDoc(db, "users", invitedBy);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        throw new Error(
+          "User document does not exist. Please ensure you're logged in correctly."
+        );
+      }
+
+      const userData = userDoc.data();
+      if (!userData.familyId) {
+        throw new Error(
+          "User document does not have a familyId. Please join or create a family first."
+        );
+      }
+
+      if (userData.familyId !== familyId) {
+        throw new Error(
+          `User's familyId (${userData.familyId}) does not match invitation familyId (${familyId}).`
+        );
+      }
+
       const code = this.generateInviteCode();
 
       // Check if code already exists (very unlikely but good to check)
@@ -59,7 +90,9 @@ export const familyInviteService = {
 
       return code;
     } catch (error) {
-      // Silently handle error
+      if (__DEV__) {
+        console.error("Failed to create invitation code:", error);
+      }
       throw error;
     }
   },

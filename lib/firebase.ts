@@ -15,6 +15,33 @@ import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 
+// Initialize React Native Firebase early for native platforms
+// This ensures the default Firebase app is initialized from native config files
+// before any Firebase operations are attempted
+let rnFirebaseApp: any = null;
+if (Platform.OS !== "web") {
+  try {
+    // Import React Native Firebase app module - this auto-initializes Firebase
+    // from GoogleService-Info.plist (iOS) and google-services.json (Android)
+    const rnFirebase = require("@react-native-firebase/app");
+    rnFirebaseApp = rnFirebase.default;
+
+    // Ensure React Native Firebase app is initialized
+    // React Native Firebase should auto-initialize from native config files
+    // but we'll verify it's ready
+    try {
+      // Try to get the default app - this will initialize it if needed
+      rnFirebaseApp.app();
+    } catch {
+      // App might already be initialized or initialization might fail
+      // This is okay - React Native Firebase should auto-initialize from native config
+    }
+  } catch (error) {
+    // React Native Firebase not available (e.g., in Expo Go or web)
+    // This is expected and will be handled gracefully
+  }
+}
+
 // Default Firebase configuration
 // Note: For native iOS/Android, GoogleService-Info.plist and google-services.json
 // are automatically used. These configs are primarily for web.
@@ -50,7 +77,7 @@ const firebaseConfig = {
 };
 
 // Select config based on platform
-const getPlatformConfig = () => {
+export const getPlatformConfig = () => {
   if (Platform.OS === "web") {
     return firebaseConfig.web;
   }
@@ -91,6 +118,16 @@ const measurementId =
   cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID) ||
   (platformConfig as any).measurementId; // Only web has measurementId
 
+export const getFirebaseConfig = () => ({
+  apiKey,
+  authDomain,
+  projectId,
+  storageBucket,
+  messagingSenderId,
+  appId,
+  measurementId,
+});
+
 // Validate required Firebase configuration
 const requiredEnvVars = {
   apiKey,
@@ -113,21 +150,64 @@ if (missingVars.length > 0) {
 // Check if Firebase app already exists (prevents duplicate initialization during HMR)
 let app;
 try {
-  app =
-    getApps().length === 0
-      ? initializeApp({
-          apiKey: apiKey || "",
-          authDomain: authDomain || "",
-          projectId: projectId || "",
-          storageBucket: storageBucket || "",
-          messagingSenderId: messagingSenderId || "",
-          appId: appId || "",
-          measurementId,
-        })
-      : getApp();
-} catch (error) {
+  const existingApps = getApps();
+  if (existingApps.length === 0) {
+    // On native platforms, React Native Firebase might have already initialized the app
+    // Check if we can get it via React Native Firebase first
+    if (Platform.OS !== "web" && rnFirebaseApp) {
+      try {
+        // Try to get the app from React Native Firebase
+        const rnApp = rnFirebaseApp.app();
+        // React Native Firebase uses a different app instance
+        // We still need to initialize the web SDK app for compatibility
+        // But we'll check if RN Firebase initialized first
+      } catch (rnError) {
+        // React Native Firebase app not available, proceed with web SDK initialization
+      }
+    }
+
+    // No apps exist, initialize a new one with web SDK
+    app = initializeApp({
+      apiKey: apiKey || "",
+      authDomain: authDomain || "",
+      projectId: projectId || "",
+      storageBucket: storageBucket || "",
+      messagingSenderId: messagingSenderId || "",
+      appId: appId || "",
+      measurementId,
+    });
+  } else {
+    // App already exists, get the default app
+    app = getApp();
+  }
+} catch (error: any) {
+  // If initialization fails, try to get existing app as fallback
+  try {
+    app = getApp();
+  } catch (fallbackError) {
+    // Log the error for debugging
+    console.error("Firebase initialization failed:", error);
+    console.error("Fallback to getApp also failed:", fallbackError);
+
+    // On native platforms, React Native Firebase might be the only option
+    if (Platform.OS !== "web" && rnFirebaseApp) {
+      // Don't throw error - React Native Firebase will handle auth
+      // The web SDK app might not be needed if using RN Firebase exclusively
+      console.warn(
+        "Web SDK Firebase initialization failed, but React Native Firebase may be available"
+      );
+    } else {
+      throw new Error(
+        `Firebase initialization failed: ${error?.message || "Unknown error"}. Please check your environment variables and Firebase configuration.`
+      );
+    }
+  }
+}
+
+// Ensure app is initialized (unless we're on native and using RN Firebase exclusively)
+if (!app && Platform.OS === "web") {
   throw new Error(
-    "Firebase initialization failed. Please check your environment variables."
+    "Firebase app initialization failed. Please check your Firebase configuration."
   );
 }
 

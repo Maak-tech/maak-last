@@ -41,9 +41,6 @@ export function extractRedChannelAverage(frame: Frame): number {
 
     // Validate dimensions - return -1 (invalid) instead of fake data
     if (!(width && height) || width <= 0 || height <= 0) {
-      if (DEBUG_FRAME_EXTRACTION) {
-        console.log("[PPG] Frame dimensions invalid:", width, height);
-      }
       return -1; // Return invalid marker - frame dimensions invalid
     }
 
@@ -137,9 +134,6 @@ export function extractRedChannelAverage(frame: Frame): number {
           }
         }
       } catch (e) {
-        if (DEBUG_FRAME_EXTRACTION) {
-          console.log("[PPG] toArrayBuffer() threw:", String(e));
-        }
         // Method not available or failed - try next method
       }
     }
@@ -304,38 +298,12 @@ export function extractRedChannelAverage(frame: Frame): number {
       extractedValue >= 0 &&
       extractedValue <= 255
     ) {
-      // Only log success on first frame or when debugging
-      if (DEBUG_FRAME_EXTRACTION && isFirstFrame) {
-        console.log("[PPG] Frame extraction working:", {
-          method: extractionMethod,
-          dimensions: `${width}x${height}`,
-          pixelFormat,
-          sampleValue: extractedValue,
-        });
-      }
       return extractedValue;
     }
 
-    // All methods failed - log details only when debugging
-    if (DEBUG_FRAME_EXTRACTION) {
-      console.log("[PPG] All extraction methods failed");
-      console.log(
-        "[PPG] Frame has toArrayBuffer:",
-        typeof frameAny.toArrayBuffer === "function"
-      );
-      console.log(
-        "[PPG] Frame has getPlaneData:",
-        typeof frameAny.getPlaneData === "function"
-      );
-      console.log("[PPG] Frame has planes:", Array.isArray(frameAny.planes));
-    }
-
-    // Fallback: Return invalid marker
+    // All methods failed - return invalid marker
     return -1;
   } catch (error) {
-    if (DEBUG_FRAME_EXTRACTION) {
-      console.log("[PPG] Exception during extraction:", String(error));
-    }
     // Return fallback value that won't break the signal
     return -1;
   }

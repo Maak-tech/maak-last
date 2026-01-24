@@ -207,15 +207,32 @@ function AIInsightsDashboard({
     try {
       setLoading(true);
       setError(null);
-      const dashboard = await aiInsightsService.generateAIInsightsDashboard(
+
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("AI insights loading timeout")),
+          20_000
+        )
+      );
+
+      const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
         user.id
       );
+
+      const dashboard = (await Promise.race([
+        dashboardPromise,
+        timeoutPromise,
+      ])) as AIInsightsDashboardData;
+
       setInsights(dashboard);
     } catch (err) {
       console.error("Failed to load AI insights:", err);
       setError(
         t("failedToLoadInsights", "Failed to load insights. Please try again.")
       );
+      // Set null to prevent infinite loading state
+      setInsights(null);
     } finally {
       setLoading(false);
     }

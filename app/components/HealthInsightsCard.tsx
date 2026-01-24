@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -17,9 +17,17 @@ import {
   type PatternInsight,
   type WeeklySummary,
 } from "@/lib/services/healthInsightsService";
+import { userService } from "@/lib/services/userService";
+import type { User } from "@/types";
 
 interface HealthInsightsCardProps {
   onViewDetails?: () => void;
+}
+
+interface FamilyMemberInsights {
+  member: User;
+  summary: WeeklySummary;
+  insights: PatternInsight[];
 }
 
 export default function HealthInsightsCard({
@@ -35,31 +43,96 @@ export default function HealthInsightsCard({
   );
   const [insights, setInsights] = useState<PatternInsight[]>([]);
   const [loading, setLoading] = useState(true);
+  const [familyLoading, setFamilyLoading] = useState(false);
+  const [familyInsights, setFamilyInsights] = useState<FamilyMemberInsights[]>(
+    []
+  );
   const [expanded, setExpanded] = useState(false);
 
   const styles = getStyles(theme, isRTL);
 
   useEffect(() => {
     loadInsights();
-  }, [user]);
+  }, [loadInsights]);
 
-  const loadInsights = async () => {
+  useEffect(() => {
+    if (!user?.familyId || user?.role !== "admin") {
+      setFamilyInsights([]);
+      return;
+    }
+
+    loadFamilyInsights();
+  }, [user?.familyId, user?.role, isRTL, loadFamilyInsights]);
+
+  const loadInsights = useCallback(async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      const [summary, allInsights] = await Promise.all([
+
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Health insights loading timeout")),
+          15_000
+        )
+      );
+
+      const dataPromise = Promise.all([
         healthInsightsService.getWeeklySummary(user.id, undefined, isRTL),
         healthInsightsService.getAllInsights(user.id, isRTL),
       ]);
+
+      const [summary, allInsights] = (await Promise.race([
+        dataPromise,
+        timeoutPromise,
+      ])) as [WeeklySummary, PatternInsight[]];
+
       setWeeklySummary(summary);
       setInsights(allInsights.slice(0, 3)); // Show top 3 insights
-    } catch (error) {
-      // Silently handle errors
+    } catch {
+      // Silently handle errors - set empty state to prevent infinite loading
+      setWeeklySummary(null);
+      setInsights([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, isRTL]);
+
+  const loadFamilyInsights = useCallback(async () => {
+    if (!user?.familyId || user?.role !== "admin") return;
+
+    try {
+      setFamilyLoading(true);
+      const members = await userService.getFamilyMembers(user.familyId);
+      const otherMembers = members.filter((member) => member.id !== user.id);
+
+      const results = await Promise.allSettled(
+        otherMembers.map(async (member) => {
+          const [summary, allInsights] = await Promise.all([
+            healthInsightsService.getWeeklySummary(member.id, undefined, isRTL),
+            healthInsightsService.getAllInsights(member.id, isRTL),
+          ]);
+
+          return {
+            member,
+            summary,
+            insights: allInsights.slice(0, 2),
+          };
+        })
+      );
+
+      const memberInsights = results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : []
+      );
+
+      setFamilyInsights(memberInsights);
+    } catch {
+      setFamilyInsights([]);
+    } finally {
+      setFamilyLoading(false);
+    }
+  }, [user?.familyId, user?.id, user?.role, isRTL]);
 
   const getInsightIcon = (type: PatternInsight["type"]) => {
     switch (type) {
@@ -88,6 +161,131 @@ export default function HealthInsightsCard({
       day: "numeric",
       calendar: "gregory", // Force Gregorian calendar (AD) even for Arabic
     });
+  };
+
+  const getMemberName = (member: User) => {
+    const name = [member.firstName, member.lastName].filter(Boolean).join(" ");
+    return name || (isRTL ? "عضو العائلة" : "Family Member");
+  };
+
+  const renderFamilyInsights = () => {
+    if (user?.role !== "admin" || !user?.familyId) {
+      return null;
+    }
+
+    return (
+      <View style={styles.familySection}>
+        <Text style={styles.sectionTitle}>
+          {t("familyInsights", "Family Insights")}
+        </Text>
+        {familyLoading ? (
+          <View style={styles.familyLoading}>
+            <ActivityIndicator color={theme.colors.primary.main} size="small" />
+            <Caption numberOfLines={1} style={styles.loadingText}>
+              {isRTL
+                ? "جاري تحميل رؤى العائلة..."
+                : "Loading family insights..."}
+            </Caption>
+          </View>
+        ) : familyInsights.length > 0 ? (
+          familyInsights.map(({ member, summary, insights }) => (
+            <View key={member.id} style={styles.familyCard}>
+              <View style={styles.familyHeader}>
+                <Text style={styles.familyName}>{getMemberName(member)}</Text>
+                <Badge style={styles.familyBadge} variant="outline">
+                  <Text style={styles.familyBadgeText}>
+                    {summary.symptoms.total} {isRTL ? "أعراض" : "symptoms"}
+                  </Text>
+                </Badge>
+              </View>
+              <Caption numberOfLines={1} style={styles.familySubtitle}>
+                {isRTL
+                  ? `ملخص الأسبوع: ${formatDate(summary.weekStart)} - ${formatDate(summary.weekEnd)}`
+                  : `Week Summary: ${formatDate(summary.weekStart)} - ${formatDate(summary.weekEnd)}`}
+              </Caption>
+              <View style={styles.familyStatsRow}>
+                <View style={styles.familyStatItem}>
+                  <Text style={styles.familyStatValue}>
+                    {summary.medications.compliance}%
+                  </Text>
+                  <Caption numberOfLines={1} style={styles.familyStatLabel}>
+                    {isRTL ? "الالتزام" : "Compliance"}
+                  </Caption>
+                </View>
+                <View style={styles.familyStatItem}>
+                  <Text style={styles.familyStatValue}>
+                    {summary.moods.averageIntensity.toFixed(1)}
+                  </Text>
+                  <Caption numberOfLines={1} style={styles.familyStatLabel}>
+                    {isRTL ? "المزاج" : "Mood"}
+                  </Caption>
+                </View>
+                <View style={styles.familyStatItem}>
+                  <Text style={styles.familyStatValue}>
+                    {summary.symptoms.averageSeverity.toFixed(1)}
+                  </Text>
+                  <Caption numberOfLines={1} style={styles.familyStatLabel}>
+                    {isRTL ? "الشدة" : "Severity"}
+                  </Caption>
+                </View>
+              </View>
+              {insights.length > 0 && (
+                <View style={styles.familyInsightsList}>
+                  {insights.map((insight, index) => (
+                    <View key={`${member.id}-insight-${index}`}>
+                      <View style={styles.familyInsightHeader}>
+                        <Ionicons
+                          color={theme.colors.primary.main}
+                          name={getInsightIcon(insight.type)}
+                          size={16}
+                        />
+                        <Text style={styles.familyInsightTitle}>
+                          {insight.title}
+                        </Text>
+                        <Badge
+                          style={[
+                            styles.familyInsightBadge,
+                            {
+                              borderColor: getConfidenceColor(
+                                insight.confidence
+                              ),
+                            },
+                          ]}
+                          variant="outline"
+                        >
+                          <Text
+                            style={[
+                              styles.familyInsightBadgeText,
+                              {
+                                color: getConfidenceColor(insight.confidence),
+                              },
+                            ]}
+                          >
+                            {insight.confidence}%
+                          </Text>
+                        </Badge>
+                      </View>
+                      <Caption
+                        numberOfLines={2}
+                        style={styles.familyInsightDescription}
+                      >
+                        {insight.description}
+                      </Caption>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ))
+        ) : (
+          <Caption numberOfLines={2} style={styles.familyEmptyState}>
+            {isRTL
+              ? "لا توجد رؤى صحية لأفراد العائلة بعد."
+              : "No family insights available yet."}
+          </Caption>
+        )}
+      </View>
+    );
   };
 
   if (loading) {
@@ -303,6 +501,8 @@ export default function HealthInsightsCard({
             </View>
           )}
 
+          {renderFamilyInsights()}
+
           {/* Most Common Symptoms */}
           {weeklySummary.symptoms.mostCommon.length > 0 && (
             <View style={styles.section}>
@@ -425,6 +625,91 @@ const getStyles = (theme: any, isRTL: boolean) => ({
   },
   insightsSection: {
     marginBottom: theme.spacing.base,
+  },
+  familySection: {
+    marginBottom: theme.spacing.base,
+  },
+  familyLoading: {
+    alignItems: "center" as const,
+    paddingVertical: theme.spacing.base,
+  },
+  familyCard: {
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.base,
+    marginBottom: theme.spacing.sm,
+  },
+  familyHeader: {
+    flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
+    gap: theme.spacing.sm,
+  },
+  familyName: {
+    ...theme.typography.body,
+    fontWeight: "600",
+    color: theme.colors.text.primary,
+  },
+  familyBadge: {
+    paddingHorizontal: theme.spacing.xs,
+    paddingVertical: 2,
+  },
+  familyBadgeText: {
+    fontSize: 10,
+    color: theme.colors.text.secondary,
+  },
+  familySubtitle: {
+    marginTop: theme.spacing.xs,
+    color: theme.colors.text.secondary,
+  },
+  familyStatsRow: {
+    flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
+    justifyContent: "space-between" as const,
+    marginTop: theme.spacing.sm,
+  },
+  familyStatItem: {
+    alignItems: "center" as const,
+    flex: 1,
+  },
+  familyStatValue: {
+    ...theme.typography.body,
+    fontWeight: "600",
+    color: theme.colors.primary.main,
+  },
+  familyStatLabel: {
+    color: theme.colors.text.secondary,
+    fontSize: 11,
+  },
+  familyInsightsList: {
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  familyInsightHeader: {
+    flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
+    alignItems: "center" as const,
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.xs,
+  },
+  familyInsightTitle: {
+    flex: 1,
+    ...theme.typography.caption,
+    color: theme.colors.text.primary,
+  },
+  familyInsightBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  familyInsightBadgeText: {
+    fontSize: 9,
+    fontWeight: "600" as const,
+  },
+  familyInsightDescription: {
+    color: theme.colors.text.secondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  familyEmptyState: {
+    color: theme.colors.text.secondary,
   },
   section: {
     marginBottom: theme.spacing.base,

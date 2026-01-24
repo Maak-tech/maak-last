@@ -1120,14 +1120,6 @@ export default function PPGVitalMonitorVisionCamera({
         } else {
           consecutiveNoFingerFrames.current = 0;
         }
-
-        // Log quality for debugging (controlled by DEBUG_PPG flag)
-        if (DEBUG_PPG && ppgSignalRef.current.length % 300 === 0) {
-          // Log every 300 frames (~every 10 seconds at 30fps)
-          console.log(
-            `[PPG] Signal quality: ${(signalQuality * 100).toFixed(1)}%, frames: ${ppgSignalRef.current.length}/${TARGET_FRAMES}`
-          );
-        }
       }
 
       // Optimized beat detection with time-based calculation
@@ -1552,35 +1544,6 @@ export default function PPGVitalMonitorVisionCamera({
             </View>
           )}
 
-          {/* Debug info for troubleshooting */}
-          {__DEV__ && (
-            <View
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                backgroundColor: "rgba(0,0,0,0.7)",
-                padding: 5,
-                borderRadius: 5,
-              }}
-            >
-              <Text style={{ color: "white", fontSize: 10 }}>
-                Status: {status}
-                {"\n"}Permission: {hasPermission ? "Yes" : "No"}
-                {"\n"}Device: {device ? "Yes" : "No"}
-                {"\n"}Format:{" "}
-                {format ? `${format.videoWidth}x${format.videoHeight}` : "None"}
-                {"\n"}FPS: {TARGET_FPS} (device max: {format?.maxFps ?? "N/A"})
-                {"\n"}Finger: {fingerDetected ? "Yes" : "No"}
-                {"\n"}Capturing: {isCapturing ? "Yes" : "No"}
-                {"\n"}Frames: {framesCaptured}/{TARGET_FRAMES}
-                {"\n"}FrameProc:{" "}
-                {frameProcessorCalled ? "Called" : "Not called"}
-                {frameMeta ? `\n${frameMeta}` : ""}
-              </Text>
-            </View>
-          )}
-
           <View style={styles.content as ViewStyle}>
             <Text style={styles.subtitle as StyleProp<TextStyle>}>
               {getStatusMessage()}
@@ -1871,7 +1834,6 @@ export default function PPGVitalMonitorVisionCamera({
                     </Text>
                     <TouchableOpacity
                       onPress={() => {
-                        console.log("Start Measurement button tapped");
                         setFingerDetected(true);
                         fingerDetectedRef.current = true;
                         handleFingerPlacement();

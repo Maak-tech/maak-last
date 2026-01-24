@@ -32,8 +32,32 @@ export const checkSymptomBenchmarks = onDocumentCreated(
     }
 
     try {
-      // Get user info
       const db = admin.firestore();
+      const symptomType = symptomData.type || "symptom";
+      const cooldownMinutes = 5;
+      const cutoffTime = admin.firestore.Timestamp.fromMillis(
+        Date.now() - cooldownMinutes * 60 * 1000
+      );
+      const recentAlertSnapshot = await db
+        .collection("notificationLogs")
+        .where("type", "==", "symptom_alert")
+        .where("userId", "==", userId)
+        .where("symptomType", "==", symptomType)
+        .where("sentAt", ">=", cutoffTime)
+        .limit(1)
+        .get();
+
+      if (!recentAlertSnapshot.empty) {
+        logger.info("Skipping duplicate symptom alert", {
+          fn: "checkSymptomBenchmarks",
+          userId,
+          symptomType,
+          cooldownMinutes,
+        });
+        return;
+      }
+
+      // Get user info
       const userDoc = await db.collection("users").doc(userId).get();
       const userData = userDoc.data();
 
@@ -55,8 +79,6 @@ export const checkSymptomBenchmarks = onDocumentCreated(
 
       const severityText = severity === 5 ? "very severe" : "severe";
       const severityEmoji = severity === 5 ? "🚨" : "⚠️";
-      const symptomType = symptomData.type || "symptom";
-
       const notification = {
         title: `${severityEmoji} Symptom Alert`,
         body: `${userName} is experiencing ${severityText} ${symptomType}`,

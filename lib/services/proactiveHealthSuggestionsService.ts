@@ -1762,7 +1762,7 @@ class ProactiveHealthSuggestionsService {
           description: seasonalPrediction.description,
           action: {
             label: seasonalPrediction.actionLabel,
-            route: "/ai-assistant",
+            route: "/(tabs)/resources",
           },
           icon: "Calendar",
           category: seasonalPrediction.category,

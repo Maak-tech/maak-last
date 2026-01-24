@@ -593,7 +593,6 @@ export default function AnalyticsScreen() {
                     compact={true}
                     onInsightPress={(insight: any) => {
                       // Handle insight press - could navigate to detailed view
-                      console.log("Insight pressed:", insight);
                     }}
                   />
                 )}

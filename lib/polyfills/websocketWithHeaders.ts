@@ -1,15 +1,19 @@
 /**
  * WebSocket wrapper with header support for React Native
  *
- * React Native's WebSocket doesn't reliably support headers across all platforms.
- * This wrapper provides a consistent interface for creating WebSocket connections
- * with authentication headers.
- *
- * Note: On React Native 0.60+, the third parameter should support headers,
- * but it requires the native side to be properly configured.
+ * Uses react-native-websocket library for better header support across platforms.
+ * Falls back to native WebSocket if the library is not available.
  */
 
 import { Platform } from "react-native";
+
+// Try to use react-native-websocket for better header support
+let RNWebSocket: any = null;
+try {
+  RNWebSocket = require("react-native-websocket").default;
+} catch {
+  // react-native-websocket not available, will use fallback
+}
 
 export interface WebSocketWithHeadersOptions {
   headers?: Record<string, string>;
@@ -18,8 +22,8 @@ export interface WebSocketWithHeadersOptions {
 /**
  * Create a WebSocket connection with custom headers
  *
- * For React Native, headers need to be passed in a specific way that
- * the native WebSocket implementation can understand.
+ * Uses react-native-websocket library when available for better header support.
+ * Falls back to native WebSocket implementation.
  *
  * @param url - WebSocket URL
  * @param protocols - Optional protocols
@@ -34,11 +38,18 @@ export function createWebSocketWithHeaders(
   const headers = options?.headers || {};
 
   try {
-    // For React Native, we need to pass headers in the options object
-    // The native implementation should pick this up
+    // Try using react-native-websocket first (better header support)
+    if (RNWebSocket && (Platform.OS === "ios" || Platform.OS === "android")) {
+      const wsOptions: any = {
+        headers,
+        origin: "https://api.openai.com", // Required for some WebSocket implementations
+      };
 
-    // Try the standard approach with headers
-    // React Native 0.60+ should support this on native platforms
+      const ws = new RNWebSocket(url, protocols, wsOptions);
+      return ws;
+    }
+
+    // Fallback to native WebSocket with headers in options
     const wsOptions: any = {};
 
     if (Object.keys(headers).length > 0) {
@@ -46,12 +57,14 @@ export function createWebSocketWithHeaders(
     }
 
     // Create WebSocket with options
-    // Note: The third parameter is React Native specific and not part of web standards
     const ws = new WebSocket(url, protocols, wsOptions);
-
     return ws;
   } catch (error) {
-    // Last resort fallback
+    // Last resort fallback without headers
+    console.warn(
+      "WebSocket with headers failed, falling back to basic connection:",
+      error
+    );
     return new WebSocket(url, protocols);
   }
 }

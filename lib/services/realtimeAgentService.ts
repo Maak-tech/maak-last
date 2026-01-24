@@ -34,7 +34,7 @@ try {
   AsyncStorage = null;
 }
 
-const RUNTIME_OPENAI_KEY_STORAGE = "@openai_api_key";
+const RUNTIME_OPENAI_KEY_STORAGE = "openai_api_key";
 
 // Dynamic import for expo-av and expo-file-system
 let Audio: any = null;
@@ -839,20 +839,82 @@ class RealtimeAgentService {
     this.loadApiKey();
   }
 
+  /**
+   * Validate API key format
+   */
+  private validateApiKeyFormat(key: string): boolean {
+    if (!key || typeof key !== "string") return false;
+    const trimmed = key.trim();
+    // OpenAI API keys typically start with sk- or sk-proj-
+    return (
+      trimmed.length > 10 &&
+      (trimmed.startsWith("sk-") || trimmed.startsWith("sk-proj-"))
+    );
+  }
+
+  /**
+   * Mask API key for logging (show first 7 and last 4 characters)
+   */
+  private maskApiKey(key: string | null): string {
+    if (!key || key.length < 12) return "***";
+    return `${key.substring(0, 7)}...${key.substring(key.length - 4)}`;
+  }
+
   private async loadApiKey() {
     try {
+      // Prefer app-config keys (shared key for premium users).
+      const config = Constants.expoConfig?.extra;
+      const configKey = config?.zeinaApiKey || config?.openaiApiKey || null;
+
+      if (
+        configKey &&
+        typeof configKey === "string" &&
+        configKey.trim() !== ""
+      ) {
+        const trimmed = configKey.trim();
+        if (this.validateApiKeyFormat(trimmed)) {
+          this.apiKey = trimmed;
+          return;
+        }
+        if (__DEV__) {
+          console.warn(
+            `[Zeina] ⚠️ Invalid API key format in app config (should start with 'sk-'): ${this.maskApiKey(trimmed)}\n` +
+              "Check that OPENAI_API_KEY or ZEINA_API_KEY in .env has a valid format."
+          );
+        }
+      }
+
       // 1) Prefer a runtime key saved on the device (so dev client builds don't require rebuilds).
       if (SecureStore?.getItemAsync) {
-        const storedKey = await SecureStore.getItemAsync(
-          RUNTIME_OPENAI_KEY_STORAGE
-        );
-        if (
-          storedKey &&
-          typeof storedKey === "string" &&
-          storedKey.trim() !== ""
-        ) {
-          this.apiKey = storedKey.trim();
-          return;
+        try {
+          const storedKey = await SecureStore.getItemAsync(
+            RUNTIME_OPENAI_KEY_STORAGE
+          );
+          if (
+            storedKey &&
+            typeof storedKey === "string" &&
+            storedKey.trim() !== ""
+          ) {
+            const trimmed = storedKey.trim();
+            if (this.validateApiKeyFormat(trimmed)) {
+              this.apiKey = trimmed;
+              return;
+            }
+            if (__DEV__) {
+              console.warn(
+                `[Zeina] ⚠️ Invalid API key format in SecureStore (should start with 'sk-'): ${this.maskApiKey(trimmed)}`
+              );
+            }
+          }
+        } catch (error) {
+          // SecureStore may fail if key format is invalid or other issues
+          // Fall through to AsyncStorage or app config
+          if (__DEV__) {
+            console.warn(
+              "[Zeina] SecureStore read failed, trying AsyncStorage:",
+              error
+            );
+          }
         }
       }
 
@@ -866,24 +928,36 @@ class RealtimeAgentService {
           typeof storedKey === "string" &&
           storedKey.trim() !== ""
         ) {
-          this.apiKey = storedKey.trim();
-          return;
+          const trimmed = storedKey.trim();
+          if (this.validateApiKeyFormat(trimmed)) {
+            this.apiKey = trimmed;
+            return;
+          }
+          if (__DEV__) {
+            console.warn(
+              `[Zeina] ⚠️ Invalid API key format in AsyncStorage (should start with 'sk-'): ${this.maskApiKey(trimmed)}`
+            );
+          }
         }
       }
 
-      const config = Constants.expoConfig?.extra;
-
-      // Use zeinaApiKey first (for Zeina voice agent), then fall back to openaiApiKey
-      const key = config?.zeinaApiKey || config?.openaiApiKey || null;
-
-      // Validate the key is not empty
-      if (key && typeof key === "string" && key.trim() !== "") {
-        this.apiKey = key.trim();
-      } else {
-        this.apiKey = null;
+      // If app config key missing/invalid, fall back to runtime storage.
+      this.apiKey = null;
+      if (__DEV__) {
+        const hasZeinaKey = !!config?.zeinaApiKey;
+        const hasOpenAIKey = !!config?.openaiApiKey;
+        console.warn(
+          "[Zeina] ❌ No API key found in app config.\n" +
+            `  - ZEINA_API_KEY: ${hasZeinaKey ? "present but empty" : "not set"}\n` +
+            `  - OPENAI_API_KEY: ${hasOpenAIKey ? "present but empty" : "not set"}\n` +
+            "  Check that OPENAI_API_KEY or ZEINA_API_KEY is set in .env and rebuild the app."
+        );
       }
     } catch (error) {
       this.apiKey = null;
+      if (__DEV__) {
+        console.error("[Zeina] ❌ Error loading API key:", error);
+      }
     }
   }
 
@@ -893,15 +967,24 @@ class RealtimeAgentService {
     if (SecureStore?.setItemAsync && this.apiKey) {
       try {
         await SecureStore.setItemAsync(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
-      } catch {
-        // ignore
+      } catch (error) {
+        // SecureStore may fail, fall back to AsyncStorage
+        if (__DEV__) {
+          console.warn(
+            "[Zeina] SecureStore write failed, using AsyncStorage:",
+            error
+          );
+        }
       }
     }
     if (AsyncStorage?.setItem && this.apiKey) {
       try {
         await AsyncStorage.setItem(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
-      } catch {
-        // ignore
+      } catch (error) {
+        // AsyncStorage write failed, but we still have the key in memory
+        if (__DEV__) {
+          console.warn("[Zeina] AsyncStorage write failed:", error);
+        }
       }
     }
   }
@@ -924,17 +1007,56 @@ class RealtimeAgentService {
    * Connect to the OpenAI Realtime API
    */
   async connect(customInstructions?: string): Promise<void> {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      return;
+    // Check if already connected, but handle cases where WebSocket might not have readyState
+    if (this.ws) {
+      try {
+        if (
+          typeof this.ws.readyState !== "undefined" &&
+          this.ws.readyState === WebSocket.OPEN
+        ) {
+          return;
+        }
+      } catch (error) {
+        // WebSocket might be in an invalid state, continue to create new connection
+        this.ws = null;
+      }
     }
 
     if (!this.apiKey) {
       await this.loadApiKey();
       if (!this.apiKey) {
-        throw new Error(
-          "Zeina API key not configured. Set it in the app settings (OpenAI API Key) or provide OPENAI_API_KEY / ZEINA_API_KEY at build time."
-        );
+        const config = Constants.expoConfig?.extra;
+        const hasZeinaKey = !!config?.zeinaApiKey;
+        const hasOpenAIKey = !!config?.openaiApiKey;
+        const errorMessage =
+          "Zeina API key not configured.\n\n" +
+          "Diagnostics:\n" +
+          `  • ZEINA_API_KEY in .env: ${hasZeinaKey ? "present but empty/invalid" : "not set"}\n` +
+          `  • OPENAI_API_KEY in .env: ${hasOpenAIKey ? "present but empty/invalid" : "not set"}\n\n` +
+          "To fix this:\n" +
+          "1. Set the API key in app settings (AI Assistant → Settings → OpenAI API Key), OR\n" +
+          "2. Add OPENAI_API_KEY or ZEINA_API_KEY to your .env file:\n" +
+          "   OPENAI_API_KEY=sk-proj-your-actual-key-here\n" +
+          "   (or ZEINA_API_KEY=sk-proj-your-actual-key-here)\n\n" +
+          "3. Rebuild the app (required for .env changes):\n" +
+          "   - Stop the dev server\n" +
+          "   - Run: npm run ios (or npm run android)\n" +
+          "   - Or rebuild with EAS: eas build --profile development\n\n" +
+          "Note: API keys should start with 'sk-' or 'sk-proj-'";
+        throw new Error(errorMessage);
       }
+    }
+
+    // Validate API key format before attempting connection
+    if (!this.validateApiKeyFormat(this.apiKey!)) {
+      const errorMessage =
+        `Invalid API key format: ${this.maskApiKey(this.apiKey!)}\n\n` +
+        "OpenAI API keys should start with 'sk-' or 'sk-proj-'.\n\n" +
+        "Please check:\n" +
+        "1. Your .env file has the correct key format\n" +
+        "2. The key doesn't have extra quotes or spaces\n" +
+        "3. You've rebuilt the app after changing .env";
+      throw new Error(errorMessage);
     }
 
     this.setConnectionState("connecting");
@@ -946,14 +1068,37 @@ class RealtimeAgentService {
           "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
 
         // Create WebSocket with authentication headers
-        const ws = createWebSocketWithHeaders(wsUrl, undefined, {
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            "OpenAI-Beta": "realtime=v1",
-          },
-        });
+        let ws: WebSocket;
+        try {
+          ws = createWebSocketWithHeaders(wsUrl, undefined, {
+            headers: {
+              Authorization: `Bearer ${this.apiKey}`,
+              "OpenAI-Beta": "realtime=v1",
+            },
+          });
 
-        this.ws = ws;
+          // Verify WebSocket was created successfully
+          if (!ws) {
+            throw new Error("Failed to create WebSocket instance");
+          }
+
+          this.ws = ws;
+        } catch (wsError) {
+          const error = new Error(
+            `Failed to create WebSocket connection: ${wsError instanceof Error ? wsError.message : String(wsError)}\n\n` +
+              "This may indicate:\n" +
+              "• WebSocket library not properly installed\n" +
+              "• Platform-specific WebSocket limitations\n" +
+              "• Network connectivity issues\n\n" +
+              "Try:\n" +
+              "• Restart the app\n" +
+              "• Check your network connection\n" +
+              "• Try on a physical device instead of simulator"
+          );
+          this.setConnectionState("error");
+          reject(error);
+          return;
+        }
 
         // Set up event handlers
         let connectionTimeout: NodeJS.Timeout;
@@ -982,15 +1127,111 @@ class RealtimeAgentService {
           const errorMessage =
             error?.message || error?.toString() || "Unknown WebSocket error";
           const setupGuidance = getWebSocketSetupGuidance();
-          const detailedError = new Error(
-            `WebSocket connection failed: ${errorMessage}.\n\n` +
-              "Common causes:\n" +
-              "1. Missing or invalid OpenAI API key\n" +
-              "2. Network connectivity issues\n" +
-              "3. WebSocket headers not supported on this platform\n\n" +
-              `${setupGuidance}\n\n` +
-              "Please ensure OPENAI_API_KEY is set in your .env file."
-          );
+          const maskedKey = this.maskApiKey(this.apiKey);
+
+          let detailedError: Error;
+
+          // Check for firewall/proxy blocking patterns first
+          const isFirewallProxyIssue =
+            errorMessage.includes("ECONNREFUSED") ||
+            errorMessage.includes("ENOTFOUND") ||
+            errorMessage.includes("ETIMEDOUT") ||
+            errorMessage.includes("network") ||
+            errorMessage.includes("timeout") ||
+            errorMessage.includes("refused") ||
+            errorMessage.includes("blocked") ||
+            errorMessage.toLowerCase().includes("firewall") ||
+            errorMessage.toLowerCase().includes("proxy");
+
+          if (isFirewallProxyIssue) {
+            detailedError = new Error(
+              "🚫 Firewall/Proxy Blocking WebSocket Connection\n\n" +
+                `Error: ${errorMessage}\n\n` +
+                `API Key: ${maskedKey}\n` +
+                `Format Valid: ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Yes" : "❌ No"}\n\n` +
+                "Your network appears to be blocking WebSocket connections to OpenAI.\n\n" +
+                "Common causes:\n" +
+                "1. Corporate firewall blocking WebSocket (wss://) connections\n" +
+                "2. Network proxy requiring authentication\n" +
+                "3. ISP or network security blocking outbound WebSocket traffic\n" +
+                "4. VPN or network filter blocking api.openai.com\n\n" +
+                "Solutions:\n" +
+                "1. Try a different network:\n" +
+                "   • Switch to mobile data (cellular)\n" +
+                "   • Use a different Wi-Fi network\n" +
+                "   • Try a public Wi-Fi network\n\n" +
+                "2. Configure network settings:\n" +
+                "   • Contact your IT administrator to allow WebSocket connections\n" +
+                "   • Whitelist: wss://api.openai.com\n" +
+                "   • Configure proxy settings if required\n\n" +
+                "3. Use VPN:\n" +
+                "   • Connect to a VPN service\n" +
+                "   • Ensure VPN allows WebSocket traffic\n\n" +
+                "4. Test connectivity:\n" +
+                "   • Check if you can access https://api.openai.com in a browser\n" +
+                "   • Verify OpenAI status: https://status.openai.com/\n\n" +
+                "Note: WebSocket connections require outbound access to:\n" +
+                "• wss://api.openai.com (port 443)"
+            );
+          } else if (
+            errorMessage.includes("401") ||
+            errorMessage.includes("Unauthorized")
+          ) {
+            detailedError = new Error(
+              "WebSocket authentication failed (401 Unauthorized).\n\n" +
+                `API Key: ${maskedKey}\n\n` +
+                "This usually means:\n" +
+                "1. Your OpenAI API key is invalid or expired\n" +
+                `2. Your OpenAI API key doesn't have Realtime API access\n` +
+                "3. The Realtime API requires special beta approval\n" +
+                `4. WebSocket headers aren't being sent properly\n\n` +
+                "To fix this:\n" +
+                `• Verify your API key is correct: ${maskedKey}\n` +
+                `• Check API key format starts with 'sk-' or 'sk-proj-'\n` +
+                "• Set the API key in app settings (AI Assistant → Settings)\n" +
+                "• Or add OPENAI_API_KEY to .env and rebuild the app\n" +
+                "• Apply for Realtime API beta access: https://platform.openai.com/docs/guides/realtime\n" +
+                "• Check OpenAI status: https://status.openai.com/"
+            );
+          } else if (
+            errorMessage.includes("API key") ||
+            errorMessage.includes("authentication")
+          ) {
+            detailedError = new Error(
+              `Authentication error: ${errorMessage}\n\n` +
+                `API Key: ${maskedKey}\n` +
+                `Format Valid: ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Yes" : "❌ No"}\n\n` +
+                "Your API key may be missing or invalid.\n\n" +
+                "To fix this:\n" +
+                "1. Set the API key in app settings (AI Assistant → Settings → OpenAI API Key), OR\n" +
+                "2. Add OPENAI_API_KEY to your .env file and rebuild:\n" +
+                "   - Stop dev server\n" +
+                "   - Run: npm run ios (or npm run android)\n" +
+                "   - Or: eas build --profile development\n\n" +
+                "Note: .env changes require a rebuild."
+            );
+          } else {
+            detailedError = new Error(
+              `WebSocket connection failed: ${errorMessage}\n\n` +
+                `API Key: ${maskedKey}\n` +
+                `Format Valid: ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Yes" : "❌ No"}\n\n` +
+                "Common causes:\n" +
+                "1. Missing or invalid OpenAI API key\n" +
+                "2. Network connectivity issues (firewall/proxy blocking)\n" +
+                "3. WebSocket headers not supported on this platform\n" +
+                "4. Realtime API beta access required\n\n" +
+                `${setupGuidance}\n\n` +
+                "Troubleshooting:\n" +
+                "• Set API key in app settings (AI Assistant → Settings)\n" +
+                "• Or add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Check your network connection (try mobile data)\n" +
+                "• Verify Realtime API access: https://platform.openai.com/docs/guides/realtime"
+            );
+          }
+
+          if (__DEV__) {
+            console.error("[Zeina] ❌ WebSocket error:", detailedError.message);
+          }
 
           clearTimeout(connectionTimeout);
           this.eventHandlers.onError?.(detailedError);
@@ -1006,22 +1247,69 @@ class RealtimeAgentService {
           clearTimeout(connectionTimeout);
           this.setConnectionState("disconnected");
 
+          const maskedKey = this.maskApiKey(this.apiKey);
+          const closeReason = event.reason || "No reason provided";
+
           // Provide helpful error messages based on close code
           if (event.code === 1006) {
-            // Abnormal closure - often means connection failed
+            // Abnormal closure - often means connection failed (could be firewall/proxy)
+            const isLikelyFirewall =
+              closeReason.includes("timeout") ||
+              closeReason.includes("refused") ||
+              closeReason.includes("network") ||
+              !closeReason ||
+              closeReason === "No reason provided";
+
             const error = new Error(
-              "WebSocket connection closed abnormally. This usually means: " +
-                "1) Invalid API key or missing authentication, " +
-                "2) Network connectivity issues, or " +
-                "3) OpenAI API service unavailable. " +
-                `Close code: ${event.code}, Reason: ${event.reason || "No reason provided"}`
+              "WebSocket connection closed abnormally (code 1006).\n\n" +
+                `API Key: ${maskedKey}\n` +
+                `Reason: ${closeReason}\n\n` +
+                (isLikelyFirewall
+                  ? "🚫 This often indicates firewall/proxy blocking:\n\n" +
+                    "Possible causes:\n" +
+                    "1. Corporate firewall blocking WebSocket connections\n" +
+                    "2. Network proxy blocking wss://api.openai.com\n" +
+                    "3. ISP blocking outbound WebSocket traffic\n\n" +
+                    "Try:\n" +
+                    "• Switch to mobile data (cellular network)\n" +
+                    "• Use a different Wi-Fi network\n" +
+                    "• Connect to a VPN\n" +
+                    "• Contact IT to whitelist wss://api.openai.com\n\n"
+                  : "This usually means:\n" +
+                    "1. Invalid API key or missing authentication\n" +
+                    "2. Network connectivity issues\n" +
+                    "3. OpenAI API service unavailable\n\n") +
+                "To fix:\n" +
+                "• Set API key in app settings (AI Assistant → Settings)\n" +
+                "• Or add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Check your network connection\n" +
+                "• Verify API key format (should start with 'sk-')"
             );
             this.eventHandlers.onError?.(error);
           } else if (event.code === 1002) {
             // Protocol error
             const error = new Error(
-              "WebSocket protocol error. This may indicate that WebSocket headers are not supported on this platform. " +
-                "Consider using a WebSocket library that supports custom headers for React Native."
+              "WebSocket protocol error (code 1002).\n\n" +
+                `API Key: ${maskedKey}\n\n` +
+                "This may indicate that WebSocket headers are not supported on this platform.\n\n" +
+                "To fix:\n" +
+                "• Try on a physical device instead of simulator\n" +
+                "• Rebuild the app\n" +
+                "• Check that your API key is properly configured"
+            );
+            this.eventHandlers.onError?.(error);
+          } else if (event.code === 1008) {
+            // Policy violation - often means invalid API key
+            const error = new Error(
+              "WebSocket connection rejected (code 1008).\n\n" +
+                `API Key: ${maskedKey}\n` +
+                `Reason: ${closeReason}\n\n` +
+                "This usually means your API key is invalid or doesn't have Realtime API access.\n\n" +
+                "To fix:\n" +
+                "• Verify your API key is correct\n" +
+                "• Set API key in app settings (AI Assistant → Settings)\n" +
+                "• Or add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Apply for Realtime API access: https://platform.openai.com/docs/guides/realtime"
             );
             this.eventHandlers.onError?.(error);
           }
@@ -1038,26 +1326,62 @@ class RealtimeAgentService {
             );
           } else if (!hasResolved && event.code !== 1000) {
             hasResolved = true;
-            reject(
-              new Error(
-                `WebSocket closed with code ${event.code}: ${event.reason || "Connection failed"}`
-              )
+            const closeError = new Error(
+              `WebSocket closed with code ${event.code}: ${event.reason || "Connection failed"}\n\n` +
+                "Troubleshooting:\n" +
+                "• Check your API key configuration\n" +
+                "• Verify network connectivity\n" +
+                "• Try rebuilding the app"
             );
+            reject(closeError);
           }
         };
 
-        // Timeout for connection
+        // Timeout for connection (increased to 15 seconds for slower networks)
         connectionTimeout = setTimeout(() => {
           if (this.connectionState === "connecting" && !hasResolved) {
             hasResolved = true;
-            ws?.close();
+            // Safely close WebSocket if it exists and has a close method
+            if (ws && typeof ws.close === "function") {
+              try {
+                ws.close();
+              } catch (error) {
+                // Ignore close errors during timeout
+              }
+            }
+            const maskedKey = this.maskApiKey(this.apiKey);
             reject(
               new Error(
-                "Connection timeout after 10 seconds. Please check your network connection and API key."
+                "🚫 Connection timeout after 15 seconds.\n\n" +
+                  "Diagnostics:\n" +
+                  `  • API Key: ${maskedKey} ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Valid format" : "❌ Invalid format"}\n` +
+                  "  • Network: Check your internet connection\n" +
+                  "  • Endpoint: wss://api.openai.com/v1/realtime\n\n" +
+                  "⚠️ This timeout often indicates firewall/proxy blocking:\n\n" +
+                  "Common causes:\n" +
+                  "  1. Corporate firewall blocking WebSocket (wss://) connections\n" +
+                  "  2. Network proxy requiring authentication or blocking outbound traffic\n" +
+                  "  3. ISP or network security blocking api.openai.com\n" +
+                  "  4. Slow or unstable network connection\n" +
+                  "  5. Invalid or expired API key\n\n" +
+                  "Solutions:\n" +
+                  "  1. Try a different network:\n" +
+                  "     • Switch to mobile data (cellular)\n" +
+                  "     • Use a different Wi-Fi network\n" +
+                  "     • Try a public Wi-Fi network\n\n" +
+                  "  2. Configure network settings:\n" +
+                  "     • Contact IT to whitelist: wss://api.openai.com (port 443)\n" +
+                  "     • Configure proxy settings if required\n" +
+                  "     • Disable VPN if it's blocking WebSocket traffic\n\n" +
+                  "  3. Verify connectivity:\n" +
+                  "     • Check if https://api.openai.com is accessible in browser\n" +
+                  `     • Verify API key: ${maskedKey}\n` +
+                  "     • Check OpenAI status: https://status.openai.com/\n\n" +
+                  "Note: WebSocket connections require outbound access to wss://api.openai.com"
               )
             );
           }
-        }, 10_000);
+        }, 15_000); // Increased from 10 to 15 seconds
       } catch (error) {
         this.setConnectionState("error");
         reject(error);
@@ -1102,11 +1426,29 @@ class RealtimeAgentService {
    * Send a message to the Realtime API
    */
   sendMessage(message: RealtimeMessage) {
-    if (this.ws?.readyState !== WebSocket.OPEN) {
+    if (!this.ws) {
       return;
     }
 
-    this.ws.send(JSON.stringify(message));
+    try {
+      // Safely check WebSocket state
+      if (
+        typeof this.ws.readyState === "undefined" ||
+        this.ws.readyState !== WebSocket.OPEN
+      ) {
+        return;
+      }
+
+      // Safely send message
+      if (typeof this.ws.send === "function") {
+        this.ws.send(JSON.stringify(message));
+      }
+    } catch (error) {
+      // WebSocket might be in an invalid state
+      if (__DEV__) {
+        console.warn("[Zeina] Error sending message:", error);
+      }
+    }
   }
 
   /**
@@ -1629,7 +1971,23 @@ class RealtimeAgentService {
     await this.stopAudio();
 
     if (this.ws) {
-      this.ws.close(1000, "Client disconnect");
+      // Safely close WebSocket if it has a close method
+      if (typeof this.ws.close === "function") {
+        try {
+          // Some WebSocket implementations accept code and reason, others don't
+          if (
+            this.ws.readyState === WebSocket.OPEN ||
+            this.ws.readyState === WebSocket.CONNECTING
+          ) {
+            this.ws.close(1000, "Client disconnect");
+          }
+        } catch (error) {
+          // Ignore close errors - connection may already be closed
+          if (__DEV__) {
+            console.warn("[Zeina] Error closing WebSocket:", error);
+          }
+        }
+      }
       this.ws = null;
     }
     this.setConnectionState("disconnected");
@@ -1644,7 +2002,19 @@ class RealtimeAgentService {
    * Check if connected
    */
   isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    if (!this.ws) {
+      return false;
+    }
+
+    try {
+      return (
+        typeof this.ws.readyState !== "undefined" &&
+        this.ws.readyState === WebSocket.OPEN
+      );
+    } catch (error) {
+      // WebSocket might be in an invalid state
+      return false;
+    }
   }
 
   /**

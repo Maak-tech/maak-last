@@ -62,8 +62,6 @@ class AIInsightsService {
     userId: string,
     includeAINarrative = true
   ): Promise<AIInsightsDashboard> {
-    console.log(`Generating AI insights dashboard for user ${userId}`);
-
     // Generate all AI insights in parallel
     const [
       correlationAnalysis,

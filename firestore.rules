@@ -215,17 +215,31 @@ service cloud.firestore {
 
     // Family invitation codes - Restricted access
     match /familyInvitations/{invitationId} {
-      // Creator can create invitations
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.invitedBy;
-      // Only allow read if user is the creator or the invitee (for accepting invitations)
-      allow read: if request.auth != null && (
+      // Creator can create invitations if:
+      // 1. User is authenticated
+      // 2. User is creating invitation for themselves (invitedBy matches auth uid)
+      // 3. User document exists and user is a member of the family they're creating invitation for
+      // 4. Both user and invitation have non-null familyId values that match
+      // Note: Firestore optimizes multiple get() calls to the same document
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.invitedBy &&
+        request.resource.data.familyId != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.familyId == request.resource.data.familyId;
+      
+      // Restrict reads to only the creator to prevent unauthorized access to invitation codes
+      // Code lookups should be done via Cloud Function for proper security validation
+      allow read: if request.auth != null && request.auth.uid == resource.data.invitedBy;
+      
+      // Allow update by creator, or by the user claiming the invite code
+      allow update: if request.auth != null && (
         request.auth.uid == resource.data.invitedBy ||
-        request.auth.uid == resource.data.invitedTo
+        (
+          resource.data.status == 'pending' &&
+          request.resource.data.status == 'used' &&
+          request.resource.data.usedBy == request.auth.uid
+        )
       );
-      // Allow update only by creator or invitee when status is pending
-      allow update: if request.auth != null &&
-        (request.auth.uid == resource.data.invitedBy || 
-         (request.auth.uid == resource.data.invitedTo && resource.data.status == 'pending'));
     }
 
     // Health Events collection - PHI protected

@@ -124,10 +124,11 @@ export const medicationService = {
 
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          // Convert reminder takenAt Timestamps to Date objects
+          // Convert reminder takenAt Timestamps to Date objects and ensure IDs exist
           const processedReminders = (data.reminders || []).map(
-            (reminder: any) => ({
+            (reminder: any, index: number) => ({
               ...reminder,
+              id: reminder.id || `${doc.id}_reminder_${index}_${Date.now()}`,
               takenAt: reminder.takenAt
                 ? reminder.takenAt.toDate
                   ? reminder.takenAt.toDate()
@@ -262,10 +263,11 @@ export const medicationService = {
 
       const data = docSnap.data();
 
-      // Convert reminder takenAt Timestamps to Date objects
+      // Convert reminder takenAt Timestamps to Date objects and ensure IDs exist
       const processedReminders = (data.reminders || []).map(
-        (reminder: any) => ({
+        (reminder: any, index: number) => ({
           ...reminder,
+          id: reminder.id || `${medicationId}_reminder_${index}_${Date.now()}`,
           takenAt: reminder.takenAt
             ? reminder.takenAt.toDate
               ? reminder.takenAt.toDate()
@@ -303,19 +305,37 @@ export const medicationService = {
   async getTodaysMedications(userId: string): Promise<Medication[]> {
     try {
       const medications = await this.getUserMedications(userId);
-      const today = new Date().toDateString();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize to start of day
 
       // Filter medications that should be taken today
       return medications.filter((med) => {
         if (!med.isActive) return false;
 
-        const startDate = new Date(med.startDate).toDateString();
-        const endDate = med.endDate
-          ? new Date(med.endDate).toDateString()
-          : null;
+        // Convert startDate to Date object and normalize
+        const startDate =
+          med.startDate instanceof Date
+            ? new Date(med.startDate)
+            : new Date(med.startDate);
+        startDate.setHours(0, 0, 0, 0);
+
+        // Convert endDate to Date object and normalize if it exists
+        let endDate: Date | null = null;
+        if (med.endDate) {
+          endDate =
+            med.endDate instanceof Date
+              ? new Date(med.endDate)
+              : new Date(med.endDate);
+          endDate.setHours(0, 0, 0, 0);
+        }
 
         // Check if today is within the medication period
-        const isInPeriod = today >= startDate && (!endDate || today <= endDate);
+        // Medication is valid for today if:
+        // - startDate is today or earlier
+        // - endDate is null (no end date) or today or later
+        const isInPeriod =
+          today.getTime() >= startDate.getTime() &&
+          (!endDate || today.getTime() <= endDate.getTime());
 
         return isInPeriod;
       });
@@ -492,10 +512,11 @@ export const medicationService = {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Convert reminder takenAt Timestamps to Date objects
+        // Convert reminder takenAt Timestamps to Date objects and ensure IDs exist
         const processedReminders = (data.reminders || []).map(
-          (reminder: any) => ({
+          (reminder: any, index: number) => ({
             ...reminder,
+            id: reminder.id || `${doc.id}_reminder_${index}_${Date.now()}`,
             takenAt: reminder.takenAt
               ? reminder.takenAt.toDate
                 ? reminder.takenAt.toDate()
@@ -589,10 +610,11 @@ export const medicationService = {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Convert reminder takenAt Timestamps to Date objects
+        // Convert reminder takenAt Timestamps to Date objects and ensure IDs exist
         const processedReminders = (data.reminders || []).map(
-          (reminder: any) => ({
+          (reminder: any, index: number) => ({
             ...reminder,
+            id: reminder.id || `${doc.id}_reminder_${index}_${Date.now()}`,
             takenAt: reminder.takenAt
               ? reminder.takenAt.toDate
                 ? reminder.takenAt.toDate()

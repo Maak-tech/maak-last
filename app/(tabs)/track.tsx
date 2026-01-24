@@ -34,13 +34,7 @@ import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
 import { symptomService } from "@/lib/services/symptomService";
-import type {
-  Allergy,
-  MedicalHistory,
-  Medication,
-  Mood,
-  Symptom,
-} from "@/types";
+import type { Allergy, MedicalHistory, Mood, Symptom } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function TrackScreen() {
@@ -52,7 +46,6 @@ export default function TrackScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
-  const [todaysMedications, setTodaysMedications] = useState<Medication[]>([]);
   const [recentMedicalHistory, setRecentMedicalHistory] = useState<
     MedicalHistory[]
   >([]);
@@ -285,25 +278,20 @@ export default function TrackScreen() {
         setLoading(true);
       }
 
-      // Load recent data for overview
-      const [
-        symptoms,
-        medications,
-        medicalHistory,
-        moods,
-        moodStats,
-        allergies,
-      ] = await Promise.all([
-        symptomService.getUserSymptoms(user.id, 3),
-        medicationService.getTodaysMedications(user.id),
-        medicalHistoryService.getUserMedicalHistory(user.id),
-        moodService.getUserMoods(user.id, 3),
-        moodService.getMoodStats(user.id, 7),
-        allergyService.getUserAllergies(user.id, 3),
-      ]);
+      // Load personal medications
+      const medications = await medicationService.getTodaysMedications(user.id);
+
+      // Load other data in parallel
+      const [symptoms, medicalHistory, moods, moodStats, allergies] =
+        await Promise.all([
+          symptomService.getUserSymptoms(user.id, 3),
+          medicalHistoryService.getUserMedicalHistory(user.id),
+          moodService.getUserMoods(user.id, 3),
+          moodService.getMoodStats(user.id, 7),
+          allergyService.getUserAllergies(user.id, 3),
+        ]);
 
       setRecentSymptoms(symptoms);
-      setTodaysMedications(medications);
       setRecentMedicalHistory(medicalHistory.slice(0, 3)); // Get 3 most recent
       setRecentMoods(moods);
       setRecentAllergies(allergies);
@@ -1415,83 +1403,6 @@ export default function TrackScreen() {
                         {allergy.severity.charAt(0).toUpperCase() +
                           allergy.severity.slice(1)}
                         {allergy.reaction ? ` • ${allergy.reaction}` : ""}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Recent Activity - Medications */}
-            {todaysMedications.length > 0 && (
-              <View style={styles.recentSection as ViewStyle}>
-                <View style={styles.sectionHeader as ViewStyle}>
-                  <Text
-                    style={
-                      [
-                        styles.sectionTitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL ? "أدوية اليوم" : "Today's Medications"}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/medications")}
-                    style={styles.viewAllButton as ViewStyle}
-                  >
-                    <Text
-                      style={
-                        [
-                          styles.viewAllText,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "عرض الكل" : "View All"}
-                    </Text>
-                    <ChevronRight color={theme.colors.primary.main} size={16} />
-                  </TouchableOpacity>
-                </View>
-
-                {todaysMedications.slice(0, 3).map((medication) => (
-                  <TouchableOpacity
-                    key={medication.id}
-                    onPress={() => router.push("/(tabs)/medications")}
-                    style={styles.recentItem as ViewStyle}
-                  >
-                    <View
-                      style={
-                        [
-                          styles.recentIcon,
-                          {
-                            backgroundColor: theme.colors.accent.success + "20",
-                          },
-                        ] as StyleProp<ViewStyle>
-                      }
-                    >
-                      <Pill color={theme.colors.accent.success} size={20} />
-                    </View>
-                    <View style={styles.recentInfo as ViewStyle}>
-                      <Text
-                        style={
-                          [
-                            styles.recentTitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {medication.name}
-                      </Text>
-                      <Text
-                        style={
-                          [
-                            styles.recentSubtitle,
-                            isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {medication.dosage} • {medication.frequency}
                       </Text>
                     </View>
                   </TouchableOpacity>

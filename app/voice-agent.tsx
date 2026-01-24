@@ -1031,12 +1031,23 @@ export default function VoiceAgentScreen() {
 
       await realtimeAgentService.connect(customInstructions);
     } catch (error) {
-      Alert.alert(
-        t("connectionFailed", "Connection Failed"),
+      const errorMessage =
         error instanceof Error
           ? error.message
-          : t("unableToConnect", "Unable to connect to voice service")
-      );
+          : t("unableToConnect", "Unable to connect to voice service");
+
+      // Show detailed error with troubleshooting steps
+      Alert.alert(t("connectionFailed", "Connection Failed"), errorMessage, [
+        {
+          text: t("ok", "OK"),
+          style: "default",
+        },
+        {
+          text: t("retry", "Retry"),
+          onPress: () => handleConnect(),
+          style: "default",
+        },
+      ]);
     }
   };
 

@@ -15,7 +15,8 @@ try {
   AsyncStorage = null;
 }
 
-const RUNTIME_OPENAI_KEY_STORAGE = "@openai_api_key";
+const RUNTIME_OPENAI_KEY_STORAGE = "openai_api_key";
+const OLD_RUNTIME_OPENAI_KEY_STORAGE = "@openai_api_key"; // Legacy key name for backward compatibility
 
 export interface ChatMessage {
   id: string;
@@ -56,9 +57,40 @@ class OpenAIService {
     try {
       // Prefer runtime key stored on device.
       if (SecureStore?.getItemAsync) {
-        const storedKey = await SecureStore.getItemAsync(
+        // Check new key name first
+        let storedKey = await SecureStore.getItemAsync(
           RUNTIME_OPENAI_KEY_STORAGE
         );
+
+        // If not found, check old key name for backward compatibility
+        if (
+          !storedKey ||
+          typeof storedKey !== "string" ||
+          storedKey.trim() === ""
+        ) {
+          storedKey = await SecureStore.getItemAsync(
+            OLD_RUNTIME_OPENAI_KEY_STORAGE
+          );
+
+          // Migrate old key to new key name if found
+          if (
+            storedKey &&
+            typeof storedKey === "string" &&
+            storedKey.trim() !== ""
+          ) {
+            await SecureStore.setItemAsync(
+              RUNTIME_OPENAI_KEY_STORAGE,
+              storedKey
+            );
+            // Optionally delete old key (but keep it for now in case of errors)
+            try {
+              await SecureStore.deleteItemAsync(OLD_RUNTIME_OPENAI_KEY_STORAGE);
+            } catch {
+              // Ignore deletion errors
+            }
+          }
+        }
+
         if (
           storedKey &&
           typeof storedKey === "string" &&
@@ -73,9 +105,35 @@ class OpenAIService {
 
       // Fallback: some environments/dev-clients can fail SecureStore; keep a non-secure fallback for dev reliability.
       if (AsyncStorage?.getItem) {
-        const storedKey = await AsyncStorage.getItem(
-          RUNTIME_OPENAI_KEY_STORAGE
-        );
+        // Check new key name first
+        let storedKey = await AsyncStorage.getItem(RUNTIME_OPENAI_KEY_STORAGE);
+
+        // If not found, check old key name for backward compatibility
+        if (
+          !storedKey ||
+          typeof storedKey !== "string" ||
+          storedKey.trim() === ""
+        ) {
+          storedKey = await AsyncStorage.getItem(
+            OLD_RUNTIME_OPENAI_KEY_STORAGE
+          );
+
+          // Migrate old key to new key name if found
+          if (
+            storedKey &&
+            typeof storedKey === "string" &&
+            storedKey.trim() !== ""
+          ) {
+            await AsyncStorage.setItem(RUNTIME_OPENAI_KEY_STORAGE, storedKey);
+            // Optionally delete old key (but keep it for now in case of errors)
+            try {
+              await AsyncStorage.removeItem(OLD_RUNTIME_OPENAI_KEY_STORAGE);
+            } catch {
+              // Ignore deletion errors
+            }
+          }
+        }
+
         if (
           storedKey &&
           typeof storedKey === "string" &&

@@ -147,20 +147,48 @@ class SharedMedicationScheduleService {
       const now = Timestamp.now();
       const reminders = medication.reminders || [];
 
+      // Helper function to convert Date to Timestamp for Firestore
+      const convertToTimestamp = (value: Date | any): Timestamp | undefined => {
+        if (!value) return;
+        if (value instanceof Timestamp) return value;
+        if (value instanceof Date) return Timestamp.fromDate(value);
+        // If it's a Firestore Timestamp-like object with toDate method
+        if (value.toDate && typeof value.toDate === "function") {
+          return Timestamp.fromDate(value.toDate());
+        }
+        return Timestamp.fromDate(new Date(value));
+      };
+
       // Find the next untaken reminder and mark it as taken
       let foundUntakenReminder = false;
       const updatedReminders = reminders.map((reminder) => {
+        // Convert existing takenAt Date to Timestamp if it exists
+        const takenAtTimestamp = reminder.takenAt
+          ? convertToTimestamp(reminder.takenAt)
+          : undefined;
+
+        // Check if reminder is already taken
+        const isTaken = reminder.taken || !!reminder.takenAt;
+
         // Only mark the first untaken reminder we encounter
-        if (!(foundUntakenReminder || reminder.takenAt || reminder.taken)) {
+        if (!(foundUntakenReminder || isTaken)) {
           foundUntakenReminder = true;
           return {
-            ...reminder,
+            id: reminder.id,
+            time: reminder.time,
             taken: true,
             takenAt: now,
             takenBy: caregiverId !== memberId ? caregiverId : undefined, // Track if taken by caregiver
           };
         }
-        return reminder;
+        // Return reminder with converted takenAt Timestamp (preserve existing takenBy if present)
+        return {
+          id: reminder.id,
+          time: reminder.time,
+          taken: reminder.taken,
+          takenAt: takenAtTimestamp,
+          ...(reminder.takenBy && { takenBy: reminder.takenBy }),
+        };
       });
 
       // If no reminders exist or all are already taken, create a new one
@@ -193,12 +221,47 @@ class SharedMedicationScheduleService {
 
     const entries = await this.getFamilyMedicationSchedules(familyId);
 
-    // Filter entries that have a dose today
+    // Filter entries that have reminders scheduled for today
+    // A medication should appear in today's schedule if it has any reminders
+    // scheduled for today, regardless of whether they've been taken or not
     const todayEntries = entries.filter((entry) => {
-      if (!entry.nextDose) return false;
-      const nextDoseDate = new Date(entry.nextDose);
-      nextDoseDate.setHours(0, 0, 0, 0);
-      return nextDoseDate.getTime() === today.getTime();
+      const medication = entry.medication;
+
+      // Check if medication is active and has reminders
+      if (
+        !(medication.isActive && medication.reminders) ||
+        medication.reminders.length === 0
+      ) {
+        return false;
+      }
+
+      // Check if medication has started (startDate is today or earlier)
+      const startDate =
+        medication.startDate instanceof Date
+          ? medication.startDate
+          : new Date(medication.startDate);
+      const startDateOnly = new Date(startDate);
+      startDateOnly.setHours(0, 0, 0, 0);
+      if (startDateOnly.getTime() > today.getTime()) {
+        return false;
+      }
+
+      // Check if medication has ended (endDate is before today)
+      if (medication.endDate) {
+        const endDate =
+          medication.endDate instanceof Date
+            ? medication.endDate
+            : new Date(medication.endDate);
+        const endDateOnly = new Date(endDate);
+        endDateOnly.setHours(0, 0, 0, 0);
+        if (endDateOnly.getTime() < today.getTime()) {
+          return false;
+        }
+      }
+
+      // If medication has reminders, it should appear in today's schedule
+      // The reminders are scheduled daily based on their time values
+      return true;
     });
 
     return {

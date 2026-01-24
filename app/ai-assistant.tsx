@@ -36,7 +36,6 @@ import openaiService, {
   AI_MODELS,
   type ChatMessage as AIMessage,
 } from "../lib/services/openaiService";
-import realtimeAgentService from "../lib/services/realtimeAgentService";
 import { voiceService } from "../lib/services/voiceService";
 import ChatMessage from "./components/ChatMessage";
 
@@ -68,8 +67,6 @@ export default function AIAssistant() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [tempApiKey, setTempApiKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
   const [tempModel, setTempModel] = useState("gpt-3.5-turbo");
   const [systemPrompt, setSystemPrompt] = useState<string>("");
@@ -83,13 +80,6 @@ export default function AIAssistant() {
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
-
-  // Allow other screens (e.g. Zeina) to deep-link into Settings directly.
-  useEffect(() => {
-    if (params?.openSettings === "1") {
-      setShowSettings(true);
-    }
-  }, [params?.openSettings]);
 
   useEffect(() => {
     initializeChat();
@@ -230,35 +220,11 @@ export default function AIAssistant() {
 
   const initializeChat = async () => {
     try {
-      // Initialize OpenAI service
+      // Initialize OpenAI service (uses env key)
       await openaiService.initialize();
-      const key = await openaiService.getApiKey();
       const model = await openaiService.getModel();
-
-      if (key) {
-        // Mask API key for security - only store masked version in state
-        const maskedKey = key
-          ? `${key.substring(0, 7)}...${key.substring(key.length - 4)}`
-          : "";
-        setApiKey(maskedKey);
-        setSelectedModel(model);
-        setTempModel(model);
-      } else {
-        Alert.alert(
-          t("setupRequired", "Setup Required"),
-          t(
-            "aiAssistantApiKeyRequiredMessage",
-            "Please configure your OpenAI API key to use the AI assistant.\n\nYou can get an API key from platform.openai.com"
-          ),
-          [
-            { text: t("cancel", "Cancel"), style: "cancel" },
-            {
-              text: t("configure", "Configure"),
-              onPress: () => setShowSettings(true),
-            },
-          ]
-        );
-      }
+      setSelectedModel(model);
+      setTempModel(model);
 
       // Load health context
       setIsLoading(true);
@@ -388,26 +354,6 @@ export default function AIAssistant() {
       typeof textOverride === "string" ? textOverride : inputText;
     if (!textToSend.trim() || isStreaming) return;
 
-    // Check if API key is configured in the service (not state, for security)
-    try {
-      const serviceKey = await openaiService.getApiKey();
-      if (!serviceKey) {
-        Alert.alert(
-          "API Key Required",
-          "Please configure your OpenAI API key first."
-        );
-        setShowSettings(true);
-        return;
-      }
-    } catch {
-      Alert.alert(
-        "API Key Required",
-        "Please configure your OpenAI API key first."
-      );
-      setShowSettings(true);
-      return;
-    }
-
     const userMessage: AIMessage = {
       id: Date.now().toString(),
       role: "user",
@@ -478,29 +424,7 @@ export default function AIAssistant() {
             t(
               "openAIQuotaExceededMessage",
               "Your OpenAI account has exceeded its usage quota.\n\nOptions:\n1. Add billing to your OpenAI account\n2. Switch to GPT-3.5 Turbo (cheaper)\n3. Wait for your quota to reset\n\nVisit platform.openai.com to manage billing."
-            ),
-            [
-              {
-                text: t("openSettings", "Open Settings"),
-                onPress: () => setShowSettings(true),
-              },
-              { text: t("ok", "OK"), style: "cancel" },
-            ]
-          );
-        } else if (error.message.includes("Invalid API key")) {
-          Alert.alert(
-            t("invalidApiKey", "Invalid API Key"),
-            t(
-              "invalidApiKeyMessage",
-              "The API key appears to be invalid. Please check and update it."
-            ),
-            [
-              {
-                text: t("openSettings", "Open Settings"),
-                onPress: () => setShowSettings(true),
-              },
-              { text: t("cancel", "Cancel"), style: "cancel" },
-            ]
+            )
           );
         } else {
           Alert.alert(
@@ -517,16 +441,6 @@ export default function AIAssistant() {
   };
 
   const handleSaveSettings = async () => {
-    if (!tempApiKey.trim()) {
-      Alert.alert(
-        t("error", "Error"),
-        t("pleaseEnterValidApiKey", "Please enter a valid API key")
-      );
-      return;
-    }
-
-    await openaiService.setApiKey(tempApiKey);
-    await realtimeAgentService.setApiKey(tempApiKey);
     await openaiService.setModel(tempModel);
 
     // Save voice settings
@@ -544,11 +458,7 @@ export default function AIAssistant() {
       // Silently handle storage error
     }
 
-    // Mask API key for security - only store masked version in state
-    const maskedKey = `${tempApiKey.substring(0, 7)}...${tempApiKey.substring(tempApiKey.length - 4)}`;
-    setApiKey(maskedKey);
     setSelectedModel(tempModel);
-    setTempApiKey(""); // Clear the temp key after saving
     setShowSettings(false);
     Alert.alert(
       t("success", "Success"),
@@ -843,29 +753,7 @@ export default function AIAssistant() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalLabel}>
-              {t("openAIApiKey", "OpenAI API Key")}
-            </Text>
-            <TextInput
-              autoCapitalize="none"
-              onChangeText={setTempApiKey}
-              placeholder="sk-..."
-              placeholderTextColor="#999"
-              secureTextEntry
-              style={styles.modalInput}
-              value={tempApiKey}
-            />
-
-            <Text style={styles.modalHint}>
-              {t(
-                "getApiKeyFromOpenAI",
-                "Get your API key from platform.openai.com"
-              )}
-            </Text>
-
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>
-              {t("aiModel", "AI Model")}
-            </Text>
+            <Text style={styles.modalLabel}>{t("aiModel", "AI Model")}</Text>
             <View style={styles.modelSelector}>
               {Object.entries(AI_MODELS).map(([modelKey, modelName]) => (
                 <TouchableOpacity

@@ -2082,11 +2082,6 @@ export default function VitalsScreen() {
                       </View>
                     );
                   })}
-                  {/* Add empty placeholder if odd number of cards in last row */}
-                  {rowCards.length === 1 &&
-                    rowIndex === Math.ceil(vitalCards.length / 2) - 1 && (
-                      <View style={styles.vitalCard as ViewStyle} />
-                    )}
                 </View>
               );
             }

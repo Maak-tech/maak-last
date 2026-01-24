@@ -17,7 +17,6 @@ import {
   Animated,
   Dimensions,
   Easing,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -28,6 +27,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
 import healthContextService from "@/lib/services/healthContextService";
 import {
   type ConnectionState,
@@ -100,6 +101,7 @@ export default function ZeinaScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [autoReconnectEnabled, setAutoReconnectEnabled] = useState(true);
   const [textInput, setTextInput] = useState("");
   const [showPaywall, setShowPaywall] = useState(false);
   const isActiveRef = useRef(false);
@@ -206,16 +208,629 @@ export default function ZeinaScreen() {
     return true;
   }, [hasActiveSubscription, isSubscriptionLoading, t]);
 
+  const isFatalConnectionError = useCallback((message: string) => {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes("api key") ||
+      normalized.includes("authentication") ||
+      normalized.includes("unauthorized") ||
+      normalized.includes("realtime api access") ||
+      normalized.includes("websocket authentication failed") ||
+      normalized.includes("websocket headers are not supported on web") ||
+      normalized.includes("web platform doesn't support websocket headers")
+    );
+  }, []);
+
+  const handleConnectionFailure = useCallback(
+    (message: string) => {
+      setLastError(message);
+      setConnectionState("error");
+      if (isFatalConnectionError(message)) {
+        setAutoReconnectEnabled(false);
+      }
+    },
+    [isFatalConnectionError]
+  );
+
+  // Stop continuous listening - must be declared before setupEventHandlers
+  const stopContinuousListening = useCallback(
+    (options?: { updateState?: boolean; clearInputBuffer?: boolean }) => {
+      const shouldUpdateState = options?.updateState !== false;
+      const shouldClearInputBuffer = options?.clearInputBuffer !== false;
+      isStreamingRef.current = false;
+      isStartingStreamingRef.current = false;
+      isChunkInFlightRef.current = false;
+      if (streamingIntervalRef.current) {
+        clearTimeout(streamingIntervalRef.current);
+        streamingIntervalRef.current = null;
+      }
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
+      invalidAudioChunkCountRef.current = 0;
+      missingAudioChunkCountRef.current = 0;
+      clearSpeechWatchdog();
+      if (shouldClearInputBuffer) {
+        realtimeAgentService.clearAudioBuffer();
+      }
+      if (shouldUpdateState) {
+        setIsListening(false);
+        setIsProcessing(false);
+      }
+    },
+    [clearSpeechWatchdog]
+  );
+
+  // Start continuous audio streaming for VAD - must be declared before setupEventHandlers
+  const startContinuousListening = useCallback(async () => {
+    if (!(Audio && FileSystem && isAudioAvailable)) {
+      return;
+    }
+    if (isManualRecordingRef.current) return;
+    if (!realtimeAgentService.isConnected()) return;
+    if (isStreamingRef.current || isStartingStreamingRef.current) return;
+
+    isStartingStreamingRef.current = true;
+
+    try {
+      // Request permissions
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert(
+          t("permissionDenied", "Permission Denied"),
+          t("microphonePermissionRequired", "Microphone permission is required")
+        );
+        return;
+      }
+
+      // Set streaming immediately to prevent parallel starts (expo-av can throw "recorder is already prepared")
+      isStreamingRef.current = true;
+      isChunkInFlightRef.current = false;
+      invalidAudioChunkCountRef.current = 0;
+      missingAudioChunkCountRef.current = 0;
+
+      // Set audio mode
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      // Start streaming audio in chunks
+      const streamAudioChunk = async () => {
+        if (!(isStreamingRef.current && realtimeAgentService.isConnected())) {
+          return;
+        }
+        if (isChunkInFlightRef.current) return;
+        isChunkInFlightRef.current = true;
+
+        try {
+          // Create a short recording
+          const recording = new Audio.Recording();
+
+          // expo-av supports different constant names across versions; pick the best available.
+          const iosLinearPcmOutputFormat =
+            Audio?.IOSOutputFormat?.LINEARPCM ??
+            Audio?.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM ??
+            null;
+
+          await recording.prepareToRecordAsync({
+            android: {
+              extension: ".wav",
+              outputFormat: Audio.AndroidOutputFormat?.DEFAULT || 0,
+              audioEncoder: Audio.AndroidAudioEncoder?.DEFAULT || 0,
+              sampleRate: 24_000,
+              numberOfChannels: 1,
+              bitRate: 384_000,
+            },
+            ios: {
+              extension: ".wav",
+              ...(iosLinearPcmOutputFormat != null
+                ? { outputFormat: iosLinearPcmOutputFormat }
+                : {}),
+              audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
+              sampleRate: 24_000,
+              numberOfChannels: 1,
+              bitRate: 384_000,
+              linearPCMBitDepth: 16,
+              linearPCMIsBigEndian: false,
+              linearPCMIsFloat: false,
+            },
+            web: {},
+          });
+
+          await recording.startAsync();
+
+          // Record for 200ms chunks
+          await new Promise((resolve) => setTimeout(resolve, 200));
+
+          await recording.stopAndUnloadAsync();
+          const uri = recording.getURI();
+
+          if (!uri) {
+            missingAudioChunkCountRef.current += 1;
+            if (missingAudioChunkCountRef.current >= 3) {
+              stopContinuousListening();
+              setIsListening(false);
+              setIsProcessing(false);
+              setIsSpeaking(false);
+              Alert.alert(
+                t("microphoneError", "Microphone Error"),
+                t(
+                  "microphoneErrorBody",
+                  "Zeina couldn't capture audio from the microphone. Please check microphone permission and try again."
+                )
+              );
+              return;
+            }
+          }
+
+          if (uri && isStreamingRef.current) {
+            // Read and send audio
+            const base64Audio = await FileSystem.readAsStringAsync(uri, {
+              // Some runtimes may not expose EncodingType; fall back to the string literal.
+              encoding: FileSystem.EncodingType?.Base64 ?? "base64",
+            });
+
+            if (!base64Audio) {
+              missingAudioChunkCountRef.current += 1;
+              if (missingAudioChunkCountRef.current >= 3) {
+                stopContinuousListening();
+                setIsListening(false);
+                setIsProcessing(false);
+                setIsSpeaking(false);
+                Alert.alert(
+                  t("microphoneError", "Microphone Error"),
+                  t(
+                    "microphoneErrorBody",
+                    "Zeina couldn't capture audio from the microphone. Please check microphone permission and try again."
+                  )
+                );
+                return;
+              }
+            }
+
+            // Basic sanity check: WAV files start with "RIFF" which base64-encodes to "UklG".
+            // If we stream non-PCM audio while the session expects PCM16, VAD/transcription can appear stuck.
+            if (base64Audio && base64Audio.startsWith("UklG")) {
+              invalidAudioChunkCountRef.current = 0;
+              missingAudioChunkCountRef.current = 0;
+              realtimeAgentService.sendAudioData(base64Audio);
+              lastAudioAppendAtRef.current = Date.now();
+            } else if (base64Audio) {
+              invalidAudioChunkCountRef.current += 1;
+              if (invalidAudioChunkCountRef.current >= 3) {
+                stopContinuousListening();
+                setIsListening(false);
+                setIsProcessing(false);
+                setIsSpeaking(false);
+                Alert.alert(
+                  t("unsupportedAudioFormat", "Unsupported audio format"),
+                  t(
+                    "unsupportedAudioFormatBody",
+                    "Zeina couldn't read the recording as a PCM WAV file. This can happen if the device records AAC/M4A instead of PCM. Try again on a physical iOS device, or use text input."
+                  )
+                );
+                return;
+              }
+            }
+
+            // Clean up
+            await FileSystem.deleteAsync(uri, { idempotent: true }).catch(
+              () => {}
+            );
+          }
+        } catch (error) {
+          // Continue streaming despite errors, but surface persistent failures
+          const msg = error instanceof Error ? error.message : String(error);
+          setLastError((prev) => prev ?? `Mic chunk error: ${msg}`);
+        } finally {
+          isChunkInFlightRef.current = false;
+        }
+
+        // Schedule next chunk if still streaming
+        if (isStreamingRef.current && realtimeAgentService.isConnected()) {
+          streamingIntervalRef.current = setTimeout(streamAudioChunk, 120);
+        }
+      };
+
+      // Start the streaming loop
+      streamAudioChunk();
+    } catch (error) {
+      isStreamingRef.current = false;
+      const msg = error instanceof Error ? error.message : String(error);
+      setLastError(`Mic streaming failed: ${msg}`);
+    } finally {
+      isStartingStreamingRef.current = false;
+    }
+  }, [t, stopContinuousListening]);
+
+  // Extract assistant text from response - must be declared before setupEventHandlers
+  const extractAssistantTextFromResponse = useCallback(
+    (response: any): string | null => {
+      try {
+        if (!response) return null;
+        if (
+          typeof response.output_text === "string" &&
+          response.output_text.trim()
+        ) {
+          return response.output_text.trim();
+        }
+
+        const output = response.output;
+        if (!Array.isArray(output)) return null;
+
+        for (const item of output) {
+          // Common shape: { type: "message", content: [...] }
+          if (item?.type === "message" && Array.isArray(item.content)) {
+            for (const c of item.content) {
+              const text = c?.text ?? c?.transcript;
+              if (typeof text === "string" && text.trim()) return text.trim();
+            }
+          }
+
+          // Alternate shapes
+          const directText = item?.text ?? item?.transcript;
+          if (typeof directText === "string" && directText.trim())
+            return directText.trim();
+        }
+      } catch {
+        // ignore
+      }
+      return null;
+    },
+    []
+  );
+
+  // Execute health-related tools - must be declared before setupEventHandlers
+  const executeHealthTool = useCallback(
+    async (name: string, args: any = {}): Promise<any> => {
+      // Ensure args is always an object
+      const safeArgs = args || {};
+
+      switch (name) {
+        // ===== INFORMATION RETRIEVAL TOOLS =====
+        case "get_health_summary":
+          return await healthContextService.getHealthSummary();
+
+        case "get_medications":
+          return await healthContextService.getMedications(
+            safeArgs.active_only ?? true
+          );
+
+        case "get_recent_vitals":
+          return await healthContextService.getRecentVitals(
+            safeArgs.vital_type,
+            safeArgs.days
+          );
+
+        case "check_medication_interactions":
+          return await healthContextService.checkMedicationInteractions(
+            safeArgs.new_medication
+          );
+
+        case "emergency_contact":
+          return await healthContextService.getEmergencyContacts(
+            safeArgs.action
+          );
+
+        // ===== AUTOMATED ACTION TOOLS (via ZeinaActionsService) =====
+        case "log_symptom":
+          return await zeinaActionsService.logSymptom(
+            safeArgs.symptom_name || "unknown",
+            safeArgs.severity,
+            safeArgs.notes,
+            safeArgs.body_part,
+            safeArgs.duration
+          );
+
+        case "add_medication":
+          return await zeinaActionsService.addMedication(
+            safeArgs.name || "unknown",
+            safeArgs.dosage,
+            safeArgs.frequency,
+            safeArgs.notes
+          );
+
+        case "log_vital_sign": {
+          // Handle blood pressure specially (has systolic/diastolic)
+          const metadata =
+            safeArgs.systolic && safeArgs.diastolic
+              ? { systolic: safeArgs.systolic, diastolic: safeArgs.diastolic }
+              : undefined;
+          return await zeinaActionsService.logVitalSign(
+            safeArgs.vital_type || "unknown",
+            safeArgs.value ?? 0,
+            safeArgs.unit,
+            metadata
+          );
+        }
+
+        case "set_medication_reminder":
+          return await zeinaActionsService.setMedicationReminder(
+            safeArgs.medication_name || "unknown",
+            safeArgs.time || "09:00",
+            safeArgs.recurring ?? true
+          );
+
+        case "alert_family":
+          return await zeinaActionsService.alertFamily(
+            safeArgs.alert_type || "check_in",
+            safeArgs.message
+          );
+
+        case "schedule_reminder":
+          // For general reminders, create a check-in with the reason
+          return await zeinaActionsService.requestCheckIn(
+            `Reminder: ${safeArgs.title || "reminder"} at ${safeArgs.time || "later"}`
+          );
+
+        case "request_check_in":
+          return await zeinaActionsService.requestCheckIn(safeArgs.reason);
+
+        case "log_mood":
+          return await zeinaActionsService.logMood(
+            safeArgs.mood_type || "neutral",
+            safeArgs.intensity,
+            safeArgs.notes,
+            safeArgs.activities
+          );
+
+        case "mark_medication_taken":
+          return await zeinaActionsService.markMedicationTaken(
+            safeArgs.medication_name || ""
+          );
+
+        case "navigate_to":
+          return zeinaActionsService.getNavigationTarget(
+            safeArgs.target || "home"
+          );
+
+        case "add_allergy":
+          return await zeinaActionsService.addAllergy(
+            safeArgs.allergen || "unknown",
+            safeArgs.reaction,
+            safeArgs.severity,
+            safeArgs.allergy_type
+          );
+
+        case "add_medical_history":
+          return await zeinaActionsService.addMedicalHistory(
+            safeArgs.condition || "unknown",
+            safeArgs.diagnosis_date,
+            safeArgs.status,
+            safeArgs.notes
+          );
+
+        default:
+          return {
+            error: "Unknown tool",
+            message: `Tool "${name}" is not supported`,
+          };
+      }
+    },
+    []
+  );
+
+  // Set up event handlers for the realtime service - must be declared before startZeina
+  const setupEventHandlers = useCallback(() => {
+    const handlers: RealtimeEventHandlers = {
+      onConnectionStateChange: (state) => {
+        setConnectionState(state);
+        if (state === "connected") {
+          setLastError(null);
+        }
+        if (state === "connected") {
+          // Auto-start listening when connected
+          startContinuousListening();
+        } else if (state === "disconnected" || state === "error") {
+          stopContinuousListening();
+        }
+      },
+
+      onSessionCreated: () => {
+        // Haptic feedback on connection
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      },
+
+      onSpeechStarted: () => {
+        lastVadEventAtRef.current = Date.now();
+        if (listeningSinceAtRef.current == null) {
+          listeningSinceAtRef.current = Date.now();
+        }
+        setIsListening(true);
+        setCurrentTranscript("");
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        startSpeechWatchdog();
+      },
+
+      onSpeechStopped: () => {
+        lastVadEventAtRef.current = Date.now();
+        listeningSinceAtRef.current = null;
+        setIsListening(false);
+        setIsProcessing(true);
+        clearSpeechWatchdog();
+      },
+
+      onTranscriptDelta: (delta, role) => {
+        if (role === "user") {
+          lastVadEventAtRef.current = Date.now();
+          setCurrentTranscript((prev) => prev + delta);
+        }
+      },
+
+      onTranscriptDone: (transcript, role) => {
+        if (role === "user" && transcript) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "user",
+              content: transcript,
+              timestamp: new Date(),
+            },
+          ]);
+          setCurrentTranscript("");
+          // Fallback: on some devices VAD may not reliably emit `speech_stopped`,
+          // which would otherwise trigger a response. If we have a finalized user transcript,
+          // explicitly end the turn and request a reply.
+          setIsListening(false);
+          setIsProcessing(true);
+          didReceiveAssistantAudioRef.current = false;
+          safeCommitAudioBuffer();
+        }
+      },
+
+      onAudioDelta: () => {
+        lastVadEventAtRef.current = Date.now();
+        didReceiveAssistantAudioRef.current = true;
+        listeningSinceAtRef.current = null;
+        // Important on iOS: stop mic streaming while playing assistant audio.
+        // Recording mode can interrupt playback and cause the voice to cut off.
+        stopContinuousListening({ updateState: true, clearInputBuffer: false });
+        setIsListening(false);
+        setIsSpeaking(true);
+        setIsProcessing(false);
+        clearSpeechWatchdog();
+      },
+
+      onAudioDone: () => {
+        lastVadEventAtRef.current = Date.now();
+        listeningSinceAtRef.current = null;
+        setIsSpeaking(false);
+        setIsProcessing(false);
+        clearSpeechWatchdog();
+        // Resume listening after Zeina finishes speaking
+        if (
+          isActiveRef.current &&
+          realtimeAgentService.isConnected() &&
+          !isManualRecordingRef.current
+        ) {
+          startContinuousListening();
+        }
+      },
+
+      onToolCall: async (toolCall) => {
+        // Execute health tools silently
+        try {
+          // Safely parse arguments, defaulting to empty object
+          let args = {};
+          try {
+            args = toolCall.arguments ? JSON.parse(toolCall.arguments) : {};
+          } catch (parseError) {
+            console.warn("Failed to parse tool arguments:", parseError);
+          }
+
+          const result = await executeHealthTool(toolCall.name, args);
+          realtimeAgentService.submitToolOutput(
+            toolCall.call_id,
+            JSON.stringify(result)
+          );
+        } catch (error) {
+          console.error("Tool execution error:", error);
+          realtimeAgentService.submitToolOutput(
+            toolCall.call_id,
+            JSON.stringify({ error: "Tool execution failed" })
+          );
+        }
+      },
+
+      onResponseDone: async (response) => {
+        const assistantText = extractAssistantTextFromResponse(response);
+        if (assistantText) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: assistantText,
+              timestamp: new Date(),
+            },
+          ]);
+        } else {
+          setLastError(t("noAssistantText", "No assistant text returned"));
+        }
+        setIsProcessing(false);
+        clearSpeechWatchdog();
+        listeningSinceAtRef.current = null;
+
+        // If we got a text reply but no audio chunks, speak it via device TTS.
+        if (assistantText && !didReceiveAssistantAudioRef.current) {
+          try {
+            stopContinuousListening({
+              updateState: true,
+              clearInputBuffer: false,
+            });
+            setIsListening(false);
+            setIsSpeaking(true);
+            await setPlaybackAudioMode();
+
+            const lang = (i18n.language || "en").startsWith("ar")
+              ? "ar-SA"
+              : "en-US";
+            await voiceService.speak(assistantText, {
+              language: lang,
+              volume: 1.0,
+            });
+          } catch {
+            setLastError(t("ttsFailed", "Text-to-speech failed"));
+          } finally {
+            setIsSpeaking(false);
+            if (
+              isActiveRef.current &&
+              realtimeAgentService.isConnected() &&
+              !isManualRecordingRef.current
+            ) {
+              startContinuousListening();
+            }
+          }
+        }
+      },
+
+      onError: (error) => {
+        setIsProcessing(false);
+        setIsListening(false);
+        setIsSpeaking(false);
+        clearSpeechWatchdog();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+        const msg =
+          error instanceof Error
+            ? error.message
+            : error?.message
+              ? String(error.message)
+              : String(error);
+        setLastError(msg);
+        Alert.alert(t("error", "Error"), msg);
+      },
+    };
+
+    realtimeAgentService.setEventHandlers(handlers);
+  }, [
+    t,
+    isActive,
+    connectionState,
+    clearSpeechWatchdog,
+    startSpeechWatchdog,
+    startContinuousListening,
+    stopContinuousListening,
+    executeHealthTool,
+    extractAssistantTextFromResponse,
+    setPlaybackAudioMode,
+    i18n.language,
+  ]);
+
   const startZeina = useCallback(async () => {
     if (isWeb) {
-      setLastError(
-        t(
-          "zeinaWebNotSupported",
-          "Zeina voice is not available on web. Use AI Assistant or the mobile app."
-        )
+      const msg = t(
+        "zeinaWebNotSupported",
+        "Zeina voice is not available on web. Use AI Assistant or the mobile app."
       );
+      handleConnectionFailure(msg);
+      setAutoReconnectEnabled(false);
       setIsActive(false);
-      setConnectionState("error");
       Alert.alert(
         t("voiceNotAvailable", "Voice Not Available"),
         t(
@@ -237,12 +852,13 @@ export default function ZeinaScreen() {
       return;
     }
 
+    setAutoReconnectEnabled(true);
+
     if (!canUseVoice) {
       setLastError(
         audioLoadError ||
           t("audioNotAvailable", "Audio is not available on this device.")
       );
-      return;
     }
     if (isActiveRef.current && realtimeAgentService.isConnected()) return;
 
@@ -314,32 +930,14 @@ export default function ZeinaScreen() {
         error instanceof Error
           ? error.message
           : t("unableToConnect", "Unable to connect");
-      setLastError(msg);
-      const needsApiKey =
-        msg.toLowerCase().includes("api key") ||
-        msg.toLowerCase().includes("authentication") ||
-        msg.toLowerCase().includes("missing authentication") ||
-        msg.toLowerCase().includes("invalid api key");
-      if (needsApiKey) {
-        Alert.alert(t("connectionFailed", "Connection Failed"), msg, [
-          {
-            text: t("pasteApiKey", "Paste API key"),
-            onPress: () => setShowApiKeyModal(true),
-          },
-          {
-            text: t("openSettings", "Open Settings"),
-            onPress: () => router.push("/ai-assistant?openSettings=1"),
-          },
-          { text: t("ok", "OK"), style: "cancel" },
-        ]);
-      } else {
-        Alert.alert(t("connectionFailed", "Connection Failed"), msg);
-      }
+      handleConnectionFailure(msg);
+      Alert.alert(t("connectionFailed", "Connection Failed"), msg);
     }
   }, [
     audioLoadError,
     canUseVoice,
     ensurePremiumAccess,
+    handleConnectionFailure,
     i18n.language,
     isWeb,
     router,
@@ -352,13 +950,14 @@ export default function ZeinaScreen() {
     if (!isActive) return;
     if (realtimeAgentService.isConnected()) return;
     if (connectionState === "connecting") return;
+    if (!autoReconnectEnabled) return;
 
     const timeoutId = setTimeout(() => {
       startZeina().catch(() => {});
     }, 2500);
 
     return () => clearTimeout(timeoutId);
-  }, [connectionState, isActive, startZeina]);
+  }, [autoReconnectEnabled, connectionState, isActive, startZeina]);
 
   // Auto-start once when the Zeina screen mounts (tab open). This avoids relying on focus timing.
   useEffect(() => {
@@ -377,12 +976,6 @@ export default function ZeinaScreen() {
     setIsListening(false);
     setIsSpeaking(false);
     setIsProcessing(false);
-  }, [stopContinuousListening]);
-
-  // Side-effect only stop (NO setState). Used for focus/blur/unmount cleanup to avoid update loops.
-  const stopZeinaSideEffects = useCallback(() => {
-    stopContinuousListening({ updateState: false });
-    realtimeAgentService.disconnect();
   }, [stopContinuousListening]);
 
   const toggleZeina = useCallback(() => {
@@ -436,42 +1029,6 @@ export default function ZeinaScreen() {
     stopContinuousListening,
   ]);
 
-  const extractAssistantTextFromResponse = useCallback(
-    (response: any): string | null => {
-      try {
-        if (!response) return null;
-        if (
-          typeof response.output_text === "string" &&
-          response.output_text.trim()
-        ) {
-          return response.output_text.trim();
-        }
-
-        const output = response.output;
-        if (!Array.isArray(output)) return null;
-
-        for (const item of output) {
-          // Common shape: { type: "message", content: [...] }
-          if (item?.type === "message" && Array.isArray(item.content)) {
-            for (const c of item.content) {
-              const text = c?.text ?? c?.transcript;
-              if (typeof text === "string" && text.trim()) return text.trim();
-            }
-          }
-
-          // Alternate shapes
-          const directText = item?.text ?? item?.transcript;
-          if (typeof directText === "string" && directText.trim())
-            return directText.trim();
-        }
-      } catch {
-        // ignore
-      }
-      return null;
-    },
-    []
-  );
-
   // Auto mode: when you open the Zeina tab, connect + listen automatically.
   // Note: we intentionally DO NOT auto-stop on blur to keep Zeina truly "automatic"
   // while the app is open. iOS still prevents always-on mic in the background.
@@ -481,7 +1038,7 @@ export default function ZeinaScreen() {
       // Talk immediately when the user lands on the Zeina tab.
       speakWelcome().catch(() => {});
       return;
-    }, [startZeina, speakWelcome, stopZeinaSideEffects])
+    }, [startZeina, speakWelcome])
   );
 
   // Keep mic streaming alive: if we're active + connected and not streaming, start streaming.
@@ -675,568 +1232,6 @@ export default function ZeinaScreen() {
     }
     waveAnims.forEach((anim) => anim.setValue(0.3));
   }, [isSpeaking]);
-
-  // Set up event handlers for the realtime service
-  const setupEventHandlers = useCallback(() => {
-    const handlers: RealtimeEventHandlers = {
-      onConnectionStateChange: (state) => {
-        setConnectionState(state);
-        if (state === "connected") {
-          setLastError(null);
-        }
-        if (state === "connected") {
-          // Auto-start listening when connected
-          startContinuousListening();
-        } else if (state === "disconnected" || state === "error") {
-          stopContinuousListening();
-        }
-      },
-
-      onSessionCreated: () => {
-        // Haptic feedback on connection
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      },
-
-      onSpeechStarted: () => {
-        lastVadEventAtRef.current = Date.now();
-        if (listeningSinceAtRef.current == null) {
-          listeningSinceAtRef.current = Date.now();
-        }
-        setIsListening(true);
-        setCurrentTranscript("");
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        startSpeechWatchdog();
-      },
-
-      onSpeechStopped: () => {
-        lastVadEventAtRef.current = Date.now();
-        listeningSinceAtRef.current = null;
-        setIsListening(false);
-        setIsProcessing(true);
-        clearSpeechWatchdog();
-      },
-
-      onTranscriptDelta: (delta, role) => {
-        if (role === "user") {
-          lastVadEventAtRef.current = Date.now();
-          setCurrentTranscript((prev) => prev + delta);
-        }
-      },
-
-      onTranscriptDone: (transcript, role) => {
-        if (role === "user" && transcript) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "user",
-              content: transcript,
-              timestamp: new Date(),
-            },
-          ]);
-          setCurrentTranscript("");
-          // Fallback: on some devices VAD may not reliably emit `speech_stopped`,
-          // which would otherwise trigger a response. If we have a finalized user transcript,
-          // explicitly end the turn and request a reply.
-          setIsListening(false);
-          setIsProcessing(true);
-          didReceiveAssistantAudioRef.current = false;
-          safeCommitAudioBuffer();
-        }
-      },
-
-      onAudioDelta: () => {
-        lastVadEventAtRef.current = Date.now();
-        didReceiveAssistantAudioRef.current = true;
-        listeningSinceAtRef.current = null;
-        // Important on iOS: stop mic streaming while playing assistant audio.
-        // Recording mode can interrupt playback and cause the voice to cut off.
-        stopContinuousListening({ updateState: true, clearInputBuffer: false });
-        setIsListening(false);
-        setIsSpeaking(true);
-        setIsProcessing(false);
-        clearSpeechWatchdog();
-      },
-
-      onAudioDone: () => {
-        lastVadEventAtRef.current = Date.now();
-        listeningSinceAtRef.current = null;
-        setIsSpeaking(false);
-        setIsProcessing(false);
-        clearSpeechWatchdog();
-        // Resume listening after Zeina finishes speaking
-        if (
-          isActiveRef.current &&
-          realtimeAgentService.isConnected() &&
-          !isManualRecordingRef.current
-        ) {
-          startContinuousListening();
-        }
-      },
-
-      onToolCall: async (toolCall) => {
-        // Execute health tools silently
-        try {
-          // Safely parse arguments, defaulting to empty object
-          let args = {};
-          try {
-            args = toolCall.arguments ? JSON.parse(toolCall.arguments) : {};
-          } catch (parseError) {
-            console.warn("Failed to parse tool arguments:", parseError);
-          }
-
-          const result = await executeHealthTool(toolCall.name, args);
-          realtimeAgentService.submitToolOutput(
-            toolCall.call_id,
-            JSON.stringify(result)
-          );
-        } catch (error) {
-          console.error("Tool execution error:", error);
-          realtimeAgentService.submitToolOutput(
-            toolCall.call_id,
-            JSON.stringify({ error: "Tool execution failed" })
-          );
-        }
-      },
-
-      onResponseDone: async (response) => {
-        const assistantText = extractAssistantTextFromResponse(response);
-        if (assistantText) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              role: "assistant",
-              content: assistantText,
-              timestamp: new Date(),
-            },
-          ]);
-        } else {
-          setLastError(t("noAssistantText", "No assistant text returned"));
-        }
-        setIsProcessing(false);
-        clearSpeechWatchdog();
-        listeningSinceAtRef.current = null;
-
-        // If we got a text reply but no audio chunks, speak it via device TTS.
-        if (assistantText && !didReceiveAssistantAudioRef.current) {
-          try {
-            stopContinuousListening({
-              updateState: true,
-              clearInputBuffer: false,
-            });
-            setIsListening(false);
-            setIsSpeaking(true);
-            await setPlaybackAudioMode();
-
-            const lang = (i18n.language || "en").startsWith("ar")
-              ? "ar-SA"
-              : "en-US";
-            await voiceService.speak(assistantText, {
-              language: lang,
-              volume: 1.0,
-            });
-          } catch {
-            setLastError(t("ttsFailed", "Text-to-speech failed"));
-          } finally {
-            setIsSpeaking(false);
-            if (
-              isActiveRef.current &&
-              realtimeAgentService.isConnected() &&
-              !isManualRecordingRef.current
-            ) {
-              startContinuousListening();
-            }
-          }
-        }
-      },
-
-      onError: (error) => {
-        setIsProcessing(false);
-        setIsListening(false);
-        setIsSpeaking(false);
-        clearSpeechWatchdog();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-
-        const msg =
-          error instanceof Error
-            ? error.message
-            : error?.message
-              ? String(error.message)
-              : String(error);
-        setLastError(msg);
-        const needsApiKey =
-          msg.toLowerCase().includes("api key") ||
-          msg.toLowerCase().includes("authentication") ||
-          msg.toLowerCase().includes("missing authentication") ||
-          msg.toLowerCase().includes("invalid api key") ||
-          msg.includes("1006");
-        if (needsApiKey) {
-          Alert.alert(
-            t("error", "Error"),
-            `${msg}\n\n${t(
-              "configureApiKeyHint",
-              "Fix: open AI Assistant → Settings → OpenAI API Key, paste your key, Save, then return to Zeina."
-            )}`,
-            [
-              {
-                text: t("openSettings", "Open Settings"),
-                onPress: () => router.push("/ai-assistant?openSettings=1"),
-              },
-              { text: t("ok", "OK"), style: "cancel" },
-            ]
-          );
-        } else {
-          Alert.alert(t("error", "Error"), msg);
-        }
-      },
-    };
-
-    realtimeAgentService.setEventHandlers(handlers);
-  }, [t, isActive, connectionState, clearSpeechWatchdog, startSpeechWatchdog]);
-
-  // Execute health-related tools - routes to appropriate service
-  const executeHealthTool = async (
-    name: string,
-    args: any = {}
-  ): Promise<any> => {
-    // Ensure args is always an object
-    const safeArgs = args || {};
-
-    switch (name) {
-      // ===== INFORMATION RETRIEVAL TOOLS =====
-      case "get_health_summary":
-        return await healthContextService.getHealthSummary();
-
-      case "get_medications":
-        return await healthContextService.getMedications(
-          safeArgs.active_only ?? true
-        );
-
-      case "get_recent_vitals":
-        return await healthContextService.getRecentVitals(
-          safeArgs.vital_type,
-          safeArgs.days
-        );
-
-      case "check_medication_interactions":
-        return await healthContextService.checkMedicationInteractions(
-          safeArgs.new_medication
-        );
-
-      case "emergency_contact":
-        return await healthContextService.getEmergencyContacts(safeArgs.action);
-
-      // ===== AUTOMATED ACTION TOOLS (via ZeinaActionsService) =====
-      case "log_symptom":
-        return await zeinaActionsService.logSymptom(
-          safeArgs.symptom_name || "unknown",
-          safeArgs.severity,
-          safeArgs.notes,
-          safeArgs.body_part,
-          safeArgs.duration
-        );
-
-      case "add_medication":
-        return await zeinaActionsService.addMedication(
-          safeArgs.name || "unknown",
-          safeArgs.dosage,
-          safeArgs.frequency,
-          safeArgs.notes
-        );
-
-      case "log_vital_sign": {
-        // Handle blood pressure specially (has systolic/diastolic)
-        const metadata =
-          safeArgs.systolic && safeArgs.diastolic
-            ? { systolic: safeArgs.systolic, diastolic: safeArgs.diastolic }
-            : undefined;
-        return await zeinaActionsService.logVitalSign(
-          safeArgs.vital_type || "unknown",
-          safeArgs.value ?? 0,
-          safeArgs.unit,
-          metadata
-        );
-      }
-
-      case "set_medication_reminder":
-        return await zeinaActionsService.setMedicationReminder(
-          safeArgs.medication_name || "unknown",
-          safeArgs.time || "09:00",
-          safeArgs.recurring ?? true
-        );
-
-      case "alert_family":
-        return await zeinaActionsService.alertFamily(
-          safeArgs.alert_type || "check_in",
-          safeArgs.message
-        );
-
-      case "schedule_reminder":
-        // For general reminders, create a check-in with the reason
-        return await zeinaActionsService.requestCheckIn(
-          `Reminder: ${safeArgs.title || "reminder"} at ${safeArgs.time || "later"}`
-        );
-
-      case "request_check_in":
-        return await zeinaActionsService.requestCheckIn(safeArgs.reason);
-
-      case "log_mood":
-        return await zeinaActionsService.logMood(
-          safeArgs.mood_type || "neutral",
-          safeArgs.intensity,
-          safeArgs.notes,
-          safeArgs.activities
-        );
-
-      case "mark_medication_taken":
-        return await zeinaActionsService.markMedicationTaken(
-          safeArgs.medication_name || ""
-        );
-
-      case "navigate_to":
-        return zeinaActionsService.getNavigationTarget(
-          safeArgs.target || "home"
-        );
-
-      case "add_allergy":
-        return await zeinaActionsService.addAllergy(
-          safeArgs.allergen || "unknown",
-          safeArgs.reaction,
-          safeArgs.severity,
-          safeArgs.allergy_type
-        );
-
-      case "add_medical_history":
-        return await zeinaActionsService.addMedicalHistory(
-          safeArgs.condition || "unknown",
-          safeArgs.diagnosis_date,
-          safeArgs.status,
-          safeArgs.notes
-        );
-
-      default:
-        return {
-          error: "Unknown tool",
-          message: `Tool "${name}" is not supported`,
-        };
-    }
-  };
-
-  // Start continuous audio streaming for VAD
-  const startContinuousListening = async () => {
-    if (!(Audio && FileSystem && isAudioAvailable)) {
-      return;
-    }
-    if (isManualRecordingRef.current) return;
-    if (!realtimeAgentService.isConnected()) return;
-    if (isStreamingRef.current || isStartingStreamingRef.current) return;
-
-    isStartingStreamingRef.current = true;
-
-    try {
-      // Request permissions
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== "granted") {
-        Alert.alert(
-          t("permissionDenied", "Permission Denied"),
-          t("microphonePermissionRequired", "Microphone permission is required")
-        );
-        return;
-      }
-
-      // Set streaming immediately to prevent parallel starts (expo-av can throw "recorder is already prepared")
-      isStreamingRef.current = true;
-      isChunkInFlightRef.current = false;
-      invalidAudioChunkCountRef.current = 0;
-      missingAudioChunkCountRef.current = 0;
-
-      // Set audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        playThroughEarpieceAndroid: false,
-      });
-
-      // Start streaming audio in chunks
-      const streamAudioChunk = async () => {
-        if (!(isStreamingRef.current && realtimeAgentService.isConnected())) {
-          return;
-        }
-        if (isChunkInFlightRef.current) return;
-        isChunkInFlightRef.current = true;
-
-        try {
-          // Create a short recording
-          const recording = new Audio.Recording();
-
-          // expo-av supports different constant names across versions; pick the best available.
-          const iosLinearPcmOutputFormat =
-            Audio?.IOSOutputFormat?.LINEARPCM ??
-            Audio?.RECORDING_OPTION_IOS_OUTPUT_FORMAT_LINEARPCM ??
-            null;
-
-          await recording.prepareToRecordAsync({
-            android: {
-              extension: ".wav",
-              outputFormat: Audio.AndroidOutputFormat?.DEFAULT || 0,
-              audioEncoder: Audio.AndroidAudioEncoder?.DEFAULT || 0,
-              sampleRate: 24_000,
-              numberOfChannels: 1,
-              bitRate: 384_000,
-            },
-            ios: {
-              extension: ".wav",
-              ...(iosLinearPcmOutputFormat != null
-                ? { outputFormat: iosLinearPcmOutputFormat }
-                : {}),
-              audioQuality: Audio.IOSAudioQuality?.HIGH || 127,
-              sampleRate: 24_000,
-              numberOfChannels: 1,
-              bitRate: 384_000,
-              linearPCMBitDepth: 16,
-              linearPCMIsBigEndian: false,
-              linearPCMIsFloat: false,
-            },
-            web: {},
-          });
-
-          await recording.startAsync();
-
-          // Record for 200ms chunks
-          await new Promise((resolve) => setTimeout(resolve, 200));
-
-          await recording.stopAndUnloadAsync();
-          const uri = recording.getURI();
-
-          if (!uri) {
-            missingAudioChunkCountRef.current += 1;
-            if (missingAudioChunkCountRef.current >= 3) {
-              stopContinuousListening();
-              setIsListening(false);
-              setIsProcessing(false);
-              setIsSpeaking(false);
-              Alert.alert(
-                t("microphoneError", "Microphone Error"),
-                t(
-                  "microphoneErrorBody",
-                  "Zeina couldn't capture audio from the microphone. Please check microphone permission and try again."
-                )
-              );
-              return;
-            }
-          }
-
-          if (uri && isStreamingRef.current) {
-            // Read and send audio
-            const base64Audio = await FileSystem.readAsStringAsync(uri, {
-              // Some runtimes may not expose EncodingType; fall back to the string literal.
-              encoding: FileSystem.EncodingType?.Base64 ?? "base64",
-            });
-
-            if (!base64Audio) {
-              missingAudioChunkCountRef.current += 1;
-              if (missingAudioChunkCountRef.current >= 3) {
-                stopContinuousListening();
-                setIsListening(false);
-                setIsProcessing(false);
-                setIsSpeaking(false);
-                Alert.alert(
-                  t("microphoneError", "Microphone Error"),
-                  t(
-                    "microphoneErrorBody",
-                    "Zeina couldn't capture audio from the microphone. Please check microphone permission and try again."
-                  )
-                );
-                return;
-              }
-            }
-
-            // Basic sanity check: WAV files start with "RIFF" which base64-encodes to "UklG".
-            // If we stream non-PCM audio while the session expects PCM16, VAD/transcription can appear stuck.
-            if (base64Audio && base64Audio.startsWith("UklG")) {
-              invalidAudioChunkCountRef.current = 0;
-              missingAudioChunkCountRef.current = 0;
-              realtimeAgentService.sendAudioData(base64Audio);
-              lastAudioAppendAtRef.current = Date.now();
-            } else if (base64Audio) {
-              invalidAudioChunkCountRef.current += 1;
-              if (invalidAudioChunkCountRef.current >= 3) {
-                stopContinuousListening();
-                setIsListening(false);
-                setIsProcessing(false);
-                setIsSpeaking(false);
-                Alert.alert(
-                  t("unsupportedAudioFormat", "Unsupported audio format"),
-                  t(
-                    "unsupportedAudioFormatBody",
-                    "Zeina couldn't read the recording as a PCM WAV file. This can happen if the device records AAC/M4A instead of PCM. Try again on a physical iOS device, or use text input."
-                  )
-                );
-                return;
-              }
-            }
-
-            // Clean up
-            await FileSystem.deleteAsync(uri, { idempotent: true }).catch(
-              () => {}
-            );
-          }
-        } catch (error) {
-          // Continue streaming despite errors, but surface persistent failures
-          const msg = error instanceof Error ? error.message : String(error);
-          setLastError((prev) => prev ?? `Mic chunk error: ${msg}`);
-        } finally {
-          isChunkInFlightRef.current = false;
-        }
-
-        // Schedule next chunk if still streaming
-        if (isStreamingRef.current && realtimeAgentService.isConnected()) {
-          streamingIntervalRef.current = setTimeout(streamAudioChunk, 120);
-        }
-      };
-
-      // Start the streaming loop
-      streamAudioChunk();
-    } catch (error) {
-      isStreamingRef.current = false;
-      const msg = error instanceof Error ? error.message : String(error);
-      setLastError(`Mic streaming failed: ${msg}`);
-    } finally {
-      isStartingStreamingRef.current = false;
-    }
-  };
-
-  // Stop continuous listening
-  const stopContinuousListening = (options?: {
-    updateState?: boolean;
-    clearInputBuffer?: boolean;
-  }) => {
-    const shouldUpdateState = options?.updateState !== false;
-    const shouldClearInputBuffer = options?.clearInputBuffer !== false;
-    isStreamingRef.current = false;
-    isStartingStreamingRef.current = false;
-    isChunkInFlightRef.current = false;
-    if (streamingIntervalRef.current) {
-      clearTimeout(streamingIntervalRef.current);
-      streamingIntervalRef.current = null;
-    }
-    if (recordingRef.current) {
-      recordingRef.current.stopAndUnloadAsync().catch(() => {});
-      recordingRef.current = null;
-    }
-    invalidAudioChunkCountRef.current = 0;
-    missingAudioChunkCountRef.current = 0;
-    clearSpeechWatchdog();
-    if (shouldClearInputBuffer) {
-      realtimeAgentService.clearAudioBuffer();
-    }
-    if (shouldUpdateState) {
-      setIsListening(false);
-      setIsProcessing(false);
-    }
-  };
 
   const togglePushToTalk = useCallback(async () => {
     if (!canUseVoice) {
@@ -1776,71 +1771,6 @@ export default function ZeinaScreen() {
             </View>
           )}
 
-          {/* API key modal (in-place fix if Zeina can't authenticate) */}
-          <Modal
-            animationType="slide"
-            onRequestClose={() => {
-              if (!isSavingApiKey) setShowApiKeyModal(false);
-            }}
-            transparent
-            visible={showApiKeyModal}
-          >
-            <View style={styles.modalBackdrop}>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : undefined}
-                style={styles.modalCard}
-              >
-                <Text style={styles.modalTitle}>
-                  {t("configureApiKey", "Configure API Key")}
-                </Text>
-                <Text style={styles.modalSubtitle}>
-                  {t(
-                    "configureApiKeyBody",
-                    "Paste your OpenAI API key (sk-...) so Zeina can connect."
-                  )}
-                </Text>
-
-                <TextInput
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isSavingApiKey}
-                  onChangeText={setApiKeyDraft}
-                  placeholder="sk-..."
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                  secureTextEntry
-                  style={styles.modalInput}
-                  value={apiKeyDraft}
-                />
-
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    disabled={isSavingApiKey}
-                    onPress={() => setShowApiKeyModal(false)}
-                    style={[styles.modalButton, styles.modalButtonSecondary]}
-                  >
-                    <Text style={styles.modalButtonText}>
-                      {t("cancel", "Cancel")}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    disabled={isSavingApiKey}
-                    onPress={saveApiKeyAndReconnect}
-                    style={[styles.modalButton, styles.modalButtonPrimary]}
-                  >
-                    {isSavingApiKey ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.modalButtonText}>
-                        {t("save", "Save")}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </KeyboardAvoidingView>
-            </View>
-          </Modal>
-
           <Modal
             animationType="slide"
             onRequestClose={() => setShowPaywall(false)}
@@ -2013,65 +1943,6 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     color: "#fff",
     fontSize: 14,
-    fontWeight: "600",
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "flex-end",
-    padding: 16,
-  },
-  modalCard: {
-    backgroundColor: "rgba(18,18,26,0.98)",
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  modalTitle: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-  modalSubtitle: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 14,
-    marginBottom: 14,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalButtonPrimary: {
-    backgroundColor: "rgba(102,126,234,0.95)",
-  },
-  modalButtonSecondary: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-  },
-  modalButtonText: {
-    color: "rgba(255,255,255,0.92)",
     fontWeight: "600",
   },
   paywallContainer: {

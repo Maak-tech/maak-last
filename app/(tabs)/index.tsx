@@ -628,23 +628,37 @@ export default function DashboardScreen() {
     }
 
     // Find the next reminder time
-    const reminderTimes = untakenReminders.map((reminder) => {
-      const [hourStr, minuteStr] = reminder.time.split(":");
-      const reminderTime = new Date();
-      reminderTime.setHours(
-        Number.parseInt(hourStr),
-        Number.parseInt(minuteStr),
-        0,
-        0
-      );
+    const reminderTimes = untakenReminders
+      .filter((reminder) => {
+        // Validate time format exists and is in expected format (HH:MM)
+        return (
+          reminder.time &&
+          typeof reminder.time === "string" &&
+          reminder.time.trim() &&
+          reminder.time.includes(":")
+        );
+      })
+      .map((reminder) => {
+        const [hourStr, minuteStr] = reminder.time.split(":");
+        const hour = Number.parseInt(hourStr, 10);
+        const minute = Number.parseInt(minuteStr, 10);
 
-      // If time has passed today, it's for tomorrow
-      if (reminderTime < now) {
-        reminderTime.setDate(reminderTime.getDate() + 1);
-      }
+        // Validate parsed values are valid numbers
+        if (Number.isNaN(hour) || Number.isNaN(minute)) {
+          return null;
+        }
 
-      return { reminder, time: reminderTime };
-    });
+        const reminderTime = new Date();
+        reminderTime.setHours(hour, minute, 0, 0);
+
+        // If time has passed today, it's for tomorrow
+        if (reminderTime < now) {
+          reminderTime.setDate(reminderTime.getDate() + 1);
+        }
+
+        return { reminder, time: reminderTime };
+      })
+      .filter((item): item is { reminder: any; time: Date } => item !== null);
 
     // Sort by time and return the earliest
     reminderTimes.sort((a, b) => a.time.getTime() - b.time.getTime());
@@ -662,6 +676,17 @@ export default function DashboardScreen() {
         isRTL
           ? "جميع التذكيرات لهذا الدواء تم أخذها بالفعل"
           : "All reminders for this medication have already been taken"
+      );
+      return;
+    }
+
+    // Ensure reminder has an ID
+    if (!nextReminder.id) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "التذكير لا يحتوي على معرف صالح"
+          : "Reminder does not have a valid ID"
       );
       return;
     }

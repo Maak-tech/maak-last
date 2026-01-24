@@ -95,7 +95,8 @@ export function useRevenueCat(): UseRevenueCatReturn {
   const refreshOfferings = async () => {
     try {
       setError(null);
-      const offeringsData = await revenueCatService.getOfferings();
+      // Force refresh to bypass cache
+      const offeringsData = await revenueCatService.getOfferings(true);
       setOfferings(offeringsData);
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Unknown error");
