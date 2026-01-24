@@ -30,7 +30,6 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 // Design System Components
 import DashboardWidgetSettings from "@/app/components/DashboardWidgetSettings";
 import HealthInsightsCard from "@/app/components/HealthInsightsCard";
@@ -39,6 +38,7 @@ import { Card } from "@/components/design-system";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useDailyNotificationScheduler } from "@/hooks/useSmartNotifications";
 import { alertService } from "@/lib/services/alertService";
 import {
@@ -64,6 +64,9 @@ export default function DashboardScreen() {
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [userAlerts, setUserAlerts] = useState<any[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
+  const [markingMedication, setMarkingMedication] = useState<string | null>(
+    null
+  );
   const [stats, setStats] = useState({
     symptomsThisWeek: 0,
     avgSeverity: 0,
@@ -85,6 +88,9 @@ export default function DashboardScreen() {
       ? notificationPrefs?.enabled !== false
       : notificationPrefs !== false;
   useDailyNotificationScheduler(notificationsEnabled);
+
+  // Get notification scheduling functions
+  const { scheduleRecurringMedicationReminder } = useNotifications();
 
   // Create themed styles
   const styles = createThemedStyles((theme) => ({
@@ -419,39 +425,6 @@ export default function DashboardScreen() {
     trackingCardButtonText: {
       ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
     },
-    healthInsightsSection: {
-      marginBottom: theme.spacing.xl,
-    },
-    healthInsightsGrid: {
-      gap: theme.spacing.md,
-    },
-    healthInsightCard: {
-      flexDirection: "row" as const,
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      alignItems: "center" as const,
-      ...theme.shadows.sm,
-    },
-    healthInsightIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginEnd: theme.spacing.md,
-    },
-    healthInsightContent: {
-      flex: 1,
-    },
-    healthInsightTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.primary.main),
-      marginBottom: 4,
-    },
-    healthInsightMessage: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      fontSize: 14,
-    },
     quickActionsGrid: {
       flexDirection: "row" as const,
       flexWrap: "wrap" as const,
@@ -521,6 +494,40 @@ export default function DashboardScreen() {
       setTodaysMedications(medications);
       setAlertsCount(alertsCountData);
 
+      // Schedule medication reminders for all active medications
+      // This ensures reminders are scheduled even if they weren't scheduled when medication was added
+      if (notificationsEnabled && scheduleRecurringMedicationReminder) {
+        try {
+          // Get all user medications (not just today's) to schedule all reminders
+          const allMedications = await medicationService.getUserMedications(
+            user.id
+          );
+
+          // Schedule reminders for each medication and reminder time
+          for (const medication of allMedications) {
+            if (!(medication.isActive && Array.isArray(medication.reminders))) {
+              continue;
+            }
+
+            // Schedule each reminder time
+            for (const reminder of medication.reminders) {
+              if (reminder.time && reminder.time.trim()) {
+                // Schedule reminder (this function handles deduplication)
+                await scheduleRecurringMedicationReminder(
+                  medication.name,
+                  medication.dosage,
+                  reminder.time
+                ).catch(() => {
+                  // Silently handle scheduling errors - don't block dashboard load
+                });
+              }
+            }
+          }
+        } catch (error) {
+          // Silently handle reminder scheduling errors - don't block dashboard load
+        }
+      }
+
       // Calculate personal medication compliance (optimized single pass)
       const today = new Date().toDateString();
       let totalReminders = 0;
@@ -561,7 +568,12 @@ export default function DashboardScreen() {
   // Memoize loadDashboardData to prevent unnecessary recreations
   const loadDashboardDataMemoized = useCallback(async () => {
     await loadDashboardData();
-  }, [user?.id, user?.familyId]);
+  }, [
+    user?.id,
+    user?.familyId,
+    scheduleRecurringMedicationReminder,
+    notificationsEnabled,
+  ]);
 
   useEffect(() => {
     loadDashboardDataMemoized();
@@ -587,6 +599,97 @@ export default function DashboardScreen() {
   const getSeverityColor = (severity: number) =>
     theme.colors.severity[severity as keyof typeof theme.colors.severity] ||
     theme.colors.neutral[500];
+
+  // Find the next upcoming reminder for a medication that hasn't been taken
+  const getNextUpcomingReminder = (medication: Medication) => {
+    if (
+      !Array.isArray(medication.reminders) ||
+      medication.reminders.length === 0
+    ) {
+      return null;
+    }
+
+    const now = new Date();
+    const today = now.toDateString();
+
+    // Find reminders that haven't been taken today
+    const untakenReminders = medication.reminders.filter((reminder) => {
+      if (reminder.taken && reminder.takenAt) {
+        const takenDate = (reminder.takenAt as any).toDate
+          ? (reminder.takenAt as any).toDate()
+          : new Date(reminder.takenAt);
+        return takenDate.toDateString() !== today;
+      }
+      return !reminder.taken;
+    });
+
+    if (untakenReminders.length === 0) {
+      return null;
+    }
+
+    // Find the next reminder time
+    const reminderTimes = untakenReminders.map((reminder) => {
+      const [hourStr, minuteStr] = reminder.time.split(":");
+      const reminderTime = new Date();
+      reminderTime.setHours(
+        Number.parseInt(hourStr),
+        Number.parseInt(minuteStr),
+        0,
+        0
+      );
+
+      // If time has passed today, it's for tomorrow
+      if (reminderTime < now) {
+        reminderTime.setDate(reminderTime.getDate() + 1);
+      }
+
+      return { reminder, time: reminderTime };
+    });
+
+    // Sort by time and return the earliest
+    reminderTimes.sort((a, b) => a.time.getTime() - b.time.getTime());
+    return reminderTimes[0]?.reminder || null;
+  };
+
+  // Handle marking medication as taken
+  const handleMarkMedicationTaken = async (medication: Medication) => {
+    if (!user?.id) return;
+
+    const nextReminder = getNextUpcomingReminder(medication);
+    if (!nextReminder) {
+      Alert.alert(
+        isRTL ? "لا توجد تذكيرات" : "No Reminders",
+        isRTL
+          ? "جميع التذكيرات لهذا الدواء تم أخذها بالفعل"
+          : "All reminders for this medication have already been taken"
+      );
+      return;
+    }
+
+    try {
+      setMarkingMedication(medication.id);
+      await medicationService.markMedicationTaken(
+        medication.id,
+        nextReminder.id
+      );
+
+      // Refresh medications list
+      await loadDashboardData();
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+        () => {}
+      );
+    } catch (error) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL
+          ? "فشل في تسجيل تناول الدواء"
+          : "Failed to mark medication as taken"
+      );
+    } finally {
+      setMarkingMedication(null);
+    }
+  };
 
   const handleSOS = () => {
     try {
@@ -631,6 +734,38 @@ export default function DashboardScreen() {
                 return;
               }
 
+              // Check if user has a family
+              if (!user.familyId) {
+                Alert.alert(
+                  isRTL ? "لا توجد عائلة" : "No Family",
+                  isRTL
+                    ? "لا توجد عائلة مرتبطة بحسابك. يرجى إضافة أفراد العائلة أولاً."
+                    : "No family is linked to your account. Please add family members first."
+                );
+                return;
+              }
+
+              // Check if there are any family members to notify
+              const { userService } = await import(
+                "@/lib/services/userService"
+              );
+              const familyMembers = await userService.getFamilyMembers(
+                user.familyId
+              );
+              const membersToNotify = familyMembers.filter(
+                (member) => member.id !== user.id
+              );
+
+              if (membersToNotify.length === 0) {
+                Alert.alert(
+                  isRTL ? "لا يوجد أفراد للتنبيه" : "No Family Members",
+                  isRTL
+                    ? "لا يوجد أفراد آخرين في عائلتك للتنبيه."
+                    : "There are no other family members to notify."
+                );
+                return;
+              }
+
               // Create emergency alert
               const userName =
                 user.firstName && user.lastName
@@ -650,24 +785,22 @@ export default function DashboardScreen() {
 
               const alertId = await alertService.createAlert(alertData);
 
-              // Send notification to family if user has family
-              if (user.familyId) {
-                const { pushNotificationService } = await import(
-                  "@/lib/services/pushNotificationService"
-                );
-                await pushNotificationService.sendEmergencyAlert(
-                  user.id,
-                  alertData.message,
-                  alertId,
-                  user.familyId
-                );
-              }
+              // Send notification to family
+              const { pushNotificationService } = await import(
+                "@/lib/services/pushNotificationService"
+              );
+              await pushNotificationService.sendEmergencyAlert(
+                user.id,
+                alertData.message,
+                alertId,
+                user.familyId
+              );
 
               Alert.alert(
                 isRTL ? "تم إرسال الإشعار" : "Notification Sent",
                 isRTL
-                  ? "تم إرسال إشعار طوارئ لجميع أفراد العائلة"
-                  : "Emergency notification sent to all family members"
+                  ? `تم إرسال إشعار طوارئ إلى ${membersToNotify.length} ${membersToNotify.length === 1 ? "عضو" : "أعضاء"} من العائلة`
+                  : `Emergency notification sent to ${membersToNotify.length} family ${membersToNotify.length === 1 ? "member" : "members"}`
               );
             } catch (error) {
               Alert.alert(
@@ -879,78 +1012,151 @@ export default function DashboardScreen() {
             </View>
 
             {todaysMedications.length > 0 ? (
-              todaysMedications.slice(0, 3).map((medication) => (
-                <TouchableOpacity
-                  key={medication.id}
-                  onPress={() => router.push("/(tabs)/medications")}
-                  style={styles.medicationItem as ViewStyle}
-                >
-                  <View style={styles.medicationIcon as ViewStyle}>
-                    <Pill color={theme.colors.primary.main} size={20} />
-                  </View>
-                  <View style={styles.medicationInfo as ViewStyle}>
-                    <Text
-                      style={
-                        [
-                          styles.medicationName,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
+              todaysMedications.slice(0, 3).map((medication) => {
+                const nextReminder = getNextUpcomingReminder(medication);
+                const hasUntakenReminders = nextReminder !== null;
+                const allTaken =
+                  Array.isArray(medication.reminders) &&
+                  medication.reminders.length > 0 &&
+                  medication.reminders.every((r) => {
+                    if (!r.taken) return false;
+                    if (r.takenAt) {
+                      const takenDate = (r.takenAt as any).toDate
+                        ? (r.takenAt as any).toDate()
+                        : new Date(r.takenAt);
+                      return (
+                        takenDate.toDateString() === new Date().toDateString()
+                      );
+                    }
+                    return r.taken;
+                  });
+
+                return (
+                  <View
+                    key={medication.id}
+                    style={styles.medicationItem as ViewStyle}
+                  >
+                    <TouchableOpacity
+                      onPress={() => router.push("/(tabs)/medications")}
+                      style={{
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
                     >
-                      {medication.name}
-                    </Text>
-                    <Text
-                      style={
-                        [
-                          styles.medicationDosage,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {medication.dosage} • {medication.frequency}
-                    </Text>
-                  </View>
-                  <View style={styles.medicationStatus as ViewStyle}>
-                    {Array.isArray(medication.reminders) &&
-                    medication.reminders.some((r) => r.taken) ? (
-                      <View
-                        style={
-                          [
-                            styles.statusCheckContainer,
-                            { backgroundColor: theme.colors.accent.success },
-                          ] as StyleProp<ViewStyle>
-                        }
-                      >
-                        <Check
-                          color={theme.colors.neutral.white}
-                          size={16}
-                          strokeWidth={3}
-                        />
+                      <View style={styles.medicationIcon as ViewStyle}>
+                        <Pill color={theme.colors.primary.main} size={20} />
                       </View>
-                    ) : (
-                      <View
-                        style={
-                          [
-                            styles.statusCheckContainer,
-                            {
-                              backgroundColor:
-                                theme.colors.background.secondary,
-                              borderColor: theme.colors.border.medium,
-                              borderWidth: 2,
-                            },
-                          ] as StyleProp<ViewStyle>
-                        }
-                      >
-                        <Check
-                          color={theme.colors.text.tertiary}
-                          size={16}
-                          strokeWidth={2}
-                        />
+                      <View style={styles.medicationInfo as ViewStyle}>
+                        <Text
+                          style={
+                            [
+                              styles.medicationName,
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {medication.name}
+                        </Text>
+                        <Text
+                          style={
+                            [
+                              styles.medicationDosage,
+                              isRTL && styles.rtlText,
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {medication.dosage} • {medication.frequency}
+                          {nextReminder && (
+                            <Text
+                              style={
+                                [
+                                  styles.medicationDosage,
+                                  isRTL && styles.rtlText,
+                                  { marginTop: 2 },
+                                ] as StyleProp<TextStyle>
+                              }
+                            >
+                              {" • "}
+                              {isRTL ? "التذكير التالي: " : "Next: "}
+                              {nextReminder.time}
+                            </Text>
+                          )}
+                        </Text>
                       </View>
-                    )}
+                    </TouchableOpacity>
+                    <View style={styles.medicationStatus as ViewStyle}>
+                      {hasUntakenReminders ? (
+                        <TouchableOpacity
+                          disabled={markingMedication === medication.id}
+                          onPress={() => handleMarkMedicationTaken(medication)}
+                          style={
+                            [
+                              styles.statusCheckContainer,
+                              {
+                                backgroundColor:
+                                  markingMedication === medication.id
+                                    ? theme.colors.neutral[400]
+                                    : theme.colors.accent.success,
+                                opacity:
+                                  markingMedication === medication.id ? 0.6 : 1,
+                              },
+                            ] as StyleProp<ViewStyle>
+                          }
+                        >
+                          {markingMedication === medication.id ? (
+                            <ActivityIndicator
+                              color={theme.colors.neutral.white}
+                              size={16}
+                            />
+                          ) : (
+                            <Check
+                              color={theme.colors.neutral.white}
+                              size={16}
+                              strokeWidth={3}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ) : allTaken ? (
+                        <View
+                          style={
+                            [
+                              styles.statusCheckContainer,
+                              { backgroundColor: theme.colors.accent.success },
+                            ] as StyleProp<ViewStyle>
+                          }
+                        >
+                          <Check
+                            color={theme.colors.neutral.white}
+                            size={16}
+                            strokeWidth={3}
+                          />
+                        </View>
+                      ) : (
+                        <View
+                          style={
+                            [
+                              styles.statusCheckContainer,
+                              {
+                                backgroundColor:
+                                  theme.colors.background.secondary,
+                                borderColor: theme.colors.border.medium,
+                                borderWidth: 2,
+                              },
+                            ] as StyleProp<ViewStyle>
+                          }
+                        >
+                          <Check
+                            color={theme.colors.text.tertiary}
+                            size={16}
+                            strokeWidth={2}
+                          />
+                        </View>
+                      )}
+                    </View>
                   </View>
-                </TouchableOpacity>
-              ))
+                );
+              })
             ) : (
               <TouchableOpacity
                 onPress={() => router.push("/(tabs)/medications")}
@@ -1080,21 +1286,6 @@ export default function DashboardScreen() {
           </View>
         );
 
-      case "healthInsights":
-        return (
-          <View key="healthInsights" style={styles.section as ViewStyle}>
-            <HealthInsightsCard />
-            <ProactiveHealthSuggestions maxSuggestions={5} />
-            <AIInsightsDashboard
-              compact={true}
-              onInsightPress={(insight) => {
-                // Navigate to analytics tab for detailed view
-                router.push("/analytics");
-              }}
-            />
-          </View>
-        );
-
       case "alerts":
         if (alertsCount === 0) return null;
         return (
@@ -1151,6 +1342,14 @@ export default function DashboardScreen() {
               </View>
               <ChevronRight color={theme.colors.accent.error} size={20} />
             </Card>
+          </View>
+        );
+
+      case "healthInsights":
+        return (
+          <View key="healthInsights" style={styles.section as ViewStyle}>
+            <HealthInsightsCard />
+            <ProactiveHealthSuggestions maxSuggestions={5} />
           </View>
         );
 
@@ -1378,187 +1577,6 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Simple Health Insights for Regular Users */}
-        {!isAdmin && (
-          <View style={styles.healthInsightsSection as ViewStyle}>
-            <Text
-              style={
-                [
-                  styles.sectionTitle,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
-            >
-              {t("healthInsights")}
-            </Text>
-            <View style={styles.healthInsightsGrid as ViewStyle}>
-              {/* Medication Adherence Insight */}
-              {stats.medicationCompliance < 80 && (
-                <View style={styles.healthInsightCard as ViewStyle}>
-                  <View
-                    style={
-                      [
-                        styles.healthInsightIcon,
-                        { backgroundColor: theme.colors.accent.warning + "20" },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Activity color={theme.colors.accent.warning} size={20} />
-                  </View>
-                  <View style={styles.healthInsightContent as ViewStyle}>
-                    <Text
-                      style={
-                        [
-                          styles.healthInsightTitle,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "الالتزام بالدواء" : "Medication Adherence"}
-                    </Text>
-                    <Text
-                      style={
-                        [
-                          styles.healthInsightMessage,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL
-                        ? "حاول تناول أدويتك في الوقت المحدد"
-                        : "Try taking your medications on time"}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Good Medication Adherence */}
-              {stats.medicationCompliance >= 80 && (
-                <View style={styles.healthInsightCard as ViewStyle}>
-                  <View
-                    style={
-                      [
-                        styles.healthInsightIcon,
-                        { backgroundColor: theme.colors.accent.success + "20" },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Check color={theme.colors.accent.success} size={20} />
-                  </View>
-                  <View style={styles.healthInsightContent as ViewStyle}>
-                    <Text
-                      style={
-                        [
-                          styles.healthInsightTitle,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "ممتاز!" : "Excellent!"}
-                    </Text>
-                    <Text
-                      style={
-                        [
-                          styles.healthInsightMessage,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL
-                        ? "الالتزام الجيد بالدواء - استمر!"
-                        : "Great medication adherence - keep it up!"}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Symptom Tracking Reminder */}
-              {recentSymptoms.length === 0 && (
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/symptoms")}
-                  style={styles.healthInsightCard as ViewStyle}
-                >
-                  <View
-                    style={
-                      [
-                        styles.healthInsightIcon,
-                        { backgroundColor: theme.colors.primary[50] },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Activity color={theme.colors.primary.main} size={20} />
-                  </View>
-                  <View style={styles.healthInsightContent as ViewStyle}>
-                    <Text
-                      style={
-                        [
-                          styles.healthInsightTitle,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL ? "تتبع الأعراض" : "Track Symptoms"}
-                    </Text>
-                    <Text
-                      style={
-                        [
-                          styles.healthInsightMessage,
-                          isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
-                      }
-                    >
-                      {isRTL
-                        ? "سجل أعراضك اليومية للحصول على رؤية صحية أفضل"
-                        : "Log your daily symptoms for better insights"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-
-              {/* Exercise Suggestion */}
-              <TouchableOpacity
-                onPress={() => router.push("/ppg-measure")}
-                style={styles.healthInsightCard as ViewStyle}
-              >
-                <View
-                  style={
-                    [
-                      styles.healthInsightIcon,
-                      { backgroundColor: theme.colors.secondary[50] },
-                    ] as StyleProp<ViewStyle>
-                  }
-                >
-                  <Heart color={theme.colors.secondary.main} size={20} />
-                </View>
-                <View style={styles.healthInsightContent as ViewStyle}>
-                  <Text
-                    style={
-                      [
-                        styles.healthInsightTitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL ? "حركة خفيفة" : "Light Exercise"}
-                  </Text>
-                  <Text
-                    style={
-                      [
-                        styles.healthInsightMessage,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL
-                      ? "جرب المشي لمدة 10 دقائق اليوم"
-                      : "Try a 10-minute walk today"}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
 
         {/* Render widgets dynamically based on config order (Admin only) */}
         {isAdmin && enabledWidgets.map((widget) => renderWidget(widget.id))}

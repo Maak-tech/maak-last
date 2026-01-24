@@ -29,7 +29,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import healthContextService from "@/lib/services/healthContextService";
-import openaiService from "@/lib/services/openaiService";
 import {
   type ConnectionState,
   type RealtimeEventHandlers,
@@ -84,6 +83,13 @@ export default function ZeinaScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
+  const isWeb = Platform.OS === "web";
+  const canUseVoice = !!(Audio && FileSystem && isAudioAvailable && !isWeb);
+  const {
+    isLoading: isSubscriptionLoading,
+    hasActiveSubscription,
+    refreshCustomerInfo,
+  } = useRevenueCat();
 
   // Connection state
   const [connectionState, setConnectionState] =
@@ -94,9 +100,8 @@ export default function ZeinaScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [apiKeyDraft, setApiKeyDraft] = useState("");
-  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [showPaywall, setShowPaywall] = useState(false);
   const isActiveRef = useRef(false);
   const didAutoWelcomeRef = useRef(false);
   const isAutoWelcomingRef = useRef(false);
@@ -184,10 +189,56 @@ export default function ZeinaScreen() {
     }, 12_000) as unknown as number;
   }, [clearSpeechWatchdog, safeCommitAudioBuffer]);
 
+  const ensurePremiumAccess = useCallback(() => {
+    if (isSubscriptionLoading) {
+      setLastError(
+        t("checkingSubscription", "Checking subscription status...")
+      );
+      return false;
+    }
+    if (!hasActiveSubscription) {
+      setLastError(t("premiumRequired", "Premium plan required to use Zeina"));
+      setShowPaywall(true);
+      setIsActive(false);
+      setConnectionState("disconnected");
+      return false;
+    }
+    return true;
+  }, [hasActiveSubscription, isSubscriptionLoading, t]);
+
   const startZeina = useCallback(async () => {
-    if (!(isAudioAvailable && Audio)) {
+    if (isWeb) {
+      setLastError(
+        t(
+          "zeinaWebNotSupported",
+          "Zeina voice is not available on web. Use AI Assistant or the mobile app."
+        )
+      );
+      setIsActive(false);
+      setConnectionState("error");
       Alert.alert(
-        t("audioUnavailable", "Audio Unavailable"),
+        t("voiceNotAvailable", "Voice Not Available"),
+        t(
+          "zeinaWebNotSupportedBody",
+          "Zeina uses a realtime voice connection that isn't supported on web. Open the AI Assistant instead, or use the iOS/Android app."
+        ),
+        [
+          {
+            text: t("openAiAssistant", "Open AI Assistant"),
+            onPress: () => router.push("/ai-assistant"),
+          },
+          { text: t("ok", "OK"), style: "cancel" },
+        ]
+      );
+      return;
+    }
+
+    if (!ensurePremiumAccess()) {
+      return;
+    }
+
+    if (!canUseVoice) {
+      setLastError(
         audioLoadError ||
           t("audioNotAvailable", "Audio is not available on this device.")
       );
@@ -201,15 +252,20 @@ export default function ZeinaScreen() {
     try {
       setupEventHandlers();
 
-      // Proactively request mic permission so auto-mode can actually start listening.
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== "granted") {
-        setIsActive(false);
-        Alert.alert(
-          t("permissionDenied", "Permission Denied"),
-          t("microphonePermissionRequired", "Microphone permission is required")
-        );
-        return;
+      if (canUseVoice) {
+        // Proactively request mic permission so auto-mode can actually start listening.
+        const permission = await Audio.requestPermissionsAsync();
+        if (permission.status !== "granted") {
+          setIsActive(false);
+          Alert.alert(
+            t("permissionDenied", "Permission Denied"),
+            t(
+              "microphonePermissionRequired",
+              "Microphone permission is required"
+            )
+          );
+          return;
+        }
       }
 
       const currentLanguage = i18n.language || "en";
@@ -280,7 +336,16 @@ export default function ZeinaScreen() {
         Alert.alert(t("connectionFailed", "Connection Failed"), msg);
       }
     }
-  }, [i18n.language, setupEventHandlers, t]);
+  }, [
+    audioLoadError,
+    canUseVoice,
+    ensurePremiumAccess,
+    i18n.language,
+    isWeb,
+    router,
+    setupEventHandlers,
+    t,
+  ]);
 
   // Auto-reconnect if the socket drops (keep Zeina usable without manual tapping).
   useEffect(() => {
@@ -313,36 +378,6 @@ export default function ZeinaScreen() {
     setIsSpeaking(false);
     setIsProcessing(false);
   }, [stopContinuousListening]);
-
-  const saveApiKeyAndReconnect = useCallback(async () => {
-    const key = apiKeyDraft.trim();
-    if (!key) {
-      Alert.alert(
-        t("error", "Error"),
-        t("pleaseEnterValidApiKey", "Please enter a valid API key")
-      );
-      return;
-    }
-    setIsSavingApiKey(true);
-    try {
-      await Promise.all([
-        openaiService.setApiKey(key),
-        realtimeAgentService.setApiKey(key),
-      ]);
-      setApiKeyDraft("");
-      setShowApiKeyModal(false);
-      setLastError(null);
-      // Give the modal time to close before reconnecting.
-      setTimeout(() => {
-        startZeina().catch(() => {});
-      }, 150);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert(t("error", "Error"), msg);
-    } finally {
-      setIsSavingApiKey(false);
-    }
-  }, [apiKeyDraft, startZeina, t]);
 
   // Side-effect only stop (NO setState). Used for focus/blur/unmount cleanup to avoid update loops.
   const stopZeinaSideEffects = useCallback(() => {
@@ -1204,7 +1239,7 @@ export default function ZeinaScreen() {
   };
 
   const togglePushToTalk = useCallback(async () => {
-    if (!(Audio && FileSystem && isAudioAvailable)) {
+    if (!canUseVoice) {
       Alert.alert(
         t("audioUnavailable", "Audio Unavailable"),
         audioLoadError ||
@@ -1349,6 +1384,7 @@ export default function ZeinaScreen() {
     Audio,
     FileSystem,
     audioLoadError,
+    canUseVoice,
     connectionState,
     safeCommitAudioBuffer,
     stopContinuousListening,
@@ -1363,6 +1399,31 @@ export default function ZeinaScreen() {
     didReceiveAssistantAudioRef.current = false;
     safeCommitAudioBuffer();
   }, []);
+
+  const sendTextMessage = useCallback(() => {
+    const trimmed = textInput.trim();
+    if (!trimmed) return;
+    if (!realtimeAgentService.isConnected()) {
+      Alert.alert(
+        t("notConnected", "Not Connected"),
+        t("connecting", "Connecting...")
+      );
+      return;
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        role: "user",
+        content: trimmed,
+        timestamp: new Date(),
+      },
+    ]);
+    setTextInput("");
+    setIsProcessing(true);
+    realtimeAgentService.sendTextMessage(trimmed);
+  }, [textInput, t]);
 
   // Manual toggle (auto mode also starts Zeina when this tab is focused)
   const activateZeina = async () => {
@@ -1411,6 +1472,7 @@ export default function ZeinaScreen() {
     if (isSpeaking) return ""; // Don't show text when Zeina is speaking
     if (isProcessing) return t("thinking", "Thinking...");
     if (isListening) return t("listening", "Listening...");
+    if (!canUseVoice) return t("textMode", "Text mode ready - type below");
     return t("imListening", "I'm listening...");
   };
 
@@ -1558,6 +1620,25 @@ export default function ZeinaScreen() {
 
             {/* Status text */}
             <Text style={styles.statusText}>{getStatusMessage()}</Text>
+            {!canUseVoice && (
+              <Text style={styles.voiceUnavailableText}>
+                {t(
+                  "voiceUnavailableHint",
+                  "Voice is unavailable on this device. You can still chat with Zeina by text."
+                )}
+              </Text>
+            )}
+            {!(isSubscriptionLoading || hasActiveSubscription) && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setShowPaywall(true)}
+                style={styles.upgradeButton}
+              >
+                <Text style={styles.upgradeButtonText}>
+                  {t("upgradeToUseZeina", "Upgrade to use Zeina")}
+                </Text>
+              </TouchableOpacity>
+            )}
             {debugEnabled && (
               <Text style={styles.debugText}>
                 {`state=${connectionState} active=${isActive ? "1" : "0"} streaming=${isStreamingRef.current ? "1" : "0"} listening=${isListening ? "1" : "0"} speaking=${isSpeaking ? "1" : "0"} processing=${isProcessing ? "1" : "0"} invalidWav=${invalidAudioChunkCountRef.current} missingAudio=${missingAudioChunkCountRef.current}`}
@@ -1604,6 +1685,37 @@ export default function ZeinaScreen() {
                 <Text style={styles.transcriptPreviewText}>
                   "{currentTranscript}"
                 </Text>
+              </View>
+            )}
+
+            {!canUseVoice && (
+              <View style={styles.textInputContainer}>
+                <TextInput
+                  autoCapitalize="sentences"
+                  editable={connectionState === "connected"}
+                  onChangeText={setTextInput}
+                  onSubmitEditing={sendTextMessage}
+                  placeholder={t("typeMessage", "Type a message...")}
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  returnKeyType="send"
+                  style={styles.textInput}
+                  value={textInput}
+                />
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  disabled={
+                    connectionState !== "connected" || textInput.trim() === ""
+                  }
+                  onPress={sendTextMessage}
+                  style={[
+                    styles.sendButton,
+                    (connectionState !== "connected" ||
+                      textInput.trim() === "") &&
+                      styles.sendButtonDisabled,
+                  ]}
+                >
+                  <Ionicons color="#fff" name="send" size={18} />
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -1728,6 +1840,39 @@ export default function ZeinaScreen() {
               </KeyboardAvoidingView>
             </View>
           </Modal>
+
+          <Modal
+            animationType="slide"
+            onRequestClose={() => setShowPaywall(false)}
+            presentationStyle="pageSheet"
+            visible={showPaywall}
+          >
+            <SafeAreaView style={styles.paywallContainer}>
+              <View style={styles.paywallHeader}>
+                <Text style={styles.paywallTitle}>
+                  {t("upgradeToPremium", "Upgrade to Premium")}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowPaywall(false)}
+                  style={styles.paywallClose}
+                >
+                  <Ionicons
+                    color="rgba(255,255,255,0.8)"
+                    name="close"
+                    size={22}
+                  />
+                </TouchableOpacity>
+              </View>
+              <RevenueCatPaywall
+                onDismiss={() => setShowPaywall(false)}
+                onPurchaseComplete={async () => {
+                  setShowPaywall(false);
+                  await refreshCustomerInfo();
+                  startZeina().catch(() => {});
+                }}
+              />
+            </SafeAreaView>
+          </Modal>
         </SafeAreaView>
       </LinearGradient>
     </View>
@@ -1851,6 +1996,25 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textAlign: "center",
   },
+  voiceUnavailableText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.55)",
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  upgradeButton: {
+    marginTop: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(102,126,234,0.95)",
+  },
+  upgradeButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -1910,6 +2074,27 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.92)",
     fontWeight: "600",
   },
+  paywallContainer: {
+    flex: 1,
+    backgroundColor: "rgba(10,10,15,1)",
+  },
+  paywallHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  paywallTitle: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  paywallClose: {
+    padding: 6,
+  },
   debugText: {
     marginTop: 10,
     fontSize: 12,
@@ -1957,6 +2142,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: "italic",
     textAlign: "center",
+  },
+  textInputContainer: {
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 24,
+    width: "100%",
+  },
+  textInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 15,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(102,126,234,0.95)",
+  },
+  sendButtonDisabled: {
+    backgroundColor: "rgba(255,255,255,0.2)",
   },
   transcriptContainer: {
     maxHeight: SCREEN_HEIGHT * 0.3,
