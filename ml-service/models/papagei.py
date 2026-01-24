@@ -14,34 +14,36 @@ import torch.nn as nn  # pyright: ignore[reportMissingImports]
 try:
     import sys
     import os
+    import importlib.util
     # Add papagei-foundation-model to path FIRST (before any other imports)
     # Use absolute path to avoid conflicts with local preprocessing module
     current_dir = os.path.dirname(os.path.abspath(__file__))
     ml_service_dir = os.path.dirname(current_dir)
-    papagei_path = os.path.join(ml_service_dir, 'papagei-foundation-model')
+    papagei_path = os.path.join(ml_service_dir, "papagei-foundation-model")
     papagei_path = os.path.abspath(papagei_path)
-    
+
     # Insert at the beginning to prioritize PaPaGei modules
     if papagei_path not in sys.path:
         sys.path.insert(0, papagei_path)
-    
-    # Temporarily remove local preprocessing from path to avoid conflicts
-    # We'll restore it after imports
-    local_preprocessing_path = None
-    for i, path in enumerate(sys.path):
-        if 'ml-service' in path and 'preprocessing' in path:
-            # Don't remove, but we'll import explicitly from papagei
-            pass
-    
+
     # Import from papagei-foundation-model (not local modules)
     from linearprobing.utils import resample_batch_signal, load_model_without_module_prefix  # pyright: ignore[reportMissingImports]
-    
-    # Import preprocessing from papagei-foundation-model
-    # Local preprocessing directory has been renamed to avoid conflicts
-    from preprocessing.ppg import preprocess_one_ppg_signal  # pyright: ignore[reportMissingImports]
-    
     from segmentations import waveform_to_segments  # pyright: ignore[reportMissingImports]
-    from models.resnet import ResNet1DMoE  # pyright: ignore[reportMissingImports]
+
+    # Load preprocess_one_ppg_signal explicitly from PaPaGei preprocessing module
+    papagei_ppg_path = os.path.join(papagei_path, "preprocessing", "ppg.py")
+    ppg_spec = importlib.util.spec_from_file_location("papagei_preprocessing_ppg", papagei_ppg_path)
+    papagei_ppg = importlib.util.module_from_spec(ppg_spec)
+    ppg_spec.loader.exec_module(papagei_ppg)
+    preprocess_one_ppg_signal = papagei_ppg.preprocess_one_ppg_signal
+
+    # Load ResNet1DMoE explicitly from PaPaGei models module
+    papagei_resnet_path = os.path.join(papagei_path, "models", "resnet.py")
+    resnet_spec = importlib.util.spec_from_file_location("papagei_models_resnet", papagei_resnet_path)
+    papagei_resnet = importlib.util.module_from_spec(resnet_spec)
+    resnet_spec.loader.exec_module(papagei_resnet)
+    ResNet1DMoE = papagei_resnet.ResNet1DMoE
+
     PAPAGEI_IMPORTED = True
 except ImportError as e:
     print(f"Warning: PaPaGei modules not found: {e}")
@@ -140,8 +142,13 @@ class PaPaGeiModel:
             verbose=False
         )
         
-        # Load weights
-        model = load_model_without_module_prefix(model, model_path)
+        # Load weights (map to CPU if needed)
+        checkpoint = torch.load(model_path, map_location=self.device)
+        state_dict = {}
+        for key, value in checkpoint.items():
+            clean_key = key[7:] if key.startswith("module.") else key
+            state_dict[clean_key] = value
+        model.load_state_dict(state_dict)
         model.to(self.device)
         
         return model

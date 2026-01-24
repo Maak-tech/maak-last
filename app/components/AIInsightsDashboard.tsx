@@ -442,7 +442,7 @@ function AIInsightsDashboard({
               style={styles.mb4}
             >
               <View style={styles.row}>
-                {getIcon("Bot", 20, "#3B82F6")}
+                {getIcon("Brain", 20, "#3B82F6")}
                 <Text style={[styles.cardTitle, styles.ml2]}>
                   {t("healthSummary", "Health Summary")}
                 </Text>
