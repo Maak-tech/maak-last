@@ -17,7 +17,7 @@ import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import type React from "react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Alert, Platform } from "react-native";
-import { auth, db, getFirebaseConfig } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
@@ -41,66 +41,42 @@ const getRnFirebaseApps = () => {
 const ensureRnFirebaseInitialized = () => {
   if (!rnFirebaseApp) return false;
 
-  // First, check if apps already exist
-  const apps = getRnFirebaseApps();
-  if (Array.isArray(apps) && apps.length > 0) {
-    return true;
-  }
-
-  // Try to get the default app - this will succeed if already initialized
-  // React Native Firebase auto-initializes from native config files
   try {
-    rnFirebaseApp.app();
-    return true;
-  } catch (getAppError: any) {
-    // App doesn't exist, try to initialize it manually as fallback
-    // But only if the error indicates it's truly not initialized
-    if (
-      getAppError?.code === "app/no-app" ||
-      getAppError?.message?.includes("No Firebase App") ||
-      getAppError?.message?.includes("has not been initialized")
-    ) {
-      try {
-        const config = getFirebaseConfig();
-        // Construct databaseURL from projectId (required by React Native Firebase)
-        // Format: https://{projectId}-default-rtdb.firebaseio.com
-        const databaseURL = config.projectId
-          ? `https://${config.projectId}-default-rtdb.firebaseio.com`
-          : undefined;
-        rnFirebaseApp.initializeApp({
-          apiKey: config.apiKey,
-          appId: config.appId,
-          projectId: config.projectId,
-          messagingSenderId: config.messagingSenderId,
-          storageBucket: config.storageBucket,
-          databaseURL,
-        });
-        return true;
-      } catch (initError: any) {
-        // If initialization fails because app is already configured, that's fine
-        // This can happen during hot reload or if native config initialized it
-        if (
-          initError?.code === "app/unknown" ||
-          initError?.message?.includes("already been configured") ||
-          initError?.message?.includes("already initialized") ||
-          initError?.message?.includes(
-            "Default app has already been configured"
-          )
-        ) {
-          // App was already initialized (likely by native config), verify we can access it
-          try {
-            rnFirebaseApp.app();
-            return true;
-          } catch {
-            // Can't access app even though it says it's configured
-            return false;
-          }
-        }
-        // Other initialization errors - return false
-        return false;
-      }
+    // First, check if apps already exist
+    const apps = getRnFirebaseApps();
+    if (Array.isArray(apps) && apps.length > 0) {
+      return true;
     }
-    // For other errors when getting app, assume it might not be initialized
+
+    // Try to get the default app - this will succeed if already initialized
+    // React Native Firebase auto-initializes from native config files
+    try {
+      rnFirebaseApp.app();
+      return true;
+    } catch (getAppError: any) {
+      // App doesn't exist or is not yet initialized
+      // Don't attempt manual initialization here to avoid double-init errors
+      // (RN Firebase should be configured via native config files)
+      if (
+        getAppError?.message?.includes("already been configured") ||
+        getAppError?.message?.includes("already initialized") ||
+        getAppError?.message?.includes(
+          "Default app has already been configured"
+        )
+      ) {
+        return true;
+      }
+      return false;
+    }
+  } catch (error: any) {
+    // Defensive: treat "already configured" as initialized
+    if (
+      error?.message?.includes("already been configured") ||
+      error?.message?.includes("already initialized") ||
+      error?.message?.includes("Default app has already been configured")
+    ) {
+      return true;
+    }
     return false;
   }
 };
@@ -816,9 +792,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               {},
               "AuthContext"
             );
-            throw new Error(
-              "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
-            );
           }
 
           // Use React Native Firebase for native phone auth
@@ -845,6 +818,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             );
             throw new Error(
               "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
+            );
+          }
+          if (
+            rnError?.message?.includes("already been configured") ||
+            rnError?.message?.includes("already initialized") ||
+            rnError?.message?.includes(
+              "Default app has already been configured"
+            )
+          ) {
+            // Treat already-configured as non-fatal and try again on next attempt
+            throw new Error(
+              "Firebase is initializing. Please try sending the code again."
             );
           }
           throw rnError;
@@ -1121,9 +1106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             "React Native Firebase app not ready",
             {},
             "AuthContext"
-          );
-          throw new Error(
-            "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
           );
         }
         // Use React Native Firebase for native phone auth

@@ -239,6 +239,60 @@ export default function RegisterScreen() {
     }
   };
 
+  const handleResendCode = async () => {
+    setErrors({});
+
+    if (!firstName) {
+      setErrors({
+        general: isRTL
+          ? "يرجى إدخال الاسم الأول"
+          : "Please enter your first name",
+      });
+      return;
+    }
+
+    if (!phoneNumber.trim()) {
+      setErrors({
+        general: isRTL
+          ? "يرجى إدخال رقم الهاتف"
+          : "Please enter your phone number",
+      });
+      return;
+    }
+
+    const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
+    const hasCountryCode =
+      cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
+
+    if (!hasCountryCode && cleanedPhone.length < 10) {
+      setErrors({
+        general: isRTL
+          ? "يرجى إدخال رقم هاتف صحيح مع رمز الدولة (مثال: +1234567890 للولايات المتحدة، +966501234567 للسعودية)"
+          : "Please enter a valid phone number with country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia)",
+      });
+      return;
+    }
+
+    try {
+      const confirmation = await signUpWithPhone(
+        phoneNumber.trim(),
+        firstName,
+        lastName,
+        selectedAvatarType
+      );
+      setConfirmationResult(confirmation);
+      setShowOtpInput(true);
+    } catch (error: any) {
+      setErrors({
+        general:
+          error.message ||
+          (isRTL
+            ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
+            : "Failed to send verification code. Please try again."),
+      });
+    }
+  };
+
   const toggleLanguage = async () => {
     try {
       const newLang = i18n.language === "en" ? "ar" : "en";
@@ -530,6 +584,11 @@ export default function RegisterScreen() {
 
                 {showOtpInput && (
                   <View style={styles.inputContainer}>
+                    <Text style={[styles.helperText, isRTL && styles.rtlText]}>
+                      {isRTL
+                        ? "تم إرسال الرمز. أدخله بالأسفل أو أعد الإرسال."
+                        : "Code sent. Enter it below or resend."}
+                    </Text>
                     <Text style={[styles.label, isRTL && styles.labelRTL]}>
                       {isRTL ? "رمز التحقق" : "Verification Code"}
                     </Text>
@@ -558,6 +617,18 @@ export default function RegisterScreen() {
                           : isRTL
                             ? "تحقق"
                             : "Verify"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      disabled={loading}
+                      onPress={handleResendCode}
+                      style={[
+                        styles.resendButton,
+                        loading && styles.resendButtonDisabled,
+                      ]}
+                    >
+                      <Text style={styles.resendButtonText}>
+                        {isRTL ? "إعادة إرسال الرمز" : "Resend code"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -630,6 +701,25 @@ export default function RegisterScreen() {
                         ? "إرسال رمز التحقق"
                         : "Send Verification Code"
                       : t("createAccount")}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {signupMethod === "phone" && !showOtpInput && (
+              <TouchableOpacity
+                disabled={!confirmationResult}
+                onPress={() => {
+                  if (confirmationResult) {
+                    setShowOtpInput(true);
+                    setErrors({});
+                  }
+                }}
+                style={[
+                  styles.enterCodeButton,
+                  !confirmationResult && styles.enterCodeButtonDisabled,
+                ]}
+              >
+                <Text style={styles.enterCodeButtonText}>
+                  {isRTL ? "أدخل رمز التحقق" : "Enter code"}
                 </Text>
               </TouchableOpacity>
             )}
@@ -901,6 +991,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-SemiBold",
   },
+  enterCodeButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 24,
+    backgroundColor: "#F1F5F9",
+  },
+  enterCodeButtonDisabled: {
+    opacity: 0.6,
+  },
+  enterCodeButtonText: {
+    color: "#2563EB",
+    fontSize: 14,
+    fontFamily: "Geist-SemiBold",
+  },
   loginContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -1105,6 +1210,21 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
+    fontFamily: "Geist-SemiBold",
+  },
+  resendButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 10,
+    backgroundColor: "#EEF2FF",
+  },
+  resendButtonDisabled: {
+    opacity: 0.6,
+  },
+  resendButtonText: {
+    color: "#2563EB",
+    fontSize: 14,
     fontFamily: "Geist-SemiBold",
   },
 });

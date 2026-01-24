@@ -34,6 +34,9 @@ cd ml-service
 .\setup.ps1
 ```
 
+**Windows note:** If PyTorch fails to import, install the Visual C++
+Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe
+
 #### Linux/Mac:
 ```bash
 cd ml-service
@@ -43,24 +46,26 @@ chmod +x setup.sh
 
 ### Step 2: Download PaPaGei Model Weights
 
-**Option A: Automatic (if available)**
-```bash
-python download_model.py
-```
-
-**Option B: Manual**
+**Recommended (manual):**
 1. Visit: https://zenodo.org/record/13983110
 2. Download `papagei_s.pt`
 3. Place in `ml-service/weights/` directory
 
+**Optional (automatic if available):**
+```bash
+python download_model.py
+```
+
 ### Step 3: Clone PaPaGei Repository
+
+If you ran the setup script in Step 1, it will clone this for you. Otherwise:
 
 ```bash
 cd ml-service
 git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
 ```
 
-**Set PYTHONPATH:**
+**Set PYTHONPATH (only if you see import errors):**
 - **Windows (PowerShell):**
   ```powershell
   $env:PYTHONPATH = "$env:PYTHONPATH;$(Get-Location)\papagei-foundation-model"
@@ -72,8 +77,21 @@ git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
 
 ### Step 4: Test Locally
 
+**Windows (recommended):**
+```powershell
+cd ml-service
+.\start_service_safe.ps1
+```
+
+**Linux/Mac (dev):**
 ```bash
-# Start the service
+cd ml-service
+./scripts/start_dev.sh
+```
+
+**Or run directly:**
+```bash
+cd ml-service
 source venv/bin/activate  # or .\venv\Scripts\Activate.ps1
 python main.py
 ```
@@ -99,15 +117,16 @@ gcloud builds submit --config cloudbuild.yaml
 
 ### Step 6: Configure Firebase Functions
 
-Set environment variable:
-```bash
-firebase functions:config:set ppg_ml_service.url="https://your-service-url.run.app"
-```
+Set the runtime environment variable `PPG_ML_SERVICE_URL` (the code reads
+`process.env.PPG_ML_SERVICE_URL`):
 
-Or add to `functions/.env`:
+**Local development (emulators):**
 ```
 PPG_ML_SERVICE_URL=https://your-service-url.run.app
 ```
+
+**Deployed functions:** set `PPG_ML_SERVICE_URL` in your Firebase Functions
+runtime environment (e.g., Firebase Console → Functions → Runtime settings).
 
 ### Step 7: Deploy Firebase Functions
 

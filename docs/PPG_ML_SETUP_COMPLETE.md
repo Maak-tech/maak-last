@@ -42,6 +42,9 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+**Windows note:** If PyTorch fails to import, install the Visual C++
+Redistributable: https://aka.ms/vs/17/release/vc_redist.x64.exe
+
 ### Step 2: Download PaPaGei Model Weights
 
 1. Visit: https://zenodo.org/record/13983110
@@ -50,17 +53,36 @@ pip install -r requirements.txt
 
 ### Step 3: Clone PaPaGei Repository
 
+If you ran the setup script in Step 1, it will clone this for you. Otherwise:
+
 ```bash
 cd ml-service
 git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
+```
+
+Set `PYTHONPATH` only if you see import errors:
+```bash
 export PYTHONPATH=$PYTHONPATH:$(pwd)/papagei-foundation-model
 ```
 
 ### Step 4: Test Locally
 
+**Windows (recommended):**
+```powershell
+cd ml-service
+.\start_service_safe.ps1
+```
+
+**Linux/Mac (dev):**
 ```bash
 cd ml-service
-source venv/bin/activate
+./scripts/start_dev.sh
+```
+
+**Or run directly:**
+```bash
+cd ml-service
+source venv/bin/activate  # or .\venv\Scripts\Activate.ps1
 python main.py
 ```
 
@@ -88,15 +110,16 @@ gcloud run services describe ppg-ml-service --region us-central1 --format 'value
 
 ### Step 6: Configure Firebase Functions
 
-Set environment variable in Firebase:
-```bash
-firebase functions:config:set ppg_ml_service.url="https://your-service-url.run.app"
-```
+Set the runtime environment variable `PPG_ML_SERVICE_URL` (the code reads
+`process.env.PPG_ML_SERVICE_URL`):
 
-Or add to `.env` in functions directory:
+**Local development (emulators):**
 ```
 PPG_ML_SERVICE_URL=https://your-service-url.run.app
 ```
+
+**Deployed functions:** set `PPG_ML_SERVICE_URL` in your Firebase Functions
+runtime environment (e.g., Firebase Console → Functions → Runtime settings).
 
 ### Step 7: Deploy Firebase Functions
 

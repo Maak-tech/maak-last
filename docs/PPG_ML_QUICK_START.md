@@ -35,6 +35,16 @@ This guide shows you how to use **PaPaGei**, **REBAR**, and **ResNet1D** togethe
 1. **Set up Python ML Service**
    ```bash
    cd ml-service
+   # Windows:
+   .\setup.ps1
+
+   # Linux/Mac:
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+
+   Or manually:
+   ```bash
    python -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
@@ -46,6 +56,15 @@ This guide shows you how to use **PaPaGei**, **REBAR**, and **ResNet1D** togethe
    - Place in `ml-service/weights/` directory
 
 3. **Start ML Service**
+   ```bash
+   # Windows (recommended):
+   .\start_service_safe.ps1
+
+   # Linux/Mac (dev):
+   ./scripts/start_dev.sh
+   ```
+
+   Or run directly:
    ```bash
    python main.py
    # Service runs on http://localhost:8000
@@ -69,7 +88,7 @@ This guide shows you how to use **PaPaGei**, **REBAR**, and **ResNet1D** togethe
    ```
 
 6. **Update Firebase Functions**
-   - Set environment variable: `PPG_ML_SERVICE_URL=https://your-service-url.run.app`
+   - Set runtime env var: `PPG_ML_SERVICE_URL=https://your-service-url.run.app`
    - Deploy functions: `firebase deploy --only functions`
 
 7. **Update React Native App**

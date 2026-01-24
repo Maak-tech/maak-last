@@ -21,6 +21,17 @@ import type {
 // Re-export NotificationType for convenience
 export type { NotificationType };
 
+const DEFAULT_DEDUPE_WINDOW_MINUTES = 5;
+const DEDUPE_WINDOW_BY_TYPE: Partial<Record<NotificationType, number>> = {
+  fall: 5,
+  symptom: 5,
+  vital: 5,
+  medication: 10,
+  trend: 60,
+  family: 5,
+  general: 5,
+};
+
 /**
  * Notification send options
  */
@@ -53,6 +64,141 @@ export interface SendNotificationResult {
  * Notification attempt status
  */
 type NotificationAttemptStatus = "sent" | "failed" | "skipped";
+
+function getDedupeWindowMinutes(notificationType: NotificationType): number {
+  return (
+    DEDUPE_WINDOW_BY_TYPE[notificationType] ?? DEFAULT_DEDUPE_WINDOW_MINUTES
+  );
+}
+
+function getDedupeKey(
+  notificationType: NotificationType,
+  notification: NotificationPayload
+): string | null {
+  const data = notification.data ?? {};
+  const dedupeKey =
+    typeof data.dedupeKey === "string" ? data.dedupeKey.trim() : "";
+  if (dedupeKey) {
+    return `${notificationType}:key:${dedupeKey}`;
+  }
+
+  const tag =
+    typeof notification.tag === "string" ? notification.tag.trim() : "";
+  if (tag) {
+    return `${notificationType}:tag:${tag}`;
+  }
+
+  const candidates: Array<[string, unknown]> = [
+    ["alertId", data.alertId],
+    ["medicationId", data.medicationId],
+    ["symptomType", data.symptomType],
+    ["vitalType", data.vitalType],
+    ["trendType", data.trendType],
+    ["type", data.type],
+  ];
+
+  for (const [label, value] of candidates) {
+    if (typeof value === "string" && value.trim()) {
+      return `${notificationType}:${label}:${value.trim()}`;
+    }
+    if (typeof value === "number") {
+      return `${notificationType}:${label}:${value.toString()}`;
+    }
+  }
+
+  const title = notification.title?.trim() ?? "";
+  const body = notification.body?.trim() ?? "";
+  if (title || body) {
+    return `${notificationType}:message:${title}|${body}`;
+  }
+
+  return null;
+}
+
+async function shouldSendWithDedupe({
+  userId,
+  notificationType,
+  notification,
+  traceId,
+}: {
+  userId: string;
+  notificationType: NotificationType;
+  notification: NotificationPayload;
+  traceId: string;
+}): Promise<{ allowed: boolean; dedupeKey: string | null }> {
+  const dedupeKey = getDedupeKey(notificationType, notification);
+  if (!dedupeKey) {
+    return { allowed: true, dedupeKey: null };
+  }
+
+  const windowMinutes = getDedupeWindowMinutes(notificationType);
+  const cutoffTime = Timestamp.fromMillis(
+    Date.now() - windowMinutes * 60 * 1000
+  );
+
+  const db = admin.firestore();
+  const recentSnapshot = await db
+    .collection("notificationDedupes")
+    .where("userId", "==", userId)
+    .where("dedupeKey", "==", dedupeKey)
+    .where("sentAt", ">=", cutoffTime)
+    .limit(1)
+    .get();
+
+  if (!recentSnapshot.empty) {
+    logger.info("Skipping duplicate notification", {
+      traceId,
+      uid: userId,
+      notificationType,
+      dedupeKey,
+      windowMinutes,
+      fn: "shouldSendWithDedupe",
+    });
+    return { allowed: false, dedupeKey };
+  }
+
+  return { allowed: true, dedupeKey };
+}
+
+async function recordNotificationDedupe({
+  traceId,
+  userIds,
+  notificationType,
+  dedupeKey,
+}: {
+  traceId: string;
+  userIds: string[];
+  notificationType: NotificationType;
+  dedupeKey: string;
+}): Promise<void> {
+  if (userIds.length === 0) {
+    return;
+  }
+
+  try {
+    const db = admin.firestore();
+    const batch = db.batch();
+
+    for (const userId of userIds) {
+      const docRef = db.collection("notificationDedupes").doc();
+      batch.set(docRef, {
+        traceId,
+        userId,
+        notificationType,
+        dedupeKey,
+        sentAt: Timestamp.now(),
+      });
+    }
+
+    await batch.commit();
+  } catch (error) {
+    logger.warn("Failed to record notification dedupe", error as Error, {
+      traceId,
+      notificationType,
+      fn: "recordNotificationDedupe",
+    });
+  }
+}
 
 /**
  * Record a notification attempt in Firestore
@@ -109,6 +255,31 @@ export async function sendToUser(
   });
 
   try {
+    const dedupeResult = await shouldSendWithDedupe({
+      userId,
+      notificationType: type,
+      notification: options,
+      traceId,
+    });
+
+    if (!dedupeResult.allowed) {
+      await recordNotificationAttempt(
+        traceId,
+        userId,
+        type,
+        "skipped",
+        0,
+        "Duplicate notification within cooldown window"
+      );
+
+      return {
+        success: true,
+        sent: 0,
+        failed: 0,
+        skipped: 1,
+      };
+    }
+
     // Get FCM tokens for user
     const tokens = await getUserTokens(userId);
 
@@ -218,6 +389,15 @@ export async function sendToUser(
       failed: response.failureCount,
       fn: "sendToUser",
     });
+
+    if (response.successCount > 0 && dedupeResult.dedupeKey) {
+      await recordNotificationDedupe({
+        traceId,
+        userIds: [userId],
+        notificationType: type,
+        dedupeKey: dedupeResult.dedupeKey,
+      });
+    }
 
     return {
       success: response.successCount > 0,
@@ -370,15 +550,36 @@ export async function sendPushNotificationInternal({
     // Filter users by preferences
     const tokens: string[] = [];
     const skippedUsers: string[] = [];
+    const dedupedUsers: string[] = [];
+    const eligibleUsers: string[] = [];
+    let resolvedDedupeKey: string | null = null;
 
     for (const userId of userIds) {
       // Check preferences
       const shouldSend = await shouldSendNotification(userId, notificationType);
 
       if (shouldSend) {
+        const dedupeResult = await shouldSendWithDedupe({
+          userId,
+          notificationType,
+          notification,
+          traceId: actualTraceId,
+        });
+        resolvedDedupeKey ??= dedupeResult.dedupeKey;
+
+        if (!dedupeResult.allowed) {
+          dedupedUsers.push(userId);
+          continue;
+        }
+
         // Get tokens for this user
         const userTokens = await getUserTokens(userId);
-        tokens.push(...userTokens);
+        if (userTokens.length > 0) {
+          tokens.push(...userTokens);
+          eligibleUsers.push(userId);
+        } else {
+          skippedUsers.push(userId);
+        }
       } else {
         skippedUsers.push(userId);
       }
@@ -396,7 +597,7 @@ export async function sendPushNotificationInternal({
         success: true,
         successCount: 0,
         failureCount: 0,
-        skippedCount: skippedUsers.length,
+        skippedCount: skippedUsers.length + dedupedUsers.length,
         message: "No tokens to send to",
       };
     }
@@ -418,15 +619,25 @@ export async function sendPushNotificationInternal({
       uid: callerUid,
       successCount: result.successCount,
       failureCount: result.failureCount,
-      skippedCount: skippedUsers.length,
+      skippedCount: skippedUsers.length + dedupedUsers.length,
+      dedupedCount: dedupedUsers.length,
       fn: "sendPushNotificationInternal",
     });
+
+    if (result.successCount > 0 && resolvedDedupeKey) {
+      await recordNotificationDedupe({
+        traceId: actualTraceId,
+        userIds: eligibleUsers,
+        notificationType,
+        dedupeKey: resolvedDedupeKey,
+      });
+    }
 
     return {
       success: true,
       successCount: result.successCount,
       failureCount: result.failureCount,
-      skippedCount: skippedUsers.length,
+      skippedCount: skippedUsers.length + dedupedUsers.length,
       message: `Sent to ${result.successCount}/${tokens.length} devices`,
     };
   } catch (error) {
