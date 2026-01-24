@@ -51,16 +51,25 @@ if (-not (Test-Path "weights\papagei_s.pt")) {
     Write-Host "✅ PaPaGei model weights found" -ForegroundColor Green
 }
 
-# Clone PaPaGei repository if not exists
+# Initialize or clone PaPaGei repository
 if (-not (Test-Path "papagei-foundation-model")) {
     Write-Host ""
-    Write-Host "Cloning PaPaGei repository..." -ForegroundColor Yellow
+    Write-Host "Initializing PaPaGei repository (git submodule)..." -ForegroundColor Yellow
     
     # Check if git is available
     try {
         git --version | Out-Null
-        git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
-        Write-Host "✅ PaPaGei repository cloned" -ForegroundColor Green
+        
+        # Try to initialize submodule first
+        try {
+            git submodule update --init --recursive
+            Write-Host "✅ PaPaGei repository initialized (submodule)" -ForegroundColor Green
+        } catch {
+            # Fallback: clone directly if submodule init fails
+            Write-Host "Submodule not found, cloning repository..." -ForegroundColor Yellow
+            git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
+            Write-Host "✅ PaPaGei repository cloned" -ForegroundColor Green
+        }
     } catch {
         Write-Host "⚠️  Git not found. Please install Git or manually clone:" -ForegroundColor Yellow
         Write-Host "   git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git" -ForegroundColor Yellow

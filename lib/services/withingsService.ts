@@ -330,7 +330,7 @@ export const withingsService = {
 
             // Convert height from meters to cm if needed
             let finalValue = value;
-            let unit = measureType.unit;
+            let unit: string = measureType.unit;
             if (metricKey === "height") {
               finalValue = value * 100; // m to cm
               unit = "cm";

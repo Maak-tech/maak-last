@@ -445,7 +445,9 @@ class RiskAssessmentService {
     }
   ): RiskFactor {
     const factorConfig = RISK_FACTORS[id as keyof typeof RISK_FACTORS];
-    if (!factorConfig) return null;
+    if (!factorConfig) {
+      throw new Error(`Unknown risk factor ID: ${id}`);
+    }
 
     return {
       id,

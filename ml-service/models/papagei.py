@@ -5,17 +5,17 @@ Loads and uses the pre-trained PaPaGei-S foundation model for PPG signal analysi
 import os
 from typing import Optional
 
-import numpy as np
-import torch
-import torch.nn as nn
+import numpy as np  # pyright: ignore[reportMissingImports]
+import torch  # pyright: ignore[reportMissingImports]
+import torch.nn as nn  # pyright: ignore[reportMissingImports]
 
 # Note: These imports assume you've cloned the PaPaGei repository
 # and added it to your Python path or installed it as a package
 try:
-    from linearprobing.utils import resample_batch_signal, load_model_without_module_prefix
-    from preprocessing.ppg import preprocess_one_ppg_signal
-    from segmentations import waveform_to_segments
-    from models.resnet import ResNet1DMoE
+    from linearprobing.utils import resample_batch_signal, load_model_without_module_prefix  # pyright: ignore[reportMissingImports]
+    from preprocessing.ppg import preprocess_one_ppg_signal  # pyright: ignore[reportMissingImports]
+    from segmentations import waveform_to_segments  # pyright: ignore[reportMissingImports]
+    from models.resnet import ResNet1DMoE  # pyright: ignore[reportMissingImports]
 except ImportError:
     print("Warning: PaPaGei modules not found. Install from https://github.com/Nokia-Bell-Labs/papagei-foundation-model")
     # Create stub functions for development

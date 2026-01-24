@@ -137,6 +137,11 @@ class SmartNotificationService {
         ? notification.data.type
         : notification.title;
 
+    // Special handling for weekly_summary: use dedupe key without time window
+    if (dataType === "weekly_summary" && notification.data?.dedupeKey) {
+      return `weekly_summary:${notification.data.dedupeKey}`;
+    }
+
     const windowId = this.getDedupeWindowId(notification.scheduledTime);
     return `${dataType}:${userId}:${windowId}`;
   }
@@ -168,6 +173,11 @@ class SmartNotificationService {
           : typeof content.title === "string"
             ? content.title
             : "";
+
+      // Special handling for weekly_summary: use dedupe key without time window
+      if (dataType === "weekly_summary" && data.dedupeKey) {
+        return `weekly_summary:${data.dedupeKey}`;
+      }
 
       const triggerDate =
         this.extractTriggerDateFromScheduledRequest(request) ?? new Date();
@@ -667,6 +677,14 @@ class SmartNotificationService {
         )
       );
 
+      // Track weekly_summary dedupe keys to cancel existing ones
+      const weeklySummaryDedupeKeys = new Set(
+        newNotifications
+          .filter((n) => n.data?.type === "weekly_summary")
+          .map((n) => n.data?.dedupeKey)
+          .filter(Boolean)
+      );
+
       const identifiersToCancel: string[] = [];
 
       for (const scheduled of scheduledNotifications) {
@@ -678,6 +696,35 @@ class SmartNotificationService {
         if (scheduledKey && keysToSchedule.has(scheduledKey)) {
           identifiersToCancel.push(identifier);
           continue;
+        }
+
+        // Special handling for weekly_summary: cancel existing ones with same dedupe key
+        const scheduledData = scheduled?.content?.data || {};
+        if (
+          scheduledData.type === "weekly_summary" &&
+          scheduledData.dedupeKey &&
+          weeklySummaryDedupeKeys.has(scheduledData.dedupeKey)
+        ) {
+          identifiersToCancel.push(identifier);
+          continue;
+        }
+
+        // Also check by stable ID pattern for weekly_summary
+        if (
+          typeof identifier === "string" &&
+          identifier.startsWith("weekly-summary-") &&
+          newNotifications.some(
+            (n) =>
+              n.data?.type === "weekly_summary" &&
+              n.id.startsWith("weekly-summary-")
+          )
+        ) {
+          // Extract user ID from identifier if possible
+          const scheduledUserId = scheduledData.userId;
+          if (!scheduledUserId || newUserIds.has(scheduledUserId)) {
+            identifiersToCancel.push(identifier);
+            continue;
+          }
         }
 
         // Legacy cleanup: if we're scheduling wellness check-ins, cancel any existing check-ins for the same user
@@ -842,11 +889,32 @@ class SmartNotificationService {
     });
 
     for (const notification of sorted) {
-      // Create a unique key based on type, user context, and time window
+      const dataType = notification.data?.type;
+      const userId = notification.data?.userId || "general";
+
+      // Special handling for weekly_summary: use stable dedupe key without time window
+      if (dataType === "weekly_summary") {
+        const dedupeKey =
+          notification.data?.dedupeKey ||
+          `weekly_summary_${userId}_${Math.floor(
+            notification.scheduledTime.getTime() / (7 * 24 * 60 * 60 * 1000)
+          )}`;
+        const key = `weekly_summary:${dedupeKey}`;
+
+        if (seen.has(key)) {
+          // Skip duplicate weekly summary notifications
+          continue;
+        }
+        seen.add(key);
+        filtered.push(notification);
+        continue;
+      }
+
+      // For other notifications, create a unique key based on type, user context, and time window
       const timeWindow = Math.floor(
         notification.scheduledTime.getTime() / (30 * 60 * 1000)
       ); // 30-minute windows
-      const key = `${notification.type}-${notification.data?.userId || "general"}-${timeWindow}`;
+      const key = `${notification.type}-${userId}-${timeWindow}`;
 
       // Suppress if we've seen a similar notification in the same time window
       if (seen.has(key)) {
@@ -2567,7 +2635,10 @@ class SmartNotificationService {
   /**
    * Generate missed activity alerts
    */
-  generateMissedActivityAlerts(userStats: UserStats): SmartNotification[] {
+  generateMissedActivityAlerts(
+    userStats: UserStats,
+    userId?: string
+  ): SmartNotification[] {
     const notifications: SmartNotification[] = [];
     const t = i18n.t.bind(i18n); // Translation function
 
@@ -2583,6 +2654,7 @@ class SmartNotificationService {
         data: {
           type: "missed_symptoms",
           daysSince: userStats.daysSinceLastSymptom,
+          userId,
         },
         quickActions: [
           { label: t("quickActionHaveSymptoms"), action: "log_symptoms" },
@@ -2610,6 +2682,7 @@ class SmartNotificationService {
           type: "compliance_alert",
           complianceRate: userStats.recentCompliance,
           daysSinceLog: userStats.daysSinceLastMedicationLog,
+          userId,
         },
         quickActions: [
           {
@@ -2627,8 +2700,18 @@ class SmartNotificationService {
 
     // Weekly health summary reminder (if no activity in 7 days)
     if (userStats.daysSinceLastActivity >= 7) {
+      // Use stable ID based on user ID and week number to prevent duplicates
+      const now = new Date();
+      const weekNumber = Math.floor(
+        (now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) /
+          (7 * 24 * 60 * 60 * 1000)
+      );
+      const stableId = userId
+        ? `weekly-summary-${userId}-week-${weekNumber}`
+        : `weekly-summary-${Date.now()}`;
+
       notifications.push({
-        id: `weekly-summary-${Date.now()}`,
+        id: stableId,
         title: t("weeklySummaryTitle"),
         body: t("weeklySummaryBody"),
         type: "activity_alert",
@@ -2637,6 +2720,8 @@ class SmartNotificationService {
         data: {
           type: "weekly_summary",
           daysSinceActivity: userStats.daysSinceLastActivity,
+          userId,
+          dedupeKey: `weekly_summary_${userId || "unknown"}_${weekNumber}`,
         },
       });
     }
@@ -2694,7 +2779,9 @@ class SmartNotificationService {
         ...this.generateDailyWellnessCheckin(userId, userStats)
       );
       notifications.push(...this.generateStreakReminders(userStats));
-      notifications.push(...this.generateMissedActivityAlerts(userStats));
+      notifications.push(
+        ...this.generateMissedActivityAlerts(userStats, userId)
+      );
       notifications.push(
         ...this.generateAchievementNotifications(userStats.achievements)
       );

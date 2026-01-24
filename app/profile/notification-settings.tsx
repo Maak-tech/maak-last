@@ -513,6 +513,7 @@ export default function NotificationSettingsScreen() {
             <TouchableOpacity
               onPress={async () => {
                 try {
+                  if (!user.familyId) return;
                   await pushNotificationService.sendFamilyUpdateToAdmins({
                     familyId: user.familyId,
                     actorUserId: user.id,

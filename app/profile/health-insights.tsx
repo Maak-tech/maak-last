@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   View,
+  type ViewStyle,
 } from "react-native";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import HealthInsightsCard from "@/app/components/HealthInsightsCard";
@@ -63,11 +64,11 @@ export default function HealthInsightsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container as ViewStyle}>
+      <View style={styles.header as ViewStyle}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={styles.backButton}
+          style={styles.backButton as ViewStyle}
         >
           <ChevronLeft
             color={theme.colors.text.primary}
@@ -75,7 +76,7 @@ export default function HealthInsightsScreen() {
             style={isRTL ? { transform: [{ rotate: "180deg" }] } : undefined}
           />
         </TouchableOpacity>
-        <View style={styles.headerTitle}>
+        <View style={styles.headerTitle as ViewStyle}>
           <Heading color={theme.colors.text.primary} level={4}>
             {t("healthInsights")}
           </Heading>
@@ -83,12 +84,12 @@ export default function HealthInsightsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        contentContainerStyle={styles.contentInner as ViewStyle}
         refreshControl={
           <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
+        style={styles.content as ViewStyle}
       >
         <HealthInsightsCard />
         <AIInsightsDashboard

@@ -256,6 +256,7 @@ async function evaluateAndCreateHealthEventIfNeeded(
     }
   } catch (error) {
     observabilityEmitter.emit({
+      eventType: "vital_evaluation_error",
       domain: "health_data",
       source: "vitalSyncService",
       message: "Failed to evaluate vital for health event",

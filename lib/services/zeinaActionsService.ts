@@ -321,8 +321,7 @@ class ZeinaActionsService {
         message,
         severity,
         timestamp: new Date(),
-        isRead: false,
-        notifyFamily: true,
+        resolved: false,
       });
 
       const alertTypeText = {
@@ -511,8 +510,7 @@ class ZeinaActionsService {
         message: reason || "Zeina requested a health check-in",
         severity: "low", // info maps to low severity
         timestamp: new Date(),
-        isRead: false,
-        notifyFamily: false,
+        resolved: false,
       });
 
       return {
@@ -875,11 +873,21 @@ class ZeinaActionsService {
 
       const { allergyService } = await import("./allergyService");
 
+      // Map severity: "life-threatening" -> "severe-life-threatening" to match Allergy type
+      const mappedSeverity:
+        | "mild"
+        | "moderate"
+        | "severe"
+        | "severe-life-threatening" =
+        severity === "life-threatening"
+          ? "severe-life-threatening"
+          : ((severity || "moderate") as "mild" | "moderate" | "severe");
+
       const allergyData = {
         userId,
         name: this.capitalizeFirstLetter(allergen),
         reaction: reaction || "",
-        severity: severity || "moderate",
+        severity: mappedSeverity,
         type: allergyType || this.inferAllergyType(allergen),
         timestamp: new Date(),
         discoveredDate: new Date(),
@@ -932,22 +940,22 @@ class ZeinaActionsService {
       const { medicalHistoryService } = await import("./medicalHistoryService");
 
       const historyData = {
-        userId,
         condition: this.capitalizeFirstLetter(condition),
-        diagnosisDate: diagnosisDate
+        diagnosedDate: diagnosisDate
           ? this.parseDateString(diagnosisDate)
           : new Date(),
-        status: status || "active",
         notes: notes || "",
         severity: this.inferConditionSeverity(condition) as
           | "mild"
           | "moderate"
           | "severe",
-        timestamp: new Date(),
+        isFamily: false, // Default to false for user's own medical history
       };
 
-      const historyId =
-        await medicalHistoryService.addMedicalHistory(historyData);
+      const historyId = await medicalHistoryService.addMedicalHistory(
+        userId,
+        historyData
+      );
 
       const statusText =
         status && status !== "active" ? ` as ${status.replace("_", " ")}` : "";

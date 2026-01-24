@@ -1101,7 +1101,7 @@ class RealtimeAgentService {
         }
 
         // Set up event handlers
-        let connectionTimeout: NodeJS.Timeout;
+        let connectionTimeout: ReturnType<typeof setTimeout>;
         let hasResolved = false;
 
         ws.onopen = () => {
@@ -1770,7 +1770,12 @@ class RealtimeAgentService {
       const tempUri = `${FileSystem.cacheDirectory}zeina_audio_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
 
       // Convert WAV data to base64 for writing
-      const base64Wav = this.arrayBufferToBase64(wavData.buffer);
+      // Convert ArrayBufferLike to ArrayBuffer by creating a new ArrayBuffer
+      const arrayBuffer =
+        wavData.buffer instanceof ArrayBuffer
+          ? wavData.buffer
+          : new Uint8Array(wavData).buffer;
+      const base64Wav = this.arrayBufferToBase64(arrayBuffer);
 
       // Set audio mode for playback (disable recording mode)
       if (Audio) {

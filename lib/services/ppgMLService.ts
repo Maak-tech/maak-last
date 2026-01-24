@@ -40,6 +40,10 @@ async function getAuthenticatedFunctions(): Promise<Functions | null> {
   }
 
   const app = firebaseModule.app;
+  if (!app) {
+    return null; // Firebase app not initialized
+  }
+
   const { getFunctions } = await import("firebase/functions");
 
   // Get functions instance
@@ -161,6 +165,9 @@ export const ppgMLService = {
   async isAvailable(): Promise<boolean> {
     try {
       const functions = await getAuthenticatedFunctions();
+      if (!functions) {
+        return false;
+      }
       const analyzePPG = httpsCallable(functions, "analyzePPGWithML");
 
       // Try a minimal test call (will fail gracefully if service unavailable)

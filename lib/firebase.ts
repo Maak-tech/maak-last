@@ -148,7 +148,7 @@ if (missingVars.length > 0) {
 }
 
 // Check if Firebase app already exists (prevents duplicate initialization during HMR)
-let app;
+let app: ReturnType<typeof initializeApp> | undefined;
 try {
   const existingApps = getApps();
   if (existingApps.length === 0) {
@@ -211,6 +211,13 @@ if (!app && Platform.OS === "web") {
   );
 }
 
+// Type guard: ensure app is defined before use
+if (!app) {
+  throw new Error(
+    "Firebase app is not initialized. Please check your Firebase configuration."
+  );
+}
+
 // Initialize Auth with platform-appropriate persistence
 // For web: use browserLocalPersistence
 // For React Native (iOS/Android): use initializeAuth with AsyncStorage persistence
@@ -218,6 +225,9 @@ let auth: Auth;
 try {
   if (Platform.OS === "web") {
     // For web, use browserLocalPersistence
+    if (!app) {
+      throw new Error("Firebase app is not initialized");
+    }
     try {
       auth = initializeAuth(app, {
         persistence: browserLocalPersistence,
@@ -240,6 +250,9 @@ try {
     }
   } else {
     // For React Native (iOS/Android), use initializeAuth with AsyncStorage persistence
+    if (!app) {
+      throw new Error("Firebase app is not initialized");
+    }
     try {
       auth = initializeAuth(app, {
         persistence: getReactNativePersistence(ReactNativeAsyncStorage),
@@ -259,6 +272,9 @@ try {
 }
 
 export { auth };
+if (!app) {
+  throw new Error("Firebase app is not initialized");
+}
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, "us-central1");

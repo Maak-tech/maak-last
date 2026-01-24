@@ -35,12 +35,20 @@ else
     echo "✅ PaPaGei model weights found"
 fi
 
-# Clone PaPaGei repository if not exists
+# Initialize or clone PaPaGei repository
 if [ ! -d "papagei-foundation-model" ]; then
     echo ""
-    echo "Cloning PaPaGei repository..."
-    git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
-    echo "✅ PaPaGei repository cloned"
+    echo "Initializing PaPaGei repository (git submodule)..."
+    
+    # Try to initialize submodule first
+    if git submodule update --init --recursive 2>/dev/null; then
+        echo "✅ PaPaGei repository initialized (submodule)"
+    else
+        # Fallback: clone directly if submodule init fails
+        echo "Submodule not found, cloning repository..."
+        git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
+        echo "✅ PaPaGei repository cloned"
+    fi
     echo ""
     echo "⚠️  NOTE: You may need to add papagei-foundation-model to your PYTHONPATH"
     echo "   export PYTHONPATH=\$PYTHONPATH:\$(pwd)/papagei-foundation-model"

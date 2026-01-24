@@ -4,6 +4,12 @@ Python backend service for advanced PPG signal analysis using **PaPaGei**, **REB
 
 ## 🚀 Quick Start
 
+**First time setup (after cloning the repo):**
+```bash
+# Initialize git submodules (PaPaGei repository)
+git submodule update --init --recursive
+```
+
 ### Windows
 ```powershell
 .\setup.ps1
@@ -29,6 +35,11 @@ See [QUICK_START.md](QUICK_START.md) for detailed instructions.
 
 ## 🛠️ Setup
 
+**Important:** If you just cloned the repository, initialize git submodules first:
+```bash
+git submodule update --init --recursive
+```
+
 ### Automated Setup
 
 **Windows:**
@@ -41,6 +52,8 @@ See [QUICK_START.md](QUICK_START.md) for detailed instructions.
 chmod +x setup.sh
 ./setup.sh
 ```
+
+**Note:** The setup scripts will clone the PaPaGei repository if the submodule wasn't initialized.
 
 ### Manual Setup
 
@@ -157,6 +170,7 @@ ml-service/
 ├── scripts/
 │   ├── start_dev.sh            # Development startup (Linux/Mac)
 │   └── start_dev.ps1            # Development startup (Windows)
+├── papagei-foundation-model/   # PaPaGei repository (git submodule)
 ├── weights/                    # Model weights directory
 ├── setup.sh / setup.ps1        # Setup scripts
 ├── test_service.py             # Test suite
@@ -205,7 +219,10 @@ python download_model.py
 
 ### Import Errors
 ```bash
-git clone https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git
+# Initialize git submodule (if not already done)
+git submodule update --init --recursive
+
+# Or manually set PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$(pwd)/papagei-foundation-model
 ```
 

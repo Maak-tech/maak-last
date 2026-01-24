@@ -1,6 +1,7 @@
 import {
   collection,
   getDocs,
+  limit,
   orderBy,
   query,
   Timestamp,
@@ -916,7 +917,7 @@ class HealthInsightsService {
 
       const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
       const vitalType = this.getVitalDisplayName(type, isArabic);
-      const unit = thresholds.unit || readings[0]?.unit;
+      const unit = thresholds.unit || readings[0]?.unit || "";
 
       if (thresholds.high !== undefined && avg > thresholds.high) {
         const localizedText = getLocalizedInsightText(
@@ -1570,7 +1571,7 @@ class HealthInsightsService {
         where("timestamp", ">=", Timestamp.fromDate(start)),
         where("timestamp", "<=", Timestamp.fromDate(end)),
         orderBy("timestamp", "desc"),
-        firestoreLimit(200)
+        limit(200)
       );
 
       const snapshot = await getDocs(q);

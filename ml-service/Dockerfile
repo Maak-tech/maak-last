@@ -31,11 +31,11 @@ ENV MODEL_PATH=/app/weights/papagei_s.pt
 ENV DEVICE=cpu
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8000/api/health')" || exit 1
+  CMD python -c "import os, requests; port=os.getenv('PORT','8080'); requests.get(f'http://localhost:{port}/api/health')" || exit 1
 
 # Run application
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]

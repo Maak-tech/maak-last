@@ -125,7 +125,7 @@ function sanitizeForFirestore(
 
 class ObservabilityEventEmitter {
   private buffer: ObservabilityEvent[] = [];
-  private flushInterval: NodeJS.Timeout | null = null;
+  private flushInterval: ReturnType<typeof setInterval> | null = null;
   private maxBufferSize = 50;
   private flushIntervalMs = 10_000;
   private isEnabled = true;

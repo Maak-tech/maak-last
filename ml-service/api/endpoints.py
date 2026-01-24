@@ -3,8 +3,8 @@ API Endpoints for PPG ML Service
 """
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException  # pyright: ignore[reportMissingImports]
+from pydantic import BaseModel, Field  # pyright: ignore[reportMissingImports]
 
 router = APIRouter(prefix="/api", tags=["PPG"])
 

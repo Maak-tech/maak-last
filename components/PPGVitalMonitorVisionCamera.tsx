@@ -92,7 +92,7 @@ export default function PPGVitalMonitorVisionCamera({
   const MIN_ACCEPTABLE_FPS = 14; // Minimum from Olugbenle et al. research
 
   const format = useCameraFormat(device, [
-    { fps: { ideal: PREFERRED_FPS, min: MIN_ACCEPTABLE_FPS } },
+    { fps: PREFERRED_FPS }, // Use preferred FPS (format will fallback to closest available)
     { videoResolution: { width: 640, height: 480 } }, // Lower resolution is fine for PPG (faster processing)
   ]);
 
@@ -991,7 +991,8 @@ export default function PPGVitalMonitorVisionCamera({
     );
 
     if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
-      setHeartRate(ppgResult.heartRate as number);
+      const heartRate = ppgResult.heartRate as number;
+      setHeartRate(heartRate);
       setHeartRateVariability(ppgResult.heartRateVariability || null);
       setRespiratoryRate(ppgResult.respiratoryRate || null);
       setSignalQuality(ppgResult.signalQuality);
@@ -999,7 +1000,7 @@ export default function PPGVitalMonitorVisionCamera({
       const shouldSave = !ppgResult.isEstimate;
       const saveSuccess = shouldSave
         ? await saveVitalToFirestore(
-            ppgResult.heartRate,
+            heartRate,
             ppgResult.signalQuality,
             ppgResult.heartRateVariability,
             ppgResult.respiratoryRate
@@ -1107,6 +1108,19 @@ export default function PPGVitalMonitorVisionCamera({
         const recentSignal = ppgSignalRef.current.slice(-(TARGET_FPS * 5)); // Use last 5 seconds for quality assessment
 
         // Calculate comprehensive signal quality metrics
+        // Simple signal quality calculation based on variance and mean
+        const calculateRealTimeSignalQuality = (signal: number[]): number => {
+          if (signal.length < 30) return 0;
+          const mean = signal.reduce((a, b) => a + b, 0) / signal.length;
+          const variance =
+            signal.reduce((sum, val) => sum + (val - mean) ** 2, 0) /
+            signal.length;
+          const stdDev = Math.sqrt(variance);
+          // Normalize quality score (0-1) based on signal variation
+          // Higher variation (relative to mean) indicates better signal quality for PPG
+          const quality = Math.min(stdDev / (mean || 1), 1);
+          return Math.max(0, Math.min(1, quality));
+        };
         const signalQuality = calculateRealTimeSignalQuality(recentSignal);
 
         // Update signal quality state
@@ -1385,7 +1399,8 @@ export default function PPGVitalMonitorVisionCamera({
   }
 
   // Check if device is available - if not, show error
-  if (!device && Platform.OS !== "web") {
+  // Note: react-native-vision-camera doesn't support web platform
+  if (!device) {
     return (
       <Modal
         animationType="slide"
@@ -1530,7 +1545,6 @@ export default function PPGVitalMonitorVisionCamera({
                 format={format}
                 fps={TARGET_FPS}
                 frameProcessor={frameProcessor}
-                frameProcessorFps={TARGET_FPS}
                 isActive={status === "measuring"}
                 onError={(error) => {
                   console.error("Camera error:", error);

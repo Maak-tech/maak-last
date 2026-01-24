@@ -1030,7 +1030,8 @@ export default function PPGVitalMonitor({
     );
 
     if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
-      setHeartRate(ppgResult.heartRate as number);
+      const heartRate = ppgResult.heartRate as number;
+      setHeartRate(heartRate);
       setHeartRateVariability(ppgResult.heartRateVariability || null);
       setRespiratoryRate(ppgResult.respiratoryRate || null);
       setSignalQuality(ppgResult.signalQuality);
@@ -1038,7 +1039,7 @@ export default function PPGVitalMonitor({
       // Save to Firestore (skip saving if this is a low-confidence estimate)
       if (!ppgResult.isEstimate) {
         await saveVitalToFirestore(
-          ppgResult.heartRate,
+          heartRate,
           ppgResult.signalQuality,
           ppgResult.heartRateVariability,
           ppgResult.respiratoryRate

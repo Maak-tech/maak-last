@@ -51,19 +51,6 @@ export default function HealthInsightsCard({
 
   const styles = getStyles(theme, isRTL);
 
-  useEffect(() => {
-    loadInsights();
-  }, [loadInsights]);
-
-  useEffect(() => {
-    if (!user?.familyId || user?.role !== "admin") {
-      setFamilyInsights([]);
-      return;
-    }
-
-    loadFamilyInsights();
-  }, [user?.familyId, user?.role, isRTL, loadFamilyInsights]);
-
   const loadInsights = useCallback(async () => {
     if (!user) return;
 
@@ -133,6 +120,19 @@ export default function HealthInsightsCard({
       setFamilyLoading(false);
     }
   }, [user?.familyId, user?.id, user?.role, isRTL]);
+
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
+
+  useEffect(() => {
+    if (!user?.familyId || user?.role !== "admin") {
+      setFamilyInsights([]);
+      return;
+    }
+
+    loadFamilyInsights();
+  }, [user?.familyId, user?.role, isRTL, loadFamilyInsights]);
 
   const getInsightIcon = (type: PatternInsight["type"]) => {
     switch (type) {

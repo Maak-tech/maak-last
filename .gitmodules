@@ -1,0 +1,3 @@
+[submodule "ml-service/papagei-foundation-model"]
+	path = ml-service/papagei-foundation-model
+	url = https://github.com/Nokia-Bell-Labs/papagei-foundation-model.git

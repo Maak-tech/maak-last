@@ -29,7 +29,7 @@ const DEDUPE_WINDOW_BY_TYPE: Partial<Record<NotificationType, number>> = {
   medication: 10,
   trend: 60,
   family: 5,
-  general: 5,
+  general: 24 * 60, // 24 hours for general notifications (includes weekly_summary)
 };
 
 /**

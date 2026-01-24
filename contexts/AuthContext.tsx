@@ -425,7 +425,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const familyDoc = await getDoc(doc(db, "families", familyId));
       if (!familyDoc.exists()) {
-        await userService.updateUser(userId, { familyId: null, role: "admin" });
+        await userService.updateUser(userId, {
+          familyId: undefined,
+          role: "admin",
+        });
         return false;
       }
 
@@ -438,7 +441,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const hasActiveFamily = isActive && (!hasMembers || isMember);
 
       if (!hasActiveFamily) {
-        await userService.updateUser(userId, { familyId: null, role: "admin" });
+        await userService.updateUser(userId, {
+          familyId: undefined,
+          role: "admin",
+        });
       }
 
       return hasActiveFamily;
