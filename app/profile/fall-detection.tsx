@@ -430,7 +430,7 @@ export default function FallDetectionSettingsScreen() {
                     ]}
                   >
                     {isRTL
-                      ? `تم في: ${new Date(lastAlert.timestamp).toLocaleString("ar")}`
+                      ? `تم في: ${new Date(lastAlert.timestamp).toLocaleString("ar-u-ca-gregory")}`
                       : `At: ${new Date(lastAlert.timestamp).toLocaleString()}`}
                   </Text>
                 </View>

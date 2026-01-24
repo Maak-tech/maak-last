@@ -368,7 +368,7 @@ export default function RegisterScreen() {
             {/* Avatar Selection */}
             <View style={styles.avatarContainer}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                {isRTL ? "اختر الصورة الرمزية" : "Choose Avatar"}
+                {t("chooseAvatar", "Choose Avatar")}
               </Text>
               <TouchableOpacity
                 onPress={() => setAvatarPickerVisible(true)}
@@ -380,20 +380,18 @@ export default function RegisterScreen() {
                   size="lg"
                 />
                 <Text style={[styles.avatarHint, isRTL && styles.rtlText]}>
-                  {isRTL ? "اضغط للاختيار" : "Tap to select"}
+                  {t("tapToSelect", "Tap to select")}
                 </Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                {isRTL ? "الاسم الأول" : "First Name"}
+                {t("firstName", "First Name")}
               </Text>
               <TextInput
                 onChangeText={setFirstName}
-                placeholder={
-                  isRTL ? "ادخل اسمك الأول" : "Enter your first name"
-                }
+                placeholder={t("enterYourFirstName", "Enter your first name")}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={firstName ?? ""}
@@ -402,11 +400,11 @@ export default function RegisterScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                {isRTL ? "اسم العائلة" : "Last Name"}
+                {t("lastName", "Last Name")}
               </Text>
               <TextInput
                 onChangeText={setLastName}
-                placeholder={isRTL ? "ادخل اسم عائلتك" : "Enter your last name"}
+                placeholder={t("enterYourLastName", "Enter your last name")}
                 style={[styles.input, isRTL && styles.rtlInput]}
                 textAlign={isRTL ? "right" : "left"}
                 value={lastName ?? ""}
@@ -438,7 +436,7 @@ export default function RegisterScreen() {
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {isRTL ? "البريد الإلكتروني" : "Email"}
+                  {t("email")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -464,7 +462,7 @@ export default function RegisterScreen() {
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {isRTL ? "رقم الهاتف" : "Phone"}
+                  {t("phone", "Phone")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -480,9 +478,7 @@ export default function RegisterScreen() {
                     autoComplete="username"
                     keyboardType="email-address"
                     onChangeText={setEmail}
-                    placeholder={
-                      isRTL ? "ادخل بريدك الإلكتروني" : "Enter your email"
-                    }
+                    placeholder={t("enterYourEmail", "Enter your email")}
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     textContentType="username"
@@ -498,9 +494,7 @@ export default function RegisterScreen() {
                     autoComplete="off"
                     onChangeText={setPassword}
                     passwordRules=""
-                    placeholder={
-                      isRTL ? "ادخل كلمة المرور" : "Enter your password"
-                    }
+                    placeholder={t("enterYourPassword", "Enter your password")}
                     secureTextEntry
                     style={[
                       styles.input,
@@ -528,9 +522,10 @@ export default function RegisterScreen() {
                     autoComplete="off"
                     onChangeText={setConfirmPassword}
                     passwordRules=""
-                    placeholder={
-                      isRTL ? "أعد إدخال كلمة المرور" : "Confirm your password"
-                    }
+                    placeholder={t(
+                      "confirmYourPassword",
+                      "Confirm your password"
+                    )}
                     secureTextEntry
                     style={[
                       styles.input,
@@ -554,7 +549,7 @@ export default function RegisterScreen() {
               <>
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {isRTL ? "رقم الهاتف" : "Phone Number"}
+                    {t("phoneNumber", "Phone Number")}
                   </Text>
                   <TextInput
                     autoCapitalize="none"
@@ -590,17 +585,16 @@ export default function RegisterScreen() {
                         : "Code sent. Enter it below or resend."}
                     </Text>
                     <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                      {isRTL ? "رمز التحقق" : "Verification Code"}
+                      {t("verificationCode", "Verification Code")}
                     </Text>
                     <TextInput
                       keyboardType="number-pad"
                       maxLength={6}
                       onChangeText={setOtpCode}
-                      placeholder={
-                        isRTL
-                          ? "ادخل رمز التحقق المكون من 6 أرقام"
-                          : "Enter 6-digit verification code"
-                      }
+                      placeholder={t(
+                        "enter6DigitCode",
+                        "Enter 6-digit verification code"
+                      )}
                       style={[styles.input, isRTL && styles.rtlInput]}
                       textAlign={isRTL ? "right" : "left"}
                       value={otpCode ?? ""}
@@ -611,12 +605,8 @@ export default function RegisterScreen() {
                     >
                       <Text style={styles.verifyButtonText}>
                         {loading
-                          ? isRTL
-                            ? "جارٍ التحقق..."
-                            : "Verifying..."
-                          : isRTL
-                            ? "تحقق"
-                            : "Verify"}
+                          ? t("verifying", "Verifying...")
+                          : t("verify", "Verify")}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -628,7 +618,7 @@ export default function RegisterScreen() {
                       ]}
                     >
                       <Text style={styles.resendButtonText}>
-                        {isRTL ? "إعادة إرسال الرمز" : "Resend code"}
+                        {t("resendCode", "Resend code")}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -650,27 +640,26 @@ export default function RegisterScreen() {
                     isRTL ? { marginEnd: 8 } : { marginStart: 8 },
                   ]}
                 >
-                  {isRTL ? "الانضمام إلى عائلة موجودة" : "Join existing family"}
+                  {t("joinExistingFamily", "Join existing family")}
                 </Text>
                 <Text style={[styles.optionalText, isRTL && styles.rtlText]}>
-                  {isRTL ? "(اختياري)" : "(Optional)"}
+                  {t("optional", "(Optional)")}
                 </Text>
               </TouchableOpacity>
 
               {showFamilyCode && (
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {isRTL ? "رمز العائلة" : "Family Code"}
+                    {t("familyCode", "Family Code")}
                   </Text>
                   <TextInput
                     keyboardType="numeric"
                     maxLength={6}
                     onChangeText={setFamilyCode}
-                    placeholder={
-                      isRTL
-                        ? "أدخل رمز الدعوة (6 أرقام)"
-                        : "Enter invitation code (6 digits)"
-                    }
+                    placeholder={t(
+                      "enterInvitationCode",
+                      "Enter invitation code (6 digits)"
+                    )}
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     value={familyCode}
@@ -719,7 +708,7 @@ export default function RegisterScreen() {
                 ]}
               >
                 <Text style={styles.enterCodeButtonText}>
-                  {isRTL ? "أدخل رمز التحقق" : "Enter code"}
+                  {t("enterCode", "Enter code")}
                 </Text>
               </TouchableOpacity>
             )}
@@ -759,7 +748,7 @@ export default function RegisterScreen() {
           <View style={[styles.modalContent, { maxWidth: 400 }]}>
             <View style={[styles.modalHeader, isRTL && styles.modalHeaderRTL]}>
               <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "اختر الصورة الرمزية" : "Choose Avatar"}
+                {t("chooseAvatar", "Choose Avatar")}
               </Text>
               <TouchableOpacity onPress={() => setAvatarPickerVisible(false)}>
                 <X color="#64748B" size={24} />

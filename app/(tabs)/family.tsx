@@ -918,7 +918,7 @@ export default function FamilyScreen() {
   };
 
   const formatMedicationDate = (date: Date) =>
-    date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
       weekday: "long",
       month: "long",
       day: "numeric",
@@ -2577,7 +2577,7 @@ export default function FamilyScreen() {
                                 },
                               ]}
                             >
-                              {isRTL ? "إجمالي الأعضاء" : "Total Members"}
+                              {isRTL ? "جميع أعضاء العائلة" : "Total Members"}
                             </Text>
                           </View>
                           <View
@@ -2685,7 +2685,7 @@ export default function FamilyScreen() {
                                 },
                               ]}
                             >
-                              {isRTL ? "تنبيهات نشطة" : "Active Alerts"}
+                              {isRTL ? "تنبيهات فعالة" : "Active Alerts"}
                             </Text>
                           </View>
                           <View
@@ -2768,7 +2768,7 @@ export default function FamilyScreen() {
                       },
                     ]}
                   >
-                    {isRTL ? "تفاصيل الأعضاء" : "Member Details"}
+                    {isRTL ? "تفاصيل أعضاء العائلة" : "Member Details"}
                   </Heading>
                   {caregiverOverview.members
                     .filter((memberData) => {
@@ -3458,7 +3458,7 @@ export default function FamilyScreen() {
                             ? "مدير"
                             : "Admin"
                           : isRTL
-                            ? "عضو"
+                            ? "فرد عائلي"
                             : "Member"}
                       </Text>
                     </View>
@@ -3731,7 +3731,9 @@ export default function FamilyScreen() {
             }}
           >
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "جدول الأدوية المشترك" : "Shared Medication Schedule"}
+              {isRTL
+                ? "جدول الأدوية المشترك للعائلة"
+                : "Shared Medication Schedule"}
             </Text>
             <View
               style={{
@@ -3808,7 +3810,7 @@ export default function FamilyScreen() {
                 ]}
               >
                 {isRTL
-                  ? "لا توجد أدوية في هذا الجدول"
+                  ? "لا توجد أدوية في هذا الجدول المشترك للعائلة"
                   : "No medications in this schedule"}
               </Text>
             </View>
@@ -4457,7 +4459,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "دعوة عضو جديد" : "Invite New Member"}
+              {isRTL ? "دعوة  فرد عائلة جديد" : "Invite New Member"}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -4542,7 +4544,7 @@ export default function FamilyScreen() {
                     ? "جاري الإرسال..."
                     : "Sending..."
                   : isRTL
-                    ? "إرسال الدعوة"
+                    ? "إرسال الدعوة للعائلة"
                     : "Send Invitation"}
               </Text>
             </TouchableOpacity>
@@ -4550,7 +4552,7 @@ export default function FamilyScreen() {
             {generatedCode && (
               <View style={styles.codeContainer}>
                 <Text style={[styles.codeLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "رمز الدعوة" : "Invite Code"}
+                  {isRTL ? "رمز الدعوة للعائلة" : "Invite Code"}
                 </Text>
                 <Text style={[styles.codeValue, isRTL && styles.rtlText]}>
                   {generatedCode}
@@ -4631,7 +4633,9 @@ export default function FamilyScreen() {
                   onChangeText={(text) =>
                     setNewContact((prev) => ({ ...prev, name: text }))
                   }
-                  placeholder={isRTL ? "اسم جهة الاتصال" : "Contact Name"}
+                  placeholder={
+                    isRTL ? "اسم جهة اتصال في حالة الطوارئ" : "Contact Name"
+                  }
                   style={[styles.textInput, isRTL && styles.rtlInput]}
                   textAlign={isRTL ? "right" : "left"}
                   value={newContact.name}
@@ -4666,7 +4670,9 @@ export default function FamilyScreen() {
                       <Text
                         style={[styles.addContactText, isRTL && styles.rtlText]}
                       >
-                        {isRTL ? "إضافة جهة اتصال" : "Add Contact"}
+                        {isRTL
+                          ? "إضافة جهة اتصال في حالة الطوارئ"
+                          : "Add Contact"}
                       </Text>
                     </>
                   )}
@@ -4676,12 +4682,12 @@ export default function FamilyScreen() {
 
             <View style={styles.fieldContainer}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "كشف السقوط" : "Fall Detection"}
+                {isRTL ? "كشف السقوط التلقائي" : "Fall Detection"}
               </Text>
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "تفعيل كشف السقوط التلقائي"
+                    ? "تفعيل كشف السقوط التلقائي للعائلة"
                     : "Enable automatic fall detection"}
                 </Text>
                 <Switch
@@ -4700,7 +4706,7 @@ export default function FamilyScreen() {
               <View style={styles.settingToggle}>
                 <Text style={[styles.settingText, isRTL && styles.rtlText]}>
                   {isRTL
-                    ? "إرسال تنبيهات الأدوية الفائتة"
+                    ? "إرسال تنبيهات الأدوية الفائتة للعائلة"
                     : "Send missed medication alerts"}
                 </Text>
                 <Switch
@@ -4943,7 +4949,7 @@ export default function FamilyScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, isRTL && styles.rtlText]}>
-              {isRTL ? "الترقية إلى الاشتراك العائلي" : "Upgrade to Premium"}
+              {isRTL ? " الانضمام إلى الاشتراك العائلي " : "Upgrade to Premium"}
             </Text>
             <TouchableOpacity
               onPress={() => setShowPaywall(false)}
@@ -5028,7 +5034,7 @@ export default function FamilyScreen() {
                 level={6}
                 style={{ marginBottom: 12, color: theme.colors.text.primary }}
               >
-                {isRTL ? "إنشاء تقرير جديد" : "Generate New Report"}
+                {isRTL ? "إنشاء تقرير صحي جديد" : "Generate New Report"}
               </Heading>
               <Caption
                 numberOfLines={2}
@@ -5048,7 +5054,9 @@ export default function FamilyScreen() {
                   onPress={() => setShowPrivacyModal(true)}
                   style={{ flex: 1 }}
                   textStyle={{}}
-                  title={isRTL ? "إعدادات الخصوصية" : "Privacy Settings"}
+                  title={
+                    isRTL ? "إعدادات الخصوصية لتقرير صحي" : "Privacy Settings"
+                  }
                   variant="outline"
                 />
                 <Button
@@ -5057,7 +5065,7 @@ export default function FamilyScreen() {
                   onPress={handleGenerateHealthReport}
                   style={{ flex: 1 }}
                   textStyle={{}}
-                  title={isRTL ? "إنشاء التقرير" : "Generate Report"}
+                  title={isRTL ? "إنشاء التقرير الصحي" : "Generate Report"}
                   variant="primary"
                 />
               </View>
@@ -5103,7 +5111,7 @@ export default function FamilyScreen() {
                           color: theme.colors.text.secondary,
                         }}
                       >
-                        {isRTL ? "إجمالي الأعضاء" : "Total Members"}
+                        {isRTL ? "إجمالي أعضاء العائلة" : "Total Members"}
                       </Caption>
                       <Text
                         style={{
@@ -5165,7 +5173,9 @@ export default function FamilyScreen() {
                           color: theme.colors.text.secondary,
                         }}
                       >
-                        {isRTL ? "الأدوية النشطة" : "Active Medications"}
+                        {isRTL
+                          ? "الأدوية الفعالة للعائلة"
+                          : "Active Medications"}
                       </Caption>
                       <Text
                         style={{
@@ -5195,7 +5205,9 @@ export default function FamilyScreen() {
                           color: theme.colors.text.secondary,
                         }}
                       >
-                        {isRTL ? "إجمالي الأعراض" : "Total Symptoms"}
+                        {isRTL
+                          ? " إجمالي الأعراض الصحية للعائلة"
+                          : "Total Symptoms"}
                       </Caption>
                       <Text
                         style={{
@@ -5219,7 +5231,7 @@ export default function FamilyScreen() {
                           color: theme.colors.text.primary,
                         }}
                       >
-                        {isRTL ? "التنبيهات" : "Alerts"}
+                        {isRTL ? "التنبيهات الصحية للعائلة" : "Alerts"}
                       </Heading>
                       {healthReport.summary.alerts.map((alert, index) => (
                         <Card
@@ -5258,7 +5270,9 @@ export default function FamilyScreen() {
                       style={{ width: "100%" }}
                       textStyle={{}}
                       title={
-                        isRTL ? "تصدير التقرير كـ PDF" : "Export Report as PDF"
+                        isRTL
+                          ? "تصدير التقرير الصحي كـ PDF"
+                          : "Export Report as PDF"
                       }
                       variant="outline"
                     />
@@ -5335,7 +5349,7 @@ export default function FamilyScreen() {
                           numberOfLines={1}
                           style={{ color: theme.colors.text.secondary }}
                         >
-                          {isRTL ? "الأعراض" : "Symptoms"}:{" "}
+                          {isRTL ? "الأعراض الصحية " : "Symptoms"}:{" "}
                           {memberReport.symptoms.total}
                         </Caption>
                         <Caption

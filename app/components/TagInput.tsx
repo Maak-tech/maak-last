@@ -130,10 +130,7 @@ export default function TagInput({
           maxLength={30}
           onChangeText={setInputValue}
           onSubmitEditing={handleInputSubmit}
-          placeholder={
-            placeholder ||
-            (isRTL ? "أضف علامة (اضغط Enter)" : "Add tag (press Enter)")
-          }
+          placeholder={placeholder || t("addTag", "Add tag (press Enter)")}
           placeholderTextColor={theme.colors.text.secondary}
           returnKeyType="done"
           style={styles.input}
@@ -162,7 +159,7 @@ export default function TagInput({
       {showSuggestionsList && suggestions.length > 0 && (
         <View style={styles.suggestionsContainer}>
           <Caption numberOfLines={undefined} style={styles.suggestionsTitle}>
-            {isRTL ? "اقتراحات" : "Suggestions"}
+            {t("suggestions", "Suggestions")}
           </Caption>
           <ScrollView
             horizontal

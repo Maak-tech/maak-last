@@ -7,6 +7,11 @@ from pathlib import Path
 from urllib.request import urlretrieve
 from urllib.error import URLError
 
+# Fix Windows console encoding
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
 ZENODO_RECORD = "13983110"
 MODEL_FILENAME = "papagei_s.pt"
 WEIGHTS_DIR = Path("weights")
@@ -30,7 +35,7 @@ def download_file(url: str, destination: Path, chunk_size: int = 8192):
         print("\n[SUCCESS] Download complete!")
         return True
     except URLError as e:
-        print(f"\n❌ Download failed: {e}")
+        print(f"\n[ERROR] Download failed: {e}")
         return False
 
 
@@ -45,11 +50,9 @@ def main():
     
     # Check if model already exists
     if MODEL_PATH.exists():
-        print(f"✅ Model weights already exist at {MODEL_PATH}")
-        overwrite = input("Do you want to overwrite? (y/n): ").lower()
-        if overwrite != "y":
-            print("Skipping download.")
-            return
+        print(f"[OK] Model weights already exist at {MODEL_PATH}")
+        print("Skipping download.")
+        return
     
     print(f"\nDownloading {MODEL_FILENAME}...")
     print(f"Source: https://zenodo.org/record/{ZENODO_RECORD}")
@@ -65,7 +68,7 @@ def main():
     success = download_file(ZENODO_BASE_URL, MODEL_PATH)
     
     if not success:
-        print("\n⚠️  Automatic download failed.")
+        print("\n[WARNING] Automatic download failed.")
         print("Please download manually from:")
         print(f"   https://zenodo.org/record/{ZENODO_RECORD}")
         print(f"\nAnd place {MODEL_FILENAME} in:")
@@ -74,9 +77,8 @@ def main():
         # Try to open browser
         try:
             import webbrowser
-            open_browser = input("\nOpen download page in browser? (y/n): ").lower()
-            if open_browser == "y":
-                webbrowser.open(f"https://zenodo.org/record/{ZENODO_RECORD}")
+            print("\nOpening download page in browser...")
+            webbrowser.open(f"https://zenodo.org/record/{ZENODO_RECORD}")
         except:
             pass
 

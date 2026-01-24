@@ -303,8 +303,14 @@ export default function HealthSummaryScreen() {
           : undefined,
     };
 
-    const startStr = start.toLocaleDateString(isRTL ? "ar" : "en-US", options);
-    const endStr = end.toLocaleDateString(isRTL ? "ar" : "en-US", options);
+    const startStr = start.toLocaleDateString(
+      isRTL ? "ar-u-ca-gregory" : "en-US",
+      options
+    );
+    const endStr = end.toLocaleDateString(
+      isRTL ? "ar-u-ca-gregory" : "en-US",
+      options
+    );
 
     return `${startStr} - ${endStr}`;
   };
@@ -333,7 +339,7 @@ export default function HealthSummaryScreen() {
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>{overview.totalSymptoms}</Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "الأعراض" : "Symptoms"}
+              {isRTL ? "الأعراض الصحية" : "Symptoms"}
             </Text>
           </View>
 
@@ -373,7 +379,7 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "الرؤى" : "Insights"}
+          {isRTL ? "التحليلات" : "Insights"}
         </Heading>
 
         {summary.insights.map((insight, index) => (
@@ -418,7 +424,7 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "الأنماط المكتشفة" : "Detected Patterns"}
+          {isRTL ? "الأنماط الصحية المكتشفة" : "Detected Patterns"}
         </Heading>
 
         {summary.patterns.map((pattern, index) => (
@@ -483,7 +489,7 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "الاتجاهات" : "Trends"}
+          {isRTL ? "الاتجاهات الصحية" : "Trends"}
         </Heading>
 
         {summary.trends.map((trend, index) => (
@@ -669,7 +675,7 @@ export default function HealthSummaryScreen() {
               />
               <Text style={styles.emptyText}>
                 {isRTL
-                  ? "لا توجد بيانات كافية لإنشاء ملخص. سجل المزيد من الأعراض والأدوية للحصول على رؤى مفيدة."
+                  ? "لا توجد بيانات كافية لإنشاء ملخص. سجل المزيد من الأعراض والأدوية للحصول على التحليلات الصحية المفيدة."
                   : "Not enough data to generate insights. Log more symptoms and medications for personalized insights."}
               </Text>
             </View>

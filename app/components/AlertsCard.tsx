@@ -20,7 +20,7 @@ interface AlertsCardProps {
 }
 
 export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
   const [loading, setLoading] = useState(false);
@@ -143,7 +143,9 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في تسجيل الاستجابة" : "Failed to record response",
+        isRTL
+          ? "فشل في تسجيل استجابتك للتنبيه"
+          : "Failed to record your response to the alert",
         [{ text: isRTL ? "موافق" : "OK" }],
         { cancelable: true }
       );
@@ -192,9 +194,9 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       logger.error("Failed to resolve emergency alert", error, "AlertsCard");
 
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في حل التنبيه" : "Failed to resolve alert",
-        [{ text: isRTL ? "موافق" : "OK" }]
+        t("error", "Error"),
+        t("failedToResolveAlert", "Failed to resolve alert"),
+        [{ text: t("ok", "OK") }]
       );
     }
   };
@@ -202,7 +204,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const getMemberName = (userId: string): string => {
     const member = familyMembers.find((m) => m.id === userId);
     if (!member) {
-      return isRTL ? "فرد غير معروف" : "Unknown Member";
+      return t("unknownMember", "Unknown Member");
     }
     if (member.firstName && member.lastName) {
       return `${member.firstName} ${member.lastName}`;
@@ -210,7 +212,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     if (member.firstName) {
       return member.firstName;
     }
-    return isRTL ? "فرد غير معروف" : "Unknown Member";
+    return t("unknownMember", "Unknown Member");
   };
 
   const getAlertIcon = (type: string) => {
@@ -271,7 +273,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
             <Text style={[styles.alertTitle, isRTL && styles.rtlText]}>
               {item.type === "fall" && (isRTL ? "تنبيه سقوط" : "Fall Alert")}
               {item.type === "medication" &&
-                (isRTL ? "تنبيه دواء" : "Medication Alert")}
+                (isRTL ? "تنبيه الدواء" : "Medication Alert")}
               {item.type === "emergency" &&
                 (isRTL ? "تنبيه طوارئ" : "Emergency Alert")}
             </Text>
@@ -291,7 +293,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         {item.responders && item.responders.length > 0 && (
           <View style={styles.respondersSection}>
             <Text style={[styles.respondersLabel, isRTL && styles.rtlText]}>
-              {isRTL ? "المستجبون:" : "Responders:"}
+              {isRTL ? "المستجبون للتنبيه:" : "Responders to the alert:"}
             </Text>
             <Text style={[styles.respondersText, isRTL && styles.rtlText]}>
               {item.responders.map((id) => getMemberName(id)).join(", ")}
@@ -330,7 +332,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
                 isRTL && styles.rtlText,
               ]}
             >
-              {isRTL ? "حل التنبيه" : "Resolve"}
+              {isRTL ? "حل التنبيه الصحي" : "Resolve the alert"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -347,7 +349,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {isRTL ? "التنبيهات الفعالة" : "Active Alerts"}
+            {isRTL ? "التنبيهات الصحية الفعالة" : "Active Alerts"}
           </Text>
         </View>
         <View style={styles.loadingContainer}>
@@ -362,13 +364,13 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={[styles.title, isRTL && styles.rtlText]}>
-            {isRTL ? "التنبيهات الفعالة" : "Active Alerts"}
+            {isRTL ? "التنبيهات الصحية الفعالة" : "Active Alerts"}
           </Text>
         </View>
         <View style={styles.emptyContainer}>
           <CheckCircle color="#10B981" size={48} />
           <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-            {isRTL ? "لا توجد تنبيهات فعالة" : "No active alerts"}
+            {isRTL ? "لا توجد تنبيهات صحية فعالة" : "No active alerts"}
           </Text>
         </View>
       </View>
@@ -379,7 +381,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
-          {isRTL ? "التنبيهات الفعالة" : "Active Alerts"}
+          {isRTL ? "التنبيهات الصحية الفعالة" : "Active Alerts"}
         </Text>
         <View style={styles.alertBadge}>
           <Text style={styles.alertBadgeText}>{alerts.length}</Text>

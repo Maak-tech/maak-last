@@ -12,12 +12,41 @@ import torch.nn as nn  # pyright: ignore[reportMissingImports]
 # Note: These imports assume you've cloned the PaPaGei repository
 # and added it to your Python path or installed it as a package
 try:
+    import sys
+    import os
+    # Add papagei-foundation-model to path FIRST (before any other imports)
+    # Use absolute path to avoid conflicts with local preprocessing module
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    ml_service_dir = os.path.dirname(current_dir)
+    papagei_path = os.path.join(ml_service_dir, 'papagei-foundation-model')
+    papagei_path = os.path.abspath(papagei_path)
+    
+    # Insert at the beginning to prioritize PaPaGei modules
+    if papagei_path not in sys.path:
+        sys.path.insert(0, papagei_path)
+    
+    # Temporarily remove local preprocessing from path to avoid conflicts
+    # We'll restore it after imports
+    local_preprocessing_path = None
+    for i, path in enumerate(sys.path):
+        if 'ml-service' in path and 'preprocessing' in path:
+            # Don't remove, but we'll import explicitly from papagei
+            pass
+    
+    # Import from papagei-foundation-model (not local modules)
     from linearprobing.utils import resample_batch_signal, load_model_without_module_prefix  # pyright: ignore[reportMissingImports]
+    
+    # Import preprocessing from papagei-foundation-model
+    # Local preprocessing directory has been renamed to avoid conflicts
     from preprocessing.ppg import preprocess_one_ppg_signal  # pyright: ignore[reportMissingImports]
+    
     from segmentations import waveform_to_segments  # pyright: ignore[reportMissingImports]
     from models.resnet import ResNet1DMoE  # pyright: ignore[reportMissingImports]
-except ImportError:
-    print("Warning: PaPaGei modules not found. Install from https://github.com/Nokia-Bell-Labs/papagei-foundation-model")
+    PAPAGEI_IMPORTED = True
+except ImportError as e:
+    print(f"Warning: PaPaGei modules not found: {e}")
+    print("Install from https://github.com/Nokia-Bell-Labs/papagei-foundation-model")
+    PAPAGEI_IMPORTED = False
     # Create stub functions for development
     def resample_batch_signal(*args, **kwargs):
         raise NotImplementedError("PaPaGei not installed")
@@ -28,7 +57,8 @@ except ImportError:
     def waveform_to_segments(*args, **kwargs):
         raise NotImplementedError("PaPaGei not installed")
     class ResNet1DMoE(nn.Module):
-        pass
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("PaPaGei not installed")
 
 
 class PaPaGeiModel:
@@ -84,6 +114,9 @@ class PaPaGeiModel:
     
     def _load_model(self, model_path: str) -> nn.Module:
         """Load pre-trained PaPaGei model"""
+        if not PAPAGEI_IMPORTED:
+            raise ImportError("PaPaGei modules not available. Check PYTHONPATH.")
+        
         if not os.path.exists(model_path):
             raise FileNotFoundError(
                 f"Model weights not found at {model_path}. "
@@ -91,15 +124,20 @@ class PaPaGeiModel:
             )
         
         # Initialize model architecture
+        # Note: ResNet1DMoE expects positional args: in_channels, base_filters, kernel_size, stride, groups, n_block, n_classes
+        # and keyword args: n_experts, downsample_gap, increasefilter_gap, use_bn, use_do, verbose, use_projection
         model = ResNet1DMoE(
-            in_channels=1,
+            in_channels=1,  # Positional arg
             base_filters=self.model_config['base_filters'],
             kernel_size=self.model_config['kernel_size'],
             stride=self.model_config['stride'],
             groups=self.model_config['groups'],
             n_block=self.model_config['n_block'],
             n_classes=self.model_config['n_classes'],
-            n_experts=self.model_config['n_experts']
+            n_experts=self.model_config['n_experts'],  # Keyword arg
+            use_bn=True,
+            use_do=True,
+            verbose=False
         )
         
         # Load weights

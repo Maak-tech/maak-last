@@ -393,31 +393,40 @@ export default function TimelineScreen() {
   const formatDateRange = () => {
     switch (viewMode) {
       case "day":
-        return currentDate.toLocaleDateString(isRTL ? "ar" : "en-US", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
+        return currentDate.toLocaleDateString(
+          isRTL ? "ar-u-ca-gregory" : "en-US",
+          {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }
+        );
       case "week": {
         const weekStart = new Date(currentDate);
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        return `${weekStart.toLocaleDateString(isRTL ? "ar" : "en-US", {
-          month: "short",
-          day: "numeric",
-        })} - ${weekEnd.toLocaleDateString(isRTL ? "ar" : "en-US", {
+        return `${weekStart.toLocaleDateString(
+          isRTL ? "ar-u-ca-gregory" : "en-US",
+          {
+            month: "short",
+            day: "numeric",
+          }
+        )} - ${weekEnd.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
         })}`;
       }
       case "month":
-        return currentDate.toLocaleDateString(isRTL ? "ar" : "en-US", {
-          month: "long",
-          year: "numeric",
-        });
+        return currentDate.toLocaleDateString(
+          isRTL ? "ar-u-ca-gregory" : "en-US",
+          {
+            month: "long",
+            year: "numeric",
+          }
+        );
       case "year":
         return currentDate.getFullYear().toString();
       default:
@@ -636,12 +645,15 @@ export default function TimelineScreen() {
                     }
                     weight="bold"
                   >
-                    {date.toLocaleDateString(isRTL ? "ar" : "en-US", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
+                    {date.toLocaleDateString(
+                      isRTL ? "ar-u-ca-gregory" : "en-US",
+                      {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }
+                    )}
                   </TypographyText>
                   <Badge size="small" style={{}} variant="outline">
                     {dateEvents.length}

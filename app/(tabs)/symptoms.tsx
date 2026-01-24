@@ -301,10 +301,11 @@ export default function TrackScreen() {
           // Only show alert if no data was loaded (fallback should have handled it)
           if (!dataLoaded) {
             Alert.alert(
-              isRTL ? "خطأ" : "Error",
-              isRTL
-                ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
-                : "Database index not ready. Please try again in a moment."
+              t("error", "Error"),
+              t(
+                "databaseIndexNotReady",
+                "Database index not ready. Please try again in a moment."
+              )
             );
           }
         } else {
@@ -316,11 +317,9 @@ export default function TrackScreen() {
             const errorMessage =
               error instanceof Error
                 ? error.message
-                : isRTL
-                  ? "حدث خطأ في تحميل البيانات"
-                  : "Error loading data";
+                : t("errorLoadingData", "Error loading data");
 
-            Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
+            Alert.alert(t("error", "Error"), errorMessage);
           }
         }
       } finally {
@@ -348,11 +347,11 @@ export default function TrackScreen() {
 
   const getMemberName = (userId: string): string => {
     if (userId === user?.id) {
-      return isRTL ? "أنت" : "You";
+      return t("you", "You");
     }
     const member = familyMembers.find((m) => m.id === userId);
     if (!member) {
-      return isRTL ? "عضو غير معروف" : "Unknown Member";
+      return t("unknownMember", "Unknown Member");
     }
     if (member.firstName && member.lastName) {
       return `${member.firstName} ${member.lastName}`;
@@ -360,7 +359,7 @@ export default function TrackScreen() {
     if (member.firstName) {
       return member.firstName;
     }
-    return isRTL ? "عضو غير معروف" : "Unknown Member";
+    return t("unknownMember", "Unknown Member");
   };
 
   const handleAddSymptom = async () => {
@@ -369,10 +368,11 @@ export default function TrackScreen() {
     const symptomType = selectedSymptom || customSymptom;
     if (!symptomType) {
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL
-          ? "يرجى اختيار أو إدخال نوع الأعراض الصحية"
-          : "Please select or enter a symptom type"
+        t("error", "Error"),
+        t(
+          "pleaseSelectOrEnterSymptomType",
+          "Please select or enter a symptom type"
+        )
       );
       return;
     }
@@ -389,10 +389,11 @@ export default function TrackScreen() {
               selectedFilter.type === "member"));
         if (!canEdit) {
           Alert.alert(
-            isRTL ? "غير مسموح" : "Not Permitted",
-            isRTL
-              ? "ليس لديك صلاحية لتعديل هذه الأعراض الصحية"
-              : "You do not have permission to edit this symptom"
+            t("notPermitted", "Not Permitted"),
+            t(
+              "youDoNotHavePermissionToEditSymptom",
+              "You do not have permission to edit this symptom"
+            )
           );
           return;
         }
@@ -439,20 +440,16 @@ export default function TrackScreen() {
       await loadSymptoms();
 
       Alert.alert(
-        isRTL ? "تم الحفظ" : "Saved",
-        isRTL
-          ? editingSymptom
-            ? "تم تحديث الأعراض المرضية بنجاح"
-            : "تم تسجيل الأعراض المرضية بنجاح"
-          : editingSymptom
-            ? "Symptom updated successfully"
-            : "Symptom logged successfully"
+        t("saved", "Saved"),
+        editingSymptom
+          ? t("symptomUpdatedSuccessfully", "Symptom updated successfully")
+          : t("symptomLoggedSuccessfully", "Symptom logged successfully")
       );
     } catch (error) {
       // Silently handle symptom save error
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "حدث خطأ في حفظ الأعراض الصحية" : "Error saving symptom"
+        t("error", "Error"),
+        t("errorSavingSymptom", "Error saving symptom")
       );
     } finally {
       setLoading(false);
@@ -467,10 +464,11 @@ export default function TrackScreen() {
         (selectedFilter.type === "family" || selectedFilter.type === "member"));
     if (!canEdit) {
       Alert.alert(
-        isRTL ? "غير مسموح" : "Not Permitted",
-        isRTL
-          ? "ليس لديك صلاحية لتعديل هذه الأعراض الصحية"
-          : "You do not have permission to edit this symptom"
+        t("notPermitted", "Not Permitted"),
+        t(
+          "youDoNotHavePermissionToEditSymptom",
+          "You do not have permission to edit this symptom"
+        )
       );
       return;
     }
@@ -502,26 +500,29 @@ export default function TrackScreen() {
         (selectedFilter.type === "family" || selectedFilter.type === "member"));
     if (!canDelete) {
       Alert.alert(
-        isRTL ? "غير مسموح" : "Not Permitted",
-        isRTL
-          ? "ليس لديك صلاحية لحذف هذه الأعراض الصحية"
-          : "You do not have permission to delete this symptom"
+        t("notPermitted", "Not Permitted"),
+        t(
+          "youDoNotHavePermissionToDeleteSymptom",
+          "You do not have permission to delete this symptom"
+        )
       );
       return;
     }
 
     Alert.alert(
-      isRTL ? "حذف الأعراض الصحية" : "Delete Symptom",
-      isRTL
-        ? `هل أنت متأكد من رغبتك في حذف هذه الأعراض الصحية: ${t(symptom.type)}؟`
-        : `Are you sure you want to delete this symptom: ${t(symptom.type)}?`,
+      t("deleteSymptom", "Delete Symptom"),
+      t(
+        "areYouSureDeleteSymptom",
+        "Are you sure you want to delete this symptom: {{type}}?",
+        { type: t(symptom.type) }
+      ),
       [
         {
-          text: isRTL ? "إلغاء" : "Cancel",
+          text: t("cancel", "Cancel"),
           style: "cancel",
         },
         {
-          text: isRTL ? "حذف" : "Delete",
+          text: t("delete", "Delete"),
           style: "destructive",
           onPress: async () => {
             try {
@@ -530,18 +531,14 @@ export default function TrackScreen() {
               await loadSymptoms();
               setShowActionsMenu(null);
               Alert.alert(
-                isRTL ? "تم الحذف" : "Deleted",
-                isRTL
-                  ? "تم حذف الأعراض الصحية بنجاح"
-                  : "Symptom deleted successfully"
+                t("deleted", "Deleted"),
+                t("symptomDeletedSuccessfully", "Symptom deleted successfully")
               );
             } catch (error) {
               // Silently handle symptom delete error
               Alert.alert(
-                isRTL ? "خطأ" : "Error",
-                isRTL
-                  ? "حدث خطأ في حذف الأعراض الصحية"
-                  : "Error deleting symptom"
+                t("error", "Error"),
+                t("errorDeletingSymptom", "Error deleting symptom")
               );
             } finally {
               setLoading(false);
@@ -574,7 +571,7 @@ export default function TrackScreen() {
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 1) {
-      return isRTL ? "منذ أقل من ساعة" : "Less than an hour ago";
+      return t("lessThanAnHourAgo", "Less than an hour ago");
     }
     if (diffInHours < 24) {
       const hours = Math.floor(diffInHours);
@@ -744,7 +741,7 @@ export default function TrackScreen() {
                 numberOfLines={undefined}
                 style={[styles.statLabel, isRTL && styles.rtlText]}
               >
-                {isRTL ? "متوسط الشدة" : "Avg Severity"}
+                {t("avgSeverity", "Avg Severity")}
               </Caption>
             </Card>
           </View>
@@ -757,28 +754,24 @@ export default function TrackScreen() {
             style={[styles.sectionTitle, isRTL && styles.rtlText]}
           >
             {selectedFilter.type === "family"
-              ? isRTL
-                ? "أعراض العائلة الصحية الأخيرة"
-                : "Recent Family Symptoms"
+              ? t("recentFamilySymptoms", "Recent Family Symptoms")
               : selectedFilter.type === "member"
-                ? isRTL
-                  ? `أعراض ${selectedFilter.memberName} الصحية الأخيرة`
-                  : `${selectedFilter.memberName}'s Recent Symptoms`
-                : isRTL
-                  ? "أعراضي الصحية الأخيرة"
-                  : "My Recent Symptoms"}
+                ? t("memberRecentSymptoms", "{{name}}'s Recent Symptoms", {
+                    name: selectedFilter.memberName,
+                  })
+                : t("myRecentSymptoms", "My Recent Symptoms")}
           </Heading>
 
           {loading ? (
             <View style={styles.centerContainer}>
               <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                {isRTL ? "جاري التحميل..." : "Loading..."}
+                {t("loading", "Loading...")}
               </Text>
             </View>
           ) : symptoms.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {isRTL ? "لا توجد أعراض صحية مسجلة" : "No symptoms recorded"}
+                {t("noSymptomsRecorded", "No symptoms recorded")}
               </Text>
             </View>
           ) : (
@@ -872,7 +865,7 @@ export default function TrackScreen() {
                       <Text
                         style={[styles.actionText, isRTL && styles.rtlText]}
                       >
-                        {isRTL ? "تعديل" : "Edit"}
+                        {t("edit", "Edit")}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -887,7 +880,7 @@ export default function TrackScreen() {
                           isRTL && styles.rtlText,
                         ]}
                       >
-                        {isRTL ? "حذف" : "Delete"}
+                        {t("delete", "Delete")}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -946,7 +939,7 @@ export default function TrackScreen() {
             {isAdmin && hasFamily && familyMembers.length > 0 && (
               <View style={styles.fieldGroup}>
                 <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                  {isRTL ? "إضافة الأعراض الصحية لـ" : "Add symptom for"}
+                  {t("addSymptomFor", "Add symptom for")}
                 </Text>
                 <View style={styles.memberSelectionContainer}>
                   {familyMembers.map((member) => (
@@ -969,12 +962,10 @@ export default function TrackScreen() {
                           ]}
                         >
                           {member.id === user.id
-                            ? isRTL
-                              ? "أنت"
-                              : "You"
+                            ? t("you", "You")
                             : member.firstName && member.lastName
                               ? `${member.firstName} ${member.lastName}`
-                              : member.firstName || "User"}
+                              : member.firstName || t("user", "User")}
                         </Text>
                         {member.role === "admin" && (
                           <Text
@@ -985,7 +976,7 @@ export default function TrackScreen() {
                               isRTL && styles.rtlText,
                             ]}
                           >
-                            {isRTL ? "مدير" : "Admin"}
+                            {t("admin", "Admin")}
                           </Text>
                         )}
                       </View>
@@ -998,7 +989,7 @@ export default function TrackScreen() {
             {/* Common Symptoms */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.fieldLabel, isRTL && styles.rtlText]}>
-                {isRTL ? "الأعراض الصحية الشائعة" : "Common Symptoms"}
+                {t("commonSymptoms", "Common Symptoms")}
               </Text>
               <View style={styles.symptomsGrid}>
                 {COMMON_SYMPTOMS.map((symptomType) => (
@@ -1036,15 +1027,13 @@ export default function TrackScreen() {
               <Input
                 error={undefined}
                 helperText={undefined}
-                label={isRTL ? "أعراض مخصصة صحية" : "Custom Symptom"}
+                label={t("customSymptom", "Custom Symptom")}
                 leftIcon={undefined}
                 onChangeText={(text: string) => {
                   setCustomSymptom(text);
                   if (text) setSelectedSymptom("");
                 }}
-                placeholder={
-                  isRTL ? "أدخل نوع الأعراض الصحية..." : "Enter symptom type..."
-                }
+                placeholder={t("enterSymptomType", "Enter symptom type...")}
                 rightIcon={undefined}
                 style={isRTL && styles.rtlTextInput}
                 textAlign={isRTL ? "right" : "left"}
@@ -1060,7 +1049,7 @@ export default function TrackScreen() {
               <Input
                 error={undefined}
                 helperText={undefined}
-                label={`${t("description")} (${isRTL ? "اختياري" : "Optional"})`}
+                label={`${t("description")} (${t("optional", "(Optional)")})`}
                 leftIcon={undefined}
                 multiline
                 numberOfLines={3}

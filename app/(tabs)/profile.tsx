@@ -374,7 +374,7 @@ export default function ProfileScreen() {
     new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
   const formatMonthYear = (date: Date) =>
-    date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
       month: "long",
       year: "numeric",
     });
@@ -1826,7 +1826,7 @@ export default function ProfileScreen() {
           >
             <Heading level={6} style={{ marginBottom: 16 }}>
               {isRTL
-                ? `الأحداث في ${calendarSelectedDate.toLocaleDateString("ar", { day: "numeric", month: "long", year: "numeric" })}`
+                ? `الأحداث في ${calendarSelectedDate.toLocaleDateString("ar-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}`
                 : `Events on ${calendarSelectedDate.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`}
             </Heading>
 
@@ -1994,10 +1994,10 @@ export default function ProfileScreen() {
                   </TypographyText>
                   <Caption numberOfLines={1} style={{}}>
                     {selectedEvent.startDate.toLocaleString(
-                      isRTL ? "ar" : "en-US"
+                      isRTL ? "ar-u-ca-gregory" : "en-US"
                     )}
                     {selectedEvent.endDate &&
-                      ` - ${selectedEvent.endDate.toLocaleString(isRTL ? "ar" : "en-US")}`}
+                      ` - ${selectedEvent.endDate.toLocaleString(isRTL ? "ar-u-ca-gregory" : "en-US")}`}
                   </Caption>
                 </View>
                 {selectedEvent.location && (
@@ -2614,12 +2614,15 @@ export default function ProfileScreen() {
                           : theme.colors.text.primary,
                       }}
                     >
-                      {date.toLocaleDateString(isRTL ? "ar" : "en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {date.toLocaleDateString(
+                        isRTL ? "ar-u-ca-gregory" : "en-US",
+                        {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        }
+                      )}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -2837,12 +2840,15 @@ export default function ProfileScreen() {
                           : theme.colors.text.primary,
                       }}
                     >
-                      {date.toLocaleDateString(isRTL ? "ar" : "en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {date.toLocaleDateString(
+                        isRTL ? "ar-u-ca-gregory" : "en-US",
+                        {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        }
+                      )}
                     </Text>
                   </TouchableOpacity>
                 );

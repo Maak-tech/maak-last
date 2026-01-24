@@ -155,17 +155,15 @@ export default function HealthInsightsCard({
     return theme.colors.text.secondary;
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString(isRTL ? "ar-SA" : "en-US", {
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
       month: "short",
       day: "numeric",
-      calendar: "gregory", // Force Gregorian calendar (AD) even for Arabic
     });
-  };
 
   const getMemberName = (member: User) => {
     const name = [member.firstName, member.lastName].filter(Boolean).join(" ");
-    return name || (isRTL ? "عضو العائلة" : "Family Member");
+    return name || t("familyMember", "Family Member");
   };
 
   const renderFamilyInsights = () => {
@@ -182,9 +180,7 @@ export default function HealthInsightsCard({
           <View style={styles.familyLoading}>
             <ActivityIndicator color={theme.colors.primary.main} size="small" />
             <Caption numberOfLines={1} style={styles.loadingText}>
-              {isRTL
-                ? "جاري تحميل رؤى العائلة..."
-                : "Loading family insights..."}
+              {t("loadingFamilyInsights", "Loading family insights...")}
             </Caption>
           </View>
         ) : familyInsights.length > 0 ? (
@@ -194,14 +190,12 @@ export default function HealthInsightsCard({
                 <Text style={styles.familyName}>{getMemberName(member)}</Text>
                 <Badge style={styles.familyBadge} variant="outline">
                   <Text style={styles.familyBadgeText}>
-                    {summary.symptoms.total} {isRTL ? "أعراض" : "symptoms"}
+                    {summary.symptoms.total} {t("symptoms", "symptoms")}
                   </Text>
                 </Badge>
               </View>
               <Caption numberOfLines={1} style={styles.familySubtitle}>
-                {isRTL
-                  ? `ملخص الأسبوع: ${formatDate(summary.weekStart)} - ${formatDate(summary.weekEnd)}`
-                  : `Week Summary: ${formatDate(summary.weekStart)} - ${formatDate(summary.weekEnd)}`}
+                {`${t("weekSummary", "Week Summary")}: ${formatDate(summary.weekStart)} - ${formatDate(summary.weekEnd)}`}
               </Caption>
               <View style={styles.familyStatsRow}>
                 <View style={styles.familyStatItem}>
@@ -209,7 +203,7 @@ export default function HealthInsightsCard({
                     {summary.medications.compliance}%
                   </Text>
                   <Caption numberOfLines={1} style={styles.familyStatLabel}>
-                    {isRTL ? "الالتزام" : "Compliance"}
+                    {t("medicationCompliance", "Compliance")}
                   </Caption>
                 </View>
                 <View style={styles.familyStatItem}>
@@ -217,7 +211,7 @@ export default function HealthInsightsCard({
                     {summary.moods.averageIntensity.toFixed(1)}
                   </Text>
                   <Caption numberOfLines={1} style={styles.familyStatLabel}>
-                    {isRTL ? "المزاج" : "Mood"}
+                    {t("familyMood", "Mood")}
                   </Caption>
                 </View>
                 <View style={styles.familyStatItem}>
@@ -225,7 +219,7 @@ export default function HealthInsightsCard({
                     {summary.symptoms.averageSeverity.toFixed(1)}
                   </Text>
                   <Caption numberOfLines={1} style={styles.familyStatLabel}>
-                    {isRTL ? "الشدة" : "Severity"}
+                    {t("severity", "Severity")}
                   </Caption>
                 </View>
               </View>
@@ -279,9 +273,10 @@ export default function HealthInsightsCard({
           ))
         ) : (
           <Caption numberOfLines={2} style={styles.familyEmptyState}>
-            {isRTL
-              ? "لا توجد رؤى صحية لأفراد العائلة بعد."
-              : "No family insights available yet."}
+            {t(
+              "noFamilyInsightsAvailable",
+              "No family insights available yet."
+            )}
           </Caption>
         )}
       </View>
@@ -294,7 +289,7 @@ export default function HealthInsightsCard({
         <View style={styles.centerContainer}>
           <ActivityIndicator color={theme.colors.primary.main} size="small" />
           <Caption numberOfLines={1} style={styles.loadingText}>
-            {isRTL ? "جاري تحليل البيانات..." : "Analyzing data..."}
+            {t("analyzingData", "Analyzing data...")}
           </Caption>
         </View>
       </Card>
@@ -324,9 +319,7 @@ export default function HealthInsightsCard({
               {t("healthInsights")}
             </Heading>
             <Caption numberOfLines={2} style={styles.subtitle}>
-              {isRTL
-                ? `ملخص الأسبوع: ${formatDate(weeklySummary.weekStart)} - ${formatDate(weeklySummary.weekEnd)}`
-                : `Week Summary: ${formatDate(weeklySummary.weekStart)} - ${formatDate(weeklySummary.weekEnd)}`}
+              {`${t("weekSummary", "Week Summary")}: ${formatDate(weeklySummary.weekStart)} - ${formatDate(weeklySummary.weekEnd)}`}
             </Caption>
           </View>
         </View>
@@ -346,7 +339,7 @@ export default function HealthInsightsCard({
                 {weeklySummary.symptoms.total}
               </Text>
               <Caption numberOfLines={1} style={styles.statLabel}>
-                {isRTL ? "أعراض صحية" : "Symptoms"}
+                {t("symptoms", "Symptoms")}
               </Caption>
             </View>
             <View style={styles.statItem}>
@@ -354,7 +347,7 @@ export default function HealthInsightsCard({
                 {weeklySummary.medications.compliance}%
               </Text>
               <Caption numberOfLines={1} style={styles.statLabel}>
-                {isRTL ? "الالتزام بالأدوية" : "Compliance"}
+                {t("medicationCompliance", "Compliance")}
               </Caption>
             </View>
             <View style={styles.statItem}>
@@ -362,7 +355,7 @@ export default function HealthInsightsCard({
                 {weeklySummary.moods.averageIntensity.toFixed(1)}
               </Text>
               <Caption numberOfLines={1} style={styles.statLabel}>
-                {isRTL ? "مزاج نفسي" : "Mood"}
+                {t("mood", "Mood")}
               </Caption>
             </View>
           </View>
@@ -396,13 +389,9 @@ export default function HealthInsightsCard({
                     },
                   ]}
                 >
-                  {isRTL
-                    ? weeklySummary.symptoms.trend === "increasing"
-                      ? "أعراض متزايدة"
-                      : "أعراض متناقصة"
-                    : weeklySummary.symptoms.trend === "increasing"
-                      ? "Symptoms ↑"
-                      : "Symptoms ↓"}
+                  {weeklySummary.symptoms.trend === "increasing"
+                    ? t("symptomsIncreasing", "Symptoms ↑")
+                    : t("symptomsDecreasing", "Symptoms ↓")}
                 </Caption>
               </View>
             )}
@@ -433,13 +422,9 @@ export default function HealthInsightsCard({
                     },
                   ]}
                 >
-                  {isRTL
-                    ? weeklySummary.moods.trend === "improving"
-                      ? "مزاج نفسي أفضل"
-                      : "مزاج نفسي أسوأ"
-                    : weeklySummary.moods.trend === "improving"
-                      ? "Mood ↑"
-                      : "Mood ↓"}
+                  {weeklySummary.moods.trend === "improving"
+                    ? t("moodImproving", "Mood ↑")
+                    : t("moodDeclining", "Mood ↓")}
                 </Caption>
               </View>
             )}
@@ -507,7 +492,7 @@ export default function HealthInsightsCard({
           {weeklySummary.symptoms.mostCommon.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
-                {isRTL ? "الأعراض الصحية الأكثر شيوعاً" : "Most Common Symptoms"}
+                {t("mostCommonSymptoms", "Most Common Symptoms")}
               </Text>
               <View style={styles.tagsContainer}>
                 {weeklySummary.symptoms.mostCommon.map((symptom, index) => (
@@ -528,7 +513,7 @@ export default function HealthInsightsCard({
               style={styles.viewAllButton}
             >
               <Text style={styles.viewAllText}>
-                {isRTL ? "عرض التفاصيل الكاملة" : "View Full Details"}
+                {t("viewFullDetails", "View Full Details")}
               </Text>
               <Ionicons
                 color={theme.colors.primary.main}

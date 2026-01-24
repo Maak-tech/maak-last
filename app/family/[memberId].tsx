@@ -222,13 +222,17 @@ export default function FamilyMemberHealthView() {
 
       Alert.alert(
         isRTL ? "نجح" : "Success",
-        isRTL ? "تم تحديث دور العضو بنجاح" : "Member role updated successfully"
+        isRTL
+          ? "تم تحديث دور فردالعائلة بنجاح"
+          : "Family member role updated successfully"
       );
     } catch (error: any) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         error.message ||
-          (isRTL ? "فشل في تحديث الدور" : "Failed to update role")
+          (isRTL
+            ? "فشل في تحديث دور فردالعائلة"
+            : "Failed to update family member role")
       );
     }
   };
@@ -237,8 +241,10 @@ export default function FamilyMemberHealthView() {
     if (!(user?.id && member?.id)) return;
 
     Alert.prompt(
-      isRTL ? "إرسال تنبيه للمدير" : "Send Alert to Admin",
-      isRTL ? "اكتب رسالة التنبيه للمدير:" : "Enter alert message for admin:",
+      isRTL ? "إرسال تنبيه لمدير العائلة" : "Send Alert to Admin",
+      isRTL
+        ? "اكتب رسالة التنبيه لمدير العائلة:"
+        : "Enter alert message for admin:",
       [
         { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
         {
@@ -256,14 +262,16 @@ export default function FamilyMemberHealthView() {
               Alert.alert(
                 isRTL ? "تم الإرسال" : "Sent",
                 isRTL
-                  ? "تم إرسال التنبيه لجميع المديرين"
+                  ? "تم إرسال التنبيه لجميع مديري العائلة"
                   : "Alert sent to all admins"
               );
             } catch (error: any) {
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 error.message ||
-                  (isRTL ? "فشل في إرسال التنبيه" : "Failed to send alert")
+                  (isRTL
+                    ? "فشل في إرسال التنبيه الصحي لمدير العائلة"
+                    : "Failed to send alert to admin")
               );
             }
           },
@@ -463,7 +471,7 @@ export default function FamilyMemberHealthView() {
             <View style={styles.sectionHeader}>
               <AlertTriangle color="#EF4444" size={20} />
               <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
-                {isRTL ? "التنبيهات النشطة" : "Active Alerts"}
+                {isRTL ? "التنبيهات الصحية الفعالة" : "Active Alerts"}
               </Text>
             </View>
             <View style={styles.alertsList}>

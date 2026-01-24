@@ -186,7 +186,7 @@ export default function AdminSettingsScreen() {
 
   const formatDate = (date: Date | null) => {
     if (!date) return isRTL ? "غير محدد" : "Not specified";
-    return date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+    return date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",

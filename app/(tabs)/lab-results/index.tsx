@@ -230,7 +230,7 @@ export default function LabResultsScreen() {
   }, [loadLabResults]);
 
   const formatDate = (date: Date) =>
-    date.toLocaleDateString(isRTL ? "ar" : "en-US", {
+    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",

@@ -168,7 +168,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
     if (diffDays < 7) {
       return isRTL ? `منذ ${diffDays} أيام` : `${diffDays} days ago`;
     }
-    return date.toLocaleDateString(isRTL ? "ar-SA" : "en-US", {
+    return date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
       month: "short",
       day: "numeric",
       year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,

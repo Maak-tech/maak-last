@@ -235,10 +235,7 @@ function AIInsightsDashboard({
       // This way users see results faster even if narrative is slow
       // Use a separate timeout for narrative (30 seconds should be enough)
       const narrativeTimeoutPromise = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("AI narrative timeout")),
-          30_000
-        )
+        setTimeout(() => reject(new Error("AI narrative timeout")), 30_000)
       );
 
       Promise.race([
@@ -278,7 +275,10 @@ function AIInsightsDashboard({
               "insightsTimeout",
               "Loading insights is taking longer than expected. Some features may be unavailable."
             )
-          : t("failedToLoadInsights", "Failed to load insights. Please try again.");
+          : t(
+              "failedToLoadInsights",
+              "Failed to load insights. Please try again."
+            );
       setError(errorMessage);
       // Set null to prevent infinite loading state
       setInsights(null);
@@ -658,7 +658,8 @@ function RiskContent({
   insights: AIInsightsDashboardData;
   onInsightPress?: (insight: any) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === "ar";
   const risk = insights.riskAssessment;
 
   return (
@@ -683,7 +684,11 @@ function RiskContent({
 
         <Text style={[styles.text, styles.mt3]}>
           {t("nextAssessmentLabel", "Next Assessment")}:{" "}
-          {risk.nextAssessmentDate.toLocaleDateString()}
+          {new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }).format(risk.nextAssessmentDate)}
         </Text>
       </Card>
 
@@ -933,7 +938,7 @@ function CompactInsightsView({
         {getIcon("Brain", 24, "#3B82F6")}
         <View style={styles.ml3}>
           <Text style={styles.cardTitle}>
-            {isRTL ? "الرؤى الصحية" : "Health Insights"}
+            {isRTL ? "التحليلات الصحية " : "Health Insights"}
           </Text>
           <Text style={[styles.text, styles.textMuted]}>
             {prioritizedInsights}
@@ -942,7 +947,7 @@ function CompactInsightsView({
             <Badge style={{}}>{insights.riskAssessment.riskLevel}</Badge>
             <Text style={[styles.textSm, styles.textMuted, styles.ml2]}>
               {insights.insightsSummary.totalInsights}{" "}
-              {isRTL ? "رؤى" : "insights"}
+              {isRTL ? "التحليل الصحي " : "insights"}
             </Text>
           </View>
         </View>

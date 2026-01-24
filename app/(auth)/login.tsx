@@ -63,7 +63,7 @@ export default function LoginScreen() {
     if (loginMethod === "email") {
       if (!(email && password)) {
         setErrors({
-          general: isRTL ? "يرجى ملء جميع الحقول" : "Please fill in all fields",
+          general: t("pleaseFillAllFields", "Please fill in all fields"),
         });
         return;
       }
@@ -82,8 +82,11 @@ export default function LoginScreen() {
             );
           } catch (error) {
             Alert.alert(
-              "Notice",
-              "There was an issue storing your family code. Please use the family code in the Family tab after login."
+              t("notice", "Notice"),
+              t(
+                "familyCodeStorageIssue",
+                "There was an issue storing your family code. Please use the family code in the Family tab after login."
+              )
             );
           }
         }
@@ -93,8 +96,11 @@ export default function LoginScreen() {
         // Show success message for family code
         if (familyCode.trim()) {
           Alert.alert(
-            "Login Successful",
-            "You will be added to the family group shortly."
+            t("loginSuccessful", "Login Successful"),
+            t(
+              "willBeAddedToFamily",
+              "You will be added to the family group shortly."
+            )
           );
         }
 
@@ -104,27 +110,27 @@ export default function LoginScreen() {
         // Silently handle error
         const errorMessage =
           error.message ||
-          (isRTL
-            ? "فشل تسجيل الدخول. يرجى المحاولة مرة أخرى."
-            : "Login failed. Please try again.");
+          t("loginFailedMessage", "Login failed. Please try again.");
         setErrors({
           general: errorMessage,
         });
         Alert.alert(
-          isRTL ? "فشل تسجيل الدخول" : "Login Failed",
+          t("loginFailed", "Login Failed"),
           error.message ||
-            (isRTL
-              ? "يرجى التحقق من بيانات الاعتماد والمحاولة مرة أخرى."
-              : "Please check your credentials and try again.")
+            t(
+              "pleaseCheckCredentials",
+              "Please check your credentials and try again."
+            )
         );
       }
     } else {
       // Phone login
       if (!phoneNumber.trim()) {
         setErrors({
-          general: isRTL
-            ? "يرجى إدخال رقم الهاتف"
-            : "Please enter your phone number",
+          general: t(
+            "pleaseEnterPhoneNumber",
+            "Please enter your phone number"
+          ),
         });
         return;
       }
@@ -368,7 +374,7 @@ export default function LoginScreen() {
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {isRTL ? "البريد الإلكتروني" : "Email"}
+                  {t("email")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -394,7 +400,7 @@ export default function LoginScreen() {
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {isRTL ? "رقم الهاتف" : "Phone"}
+                  {t("phone", "Phone")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -410,9 +416,7 @@ export default function LoginScreen() {
                     autoComplete="username"
                     keyboardType="email-address"
                     onChangeText={setEmail}
-                    placeholder={
-                      isRTL ? "ادخل بريدك الإلكتروني" : "Enter your email"
-                    }
+                    placeholder={t("enterYourEmail", "Enter your email")}
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     textContentType="username"
@@ -428,9 +432,7 @@ export default function LoginScreen() {
                     autoComplete="off"
                     onChangeText={setPassword}
                     passwordRules=""
-                    placeholder={
-                      isRTL ? "ادخل كلمة المرور" : "Enter your password"
-                    }
+                    placeholder={t("enterYourPassword", "Enter your password")}
                     secureTextEntry
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
@@ -443,47 +445,44 @@ export default function LoginScreen() {
               <>
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {isRTL ? "رقم الهاتف" : "Phone Number"}
+                    {t("phoneNumber", "Phone Number")}
                   </Text>
                   <TextInput
                     autoCapitalize="none"
                     keyboardType="phone-pad"
                     onChangeText={setPhoneNumber}
-                    placeholder={
-                      isRTL
-                        ? "مثال: +1234567890 أو +966501234567"
-                        : "Example: +1234567890 or +966501234567"
-                    }
+                    placeholder={t(
+                      "enterPhoneNumberExample",
+                      "Example: +1234567890 or +966501234567"
+                    )}
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     value={phoneNumber}
                   />
                   <Text style={[styles.helperText, isRTL && styles.rtlText]}>
-                    {isRTL
-                      ? "أدخل رقم هاتفك مع رمز الدولة (مثال: +1234567890 للولايات المتحدة، +966501234567 للسعودية). سنرسل لك رمز تحقق عبر الرسائل النصية"
-                      : "Include country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia). We'll send you a verification code via SMS"}
+                    {t(
+                      "phoneNumberHelper",
+                      "Include country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia). We'll send you a verification code via SMS"
+                    )}
                   </Text>
                 </View>
 
                 {showOtpInput && (
                   <View style={styles.inputContainer}>
                     <Text style={[styles.helperText, isRTL && styles.rtlText]}>
-                      {isRTL
-                        ? "تم إرسال الرمز. أدخله بالأسفل أو أعد الإرسال."
-                        : "Code sent. Enter it below or resend."}
+                      {t("codeSent", "Code sent. Enter it below or resend.")}
                     </Text>
                     <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                      {isRTL ? "رمز التحقق" : "Verification Code"}
+                      {t("verificationCode", "Verification Code")}
                     </Text>
                     <TextInput
                       keyboardType="number-pad"
                       maxLength={6}
                       onChangeText={setOtpCode}
-                      placeholder={
-                        isRTL
-                          ? "ادخل رمز التحقق المكون من 6 أرقام"
-                          : "Enter 6-digit verification code"
-                      }
+                      placeholder={t(
+                        "enter6DigitCode",
+                        "Enter 6-digit verification code"
+                      )}
                       style={[styles.input, isRTL && styles.rtlInput]}
                       textAlign={isRTL ? "right" : "left"}
                       value={otpCode}
@@ -494,12 +493,8 @@ export default function LoginScreen() {
                     >
                       <Text style={styles.verifyButtonText}>
                         {loading
-                          ? isRTL
-                            ? "جارٍ التحقق..."
-                            : "Verifying..."
-                          : isRTL
-                            ? "تحقق"
-                            : "Verify"}
+                          ? t("verifying", "Verifying...")
+                          : t("verify", "Verify")}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -511,7 +506,7 @@ export default function LoginScreen() {
                       ]}
                     >
                       <Text style={styles.resendButtonText}>
-                        {isRTL ? "إعادة إرسال الرمز" : "Resend code"}
+                        {t("resendCode", "Resend code")}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -533,35 +528,35 @@ export default function LoginScreen() {
                     isRTL ? { marginEnd: 8 } : { marginStart: 8 },
                   ]}
                 >
-                  {isRTL ? "الانضمام إلى عائلة موجودة" : "Join existing family"}
+                  {t("joinExistingFamily", "Join existing family")}
                 </Text>
                 <Text style={[styles.optionalText, isRTL && styles.rtlText]}>
-                  {isRTL ? "(اختياري)" : "(Optional)"}
+                  {t("optional", "(Optional)")}
                 </Text>
               </TouchableOpacity>
 
               {showFamilyCode && (
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {isRTL ? "رمز العائلة" : "Family Code"}
+                    {t("familyCode", "Family Code")}
                   </Text>
                   <TextInput
                     keyboardType="numeric"
                     maxLength={6}
                     onChangeText={setFamilyCode}
-                    placeholder={
-                      isRTL
-                        ? "أدخل رمز الدعوة (6 أرقام)"
-                        : "Enter invitation code (6 digits)"
-                    }
+                    placeholder={t(
+                      "enterInvitationCode",
+                      "Enter invitation code (6 digits)"
+                    )}
                     style={[styles.input, isRTL && styles.rtlInput]}
                     textAlign={isRTL ? "right" : "left"}
                     value={familyCode}
                   />
                   <Text style={[styles.helperText, isRTL && styles.rtlText]}>
-                    {isRTL
-                      ? "أدخل رمز الدعوة المرسل إليك من أحد أفراد العائلة"
-                      : "Enter the invitation code sent to you by a family member"}
+                    {t(
+                      "invitationCodeHelper",
+                      "Enter the invitation code sent to you by a family member"
+                    )}
                   </Text>
                 </View>
               )}
@@ -590,9 +585,7 @@ export default function LoginScreen() {
                   {loading
                     ? t("loading")
                     : loginMethod === "phone"
-                      ? isRTL
-                        ? "إرسال رمز التحقق"
-                        : "Send Verification Code"
+                      ? t("sendVerificationCode", "Send Verification Code")
                       : t("signIn")}
                 </Text>
               </TouchableOpacity>
@@ -612,7 +605,7 @@ export default function LoginScreen() {
                 ]}
               >
                 <Text style={styles.enterCodeButtonText}>
-                  {isRTL ? "أدخل رمز التحقق" : "Enter code"}
+                  {t("enterCode", "Enter code")}
                 </Text>
               </TouchableOpacity>
             )}

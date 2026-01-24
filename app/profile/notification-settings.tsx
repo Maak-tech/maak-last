@@ -130,17 +130,18 @@ export default function NotificationSettingsScreen() {
       });
 
       Alert.alert(
-        isRTL ? "تم الحفظ" : "Saved",
-        isRTL
-          ? "تم حفظ إعدادات الإشعارات بنجاح"
-          : "Notification settings saved successfully",
-        [{ text: isRTL ? "موافق" : "OK" }]
+        t("saved", "Saved"),
+        t(
+          "notificationSettingsSaved",
+          "Notification settings saved successfully"
+        ),
+        [{ text: t("ok", "OK") }]
       );
     } catch (error) {
       // Silently handle error
       Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في حفظ الإعدادات" : "Failed to save settings"
+        t("error", "Error"),
+        t("failedToSaveSettings", "Failed to save settings")
       );
     } finally {
       setSaving(false);
@@ -248,7 +249,7 @@ export default function NotificationSettingsScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator color="#2563EB" size="large" />
           <Text style={[styles.loadingText, isRTL && { textAlign: "left" }]}>
-            {isRTL ? "جاري التحميل..." : "Loading..."}
+            {t("loading", "Loading...")}
           </Text>
         </View>
       </SafeAreaView>
@@ -265,7 +266,7 @@ export default function NotificationSettingsScreen() {
           <ArrowLeft color="#333" size={24} />
         </TouchableOpacity>
         <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
-          {isRTL ? "إعدادات الإشعارات" : "Notification Settings"}
+          {t("notificationSettings", "Notification Settings")}
         </Text>
         <TouchableOpacity
           disabled={saving}
@@ -278,7 +279,7 @@ export default function NotificationSettingsScreen() {
             <Text
               style={[styles.saveButtonText, isRTL && { textAlign: "left" }]}
             >
-              {isRTL ? "حفظ" : "Save"}
+              {t("save", "Save")}
             </Text>
           )}
         </TouchableOpacity>
@@ -301,7 +302,7 @@ export default function NotificationSettingsScreen() {
                     isRTL && { textAlign: "left" },
                   ]}
                 >
-                  {isRTL ? "الإشعارات" : "Notifications"}
+                  {t("notifications", "Notifications")}
                 </Text>
                 <Text
                   style={[
@@ -310,12 +311,11 @@ export default function NotificationSettingsScreen() {
                   ]}
                 >
                   {settings.enabled
-                    ? isRTL
-                      ? "الإشعارات مفعلة"
-                      : "Notifications are enabled"
-                    : isRTL
-                      ? "الإشعارات معطلة"
-                      : "Notifications are disabled"}
+                    ? t("notificationsAreEnabled", "Notifications are enabled")
+                    : t(
+                        "notificationsAreDisabled",
+                        "Notifications are disabled"
+                      )}
                 </Text>
               </View>
             </View>
@@ -331,55 +331,54 @@ export default function NotificationSettingsScreen() {
         {/* Notification Types */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
-            {isRTL ? "أنواع الإشعارات" : "Notification Types"}
+            {t("notificationTypes", "Notification Types")}
           </Text>
 
           {renderToggleItem(
             <AlertTriangle color="#EF4444" size={20} />,
-            isRTL ? "تنبيهات السقوط" : "Fall Alerts",
-            isRTL
-              ? "إشعارات فورية عند اكتشاف سقوط"
-              : "Immediate notifications when a fall is detected",
+            t("fallAlerts", "Fall Alerts"),
+            t(
+              "immediateNotificationsWhenFallDetected",
+              "Immediate notifications when a fall is detected"
+            ),
             "fallAlerts",
             "#EF4444"
           )}
 
           {renderToggleItem(
             <Bell color="#2563EB" size={20} />,
-            isRTL ? "تحديثات العافية اليومية" : "Wellness Check-ins",
-            isRTL
-              ? "تذكيرات يومية بسيطة لمتابعة الصحة"
-              : "Light daily check-ins to track wellbeing",
+            t("wellnessCheckins", "Wellness Check-ins"),
+            t("lightDailyCheckins", "Light daily check-ins to track wellbeing"),
             "wellnessCheckins",
             "#2563EB"
           )}
 
           {renderToggleItem(
             <Pill color="#10B981" size={20} />,
-            isRTL ? "تذكيرات الأدوية" : "Medication Reminders",
-            isRTL
-              ? "تذكيرات في أوقات تناول الأدوية"
-              : "Reminders at medication times",
+            t("medicationReminders", "Medication Reminders"),
+            t("remindersAtMedicationTimes", "Reminders at medication times"),
             "medicationReminders",
             "#10B981"
           )}
 
           {renderToggleItem(
             <Heart color="#F59E0B" size={20} />,
-            isRTL ? "تنبيهات الأعراض" : "Symptom Alerts",
-            isRTL
-              ? "إشعارات عند تسجيل أعراض شديدة"
-              : "Notifications for severe symptoms",
+            t("symptomAlerts", "Symptom Alerts"),
+            t(
+              "notificationsForSevereSymptoms",
+              "Notifications for severe symptoms"
+            ),
             "symptomAlerts",
             "#F59E0B"
           )}
 
           {renderToggleItem(
             <Users color="#8B5CF6" size={20} />,
-            isRTL ? "تحديثات العائلة" : "Family Updates",
-            isRTL
-              ? "إشعارات حول نشاطات أفراد العائلة"
-              : "Notifications about family member activities",
+            t("familyUpdates", "Family Updates"),
+            t(
+              "notificationsAboutFamilyActivities",
+              "Notifications about family member activities"
+            ),
             "familyUpdates",
             "#8B5CF6"
           )}
@@ -388,22 +387,23 @@ export default function NotificationSettingsScreen() {
         {/* Alert Preferences */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
-            {isRTL ? "تفضيلات التنبيه" : "Alert Preferences"}
+            {t("alertPreferences", "Alert Preferences")}
           </Text>
 
           {renderToggleItem(
             <Volume2 color="#2563EB" size={20} />,
-            isRTL ? "الصوت" : "Sound",
-            isRTL ? "تشغيل صوت مع الإشعارات" : "Play sound with notifications",
+            t("sound", "Sound"),
+            t("playSoundWithNotifications", "Play sound with notifications"),
             "sound"
           )}
 
           {renderToggleItem(
             <Smartphone color="#2563EB" size={20} />,
-            isRTL ? "الاهتزاز" : "Vibration",
-            isRTL
-              ? "اهتزاز الجهاز مع الإشعارات"
-              : "Vibrate device with notifications",
+            t("vibration", "Vibration"),
+            t(
+              "vibrateDeviceWithNotifications",
+              "Vibrate device with notifications"
+            ),
             "vibration"
           )}
         </View>
@@ -411,15 +411,16 @@ export default function NotificationSettingsScreen() {
         {/* Quiet Hours */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
-            {isRTL ? "ساعات الهدوء" : "Quiet Hours"}
+            {t("quietHours", "Quiet Hours")}
           </Text>
 
           {renderToggleItem(
             <Clock color="#6B7280" size={20} />,
-            isRTL ? "تفعيل ساعات الهدوء" : "Enable Quiet Hours",
-            isRTL
-              ? "إيقاف الإشعارات غير الطارئة خلال أوقات محددة"
-              : "Pause non-urgent notifications during specific hours",
+            t("enableQuietHours", "Enable Quiet Hours"),
+            t(
+              "pauseNonUrgentNotifications",
+              "Pause non-urgent notifications during specific hours"
+            ),
             "quietHoursEnabled",
             "#6B7280"
           )}
@@ -430,7 +431,7 @@ export default function NotificationSettingsScreen() {
                 <Text
                   style={[styles.timeLabel, isRTL && { textAlign: "left" }]}
                 >
-                  {isRTL ? "من" : "From"}
+                  {t("from", "From")}
                 </Text>
                 <TouchableOpacity style={styles.timeButton}>
                   <Text style={styles.timeText}>
@@ -442,7 +443,7 @@ export default function NotificationSettingsScreen() {
                 <Text
                   style={[styles.timeLabel, isRTL && { textAlign: "left" }]}
                 >
-                  {isRTL ? "إلى" : "To"}
+                  {t("to", "To")}
                 </Text>
                 <TouchableOpacity style={styles.timeButton}>
                   <Text style={styles.timeText}>{settings.quietHoursEnd}</Text>
@@ -455,23 +456,24 @@ export default function NotificationSettingsScreen() {
         {/* Clear Notifications */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
-            {isRTL ? "إدارة الإشعارات" : "Notification Management"}
+            {t("notificationManagement", "Notification Management")}
           </Text>
 
           <TouchableOpacity
             onPress={async () => {
               Alert.alert(
-                isRTL ? "مسح الإشعارات" : "Clear Notifications",
-                isRTL
-                  ? "هل تريد إلغاء جميع تذكيرات الأدوية المجدولة؟"
-                  : "Do you want to cancel all scheduled medication reminders?",
+                t("clearNotifications", "Clear Notifications"),
+                t(
+                  "doYouWantToCancelAllReminders",
+                  "Do you want to cancel all scheduled medication reminders?"
+                ),
                 [
                   {
-                    text: isRTL ? "إلغاء" : "Cancel",
+                    text: t("cancel", "Cancel"),
                     style: "cancel",
                   },
                   {
-                    text: isRTL ? "مسح" : "Clear",
+                    text: t("clear", "Clear"),
                     style: "destructive",
                     onPress: async () => {
                       try {
@@ -480,18 +482,27 @@ export default function NotificationSettingsScreen() {
                         // Then cancel all medication notifications
                         const result = await cancelAllMedicationNotifications();
                         Alert.alert(
-                          isRTL ? "تم" : "Done",
-                          isRTL
-                            ? `تم إلغاء ${result.cancelled} إشعار`
-                            : `Cancelled ${result.cancelled} notification${result.cancelled !== 1 ? "s" : ""}`,
-                          [{ text: isRTL ? "موافق" : "OK" }]
+                          t("done", "Done"),
+                          result.cancelled === 1
+                            ? t(
+                                "cancelledNotifications",
+                                "Cancelled {{count}} notification",
+                                { count: result.cancelled }
+                              )
+                            : t(
+                                "cancelledNotificationsPlural",
+                                "Cancelled {{count}} notifications",
+                                { count: result.cancelled }
+                              ),
+                          [{ text: t("ok", "OK") }]
                         );
                       } catch (error) {
                         Alert.alert(
-                          isRTL ? "خطأ" : "Error",
-                          isRTL
-                            ? "فشل في مسح الإشعارات"
-                            : "Failed to clear notifications"
+                          t("error", "Error"),
+                          t(
+                            "failedToClearNotifications",
+                            "Failed to clear notifications"
+                          )
                         );
                       }
                     },
@@ -528,17 +539,19 @@ export default function NotificationSettingsScreen() {
                     },
                   });
                   Alert.alert(
-                    isRTL ? "تم الإرسال" : "Sent",
-                    isRTL
-                      ? "تم إرسال إشعار اختبار للأدمن."
-                      : "Test family update sent to admin(s)."
+                    t("sent", "Sent"),
+                    t(
+                      "testFamilyUpdateSent",
+                      "Test family update sent to admin(s)."
+                    )
                   );
                 } catch {
                   Alert.alert(
-                    isRTL ? "خطأ" : "Error",
-                    isRTL
-                      ? "فشل إرسال إشعار الاختبار"
-                      : "Failed to send test notification"
+                    t("error", "Error"),
+                    t(
+                      "failedToSendTestNotification",
+                      "Failed to send test notification"
+                    )
                   );
                 }
               }}

@@ -1,14 +1,14 @@
 import { RefreshCw, Wifi, WifiOff } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Animated, TouchableOpacity, View } from "react-native";
 import { Caption, Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
-import i18n from "@/lib/i18n";
 import { offlineService } from "@/lib/services/offlineService";
 
 export default function OfflineIndicator() {
   // Call all hooks unconditionally at the top - MUST be in same order every render
-  // IMPORTANT: Import i18n directly instead of using useTranslation hook to avoid hook order issues
+  const { t, i18n } = useTranslation();
   const { theme } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [queueLength, setQueueLength] = useState(0);
@@ -18,38 +18,7 @@ export default function OfflineIndicator() {
   // Use ref to track if component is mounted to prevent state updates after unmount
   const isMountedRef = useRef(true);
 
-  // Track language for RTL support - use state to trigger re-renders on language change
-  const [currentLanguage, setCurrentLanguage] = useState(() => {
-    try {
-      return i18n?.language || "en";
-    } catch {
-      return "en";
-    }
-  });
-
-  // Memoize isRTL to avoid recalculating on every render and ensure stable reference
-  const isRTL = useMemo(() => currentLanguage === "ar", [currentLanguage]);
-
-  // Listen for language changes
-  useEffect(() => {
-    const updateLanguage = () => {
-      try {
-        setCurrentLanguage(i18n?.language || "en");
-      } catch {
-        setCurrentLanguage("en");
-      }
-    };
-
-    // Set initial language
-    updateLanguage();
-
-    // Listen for language changes
-    i18n.on("languageChanged", updateLanguage);
-
-    return () => {
-      i18n.off("languageChanged", updateLanguage);
-    };
-  }, []);
+  const isRTL = i18n.language === "ar";
 
   const checkStatus = useCallback(async () => {
     if (!isMountedRef.current) return;
@@ -174,12 +143,8 @@ export default function OfflineIndicator() {
           }}
         >
           {isOnline
-            ? isRTL
-              ? `${queueLength} عملية في الانتظار`
-              : `${queueLength} pending sync`
-            : isRTL
-              ? "وضع عدم الاتصال"
-              : "Offline Mode"}
+            ? `${queueLength} ${t("pendingSync", "pending sync")}`
+            : t("offlineMode", "Offline Mode")}
         </Text>
       </View>
       {isOnline && queueLength > 0 && (
@@ -206,7 +171,7 @@ export default function OfflineIndicator() {
               fontSize: 11,
             }}
           >
-            {isRTL ? "مزامنة" : "Sync"}
+            {t("sync", "Sync")}
           </Caption>
         </TouchableOpacity>
       )}
