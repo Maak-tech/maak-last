@@ -736,6 +736,10 @@ class HealthInsightsService {
       activeEnergy: { en: "Active Energy", ar: "الطاقة النشطة" },
       glucoseLevel: { en: "Blood Glucose", ar: "سكر الدم" },
       bloodSugar: { en: "Blood Sugar", ar: "سكر الدم" },
+      distanceWalkingRunning: {
+        en: "Distance Walking/Running",
+        ar: "المسافة (مشي/جري)",
+      },
     };
 
     const entry = map[type];

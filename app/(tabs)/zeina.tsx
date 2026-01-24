@@ -107,6 +107,8 @@ export default function ZeinaScreen() {
   const isActiveRef = useRef(false);
   const didAutoWelcomeRef = useRef(false);
   const isAutoWelcomingRef = useRef(false);
+  const isCheckingPremiumRef = useRef(false);
+  const isStartingZeinaRef = useRef(false);
 
   // Conversation state
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -199,14 +201,20 @@ export default function ZeinaScreen() {
       return false;
     }
     if (!hasActiveSubscription) {
+      // Prevent showing paywall multiple times
+      if (isCheckingPremiumRef.current || showPaywall) {
+        return false;
+      }
+      isCheckingPremiumRef.current = true;
       setLastError(t("premiumRequired", "Premium plan required to use Zeina"));
       setShowPaywall(true);
       setIsActive(false);
       setConnectionState("disconnected");
       return false;
     }
+    isCheckingPremiumRef.current = false;
     return true;
-  }, [hasActiveSubscription, isSubscriptionLoading, t]);
+  }, [hasActiveSubscription, isSubscriptionLoading, t, showPaywall]);
 
   const isFatalConnectionError = useCallback((message: string) => {
     const normalized = message.toLowerCase();
@@ -823,115 +831,130 @@ export default function ZeinaScreen() {
   ]);
 
   const startZeina = useCallback(async () => {
-    if (isWeb) {
-      const msg = t(
-        "zeinaWebNotSupported",
-        "Zeina voice is not available on web. Use AI Assistant or the mobile app."
-      );
-      handleConnectionFailure(msg);
-      setAutoReconnectEnabled(false);
-      setIsActive(false);
-      Alert.alert(
-        t("voiceNotAvailable", "Voice Not Available"),
-        t(
-          "zeinaWebNotSupportedBody",
-          "Zeina uses a realtime voice connection that isn't supported on web. Open the AI Assistant instead, or use the iOS/Android app."
-        ),
-        [
-          {
-            text: t("openAiAssistant", "Open AI Assistant"),
-            onPress: () => router.push("/ai-assistant"),
-          },
-          { text: t("ok", "OK"), style: "cancel" },
-        ]
-      );
+    // Prevent multiple simultaneous calls
+    if (isStartingZeinaRef.current) {
       return;
     }
+    isStartingZeinaRef.current = true;
 
-    if (!ensurePremiumAccess()) {
-      return;
-    }
-
-    setAutoReconnectEnabled(true);
-
-    if (!canUseVoice) {
-      setLastError(
-        audioLoadError ||
-          t("audioNotAvailable", "Audio is not available on this device.")
-      );
-    }
-    if (isActiveRef.current && realtimeAgentService.isConnected()) return;
-
-    setIsActive(true);
-    setLastError(null);
-    setConnectionState("connecting");
     try {
-      setupEventHandlers();
-
-      if (canUseVoice) {
-        // Proactively request mic permission so auto-mode can actually start listening.
-        const permission = await Audio.requestPermissionsAsync();
-        if (permission.status !== "granted") {
-          setIsActive(false);
-          Alert.alert(
-            t("permissionDenied", "Permission Denied"),
-            t(
-              "microphonePermissionRequired",
-              "Microphone permission is required"
-            )
-          );
-          return;
-        }
+      if (isWeb) {
+        const msg = t(
+          "zeinaWebNotSupported",
+          "Zeina voice is not available on web. Use AI Assistant or the mobile app."
+        );
+        handleConnectionFailure(msg);
+        setAutoReconnectEnabled(false);
+        setIsActive(false);
+        Alert.alert(
+          t("voiceNotAvailable", "Voice Not Available"),
+          t(
+            "zeinaWebNotSupportedBody",
+            "Zeina uses a realtime voice connection that isn't supported on web. Open the AI Assistant instead, or use the iOS/Android app."
+          ),
+          [
+            {
+              text: t("openAiAssistant", "Open AI Assistant"),
+              onPress: () => router.push("/ai-assistant"),
+            },
+            { text: t("ok", "OK"), style: "cancel" },
+          ]
+        );
+        isStartingZeinaRef.current = false;
+        return;
       }
 
-      const currentLanguage = i18n.language || "en";
-      const languageInstruction = currentLanguage.startsWith("ar")
-        ? "IMPORTANT: Always respond in Arabic (العربية). If you must use medical terms, you may include the English term in parentheses."
-        : "IMPORTANT: Always respond in English.";
-      const baseInstructions = `${realtimeAgentService.getDefaultInstructions()}\n\n${languageInstruction}\n\n# User Health Context\n(loading...)`;
+      if (!ensurePremiumAccess()) {
+        isStartingZeinaRef.current = false;
+        return;
+      }
 
-      // Connect ASAP (don't block on Firestore/user context).
-      await realtimeAgentService.connect(baseInstructions);
-      // Reliability mode (iOS): request TEXT responses and speak them via device TTS.
-      // This avoids flaky streamed audio playback cutting off or not arriving.
-      realtimeAgentService.sendMessage({
-        type: "session.update",
-        session: {
-          modalities: ["text"],
-          // Make VAD much more sensitive so we actually detect speech on iOS.
-          // Without this, we can be "streaming=1" forever while never emitting speech_started/stopped.
-          turn_detection: {
-            type: "server_vad",
-            threshold: 0.15,
-            prefix_padding_ms: 800,
-            silence_duration_ms: 350,
-          },
-        },
-      });
+      setAutoReconnectEnabled(true);
 
-      // Load health context in the background and update session instructions when available.
-      healthContextService
-        .getContextualPrompt(undefined, currentLanguage)
-        .then((healthContext) => {
-          const instructions = `${realtimeAgentService.getDefaultInstructions()}\n\n${languageInstruction}\n\n# User Health Context\n${healthContext}`;
-          realtimeAgentService.sendMessage({
-            type: "session.update",
-            session: {
-              instructions,
+      if (!canUseVoice) {
+        setLastError(
+          audioLoadError ||
+            t("audioNotAvailable", "Audio is not available on this device.")
+        );
+      }
+      if (isActiveRef.current && realtimeAgentService.isConnected()) {
+        isStartingZeinaRef.current = false;
+        return;
+      }
+
+      setIsActive(true);
+      setLastError(null);
+      setConnectionState("connecting");
+      try {
+        setupEventHandlers();
+
+        if (canUseVoice) {
+          // Proactively request mic permission so auto-mode can actually start listening.
+          const permission = await Audio.requestPermissionsAsync();
+          if (permission.status !== "granted") {
+            setIsActive(false);
+            Alert.alert(
+              t("permissionDenied", "Permission Denied"),
+              t(
+                "microphonePermissionRequired",
+                "Microphone permission is required"
+              )
+            );
+            return;
+          }
+        }
+
+        const currentLanguage = i18n.language || "en";
+        const languageInstruction = currentLanguage.startsWith("ar")
+          ? "IMPORTANT: Always respond in Arabic (العربية). If you must use medical terms, you may include the English term in parentheses."
+          : "IMPORTANT: Always respond in English.";
+        const baseInstructions = `${realtimeAgentService.getDefaultInstructions()}\n\n${languageInstruction}\n\n# User Health Context\n(loading...)`;
+
+        // Connect ASAP (don't block on Firestore/user context).
+        await realtimeAgentService.connect(baseInstructions);
+        // Reliability mode (iOS): request TEXT responses and speak them via device TTS.
+        // This avoids flaky streamed audio playback cutting off or not arriving.
+        realtimeAgentService.sendMessage({
+          type: "session.update",
+          session: {
+            modalities: ["text"],
+            // Make VAD much more sensitive so we actually detect speech on iOS.
+            // Without this, we can be "streaming=1" forever while never emitting speech_started/stopped.
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.15,
+              prefix_padding_ms: 800,
+              silence_duration_ms: 350,
             },
-          });
-        })
-        .catch(() => {
-          // ignore context load failures; connection should still work
+          },
         });
-    } catch (error) {
-      setIsActive(false);
-      const msg =
-        error instanceof Error
-          ? error.message
-          : t("unableToConnect", "Unable to connect");
-      handleConnectionFailure(msg);
-      Alert.alert(t("connectionFailed", "Connection Failed"), msg);
+
+        // Load health context in the background and update session instructions when available.
+        healthContextService
+          .getContextualPrompt(undefined, currentLanguage)
+          .then((healthContext) => {
+            const instructions = `${realtimeAgentService.getDefaultInstructions()}\n\n${languageInstruction}\n\n# User Health Context\n${healthContext}`;
+            realtimeAgentService.sendMessage({
+              type: "session.update",
+              session: {
+                instructions,
+              },
+            });
+          })
+          .catch(() => {
+            // ignore context load failures; connection should still work
+          });
+      } catch (error) {
+        setIsActive(false);
+        const msg =
+          error instanceof Error
+            ? error.message
+            : t("unableToConnect", "Unable to connect");
+        handleConnectionFailure(msg);
+        Alert.alert(t("connectionFailed", "Connection Failed"), msg);
+      }
+    } finally {
+      isStartingZeinaRef.current = false;
     }
   }, [
     audioLoadError,
@@ -960,12 +983,14 @@ export default function ZeinaScreen() {
   }, [autoReconnectEnabled, connectionState, isActive, startZeina]);
 
   // Auto-start once when the Zeina screen mounts (tab open). This avoids relying on focus timing.
-  useEffect(() => {
-    startZeina().catch(() => {});
-    // Intentionally no cleanup here; Zeina is meant to stay automatic while the app is open.
-    // Cleanup is handled in the unmount effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Note: We skip this since useFocusEffect will handle it when the screen is focused
+  // This prevents duplicate calls that could trigger the paywall twice
+  // useEffect(() => {
+  //   startZeina().catch(() => {});
+  //   // Intentionally no cleanup here; Zeina is meant to stay automatic while the app is open.
+  //   // Cleanup is handled in the unmount effect below.
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
 
   const stopZeina = useCallback(() => {
     setIsActive(false);
@@ -1794,9 +1819,13 @@ export default function ZeinaScreen() {
                 </TouchableOpacity>
               </View>
               <RevenueCatPaywall
-                onDismiss={() => setShowPaywall(false)}
+                onDismiss={() => {
+                  setShowPaywall(false);
+                  isCheckingPremiumRef.current = false;
+                }}
                 onPurchaseComplete={async () => {
                   setShowPaywall(false);
+                  isCheckingPremiumRef.current = false;
                   await refreshCustomerInfo();
                   startZeina().catch(() => {});
                 }}

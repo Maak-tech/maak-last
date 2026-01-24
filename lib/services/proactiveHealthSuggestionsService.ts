@@ -924,14 +924,19 @@ class ProactiveHealthSuggestionsService {
 
       if (Math.abs(percentChange) > 10) {
         const trend = percentChange > 0 ? "increasing" : "decreasing";
-        const advice = this.getVitalAdvice(type, trend, recentAvg);
+        const trendText = isArabic
+          ? trend === "increasing"
+            ? "في ازدياد"
+            : "في انخفاض"
+          : trend;
+        const advice = this.getVitalAdvice(type, trend, recentAvg, isArabic);
 
         const localizedText = getLocalizedSuggestionText(
           "vitalTrend",
           isArabic,
           {
-            vitalType: this.getVitalDisplayName(type),
-            trend,
+            vitalType: this.getVitalDisplayName(type, isArabic),
+            trend: trendText,
             advice,
           }
         );
@@ -1077,7 +1082,21 @@ class ProactiveHealthSuggestionsService {
     return suggestions;
   }
 
-  private getVitalDisplayName(type: string): string {
+  private getVitalDisplayName(type: string, isArabic = false): string {
+    if (isArabic) {
+      const namesAr: Record<string, string> = {
+        heartRate: "معدل ضربات القلب",
+        bloodPressure: "ضغط الدم",
+        bloodGlucose: "سكر الدم",
+        oxygenSaturation: "مستوى الأكسجين",
+        weight: "الوزن",
+        temperature: "درجة الحرارة",
+        distanceWalkingRunning: "المسافة (مشي/جري)",
+        steps: "الخطوات",
+        activeEnergy: "الطاقة النشطة",
+      };
+      return namesAr[type] || type;
+    }
     const names: Record<string, string> = {
       heartRate: "heart rate",
       bloodPressure: "blood pressure",
@@ -1085,11 +1104,40 @@ class ProactiveHealthSuggestionsService {
       oxygenSaturation: "oxygen level",
       weight: "weight",
       temperature: "temperature",
+      distanceWalkingRunning: "distance walking/running",
+      steps: "steps",
+      activeEnergy: "active energy",
     };
     return names[type] || type;
   }
 
-  private getVitalAdvice(type: string, trend: string, value: number): string {
+  private getVitalAdvice(
+    type: string,
+    trend: string,
+    value: number,
+    isArabic = false
+  ): string {
+    if (isArabic) {
+      if (type === "bloodGlucose") {
+        if (trend === "increasing" && value > 140) {
+          return "فكر في مراجعة نظامك الغذائي والاستشارة مع مقدم الرعاية الصحية.";
+        }
+        if (trend === "decreasing" && value < 80) {
+          return "راقب أعراض انخفاض سكر الدم واحتفظ بوجبات خفيفة متاحة.";
+        }
+      }
+      if (type === "heartRate" && trend === "increasing" && value > 90) {
+        return "معدل ضربات القلب المرتفع أثناء الراحة قد يشير إلى التوتر أو الجفاف.";
+      }
+      if (type === "bloodPressure") {
+        return "يجب مناقشة تغيرات ضغط الدم مع مقدم الرعاية الصحية.";
+      }
+      if (type === "distanceWalkingRunning" || type === "steps") {
+        return "فكر في مناقشة هذا الاتجاه مع مقدم الرعاية الصحية.";
+      }
+      return "فكر في مناقشة هذا الاتجاه مع مقدم الرعاية الصحية.";
+    }
+
     if (type === "bloodGlucose") {
       if (trend === "increasing" && value > 140) {
         return "Consider reviewing your diet and consulting with your healthcare provider.";
@@ -1103,6 +1151,9 @@ class ProactiveHealthSuggestionsService {
     }
     if (type === "bloodPressure") {
       return "Blood pressure changes should be discussed with your healthcare provider.";
+    }
+    if (type === "distanceWalkingRunning" || type === "steps") {
+      return "Consider discussing this trend with your healthcare provider.";
     }
     return "Consider discussing this trend with your healthcare provider.";
   }

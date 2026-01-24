@@ -208,16 +208,20 @@ function AIInsightsDashboard({
       setLoading(true);
       setError(null);
 
-      // Add timeout to prevent infinite loading
+      // Load dashboard without AI narrative first (faster, avoids OpenAI API delay)
+      // AI narrative will be loaded separately if needed
+      const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
+        user.id,
+        false // Don't wait for AI narrative - load it separately
+      );
+
+      // Increased timeout to 60 seconds to account for multiple service calls
+      // This should be enough for all the parallel database queries
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("AI insights loading timeout")),
-          20_000
+          60_000
         )
-      );
-
-      const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
-        user.id
       );
 
       const dashboard = (await Promise.race([
@@ -226,11 +230,56 @@ function AIInsightsDashboard({
       ])) as AIInsightsDashboardData;
 
       setInsights(dashboard);
+
+      // Load AI narrative asynchronously after dashboard is shown
+      // This way users see results faster even if narrative is slow
+      // Use a separate timeout for narrative (30 seconds should be enough)
+      const narrativeTimeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("AI narrative timeout")),
+          30_000
+        )
+      );
+
+      Promise.race([
+        aiInsightsService.generateAIInsightsDashboard(user.id, true),
+        narrativeTimeoutPromise,
+      ])
+        .then((dashboardWithNarrative) => {
+          if (
+            dashboardWithNarrative &&
+            typeof dashboardWithNarrative === "object" &&
+            "aiNarrative" in dashboardWithNarrative &&
+            dashboardWithNarrative.aiNarrative
+          ) {
+            setInsights((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    aiNarrative: (
+                      dashboardWithNarrative as AIInsightsDashboardData
+                    ).aiNarrative,
+                  }
+                : prev
+            );
+          }
+        })
+        .catch((err) => {
+          // Silently fail - narrative is optional and can be slow
+          if (__DEV__) {
+            console.warn("Failed to load AI narrative (optional):", err);
+          }
+        });
     } catch (err) {
       console.error("Failed to load AI insights:", err);
-      setError(
-        t("failedToLoadInsights", "Failed to load insights. Please try again.")
-      );
+      const errorMessage =
+        err instanceof Error && err.message.includes("timeout")
+          ? t(
+              "insightsTimeout",
+              "Loading insights is taking longer than expected. Some features may be unavailable."
+            )
+          : t("failedToLoadInsights", "Failed to load insights. Please try again.");
+      setError(errorMessage);
       // Set null to prevent infinite loading state
       setInsights(null);
     } finally {

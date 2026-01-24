@@ -17,6 +17,7 @@ todos:
   - id: quick-actions
     content: Enhance dashboard with quick medication marking and FAB
     status: pending
+isProject: false
 ---
 
 # Maak Health - Feature Enhancement Plan
@@ -30,7 +31,8 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 **Why:** You track daily compliance but lack historical trends. Users need to see progress over time to stay motivated.
 
 **Implementation:**
-- Add weekly and monthly adherence charts to [`app/(tabs)/medications.tsx`](app/(tabs)/medications.tsx)
+
+- Add weekly and monthly adherence charts to [`app/(tabs)/medications.tsx`](app/\\(tabs)/medications.tsx)
 - Create an adherence history view showing:
   - 7-day, 30-day, and 90-day compliance percentages
   - Line chart showing daily adherence trends
@@ -46,9 +48,10 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 
 ### 2. Health Reports & Data Export
 
-**Why:** Currently shows "Coming Soon" alert (line 170-177 in [`app/(tabs)/profile.tsx`](app/(tabs)/profile.tsx)). Critical for doctor visits and user data ownership.
+**Why:** Currently shows "Coming Soon" alert (line 170-177 in [`app/(tabs)/profile.tsx`](app/\\(tabs)/profile.tsx)). Critical for doctor visits and user data ownership.
 
 **Implementation:**
+
 - Create new service: `lib/services/reportService.ts`
 - Generate PDF reports containing:
   - Medication history with adherence stats
@@ -60,7 +63,8 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 - Add "Share Report" button to email or save to files
 
 **Files to modify:**
-- [`app/(tabs)/profile.tsx`](app/(tabs)/profile.tsx) - Replace "Coming Soon" alert with real functionality
+
+- [`app/(tabs)/profile.tsx`](app/\\(tabs)/profile.tsx) - Replace "Coming Soon" alert with real functionality
 - New file: `lib/services/reportService.ts`
 
 **Impact:** High - Essential for healthcare provider communication and trust
@@ -72,6 +76,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 **Why:** Users forget to refill prescriptions, leading to missed doses. Simple addition with high value.
 
 **Implementation:**
+
 - Add `quantity` and `pillsPerDose` fields to Medication type in [`types/index.ts`](types/index.ts)
 - Track remaining quantity when marking doses as taken
 - Alert when quantity drops below threshold (e.g., 3 days remaining)
@@ -79,9 +84,10 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 - Send push notification: "⚠️ Time to refill [Medication Name]"
 
 **Files to modify:**
+
 - [`types/index.ts`](types/index.ts) - Update Medication interface
 - [`lib/services/medicationService.ts`](lib/services/medicationService.ts) - Add refill tracking logic
-- [`app/(tabs)/medications.tsx`](app/(tabs)/medications.tsx) - UI for quantity management
+- [`app/(tabs)/medications.tsx`](app/\\(tabs)/medications.tsx) - UI for quantity management
 - [`lib/services/pushNotificationService.ts`](lib/services/pushNotificationService.ts) - Add refill notification
 
 **Impact:** Medium-High - Prevents medication gaps, improves adherence
@@ -93,6 +99,7 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 **Why:** Gamification increases daily active users by 40%+ in health apps. Simple badges provide motivation.
 
 **Implementation:**
+
 - Create `lib/services/achievementService.ts`
 - Define achievements:
   - "First Week" - 7 days of 80%+ adherence
@@ -106,9 +113,10 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 - Allow sharing achievements with family
 
 **Files to create/modify:**
+
 - New: `lib/services/achievementService.ts`
 - New: `app/profile/achievements.tsx`
-- [`app/(tabs)/profile.tsx`](app/(tabs)/profile.tsx) - Add achievements section
+- [`app/(tabs)/profile.tsx`](app/\\(tabs)/profile.tsx) - Add achievements section
 - New: `components/AchievementBadge.tsx`
 
 **Impact:** High - Significant engagement and retention boost
@@ -120,7 +128,8 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 **Why:** Current dashboard requires multiple taps for common actions. Streamline for power users.
 
 **Implementation:**
-- Add "Quick Mark" section to [`app/(tabs)/index.tsx`](app/(tabs)/index.tsx)
+
+- Add "Quick Mark" section to [`app/(tabs)/index.tsx`](app/\\(tabs)/index.tsx)
 - Show medications due in next hour with one-tap checkboxes
 - Add "Mark All Current" button for multiple medications
 - Create floating action button (FAB) for common actions:
@@ -130,7 +139,8 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 - Add swipeable card actions (swipe to complete, swipe to snooze)
 
 **Files to modify:**
-- [`app/(tabs)/index.tsx`](app/(tabs)/index.tsx) - Enhanced quick actions UI
+
+- [`app/(tabs)/index.tsx`](app/\\(tabs)/index.tsx) - Enhanced quick actions UI
 - New: `components/QuickActionFAB.tsx`
 - New: `components/SwipeableCard.tsx`
 
@@ -141,30 +151,35 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 ## 🚀 Medium Priority - Post-Launch (Weeks 3-8)
 
 ### 6. Appointment & Doctor Visit Tracking
+
 - Schedule upcoming appointments
 - Pre-appointment checklist (bring medical history, questions to ask)
 - Medication review reminders (every 3/6 months)
 - Integration with calendar
 
 ### 7. Medication Barcode Scanner
+
 - Camera permission already exists ([`app.json`](app.json):27)
 - Use `expo-barcode-scanner` to scan medication barcodes
 - Auto-populate name and dosage from database/API
 - Fallback to manual entry
 
 ### 8. iOS Widgets
+
 - Home screen widget showing today's medications
 - Lock screen widget for quick stats
 - Interactive widget to mark medications taken (iOS 17+)
 - Uses `expo-widget` or native Swift implementation
 
 ### 9. Water & Basic Nutrition Tracking
+
 - Daily water intake goal tracker
 - Simple "glass of water" tap counter
 - Hydration reminders throughout day
 - Integrate with HealthKit hydration data
 
 ### 10. Enhanced Analytics Dashboard
+
 - Health score algorithm (0-100) based on:
   - Medication adherence
   - Symptom frequency/severity
@@ -178,28 +193,33 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 ## 📊 Lower Priority - Future Roadmap (v1.1+)
 
 ### 11. Apple Watch App
+
 - Complications showing next medication time
 - Quick "taken" button on watch face
 - Fall detection integration with watch sensors
 - Heart rate and activity sync
 
 ### 12. Advanced AI Features
+
 - Medication interaction checker (enhance Zeina AI)
 - Symptom pattern recognition
 - Personalized health recommendations
 - Predictive medication adherence risk
 
 ### 13. Telemedicine Integration
+
 - Video consultation booking
 - Share health reports with doctors in-app
 - Prescription upload from telehealth providers
 
 ### 14. Pharmacy Integration
+
 - Order refills directly through app
 - Price comparison across pharmacies
 - Delivery tracking
 
 ### 15. Community Features
+
 - Support groups for specific conditions
 - Anonymous Q&A forum
 - Caregiver community
@@ -209,23 +229,27 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 ## 🎨 Polish & UX Improvements (Throughout)
 
 ### Visual Enhancements
+
 - Smooth animations using `react-native-reanimated` (already installed)
 - Skeleton loaders during data fetching
 - Empty state illustrations for first-time users
 - Haptic feedback for important actions (already using `expo-haptics`)
 
 ### Accessibility
+
 - VoiceOver/TalkBack optimization
 - Larger touch targets (minimum 44x44pt)
 - High contrast mode support
 - Screen reader labels for all interactive elements
 
 ### Onboarding
+
 - Interactive tutorial on first launch
 - Feature discovery tooltips
 - Sample data for new users to explore
 
 ### Performance
+
 - Image optimization and caching
 - Lazy loading for lists
 - Background task optimization
@@ -238,21 +262,25 @@ Based on your app's current capabilities and the 1-2 week pre-launch timeline, h
 After implementing features, monitor:
 
 1. **Engagement:**
+
    - Daily Active Users (DAU)
    - Average session duration
    - Feature adoption rates
 
 2. **Retention:**
+
    - Day 1, 7, 30 retention rates
    - Medication adherence improvements
    - Family sharing activation rate
 
 3. **Health Outcomes:**
+
    - Average medication adherence percentage
    - Symptom logging frequency
    - Fall detection response time
 
 4. **Satisfaction:**
+
    - App Store ratings
    - In-app feedback
    - Feature request patterns
@@ -262,6 +290,7 @@ After implementing features, monitor:
 ## 🛠️ Technical Considerations
 
 ### Dependencies to Add
+
 ```json
 {
   "react-native-html-to-pdf": "latest",    // PDF reports
@@ -272,12 +301,14 @@ After implementing features, monitor:
 ```
 
 ### Database Schema Updates
+
 - Add `achievements` subcollection to users
 - Add `quantity` and `refillThreshold` fields to medications
 - Add `adherenceHistory` collection for analytics
 - Add `appointments` collection for doctor visits
 
 ### Firebase Functions Updates
+
 - Scheduled function for refill reminders
 - Achievement calculation triggers
 - Weekly summary email generation
@@ -287,11 +318,13 @@ After implementing features, monitor:
 ## 🎯 Recommended Implementation Order (Pre-Launch)
 
 1. **Week 1:**
+
    - Medication adherence trends (2-3 days)
    - Refill reminders (1-2 days)
    - Quick actions enhancements (1-2 days)
 
 2. **Week 2:**
+
    - Health reports & PDF export (3-4 days)
    - Achievements system (2-3 days)
    - Testing and polish (1-2 days)
