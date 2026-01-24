@@ -9,10 +9,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRevenueCat } from "@/hooks/useRevenueCat";
 import {
   type FeatureId,
   useFeatureGate,
 } from "@/lib/services/featureGateService";
+import { paywallGuard } from "@/lib/utils/paywallGuard";
 import { RevenueCatPaywall } from "./RevenueCatPaywall";
 
 interface FeatureGateProps {
@@ -43,6 +45,7 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
     useFeatureGate(featureId);
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
+  const { refreshCustomerInfo } = useRevenueCat();
   const [showPaywall, setShowPaywall] = React.useState(false);
 
   // Show loading state while checking subscription
@@ -63,6 +66,11 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
 
   // User doesn't have access
   const handleUpgradePress = () => {
+    // Prevent showing paywall if one is already showing globally
+    if (!paywallGuard.tryShowPaywall()) {
+      return;
+    }
+
     if (showUpgradePrompt) {
       setShowPaywall(true);
     } else {
@@ -76,10 +84,17 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
           {
             text: isRTL ? "إلغاء" : "Cancel",
             style: "cancel",
+            onPress: () => {
+              paywallGuard.hidePaywall();
+            },
           },
           {
             text: isRTL ? "ترقية" : "Upgrade",
-            onPress: () => setShowPaywall(true),
+            onPress: () => {
+              if (paywallGuard.tryShowPaywall()) {
+                setShowPaywall(true);
+              }
+            },
           },
         ]
       );
@@ -121,13 +136,26 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
       {/* Paywall Modal */}
       <Modal
         animationType="slide"
-        onRequestClose={() => setShowPaywall(false)}
+        onRequestClose={() => {
+          paywallGuard.hidePaywall();
+          setShowPaywall(false);
+        }}
         presentationStyle="pageSheet"
         visible={showPaywall}
       >
         <RevenueCatPaywall
-          onDismiss={() => setShowPaywall(false)}
-          onPurchaseComplete={() => {
+          onDismiss={async () => {
+            paywallGuard.hidePaywall();
+            setShowPaywall(false);
+          }}
+          onPurchaseComplete={async () => {
+            // Refresh subscription status after purchase
+            try {
+              await refreshCustomerInfo();
+            } catch (err) {
+              // Error is already handled by the hook
+            }
+            paywallGuard.hidePaywall();
             setShowPaywall(false);
           }}
         />

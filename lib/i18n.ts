@@ -558,6 +558,58 @@ const resources = {
         "Measures heart rate, HRV, and respiratory rate using real camera data (PPG technology)",
       vitalSignsSaved:
         "Your vital signs have been saved to your health records.",
+      // Additional PPG translations
+      cameraPermissionRequiredTitle: "Camera Permission Required",
+      cameraPermissionRequiredMessage:
+        "Maak Health needs access to your camera to measure your heart rate using PPG (photoplethysmography) technology. The camera will only be used to detect blood volume changes in your fingertip - no photos or videos will be saved.",
+      grantPermission: "Grant Permission",
+      cameraPermissionDenied: "Camera Permission Denied",
+      cameraPermissionDeniedMessage:
+        "Camera access is required to measure your heart rate. Would you like to grant permission now or open Settings?",
+      tryAgain: "Try Again",
+      permissionDeniedMessage:
+        "Camera permission is required. Would you like to open Settings to enable it?",
+      notAvailableOnWeb: "Not Available on Web",
+      notAvailableOnWebMessage:
+        "PPG heart rate measurement requires a mobile device with a camera. Please use the iOS or Android app.",
+      cameraNotAvailable: "Camera Not Available",
+      cameraNotAvailableMessage:
+        "Back camera is not available on this device. Please ensure your device has a rear camera with flash for PPG measurements.",
+      backCameraNotAvailable: "Back camera not available",
+      measurementInterrupted:
+        "Measurement interrupted because app went to background. Please try again.",
+      fingerNotDetected:
+        "Finger not detected during measurement. Please ensure your finger completely covers the back camera lens and flash with no gaps or light leaks.",
+      insufficientFramesCaptured:
+        "Insufficient frames captured: {{captured}}/{{target}}. Please try again.",
+      signalContainsInvalidValues:
+        "Signal contains too many invalid values. Please try again.",
+      unableToExtractCameraData:
+        "Unable to extract sufficient real camera data.\n\nSuccess rate: {{rate}}% ({{captured}}/{{attempts}} frames)\n\nThis may indicate:\n• Camera permission issues\n• Camera frame access not working\n• Another app is using the camera\n• Device camera compatibility issues\n\nPlease ensure you're using a development build (not Expo Go) and try again.",
+      insufficientRealCameraData:
+        "Insufficient real camera data captured: {{captured}}/{{target}} frames.\n\nPlease ensure:\n• Camera permission is granted\n• Your finger is properly covering the camera\n• Camera is not being used by another app\n\nPlease try again.",
+      measurementCompletedButSaveFailed:
+        "Measurement completed successfully, but failed to save data to your health records. Please try again or check your internet connection.",
+      unableToExtractCameraDataShort:
+        "Unable to extract camera data. Please ensure:\n• Camera permission is granted\n• Camera is not being used by another app\n• Your finger is properly covering the camera lens\n• Try restarting the app if the issue persists",
+      researchBasedTips: "Research-Based Tips for Best PPG Signal",
+      tipBreatheCalmly:
+        "Breathe calmly and avoid movement for accurate readings",
+      heartbeatsCaptured: "Heartbeats Captured",
+      sixtySecondsAccuracy:
+        "60 seconds for medical-grade accuracy • Hold steady",
+      capturingFrames:
+        "Capturing {{captured}}/{{target}} frames at {{fps}} fps • {{time}}s/{{duration}}s",
+      hrv: "HRV:",
+      breathsPerMin: "breaths/min",
+      bpm: "BPM",
+      grantCameraPermissionButton: "Grant Camera Permission",
+      cameraPermissionExplanation:
+        "To measure your heart rate, Maak Health needs access to your camera. The camera will only be used to detect blood volume changes in your fingertip - no photos or videos will be saved.",
+      openSettingsManually:
+        "Please manually open Settings > Maak Health > Camera and enable camera access.",
+      cameraPermissionRequiredForMeasurement:
+        "Camera permission is required for heart rate measurement.\n\nPlease grant camera access to continue.",
       intensity: "Intensity",
       todaysMedications: "Today's Medications",
       recentMedicalHistory: "Recent Medical History",
@@ -2087,6 +2139,56 @@ const resources = {
       realCameraPPGMeasurement: "قياس PPG بالكاميرا الحقيقية",
       usingBackCameraAndFlash:
         "استخدام الكاميرا الخلفية والفلاش لقياس معدل ضربات القلب",
+      // Additional PPG translations
+      cameraPermissionRequiredTitle: "إذن الكاميرا مطلوب",
+      cameraPermissionRequiredMessage:
+        "يحتاج تطبيق Maak Health إلى الوصول إلى الكاميرا لقياس معدل ضربات القلب باستخدام تقنية PPG (قياس التغيرات الضوئية). ستُستخدم الكاميرا فقط لاكتشاف تغيرات حجم الدم في أطراف أصابعك - لن يتم حفظ أي صور أو مقاطع فيديو.",
+      grantPermission: "منح الإذن",
+      cameraPermissionDenied: "تم رفض إذن الكاميرا",
+      cameraPermissionDeniedMessage:
+        "الوصول إلى الكاميرا مطلوب لقياس معدل ضربات القلب. هل تريد منح الإذن الآن أم فتح الإعدادات؟",
+      tryAgain: "حاول مرة أخرى",
+      permissionDeniedMessage:
+        "إذن الكاميرا مطلوب. هل تريد فتح الإعدادات لتفعيله؟",
+      notAvailableOnWeb: "غير متاح على الويب",
+      notAvailableOnWebMessage:
+        "يتطلب قياس معدل ضربات القلب باستخدام PPG جهازاً محمولاً مزوداً بكاميرا. يرجى استخدام تطبيق iOS أو Android.",
+      cameraNotAvailable: "الكاميرا غير متاحة",
+      cameraNotAvailableMessage:
+        "الكاميرا الخلفية غير متاحة على هذا الجهاز. يرجى التأكد من أن جهازك يحتوي على كاميرا خلفية مع فلاش لقياسات PPG.",
+      backCameraNotAvailable: "الكاميرا الخلفية غير متاحة",
+      measurementInterrupted:
+        "تم مقاطعة القياس لأن التطبيق ذهب إلى الخلفية. يرجى المحاولة مرة أخرى.",
+      fingerNotDetected:
+        "لم يتم اكتشاف الإصبع أثناء القياس. يرجى التأكد من أن إصبعك يغطي عدسة الكاميرا الخلفية والفلاش بالكامل بدون فجوات أو تسرب للضوء.",
+      insufficientFramesCaptured:
+        "إطارات غير كافية تم التقاطها: {{captured}}/{{target}}. يرجى المحاولة مرة أخرى.",
+      signalContainsInvalidValues:
+        "الإشارة تحتوي على قيم غير صالحة كثيرة. يرجى المحاولة مرة أخرى.",
+      unableToExtractCameraData:
+        "غير قادر على استخراج بيانات كافية من الكاميرا الحقيقية.\n\nمعدل النجاح: {{rate}}% ({{captured}}/{{attempts}} إطار)\n\nقد يشير هذا إلى:\n• مشاكل في إذن الكاميرا\n• عدم عمل الوصول إلى إطارات الكاميرا\n• تطبيق آخر يستخدم الكاميرا\n• مشاكل توافق كاميرا الجهاز\n\nيرجى التأكد من أنك تستخدم إصداراً مطوراً (وليس Expo Go) والمحاولة مرة أخرى.",
+      insufficientRealCameraData:
+        "بيانات كاميرا حقيقية غير كافية تم التقاطها: {{captured}}/{{target}} إطار.\n\nيرجى التأكد من:\n• منح إذن الكاميرا\n• أن إصبعك يغطي الكاميرا بشكل صحيح\n• أن الكاميرا لا تستخدمها تطبيق آخر\n\nيرجى المحاولة مرة أخرى.",
+      measurementCompletedButSaveFailed:
+        "اكتمل القياس بنجاح، لكن فشل حفظ البيانات في سجلاتك الصحية. يرجى المحاولة مرة أخرى أو التحقق من اتصالك بالإنترنت.",
+      unableToExtractCameraDataShort:
+        "غير قادر على استخراج بيانات الكاميرا. يرجى التأكد من:\n• منح إذن الكاميرا\n• أن الكاميرا لا تستخدمها تطبيق آخر\n• أن إصبعك يغطي عدسة الكاميرا بشكل صحيح\n• حاول إعادة تشغيل التطبيق إذا استمرت المشكلة",
+      researchBasedTips: "نصائح قائمة على البحث للحصول على أفضل إشارة PPG",
+      tipBreatheCalmly: "تنفس بهدوء وتجنب الحركة للحصول على قراءات دقيقة",
+      heartbeatsCaptured: "نبضات القلب المُلتقطة",
+      sixtySecondsAccuracy: "60 ثانية لدقة طبية • أبقِ ثابتاً",
+      capturingFrames:
+        "التقاط {{captured}}/{{target}} إطار بمعدل {{fps}} إطار/ثانية • {{time}}ث/{{duration}}ث",
+      hrv: "تغير معدل ضربات القلب:",
+      breathsPerMin: "نفس/دقيقة",
+      bpm: "نبضة/دقيقة",
+      grantCameraPermissionButton: "منح إذن الكاميرا",
+      cameraPermissionExplanation:
+        "لقياس معدل ضربات القلب، يحتاج تطبيق Maak Health إلى الوصول إلى الكاميرا. ستُستخدم الكاميرا فقط لاكتشاف تغيرات حجم الدم في أطراف أصابعك - لن يتم حفظ أي صور أو مقاطع فيديو.",
+      openSettingsManually:
+        "يرجى فتح الإعدادات يدوياً > Maak Health > الكاميرا وتمكين الوصول إلى الكاميرا.",
+      cameraPermissionRequiredForMeasurement:
+        "إذن الكاميرا مطلوب لقياس معدل ضربات القلب.\n\nيرجى منح الوصول إلى الكاميرا للمتابعة.",
 
       // Integrations
       syncNow: "مزامنة الآن",

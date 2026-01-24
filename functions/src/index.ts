@@ -640,3 +640,155 @@ export { sendVitalAlertToAdmins } from "./modules/alerts/vitalAlert";
 export { checkSymptomBenchmarks } from "./triggers/symptoms";
 // Re-export vitals trigger
 export { checkVitalBenchmarks } from "./triggers/vitals";
+
+/**
+ * Fitbit Webhook Handler
+ * Handles Fitbit subscriber notifications for real-time data updates
+ *
+ * Fitbit webhook flow:
+ * 1. Verification: GET request with verify parameter
+ * 2. Updates: POST requests with user data changes
+ */
+export const fitbitWebhook = functions.https.onRequest(async (req, res) => {
+  const traceId = createTraceId();
+
+  // Enable CORS
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  try {
+    // Fitbit webhook verification (GET request)
+    if (req.method === "GET") {
+      const verify = req.query.verify as string;
+
+      if (verify) {
+        logger.info("Fitbit webhook verification", {
+          traceId,
+          verify,
+          fn: "fitbitWebhook",
+        });
+
+        // Return the verification code to complete verification
+        res.status(200).type("text/plain").send(verify);
+        return;
+      }
+
+      // If no verify parameter, return a simple response indicating the endpoint is working
+      // This handles manual visits and Fitbit health checks
+      logger.info("Fitbit webhook endpoint accessed without verify parameter", {
+        traceId,
+        fn: "fitbitWebhook",
+      });
+      res.status(200).json({
+        status: "ok",
+        message:
+          "Fitbit webhook endpoint is active. Verification requires 'verify' query parameter.",
+      });
+      return;
+    }
+
+    // Fitbit webhook data update (POST request)
+    if (req.method === "POST") {
+      const webhookData = req.body;
+
+      logger.info("Fitbit webhook received", {
+        traceId,
+        collectionType: webhookData?.collectionType,
+        date: webhookData?.date,
+        ownerId: webhookData?.ownerId,
+        fn: "fitbitWebhook",
+      });
+
+      // Fitbit webhook payload structure:
+      // {
+      //   "collectionType": "activities" | "body" | "foods" | "sleep",
+      //   "date": "2024-01-15",
+      //   "ownerId": "fitbit_user_id",
+      //   "ownerType": "user",
+      //   "subscriptionId": "subscription_id"
+      // }
+
+      if (!(webhookData?.ownerId && webhookData?.collectionType)) {
+        res.status(400).json({ error: "Invalid webhook payload" });
+        return;
+      }
+
+      const db = admin.firestore();
+
+      // Find user by Fitbit user ID
+      // Note: You'll need to store Fitbit user ID when users connect their Fitbit account
+      const usersSnapshot = await db
+        .collection("users")
+        .where("fitbitUserId", "==", webhookData.ownerId)
+        .limit(1)
+        .get();
+
+      if (usersSnapshot.empty) {
+        logger.warn("Fitbit webhook: User not found", {
+          traceId,
+          fitbitUserId: webhookData.ownerId,
+          fn: "fitbitWebhook",
+        });
+
+        // Still return 200 to acknowledge receipt
+        res.status(200).json({
+          success: true,
+          message: "Webhook received but user not found",
+        });
+        return;
+      }
+
+      const userDoc = usersSnapshot.docs[0];
+      const userId = userDoc.id;
+
+      // Store webhook event for processing
+      await db.collection("fitbitWebhooks").add({
+        userId,
+        fitbitUserId: webhookData.ownerId,
+        collectionType: webhookData.collectionType,
+        date: webhookData.date,
+        subscriptionId: webhookData.subscriptionId,
+        receivedAt: FieldValue.serverTimestamp(),
+        processed: false,
+      });
+
+      logger.info("Fitbit webhook stored", {
+        traceId,
+        userId,
+        collectionType: webhookData.collectionType,
+        fn: "fitbitWebhook",
+      });
+
+      // Return success immediately (process asynchronously)
+      res.status(200).json({
+        success: true,
+        message: "Webhook received and queued for processing",
+      });
+
+      // TODO: Trigger background job to sync Fitbit data for this user
+      // This could be done via a Cloud Task or Pub/Sub trigger
+
+      return;
+    }
+
+    res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    logger.error("Error processing Fitbit webhook", error as Error, {
+      traceId,
+      fn: "fitbitWebhook",
+    });
+
+    // Return 200 to prevent Fitbit from retrying
+    // Log error for manual investigation
+    res.status(200).json({
+      success: false,
+      error: "Webhook received but processing failed",
+    });
+  }
+});

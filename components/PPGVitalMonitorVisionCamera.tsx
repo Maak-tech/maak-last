@@ -637,9 +637,7 @@ export default function PPGVitalMonitorVisionCamera({
               () => {}
             );
           }
-          setError(
-            "Measurement interrupted because app went to background. Please try again."
-          );
+          setError(t("measurementInterrupted"));
           setStatus("error");
         }
       }
@@ -706,16 +704,16 @@ export default function PPGVitalMonitorVisionCamera({
       if (showExplanation) {
         return new Promise((resolve) => {
           Alert.alert(
-            "Camera Permission Required",
-            "Maak Health needs access to your camera to measure your heart rate using PPG (photoplethysmography) technology. The camera will only be used to detect blood volume changes in your fingertip - no photos or videos will be saved.",
+            t("cameraPermissionRequiredTitle"),
+            t("cameraPermissionRequiredMessage"),
             [
               {
-                text: "Cancel",
+                text: t("cancel"),
                 style: "cancel",
                 onPress: () => resolve(false),
               },
               {
-                text: "Grant Permission",
+                text: t("grantPermission"),
                 onPress: async () => {
                   const result = await requestPermission();
                   if (result) {
@@ -755,8 +753,11 @@ export default function PPGVitalMonitorVisionCamera({
       }
     } catch (err) {
       Alert.alert(
-        "Open Settings",
-        "Please manually open Settings > Maak Health > Camera and enable camera access."
+        t("openSettings"),
+        t(
+          "openSettingsManually",
+          "Please manually open Settings > Maak Health > Camera and enable camera access."
+        )
       );
     }
   };
@@ -769,15 +770,15 @@ export default function PPGVitalMonitorVisionCamera({
         if (!granted) {
           // Permission denied - show error with option to try again or open settings
           Alert.alert(
-            "Camera Permission Denied",
-            "Camera access is required to measure your heart rate. Would you like to grant permission now or open Settings?",
+            t("cameraPermissionDenied"),
+            t("cameraPermissionDeniedMessage"),
             [
               {
-                text: "Cancel",
+                text: t("cancel"),
                 style: "cancel",
               },
               {
-                text: "Try Again",
+                text: t("tryAgain"),
                 onPress: async () => {
                   const result = await requestCameraPermission(false);
                   if (result) {
@@ -787,15 +788,17 @@ export default function PPGVitalMonitorVisionCamera({
                 },
               },
               {
-                text: "Open Settings",
+                text: t("openSettings"),
                 onPress: openSettings,
               },
             ]
           );
           setPermissionDenied(true);
           setError(
-            "Camera permission is required for heart rate measurement.\n\n" +
-              "Please grant camera access to continue."
+            t(
+              "cameraPermissionRequiredForMeasurement",
+              "Camera permission is required for heart rate measurement.\n\nPlease grant camera access to continue."
+            )
           );
           setStatus("error");
           return;
@@ -803,7 +806,7 @@ export default function PPGVitalMonitorVisionCamera({
       }
 
       if (!device) {
-        setError("Back camera not available");
+        setError(t("backCameraNotAvailable"));
         setStatus("error");
         return;
       }
@@ -897,9 +900,7 @@ export default function PPGVitalMonitorVisionCamera({
     }
 
     if (fingerDetectionFailed) {
-      setError(
-        "Finger not detected during measurement. Please ensure your finger completely covers the back camera lens and flash with no gaps or light leaks."
-      );
+      setError(t("fingerNotDetected"));
       setStatus("error");
       return;
     }
@@ -911,7 +912,10 @@ export default function PPGVitalMonitorVisionCamera({
     // Validate we have enough frames
     if (ppgSignalRef.current.length < TARGET_FRAMES * 0.5) {
       setError(
-        `Insufficient frames captured: ${ppgSignalRef.current.length}/${TARGET_FRAMES}. Please try again.`
+        t("insufficientFramesCaptured", {
+          captured: ppgSignalRef.current.length,
+          target: TARGET_FRAMES,
+        })
       );
       setStatus("error");
       return;
@@ -935,7 +939,7 @@ export default function PPGVitalMonitorVisionCamera({
       (val) => isNaN(val) || val < 0 || val > 255
     );
     if (invalidValues.length > ppgSignalRef.current.length * 0.1) {
-      setError("Signal contains too many invalid values. Please try again.");
+      setError(t("signalContainsInvalidValues"));
       setStatus("error");
       return;
     }
@@ -953,14 +957,11 @@ export default function PPGVitalMonitorVisionCamera({
       totalAttempts > 0 ? totalFrameFailures.current / totalAttempts : 1;
     if (failureRate > 0.15) {
       setError(
-        "Unable to extract sufficient real camera data.\n\n" +
-          `Success rate: ${Math.round((1 - failureRate) * 100)}% (${ppgSignalRef.current.length}/${totalAttempts} frames)\n\n` +
-          "This may indicate:\n" +
-          "• Camera permission issues\n" +
-          "• Camera frame access not working\n" +
-          "• Another app is using the camera\n" +
-          "• Device camera compatibility issues\n\n" +
-          "Please ensure you're using a development build (not Expo Go) and try again."
+        t("unableToExtractCameraData", {
+          rate: Math.round((1 - failureRate) * 100),
+          captured: ppgSignalRef.current.length,
+          attempts: totalAttempts,
+        })
       );
       setStatus("error");
       return;
@@ -970,12 +971,10 @@ export default function PPGVitalMonitorVisionCamera({
     const realFramesRatio = ppgSignalRef.current.length / TARGET_FRAMES;
     if (realFramesRatio < 0.5) {
       setError(
-        `Insufficient real camera data captured: ${ppgSignalRef.current.length}/${TARGET_FRAMES} frames.\n\n` +
-          "Please ensure:\n" +
-          "• Camera permission is granted\n" +
-          "• Your finger is properly covering the camera\n" +
-          "• Camera is not being used by another app\n\n" +
-          "Please try again."
+        t("insufficientRealCameraData", {
+          captured: ppgSignalRef.current.length,
+          target: TARGET_FRAMES,
+        })
       );
       setStatus("error");
       return;
@@ -1013,10 +1012,7 @@ export default function PPGVitalMonitorVisionCamera({
       } else if (!saveSuccess) {
         // Measurement succeeded but save failed - show warning but still show success
         setSaveFailed(true);
-        setError(
-          "Measurement completed successfully, but failed to save data to your health records. " +
-            "Please try again or check your internet connection."
-        );
+        setError(t("measurementCompletedButSaveFailed"));
         // Still show success status since measurement itself was successful
       }
 
@@ -1042,13 +1038,7 @@ export default function PPGVitalMonitorVisionCamera({
       // This prevents continuing with insufficient real data
       if (consecutiveFrameFailures.current > 30) {
         // More than 30 consecutive failures (~1-2 seconds depending on fps) - stop measurement
-        setError(
-          "Unable to extract camera data. Please ensure:\n" +
-            "• Camera permission is granted\n" +
-            "• Camera is not being used by another app\n" +
-            "• Your finger is properly covering the camera lens\n" +
-            "• Try restarting the app if the issue persists"
-        );
+        setError(t("unableToExtractCameraDataShort"));
         stopPPGCapture();
       }
     },
@@ -1385,11 +1375,10 @@ export default function PPGVitalMonitorVisionCamera({
           <View style={styles.container as ViewStyle}>
             <View style={styles.content as ViewStyle}>
               <Text style={styles.title as StyleProp<TextStyle>}>
-                Not Available on Web
+                {t("notAvailableOnWeb")}
               </Text>
               <Text style={styles.errorText as StyleProp<TextStyle>}>
-                PPG heart rate measurement requires a mobile device with a
-                camera. Please use the iOS or Android app.
+                {t("notAvailableOnWebMessage")}
               </Text>
             </View>
           </View>
@@ -1426,11 +1415,10 @@ export default function PPGVitalMonitorVisionCamera({
           <View style={styles.container as ViewStyle}>
             <View style={styles.content as ViewStyle}>
               <Text style={styles.title as StyleProp<TextStyle>}>
-                Camera Not Available
+                {t("cameraNotAvailable")}
               </Text>
               <Text style={styles.errorText as StyleProp<TextStyle>}>
-                Back camera is not available on this device. Please ensure your
-                device has a rear camera with flash for PPG measurements.
+                {t("cameraNotAvailableMessage")}
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -1440,7 +1428,7 @@ export default function PPGVitalMonitorVisionCamera({
                 style={styles.button as ViewStyle}
               >
                 <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                  Close
+                  {t("close")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1658,7 +1646,7 @@ export default function PPGVitalMonitorVisionCamera({
                       />
                     </View>
                     <Text style={styles.tipsTitle as StyleProp<TextStyle>}>
-                      Research-Based Tips for Best PPG Signal
+                      {t("researchBasedTips")}
                     </Text>
                   </View>
 
@@ -1686,7 +1674,7 @@ export default function PPGVitalMonitorVisionCamera({
                   <View style={styles.tipItem as ViewStyle}>
                     <View style={styles.tipBullet as ViewStyle} />
                     <Text style={styles.tipText as StyleProp<TextStyle>}>
-                      Breathe calmly and avoid movement for accurate readings
+                      {t("tipBreatheCalmly")}
                     </Text>
                   </View>
                 </View>
@@ -1716,10 +1704,7 @@ export default function PPGVitalMonitorVisionCamera({
                         { fontSize: 13, marginBottom: theme.spacing.md },
                       ]}
                     >
-                      To measure your heart rate, Maak Health needs access to
-                      your camera. The camera will only be used to detect blood
-                      volume changes in your fingertip - no photos or videos
-                      will be saved.
+                      {t("cameraPermissionExplanation")}
                     </Text>
                     <TouchableOpacity
                       onPress={async () => {
@@ -1727,11 +1712,14 @@ export default function PPGVitalMonitorVisionCamera({
                         if (!granted) {
                           // Show option to open settings if permission still denied
                           Alert.alert(
-                            "Permission Denied",
-                            "Camera permission is required. Would you like to open Settings to enable it?",
+                            t("permissionDenied"),
+                            t("permissionDeniedMessage"),
                             [
-                              { text: "Cancel", style: "cancel" },
-                              { text: "Open Settings", onPress: openSettings },
+                              { text: t("cancel"), style: "cancel" },
+                              {
+                                text: t("openSettings"),
+                                onPress: openSettings,
+                              },
                             ]
                           );
                         }
@@ -1801,7 +1789,7 @@ export default function PPGVitalMonitorVisionCamera({
                       <Text
                         style={styles.beatCounterLabel as StyleProp<TextStyle>}
                       >
-                        Heartbeats Captured
+                        {t("heartbeatsCaptured")}
                       </Text>
                       <Text
                         style={styles.beatCounterValue as StyleProp<TextStyle>}
@@ -1813,7 +1801,7 @@ export default function PPGVitalMonitorVisionCamera({
                     <Text
                       style={styles.instructionText as StyleProp<TextStyle>}
                     >
-                      60 seconds for medical-grade accuracy • Hold steady
+                      {t("sixtySecondsAccuracy")}
                     </Text>
                     <Text
                       style={
@@ -1823,9 +1811,13 @@ export default function PPGVitalMonitorVisionCamera({
                         ] as StyleProp<TextStyle>
                       }
                     >
-                      Capturing {framesCaptured}/{TARGET_FRAMES} frames at{" "}
-                      {TARGET_FPS} fps • {recordingTime}s/{MEASUREMENT_DURATION}
-                      s
+                      {t("capturingFrames", {
+                        captured: framesCaptured,
+                        target: TARGET_FRAMES,
+                        fps: TARGET_FPS,
+                        time: recordingTime,
+                        duration: MEASUREMENT_DURATION,
+                      })}
                     </Text>
                   </>
                 ) : (
@@ -1913,7 +1905,7 @@ export default function PPGVitalMonitorVisionCamera({
                         ] as StyleProp<TextStyle>
                       }
                     >
-                      BPM
+                      {t("bpm")}
                     </Text>
                   </View>
 
@@ -1946,7 +1938,7 @@ export default function PPGVitalMonitorVisionCamera({
                               ] as StyleProp<TextStyle>
                             }
                           >
-                            HRV:
+                            {t("hrv")}
                           </Text>
                           <Text
                             style={
@@ -1978,7 +1970,7 @@ export default function PPGVitalMonitorVisionCamera({
                               ] as StyleProp<TextStyle>
                             }
                           >
-                            Respiratory Rate:
+                            {t("respiratoryRate")}:
                           </Text>
                           <Text
                             style={
@@ -1988,7 +1980,7 @@ export default function PPGVitalMonitorVisionCamera({
                               ] as StyleProp<TextStyle>
                             }
                           >
-                            {respiratoryRate.toFixed(0)} breaths/min
+                            {respiratoryRate.toFixed(0)} {t("breathsPerMin")}
                           </Text>
                         </View>
                       )}
@@ -2059,11 +2051,14 @@ export default function PPGVitalMonitorVisionCamera({
                         } else {
                           // Show option to open settings if permission still denied
                           Alert.alert(
-                            "Permission Denied",
-                            "Camera permission is required. Would you like to open Settings to enable it?",
+                            t("permissionDenied"),
+                            t("permissionDeniedMessage"),
                             [
-                              { text: "Cancel", style: "cancel" },
-                              { text: "Open Settings", onPress: openSettings },
+                              { text: t("cancel"), style: "cancel" },
+                              {
+                                text: t("openSettings"),
+                                onPress: openSettings,
+                              },
                             ]
                           );
                         }
@@ -2077,7 +2072,7 @@ export default function PPGVitalMonitorVisionCamera({
                       ]}
                     >
                       <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                        Grant Camera Permission
+                        {t("grantCameraPermissionButton")}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -2091,7 +2086,7 @@ export default function PPGVitalMonitorVisionCamera({
                       ]}
                     >
                       <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                        Open Settings
+                        {t("openSettings")}
                       </Text>
                     </TouchableOpacity>
                   </>
@@ -2107,7 +2102,7 @@ export default function PPGVitalMonitorVisionCamera({
                   ]}
                 >
                   <Text style={styles.buttonText as StyleProp<TextStyle>}>
-                    Close
+                    {t("close")}
                   </Text>
                 </TouchableOpacity>
               </View>

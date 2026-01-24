@@ -30,7 +30,8 @@ export function RevenueCatPaywall({
   onDismiss,
 }: RevenueCatPaywallProps) {
   const { t } = useTranslation();
-  const { isLoading, offerings, error, refreshOfferings } = useRevenueCat();
+  const { isLoading, offerings, error, refreshOfferings, refreshCustomerInfo } =
+    useRevenueCat();
 
   // All hooks must be called before any conditional returns
   useEffect(() => {
@@ -80,13 +81,20 @@ export function RevenueCatPaywall({
   return (
     <RevenueCatUI.Paywall
       onDismiss={onDismiss}
-      onPurchaseCompleted={({
+      onPurchaseCompleted={async ({
         customerInfo,
         storeTransaction,
       }: {
         customerInfo: CustomerInfo;
         storeTransaction: PurchasesStoreTransaction;
       }) => {
+        // Refresh customer info to update subscription status immediately
+        try {
+          await refreshCustomerInfo();
+        } catch (err) {
+          // Error is already handled by the hook, continue anyway
+        }
+
         Alert.alert(
           t("subscription.purchaseSuccess"),
           t("subscription.purchaseSuccessMessage"),
@@ -109,11 +117,18 @@ export function RevenueCatPaywall({
           );
         }
       }}
-      onRestoreCompleted={({
+      onRestoreCompleted={async ({
         customerInfo,
       }: {
         customerInfo: CustomerInfo;
       }) => {
+        // Refresh customer info to update subscription status immediately
+        try {
+          await refreshCustomerInfo();
+        } catch (err) {
+          // Error is already handled by the hook, continue anyway
+        }
+
         Alert.alert(
           t("subscription.restoreSuccess"),
           t("subscription.restoreSuccessMessage")

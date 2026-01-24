@@ -28,6 +28,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import type { HealthProvider } from "@/lib/health/healthMetricsCatalog";
 import { getProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
+import { fitbitService } from "@/lib/services/fitbitService";
 
 interface ProviderOption {
   id: HealthProvider;
@@ -51,6 +52,7 @@ export default function HealthIntegrationsScreen() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
   const [loading, setLoading] = useState(true);
+  const [fitbitAvailable, setFitbitAvailable] = useState<boolean | null>(null);
   const [connections, setConnections] = useState<
     Map<HealthProvider, ProviderConnection>
   >(new Map());
@@ -86,8 +88,8 @@ export default function HealthIntegrationsScreen() {
       name: t("fitbit"),
       description: t("fitbitDescription"),
       icon: Heart,
-      available: false,
-      comingSoon: true,
+      available: fitbitAvailable === true,
+      comingSoon: fitbitAvailable === false,
       route: "/profile/health/fitbit-intro",
     },
     {
@@ -148,6 +150,8 @@ export default function HealthIntegrationsScreen() {
   const loadConnections = useCallback(async () => {
     try {
       setLoading(true);
+      const availability = await fitbitService.isAvailable();
+      setFitbitAvailable(availability.available);
       const connectionsMap = new Map<HealthProvider, ProviderConnection>();
 
       for (const provider of providers) {
