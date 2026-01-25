@@ -1,18 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  updateDoc,
-} from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc } from "firebase/firestore";
 import { Mic, MicOff, Settings, Volume2, VolumeX } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -47,15 +36,6 @@ interface ChatSession {
   title: string;
 }
 
-interface SavedSession {
-  id: string;
-  title: string;
-  createdAt: Date;
-  updatedAt: Date;
-  messageCount: number;
-  preview: string;
-}
-
 export default function AIAssistant() {
   const router = useRouter();
   const params = useLocalSearchParams<{ openSettings?: string }>();
@@ -70,8 +50,6 @@ export default function AIAssistant() {
   const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
   const [tempModel, setTempModel] = useState("gpt-3.5-turbo");
   const [systemPrompt, setSystemPrompt] = useState<string>("");
-  const [showHistory, setShowHistory] = useState(false);
-  const [chatHistory, setChatHistory] = useState<SavedSession[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
@@ -83,7 +61,6 @@ export default function AIAssistant() {
 
   useEffect(() => {
     initializeChat();
-    loadChatHistory();
     checkVoiceAvailability();
     checkRecognitionAvailability();
 
@@ -470,128 +447,6 @@ export default function AIAssistant() {
     await initializeChat();
   };
 
-  const loadChatHistory = async () => {
-    if (!auth.currentUser) return;
-
-    try {
-      const sessionsQuery = query(
-        collection(db, "users", auth.currentUser.uid, "chatSessions"),
-        orderBy("updatedAt", "desc"),
-        limit(20)
-      );
-
-      const sessionsSnapshot = await getDocs(sessionsQuery);
-      const sessions: SavedSession[] = [];
-
-      sessionsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const messages = data.messages || [];
-        const userMessages = messages.filter((m: any) => m.role === "user");
-        const lastUserMessage = userMessages[userMessages.length - 1];
-
-        sessions.push({
-          id: doc.id,
-          title: data.title || t("chatSession", "Chat Session"),
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          messageCount: messages.length,
-          preview: lastUserMessage?.content
-            ? `${lastUserMessage.content.substring(0, 50)}...`
-            : t("noMessages", "No messages"),
-        });
-      });
-
-      setChatHistory(sessions);
-    } catch (error) {
-      // Silently handle error
-    }
-  };
-
-  const loadSession = async (sessionId: string) => {
-    if (!auth.currentUser) return;
-
-    try {
-      setIsLoading(true);
-      const sessionDoc = await getDoc(
-        doc(db, "users", auth.currentUser.uid, "chatSessions", sessionId)
-      );
-
-      if (sessionDoc.exists()) {
-        const data = sessionDoc.data();
-        const sessionMessages = data.messages.map((msg: any) => ({
-          ...msg,
-          timestamp: msg.timestamp?.toDate() || new Date(),
-        }));
-
-        // Add system message at the beginning
-        const systemMessage: AIMessage = {
-          id: "system",
-          role: "system",
-          content: systemPrompt,
-          timestamp: new Date(),
-        };
-
-        setMessages([systemMessage, ...sessionMessages]);
-        setCurrentSessionId(sessionId);
-        setShowHistory(false);
-        scrollToBottom();
-      }
-    } catch (error) {
-      // Silently handle error
-      Alert.alert("Error", "Failed to load chat session");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const deleteSession = async (sessionId: string) => {
-    if (!auth.currentUser) return;
-
-    Alert.alert(
-      "Delete Chat",
-      "Are you sure you want to delete this chat session?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              if (!auth.currentUser) {
-                Alert.alert(
-                  "Error",
-                  "You must be logged in to delete chat sessions"
-                );
-                return;
-              }
-              await deleteDoc(
-                doc(
-                  db,
-                  "users",
-                  auth.currentUser.uid,
-                  "chatSessions",
-                  sessionId
-                )
-              );
-              await loadChatHistory();
-
-              // If deleting current session, start new chat
-              if (sessionId === currentSessionId) {
-                await handleNewChat();
-              }
-            } catch (error) {
-              // Silently handle error
-              Alert.alert(
-                t("error", "Error"),
-                t("failedToDeleteSession", "Failed to delete chat session")
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -610,24 +465,6 @@ export default function AIAssistant() {
             style={[styles.headerButton, styles.newChatHeaderButton]}
           >
             <Ionicons color="#007AFF" name="add-circle" size={28} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={async () => {
-              await loadChatHistory();
-              setShowHistory(true);
-            }}
-            style={[styles.headerButton, styles.historyHeaderButton]}
-          >
-            <View>
-              <Ionicons color="#007AFF" name="chatbubbles" size={26} />
-              {chatHistory.length > 0 && (
-                <View style={styles.historyBadge}>
-                  <Text style={styles.historyBadgeText}>
-                    {chatHistory.length}
-                  </Text>
-                </View>
-              )}
-            </View>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowSettings(true)}
@@ -919,103 +756,6 @@ export default function AIAssistant() {
           </View>
         </View>
       </Modal>
-
-      {/* Chat History Modal */}
-      <Modal
-        animationType="slide"
-        onRequestClose={() => setShowHistory(false)}
-        transparent={true}
-        visible={showHistory}
-      >
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { maxHeight: "80%" }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {t("chatHistory", "Chat History")}
-              </Text>
-              <TouchableOpacity onPress={() => setShowHistory(false)}>
-                <Ionicons color="#333" name="close" size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={{ maxHeight: 400 }}
-            >
-              {chatHistory.length === 0 ? (
-                <View style={styles.emptyHistory}>
-                  <Ionicons color="#999" name="chatbubbles-outline" size={48} />
-                  <Text style={styles.emptyHistoryText}>
-                    {t("noChatHistory", "No chat history yet")}
-                  </Text>
-                  <Text style={styles.emptyHistorySubtext}>
-                    {t(
-                      "conversationsWillAppear",
-                      "Your conversations will appear here"
-                    )}
-                  </Text>
-                </View>
-              ) : (
-                chatHistory.map((session) => (
-                  <TouchableOpacity
-                    key={session.id}
-                    onPress={() => loadSession(session.id)}
-                    style={styles.historyItem}
-                  >
-                    <View style={styles.historyItemContent}>
-                      <Text numberOfLines={1} style={styles.historyItemTitle}>
-                        {session.title}
-                      </Text>
-                      <Text numberOfLines={2} style={styles.historyItemPreview}>
-                        {session.preview}
-                      </Text>
-                      <View style={styles.historyItemMeta}>
-                        <Text style={styles.historyItemDate}>
-                          {session.updatedAt.toLocaleDateString()}
-                        </Text>
-                        <Text style={styles.historyItemMessages}>
-                          {session.messageCount} messages
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        deleteSession(session.id);
-                      }}
-                      style={styles.historyItemDelete}
-                    >
-                      <Ionicons
-                        color="#EF4444"
-                        name="trash-outline"
-                        size={20}
-                      />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-
-            <TouchableOpacity
-              onPress={() => {
-                setShowHistory(false);
-                handleNewChat();
-              }}
-              style={styles.newChatButton}
-            >
-              <Ionicons
-                color="white"
-                name="add-circle-outline"
-                size={20}
-                style={{ marginEnd: 8 }}
-              />
-              <Text style={styles.newChatButtonText}>
-                {t("startNewChat", "Start New Chat")}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -1054,26 +794,6 @@ const styles = StyleSheet.create({
   },
   newChatHeaderButton: {
     marginStart: 0,
-  },
-  historyHeaderButton: {
-    position: "relative",
-  },
-  historyBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: "#EF4444",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 4,
-  },
-  historyBadgeText: {
-    color: "white",
-    fontSize: 10,
-    fontWeight: "bold",
   },
   chatContainer: {
     flex: 1,
@@ -1238,72 +958,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   saveButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  emptyHistory: {
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  emptyHistoryText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 16,
-  },
-  emptyHistorySubtext: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 8,
-  },
-  historyItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-  },
-  historyItemContent: {
-    flex: 1,
-    marginEnd: 12,
-  },
-  historyItemTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 4,
-  },
-  historyItemPreview: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  historyItemMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  historyItemDate: {
-    fontSize: 12,
-    color: "#999",
-  },
-  historyItemMessages: {
-    fontSize: 12,
-    color: "#999",
-  },
-  historyItemDelete: {
-    padding: 8,
-  },
-  newChatButton: {
-    flexDirection: "row",
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
-  },
-  newChatButtonText: {
     color: "white",
     fontSize: 16,
     fontWeight: "600",

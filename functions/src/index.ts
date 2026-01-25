@@ -9,6 +9,7 @@ import { createTraceId } from "./observability/correlation";
 import { logger } from "./observability/logger";
 import { sendPushNotificationInternal } from "./services/notifications";
 import { sendEmergencySmsToContacts } from "./services/notifications/sms";
+import type { NotificationPayload } from "./services/notifications/types";
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -228,7 +229,7 @@ export const sendFallAlert = functions.https.onCall(
       }
 
       // Prepare notification
-      const notification = {
+      const notification: NotificationPayload = {
         title: "🚨 Emergency: Fall Detected",
         body: `${userName} may have fallen and needs help!`,
         imageUrl: "https://your-app-url.com/fall-alert-icon.png",
@@ -359,7 +360,7 @@ export const sendMedicationReminder = functions.https.onCall(
     }
 
     try {
-      const notification = {
+      const notification: NotificationPayload = {
         title: "💊 Medication Reminder",
         body: `Time to take ${medicationName} (${dosage})`,
         priority: "high",
@@ -434,7 +435,7 @@ export const sendSymptomAlert = functions.https.onCall(
 
       const severityText = severity === 5 ? "very severe" : "severe";
       const severityEmoji = severity === 5 ? "🚨" : "⚠️";
-      const notification = {
+      const notification: NotificationPayload = {
         title: `${severityEmoji} Symptom Alert`,
         body: `${userName} is experiencing ${severityText} ${symptomType}`,
         priority: severity === 5 ? "high" : "normal",

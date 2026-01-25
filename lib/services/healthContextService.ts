@@ -9,6 +9,11 @@ import {
   where,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import {
+  healthInsightsService,
+  type PatternInsight,
+  type WeeklySummary,
+} from "./healthInsightsService";
 
 export interface HealthContext {
   profile: {
@@ -66,6 +71,13 @@ export interface HealthContext {
     healthStatus?: string;
     recentSymptoms?: string[];
   }>;
+  familyInsights: Array<{
+    memberId: string;
+    name: string;
+    relationship: string;
+    summary: WeeklySummary;
+    insights: PatternInsight[];
+  }>;
   recentAlerts: Array<{
     type: string;
     timestamp: Date;
@@ -95,7 +107,10 @@ export interface HealthContext {
 }
 
 class HealthContextService {
-  async getUserHealthContext(userId?: string): Promise<HealthContext> {
+  async getUserHealthContext(
+    userId?: string,
+    options?: { includeFamilyInsights?: boolean; language?: string }
+  ): Promise<HealthContext> {
     const uid = userId || auth.currentUser?.uid;
     if (!uid) {
       throw new Error("No user ID provided");
@@ -258,16 +273,16 @@ class HealthContextService {
         });
       }
 
+      const familyDocs =
+        familySnapshot.status === "fulfilled"
+          ? familySnapshot.value.docs.filter((doc) => doc.id !== uid)
+          : [];
+
+      const isArabic = options?.language?.startsWith("ar") ?? false;
+
       // Process family members (optimize N+1 query problem)
       const familyMembers: HealthContext["familyMembers"] = [];
-      if (
-        familySnapshot.status === "fulfilled" &&
-        familySnapshot.value.docs.length > 0
-      ) {
-        const familyDocs = familySnapshot.value.docs.filter(
-          (doc) => doc.id !== uid
-        );
-
+      if (familyDocs.length > 0) {
         // Batch fetch symptoms for all family members at once
         const familyMemberIds = familyDocs.map((doc) => doc.id);
         const familySymptomsPromises = familyMemberIds.map((memberId) =>
@@ -311,6 +326,48 @@ class HealthContextService {
               memberSymptoms.length > 0 ? "Has recent symptoms" : "Good",
             recentSymptoms: memberSymptoms,
           });
+        });
+      }
+
+      // Process family insights for admin users only
+      const familyInsights: HealthContext["familyInsights"] = [];
+      if (
+        options?.includeFamilyInsights &&
+        userData.familyId &&
+        userData.role === "admin" &&
+        familyDocs.length > 0
+      ) {
+        const insightsResults = await Promise.allSettled(
+          familyDocs.map(async (familyDoc) => {
+            const memberData = familyDoc.data();
+            const [summary, allInsights] = await Promise.all([
+              healthInsightsService.getWeeklySummary(
+                familyDoc.id,
+                undefined,
+                isArabic
+              ),
+              healthInsightsService.getAllInsights(familyDoc.id, isArabic),
+            ]);
+
+            return {
+              memberId: familyDoc.id,
+              name:
+                memberData.name || memberData.displayName || "Family Member",
+              relationship:
+                memberData.relationship ||
+                memberData.relation ||
+                memberData.role ||
+                "Family Member",
+              summary,
+              insights: allInsights.slice(0, 2),
+            };
+          })
+        );
+
+        insightsResults.forEach((result) => {
+          if (result.status === "fulfilled") {
+            familyInsights.push(result.value);
+          }
         });
       }
 
@@ -555,6 +612,7 @@ class HealthContextService {
         medications,
         symptoms,
         familyMembers,
+        familyInsights,
         recentAlerts,
         vitalSigns: latestVitals,
       };
@@ -687,6 +745,42 @@ ${
     : `• ${isArabic ? "لا يوجد أفراد عائلة متصلين بعد. يمكن إضافة أفراد العائلة من خلال تبويب العائلة." : "No family members connected yet. Family members can be added through the Family tab."}`
 }
 
+${isArabic ? "رؤى صحة العائلة (ملخص أسبوعي):" : "FAMILY HEALTH INSIGHTS (Weekly Summary):"}
+${
+  context.familyInsights.length > 0
+    ? context.familyInsights
+        .map((insight) => {
+          const avgSeverity = Math.round(
+            insight.summary.symptoms.averageSeverity * 10
+          );
+          const moodTrend =
+            insight.summary.moods.trend ||
+            (isArabic ? "غير محدد" : "unspecified");
+          const topInsights =
+            insight.insights.length > 0
+              ? insight.insights
+                  .map(
+                    (item) =>
+                      `${item.title} - ${item.description} (${isArabic ? "الثقة" : "confidence"}: ${Math.round(
+                        item.confidence
+                      )}%)`
+                  )
+                  .join("; ")
+              : isArabic
+                ? "لا توجد رؤى بارزة."
+                : "No notable insights yet.";
+
+          return `• ${insight.name} (${insight.relationship})
+  ${isArabic ? "الأعراض" : "Symptoms"}: ${insight.summary.symptoms.total}
+  ${isArabic ? "متوسط الشدة" : "Avg severity"}: ${avgSeverity / 10}
+  ${isArabic ? "الالتزام بالأدوية" : "Medication compliance"}: ${insight.summary.medications.compliance}%
+  ${isArabic ? "اتجاه المزاج" : "Mood trend"}: ${moodTrend}
+  ${isArabic ? "أهم الرؤى" : "Top insights"}: ${topInsights}`;
+        })
+        .join("\n")
+    : `• ${isArabic ? "لا توجد رؤى صحية عائلية متاحة بعد." : "No family health insights available yet."}`
+}
+
 ${isArabic ? "تنبيهات صحية حديثة:" : "RECENT HEALTH ALERTS:"}
 ${
   context.recentAlerts.length > 0
@@ -722,10 +816,11 @@ ${
 3. كن على دراية بجميع الحساسية والحالات عند تقديم النصائح
 4. راجع الأعراض الأخيرة لتحديد الأنماط أو الاهتمامات
 5. ضع في اعتبارك التاريخ الطبي العائلي لمخاطر الحالات الوراثية
-6. ذكر دائماً المستخدمين باستشارة المتخصصين الصحيين للقرارات الطبية
-7. كن متعاطفاً وداعماً مع كونك معلوماتياً
-8. قدم نصائح عملية وقابلة للتنفيذ عند الاقتضاء
-9. إذا لاحظت أنماطاً مقلقة في الأعراض أو العلامات الحيوية، اقترح بلطف استشارة طبية
+6. استفد من رؤى صحة العائلة عند تقديم رعاية أو نصائح تتعلق بأفراد العائلة
+7. ذكر دائماً المستخدمين باستشارة المتخصصين الصحيين للقرارات الطبية
+8. كن متعاطفاً وداعماً مع كونك معلوماتياً
+9. قدم نصائح عملية وقابلة للتنفيذ عند الاقتضاء
+10. إذا لاحظت أنماطاً مقلقة في الأعراض أو العلامات الحيوية، اقترح بلطف استشارة طبية
 
 تذكر: أنت مساعد ذكي تقدم معلومات ودعماً، وليس بديلاً عن النصيحة الطبية المهنية. شجع دائماً المستخدمين على طلب المساعدة الطبية المهنية للاهتمامات الخطيرة.`
     : `1. Provide personalized health insights based on the complete medical profile
@@ -733,10 +828,11 @@ ${
 3. Be aware of all allergies and conditions when giving advice
 4. Reference recent symptoms to identify patterns or concerns
 5. Consider family medical history for hereditary condition risks
-6. Always remind users to consult healthcare professionals for medical decisions
-7. Be empathetic and supportive while being informative
-8. Provide practical, actionable advice when appropriate
-9. If you notice concerning patterns in symptoms or vital signs, gently suggest medical consultation
+6. Use family health insights when the user asks about caregiving or family health
+7. Always remind users to consult healthcare professionals for medical decisions
+8. Be empathetic and supportive while being informative
+9. Provide practical, actionable advice when appropriate
+10. If you notice concerning patterns in symptoms or vital signs, gently suggest medical consultation
 
 Remember: You are an AI assistant providing information and support, not a replacement for professional medical advice. Always encourage users to seek professional medical help for serious concerns.`
 }`;
@@ -745,7 +841,10 @@ Remember: You are an AI assistant providing information and support, not a repla
   }
 
   async getContextualPrompt(userId?: string, language = "en"): Promise<string> {
-    const context = await this.getUserHealthContext(userId);
+    const context = await this.getUserHealthContext(userId, {
+      includeFamilyInsights: true,
+      language,
+    });
     return this.generateSystemPrompt(context, language);
   }
 

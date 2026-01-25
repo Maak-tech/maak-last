@@ -88,7 +88,6 @@ export default function ZeinaScreen() {
 
   useEffect(() => {
     initializeChat();
-    loadChatHistory();
     checkVoiceAvailability();
     checkRecognitionAvailability();
 
@@ -225,6 +224,8 @@ export default function ZeinaScreen() {
 
   const initializeChat = async () => {
     try {
+      setIsLoading(true);
+      await clearChatHistory();
       // Initialize OpenAI service (uses env key)
       await openaiService.initialize();
       const model = await openaiService.getModel();
@@ -232,7 +233,6 @@ export default function ZeinaScreen() {
       setTempModel(model);
 
       // Load health context
-      setIsLoading(true);
       const prompt = await healthContextService.getContextualPrompt();
       setSystemPrompt(prompt);
 
@@ -259,11 +259,44 @@ export default function ZeinaScreen() {
 
       // Create new chat session
       await createNewSession([systemMessage, welcomeMessage]);
+      await loadChatHistory();
 
       setIsLoading(false);
     } catch (error) {
       // Silently handle error
       setIsLoading(false);
+    }
+  };
+
+  const clearChatHistory = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      const sessionsSnapshot = await getDocs(
+        collection(db, "users", auth.currentUser.uid, "chatSessions")
+      );
+
+      if (sessionsSnapshot.empty) {
+        setChatHistory([]);
+        return;
+      }
+
+      await Promise.all(
+        sessionsSnapshot.docs.map((sessionDoc) =>
+          deleteDoc(
+            doc(
+              db,
+              "users",
+              auth.currentUser.uid,
+              "chatSessions",
+              sessionDoc.id
+            )
+          )
+        )
+      );
+      setChatHistory([]);
+    } catch (error) {
+      // Silently handle error
     }
   };
 
