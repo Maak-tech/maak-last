@@ -1247,13 +1247,9 @@ export default function MedicationsScreen() {
         )}
 
         {/* Medication Interaction Warnings */}
-        {selectedFilter.type === "personal" &&
-          user &&
-          medications.filter((m) => m.isActive).length > 1 && (
-            <MedicationInteractionWarning
-              medications={medications.filter((m) => m.isActive)}
-            />
-          )}
+        <MedicationInteractionWarning
+          medications={medications.filter((m) => m.isActive)}
+        />
 
         {/* Today's Progress */}
         <Card

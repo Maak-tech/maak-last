@@ -8,6 +8,7 @@ import { createTraceId } from "./observability/correlation";
 // New structure imports
 import { logger } from "./observability/logger";
 import { sendPushNotificationInternal } from "./services/notifications";
+import { sendEmergencySmsToContacts } from "./services/notifications/sms";
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -247,14 +248,14 @@ export const sendFallAlert = functions.https.onCall(
       };
 
       // Send to all recipients (admins and family members)
-      const result = await exports.sendPushNotification(
-        {
-          userIds: allRecipients,
-          notification,
-          notificationType: "fall",
-        },
-        { auth: context.auth }
-      );
+      const result = await sendPushNotificationInternal({
+        traceId,
+        userIds: allRecipients,
+        notification,
+        notificationType: "fall",
+        requireAuth: true,
+        callerUid: context.auth?.uid,
+      });
 
       // Log the alert with admin information
       await db.collection("notificationLogs").add({
@@ -277,6 +278,71 @@ export const sendFallAlert = functions.https.onCall(
         "Failed to send fall alert"
       );
     }
+  }
+);
+
+export const sendEmergencySms = functions.https.onCall(
+  async (data: any, context: any) => {
+    const traceId = createTraceId();
+    const { userId, message, alertType } = data || {};
+
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
+
+    if (!(userId && message && alertType)) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Missing userId, message, or alertType"
+      );
+    }
+
+    const db = admin.firestore();
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "User not found");
+    }
+
+    const userData = userDoc.data() || {};
+    const familyId = userData.familyId as string | undefined;
+    const callerUid = context.auth.uid;
+
+    if (callerUid !== userId) {
+      if (!familyId) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Caller does not have permission to notify this user"
+        );
+      }
+
+      const adminIds = await getFamilyAdmins(familyId);
+      if (!adminIds.includes(callerUid)) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Caller does not have permission to notify this user"
+        );
+      }
+    }
+
+    const result = await sendEmergencySmsToContacts({
+      userId,
+      message,
+    });
+
+    logger.info("Emergency SMS send attempted", {
+      traceId,
+      uid: userId,
+      callerUid,
+      alertType,
+      sent: result.sent,
+      failed: result.failed,
+      fn: "sendEmergencySms",
+    });
+
+    return result;
   }
 );
 
@@ -309,14 +375,14 @@ export const sendMedicationReminder = functions.https.onCall(
       };
 
       // Send to the user
-      const result = await exports.sendPushNotification(
-        {
-          userIds: [userId],
-          notification,
-          notificationType: "medication",
-        },
-        { auth: context.auth }
-      );
+      const result = await sendPushNotificationInternal({
+        traceId: createTraceId(),
+        userIds: [userId],
+        notification,
+        notificationType: "medication",
+        requireAuth: true,
+        callerUid: context.auth?.uid,
+      });
 
       return result;
     } catch (error) {
@@ -384,14 +450,14 @@ export const sendSymptomAlert = functions.https.onCall(
       };
 
       // Send to admins
-      const result = await exports.sendPushNotification(
-        {
-          userIds: adminIdsToAlert,
-          notification,
-          notificationType: "symptom",
-        },
-        { auth: context.auth }
-      );
+      const result = await sendPushNotificationInternal({
+        traceId: createTraceId(),
+        userIds: adminIdsToAlert,
+        notification,
+        notificationType: "symptom",
+        requireAuth: true,
+        callerUid: context.auth?.uid,
+      });
 
       // Log the alert
       await db.collection("notificationLogs").add({
@@ -785,6 +851,155 @@ export const fitbitWebhook = functions.https.onRequest(async (req, res) => {
     });
 
     // Return 200 to prevent Fitbit from retrying
+    // Log error for manual investigation
+    res.status(200).json({
+      success: false,
+      error: "Webhook received but processing failed",
+    });
+  }
+});
+
+/**
+ * Withings Webhook Handler
+ * Handles Withings notification service for real-time data updates
+ *
+ * Withings webhook flow:
+ * 1. Verification: GET request with verify parameter (if required)
+ * 2. Updates: POST requests with user data changes
+ *
+ * Withings notification payload structure:
+ * {
+ *   "userid": "withings_user_id",
+ *   "appli": application_id,
+ *   "startdate": timestamp,
+ *   "enddate": timestamp
+ * }
+ */
+export const withingsWebhook = functions.https.onRequest(async (req, res) => {
+  const traceId = createTraceId();
+
+  // Enable CORS
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  try {
+    // Withings webhook verification (GET request)
+    if (req.method === "GET") {
+      // Withings may send verification requests
+      logger.info("Withings webhook verification", {
+        traceId,
+        query: req.query,
+        fn: "withingsWebhook",
+      });
+
+      res.status(200).json({
+        status: "ok",
+        message: "Withings webhook endpoint is active",
+      });
+      return;
+    }
+
+    // Withings webhook data update (POST request)
+    if (req.method === "POST") {
+      const webhookData = req.body;
+
+      logger.info("Withings webhook received", {
+        traceId,
+        userid: webhookData?.userid,
+        appli: webhookData?.appli,
+        startdate: webhookData?.startdate,
+        enddate: webhookData?.enddate,
+        fn: "withingsWebhook",
+      });
+
+      // Withings notification payload structure:
+      // {
+      //   "userid": "withings_user_id",
+      //   "appli": application_id,
+      //   "startdate": timestamp,
+      //   "enddate": timestamp
+      // }
+
+      if (!webhookData?.userid) {
+        res
+          .status(400)
+          .json({ error: "Invalid webhook payload: missing userid" });
+        return;
+      }
+
+      const db = admin.firestore();
+
+      // Find user by Withings user ID
+      // Note: You'll need to store Withings user ID when users connect their Withings account
+      // The userid is stored in the tokens when OAuth completes
+      const usersSnapshot = await db
+        .collection("users")
+        .where("withingsUserId", "==", webhookData.userid.toString())
+        .limit(1)
+        .get();
+
+      if (usersSnapshot.empty) {
+        logger.warn("Withings webhook: User not found", {
+          traceId,
+          withingsUserId: webhookData.userid,
+          fn: "withingsWebhook",
+        });
+
+        // Still return 200 to acknowledge receipt
+        res.status(200).json({
+          success: true,
+          message: "Webhook received but user not found",
+        });
+        return;
+      }
+
+      const userDoc = usersSnapshot.docs[0];
+      const userId = userDoc.id;
+
+      // Store webhook event for processing
+      await db.collection("withingsWebhooks").add({
+        userId,
+        withingsUserId: webhookData.userid.toString(),
+        appli: webhookData.appli,
+        startdate: webhookData.startdate,
+        enddate: webhookData.enddate,
+        receivedAt: FieldValue.serverTimestamp(),
+        processed: false,
+      });
+
+      logger.info("Withings webhook stored", {
+        traceId,
+        userId,
+        withingsUserId: webhookData.userid,
+        fn: "withingsWebhook",
+      });
+
+      // Return success immediately (process asynchronously)
+      res.status(200).json({
+        success: true,
+        message: "Webhook received and queued for processing",
+      });
+
+      // TODO: Trigger background job to sync Withings data for this user
+      // This could be done via a Cloud Task or Pub/Sub trigger
+
+      return;
+    }
+
+    res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    logger.error("Error processing Withings webhook", error as Error, {
+      traceId,
+      fn: "withingsWebhook",
+    });
+
+    // Return 200 to prevent Withings from retrying
     // Log error for manual investigation
     res.status(200).json({
       success: false,

@@ -6,6 +6,12 @@ export type AvatarType =
   | "grandma"
   | "grandpa";
 
+export interface EmergencyContact {
+  id: string;
+  name: string;
+  phone: string;
+}
+
 export interface User {
   id: string;
   email?: string;
@@ -18,11 +24,12 @@ export interface User {
   role: "admin" | "member" | "caregiver";
   createdAt: Date;
   onboardingCompleted: boolean;
+  dashboardTourCompleted?: boolean;
   isPremium?: boolean;
   preferences: {
     language: "en" | "ar";
     notifications: boolean;
-    emergencyContacts: string[];
+    emergencyContacts: EmergencyContact[];
   };
 }
 

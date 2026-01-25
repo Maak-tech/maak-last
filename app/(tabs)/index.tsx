@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   Activity,
   AlertTriangle,
@@ -12,7 +12,7 @@ import {
   Smile,
   Users,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -53,7 +53,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,6 +76,13 @@ export default function DashboardScreen() {
   const [dashboardConfig, setDashboardConfig] =
     useState<DashboardConfig | null>(null);
   const [showWidgetSettings, setShowWidgetSettings] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourOverride, setTourOverride] = useState(false);
+  const tourRequestedRef = useRef(false);
+  const tourParamHandledRef = useRef(false);
+  const tourTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const params = useLocalSearchParams<{ tour?: string }>();
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -448,6 +455,79 @@ export default function DashboardScreen() {
       marginTop: theme.spacing.sm,
       textAlign: "center" as const,
     },
+    tourOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.6)",
+      justifyContent: "center",
+      padding: theme.spacing.xl,
+    },
+    tourCard: {
+      backgroundColor: theme.colors.background.primary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.lg,
+      ...theme.shadows.lg,
+    },
+    tourTitle: {
+      ...getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
+      marginBottom: theme.spacing.sm,
+      textAlign: "center" as const,
+    },
+    tourBody: {
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
+      textAlign: "center" as const,
+      marginBottom: theme.spacing.lg,
+    },
+    tourProgressRow: {
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+      marginBottom: theme.spacing.base,
+    },
+    tourProgressText: {
+      ...getTextStyle(theme, "caption", "medium", theme.colors.text.tertiary),
+    },
+    tourDots: {
+      flexDirection: "row" as const,
+      gap: theme.spacing.xs,
+    },
+    tourDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.border.light,
+    },
+    tourDotActive: {
+      backgroundColor: theme.colors.primary.main,
+    },
+    tourFooter: {
+      flexDirection: "row" as const,
+      justifyContent: "space-between" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.sm,
+    },
+    tourActions: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.sm,
+    },
+    tourButton: {
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.borderRadius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border.light,
+      backgroundColor: theme.colors.background.secondary,
+    },
+    tourButtonPrimary: {
+      borderColor: theme.colors.primary.main,
+      backgroundColor: theme.colors.primary.main,
+    },
+    tourButtonText: {
+      ...getTextStyle(theme, "caption", "bold", theme.colors.text.primary),
+    },
+    tourButtonTextPrimary: {
+      color: theme.colors.neutral.white,
+    },
   }))(theme);
 
   const loadDashboardConfig = async () => {
@@ -587,6 +667,145 @@ export default function DashboardScreen() {
       }
     }, [loadDashboardDataMemoized, loading, refreshing])
   );
+
+  useEffect(() => {
+    tourRequestedRef.current = false;
+    tourParamHandledRef.current = false;
+    setShowTour(false);
+    setTourStep(0);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (tourParamHandledRef.current) return;
+    if (params.tour !== "1") return;
+    tourParamHandledRef.current = true;
+    setTourOverride(true);
+  }, [params.tour]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const readTourOverride = async () => {
+      try {
+        const AsyncStorage = await import(
+          "@react-native-async-storage/async-storage"
+        );
+        const shouldTrigger =
+          (await AsyncStorage.default.getItem("triggerDashboardTour")) ===
+          "true";
+        if (!(isMounted && shouldTrigger)) return;
+        await AsyncStorage.default.removeItem("triggerDashboardTour");
+        setTourOverride(true);
+      } catch {
+        // Ignore storage errors
+      }
+    };
+
+    readTourOverride();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || tourRequestedRef.current) return;
+    if (!user.onboardingCompleted) return;
+    if (!tourOverride && user.dashboardTourCompleted) return;
+
+    tourRequestedRef.current = true;
+    tourTimeoutRef.current = setTimeout(() => {
+      setShowTour(true);
+    }, 800);
+
+    return () => {
+      if (tourTimeoutRef.current) {
+        clearTimeout(tourTimeoutRef.current);
+      }
+    };
+  }, [
+    tourOverride,
+    user?.dashboardTourCompleted,
+    user?.id,
+    user?.onboardingCompleted,
+  ]);
+
+  const tourSteps = useMemo(() => {
+    const tabsCopy = isAdmin
+      ? isRTL
+        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، التتبع، زينا، العائلة، والملف الشخصي."
+        : "Use the bottom tabs to switch between Home, Track, Zeina, Family, and Profile."
+      : isRTL
+        ? "استخدم الشريط السفلي للتنقل بين الصفحة الرئيسية، زينا، والملف الشخصي."
+        : "Use the bottom tabs to switch between Home, Zeina, and Profile.";
+
+    return [
+      {
+        title: isRTL ? "مرحباً بك في لوحة التحكم" : "Welcome to your dashboard",
+        body: isRTL
+          ? "هذه الصفحة تلخص أهم المعلومات الصحية لديك في لمحة واحدة."
+          : "This screen summarizes your most important health info at a glance.",
+      },
+      {
+        title: isRTL ? "زر SOS للطوارئ" : "SOS emergency button",
+        body: isRTL
+          ? "اضغط SOS للاتصال بالطوارئ أو تنبيه العائلة بسرعة."
+          : "Tap SOS to call emergency services or notify family quickly.",
+      },
+      {
+        title: isRTL ? "بطاقات الإحصاءات" : "Stats cards",
+        body: isRTL
+          ? "تعرض نشاطك الأسبوعي والالتزام بالأدوية ولمحة عن العائلة."
+          : "See weekly activity, medication compliance, and family overview.",
+      },
+      {
+        title: isRTL ? "أدوية اليوم" : "Today's medications",
+        body: isRTL
+          ? "راجع الأدوية القادمة وسجل ما تم تناوله بنقرة واحدة."
+          : "Review upcoming meds and mark them as taken in one tap.",
+      },
+      {
+        title: isRTL ? "الأعراض الحديثة" : "Recent symptoms",
+        body: isRTL
+          ? "سجل أعراضك وتابع شدتها وتوقيتها هنا."
+          : "Log symptoms and track their timing and severity here.",
+      },
+      {
+        title: isRTL ? "إجراءات سريعة" : "Quick actions",
+        body: isRTL
+          ? "اختصارات لإضافة أعراض، أدوية، العلامات الحيوية، والمزيد."
+          : "Shortcuts to log symptoms, manage meds, record vitals, and more.",
+      },
+      {
+        title: isRTL ? "التنقل بين الأقسام" : "Navigation tabs",
+        body: tabsCopy,
+      },
+    ];
+  }, [isAdmin, isRTL]);
+
+  const handleTourFinish = async () => {
+    setShowTour(false);
+    setTourStep(0);
+    if (!user?.id) return;
+    try {
+      await updateUser({ dashboardTourCompleted: true });
+    } catch {
+      // Silently fail - the tour has already been dismissed
+    }
+  };
+
+  const handleTourNext = () => {
+    if (tourStep >= tourSteps.length - 1) {
+      handleTourFinish();
+      return;
+    }
+    setTourStep((prevStep) => prevStep + 1);
+  };
+
+  const handleTourBack = () => {
+    setTourStep((prevStep) => Math.max(0, prevStep - 1));
+  };
+
+  const activeTourStep = tourSteps[tourStep] ?? tourSteps[0];
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -1872,6 +2091,107 @@ export default function DashboardScreen() {
                   ))}
                 </ScrollView>
               )}
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="fade"
+          onRequestClose={handleTourFinish}
+          transparent={true}
+          visible={showTour && tourSteps.length > 0}
+        >
+          <View style={styles.tourOverlay as ViewStyle}>
+            <View style={styles.tourCard as ViewStyle}>
+              <Text
+                style={
+                  [
+                    styles.tourTitle,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+                weight="bold"
+              >
+                {activeTourStep.title}
+              </Text>
+              <Text
+                style={
+                  [
+                    styles.tourBody,
+                    isRTL && styles.rtlText,
+                  ] as StyleProp<TextStyle>
+                }
+              >
+                {activeTourStep.body}
+              </Text>
+              <View style={styles.tourProgressRow as ViewStyle}>
+                <Text style={styles.tourProgressText as StyleProp<TextStyle>}>
+                  {tourStep + 1}/{tourSteps.length}
+                </Text>
+                <View style={styles.tourDots as ViewStyle}>
+                  {tourSteps.map((_, index) => (
+                    <View
+                      key={`tour-dot-${index}`}
+                      style={
+                        [
+                          styles.tourDot,
+                          index === tourStep && styles.tourDotActive,
+                        ] as StyleProp<ViewStyle>
+                      }
+                    />
+                  ))}
+                </View>
+              </View>
+              <View style={styles.tourFooter as ViewStyle}>
+                <Pressable
+                  onPress={handleTourFinish}
+                  style={styles.tourButton as ViewStyle}
+                >
+                  <Text style={styles.tourButtonText as StyleProp<TextStyle>}>
+                    {isRTL ? "تخطي" : "Skip"}
+                  </Text>
+                </Pressable>
+                <View style={styles.tourActions as ViewStyle}>
+                  {tourStep > 0 && (
+                    <Pressable
+                      onPress={handleTourBack}
+                      style={styles.tourButton as ViewStyle}
+                    >
+                      <Text
+                        style={styles.tourButtonText as StyleProp<TextStyle>}
+                      >
+                        {isRTL ? "رجوع" : "Back"}
+                      </Text>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={handleTourNext}
+                    style={
+                      [
+                        styles.tourButton,
+                        styles.tourButtonPrimary,
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Text
+                      style={
+                        [
+                          styles.tourButtonText,
+                          styles.tourButtonTextPrimary,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {tourStep >= tourSteps.length - 1
+                        ? isRTL
+                          ? "إنهاء"
+                          : "Done"
+                        : isRTL
+                          ? "التالي"
+                          : "Next"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
           </View>
         </Modal>

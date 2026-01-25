@@ -29,6 +29,7 @@ import type { HealthProvider } from "@/lib/health/healthMetricsCatalog";
 import { getProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
 import { fitbitService } from "@/lib/services/fitbitService";
+import { withingsService } from "@/lib/services/withingsService";
 
 interface ProviderOption {
   id: HealthProvider;
@@ -53,6 +54,9 @@ export default function HealthIntegrationsScreen() {
   const isRTL = i18n.language === "ar";
   const [loading, setLoading] = useState(true);
   const [fitbitAvailable, setFitbitAvailable] = useState<boolean | null>(null);
+  const [withingsAvailable, setWithingsAvailable] = useState<boolean | null>(
+    null
+  );
   const [connections, setConnections] = useState<
     Map<HealthProvider, ProviderConnection>
   >(new Map());
@@ -89,7 +93,7 @@ export default function HealthIntegrationsScreen() {
       description: t("fitbitDescription"),
       icon: Heart,
       available: fitbitAvailable === true,
-      comingSoon: fitbitAvailable === false,
+      comingSoon: false,
       route: "/profile/health/fitbit-intro",
     },
     {
@@ -115,8 +119,8 @@ export default function HealthIntegrationsScreen() {
       name: "Withings",
       description: "Smart scales and health monitors",
       icon: Heart,
-      available: false,
-      comingSoon: true,
+      available: withingsAvailable === true,
+      comingSoon: false,
       route: "/profile/health/withings-intro",
     },
     {
@@ -147,23 +151,59 @@ export default function HealthIntegrationsScreen() {
     },
   ];
 
+  // Static list of all provider IDs to check connections for
+  const allProviderIds: HealthProvider[] = [
+    "apple_health",
+    "health_connect",
+    "fitbit",
+    "samsung_health",
+    "garmin",
+    "withings",
+    "oura",
+    "dexcom",
+    "freestyle_libre",
+  ];
+
   const loadConnections = useCallback(async () => {
     try {
       setLoading(true);
-      const availability = await fitbitService.isAvailable();
-      setFitbitAvailable(availability.available);
+      const [fitbitAvailability, withingsAvailability] = await Promise.all([
+        fitbitService.isAvailable(),
+        withingsService.isAvailable(),
+      ]);
+
+      // Set availability state (true/false, not null)
+      setFitbitAvailable(fitbitAvailability.available);
+      setWithingsAvailable(withingsAvailability.available);
+
+      // Debug logging (remove in production)
+      console.log(
+        "Fitbit available:",
+        fitbitAvailability.available,
+        fitbitAvailability.reason
+      );
+      console.log(
+        "Withings available:",
+        withingsAvailability.available,
+        withingsAvailability.reason
+      );
+
       const connectionsMap = new Map<HealthProvider, ProviderConnection>();
 
-      for (const provider of providers) {
-        const connection = await getProviderConnection(provider.id);
+      // Use static list instead of providers array to avoid dependency issues
+      for (const providerId of allProviderIds) {
+        const connection = await getProviderConnection(providerId);
         if (connection) {
-          connectionsMap.set(provider.id, connection);
+          connectionsMap.set(providerId, connection);
         }
       }
 
       setConnections(connectionsMap);
-    } catch {
-      // Silently handle error
+    } catch (error) {
+      console.error("Error loading connections:", error);
+      // Set to false on error so they show as "Coming Soon" instead of platform error
+      setFitbitAvailable(false);
+      setWithingsAvailable(false);
     } finally {
       setLoading(false);
     }

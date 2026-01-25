@@ -1,6 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 import { Platform } from "react-native";
+import { auth, db } from "@/lib/firebase";
 import { appleHealthService } from "./appleHealthService";
 
 // iOS HealthKit permissions - legacy format (not used with @kingstinct/react-native-healthkit)
@@ -275,8 +285,261 @@ export const healthDataService = {
     }
   },
 
-  // Get latest vital signs
+  // Get latest vital signs from all connected sources
+  // Aggregates data from Firestore (where all synced data is stored)
+  // Falls back to direct provider queries if Firestore doesn't have data yet
   async getLatestVitals(): Promise<VitalSigns | null> {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        // No user logged in, fall back to direct provider queries
+        return await this.getLatestVitalsFromProviders();
+      }
+
+      // Try to get aggregated vitals from Firestore first
+      // This includes data from all synced sources (Fitbit, Withings, Apple Health, etc.)
+      const firestoreVitals = await this.getLatestVitalsFromFirestore(userId);
+      if (firestoreVitals) {
+        return firestoreVitals;
+      }
+
+      // Fall back to direct provider queries if Firestore doesn't have data yet
+      return await this.getLatestVitalsFromProviders();
+    } catch (error) {
+      // If Firestore query fails, fall back to direct provider queries
+      return await this.getLatestVitalsFromProviders();
+    }
+  },
+
+  // Get latest vitals from Firestore (aggregated from all sources)
+  async getLatestVitalsFromFirestore(
+    userId: string
+  ): Promise<VitalSigns | null> {
+    try {
+      // Get recent vitals from all sources (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const vitalsQuery = query(
+        collection(db, "vitals"),
+        where("userId", "==", userId),
+        where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
+        orderBy("timestamp", "desc"),
+        limit(500)
+      );
+
+      const snapshot = await getDocs(vitalsQuery);
+      if (snapshot.empty) {
+        return null;
+      }
+
+      // Group vitals by type
+      const vitalsByType: Record<
+        string,
+        Array<{
+          value: number;
+          timestamp: Date;
+          source?: string;
+          metadata?: any;
+        }>
+      > = {};
+
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const vitalType = data.type;
+        const timestamp = data.timestamp?.toDate?.() || new Date();
+
+        if (!vitalsByType[vitalType]) {
+          vitalsByType[vitalType] = [];
+        }
+        vitalsByType[vitalType].push({
+          value: data.value,
+          timestamp,
+          source: data.source,
+          metadata: data.metadata,
+        });
+      });
+
+      // Metrics that should use latest value (not summed)
+      const latestValueMetrics = [
+        "heartRate",
+        "restingHeartRate",
+        "walkingHeartRateAverage",
+        "heartRateVariability",
+        "bloodPressure",
+        "respiratoryRate",
+        "bodyTemperature",
+        "oxygenSaturation",
+        "bloodGlucose",
+        "weight",
+        "height",
+        "bodyMassIndex",
+        "bodyFatPercentage",
+      ];
+
+      // Metrics that should be summed for today's total
+      const sumMetrics = [
+        "steps",
+        "activeEnergy",
+        "basalEnergy",
+        "distanceWalkingRunning",
+        "flightsClimbed",
+        "exerciseMinutes",
+        "standTime",
+        "sleepHours",
+        "waterIntake",
+      ];
+
+      // Helper to get latest value for a metric type
+      const getLatestValue = (type: string): number | undefined => {
+        const samples = vitalsByType[type];
+        if (!samples || samples.length === 0) return;
+        // Sort by timestamp descending and get the most recent
+        const sorted = [...samples].sort(
+          (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+        );
+        return sorted[0].value;
+      };
+
+      // Helper to get today's sum for a metric type
+      const getTodaySum = (type: string): number | undefined => {
+        const samples = vitalsByType[type];
+        if (!samples || samples.length === 0) return;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Filter samples from today and sum them
+        const todaySamples = samples.filter(
+          (s) => s.timestamp >= today && s.timestamp < tomorrow
+        );
+        if (todaySamples.length === 0) {
+          // If no data today, return the most recent value (might be from yesterday)
+          const sorted = [...samples].sort(
+            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+          );
+          return sorted[0]?.value;
+        }
+        return todaySamples.reduce((acc, s) => acc + s.value, 0);
+      };
+
+      // Helper to get sleep hours (sum of all sleep periods)
+      const getSleepHours = (): number | undefined => {
+        const samples = vitalsByType["sleepHours"];
+        if (!samples || samples.length === 0) return;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Filter samples from today and sum them
+        const todaySamples = samples.filter(
+          (s) => s.timestamp >= today && s.timestamp < tomorrow
+        );
+        if (todaySamples.length === 0) {
+          // If no data today, get the most recent sleep reading
+          const sorted = [...samples].sort(
+            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+          );
+          return sorted[0]?.value;
+        }
+        return todaySamples.reduce((acc, s) => acc + s.value, 0);
+      };
+
+      // Build VitalSigns object
+      const vitals: VitalSigns = {
+        // Heart & Cardiovascular - use latest value
+        heartRate: getLatestValue("heartRate"),
+        restingHeartRate: getLatestValue("restingHeartRate"),
+        heartRateVariability: getLatestValue("heartRateVariability"),
+        walkingHeartRateAverage: getLatestValue("walkingHeartRateAverage"),
+        bloodPressure: (() => {
+          const bp = getLatestValue("bloodPressure");
+          if (bp === undefined) {
+            // Try to get from metadata
+            const samples = vitalsByType["bloodPressure"];
+            if (samples && samples.length > 0) {
+              const sorted = [...samples].sort(
+                (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+              );
+              const latest = sorted[0];
+              if (latest.metadata?.systolic && latest.metadata?.diastolic) {
+                return {
+                  systolic: latest.metadata.systolic,
+                  diastolic: latest.metadata.diastolic,
+                };
+              }
+            }
+            return;
+          }
+          // If value is a number, we need to check metadata for systolic/diastolic
+          const samples = vitalsByType["bloodPressure"];
+          if (samples && samples.length > 0) {
+            const sorted = [...samples].sort(
+              (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            );
+            const latest = sorted[0];
+            if (latest.metadata?.systolic && latest.metadata?.diastolic) {
+              return {
+                systolic: latest.metadata.systolic,
+                diastolic: latest.metadata.diastolic,
+              };
+            }
+          }
+          return;
+        })(),
+
+        // Respiratory - use latest value
+        respiratoryRate: getLatestValue("respiratoryRate"),
+        oxygenSaturation: getLatestValue("oxygenSaturation"),
+
+        // Temperature - use latest value
+        bodyTemperature: getLatestValue("bodyTemperature"),
+
+        // Body Measurements - use latest value
+        weight: getLatestValue("weight"),
+        height: getLatestValue("height"),
+        bodyMassIndex: getLatestValue("bodyMassIndex"),
+        bodyFatPercentage: getLatestValue("bodyFatPercentage"),
+
+        // Activity & Fitness - sum today's values
+        steps: getTodaySum("steps"),
+        activeEnergy: getTodaySum("activeEnergy"),
+        basalEnergy: getTodaySum("basalEnergy"),
+        distanceWalkingRunning: getTodaySum("distanceWalkingRunning"),
+        flightsClimbed: getTodaySum("flightsClimbed"),
+        exerciseMinutes: getTodaySum("exerciseMinutes"),
+        standTime: getTodaySum("standTime"),
+        workouts: (() => {
+          // Count unique workout sessions (could be tracked separately)
+          const samples = vitalsByType["workouts"];
+          return samples ? samples.length : undefined;
+        })(),
+
+        // Sleep - sum today's sleep periods
+        sleepHours: getSleepHours(),
+
+        // Nutrition - sum today's values
+        waterIntake: getTodaySum("waterIntake"),
+
+        // Glucose - use latest value
+        bloodGlucose: getLatestValue("bloodGlucose"),
+
+        timestamp: new Date(),
+      };
+
+      return vitals;
+    } catch (error) {
+      console.error("Error getting vitals from Firestore:", error);
+      return null;
+    }
+  },
+
+  // Fallback: Get latest vitals from direct provider queries (priority-based)
+  async getLatestVitalsFromProviders(): Promise<VitalSigns | null> {
     try {
       const { getProviderConnection } = await import("../health/healthSync");
 
@@ -284,6 +547,13 @@ export const healthDataService = {
       const fitbitConnection = await getProviderConnection("fitbit");
       if (fitbitConnection && fitbitConnection.connected) {
         return await this.getFitbitVitals();
+      }
+
+      // Check Withings (works on both platforms)
+      const withingsConnection = await getProviderConnection("withings");
+      if (withingsConnection && withingsConnection.connected) {
+        // Withings vitals would need to be fetched similarly
+        // For now, fall through to platform-specific providers
       }
 
       // Fall back to platform-specific providers

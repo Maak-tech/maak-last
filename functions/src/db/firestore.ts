@@ -40,6 +40,11 @@ export interface User {
       trendAlerts?: boolean;
       familyUpdates?: boolean;
     };
+    emergencyContacts?: Array<{
+      id?: string;
+      name: string;
+      phone: string;
+    }>;
   };
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

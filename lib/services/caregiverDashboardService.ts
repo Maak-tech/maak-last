@@ -1,5 +1,6 @@
 import type { EmergencyAlert, User } from "@/types";
 import { alertService } from "./alertService";
+import { emergencySmsService } from "./emergencySmsService";
 import { healthScoreService } from "./healthScoreService";
 import { medicationService } from "./medicationService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
@@ -183,7 +184,7 @@ class CaregiverDashboardService {
         },
         recentSymptoms,
         fallDetectionStatus,
-        emergencyContacts: [], // Would need to fetch from user profile
+        emergencyContacts: member.preferences?.emergencyContacts || [],
         needsAttention,
         attentionReasons,
       };
@@ -245,7 +246,7 @@ class CaregiverDashboardService {
         nextMedication,
         healthScore: healthScoreResult.score,
         hasAlerts,
-        emergencyContacts: [], // Would need to fetch from user profile
+        emergencyContacts: user.preferences?.emergencyContacts || [],
       };
     } catch (error) {
       throw new Error("Failed to get elderly user dashboard");
@@ -306,6 +307,12 @@ class CaregiverDashboardService {
           })
         )
       );
+
+      await emergencySmsService.sendEmergencySms({
+        userId,
+        alertType: "sos",
+        message: `Emergency SOS from ${user.firstName} ${user.lastName}: ${message}`,
+      });
     } catch (error) {
       throw new Error("Failed to send emergency alert");
     }

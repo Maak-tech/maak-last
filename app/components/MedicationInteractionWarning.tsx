@@ -49,6 +49,13 @@ export default function MedicationInteractionWarning({
     container: {
       marginBottom: theme.spacing.base,
     } as ViewStyle,
+    infoCard: {
+      backgroundColor: theme.colors.background.secondary,
+      borderColor: theme.colors.border.light,
+      borderWidth: 1,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.base,
+    } as ViewStyle,
     warningCard: {
       backgroundColor: theme.colors.accent.error + "10",
       borderColor: theme.colors.accent.error,
@@ -69,6 +76,9 @@ export default function MedicationInteractionWarning({
     warningText: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
       marginBottom: theme.spacing.xs,
+    } as TextStyle,
+    infoText: {
+      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
     } as TextStyle,
     viewDetailsButton: {
       marginTop: theme.spacing.sm,
@@ -154,6 +164,10 @@ export default function MedicationInteractionWarning({
     checkInteractions();
   }, [medications, newMedicationName]);
 
+  const effectiveMedicationCount =
+    medications.length + (newMedicationName ? 1 : 0);
+  const hasEnoughMedications = effectiveMedicationCount >= 2;
+
   const checkInteractions = async () => {
     setLoading(true);
     try {
@@ -174,6 +188,11 @@ export default function MedicationInteractionWarning({
         medsToCheck = [...medications, tempMed];
       }
 
+      if (medsToCheck.length < 2) {
+        setInteractions([]);
+        return;
+      }
+
       const foundInteractions =
         await medicationInteractionService.checkInteractions(medsToCheck);
       setInteractions(foundInteractions);
@@ -189,8 +208,61 @@ export default function MedicationInteractionWarning({
     }
   };
 
-  if (loading || interactions.length === 0) {
-    return null;
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Card
+          contentStyle={undefined}
+          onPress={undefined}
+          style={styles.infoCard}
+          variant="elevated"
+        >
+          <TypographyText style={[styles.infoText, isRTL && styles.rtlText]}>
+            {isRTL
+              ? "جارٍ التحقق من تفاعلات الأدوية..."
+              : "Checking medication interactions..."}
+          </TypographyText>
+        </Card>
+      </View>
+    );
+  }
+
+  if (!hasEnoughMedications) {
+    return (
+      <View style={styles.container}>
+        <Card
+          contentStyle={undefined}
+          onPress={undefined}
+          style={styles.infoCard}
+          variant="elevated"
+        >
+          <TypographyText style={[styles.infoText, isRTL && styles.rtlText]}>
+            {isRTL
+              ? "أضف دواءين نشطين على الأقل للتحقق من التفاعلات."
+              : "Add at least two active medications to check interactions."}
+          </TypographyText>
+        </Card>
+      </View>
+    );
+  }
+
+  if (interactions.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Card
+          contentStyle={undefined}
+          onPress={undefined}
+          style={styles.infoCard}
+          variant="elevated"
+        >
+          <TypographyText style={[styles.infoText, isRTL && styles.rtlText]}>
+            {isRTL
+              ? "لا توجد تفاعلات معروفة بين الأدوية الحالية."
+              : "No known interactions detected for your current medications."}
+          </TypographyText>
+        </Card>
+      </View>
+    );
   }
 
   const majorInteractions = interactions.filter((i) => i.severity === "major");

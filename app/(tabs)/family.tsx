@@ -128,7 +128,7 @@ interface FamilyMemberMetrics {
 
 export default function FamilyScreen() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
   const {
@@ -227,6 +227,24 @@ export default function FamilyScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin" || user?.role === "caregiver";
   const hasFamily = Boolean(user?.familyId);
+  useEffect(() => {
+    if (user?.preferences?.emergencyContacts) {
+      setEmergencyContacts(user.preferences.emergencyContacts);
+    }
+  }, [user?.preferences?.emergencyContacts]);
+
+  const getMergedPreferences = useCallback(
+    (contacts: { id: string; name: string; phone: string }[]) => ({
+      language: user?.preferences?.language || "en",
+      notifications:
+        user?.preferences?.notifications !== undefined
+          ? user.preferences.notifications
+          : true,
+      emergencyContacts: contacts,
+    }),
+    [user?.preferences?.language, user?.preferences?.notifications]
+  );
+
   const viewModeInitialized = useRef(false);
   const loadMemberMetricsRef = useRef<
     ((members: User[]) => Promise<void>) | null
@@ -1374,7 +1392,7 @@ export default function FamilyScreen() {
     }
   };
 
-  const handleAddEmergencyContact = () => {
+  const handleAddEmergencyContact = async () => {
     try {
       Keyboard.dismiss();
 
@@ -1416,7 +1434,13 @@ export default function FamilyScreen() {
         phone: phoneValue,
       };
 
-      setEmergencyContacts((prev) => [...prev, contact]);
+      const updatedContacts = [...emergencyContacts, contact];
+      setEmergencyContacts(updatedContacts);
+      if (user?.id) {
+        await updateUser({
+          preferences: getMergedPreferences(updatedContacts),
+        });
+      }
       setNewContact({ name: "", phone: "" });
 
       setTimeout(() => {
@@ -1458,16 +1482,31 @@ export default function FamilyScreen() {
         {
           text: isRTL ? "حذف" : "Delete",
           style: "destructive",
-          onPress: () => {
-            setEmergencyContacts(
-              emergencyContacts.filter((c) => c.id !== contactId)
-            );
-            Alert.alert(
-              isRTL ? "تم الحذف" : "Deleted",
-              isRTL
-                ? "تم حذف جهة الاتصال بنجاح"
-                : "Emergency contact deleted successfully"
-            );
+          onPress: async () => {
+            try {
+              const updatedContacts = emergencyContacts.filter(
+                (c) => c.id !== contactId
+              );
+              setEmergencyContacts(updatedContacts);
+              if (user?.id) {
+                await updateUser({
+                  preferences: getMergedPreferences(updatedContacts),
+                });
+              }
+              Alert.alert(
+                isRTL ? "تم الحذف" : "Deleted",
+                isRTL
+                  ? "تم حذف جهة الاتصال بنجاح"
+                  : "Emergency contact deleted successfully"
+              );
+            } catch (error) {
+              Alert.alert(
+                isRTL ? "خطأ" : "Error",
+                isRTL
+                  ? "فشل في تحديث جهة الاتصال"
+                  : "Failed to update emergency contact"
+              );
+            }
           },
         },
       ]

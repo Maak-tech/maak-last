@@ -18,6 +18,7 @@ import {
   observabilityEmitter,
 } from "@/lib/observability";
 import type { EmergencyAlert } from "@/types";
+import { emergencySmsService } from "./emergencySmsService";
 import { pushNotificationService } from "./pushNotificationService";
 import { userService } from "./userService";
 
@@ -291,6 +292,13 @@ export const alertService = {
             userName,
             user.familyId
           );
+          await emergencySmsService.sendEmergencySms({
+            userId,
+            alertType: "fall",
+            message: `Emergency: ${userName} may have fallen and needs help.${
+              location ? ` Location: ${location}.` : ""
+            }`,
+          });
         } else {
           const userName =
             user?.firstName && user?.lastName
@@ -301,6 +309,13 @@ export const alertService = {
             alertId,
             userName
           );
+          await emergencySmsService.sendEmergencySms({
+            userId,
+            alertType: "fall",
+            message: `Emergency: ${userName} may have fallen and needs help.${
+              location ? ` Location: ${location}.` : ""
+            }`,
+          });
         }
       } catch (notificationError) {
         observabilityEmitter.emit({

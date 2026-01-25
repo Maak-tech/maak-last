@@ -23,7 +23,7 @@ import { fcmService } from "@/lib/services/fcmService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
-import type { AvatarType, User } from "@/types";
+import type { AvatarType, EmergencyContact, User } from "@/types";
 
 // Import React Native Firebase for native phone auth
 let rnFirebaseAuth:
@@ -112,6 +112,50 @@ type PhoneConfirmationResult =
   | ConfirmationResult
   | RNFirebaseConfirmationResult;
 
+const normalizeEmergencyContacts = (
+  rawContacts: unknown
+): EmergencyContact[] => {
+  if (!Array.isArray(rawContacts)) return [];
+
+  const contacts: EmergencyContact[] = [];
+
+  for (const [index, contact] of rawContacts.entries()) {
+    if (typeof contact === "string" && contact.trim()) {
+      contacts.push({
+        id: `legacy-${index}`,
+        name: "Emergency Contact",
+        phone: contact.trim(),
+      });
+      continue;
+    }
+
+    if (contact && typeof contact === "object") {
+      const name =
+        typeof (contact as { name?: string }).name === "string"
+          ? (contact as { name?: string }).name!.trim()
+          : "";
+      const phone =
+        typeof (contact as { phone?: string }).phone === "string"
+          ? (contact as { phone?: string }).phone!.trim()
+          : "";
+      const id =
+        typeof (contact as { id?: string }).id === "string"
+          ? (contact as { id?: string }).id!.trim()
+          : "";
+
+      if (name && phone) {
+        contacts.push({
+          id: id || `normalized-${index}`,
+          name,
+          phone,
+        });
+      }
+    }
+  }
+
+  return contacts;
+};
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -199,11 +243,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           role: userData.role || "member",
           createdAt: userData.createdAt?.toDate() || new Date(),
           onboardingCompleted: userData.onboardingCompleted,
+          dashboardTourCompleted: userData.dashboardTourCompleted,
           isPremium: userData.isPremium,
-          preferences: userData.preferences || {
-            language: "en",
-            notifications: true,
-            emergencyContacts: [],
+          preferences: {
+            language: userData.preferences?.language || "en",
+            notifications:
+              userData.preferences?.notifications !== undefined
+                ? userData.preferences.notifications
+                : true,
+            emergencyContacts: normalizeEmergencyContacts(
+              userData.preferences?.emergencyContacts
+            ),
           },
         };
       }
@@ -229,6 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       role: "member",
       createdAt: new Date(),
       onboardingCompleted: false,
+      dashboardTourCompleted: false,
       isPremium: false,
       preferences: {
         language: "en",

@@ -248,10 +248,14 @@ export default function OnboardingScreen() {
 
     setIsCompleting(true);
     try {
+      const AsyncStorage = await import(
+        "@react-native-async-storage/async-storage"
+      );
+      await AsyncStorage.default.setItem("triggerDashboardTour", "true");
       await updateUser({ onboardingCompleted: true });
       // Small delay to ensure state is updated
       setTimeout(() => {
-        router.replace("/(tabs)");
+        router.replace({ pathname: "/(tabs)", params: { tour: "1" } } as any);
       }, 300);
     } catch (error) {
       // Silently handle error

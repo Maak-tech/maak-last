@@ -31,7 +31,10 @@ const WITHINGS_CLIENT_SECRET =
 const WITHINGS_AUTH_URL = "https://account.withings.com/oauth2_user/authorize2";
 const WITHINGS_TOKEN_URL = "https://wbsapi.withings.net/v2/oauth2";
 const WITHINGS_API_BASE = "https://wbsapi.withings.net";
-const REDIRECT_URI = Linking.createURL("withings-callback");
+// OAuth redirect URI - must match what's registered with Withings (web URL)
+const REDIRECT_URI = "https://maak-5caad.web.app/withings-callback";
+// Deep link for app handling after web callback redirects
+const DEEP_LINK_URI = Linking.createURL("withings-callback");
 
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();
@@ -74,10 +77,30 @@ export const withingsService = {
    */
   isAvailable: async (): Promise<ProviderAvailability> => {
     try {
+      // Debug: Log the actual values being checked
+      console.log("[Withings] Checking availability:");
+      console.log(
+        "[Withings] CLIENT_ID:",
+        WITHINGS_CLIENT_ID
+          ? `${WITHINGS_CLIENT_ID.substring(0, 4)}...`
+          : "undefined"
+      );
+      console.log(
+        "[Withings] CLIENT_SECRET:",
+        WITHINGS_CLIENT_SECRET ? "***" : "undefined"
+      );
+      console.log(
+        "[Withings] From Constants:",
+        Constants.expoConfig?.extra?.withingsClientId ? "present" : "missing"
+      );
+
       if (
         WITHINGS_CLIENT_ID === "YOUR_WITHINGS_CLIENT_ID" ||
-        WITHINGS_CLIENT_SECRET === "YOUR_WITHINGS_CLIENT_SECRET"
+        WITHINGS_CLIENT_SECRET === "YOUR_WITHINGS_CLIENT_SECRET" ||
+        !WITHINGS_CLIENT_ID?.trim() ||
+        !WITHINGS_CLIENT_SECRET?.trim()
       ) {
+        console.log("[Withings] Not available - credentials missing or empty");
         return {
           available: false,
           reason:
@@ -85,10 +108,12 @@ export const withingsService = {
         };
       }
 
+      console.log("[Withings] Available!");
       return {
         available: true,
       };
     } catch (error: any) {
+      console.error("[Withings] Error checking availability:", error);
       return {
         available: false,
         reason: error?.message || "Unknown error",
@@ -124,12 +149,15 @@ export const withingsService = {
         `scope=${encodeURIComponent(scopes.join(","))}&` +
         `state=${encodeURIComponent("withings_auth")}`;
 
+      // Use web callback URL for OAuth (registered with Withings)
+      // The web page will redirect to deep link after extracting the code
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
         REDIRECT_URI
       );
 
       if (result.type === "success" && result.url) {
+        // Handle both web callback URL and deep link redirect
         await withingsService.handleRedirect(result.url, selectedMetrics);
       } else {
         throw new Error("Authentication cancelled or failed");
@@ -141,13 +169,22 @@ export const withingsService = {
 
   /**
    * Handle OAuth redirect callback
+   * Handles both web callback URL and deep link redirects
    */
   handleRedirect: async (
     url: string,
     selectedMetrics?: string[]
   ): Promise<void> => {
     try {
-      const urlObj = new URL(url);
+      // Handle both web URLs and deep links (maak://)
+      let urlObj: URL;
+      if (url.startsWith("maak://")) {
+        // Convert deep link to parseable URL format
+        urlObj = new URL(url.replace("maak://", "https://maak.app/"));
+      } else {
+        urlObj = new URL(url);
+      }
+
       const code = urlObj.searchParams.get("code");
       const error = urlObj.searchParams.get("error");
 
@@ -170,7 +207,7 @@ export const withingsService = {
           client_secret: WITHINGS_CLIENT_SECRET,
           code,
           grant_type: "authorization_code",
-          redirect_uri: REDIRECT_URI,
+          redirect_uri: REDIRECT_URI, // Must match registered callback URL
         }).toString(),
       });
 
@@ -182,12 +219,14 @@ export const withingsService = {
 
       const tokens = responseData.body;
 
+      const withingsUserId = tokens.userid?.toString() || "";
+
       await withingsService.saveTokens({
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
         scope: tokens.scope,
-        userId: tokens.userid?.toString() || "",
+        userId: withingsUserId,
       });
 
       await saveProviderConnection({
@@ -196,6 +235,32 @@ export const withingsService = {
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || [],
       });
+
+      // Save Withings user ID to Firestore for webhook matching
+      if (withingsUserId) {
+        try {
+          const { auth } = await import("../firebase");
+          const { db } = await import("../firebase");
+          const { doc, updateDoc } = await import("firebase/firestore");
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            const userRef = doc(db, "users", currentUser.uid);
+            await updateDoc(userRef, {
+              withingsUserId,
+            });
+          }
+        } catch (error) {
+          // Silently handle Firestore update error - not critical for OAuth flow
+        }
+      }
+
+      // Subscribe to Withings notifications for real-time data updates
+      try {
+        await withingsService.subscribeToNotifications(tokens.access_token);
+      } catch (error) {
+        // Silently handle subscription error - not critical for OAuth flow
+        // User can still manually sync data
+      }
     } catch (error: any) {
       throw new Error(
         `Failed to complete Withings authentication: ${error.message}`
@@ -558,6 +623,62 @@ export const withingsService = {
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> =>
     withingsService.fetchHealthData(metricKeys, startDate, endDate),
+
+  /**
+   * Subscribe to Withings notifications for real-time data updates
+   * @param accessToken - Withings access token
+   * @param appli - Data category (1=weight, 2=temperature, 4=blood pressure/heart rate, 16=activity, 44=sleep, 46=user profile)
+   */
+  subscribeToNotifications: async (
+    accessToken: string,
+    appli?: number
+  ): Promise<void> => {
+    try {
+      // Default to subscribing to all relevant categories
+      // 1: Weight, 2: Temperature, 4: Blood pressure/Heart rate, 16: Activity, 44: Sleep
+      const categories = appli ? [appli] : [1, 2, 4, 16, 44];
+      const callbackUrl =
+        "https://us-central1-maak-5caad.cloudfunctions.net/withingsWebhook";
+
+      // Subscribe to each category
+      for (const category of categories) {
+        try {
+          const response = await fetch(`${WITHINGS_API_BASE}/notify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: new URLSearchParams({
+              action: "subscribe",
+              callbackurl: callbackUrl,
+              appli: category.toString(),
+              comment: "Maak Health data sync",
+            }).toString(),
+          });
+
+          const responseData = await response.json();
+
+          if (responseData.status !== 0) {
+            // Log but don't throw - subscription failures are not critical
+            console.warn(
+              `Failed to subscribe to Withings notifications for category ${category}:`,
+              responseData.error
+            );
+          }
+        } catch (error) {
+          // Silently handle individual category subscription failures
+          console.warn(
+            `Error subscribing to Withings category ${category}:`,
+            error
+          );
+        }
+      }
+    } catch (error) {
+      // Silently handle subscription errors - not critical for OAuth flow
+      throw error;
+    }
+  },
 
   /**
    * Disconnect Withings integration

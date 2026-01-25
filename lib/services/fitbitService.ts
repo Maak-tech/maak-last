@@ -33,7 +33,7 @@ const FITBIT_API_BASE = "https://api.fitbit.com/1";
 // Redirect URI must match what's configured in Fitbit app settings
 // Format: maak://fitbit-callback (using app scheme)
 const REDIRECT_URI = Linking.createURL("fitbit-callback");
-const FITBIT_PKCE_VERIFIER_KEY = "fitbit_pkce_verifier";
+const FITBIT_PKCE_VERIFIER_KEY = "health_fitbit_pkce_verifier";
 
 const base64UrlEncode = (bytes: Uint8Array): string => {
   const binary = String.fromCharCode(...bytes);
@@ -171,6 +171,23 @@ WebBrowser.maybeCompleteAuthSession();
 export const fitbitService = {
   isAvailable: async (): Promise<ProviderAvailability> => {
     try {
+      // Debug: Log the actual values being checked
+      console.log("[Fitbit] Checking availability:");
+      console.log(
+        "[Fitbit] CLIENT_ID:",
+        FITBIT_CLIENT_ID
+          ? `${FITBIT_CLIENT_ID.substring(0, 4)}...`
+          : "undefined"
+      );
+      console.log(
+        "[Fitbit] CLIENT_SECRET:",
+        FITBIT_CLIENT_SECRET ? "***" : "undefined"
+      );
+      console.log(
+        "[Fitbit] From Constants:",
+        Constants.expoConfig?.extra?.fitbitClientId ? "present" : "missing"
+      );
+
       // Check if credentials are configured
       if (
         FITBIT_CLIENT_ID === "YOUR_FITBIT_CLIENT_ID" ||
@@ -178,6 +195,7 @@ export const fitbitService = {
         !FITBIT_CLIENT_ID?.trim() ||
         !FITBIT_CLIENT_SECRET?.trim()
       ) {
+        console.log("[Fitbit] Not available - credentials missing or empty");
         return {
           available: false,
           reason:
@@ -185,10 +203,12 @@ export const fitbitService = {
         };
       }
 
+      console.log("[Fitbit] Available!");
       return {
         available: true,
       };
     } catch (error: any) {
+      console.error("[Fitbit] Error checking availability:", error);
       return {
         available: false,
         reason: error?.message || "Unknown error",
@@ -211,7 +231,32 @@ export const fitbitService = {
 
       // Generate PKCE verifier + challenge (Fitbit requires 43-128 chars)
       const { verifier, challenge } = createPkcePair();
-      await SecureStore.setItemAsync(FITBIT_PKCE_VERIFIER_KEY, verifier);
+
+      // Validate key and verifier before storing
+      const storeKey = FITBIT_PKCE_VERIFIER_KEY;
+      console.log(
+        "[Fitbit] SecureStore key:",
+        storeKey,
+        "length:",
+        storeKey?.length
+      );
+
+      if (!storeKey || storeKey.trim().length === 0) {
+        throw new Error("Invalid SecureStore key: key cannot be empty");
+      }
+      if (!verifier || verifier.trim().length === 0) {
+        throw new Error("Invalid PKCE verifier: verifier cannot be empty");
+      }
+
+      // Ensure key only contains allowed characters (alphanumeric, underscore, hyphen, period)
+      const keyPattern = /^[a-zA-Z0-9._-]+$/;
+      if (!keyPattern.test(storeKey)) {
+        throw new Error(
+          `Invalid SecureStore key format: "${storeKey}" contains invalid characters`
+        );
+      }
+
+      await SecureStore.setItemAsync(storeKey, verifier);
 
       // Build authorization URL
       const authUrl =
@@ -262,6 +307,14 @@ export const fitbitService = {
       const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
       const base64Credentials = btoa(credentials);
 
+      // Validate key before reading
+      if (
+        !FITBIT_PKCE_VERIFIER_KEY ||
+        FITBIT_PKCE_VERIFIER_KEY.trim().length === 0
+      ) {
+        throw new Error("Invalid SecureStore key: key cannot be empty");
+      }
+
       const verifier = await SecureStore.getItemAsync(FITBIT_PKCE_VERIFIER_KEY);
       if (!verifier) {
         throw new Error("Missing PKCE verifier. Please retry Fitbit sign-in.");
@@ -288,7 +341,14 @@ export const fitbitService = {
       }
 
       const tokenData = await tokenResponse.json();
-      await SecureStore.deleteItemAsync(FITBIT_PKCE_VERIFIER_KEY);
+
+      // Validate key before deleting
+      if (
+        FITBIT_PKCE_VERIFIER_KEY &&
+        FITBIT_PKCE_VERIFIER_KEY.trim().length > 0
+      ) {
+        await SecureStore.deleteItemAsync(FITBIT_PKCE_VERIFIER_KEY);
+      }
 
       // Get user profile to get user ID
       const profileResponse = await fetch(

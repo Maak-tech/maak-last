@@ -10,7 +10,51 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { AvatarType, User } from "@/types";
+import type { AvatarType, EmergencyContact, User } from "@/types";
+
+const normalizeEmergencyContacts = (
+  rawContacts: unknown
+): EmergencyContact[] => {
+  if (!Array.isArray(rawContacts)) return [];
+
+  const contacts: EmergencyContact[] = [];
+
+  for (const [index, contact] of rawContacts.entries()) {
+    if (typeof contact === "string" && contact.trim()) {
+      contacts.push({
+        id: `legacy-${index}`,
+        name: "Emergency Contact",
+        phone: contact.trim(),
+      });
+      continue;
+    }
+
+    if (contact && typeof contact === "object") {
+      const name =
+        typeof (contact as { name?: string }).name === "string"
+          ? (contact as { name?: string }).name!.trim()
+          : "";
+      const phone =
+        typeof (contact as { phone?: string }).phone === "string"
+          ? (contact as { phone?: string }).phone!.trim()
+          : "";
+      const id =
+        typeof (contact as { id?: string }).id === "string"
+          ? (contact as { id?: string }).id!.trim()
+          : "";
+
+      if (name && phone) {
+        contacts.push({
+          id: id || `normalized-${index}`,
+          name,
+          phone,
+        });
+      }
+    }
+  }
+
+  return contacts;
+};
 
 export const userService = {
   // Get user by ID
@@ -19,10 +63,22 @@ export const userService = {
       const userDoc = await getDoc(doc(db, "users", userId));
       if (userDoc.exists()) {
         const data = userDoc.data();
+        const preferences = data.preferences || {};
+        const normalizedContacts = normalizeEmergencyContacts(
+          preferences.emergencyContacts
+        );
         return {
           id: userDoc.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
+          preferences: {
+            language: preferences.language || "en",
+            notifications:
+              preferences.notifications !== undefined
+                ? preferences.notifications
+                : true,
+            emergencyContacts: normalizedContacts,
+          },
         } as User;
       }
       return null;
@@ -150,6 +206,7 @@ export const userService = {
         role: "admin", // First user in family is admin
         createdAt: new Date(),
         onboardingCompleted: false, // New users should see onboarding flow
+        dashboardTourCompleted: false,
         preferences: {
           language: "en",
           notifications: true,
@@ -207,10 +264,22 @@ export const userService = {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        const preferences = data.preferences || {};
+        const normalizedContacts = normalizeEmergencyContacts(
+          preferences.emergencyContacts
+        );
         members.push({
           id: doc.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
+          preferences: {
+            language: preferences.language || "en",
+            notifications:
+              preferences.notifications !== undefined
+                ? preferences.notifications
+                : true,
+            emergencyContacts: normalizedContacts,
+          },
         } as User);
       });
 

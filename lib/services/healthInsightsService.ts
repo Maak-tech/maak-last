@@ -773,7 +773,7 @@ class HealthInsightsService {
       return isArabic ? "فريستايل ليبري" : "Freestyle Libre";
     }
     if (normalized.includes("withings")) {
-      return isArabic ? "ويثينغز" : "Withings";
+      return "Withings";
     }
     if (normalized.includes("fitbit")) {
       return isArabic ? "فيتبت" : "Fitbit";

@@ -4,6 +4,15 @@
 
 Replace inline notification code with the new service:
 
+## SMS (Twilio) configuration
+
+Emergency SMS alerts require the following environment variables in your
+Cloud Functions runtime:
+
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_FROM_NUMBER` (Twilio-verified sender)
+
 ### Example 1: In `checkVitalBenchmarks` Function
 
 **Before:**

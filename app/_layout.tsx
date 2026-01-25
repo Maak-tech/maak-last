@@ -169,10 +169,6 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="voice-agent"
-                  options={{ headerShown: false, presentation: "modal" }}
-                />
                 <Stack.Screen name="+not-found" />
               </Stack>
             </FallDetectionProvider>
