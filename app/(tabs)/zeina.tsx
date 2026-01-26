@@ -6,7 +6,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   addDoc,
   collection,
@@ -19,7 +19,14 @@ import {
   query,
   updateDoc,
 } from "firebase/firestore";
-import { Mic, MicOff, Settings, Volume2, VolumeX } from "lucide-react-native";
+import {
+  Info,
+  Mic,
+  MicOff,
+  Settings,
+  Volume2,
+  VolumeX,
+} from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -44,6 +51,7 @@ import openaiService, {
 } from "../../lib/services/openaiService";
 import { voiceService } from "../../lib/services/voiceService";
 import ChatMessage from "../components/ChatMessage";
+import CoachMark from "../components/CoachMark";
 
 interface ChatSession {
   id: string;
@@ -65,7 +73,10 @@ interface SavedSession {
 export default function ZeinaScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const params = useLocalSearchParams<{ tour?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInput>(null);
+  const inputFieldRef = useRef<View>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -85,6 +96,13 @@ export default function ZeinaScreen() {
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
+  const [showHowTo, setShowHowTo] = useState(false);
+
+  useEffect(() => {
+    if (params.tour === "1") {
+      setShowHowTo(true);
+    }
+  }, [params.tour]);
 
   useEffect(() => {
     initializeChat();
@@ -660,6 +678,12 @@ export default function ZeinaScreen() {
             </View>
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => setShowHowTo(true)}
+            style={[styles.headerButton, styles.helpHeaderButton]}
+          >
+            <Info color="#007AFF" size={22} />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => setShowSettings(true)}
             style={styles.headerButton}
           >
@@ -737,20 +761,23 @@ export default function ZeinaScreen() {
               )}
             </TouchableOpacity>
           )}
-          <TextInput
-            editable={!isStreaming}
-            multiline
-            onChangeText={setInputText}
-            placeholder={t(
-              "askZeina",
-              "Ask Zeina about your health, medications, symptoms..."
-            )}
-            placeholderTextColor="#999"
-            scrollEnabled
-            style={styles.textInput}
-            textAlignVertical="top"
-            value={inputText}
-          />
+          <View collapsable={false} ref={inputFieldRef} style={{ flex: 1 }}>
+            <TextInput
+              editable={!isStreaming}
+              multiline
+              onChangeText={setInputText}
+              placeholder={t(
+                "askZeina",
+                "Ask Zeina about your health, medications, symptoms..."
+              )}
+              placeholderTextColor="#999"
+              ref={inputRef}
+              scrollEnabled
+              style={styles.textInput}
+              textAlignVertical="top"
+              value={inputText}
+            />
+          </View>
           <TouchableOpacity
             disabled={!inputText.trim() || isStreaming}
             onPress={handleSend}
@@ -767,6 +794,20 @@ export default function ZeinaScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <CoachMark
+        body={t(
+          "zeinaHowToBody",
+          "Tap here to ask Zeina questions about your health."
+        )}
+        onClose={() => setShowHowTo(false)}
+        onPrimaryAction={() => inputRef.current?.focus()}
+        primaryActionLabel={t("startChat", "Start chat")}
+        secondaryActionLabel={t("gotIt", "Got it")}
+        targetRef={inputFieldRef}
+        title={t("zeinaHowToTitle", "Use Zeina")}
+        visible={showHowTo}
+      />
 
       <Modal
         animationType="slide"
@@ -1083,6 +1124,9 @@ const styles = StyleSheet.create({
   },
   historyHeaderButton: {
     position: "relative",
+  },
+  helpHeaderButton: {
+    marginStart: 0,
   },
   historyBadge: {
     position: "absolute",

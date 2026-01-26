@@ -353,5 +353,15 @@ service cloud.firestore {
         canReadPHI(resource.data.userId) // User can read audits for alerts they have access to
       );
     }
+
+    // Health Timeline collection - PHI protected
+    match /health_timeline/{eventId} {
+      // PHI access control: create only if user can write PHI for the target user
+      allow create: if canWritePHI(request.resource.data.userId);
+      // PHI access control: read only if user can read PHI for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // PHI access control: update/delete only if user can write PHI for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
+    }
   }
 } 

@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Activity,
   AlertTriangle,
@@ -183,6 +184,10 @@ interface AIInsightsDashboardProps {
   compact?: boolean;
 }
 
+// Cache key and expiration time (5 minutes)
+const CACHE_KEY_PREFIX = "ai_insights_dashboard_";
+const CACHE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+
 function AIInsightsDashboard({
   onInsightPress,
   compact = false,
@@ -194,6 +199,7 @@ function AIInsightsDashboard({
     null
   );
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("overview");
 
@@ -201,11 +207,72 @@ function AIInsightsDashboard({
     loadInsights();
   }, [user?.id]);
 
-  const loadInsights = async () => {
+  const getCacheKey = (userId: string) => `${CACHE_KEY_PREFIX}${userId}`;
+
+  const loadCachedInsights = async (
+    userId: string
+  ): Promise<AIInsightsDashboardData | null> => {
+    try {
+      const cacheKey = getCacheKey(userId);
+      const cached = await AsyncStorage.getItem(cacheKey);
+      if (!cached) return null;
+
+      const { data, timestamp } = JSON.parse(cached);
+      const now = Date.now();
+
+      // Check if cache is still valid
+      if (now - timestamp < CACHE_EXPIRATION_MS) {
+        return data as AIInsightsDashboardData;
+      }
+
+      // Cache expired, remove it
+      await AsyncStorage.removeItem(cacheKey);
+      return null;
+    } catch (error) {
+      // Silently fail cache read
+      return null;
+    }
+  };
+
+  const saveCachedInsights = async (
+    userId: string,
+    data: AIInsightsDashboardData
+  ) => {
+    try {
+      const cacheKey = getCacheKey(userId);
+      await AsyncStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          data,
+          timestamp: Date.now(),
+        })
+      );
+    } catch (error) {
+      // Silently fail cache write
+    }
+  };
+
+  const loadInsights = async (forceRefresh = false) => {
     if (!user?.id) return;
 
     try {
-      setLoading(true);
+      // Try to load from cache first (unless forcing refresh)
+      if (!forceRefresh) {
+        const cachedInsights = await loadCachedInsights(user.id);
+        if (cachedInsights) {
+          setInsights(cachedInsights);
+          setLoading(false);
+          // Refresh in background
+          loadInsights(true);
+          return;
+        }
+      }
+
+      if (forceRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       // Load dashboard without AI narrative first (faster, avoids OpenAI API delay)
@@ -215,12 +282,11 @@ function AIInsightsDashboard({
         false // Don't wait for AI narrative - load it separately
       );
 
-      // Increased timeout to 60 seconds to account for multiple service calls
-      // This should be enough for all the parallel database queries
+      // Reduced timeout to 30 seconds - should be enough with optimizations
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("AI insights loading timeout")),
-          60_000
+          30_000
         )
       );
 
@@ -230,12 +296,13 @@ function AIInsightsDashboard({
       ])) as AIInsightsDashboardData;
 
       setInsights(dashboard);
+      await saveCachedInsights(user.id, dashboard);
 
       // Load AI narrative asynchronously after dashboard is shown
       // This way users see results faster even if narrative is slow
-      // Use a separate timeout for narrative (30 seconds should be enough)
+      // Use a separate timeout for narrative (20 seconds should be enough)
       const narrativeTimeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("AI narrative timeout")), 30_000)
+        setTimeout(() => reject(new Error("AI narrative timeout")), 20_000)
       );
 
       Promise.race([
@@ -249,16 +316,16 @@ function AIInsightsDashboard({
             "aiNarrative" in dashboardWithNarrative &&
             dashboardWithNarrative.aiNarrative
           ) {
-            setInsights((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    aiNarrative: (
-                      dashboardWithNarrative as AIInsightsDashboardData
-                    ).aiNarrative,
-                  }
-                : prev
-            );
+            const updatedDashboard = {
+              ...dashboard,
+              aiNarrative: (dashboardWithNarrative as AIInsightsDashboardData)
+                .aiNarrative,
+            };
+            setInsights(updatedDashboard);
+            // Save cache in background - don't wait for it
+            saveCachedInsights(user.id, updatedDashboard).catch(() => {
+              // Silently fail cache save
+            });
           }
         })
         .catch((err) => {
@@ -280,14 +347,17 @@ function AIInsightsDashboard({
               "Failed to load insights. Please try again."
             );
       setError(errorMessage);
-      // Set null to prevent infinite loading state
-      setInsights(null);
+      // Don't clear insights if we have cached data
+      if (!insights) {
+        setInsights(null);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  if (loading) {
+  if (loading && !insights) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color="#3B82F6" size="large" />
@@ -298,7 +368,7 @@ function AIInsightsDashboard({
     );
   }
 
-  if (error || !insights) {
+  if (error && !insights) {
     return (
       <View style={styles.center}>
         <AlertTriangle color="#EF4444" size={48} />
@@ -306,12 +376,16 @@ function AIInsightsDashboard({
           {error || t("aiInsightsUnableToLoad", "Unable to load insights")}
         </Text>
         <Button
-          onPress={loadInsights}
+          onPress={() => loadInsights(true)}
           style={styles.mt4}
           title={t("retry", "Retry")}
         />
       </View>
     );
+  }
+
+  if (!insights) {
+    return null;
   }
 
   if (compact) {

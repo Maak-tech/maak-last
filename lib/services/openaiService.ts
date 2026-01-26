@@ -35,6 +35,12 @@ class OpenAIService {
   private zeinaApiKey: string | null = null;
   private baseURL = "https://api.openai.com/v1";
   private model = "gpt-3.5-turbo"; // Default to cheaper model
+  private hasLoggedKeyDebug = false;
+
+  private maskKey(key: string | null): string {
+    if (!key || key.length < 12) return "***";
+    return `${key.slice(0, 7)}...${key.slice(-4)}`;
+  }
 
   async initialize(usePremiumKey = false) {
     try {
@@ -55,6 +61,13 @@ class OpenAIService {
       this.apiKey = openaiKey;
       // Fallback to openaiApiKey if zeinaApiKey not set or empty
       this.zeinaApiKey = zeinaKey || openaiKey;
+
+      if (__DEV__ && !this.hasLoggedKeyDebug) {
+        this.hasLoggedKeyDebug = true;
+        console.log(
+          `[OpenAI] Config keys loaded. openaiApiKey=${this.maskKey(openaiKey)} zeinaApiKey=${this.maskKey(zeinaKey)}`
+        );
+      }
 
       // API key validation handled in getApiKey method
     } catch (error) {
@@ -167,6 +180,13 @@ class OpenAIService {
       (error as any).isExpectedError = true;
       (error as any).isApiKeyError = true;
       throw error;
+    }
+
+    if (__DEV__ && !this.hasLoggedKeyDebug) {
+      this.hasLoggedKeyDebug = true;
+      console.log(
+        `[OpenAI] Using API key ${this.maskKey(activeApiKey)} with model ${this.model}`
+      );
     }
 
     return aiInstrumenter.track(

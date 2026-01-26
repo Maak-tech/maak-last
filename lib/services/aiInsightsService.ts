@@ -3,10 +3,12 @@ import {
   type CorrelationInsight,
   correlationAnalysisService,
 } from "./correlationAnalysisService";
+import { medicalHistoryService } from "./medicalHistoryService";
 import {
   type MedicationInteractionAlert,
   medicationInteractionService,
 } from "./medicationInteractionService";
+import { medicationService } from "./medicationService";
 import openaiService from "./openaiService";
 import {
   type HealthSuggestion,
@@ -20,6 +22,7 @@ import {
   type PatternAnalysisResult,
   symptomPatternRecognitionService,
 } from "./symptomPatternRecognitionService";
+import { symptomService } from "./symptomService";
 
 export interface AIInsightsDashboard {
   id: string;
@@ -56,13 +59,35 @@ export interface InsightPriority {
 
 class AIInsightsService {
   /**
+   * Batch fetch all required data once to reduce database queries
+   */
+  private async fetchRequiredData(userId: string): Promise<{
+    symptoms: Symptom[];
+    medications: Medication[];
+    medicalHistory: MedicalHistory[];
+  }> {
+    // Fetch all data in parallel with optimized limits
+    const [symptoms, medications, medicalHistory] = await Promise.all([
+      symptomService.getUserSymptoms(userId, 100), // Reduced from default
+      medicationService.getUserMedications(userId),
+      medicalHistoryService.getUserMedicalHistory(userId),
+    ]);
+
+    return { symptoms, medications, medicalHistory };
+  }
+
+  /**
    * Generate comprehensive AI insights dashboard for a user
    */
   async generateAIInsightsDashboard(
     userId: string,
     includeAINarrative = true
   ): Promise<AIInsightsDashboard> {
-    // Generate all AI insights in parallel
+    // Fetch all required data once
+    const { symptoms, medications, medicalHistory } =
+      await this.fetchRequiredData(userId);
+
+    // Generate all AI insights in parallel, reusing fetched data
     const [
       correlationAnalysis,
       symptomAnalysis,
@@ -72,7 +97,12 @@ class AIInsightsService {
       personalizedTips,
     ] = await Promise.all([
       correlationAnalysisService.generateCorrelationAnalysis(userId),
-      this.generateSymptomAnalysis(userId),
+      this.generateSymptomAnalysis(
+        userId,
+        symptoms,
+        medications,
+        medicalHistory
+      ),
       riskAssessmentService.generateRiskAssessment(userId),
       medicationInteractionService.generateRealtimeAlerts(userId),
       proactiveHealthSuggestionsService.generateSuggestions(userId),
@@ -120,17 +150,28 @@ class AIInsightsService {
    * Generate symptom analysis with pattern recognition
    */
   private async generateSymptomAnalysis(
-    userId: string
+    userId: string,
+    symptoms?: Symptom[],
+    medications?: Medication[],
+    medicalHistory?: MedicalHistory[]
   ): Promise<PatternAnalysisResult> {
-    const symptoms = await this.getRecentSymptoms(userId);
-    const medicalHistory = await this.getMedicalHistory(userId);
-    const medications = await this.getMedications(userId);
+    // Use provided data or fetch if not provided (for backward compatibility)
+    const [symptomsData, medicalHistoryData, medicationsData] =
+      await Promise.all([
+        symptoms ? Promise.resolve(symptoms) : this.getRecentSymptoms(userId),
+        medicalHistory
+          ? Promise.resolve(medicalHistory)
+          : this.getMedicalHistory(userId),
+        medications
+          ? Promise.resolve(medications)
+          : this.getMedications(userId),
+      ]);
 
     return symptomPatternRecognitionService.analyzeSymptomPatterns(
       userId,
-      symptoms,
-      medicalHistory,
-      medications
+      symptomsData,
+      medicalHistoryData,
+      medicationsData
     );
   }
 
@@ -432,18 +473,30 @@ class AIInsightsService {
   // Helper methods for data access
 
   private async getRecentSymptoms(userId: string): Promise<Symptom[]> {
-    // This should use the symptom service
-    return [];
+    try {
+      return await symptomService.getUserSymptoms(userId, 100);
+    } catch (error) {
+      console.error("Failed to fetch symptoms:", error);
+      return [];
+    }
   }
 
   private async getMedicalHistory(userId: string): Promise<MedicalHistory[]> {
-    // This should use the medical history service
-    return [];
+    try {
+      return await medicalHistoryService.getUserMedicalHistory(userId);
+    } catch (error) {
+      console.error("Failed to fetch medical history:", error);
+      return [];
+    }
   }
 
   private async getMedications(userId: string): Promise<Medication[]> {
-    // This should use the medication service
-    return [];
+    try {
+      return await medicationService.getUserMedications(userId);
+    } catch (error) {
+      console.error("Failed to fetch medications:", error);
+      return [];
+    }
   }
 }
 

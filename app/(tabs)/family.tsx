@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Print from "expo-print";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
   Gauge,
   Grid3x3,
   Heart,
+  Info,
   List,
   Minus,
   Phone,
@@ -53,6 +54,7 @@ import {
   View,
 } from "react-native";
 import AlertsCard from "@/app/components/AlertsCard";
+import CoachMark from "@/app/components/CoachMark";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
@@ -131,6 +133,7 @@ export default function FamilyScreen() {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tour?: string }>();
   const {
     isPremium,
     isFamilyPlan,
@@ -177,6 +180,8 @@ export default function FamilyScreen() {
   const [memberMetrics, setMemberMetrics] = useState<FamilyMemberMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
+  const addMemberButtonRef = useRef<View>(null);
   const [viewMode, setViewMode] = useState<"list" | "dashboard">("list");
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -227,6 +232,12 @@ export default function FamilyScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin" || user?.role === "caregiver";
   const hasFamily = Boolean(user?.familyId);
+
+  useEffect(() => {
+    if (params.tour === "1") {
+      setShowHowTo(true);
+    }
+  }, [params.tour]);
   useEffect(() => {
     if (user?.preferences?.emergencyContacts) {
       setEmergencyContacts(user.preferences.emergencyContacts);
@@ -2270,11 +2281,19 @@ export default function FamilyScreen() {
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setShowInviteModal(true)}
-            style={styles.addButton}
+            onPress={() => setShowHowTo(true)}
+            style={styles.helpButton}
           >
-            <UserPlus color="#FFFFFF" size={24} />
+            <Info color="#FFFFFF" size={20} />
           </TouchableOpacity>
+          <View collapsable={false} ref={addMemberButtonRef}>
+            <TouchableOpacity
+              onPress={() => setShowInviteModal(true)}
+              style={styles.addButton}
+            >
+              <UserPlus color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -4488,6 +4507,21 @@ export default function FamilyScreen() {
           )}
         </View>
       </ScrollView>
+      <CoachMark
+        body={
+          isRTL
+            ? "اضغط هنا لإضافة أفراد العائلة ومتابعة صحتهم في لوحة العائلة."
+            : "Tap here to add family members and track their health."
+        }
+        isRTL={isRTL}
+        onClose={() => setShowHowTo(false)}
+        onPrimaryAction={() => setShowInviteModal(true)}
+        primaryActionLabel={isRTL ? "دعوة عضو" : "Invite member"}
+        secondaryActionLabel={isRTL ? "تم" : "Got it"}
+        targetRef={addMemberButtonRef}
+        title={isRTL ? "تتبع صحة العائلة" : "Track family health"}
+        visible={showHowTo}
+      />
 
       {/* Invite Member Modal */}
       <Modal
@@ -5599,6 +5633,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   viewToggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  helpButton: {
     width: 40,
     height: 40,
     borderRadius: 20,

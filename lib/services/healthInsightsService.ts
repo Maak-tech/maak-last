@@ -1253,11 +1253,14 @@ class HealthInsightsService {
     const end = new Date(start);
     end.setDate(end.getDate() + 7);
 
-    // Fetch data for the week
+    // Fetch data for the week - optimize limits for better performance
+    // For weekly summary, we need current week + previous week for comparison (14 days max)
+    const prevWeekStart = new Date(start);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
     const [symptoms, medications, moodsData, weekVitals] = await Promise.all([
-      symptomService.getUserSymptoms(userId, 100),
+      symptomService.getUserSymptoms(userId, 50), // Reduced from 100 - only need ~2 weeks worth
       medicationService.getUserMedications(userId),
-      this.getMoodsForPeriod(userId, start, end),
+      this.getMoodsForPeriod(userId, prevWeekStart, end), // Include previous week for trend comparison
       this.getVitalsForPeriod(userId, start, end),
     ]);
 
@@ -1285,9 +1288,7 @@ class HealthInsightsService {
           weekSymptoms.length
         : 0;
 
-    // Compare with previous week for trend
-    const prevWeekStart = new Date(start);
-    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+    // Compare with previous week for trend (already fetched above)
     const prevWeekEnd = new Date(start);
     const prevWeekSymptoms = symptoms.filter(
       (s) => s.timestamp >= prevWeekStart && s.timestamp < prevWeekEnd
@@ -1429,9 +1430,9 @@ class HealthInsightsService {
     const start = new Date(targetYear, targetMonth, 1);
     const end = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
 
-    // Fetch all data for the month
+    // Fetch all data for the month - optimize limits for better performance
     const [symptoms, medications, moodsData, monthVitals] = await Promise.all([
-      symptomService.getUserSymptoms(userId, 200),
+      symptomService.getUserSymptoms(userId, 100), // Reduced from 200 - monthly data rarely exceeds 100 entries
       medicationService.getUserMedications(userId),
       this.getMoodsForPeriod(userId, start, end),
       this.getVitalsForPeriod(userId, start, end),
@@ -1571,13 +1572,23 @@ class HealthInsightsService {
     end: Date
   ): Promise<VitalSample[]> {
     try {
+      // Calculate days in period to optimize limit
+      const daysDiff = Math.ceil(
+        (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      // Estimate: ~10-20 vitals per day max, but cap at reasonable limits
+      const estimatedLimit = Math.min(
+        Math.max(daysDiff * 15, 50), // At least 50, but scale with days
+        daysDiff <= 7 ? 100 : daysDiff <= 30 ? 200 : 500 // Week: 100, Month: 200, Longer: 500
+      );
+
       const q = query(
         collection(db, "vitals"),
         where("userId", "==", userId),
         where("timestamp", ">=", Timestamp.fromDate(start)),
         where("timestamp", "<=", Timestamp.fromDate(end)),
         orderBy("timestamp", "desc"),
-        limit(200)
+        limit(estimatedLimit)
       );
 
       const snapshot = await getDocs(q);

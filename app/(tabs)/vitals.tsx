@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Activity,
   ArrowLeft,
@@ -42,6 +42,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import CoachMark from "@/app/components/CoachMark";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -81,6 +82,7 @@ export default function VitalsScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tour?: string }>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasPermissions, setHasPermissions] = useState(false);
@@ -105,9 +107,18 @@ export default function VitalsScreen() {
     string | undefined
   >();
   const [authorizing, setAuthorizing] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
+  const syncButtonRef = useRef<View>(null);
+  const integrationButtonRef = useRef<View>(null);
   const initialLoadCompleted = useRef(false);
 
   const isRTL = i18n.language === "ar";
+
+  useEffect(() => {
+    if (params.tour === "1") {
+      setShowHowTo(true);
+    }
+  }, [params.tour]);
 
   const styles = createThemedStyles((theme) => ({
     container: {
@@ -135,6 +146,21 @@ export default function VitalsScreen() {
       justifyContent: "space-between" as const,
       alignItems: "center" as const,
       marginTop: theme.spacing.base,
+    },
+    headerButtons: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      gap: theme.spacing.sm,
+    },
+    helpButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      backgroundColor: theme.colors.background.primary,
+      borderWidth: 1,
+      borderColor: theme.colors.border.light,
     },
     syncInfo: {
       flexDirection: "row" as const,
@@ -1807,6 +1833,16 @@ export default function VitalsScreen() {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
         <View style={styles.permissionCard as ViewStyle}>
+          <View
+            style={{ alignSelf: "flex-end", marginBottom: theme.spacing.sm }}
+          >
+            <TouchableOpacity
+              onPress={() => setShowHowTo(true)}
+              style={styles.helpButton as ViewStyle}
+            >
+              <Info color={theme.colors.text.secondary} size={18} />
+            </TouchableOpacity>
+          </View>
           <View style={styles.permissionIcon as ViewStyle}>
             <Heart color={theme.colors.neutral.white} size={40} />
           </View>
@@ -1832,26 +1868,28 @@ export default function VitalsScreen() {
               ? `ادمج بياناتك الصحية من ${Platform.OS === "ios" ? "تطبيق الصحة" : "Health Connect"} لمراقبة أفضل لصحتك ومعرفة المؤشرات الحيوية`
               : `Connect your health data from ${Platform.OS === "ios" ? "Health App" : "Health Connect"} to get comprehensive health monitoring and vital signs tracking`}
           </Text>
-          <TouchableOpacity
-            disabled={authorizing || loading}
-            onPress={() => {
-              // Navigate to health integrations section in profile
-              router.push("/profile/health-integrations" as any);
-            }}
-            style={styles.enableButton as ViewStyle}
-          >
-            {authorizing || loading ? (
-              <ActivityIndicator
-                color={theme.colors.neutral.white}
-                size="small"
-              />
-            ) : (
-              <Heart color={theme.colors.neutral.white} size={20} />
-            )}
-            <Text style={styles.enableButtonText as StyleProp<TextStyle>}>
-              {isRTL ? "إعداد التكامل" : "Set Up Integration"}
-            </Text>
-          </TouchableOpacity>
+          <View collapsable={false} ref={integrationButtonRef}>
+            <TouchableOpacity
+              disabled={authorizing || loading}
+              onPress={() => {
+                // Navigate to health integrations section in profile
+                router.push("/profile/health-integrations" as any);
+              }}
+              style={styles.enableButton as ViewStyle}
+            >
+              {authorizing || loading ? (
+                <ActivityIndicator
+                  color={theme.colors.neutral.white}
+                  size="small"
+                />
+              ) : (
+                <Heart color={theme.colors.neutral.white} size={20} />
+              )}
+              <Text style={styles.enableButtonText as StyleProp<TextStyle>}>
+                {isRTL ? "إعداد التكامل" : "Set Up Integration"}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <Text
             style={
@@ -1866,6 +1904,25 @@ export default function VitalsScreen() {
               : "Click to go to Health Integrations in your profile settings"}
           </Text>
         </View>
+        <CoachMark
+          body={
+            isRTL
+              ? "اضغط هنا لإضافة تكامل البيانات الصحية وتفعيل مزامنة المؤشرات الحيوية."
+              : "Tap here to add health integrations and enable vitals sync."
+          }
+          isRTL={isRTL}
+          onClose={() => setShowHowTo(false)}
+          onPrimaryAction={() =>
+            router.push("/profile/health-integrations" as any)
+          }
+          primaryActionLabel={isRTL ? "افتح الإعدادات" : "Open setup"}
+          secondaryActionLabel={isRTL ? "تم" : "Got it"}
+          targetRef={integrationButtonRef}
+          title={
+            isRTL ? "تكامل المؤشرات الحيوية" : "Health vitals integrations"
+          }
+          visible={showHowTo}
+        />
       </SafeAreaView>
     );
   }
@@ -1925,30 +1982,39 @@ export default function VitalsScreen() {
               </>
             )}
           </View>
-
-          <TouchableOpacity
-            disabled={refreshing}
-            onPress={handleSyncData}
-            style={styles.syncButton as ViewStyle}
-          >
-            {refreshing ? (
-              <ActivityIndicator
-                color={theme.colors.neutral.white}
-                size="small"
-              />
-            ) : (
-              <RefreshCw color={theme.colors.neutral.white} size={16} />
-            )}
-            <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
-              {refreshing
-                ? isRTL
-                  ? "مزامنة..."
-                  : "Syncing..."
-                : isRTL
-                  ? "مزامنة"
-                  : "Sync"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons as ViewStyle}>
+            <TouchableOpacity
+              onPress={() => setShowHowTo(true)}
+              style={styles.helpButton as ViewStyle}
+            >
+              <Info color={theme.colors.text.secondary} size={18} />
+            </TouchableOpacity>
+            <View collapsable={false} ref={syncButtonRef}>
+              <TouchableOpacity
+                disabled={refreshing}
+                onPress={handleSyncData}
+                style={styles.syncButton as ViewStyle}
+              >
+                {refreshing ? (
+                  <ActivityIndicator
+                    color={theme.colors.neutral.white}
+                    size="small"
+                  />
+                ) : (
+                  <RefreshCw color={theme.colors.neutral.white} size={16} />
+                )}
+                <Text style={styles.syncButtonText as StyleProp<TextStyle>}>
+                  {refreshing
+                    ? isRTL
+                      ? "مزامنة..."
+                      : "Syncing..."
+                    : isRTL
+                      ? "مزامنة"
+                      : "Sync"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -2112,6 +2178,19 @@ export default function VitalsScreen() {
           </Text>
         </View>
       </ScrollView>
+      <CoachMark
+        body={
+          isRTL
+            ? "اضغط هنا لمزامنة أحدث المؤشرات الحيوية من مصادر الصحة."
+            : "Tap here to sync the latest vitals from your health sources."
+        }
+        isRTL={isRTL}
+        onClose={() => setShowHowTo(false)}
+        secondaryActionLabel={isRTL ? "تم" : "Got it"}
+        targetRef={syncButtonRef}
+        title={isRTL ? "مزامنة المؤشرات الحيوية" : "Sync health vitals"}
+        visible={showHowTo}
+      />
     </SafeAreaView>
   );
 }

@@ -51,10 +51,47 @@ export interface HealthTimelineEvent {
 const TIMELINE_COLLECTION = "health_timeline";
 
 class HealthTimelineService {
+  /**
+   * Recursively removes undefined values from an object
+   * Firebase doesn't support undefined values, so we need to filter them out
+   */
+  private removeUndefinedValues(
+    obj: Record<string, unknown>
+  ): Record<string, unknown> {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value === undefined) {
+        continue; // Skip undefined values
+      }
+      if (Array.isArray(value)) {
+        // Filter undefined values from arrays
+        cleaned[key] = value.filter((item) => item !== undefined);
+      } else if (
+        value !== null &&
+        typeof value === "object" &&
+        !(value instanceof Date) &&
+        !(value instanceof Timestamp)
+      ) {
+        // Recursively clean nested objects
+        cleaned[key] = this.removeUndefinedValues(
+          value as Record<string, unknown>
+        );
+      } else {
+        cleaned[key] = value;
+      }
+    }
+    return cleaned;
+  }
+
   async addEvent(event: Omit<HealthTimelineEvent, "id">): Promise<string> {
     try {
+      // Remove undefined values before sending to Firebase
+      const cleanedEvent = this.removeUndefinedValues(
+        event as Record<string, unknown>
+      );
+
       const docRef = await addDoc(collection(db, TIMELINE_COLLECTION), {
-        ...event,
+        ...cleanedEvent,
         timestamp: Timestamp.fromDate(event.timestamp),
       });
       return docRef.id;

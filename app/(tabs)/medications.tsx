@@ -238,10 +238,13 @@ export default function MedicationsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams<{ tour?: string }>();
   const [showAddModal, setShowAddModal] = useState(false);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(false);
+  const addMedicationButtonRef = useRef<View>(null);
   const [newMedication, setNewMedication] = useState({
     name: "",
     dosage: "",
@@ -275,6 +278,12 @@ export default function MedicationsScreen() {
   const [userAllergies, setUserAllergies] = useState<Allergy[]>([]);
 
   const isRTL = i18n.language === "ar";
+
+  useEffect(() => {
+    if (params.tour === "1") {
+      setShowHowTo(true);
+    }
+  }, [params.tour]);
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
   const {
@@ -1194,28 +1203,36 @@ export default function MedicationsScreen() {
 
         <View style={styles.headerButtons}>
           <TouchableOpacity
-            onPress={() => {
-              setNewMedication({
-                name: "",
-                dosage: "",
-                frequency: "",
-                reminders: [{ time: "", period: "AM" }], // Start with one empty reminder
-                notes: "",
-                quantity: undefined,
-                quantityUnit: "pills",
-                lastRefillDate: undefined,
-                refillReminderDays: 7,
-                tags: [],
-              });
-              setSelectedTargetUser(user.id);
-              setMedicationSuggestions([]);
-              setShowSuggestions(false);
-              setShowAddModal(true);
-            }}
-            style={styles.headerAddButton}
+            onPress={() => setShowHowTo(true)}
+            style={styles.headerHelpButton}
           >
-            <Plus color="#FFFFFF" size={24} />
+            <Info color="#FFFFFF" size={18} />
           </TouchableOpacity>
+          <View collapsable={false} ref={addMedicationButtonRef}>
+            <TouchableOpacity
+              onPress={() => {
+                setNewMedication({
+                  name: "",
+                  dosage: "",
+                  frequency: "",
+                  reminders: [{ time: "", period: "AM" }], // Start with one empty reminder
+                  notes: "",
+                  quantity: undefined,
+                  quantityUnit: "pills",
+                  lastRefillDate: undefined,
+                  refillReminderDays: 7,
+                  tags: [],
+                });
+                setSelectedTargetUser(user.id);
+                setMedicationSuggestions([]);
+                setShowSuggestions(false);
+                setShowAddModal(true);
+              }}
+              style={styles.headerAddButton}
+            >
+              <Plus color="#FFFFFF" size={24} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -1458,6 +1475,22 @@ export default function MedicationsScreen() {
           )}
         </View>
       </ScrollView>
+
+      <CoachMark
+        body={
+          isRTL
+            ? "اضغط هنا لإضافة دواء وتتبع جدول الأدوية."
+            : "Tap here to add a medication and track your schedule."
+        }
+        isRTL={isRTL}
+        onClose={() => setShowHowTo(false)}
+        onPrimaryAction={() => setShowAddModal(true)}
+        primaryActionLabel={isRTL ? "إضافة دواء" : "Add medication"}
+        secondaryActionLabel={isRTL ? "تم" : "Got it"}
+        targetRef={addMedicationButtonRef}
+        title={isRTL ? "تتبع الأدوية" : "Track medications"}
+        visible={showHowTo}
+      />
 
       {/* Add Medication Modal */}
       <Modal
@@ -2077,6 +2110,14 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: "row",
     gap: 12,
+    alignItems: "center",
+  },
+  headerHelpButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#2563EB",
+    justifyContent: "center",
     alignItems: "center",
   },
   headerAddButton: {
