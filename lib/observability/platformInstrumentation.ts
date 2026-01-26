@@ -57,22 +57,29 @@ export async function instrumentAsync<T>(
         );
       }
 
-      await observabilityEmitter.emitPlatformEvent(
-        `${operationName}_failed`,
-        `${operationName} failed: ${error.message}`,
-        {
-          source: options.source,
-          severity: "error",
-          status: "failure",
-          durationMs,
-          correlationId,
-          error: {
-            code: error.code,
-            message: error.message,
-            stack: error.stack,
-          },
-        }
-      );
+      // Suppress error logging for expected errors (e.g., missing API keys)
+      // These are handled gracefully by callers and don't need to be logged as errors
+      const isExpectedError =
+        error?.isExpectedError === true || error?.isApiKeyError === true;
+
+      if (!isExpectedError) {
+        await observabilityEmitter.emitPlatformEvent(
+          `${operationName}_failed`,
+          `${operationName} failed: ${error.message}`,
+          {
+            source: options.source,
+            severity: "error",
+            status: "failure",
+            durationMs,
+            correlationId,
+            error: {
+              code: error.code,
+              message: error.message,
+              stack: error.stack,
+            },
+          }
+        );
+      }
 
       throw error;
     }

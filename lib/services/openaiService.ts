@@ -144,17 +144,34 @@ class OpenAIService {
     messages: ChatMessage[],
     usePremiumKey = false
   ): Promise<string> {
+    // Check API key before wrapping with observability to avoid logging expected errors
+    let activeApiKey: string | null = null;
+    try {
+      activeApiKey = await this.getApiKey(usePremiumKey);
+    } catch (apiKeyError: any) {
+      // If API key is not configured, create a special error that won't be logged as an error
+      const error = new Error(
+        apiKeyError?.message ||
+          "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
+      );
+      // Mark this as an expected error so observability can handle it appropriately
+      (error as any).isExpectedError = true;
+      (error as any).isApiKeyError = true;
+      throw error;
+    }
+
+    if (!activeApiKey || activeApiKey.trim() === "") {
+      const error = new Error(
+        "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
+      );
+      (error as any).isExpectedError = true;
+      (error as any).isApiKeyError = true;
+      throw error;
+    }
+
     return aiInstrumenter.track(
       "chat_completion",
       async () => {
-        const activeApiKey = await this.getApiKey(usePremiumKey);
-
-        if (!activeApiKey) {
-          throw new Error(
-            "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
-          );
-        }
-
         const response = await fetch(`${this.baseURL}/chat/completions`, {
           method: "POST",
           headers: {
@@ -189,9 +206,13 @@ class OpenAIService {
             );
           }
           if (response.status === 401) {
-            throw new Error(
+            const error = new Error(
               "Invalid or expired OpenAI API key. The API key must be configured at build time via OPENAI_API_KEY or ZEINA_API_KEY environment variable. Please check your .env file and rebuild the app."
             );
+            // Mark as expected error for graceful handling
+            (error as any).isExpectedError = true;
+            (error as any).isApiKeyError = true;
+            throw error;
           }
           if (response.status === 404) {
             throw new Error(
@@ -226,9 +247,16 @@ class OpenAIService {
     try {
       // Avoid noisy stack traces when the app hasn't been configured with an API key yet.
       // Let callers fall back gracefully.
+      let apiKey: string | null = null;
       try {
-        await this.getApiKey(usePremiumKey);
+        apiKey = await this.getApiKey(usePremiumKey);
       } catch {
+        // API key not configured - return null silently
+        return null;
+      }
+
+      // If API key is null or empty, return null without making API call
+      if (!apiKey || apiKey.trim() === "") {
         return null;
       }
 
@@ -248,21 +276,40 @@ class OpenAIService {
         },
       ];
 
-      const response = await this.createChatCompletion(messages, usePremiumKey);
-
-      // Try to parse JSON from the response
       try {
-        // Extract JSON from markdown code blocks if present
-        const jsonMatch = response.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
-        const jsonString = jsonMatch ? jsonMatch[1] : response.trim();
-        return JSON.parse(jsonString);
-      } catch (parseError) {
-        // If parsing fails, return the raw response wrapped in a narrative property
-        return { narrative: response };
+        const response = await this.createChatCompletion(
+          messages,
+          usePremiumKey
+        );
+
+        // Try to parse JSON from the response
+        try {
+          // Extract JSON from markdown code blocks if present
+          const jsonMatch = response.match(
+            /```(?:json)?\s*(\{[\s\S]*\})\s*```/
+          );
+          const jsonString = jsonMatch ? jsonMatch[1] : response.trim();
+          return JSON.parse(jsonString);
+        } catch (parseError) {
+          // If parsing fails, return the raw response wrapped in a narrative property
+          return { narrative: response };
+        }
+      } catch (apiError: any) {
+        // Handle API key errors gracefully - these are marked as expected errors
+        // and won't be logged by the observability system
+        if (apiError?.isApiKeyError || apiError?.isExpectedError) {
+          return null;
+        }
+
+        // For other errors, rethrow to be caught by outer catch
+        throw apiError;
       }
-    } catch (error) {
+    } catch (error: any) {
       // Keep console noise low; callers already handle fallbacks.
-      if (__DEV__) console.warn("generateHealthInsights failed", error);
+      // Only log unexpected errors (API key errors are already handled above)
+      if (__DEV__ && !error?.isApiKeyError && !error?.isExpectedError) {
+        console.warn("generateHealthInsights failed", error);
+      }
       return null;
     }
   }
