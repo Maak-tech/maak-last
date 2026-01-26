@@ -139,15 +139,64 @@ export const withingsService = {
    */
   startAuth: async (selectedMetrics: string[]): Promise<void> => {
     try {
+      // Validate redirect URI is not empty
+      if (!REDIRECT_URI || REDIRECT_URI.trim() === "") {
+        throw new Error(
+          "Withings redirect URI is not configured. Please set REDIRECT_URI in withingsService.ts"
+        );
+      }
+
+      // Validate redirect URI format
+      try {
+        new URL(REDIRECT_URI);
+      } catch {
+        throw new Error(
+          `Invalid redirect URI format: ${REDIRECT_URI}. Must be a valid HTTPS URL.`
+        );
+      }
+
+      // Validate client ID
+      if (
+        !WITHINGS_CLIENT_ID ||
+        WITHINGS_CLIENT_ID === "YOUR_WITHINGS_CLIENT_ID"
+      ) {
+        throw new Error(
+          "Withings Client ID is not configured. Please set WITHINGS_CLIENT_ID in app.json extra config."
+        );
+      }
+
       const scopes = getWithingsScopesForMetrics(selectedMetrics);
 
+      // Log redirect URI for debugging
+      if (__DEV__) {
+        console.log("[Withings] Starting OAuth flow");
+        console.log("[Withings] Redirect URI:", REDIRECT_URI);
+        console.log(
+          "[Withings] Redirect URI (encoded):",
+          encodeURIComponent(REDIRECT_URI)
+        );
+        console.log(
+          "[Withings] Client ID:",
+          WITHINGS_CLIENT_ID
+            ? `${WITHINGS_CLIENT_ID.substring(0, 4)}...`
+            : "undefined"
+        );
+        console.log("[Withings] Scopes:", scopes);
+      }
+
+      // Build OAuth URL with proper encoding
+      const redirectUriEncoded = encodeURIComponent(REDIRECT_URI);
       const authUrl =
         `${WITHINGS_AUTH_URL}?` +
         "response_type=code&" +
         `client_id=${encodeURIComponent(WITHINGS_CLIENT_ID)}&` +
-        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `redirect_uri=${redirectUriEncoded}&` +
         `scope=${encodeURIComponent(scopes.join(","))}&` +
         `state=${encodeURIComponent("withings_auth")}`;
+
+      if (__DEV__) {
+        console.log("[Withings] Full OAuth URL:", authUrl);
+      }
 
       // Use web callback URL for OAuth (registered with Withings)
       // The web page will redirect to deep link after extracting the code
@@ -189,7 +238,40 @@ export const withingsService = {
       const error = urlObj.searchParams.get("error");
 
       if (error) {
-        throw new Error(`Withings OAuth error: ${error}`);
+        const errorDescription =
+          urlObj.searchParams.get("error_description") || "";
+        const detailedError = errorDescription
+          ? `${error}: ${errorDescription}`
+          : error;
+
+        // Provide helpful guidance for redirect_uri errors
+        if (
+          error === "redirect_uri_mismatch" ||
+          error === "redirect_uri" ||
+          errorDescription.includes("redirect_uri") ||
+          errorDescription.includes("callback URL") ||
+          errorDescription.includes("Empty URL")
+        ) {
+          throw new Error(
+            `Withings OAuth callback URL error: ${error}\n\n` +
+              `The redirect URI being used is: ${REDIRECT_URI}\n\n` +
+              "This error usually means the callback URL is not registered in Withings Developer Portal.\n\n" +
+              "To fix this:\n" +
+              "1. Log in to https://developer.withings.com/\n" +
+              "2. Go to your application settings\n" +
+              `3. Find the "Registered URLs" or "Callback URL" section\n` +
+              `4. Add this exact URL: ${REDIRECT_URI}\n` +
+              "5. Make sure:\n" +
+              "   - It uses HTTPS (not HTTP)\n" +
+              "   - No trailing slash\n" +
+              "   - Exact match (case-sensitive)\n" +
+              "6. Save the changes and wait 2-3 minutes\n" +
+              "7. Try connecting again\n\n" +
+              `Current redirect URI: ${REDIRECT_URI}`
+          );
+        }
+
+        throw new Error(`Withings OAuth error: ${detailedError}`);
       }
 
       if (!code) {
@@ -214,7 +296,34 @@ export const withingsService = {
       const responseData = await tokenResponse.json();
 
       if (responseData.status !== 0) {
-        throw new Error(responseData.error || "Token exchange failed");
+        const errorMsg = responseData.error || "Token exchange failed";
+        const errorText = responseData.error_text || "";
+
+        // Provide helpful guidance for redirect_uri_mismatch during token exchange
+        if (
+          errorMsg.includes("redirect_uri") ||
+          errorText.includes("redirect_uri")
+        ) {
+          throw new Error(
+            "Withings token exchange failed: redirect URI mismatch.\n\n" +
+              `The redirect URI being used is: ${REDIRECT_URI}\n\n` +
+              "To fix this:\n" +
+              "1. Log in to https://developer.withings.com/\n" +
+              "2. Go to your application settings\n" +
+              `3. Find the "Callback URL" or "Redirect URI" field\n` +
+              `4. Make sure it exactly matches: ${REDIRECT_URI}\n` +
+              "5. Check for trailing slashes, http vs https, or typos\n" +
+              "6. Save the changes and try again\n\n" +
+              `Current redirect URI: ${REDIRECT_URI}\n` +
+              `Error details: ${errorText || errorMsg}`
+          );
+        }
+
+        throw new Error(
+          errorText
+            ? `Withings token exchange failed: ${errorMsg} - ${errorText}`
+            : `Withings token exchange failed: ${errorMsg}`
+        );
       }
 
       const tokens = responseData.body;

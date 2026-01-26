@@ -30,9 +30,10 @@ const FITBIT_CLIENT_SECRET =
 const FITBIT_AUTH_URL = "https://www.fitbit.com/oauth2/authorize";
 const FITBIT_TOKEN_URL = "https://api.fitbit.com/oauth2/token";
 const FITBIT_API_BASE = "https://api.fitbit.com/1";
-// Redirect URI must match what's configured in Fitbit app settings
-// Format: maak://fitbit-callback (using app scheme)
-const REDIRECT_URI = Linking.createURL("fitbit-callback");
+// OAuth redirect URI - must match what's registered with Fitbit (web URL)
+const REDIRECT_URI = "https://maak-5caad.web.app/fitbit-callback";
+// Deep link for app handling after web callback redirects
+const DEEP_LINK_URI = Linking.createURL("fitbit-callback");
 const FITBIT_PKCE_VERIFIER_KEY = "health_fitbit_pkce_verifier";
 
 const base64UrlEncode = (bytes: Uint8Array): string => {
@@ -221,12 +222,52 @@ export const fitbitService = {
    */
   startAuth: async (selectedMetrics: string[]): Promise<void> => {
     try {
+      // Validate redirect URI is not empty
+      if (!REDIRECT_URI || REDIRECT_URI.trim() === "") {
+        throw new Error(
+          "Fitbit redirect URI is not configured. Please set REDIRECT_URI in fitbitService.ts"
+        );
+      }
+
+      // Validate redirect URI format
+      try {
+        new URL(REDIRECT_URI);
+      } catch {
+        throw new Error(
+          `Invalid redirect URI format: ${REDIRECT_URI}. Must be a valid HTTPS URL.`
+        );
+      }
+
+      // Validate client ID
+      if (!FITBIT_CLIENT_ID || FITBIT_CLIENT_ID === "YOUR_FITBIT_CLIENT_ID") {
+        throw new Error(
+          "Fitbit Client ID is not configured. Please set FITBIT_CLIENT_ID in app.json extra config."
+        );
+      }
+
       // Get required scopes for selected metrics
       const scopes = getFitbitScopesForMetrics(selectedMetrics);
 
       // Add profile scope for user info
       if (!scopes.includes("profile")) {
         scopes.push("profile");
+      }
+
+      // Log redirect URI for debugging
+      if (__DEV__) {
+        console.log("[Fitbit] Starting OAuth flow");
+        console.log("[Fitbit] Redirect URI:", REDIRECT_URI);
+        console.log(
+          "[Fitbit] Redirect URI (encoded):",
+          encodeURIComponent(REDIRECT_URI)
+        );
+        console.log(
+          "[Fitbit] Client ID:",
+          FITBIT_CLIENT_ID
+            ? `${FITBIT_CLIENT_ID.substring(0, 4)}...`
+            : "undefined"
+        );
+        console.log("[Fitbit] Scopes:", scopes);
       }
 
       // Generate PKCE verifier + challenge (Fitbit requires 43-128 chars)
@@ -258,17 +299,23 @@ export const fitbitService = {
 
       await SecureStore.setItemAsync(storeKey, verifier);
 
-      // Build authorization URL
+      // Build authorization URL with proper encoding
+      const redirectUriEncoded = encodeURIComponent(REDIRECT_URI);
       const authUrl =
         `${FITBIT_AUTH_URL}?` +
         "response_type=code&" +
         `client_id=${encodeURIComponent(FITBIT_CLIENT_ID)}&` +
-        `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+        `redirect_uri=${redirectUriEncoded}&` +
         `scope=${encodeURIComponent(scopes.join(" "))}&` +
         `code_challenge=${encodeURIComponent(challenge)}&` +
         "code_challenge_method=S256";
 
-      // Open browser for OAuth
+      if (__DEV__) {
+        console.log("[Fitbit] Full OAuth URL:", authUrl);
+      }
+
+      // Use web callback URL for OAuth (registered with Fitbit)
+      // The web page will redirect to deep link after extracting the code
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
         REDIRECT_URI
@@ -286,16 +333,57 @@ export const fitbitService = {
 
   /**
    * Handle OAuth redirect callback
+   * Handles both web callback URL and deep link redirects
    */
   handleRedirect: async (url: string): Promise<void> => {
     try {
-      // Parse callback URL
-      const parsedUrl = Linking.parse(url);
-      const code = parsedUrl.queryParams?.code as string;
-      const error = parsedUrl.queryParams?.error as string;
+      // Handle both web URLs and deep links (maak://)
+      let urlObj: URL;
+      if (url.startsWith("maak://")) {
+        // Convert deep link to parseable URL format
+        urlObj = new URL(url.replace("maak://", "https://maak.app/"));
+      } else {
+        urlObj = new URL(url);
+      }
+
+      const code = urlObj.searchParams.get("code");
+      const error = urlObj.searchParams.get("error");
+      const errorDescription =
+        urlObj.searchParams.get("error_description") || "";
 
       if (error) {
-        throw new Error(`Fitbit authorization error: ${error}`);
+        const detailedError = errorDescription
+          ? `${error}: ${errorDescription}`
+          : error;
+
+        // Provide helpful guidance for redirect_uri errors
+        if (
+          error === "redirect_uri_mismatch" ||
+          error === "redirect_uri" ||
+          errorDescription.includes("redirect_uri") ||
+          errorDescription.includes("callback URL") ||
+          errorDescription.includes("Empty URL")
+        ) {
+          throw new Error(
+            `Fitbit OAuth callback URL error: ${error}\n\n` +
+              `The redirect URI being used is: ${REDIRECT_URI}\n\n` +
+              "This error usually means the callback URL is not registered in Fitbit Developer Portal.\n\n" +
+              "To fix this:\n" +
+              "1. Log in to https://dev.fitbit.com/\n" +
+              "2. Go to your application settings\n" +
+              `3. Find the "Registered URLs" or "Callback URL" section\n` +
+              `4. Add this exact URL: ${REDIRECT_URI}\n` +
+              "5. Make sure:\n" +
+              "   - It uses HTTPS (not HTTP)\n" +
+              "   - No trailing slash\n" +
+              "   - Exact match (case-sensitive)\n" +
+              "6. Save the changes and wait 2-3 minutes\n" +
+              "7. Try connecting again\n\n" +
+              `Current redirect URI: ${REDIRECT_URI}`
+          );
+        }
+
+        throw new Error(`Fitbit OAuth error: ${detailedError}`);
       }
 
       if (!code) {
@@ -329,7 +417,7 @@ export const fitbitService = {
         body: new URLSearchParams({
           client_id: FITBIT_CLIENT_ID,
           code,
-          redirect_uri: REDIRECT_URI,
+          redirect_uri: REDIRECT_URI, // Must match registered callback URL
           grant_type: "authorization_code",
           code_verifier: verifier,
         }).toString(),
@@ -337,7 +425,41 @@ export const fitbitService = {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
-        throw new Error(`Token exchange failed: ${errorText}`);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          // Not JSON, use as-is
+        }
+
+        const errorMsg =
+          errorData?.errors?.[0]?.message ||
+          errorText ||
+          "Token exchange failed";
+        const errorType = errorData?.errors?.[0]?.errorType || "";
+
+        // Provide helpful guidance for redirect_uri_mismatch during token exchange
+        if (
+          errorMsg.includes("redirect_uri") ||
+          errorType.includes("redirect_uri") ||
+          errorText.includes("redirect_uri")
+        ) {
+          throw new Error(
+            "Fitbit token exchange failed: redirect URI mismatch.\n\n" +
+              `The redirect URI being used is: ${REDIRECT_URI}\n\n` +
+              "To fix this:\n" +
+              "1. Log in to https://dev.fitbit.com/\n" +
+              "2. Go to your application settings\n" +
+              `3. Find the "Callback URL" or "Redirect URI" field\n` +
+              `4. Make sure it exactly matches: ${REDIRECT_URI}\n` +
+              "5. Check for trailing slashes, http vs https, or typos\n" +
+              "6. Save the changes and try again\n\n" +
+              `Current redirect URI: ${REDIRECT_URI}\n` +
+              `Error details: ${errorMsg}`
+          );
+        }
+
+        throw new Error(`Fitbit token exchange failed: ${errorMsg}`);
       }
 
       const tokenData = await tokenResponse.json();
@@ -395,6 +517,24 @@ export const fitbitService = {
         selectedMetrics: selectedMetricKeys,
         grantedMetrics: selectedMetricKeys,
       });
+
+      // Save Fitbit user ID to Firestore for webhook matching
+      if (userId && userId !== "-") {
+        try {
+          const { auth } = await import("../firebase");
+          const { db } = await import("../firebase");
+          const { doc, updateDoc } = await import("firebase/firestore");
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            const userRef = doc(db, "users", currentUser.uid);
+            await updateDoc(userRef, {
+              fitbitUserId: userId,
+            });
+          }
+        } catch (error) {
+          // Silently handle Firestore update error - not critical for OAuth flow
+        }
+      }
     } catch (error: any) {
       throw new Error(
         `Failed to complete Fitbit authentication: ${error.message}`

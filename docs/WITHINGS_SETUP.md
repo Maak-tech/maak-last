@@ -73,12 +73,32 @@ https://us-central1-maak-5caad.cloudfunctions.net/withingsWebhook
 
 ## Firebase Configuration
 
+### 1. Authorized Domains
+
+**CRITICAL:** Add `maak-5caad.web.app` to Firebase Authentication authorized domains:
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select your project: `maak-5caad`
+3. Navigate to **Authentication** → **Settings** → **Authorized Domains**
+4. Click **Add Domain**
+5. Add: `maak-5caad.web.app`
+6. Save
+
+This ensures Firebase can securely handle requests from your hosting domain.
+
+### 2. Firebase Config Update
+
+The `authDomain` in `lib/firebase.ts` has been updated to use `maak-5caad.web.app` instead of `maak-5caad.firebaseapp.com` for better OAuth compatibility.
+
+### 3. Files Configured
+
 The following files have been configured:
 
 - `public/withings-callback.html` - OAuth callback page
 - `functions/src/index.ts` - Webhook handler (`withingsWebhook`)
 - `firebase.json` - Hosting rewrite rule for callback page
 - `lib/services/withingsService.ts` - Updated to save Withings user ID to Firestore
+- `lib/firebase.ts` - Updated authDomain to use `.web.app` domain
 
 ## Testing
 

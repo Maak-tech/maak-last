@@ -20,22 +20,6 @@ import {
 } from "@/lib/polyfills/websocketWithHeaders";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "@/lib/utils/base64";
 
-let SecureStore: any = null;
-try {
-  SecureStore = require("expo-secure-store");
-} catch {
-  SecureStore = null;
-}
-
-let AsyncStorage: any = null;
-try {
-  AsyncStorage = require("@react-native-async-storage/async-storage").default;
-} catch {
-  AsyncStorage = null;
-}
-
-const RUNTIME_OPENAI_KEY_STORAGE = "openai_api_key";
-
 // Dynamic import for expo-av and expo-file-system
 let Audio: any = null;
 let FileSystem: any = null;
@@ -884,64 +868,7 @@ class RealtimeAgentService {
         }
       }
 
-      // 1) Prefer a runtime key saved on the device (so dev client builds don't require rebuilds).
-      if (SecureStore?.getItemAsync) {
-        try {
-          const storedKey = await SecureStore.getItemAsync(
-            RUNTIME_OPENAI_KEY_STORAGE
-          );
-          if (
-            storedKey &&
-            typeof storedKey === "string" &&
-            storedKey.trim() !== ""
-          ) {
-            const trimmed = storedKey.trim();
-            if (this.validateApiKeyFormat(trimmed)) {
-              this.apiKey = trimmed;
-              return;
-            }
-            if (__DEV__) {
-              console.warn(
-                `[Zeina] ⚠️ Invalid API key format in SecureStore (should start with 'sk-'): ${this.maskApiKey(trimmed)}`
-              );
-            }
-          }
-        } catch (error) {
-          // SecureStore may fail if key format is invalid or other issues
-          // Fall through to AsyncStorage or app config
-          if (__DEV__) {
-            console.warn(
-              "[Zeina] SecureStore read failed, trying AsyncStorage:",
-              error
-            );
-          }
-        }
-      }
-
-      // 2) Fallback: AsyncStorage (dev reliability if SecureStore is unavailable).
-      if (AsyncStorage?.getItem) {
-        const storedKey = await AsyncStorage.getItem(
-          RUNTIME_OPENAI_KEY_STORAGE
-        );
-        if (
-          storedKey &&
-          typeof storedKey === "string" &&
-          storedKey.trim() !== ""
-        ) {
-          const trimmed = storedKey.trim();
-          if (this.validateApiKeyFormat(trimmed)) {
-            this.apiKey = trimmed;
-            return;
-          }
-          if (__DEV__) {
-            console.warn(
-              `[Zeina] ⚠️ Invalid API key format in AsyncStorage (should start with 'sk-'): ${this.maskApiKey(trimmed)}`
-            );
-          }
-        }
-      }
-
-      // If app config key missing/invalid, fall back to runtime storage.
+      // If app config key missing/invalid, report configuration state.
       this.apiKey = null;
       if (__DEV__) {
         const hasZeinaKey = !!config?.zeinaApiKey;
@@ -957,34 +884,6 @@ class RealtimeAgentService {
       this.apiKey = null;
       if (__DEV__) {
         console.error("[Zeina] ❌ Error loading API key:", error);
-      }
-    }
-  }
-
-  async setApiKey(apiKey: string): Promise<void> {
-    const trimmed = apiKey.trim();
-    this.apiKey = trimmed === "" ? null : trimmed;
-    if (SecureStore?.setItemAsync && this.apiKey) {
-      try {
-        await SecureStore.setItemAsync(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
-      } catch (error) {
-        // SecureStore may fail, fall back to AsyncStorage
-        if (__DEV__) {
-          console.warn(
-            "[Zeina] SecureStore write failed, using AsyncStorage:",
-            error
-          );
-        }
-      }
-    }
-    if (AsyncStorage?.setItem && this.apiKey) {
-      try {
-        await AsyncStorage.setItem(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
-      } catch (error) {
-        // AsyncStorage write failed, but we still have the key in memory
-        if (__DEV__) {
-          console.warn("[Zeina] AsyncStorage write failed:", error);
-        }
       }
     }
   }
@@ -1034,11 +933,10 @@ class RealtimeAgentService {
           `  • ZEINA_API_KEY in .env: ${hasZeinaKey ? "present but empty/invalid" : "not set"}\n` +
           `  • OPENAI_API_KEY in .env: ${hasOpenAIKey ? "present but empty/invalid" : "not set"}\n\n` +
           "To fix this:\n" +
-          "1. Set the API key in app settings (AI Assistant → Settings → OpenAI API Key), OR\n" +
-          "2. Add OPENAI_API_KEY or ZEINA_API_KEY to your .env file:\n" +
+          "1. Add OPENAI_API_KEY or ZEINA_API_KEY to your .env file:\n" +
           "   OPENAI_API_KEY=sk-proj-your-actual-key-here\n" +
           "   (or ZEINA_API_KEY=sk-proj-your-actual-key-here)\n\n" +
-          "3. Rebuild the app (required for .env changes):\n" +
+          "2. Rebuild the app (required for .env changes):\n" +
           "   - Stop the dev server\n" +
           "   - Run: npm run ios (or npm run android)\n" +
           "   - Or rebuild with EAS: eas build --profile development\n\n" +
@@ -1188,8 +1086,7 @@ class RealtimeAgentService {
                 "To fix this:\n" +
                 `• Verify your API key is correct: ${maskedKey}\n` +
                 `• Check API key format starts with 'sk-' or 'sk-proj-'\n` +
-                "• Set the API key in app settings (AI Assistant → Settings)\n" +
-                "• Or add OPENAI_API_KEY to .env and rebuild the app\n" +
+                "• Add OPENAI_API_KEY to .env and rebuild the app\n" +
                 "• Apply for Realtime API beta access: https://platform.openai.com/docs/guides/realtime\n" +
                 "• Check OpenAI status: https://status.openai.com/"
             );
@@ -1203,8 +1100,7 @@ class RealtimeAgentService {
                 `Format Valid: ${this.validateApiKeyFormat(this.apiKey || "") ? "✅ Yes" : "❌ No"}\n\n` +
                 "Your API key may be missing or invalid.\n\n" +
                 "To fix this:\n" +
-                "1. Set the API key in app settings (AI Assistant → Settings → OpenAI API Key), OR\n" +
-                "2. Add OPENAI_API_KEY to your .env file and rebuild:\n" +
+                "1. Add OPENAI_API_KEY to your .env file and rebuild:\n" +
                 "   - Stop dev server\n" +
                 "   - Run: npm run ios (or npm run android)\n" +
                 "   - Or: eas build --profile development\n\n" +
@@ -1222,8 +1118,7 @@ class RealtimeAgentService {
                 "4. Realtime API beta access required\n\n" +
                 `${setupGuidance}\n\n` +
                 "Troubleshooting:\n" +
-                "• Set API key in app settings (AI Assistant → Settings)\n" +
-                "• Or add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Add OPENAI_API_KEY to .env and rebuild\n" +
                 "• Check your network connection (try mobile data)\n" +
                 "• Verify Realtime API access: https://platform.openai.com/docs/guides/realtime"
             );
@@ -1280,8 +1175,7 @@ class RealtimeAgentService {
                     "2. Network connectivity issues\n" +
                     "3. OpenAI API service unavailable\n\n") +
                 "To fix:\n" +
-                "• Set API key in app settings (AI Assistant → Settings)\n" +
-                "• Or add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Add OPENAI_API_KEY to .env and rebuild\n" +
                 "• Check your network connection\n" +
                 "• Verify API key format (should start with 'sk-')"
             );
@@ -1307,8 +1201,7 @@ class RealtimeAgentService {
                 "This usually means your API key is invalid or doesn't have Realtime API access.\n\n" +
                 "To fix:\n" +
                 "• Verify your API key is correct\n" +
-                "• Set API key in app settings (AI Assistant → Settings)\n" +
-                "• Or add OPENAI_API_KEY to .env and rebuild\n" +
+                "• Add OPENAI_API_KEY to .env and rebuild\n" +
                 "• Apply for Realtime API access: https://platform.openai.com/docs/guides/realtime"
             );
             this.eventHandlers.onError?.(error);

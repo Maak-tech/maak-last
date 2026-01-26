@@ -154,7 +154,7 @@ export default function WithingsPermissionsScreen() {
       Alert.alert(
         isRTL ? "تم الربط بنجاح" : "Successfully Connected",
         isRTL
-          ? "تم ربط وايثينجز بنجاح. سيبدأ مزامنة البيانات قريباً."
+          ? "تم ربط Withings بنجاح. سيبدأ مزامنة البيانات قريباً."
           : "Withings connected successfully. Data sync will begin shortly.",
         [
           {
@@ -167,7 +167,7 @@ export default function WithingsPermissionsScreen() {
       Alert.alert(
         isRTL ? "فشل الربط" : "Connection Failed",
         error.message ||
-          (isRTL ? "فشل في ربط وايثينجز" : "Failed to connect Withings")
+          (isRTL ? "فشل في ربط Withings" : "Failed to connect Withings")
       );
     } finally {
       setConnecting(false);
@@ -223,7 +223,7 @@ export default function WithingsPermissionsScreen() {
             isRTL && styles.rtlText,
           ]}
         >
-          {isRTL ? "أذونات وايثينجز" : "Withings Permissions"}
+          {isRTL ? "موافقات Withings" : "Withings Permissions"}
         </Text>
         <View style={styles.placeholder} />
       </View>
@@ -382,7 +382,7 @@ export default function WithingsPermissionsScreen() {
             ) : (
               <>
                 <Text style={styles.connectButtonText}>
-                  {isRTL ? "ربط وايثينجز" : "Connect Withings"}
+                  {isRTL ? "ربط Withings" : "Connect Withings"}
                 </Text>
                 <ChevronRight
                   color="#FFFFFF"

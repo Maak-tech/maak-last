@@ -65,7 +65,7 @@ export default function WithingsIntroScreen() {
             isRTL && styles.rtlText,
           ]}
         >
-          {isRTL ? "وايثينجز" : "Withings"}
+          Withings
         </Text>
         <View style={styles.placeholder} />
       </View>
@@ -95,7 +95,7 @@ export default function WithingsIntroScreen() {
               isRTL && styles.rtlText,
             ]}
           >
-            {isRTL ? "ربط وايثينجز" : "Connect Withings"}
+            {isRTL ? "ربط Withings" : "Connect Withings"}
           </Text>
           <Text
             style={[
@@ -264,7 +264,7 @@ export default function WithingsIntroScreen() {
             style={[styles.connectButton, { backgroundColor: "#3B82F6" }]}
           >
             <Text style={styles.connectButtonText}>
-              {isRTL ? "ربط وايثينجز" : "Connect Withings"}
+              {isRTL ? "ربط Withings" : "Connect Withings"}
             </Text>
             <ChevronRight
               color="#FFFFFF"
@@ -281,7 +281,7 @@ export default function WithingsIntroScreen() {
             ]}
           >
             {isRTL
-              ? "سيتم توجيهك إلى موقع وايثينجز للموافقة"
+              ? "سيتم توجيهك إلى موقع Withings للموافقة"
               : "You'll be redirected to Withings to approve access"}
           </Text>
         </View>

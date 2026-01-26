@@ -30,6 +30,10 @@
       {
         "source": "/withings-callback",
         "destination": "/withings-callback.html"
+      },
+      {
+        "source": "/fitbit-callback",
+        "destination": "/fitbit-callback.html"
       }
     ]
   }

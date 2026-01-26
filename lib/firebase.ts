@@ -47,9 +47,10 @@ if (Platform.OS !== "web") {
 // are automatically used. These configs are primarily for web.
 const firebaseConfig = {
   // Web config
+  // Using maak-5caad.web.app instead of .firebaseapp.com for better OAuth compatibility
   web: {
     apiKey: "AIzaSyBzfNXpiKb5LhpX347PTXIODpZ6M9XFblQ",
-    authDomain: "maak-5caad.firebaseapp.com",
+    authDomain: "maak-5caad.web.app", // Changed from .firebaseapp.com for OAuth compatibility
     projectId: "maak-5caad",
     storageBucket: "maak-5caad.firebasestorage.app",
     messagingSenderId: "827176918437",

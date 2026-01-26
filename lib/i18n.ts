@@ -166,7 +166,7 @@ const resources = {
       audioUnavailable: "Audio Unavailable",
       configurationError: "Configuration Error",
       apiKeyMissing:
-        "Please configure your OpenAI API key in the app settings.",
+        "OpenAI API key not configured. Please set OPENAI_API_KEY or ZEINA_API_KEY in your .env file and rebuild the app.",
       tryAsking: "Try asking:",
       trySaying: "Try saying:",
       tipHealthSummary: "What's my health summary?",

@@ -83,7 +83,7 @@ const getLocalizedInsightText = (
       },
       ar: {
         title: `فعالية ${params?.medicationName || "الدواء"}`,
-        description: `انخفضت أعراضك بنسبة ${params?.improvement || 0}% منذ بدء تناول ${params?.medicationName || "الدواء"}. هذا يشير إلى أن الدواء قد يكون مفيداً.`,
+        description: `انخفضت أعراضك الصحية بنسبة ${params?.improvement || 0}% منذ بدء تناول ${params?.medicationName || "الدواء"}. هذا يشير إلى أن الدواء قد يكون مفيداً.`,
       },
     },
     increasingSymptomSeverity: {
@@ -111,7 +111,7 @@ const getLocalizedInsightText = (
       ar: {
         title: "تحسن شدة الأعراض",
         description:
-          "أخبار رائعة! كانت أعراضك أقل شدة مؤخراً. استمر في ما تفعله.",
+          "أخبار رائعة! كانت أعراضك الصحية أقل شدة مؤخراً. استمر في ما تفعله.",
       },
     },
     improvingMood: {
@@ -121,8 +121,8 @@ const getLocalizedInsightText = (
           "Your mood has been improving over time. This is a positive trend!",
       },
       ar: {
-        title: "تحسن المزاج",
-        description: "يتحسن مزاجك بمرور الوقت. هذا اتجاه إيجابي!",
+        title: "تحسن المزاج النفسي",
+        description: "يتحسن مزاجك النفسي بمرور الوقت. هذا اتجاه إيجابي!",
       },
     },
     decliningMood: {
@@ -134,8 +134,9 @@ const getLocalizedInsightText = (
           "Consider speaking with a mental health professional or trusted friend about how you're feeling.",
       },
       ar: {
-        title: "انخفاض المزاج",
-        description: "انخفض مزاجك مؤخراً. فكر في التحدث مع شخص ما أو طلب الدعم.",
+        title: "انخفاض المزاج النفسي",
+        description:
+          "انخفض مزاجك النفسي مؤخراً. فكر في التحدث مع شخص ما أو طلب الدعم.",
         recommendation:
           "فكر في التحدث مع متخصص في الصحة النفسية أو صديق موثوق حول ما تشعر به.",
       },
@@ -163,7 +164,7 @@ const getLocalizedInsightText = (
           "Keep a detailed log of when symptoms occur, what you were doing, and what you ate to identify patterns.",
       },
       ar: {
-        title: "أعراض متكررة",
+        title: "أعراض صحية متكررة",
         description:
           "كنت تعاني من أعراض متكررة هذا الأسبوع. فكر في تتبع المحفزات والأنماط.",
         recommendation:
@@ -180,7 +181,8 @@ const getLocalizedInsightText = (
       },
       ar: {
         title: "الصحة النفسية",
-        description: "كنت تعاني من مزاج سلبي أكثر مؤخراً. الرعاية الذاتية مهمة.",
+        description:
+          "كنت تعاني من مزاج نفسي سلبي أكثر مؤخراً. الرعاية الذاتية مهمة.",
         recommendation:
           "فكر في الأنشطة التي تساعدك على الاسترخاء، مثل التمارين الرياضية أو التأمل أو قضاء الوقت مع أحبائك.",
       },
@@ -758,31 +760,31 @@ class HealthInsightsService {
     const normalized = source.toLowerCase();
 
     if (normalized.includes("oura")) {
-      return isArabic ? "أورا" : "Oura";
+      return isArabic ? "Oura" : "Oura";
     }
     if (normalized.includes("garmin")) {
-      return isArabic ? "جارمن" : "Garmin";
+      return isArabic ? "Garmin" : "Garmin";
     }
     if (normalized.includes("samsung")) {
-      return isArabic ? "سامسونج هيلث" : "Samsung Health";
+      return isArabic ? "Samsung Health" : "Samsung Health";
     }
     if (normalized.includes("dexcom")) {
-      return isArabic ? "ديكسكوم" : "Dexcom";
+      return isArabic ? "Dexcom" : "Dexcom";
     }
     if (normalized.includes("freestyle")) {
-      return isArabic ? "فريستايل ليبري" : "Freestyle Libre";
+      return isArabic ? "Freestyle Libre" : "Freestyle Libre";
     }
     if (normalized.includes("withings")) {
-      return "Withings";
+      return isArabic ? "Withings" : "Withings";
     }
     if (normalized.includes("fitbit")) {
-      return isArabic ? "فيتبت" : "Fitbit";
+      return isArabic ? "Fitbit" : "Fitbit";
     }
     if (normalized.includes("apple")) {
-      return isArabic ? "آبل هيلث" : "Apple Health";
+      return isArabic ? "Apple Health" : "Apple Health";
     }
     if (normalized.includes("health connect")) {
-      return isArabic ? "هيلث كونكت" : "Health Connect";
+      return isArabic ? "Health Connect" : "Health Connect";
     }
     if (normalized.includes("ppg")) {
       return isArabic ? "كاميرا PPG" : "PPG Camera";

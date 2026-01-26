@@ -1,23 +1,6 @@
 import Constants from "expo-constants";
 import { aiInstrumenter } from "@/lib/observability";
 
-let SecureStore: any = null;
-try {
-  SecureStore = require("expo-secure-store");
-} catch {
-  SecureStore = null;
-}
-
-let AsyncStorage: any = null;
-try {
-  AsyncStorage = require("@react-native-async-storage/async-storage").default;
-} catch {
-  AsyncStorage = null;
-}
-
-const RUNTIME_OPENAI_KEY_STORAGE = "openai_api_key";
-const OLD_RUNTIME_OPENAI_KEY_STORAGE = "@openai_api_key"; // Legacy key name for backward compatibility
-
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -55,97 +38,6 @@ class OpenAIService {
 
   async initialize(usePremiumKey = false) {
     try {
-      // Prefer runtime key stored on device.
-      if (SecureStore?.getItemAsync) {
-        // Check new key name first
-        let storedKey = await SecureStore.getItemAsync(
-          RUNTIME_OPENAI_KEY_STORAGE
-        );
-
-        // If not found, check old key name for backward compatibility
-        if (
-          !storedKey ||
-          typeof storedKey !== "string" ||
-          storedKey.trim() === ""
-        ) {
-          storedKey = await SecureStore.getItemAsync(
-            OLD_RUNTIME_OPENAI_KEY_STORAGE
-          );
-
-          // Migrate old key to new key name if found
-          if (
-            storedKey &&
-            typeof storedKey === "string" &&
-            storedKey.trim() !== ""
-          ) {
-            await SecureStore.setItemAsync(
-              RUNTIME_OPENAI_KEY_STORAGE,
-              storedKey
-            );
-            // Optionally delete old key (but keep it for now in case of errors)
-            try {
-              await SecureStore.deleteItemAsync(OLD_RUNTIME_OPENAI_KEY_STORAGE);
-            } catch {
-              // Ignore deletion errors
-            }
-          }
-        }
-
-        if (
-          storedKey &&
-          typeof storedKey === "string" &&
-          storedKey.trim() !== ""
-        ) {
-          const trimmed = storedKey.trim();
-          this.apiKey = trimmed;
-          this.zeinaApiKey = trimmed;
-          return;
-        }
-      }
-
-      // Fallback: some environments/dev-clients can fail SecureStore; keep a non-secure fallback for dev reliability.
-      if (AsyncStorage?.getItem) {
-        // Check new key name first
-        let storedKey = await AsyncStorage.getItem(RUNTIME_OPENAI_KEY_STORAGE);
-
-        // If not found, check old key name for backward compatibility
-        if (
-          !storedKey ||
-          typeof storedKey !== "string" ||
-          storedKey.trim() === ""
-        ) {
-          storedKey = await AsyncStorage.getItem(
-            OLD_RUNTIME_OPENAI_KEY_STORAGE
-          );
-
-          // Migrate old key to new key name if found
-          if (
-            storedKey &&
-            typeof storedKey === "string" &&
-            storedKey.trim() !== ""
-          ) {
-            await AsyncStorage.setItem(RUNTIME_OPENAI_KEY_STORAGE, storedKey);
-            // Optionally delete old key (but keep it for now in case of errors)
-            try {
-              await AsyncStorage.removeItem(OLD_RUNTIME_OPENAI_KEY_STORAGE);
-            } catch {
-              // Ignore deletion errors
-            }
-          }
-        }
-
-        if (
-          storedKey &&
-          typeof storedKey === "string" &&
-          storedKey.trim() !== ""
-        ) {
-          const trimmed = storedKey.trim();
-          this.apiKey = trimmed;
-          this.zeinaApiKey = trimmed;
-          return;
-        }
-      }
-
       // Get API keys from app config (server-side, not user-provided)
       // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
@@ -191,7 +83,7 @@ class OpenAIService {
         (typeof this.zeinaApiKey === "string" && this.zeinaApiKey.trim() === "")
       ) {
         throw new Error(
-          "Zeina API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY / ZEINA_API_KEY at build time."
+          "Zeina API key not configured. Provide OPENAI_API_KEY or ZEINA_API_KEY at build time and rebuild the app."
         );
       }
       return this.zeinaApiKey;
@@ -201,7 +93,7 @@ class OpenAIService {
       (typeof this.apiKey === "string" && this.apiKey.trim() === "")
     ) {
       throw new Error(
-        "OpenAI API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY at build time."
+        "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
       );
     }
     return this.apiKey;
@@ -209,27 +101,6 @@ class OpenAIService {
 
   async getModel(): Promise<string> {
     return this.model;
-  }
-
-  async setApiKey(apiKey: string): Promise<void> {
-    const trimmed = apiKey.trim();
-    this.apiKey = trimmed === "" ? null : trimmed;
-    // Keep Zeina key in sync for apps that reuse the same key.
-    this.zeinaApiKey = this.apiKey;
-    if (SecureStore?.setItemAsync && this.apiKey) {
-      try {
-        await SecureStore.setItemAsync(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
-      } catch {
-        // ignore
-      }
-    }
-    if (AsyncStorage?.setItem && this.apiKey) {
-      try {
-        await AsyncStorage.setItem(RUNTIME_OPENAI_KEY_STORAGE, this.apiKey);
-      } catch {
-        // ignore
-      }
-    }
   }
 
   async setModel(model: string): Promise<void> {
@@ -280,7 +151,7 @@ class OpenAIService {
 
         if (!activeApiKey) {
           throw new Error(
-            "OpenAI API key not configured. Set it in the app settings (AI Assistant → Settings → OpenAI API Key) or provide OPENAI_API_KEY at build time."
+            "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
           );
         }
 
@@ -319,7 +190,7 @@ class OpenAIService {
           }
           if (response.status === 401) {
             throw new Error(
-              "Invalid API key. Please check your OpenAI API key in settings."
+              "Invalid or expired OpenAI API key. The API key must be configured at build time via OPENAI_API_KEY or ZEINA_API_KEY environment variable. Please check your .env file and rebuild the app."
             );
           }
           if (response.status === 404) {
