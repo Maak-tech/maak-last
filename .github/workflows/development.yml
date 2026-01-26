@@ -1,0 +1,129 @@
+name: Development Deployment
+
+on:
+  push:
+    branches:
+      - develop
+      - dev
+  pull_request:
+    branches:
+      - develop
+      - dev
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  validate:
+    name: Validate Environment
+    runs-on: ubuntu-latest
+    environment: development # Uses Development environment secrets
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate environment variables
+        env:
+          # These secrets come from the Development environment
+          # Falls back to repository-level secrets if not found in environment
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          echo "Validating environment setup..."
+          npm run validate:env
+
+  deploy-functions:
+    name: Deploy Firebase Functions (Development)
+    runs-on: ubuntu-latest
+    environment: development
+    needs: validate
+    if: github.event_name == 'push' # Only deploy on push, not PRs
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate Firebase
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "FIREBASE_TOKEN not set, using service account"
+            echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" | base64 -d > $HOME/firebase-service-account.json
+            export GOOGLE_APPLICATION_CREDENTIALS=$HOME/firebase-service-account.json
+          else
+            firebase login:ci --token $FIREBASE_TOKEN
+          fi
+
+      - name: Install Functions dependencies
+        working-directory: ./functions
+        run: npm ci
+
+      - name: Build Functions
+        working-directory: ./functions
+        run: npm run build
+
+      - name: Deploy Firebase Functions
+        run: |
+          firebase deploy --only functions --project ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+
+  build-app:
+    name: Build App (Development)
+    runs-on: ubuntu-latest
+    environment: development
+    needs: validate
+    if: github.event_name == 'push' # Only build on push, not PRs
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create EAS build (Development)
+        env:
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+        run: |
+          # Note: EAS secrets are used automatically during build
+          # These env vars are for validation only
+          eas build --profile development --platform all --non-interactive

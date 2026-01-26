@@ -22,6 +22,7 @@
     "firebase:fix-medications": "node scripts/fix-medications.js",
     "validate:env": "bunx tsx scripts/validate-env.ts",
     "validate:production": "bunx tsx scripts/validate-production.ts",
+    "verify:secrets": "bunx tsx scripts/verify-secrets.ts",
     "check:zeina": "bunx tsx scripts/check-zeina-config.ts",
     "check:openai": "bunx tsx scripts/check-openai-key.ts",
     "test:websocket": "bunx tsx scripts/test-websocket.ts",
