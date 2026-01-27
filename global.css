@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme CSS variables */
+:root {
+  --color-background: #f8fafc;
+  --color-background-secondary: #ffffff;
+  --color-background-tertiary: #f1f5f9;
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-tertiary: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-input-bg: #ffffff;
+}
+
+.dark {
+  --color-background: #0f172a;
+  --color-background-secondary: #1e293b;
+  --color-background-tertiary: #334155;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-tertiary: #64748b;
+  --color-border: #334155;
+  --color-input-bg: #1e293b;
+}
+
+/* Set Geist as default font globally */
+@layer base {
+  * {
+    font-family: "Geist-Regular", system-ui, -apple-system, sans-serif;
+  }
+}

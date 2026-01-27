@@ -48,6 +48,7 @@
     "@react-native-voice/voice": "^3.2.4",
     "@react-navigation/native": "^7.1.6",
     "@react-navigation/native-stack": "^7.3.10",
+    "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "expo": "^54.0.32",
     "expo-av": "~16.0.8",
@@ -85,6 +86,7 @@
     "i18next-resources-to-backend": "^1.2.1",
     "lucide-react-native": "^0.400.0",
     "metro-cache": "^0.83.3",
+    "nativewind": "^4.2.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-firebase-hooks": "^5.1.1",
@@ -105,7 +107,10 @@
     "react-native-web": "^0.21.0",
     "react-native-websocket": "^1.0.2",
     "react-native-webview": "13.15.0",
-    "react-native-worklets-core": "^1.4.0"
+    "react-native-worklets": "^0.7.2",
+    "react-native-worklets-core": "^1.6.2",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^3.4.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

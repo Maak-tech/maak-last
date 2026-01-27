@@ -1,6 +1,9 @@
 // TextImpl patch removed due to Bun compatibility issues
 // Reanimated setup handles TextImpl patching through TypeScript
 
+// NativeWind CSS
+import "../global.css";
+
 // Polyfill to prevent PushNotificationIOS errors
 import "@/lib/polyfills/pushNotificationIOS";
 
