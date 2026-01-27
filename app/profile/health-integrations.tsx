@@ -297,7 +297,7 @@ export default function HealthIntegrationsScreen() {
             isRTL && { textAlign: "left" },
           ]}
         >
-          {isRTL ? "تكاملات الصحة" : "Health Integrations"}
+          {isRTL ? "تكاملات البيانات الصحية" : "Health Integrations"}
         </Text>
 
         <View style={styles.headerSpacer} />
@@ -330,7 +330,7 @@ export default function HealthIntegrationsScreen() {
               isRTL && { textAlign: "left" },
             ]}
           >
-            {isRTL ? "تكاملات الصحة" : "Health Integrations"}
+            {isRTL ? "تكاملات البيانات الصحية " : "Health Integrations"}
           </Text>
           <Text
             style={[
@@ -340,7 +340,7 @@ export default function HealthIntegrationsScreen() {
             ]}
           >
             {isRTL
-              ? "قم بتوصيل مصادر البيانات الصحية لتوفير رؤى أفضل ورعاية محسّنة"
+              ? "قم بتوصيل مصادر البيانات الصحية لتوفير تحليلات أفضل ورعاية محسّنة"
               : "Connect health data sources to provide better insights and care"}
           </Text>
         </View>

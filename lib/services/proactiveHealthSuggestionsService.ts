@@ -137,10 +137,10 @@ const getLocalizedSuggestionText = (
         category: "Symptoms",
       },
       ar: {
-        title: `أعراض ${params?.symptomType || ""} متكررة`,
+        title: `أعراض صحية ${params?.symptomType || ""} متكررة`,
         description: `سجلت ${params?.symptomType || ""} ${params?.count || 0} مرات مؤخراً. فكر في مناقشة هذا النمط مع مقدم الرعاية الصحية.`,
-        actionLabel: "عرض الأعراض",
-        category: "الأعراض",
+        actionLabel: "عرض الأعراض الصحية",
+        category: "الأعراض الصحية",
       },
     },
     highSeveritySymptoms: {
@@ -151,10 +151,10 @@ const getLocalizedSuggestionText = (
         category: "Symptoms",
       },
       ar: {
-        title: "أعراض شديدة الخطورة",
+        title: "أعراض صحية شديدة الخطورة",
         description: `سجلت ${params?.count || 0} عرض${(params?.count || 0) === 1 ? "" : " شديد الخطورة"}. فكر في طلب الرعاية الطبية.`,
-        actionLabel: "عرض الأعراض",
-        category: "الأعراض",
+        actionLabel: "عرض الأعراض الصحية",
+        category: "الأعراض الصحية",
       },
     },
     moodPattern: {
@@ -166,10 +166,10 @@ const getLocalizedSuggestionText = (
         category: "Wellness",
       },
       ar: {
-        title: "تم اكتشاف نمط المزاج",
+        title: "تم اكتشاف نمط المزاج النفسي",
         description:
           "كنت تعاني من مزاج سلبي أكثر مؤخراً. فكر في الأنشطة التي تساعد على تحسين مزاجك أو التحدث مع مقدم الرعاية الصحية.",
-        actionLabel: "عرض المزاج",
+        actionLabel: "عرض المزاج النفسي",
         category: "العافية",
       },
     },
@@ -182,10 +182,10 @@ const getLocalizedSuggestionText = (
         category: "Wellness",
       },
       ar: {
-        title: "انخفاض شدة المزاج",
+        title: "انخفاض شدة المزاج النفسي",
         description:
           "كانت شدة مزاجك منخفضة. فكر في الأنشطة التي تعزز طاقتك ومزاجك.",
-        actionLabel: "تتبع المزاج",
+        actionLabel: "تتبع المزاج النفسي",
         category: "العافية",
       },
     },
@@ -213,7 +213,7 @@ const getLocalizedSuggestionText = (
       ar: {
         title: "تحسين النتيجة الصحية",
         description: `نتيجتك الصحية ${params?.score || 0}. التحسينات الصغيرة في إدارة الأعراض ونمط الحياة يمكن أن تساعد في زيادتها.`,
-        actionLabel: "عرض الرؤى",
+        actionLabel: "عرض الملاحظات الصحية",
         category: "الصحة",
       },
     },
@@ -226,10 +226,10 @@ const getLocalizedSuggestionText = (
         category: "Lifestyle",
       },
       ar: {
-        title: "تتبع مزاجك",
+        title: "تتبع مزاجك النفسي",
         description:
           "تتبع مزاجك يمكن أن يساعد في تحديد الأنماط وتحسين صحتك العامة.",
-        actionLabel: "تتبع المزاج",
+        actionLabel: "تتبع المزاج النفسي",
         category: "نمط الحياة",
       },
     },
@@ -245,7 +245,7 @@ const getLocalizedSuggestionText = (
         title: "إدارة التوتر",
         description:
           "كنت تعاني من أعراض مرتبطة بالتوتر. فكر في تقنيات إدارة التوتر مثل التأمل أو التمارين أو الاسترخاء.",
-        actionLabel: "عرض الموارد",
+        actionLabel: "عرض الموارد الصحية",
         category: "نمط الحياة",
       },
     },
@@ -260,8 +260,8 @@ const getLocalizedSuggestionText = (
       ar: {
         title: "الفحص الصحي السنوي",
         description:
-          "فكر في جدولة فحصك الصحي السنوي للبقاء على اطلاع على الرعاية الوقائية.",
-        actionLabel: "جدولة موعد",
+          "فكر في تسجيل موعد لفحصك الصحي السنوي للبقاء على اطلاع على الرعاية الوقائية.",
+        actionLabel: "تسجيل موعد",
         category: "الرعاية الوقائية",
       },
     },
@@ -275,8 +275,8 @@ const getLocalizedSuggestionText = (
       ar: {
         title: "نمط أعراض متكرر",
         description: `سجلت ${params?.symptomType || ""} ${params?.count || 0} مرات في الشهر الماضي. فكر في تتبع ما يسبب هذا العرض.`,
-        actionLabel: "عرض تاريخ الأعراض",
-        category: "الأعراض",
+        actionLabel: "عرض تاريخ الأعراض الصحية",
+        category: "الأعراض الصحية",
       },
     },
     moodSupport: {
@@ -288,10 +288,10 @@ const getLocalizedSuggestionText = (
         category: "Wellness",
       },
       ar: {
-        title: "دعم المزاج",
+        title: "دعم الحالة النفسية",
         description:
           "تشير إدخالات مزاجك الأخيرة إلى أنك قد تستفيد من دعم إضافي. فكر في الأنشطة التي تعزز مزاجك.",
-        actionLabel: "عرض تاريخ المزاج",
+        actionLabel: "عرض تاريخ الحالة النفسية",
         category: "العافية",
       },
     },
@@ -306,7 +306,7 @@ const getLocalizedSuggestionText = (
       ar: {
         title: "مراجعة فعالية الدواء",
         description:
-          "لاحظنا بعض الأنماط في أعراضك التي قد تتعلق بجدول أدويتك. فكر في المراجعة مع مقدم الرعاية الصحية.",
+          "لاحظنا بعض الأنماط في أعراضك الصحية التي قد تتعلق بجدول أدويتك. فكر في المراجعة مع مقدم الرعاية الصحية.",
         actionLabel: "ناقش مع مقدم الرعاية",
         category: "الأدوية",
       },
@@ -319,8 +319,8 @@ const getLocalizedSuggestionText = (
         category: "Preventive Care",
       },
       ar: {
-        title: "احتمال تفاقم الأعراض",
-        description: `بناءً على أنماط أعراضك، قد يكون هناك خطر متزايد لتفاقم ${params?.symptomType || ""} في الأيام القادمة.`,
+        title: "احتمال تفاقم الأعراض الصحية",
+        description: `بناءً على أنماط أعراضك الصحية، قد يكون هناك خطر متزايد لتفاقم ${params?.symptomType || ""} في الأيام القادمة.`,
         actionLabel: "اتخذ تدابير وقائية",
         category: "الرعاية الوقائية",
       },
@@ -336,7 +336,7 @@ const getLocalizedSuggestionText = (
       ar: {
         title: "تعديل الدواء مطلوب",
         description:
-          "تشير أنماط أعراضك إلى أن نظام الأدوية الحالي قد يحتاج إلى تعديل. فكر في استشارة مقدم الرعاية الصحية.",
+          "تشير أنماط أعراضك الصحية إلى أن نظام الأدوية الحالي قد يحتاج إلى تعديل. فكر في استشارة مقدم الرعاية الصحية.",
         actionLabel: "استشر مقدم الرعاية",
         category: "الأدوية",
       },
