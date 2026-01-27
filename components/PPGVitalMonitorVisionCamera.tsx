@@ -108,6 +108,7 @@ export default function PPGVitalMonitorVisionCamera({
   const [respiratoryRate, setRespiratoryRate] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [signalQuality, setSignalQuality] = useState<number | null>(null);
+  const [mlConfidence, setMLConfidence] = useState<number | null>(null);
   const [fingerDetected, setFingerDetected] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [framesCaptured, setFramesCaptured] = useState(0);
@@ -227,7 +228,7 @@ export default function PPGVitalMonitorVisionCamera({
     },
     60: {
       title: "Complete!",
-      detail: "Medical-grade accuracy achieved",
+      detail: "Measurement complete",
       icon: "✅",
       progress: "100%",
     },
@@ -660,6 +661,7 @@ export default function PPGVitalMonitorVisionCamera({
     setRespiratoryRate(null); // Reset respiratory rate state
     setProgress(0);
     setSignalQuality(null);
+    setMLConfidence(null);
     setFingerDetected(false);
     fingerDetectedRef.current = false;
     setIsCapturing(false);
@@ -995,6 +997,9 @@ export default function PPGVitalMonitorVisionCamera({
       setHeartRateVariability(ppgResult.heartRateVariability || null);
       setRespiratoryRate(ppgResult.respiratoryRate || null);
       setSignalQuality(ppgResult.signalQuality);
+      setMLConfidence(
+        Number.isFinite(ppgResult.confidence) ? ppgResult.confidence! : null
+      );
 
       const shouldSave = !ppgResult.isEstimate;
       const saveSuccess = shouldSave
@@ -1907,6 +1912,33 @@ export default function PPGVitalMonitorVisionCamera({
                     >
                       {t("bpm")}
                     </Text>
+                    {mlConfidence !== null && (
+                      <View
+                        style={{
+                          marginTop: theme.spacing.sm,
+                          paddingHorizontal: theme.spacing.md,
+                          paddingVertical: 4,
+                          borderRadius: theme.borderRadius.full,
+                          backgroundColor: theme.colors.secondary[50],
+                        }}
+                      >
+                        <Text
+                          style={{
+                            ...getTextStyle(
+                              theme,
+                              "caption",
+                              "semibold",
+                              theme.colors.secondary.dark
+                            ),
+                            fontSize: 12,
+                          }}
+                        >
+                          {t("mlConfidence", {
+                            confidence: Math.round(mlConfidence * 100),
+                          })}
+                        </Text>
+                      </View>
+                    )}
                   </View>
 
                   {(heartRateVariability !== null ||

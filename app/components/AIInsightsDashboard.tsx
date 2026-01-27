@@ -207,6 +207,28 @@ function AIInsightsDashboard({
     loadInsights();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!insights || insights.insightsSummary) return;
+
+    const riskLevel = insights.riskAssessment?.riskLevel || "low";
+    const nextAssessmentDate =
+      insights.riskAssessment?.nextAssessmentDate ?? new Date();
+
+    setInsights((previous) => {
+      if (!previous || previous.insightsSummary) return previous;
+
+      return {
+        ...previous,
+        insightsSummary: {
+          totalInsights: 0,
+          highPriorityItems: 0,
+          riskLevel,
+          nextAssessmentDate,
+        },
+      };
+    });
+  }, [insights]);
+
   const getCacheKey = (userId: string) => `${CACHE_KEY_PREFIX}${userId}`;
 
   const loadCachedInsights = async (
@@ -262,8 +284,8 @@ function AIInsightsDashboard({
         if (cachedInsights) {
           setInsights(cachedInsights);
           setLoading(false);
-          // Refresh in background
-          loadInsights(true);
+          // Refresh in background without blocking
+          setTimeout(() => loadInsights(true), 100);
           return;
         }
       }
@@ -282,18 +304,61 @@ function AIInsightsDashboard({
         false // Don't wait for AI narrative - load it separately
       );
 
-      // Reduced timeout to 30 seconds - should be enough with optimizations
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("AI insights loading timeout")),
-          30_000
-        )
+      // Use a longer timeout but don't block - show cached/partial data if available
+      const timeoutPromise = new Promise<AIInsightsDashboardData>(
+        (resolve) =>
+          setTimeout(() => {
+            // Return fallback data instead of rejecting
+            const fallback: AIInsightsDashboardData = {
+              id: `fallback-${user.id}`,
+              userId: user.id,
+              timestamp: new Date(),
+              correlationAnalysis: {
+                id: `fallback-${user.id}`,
+                title: "Health Data Correlation Analysis",
+                description: "Loading analysis...",
+                correlationResults: [],
+                timestamp: new Date(),
+                userId: user.id,
+              },
+              symptomAnalysis: {
+                patterns: [],
+                diagnosisSuggestions: [],
+                riskAssessment: {
+                  overallRisk: "low",
+                  concerns: [],
+                  recommendations: [],
+                },
+                analysisTimestamp: new Date(),
+              },
+              riskAssessment: {
+                id: `fallback-risk-${user.id}`,
+                userId: user.id,
+                overallRiskScore: 0,
+                riskLevel: "low",
+                riskFactors: [],
+                conditionRisks: [],
+                preventiveRecommendations: [],
+                timeline: "long_term",
+                assessmentDate: new Date(),
+                nextAssessmentDate: new Date(),
+              },
+              medicationAlerts: [],
+              healthSuggestions: [],
+              personalizedTips: [],
+              insightsSummary: {
+                totalInsights: 0,
+                highPriorityItems: 0,
+                riskLevel: "low",
+                nextAssessmentDate: new Date(),
+              },
+              aiNarrative: undefined,
+            };
+            resolve(fallback);
+          }, 20_000) // Reduced from 30s to 20s
       );
 
-      const dashboard = (await Promise.race([
-        dashboardPromise,
-        timeoutPromise,
-      ])) as AIInsightsDashboardData;
+      const dashboard = await Promise.race([dashboardPromise, timeoutPromise]);
 
       setInsights(dashboard);
       await saveCachedInsights(user.id, dashboard);
@@ -421,19 +486,23 @@ function AIInsightsDashboard({
               color="#3B82F6"
               icon="Brain"
               title={t("totalInsights", "Total Insights")}
-              value={insights.insightsSummary.totalInsights.toString()}
+              value={
+                insights?.insightsSummary?.totalInsights?.toString() || "0"
+              }
             />
             <SummaryCard
               color="#EF4444"
               icon="AlertTriangle"
               title={t("highPriority", "High Priority")}
-              value={insights.insightsSummary.highPriorityItems.toString()}
+              value={
+                insights?.insightsSummary?.highPriorityItems?.toString() || "0"
+              }
             />
             <SummaryCard
-              color={getRiskColor(insights.riskAssessment.riskLevel)}
+              color={getRiskColor(insights?.riskAssessment?.riskLevel || "low")}
               icon="Shield"
               title={t("riskLevel", "Risk Level")}
-              value={insights.riskAssessment.riskLevel}
+              value={insights?.riskAssessment?.riskLevel || "low"}
             />
           </View>
 
@@ -627,10 +696,10 @@ function OverviewContent({
   onInsightPress?: (insight: any) => void;
 }) {
   const topInsights = [
-    ...insights.medicationAlerts.slice(0, 2),
-    ...insights.symptomAnalysis.diagnosisSuggestions.slice(0, 2),
-    ...insights.correlationAnalysis.correlationResults.slice(0, 2),
-    ...insights.healthSuggestions.slice(0, 2),
+    ...(insights.medicationAlerts || []).slice(0, 2),
+    ...(insights.symptomAnalysis?.diagnosisSuggestions || []).slice(0, 2),
+    ...(insights.correlationAnalysis?.correlationResults || []).slice(0, 2),
+    ...(insights.healthSuggestions || []).slice(0, 2),
   ];
 
   return (
@@ -660,7 +729,7 @@ function CorrelationsContent({
       <Text style={[styles.sectionTitle, styles.mb3]}>
         {t("insightsHealthDataCorrelationsTitle", "Health Data Correlations")}
       </Text>
-      {insights.correlationAnalysis.correlationResults.map(
+      {(insights.correlationAnalysis?.correlationResults || []).map(
         (correlation: any, index: number) => (
           <CorrelationCard
             correlation={correlation}
@@ -669,7 +738,8 @@ function CorrelationsContent({
           />
         )
       )}
-      {insights.correlationAnalysis.correlationResults.length === 0 && (
+      {(insights.correlationAnalysis?.correlationResults || []).length ===
+        0 && (
         <EmptyState
           message={t(
             "insightsNoSignificantCorrelations",
@@ -695,7 +765,7 @@ function PatternsContent({
       <Text style={[styles.sectionTitle, styles.mb3]}>
         {t("insightsSymptomPatternsTitle", "Symptom Patterns & Diagnosis")}
       </Text>
-      {insights.symptomAnalysis.diagnosisSuggestions.map(
+      {(insights.symptomAnalysis?.diagnosisSuggestions || []).map(
         (diagnosis: any, index: number) => (
           <DiagnosisCard
             diagnosis={diagnosis}
@@ -704,15 +774,17 @@ function PatternsContent({
           />
         )
       )}
-      {insights.symptomAnalysis.patterns.map((pattern: any, index: number) => (
-        <PatternCard
-          key={`pattern-${index}`}
-          onPress={() => onInsightPress?.(pattern)}
-          pattern={pattern}
-        />
-      ))}
-      {insights.symptomAnalysis.diagnosisSuggestions.length === 0 &&
-        insights.symptomAnalysis.patterns.length === 0 && (
+      {(insights.symptomAnalysis?.patterns || []).map(
+        (pattern: any, index: number) => (
+          <PatternCard
+            key={`pattern-${index}`}
+            onPress={() => onInsightPress?.(pattern)}
+            pattern={pattern}
+          />
+        )
+      )}
+      {(insights.symptomAnalysis?.diagnosisSuggestions || []).length === 0 &&
+        (insights.symptomAnalysis?.patterns || []).length === 0 && (
           <EmptyState
             message={t(
               "insightsNoSignificantSymptomPatterns",
@@ -734,7 +806,18 @@ function RiskContent({
 }) {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
-  const risk = insights.riskAssessment;
+  const risk = insights.riskAssessment || {
+    id: "fallback",
+    userId: "unknown",
+    overallRiskScore: 0,
+    riskLevel: "low",
+    riskFactors: [],
+    conditionRisks: [],
+    preventiveRecommendations: [],
+    timeline: "long_term",
+    assessmentDate: new Date(),
+    nextAssessmentDate: new Date(),
+  };
 
   return (
     <View>
@@ -993,8 +1076,16 @@ function CompactInsightsView({
   onPress?: (insight: any) => void;
   isRTL?: boolean;
 }) {
+  // Safely access insightsSummary with fallback
+  const insightsSummary = insights?.insightsSummary || {
+    totalInsights: 0,
+    highPriorityItems: 0,
+    riskLevel: "low",
+    nextAssessmentDate: new Date(),
+  };
+
   const prioritizedInsights =
-    insights.insightsSummary.highPriorityItems > 0
+    insightsSummary.highPriorityItems > 0
       ? isRTL
         ? "هناك عناصر ذات أولوية عالية تحتاج إلى الاهتمام"
         : "High priority items need attention"
@@ -1018,9 +1109,11 @@ function CompactInsightsView({
             {prioritizedInsights}
           </Text>
           <View style={[styles.row, styles.mt1]}>
-            <Badge style={{}}>{insights.riskAssessment.riskLevel}</Badge>
+            <Badge style={{}}>
+              {insights?.riskAssessment?.riskLevel || "low"}
+            </Badge>
             <Text style={[styles.textSm, styles.textMuted, styles.ml2]}>
-              {insights.insightsSummary.totalInsights}{" "}
+              {insightsSummary.totalInsights}{" "}
               {isRTL ? "التحليل الصحي " : "insights"}
             </Text>
           </View>

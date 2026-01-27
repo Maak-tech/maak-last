@@ -34,6 +34,7 @@ export interface PPGResult {
   respiratoryRate?: number; // breaths per minute
   oxygenSaturation?: number; // SpO2 percentage (requires dual-wavelength)
   signalQuality: number; // 0-1, where 1 is perfect
+  confidence?: number; // 0-1 ML confidence when available
   isEstimate?: boolean; // true when a BPM was produced from low-confidence signal quality
   error?: string;
 }
@@ -294,8 +295,42 @@ export function processPPGSignalEnhanced(
     const heartRatePeak = calculateHeartRateOptimized(filtered, frameRate);
     const heartRateAuto = estimateHeartRateFromPeriod(filtered, frameRate);
 
-    // Calculate signal quality
-    const signalQuality = calculateSignalQualityOptimized(filtered);
+    // Detect signal clipping from flash saturation or excessive pressure.
+    // Clipping inflates peaks and can bias BPM high.
+    const clippedSamples = normalized.filter(
+      (value) => value <= 0.02 || value >= 0.98
+    ).length;
+    const clippedRatio = clippedSamples / normalized.length;
+
+    // Calculate signal quality (penalize clipped signals)
+    const clippingPenalty =
+      clippedRatio > 0.35 ? 0.5 : clippedRatio > 0.2 ? 0.7 : 1;
+    const signalQuality = Math.max(
+      0,
+      Math.min(1, calculateSignalQualityOptimized(filtered) * clippingPenalty)
+    );
+
+    // Select heart rate using quality-aware blending to reduce false-high BPM.
+    const hasPeak = Number.isFinite(heartRatePeak);
+    const hasAuto = Number.isFinite(heartRateAuto);
+    const hrDifference =
+      hasPeak && hasAuto ? Math.abs(heartRatePeak - heartRateAuto) : 0;
+    const preferAutocorr =
+      clippedRatio > 0.15 || signalQuality < 0.65 || hrDifference >= 10;
+    const blendedEstimate =
+      hasPeak && hasAuto
+        ? 0.65 * heartRateAuto + 0.35 * heartRatePeak
+        : hasAuto
+          ? heartRateAuto
+          : heartRatePeak;
+    const fallbackEstimate = Number.isFinite(blendedEstimate)
+      ? blendedEstimate
+      : 60;
+    const heartRateSelected = preferAutocorr
+      ? fallbackEstimate
+      : hasPeak
+        ? heartRatePeak
+        : fallbackEstimate;
 
     // Quality gating:
     // - We still want to return a BPM when the signal is "good enough"
@@ -321,11 +356,14 @@ export function processPPGSignalEnhanced(
     }
 
     const HIGH_BPM_THRESHOLD = 110;
-    const MIN_SIGNAL_QUALITY_FOR_HIGH_BPM = 0.55;
-    const heartRateSelected = heartRatePeak;
+    const MIN_SIGNAL_QUALITY_FOR_HIGH_BPM = 0.6;
+    const highBpmMismatch =
+      hasAuto &&
+      Number.isFinite(heartRateSelected) &&
+      heartRateSelected > heartRateAuto * 1.15;
     if (
       heartRateSelected >= HIGH_BPM_THRESHOLD &&
-      signalQuality < MIN_SIGNAL_QUALITY_FOR_HIGH_BPM
+      (signalQuality < MIN_SIGNAL_QUALITY_FOR_HIGH_BPM || highBpmMismatch)
     ) {
       // Still return an estimate (but mark it low confidence) so the user gets a BPM.
       // Prefer autocorrelation estimate to reduce false-high BPM from noisy peaks.
@@ -528,13 +566,14 @@ function calculateHeartRateOptimized(
   frameRate: number
 ): number {
   // Find peaks with minimum distance constraint
-  const minPeakDistance = Math.floor(frameRate * 0.4); // Minimum 0.4s between peaks (150 BPM max)
+  // Use a slightly longer refractory period to reduce double-counting peaks.
+  const minPeakDistance = Math.floor(frameRate * 0.5); // Minimum 0.5s between peaks (120 BPM max)
   const peaks: number[] = [];
 
   // Calculate threshold as percentage of signal range
   const min = Math.min(...signal);
   const max = Math.max(...signal);
-  const threshold = min + (max - min) * 0.3; // 30% above minimum
+  const threshold = min + (max - min) * 0.4; // 40% above minimum
 
   for (let i = 1; i < signal.length - 1; i++) {
     if (

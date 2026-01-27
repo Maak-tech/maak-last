@@ -531,10 +531,10 @@ const resources = {
         "Note: The camera view may appear dark when your finger covers it - this is normal!",
       realPPGTechnology: "Real PPG Technology",
       realPPGTechnologyDesc:
-        "This version uses real camera data to measure your heart rate by detecting blood volume changes in your fingertip. Medical-grade accuracy with 60-second measurement.",
+        "This version uses real camera data to measure your heart rate by detecting blood volume changes in your fingertip. 60-second measurement for accurate results.",
       why60Seconds: "Why 60 seconds?",
       why60SecondsDesc:
-        "• Captures 60-90 heartbeats for statistical reliability\n• Enables medical-grade HRV analysis\n• Achieves 95-97% authentication accuracy\n• 0.2% false acceptance rate (bank-grade security)",
+        "• Captures 60-90 heartbeats for statistical reliability\n• Enables HRV analysis\n• Achieves 95-97% authentication accuracy\n• 0.2% false acceptance rate (bank-grade security)",
       tipsForBestResults: "Tips for Best Results",
       tipKeepHandSteady: "Keep your hand steady and relaxed",
       tipDontPressHard: "Don't press too hard - gentle contact works best",
@@ -596,13 +596,13 @@ const resources = {
       tipBreatheCalmly:
         "Breathe calmly and avoid movement for accurate readings",
       heartbeatsCaptured: "Heartbeats Captured",
-      sixtySecondsAccuracy:
-        "60 seconds for medical-grade accuracy • Hold steady",
+      sixtySecondsAccuracy: "60 seconds for accurate measurement • Hold steady",
       capturingFrames:
         "Capturing {{captured}}/{{target}} frames at {{fps}} fps • {{time}}s/{{duration}}s",
       hrv: "HRV:",
       breathsPerMin: "breaths/min",
       bpm: "BPM",
+      mlConfidence: "ML confidence: {{confidence}}%",
       grantCameraPermissionButton: "Grant Camera Permission",
       cameraPermissionExplanation:
         "To measure your heart rate, Maak Health needs access to your camera. The camera will only be used to detect blood volume changes in your fingertip - no photos or videos will be saved.",
@@ -2182,6 +2182,7 @@ const resources = {
       hrv: "تغير معدل ضربات القلب:",
       breathsPerMin: "نفس/دقيقة",
       bpm: "نبضة/دقيقة",
+      mlConfidence: "ثقة التعلم الآلي: {{confidence}}٪",
       grantCameraPermissionButton: "منح إذن الكاميرا",
       cameraPermissionExplanation:
         "لقياس معدل ضربات القلب، يحتاج تطبيق Maak Health إلى الوصول إلى الكاميرا. ستُستخدم الكاميرا فقط لاكتشاف تغيرات حجم الدم في أطراف أصابعك - لن يتم حفظ أي صور أو مقاطع فيديو.",

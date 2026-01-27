@@ -14,7 +14,7 @@
         "firebase-debug.*.log",
         "*.local"
       ],
-      "predeploy": ["cd \"$RESOURCE_DIR\" && npm run build"],
+      "predeploy": ["cd \"$RESOURCE_DIR\" && bun run build"],
       "runtime": "nodejs22"
     }
   ],

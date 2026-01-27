@@ -259,7 +259,18 @@ service cloud.firestore {
       // PHI access control: read only if user can read PHI for the target user
       allow read: if canReadPHI(resource.data.userId);
       // PHI access control: update/delete only if user can write PHI for the target user
-      allow update, delete: if canWritePHI(resource.data.userId);
+      // Special case: allow same-family members to resolve alerts (update resolved/responders fields)
+      allow update: if canWritePHI(resource.data.userId) || (
+        isSignedIn() && 
+        isSameFamily(resource.data.userId) &&
+        // Ensure critical fields are not being changed
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.type == resource.data.type &&
+        request.resource.data.severity == resource.data.severity &&
+        request.resource.data.message == resource.data.message &&
+        request.resource.data.timestamp == resource.data.timestamp
+      );
+      allow delete: if canWritePHI(resource.data.userId);
     }
 
     // Families collection - Family-scoped access

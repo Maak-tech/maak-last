@@ -189,15 +189,32 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         isRTL ? "تم حل التنبيه بنجاح" : "Alert resolved successfully",
         [{ text: isRTL ? "موافق" : "OK" }]
       );
-    } catch (error) {
+    } catch (error: any) {
       const durationMs = Date.now() - startTime;
       logger.error("Failed to resolve emergency alert", error, "AlertsCard");
 
-      Alert.alert(
-        t("error", "Error"),
-        t("failedToResolveAlert", "Failed to resolve alert"),
-        [{ text: t("ok", "OK") }]
-      );
+      const errorMessage =
+        error?.message || t("failedToResolveAlert", "Failed to resolve alert");
+
+      // Check for specific error types
+      let displayMessage = errorMessage;
+      if (
+        errorMessage.includes("permission-denied") ||
+        errorMessage.includes("permission")
+      ) {
+        displayMessage = isRTL
+          ? "ليس لديك الصلاحية لحل هذا التنبيه"
+          : "You don't have permission to resolve this alert";
+      } else if (
+        errorMessage.includes("does not exist") ||
+        errorMessage.includes("not found")
+      ) {
+        displayMessage = isRTL ? "التنبيه غير موجود" : "Alert not found";
+      }
+
+      Alert.alert(t("error", "Error"), displayMessage, [
+        { text: t("ok", "OK") },
+      ]);
     }
   };
 

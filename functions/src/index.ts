@@ -184,6 +184,279 @@ export const saveFCMToken = functions.https.onCall(
   }
 );
 
+// Function to create alert server-side (bypasses Firestore permission issues)
+export const createAlert = functions.https.onCall(
+  async (data: any, context: any) => {
+    const traceId = createTraceId();
+    const { alertData } = data;
+
+    logger.info("Creating alert via Cloud Function", {
+      traceId,
+      uid: context.auth?.uid,
+      userId: alertData?.userId,
+      alertType: alertData?.type,
+      fn: "createAlert",
+    });
+
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
+
+    const db = admin.firestore();
+
+    // Verify the user is creating alert for themselves or is admin
+    if (alertData.userId !== context.auth.uid) {
+      // Check if user is admin/caregiver in same family
+      const callerDoc = await db
+        .collection("users")
+        .doc(context.auth.uid)
+        .get();
+      const targetDoc = await db
+        .collection("users")
+        .doc(alertData.userId)
+        .get();
+
+      const callerData = callerDoc.data();
+      const targetData = targetDoc.data();
+
+      const isSameFamily =
+        callerData?.familyId &&
+        targetData?.familyId &&
+        callerData.familyId === targetData.familyId &&
+        (callerData.role === "admin" || callerData.role === "caregiver");
+
+      if (!isSameFamily) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "You can only create alerts for yourself or family members"
+        );
+      }
+    }
+
+    try {
+      // Convert timestamp if it's a Date object or string
+      let timestamp: admin.firestore.Timestamp | admin.firestore.FieldValue;
+      if (alertData.timestamp) {
+        if (alertData.timestamp instanceof Date) {
+          timestamp = admin.firestore.Timestamp.fromDate(alertData.timestamp);
+        } else if (typeof alertData.timestamp === "string") {
+          timestamp = admin.firestore.Timestamp.fromDate(
+            new Date(alertData.timestamp)
+          );
+        } else {
+          timestamp = admin.firestore.FieldValue.serverTimestamp();
+        }
+      } else {
+        timestamp = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      // Remove undefined values and prepare alert data
+      const cleanedData: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(alertData)) {
+        if (value !== undefined) {
+          cleanedData[key] = value;
+        }
+      }
+      cleanedData.timestamp = timestamp;
+
+      const alertRef = await db.collection("alerts").add(cleanedData);
+
+      logger.info("Alert created successfully", {
+        traceId,
+        alertId: alertRef.id,
+        alertType: alertData.type,
+        fn: "createAlert",
+      });
+
+      return { success: true, alertId: alertRef.id };
+    } catch (error) {
+      logger.error("Failed to create alert", error as Error, {
+        traceId,
+        fn: "createAlert",
+      });
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to create alert"
+      );
+    }
+  }
+);
+
+// Function to resolve alert server-side (bypasses Firestore permission issues)
+export const resolveAlert = functions.https.onCall(
+  async (data: any, context: any) => {
+    const traceId = createTraceId();
+    const { alertId } = data;
+
+    logger.info("Resolving alert via Cloud Function", {
+      traceId,
+      uid: context.auth?.uid,
+      alertId,
+      fn: "resolveAlert",
+    });
+
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
+
+    const db = admin.firestore();
+    const resolverId = context.auth.uid;
+
+    try {
+      // Get the alert document
+      const alertRef = db.collection("alerts").doc(alertId);
+      const alertDoc = await alertRef.get();
+
+      if (!alertDoc.exists) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          `Alert ${alertId} does not exist`
+        );
+      }
+
+      const alertData = alertDoc.data();
+      if (!alertData) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          `Alert ${alertId} data not found`
+        );
+      }
+
+      // Check if already resolved
+      if (alertData.resolved) {
+        logger.info("Alert already resolved", {
+          traceId,
+          alertId,
+          resolvedBy: alertData.resolvedBy,
+          fn: "resolveAlert",
+        });
+        return { success: true, alreadyResolved: true };
+      }
+
+      // Verify the user can resolve this alert
+      // User can resolve if:
+      // 1. They are the alert owner (alertData.userId === resolverId)
+      // 2. They are in the same family (any family member can resolve)
+      if (alertData.userId !== resolverId) {
+        // Check if user is in same family
+        const callerDoc = await db.collection("users").doc(resolverId).get();
+        const targetDoc = await db
+          .collection("users")
+          .doc(alertData.userId)
+          .get();
+
+        if (!(callerDoc.exists && targetDoc.exists)) {
+          logger.error("User or alert owner not found", undefined, {
+            traceId,
+            resolverId,
+            alertUserId: alertData.userId,
+            callerExists: callerDoc.exists,
+            targetExists: targetDoc.exists,
+            fn: "resolveAlert",
+          });
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "User or alert owner not found"
+          );
+        }
+
+        const callerData = callerDoc.data();
+        const targetData = targetDoc.data();
+
+        // Log family check details for debugging
+        logger.info("Checking family membership for alert resolution", {
+          traceId,
+          resolverId,
+          alertUserId: alertData.userId,
+          callerFamilyId: callerData?.familyId,
+          targetFamilyId: targetData?.familyId,
+          callerRole: callerData?.role,
+          targetRole: targetData?.role,
+          fn: "resolveAlert",
+        });
+
+        // Allow any same-family member to resolve alerts
+        const isSameFamily =
+          callerData?.familyId &&
+          targetData?.familyId &&
+          callerData.familyId === targetData.familyId;
+
+        if (!isSameFamily) {
+          logger.warn("Family membership check failed", {
+            traceId,
+            resolverId,
+            alertUserId: alertData.userId,
+            callerFamilyId: callerData?.familyId,
+            targetFamilyId: targetData?.familyId,
+            isSameFamily: false,
+            fn: "resolveAlert",
+          });
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "You can only resolve alerts for yourself or family members"
+          );
+        }
+      }
+
+      // Update the alert
+      await alertRef.update({
+        resolved: true,
+        resolvedAt: FieldValue.serverTimestamp(),
+        resolvedBy: resolverId,
+      });
+
+      // Verify the update succeeded
+      const updatedDoc = await alertRef.get();
+      const updatedData = updatedDoc.data();
+
+      if (!updatedData?.resolved) {
+        throw new functions.https.HttpsError(
+          "internal",
+          `Alert ${alertId} was not marked as resolved`
+        );
+      }
+
+      logger.info("Alert resolved successfully", {
+        traceId,
+        alertId,
+        alertType: alertData.type,
+        resolvedBy: resolverId,
+        fn: "resolveAlert",
+      });
+
+      return {
+        success: true,
+        alertId,
+        alertType: alertData.type,
+        userId: alertData.userId,
+      };
+    } catch (error: any) {
+      logger.error("Failed to resolve alert", error as Error, {
+        traceId,
+        alertId,
+        resolverId,
+        fn: "resolveAlert",
+      });
+
+      // Re-throw HttpsError as-is
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+
+      throw new functions.https.HttpsError(
+        "internal",
+        `Failed to resolve alert: ${error.message || "Unknown error"}`
+      );
+    }
+  }
+);
+
 // Function to send fall detection alert to family members and admins
 export const sendFallAlert = functions.https.onCall(
   async (data: any, context: any) => {

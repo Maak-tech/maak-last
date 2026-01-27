@@ -128,6 +128,15 @@ interface FamilyMemberMetrics {
   vitals?: VitalSigns | null;
 }
 
+type FamilyMembersCache = {
+  cachedAt: number;
+  members: User[];
+};
+
+const FAMILY_MEMBERS_CACHE_KEY_PREFIX = "family_members_cache";
+const getFamilyMembersCacheKey = (familyId: string) =>
+  `${FAMILY_MEMBERS_CACHE_KEY_PREFIX}_${familyId}`;
+
 export default function FamilyScreen() {
   const { t, i18n } = useTranslation();
   const { user, updateUser } = useAuth();
@@ -297,7 +306,7 @@ export default function FamilyScreen() {
   const loadFamilyMembers = useCallback(
     async (isRefresh = false) => {
       // Prevent concurrent loads
-      if (!isRefresh && loading) return;
+      if (!isRefresh && loading && familyMembers.length > 0) return;
       if (isRefresh && refreshing) return;
 
       if (!user?.familyId) {
@@ -309,10 +318,30 @@ export default function FamilyScreen() {
         return;
       }
 
+      const cacheKey = getFamilyMembersCacheKey(user.familyId);
+      let usedCache = false;
+
+      if (!isRefresh && familyMembers.length === 0) {
+        try {
+          const cachedRaw = await AsyncStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw) as FamilyMembersCache;
+
+            if (Array.isArray(cached.members)) {
+              setFamilyMembers(cached.members);
+              usedCache = true;
+              setLoading(false);
+            }
+          }
+        } catch {
+          // Ignore cache errors and continue with network fetch
+        }
+      }
+
       try {
         if (isRefresh) {
           setRefreshing(true);
-        } else {
+        } else if (!usedCache) {
           setLoading(true);
         }
 
@@ -331,6 +360,10 @@ export default function FamilyScreen() {
         ])) as User[];
 
         setFamilyMembers(members);
+        await AsyncStorage.setItem(
+          cacheKey,
+          JSON.stringify({ members, cachedAt: Date.now() })
+        );
 
         // Load metrics in the background (non-blocking) for attention items
         // This allows the UI to render immediately while metrics load
@@ -345,9 +378,11 @@ export default function FamilyScreen() {
         }
         // Note: If ref is not set yet, metrics will be loaded by useFocusEffect
       } catch (error) {
-        // Set empty array to prevent infinite loading
-        setFamilyMembers([]);
-        setMemberMetrics([]);
+        // Set empty array to prevent infinite loading unless we have cache
+        if (!usedCache) {
+          setFamilyMembers([]);
+          setMemberMetrics([]);
+        }
         // Only show alert if it's not a timeout (to avoid spam)
         if (error instanceof Error && !error.message.includes("timeout")) {
           Alert.alert(
@@ -359,11 +394,13 @@ export default function FamilyScreen() {
         }
       } finally {
         // Always ensure loading state is cleared
-        setLoading(false);
+        if (!usedCache) {
+          setLoading(false);
+        }
         setRefreshing(false);
       }
     },
-    [user?.familyId, isRTL, loading, refreshing]
+    [user?.familyId, isRTL, loading, refreshing, familyMembers.length]
   );
 
   // Load family members when user changes

@@ -11,6 +11,8 @@ import type {
 const OFFLINE_QUEUE_KEY = "@maak_offline_queue";
 const OFFLINE_DATA_KEY = "@maak_offline_data";
 const SYNC_STATUS_KEY = "@maak_sync_status";
+const NETWORK_CHECK_INTERVAL_MS = 30_000;
+const AUTO_SYNC_INTERVAL_MS = 60_000;
 
 export interface OfflineOperation {
   id: string;
@@ -35,6 +37,8 @@ class OfflineService {
   private isOnline = true;
   private syncListeners: Array<(isOnline: boolean) => void> = [];
   private networkCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private autoSyncInterval: ReturnType<typeof setInterval> | null = null;
+  private isSyncing = false;
 
   constructor() {
     this.initializeNetworkListener();
@@ -92,7 +96,30 @@ class OfflineService {
           }
         });
       }
-    }, 10_000); // Check every 10 seconds
+    }, NETWORK_CHECK_INTERVAL_MS); // Check every 30 seconds
+
+    // Start automatic sync interval
+    this.startAutoSync();
+  }
+
+  /**
+   * Start automatic sync interval
+   */
+  private startAutoSync() {
+    // Clear existing interval if any
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+    }
+
+    // Auto-sync every 15 seconds when online and there are pending items
+    this.autoSyncInterval = setInterval(async () => {
+      if (this.isOnline && !this.isSyncing) {
+        const queue = await this.getOfflineQueue();
+        if (queue.length > 0) {
+          this.syncAll();
+        }
+      }
+    }, AUTO_SYNC_INTERVAL_MS); // Check every 60 seconds
   }
 
   /**
@@ -102,6 +129,10 @@ class OfflineService {
     if (this.networkCheckInterval) {
       clearInterval(this.networkCheckInterval);
       this.networkCheckInterval = null;
+    }
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+      this.autoSyncInterval = null;
     }
     // Clear listeners to prevent memory leaks
     if (this.syncListeners) {
@@ -148,9 +179,14 @@ class OfflineService {
     queue.push(newOperation);
     await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
 
-    // If online, try to sync immediately
-    if (this.isOnline) {
-      this.syncOperation(newOperation);
+    // If online, try to sync immediately (don't await to avoid blocking)
+    if (this.isOnline && !this.isSyncing) {
+      // Use setTimeout to avoid blocking the current operation
+      setTimeout(() => {
+        this.syncOperation(newOperation).catch((error) => {
+          console.error("Error syncing operation immediately:", error);
+        });
+      }, 100);
     }
 
     return newOperation.id;
@@ -165,11 +201,45 @@ class OfflineService {
       if (!queueJson) return [];
 
       const queue = JSON.parse(queueJson);
-      return queue.map((op: any) => ({
-        ...op,
-        timestamp: new Date(op.timestamp),
-      }));
+      return queue.map((op: any) => {
+        // Restore Date objects from strings
+        const restoredOp = {
+          ...op,
+          timestamp: op.timestamp ? new Date(op.timestamp) : new Date(),
+        };
+
+        // Also restore Date objects in operation.data if they exist
+        if (restoredOp.data) {
+          if (
+            restoredOp.data.timestamp &&
+            typeof restoredOp.data.timestamp === "string"
+          ) {
+            restoredOp.data.timestamp = new Date(restoredOp.data.timestamp);
+          }
+          if (
+            restoredOp.data.startDate &&
+            typeof restoredOp.data.startDate === "string"
+          ) {
+            restoredOp.data.startDate = new Date(restoredOp.data.startDate);
+          }
+          if (
+            restoredOp.data.endDate &&
+            typeof restoredOp.data.endDate === "string"
+          ) {
+            restoredOp.data.endDate = new Date(restoredOp.data.endDate);
+          }
+          if (
+            restoredOp.data.date &&
+            typeof restoredOp.data.date === "string"
+          ) {
+            restoredOp.data.date = new Date(restoredOp.data.date);
+          }
+        }
+
+        return restoredOp;
+      });
     } catch (error) {
+      console.error("Error getting offline queue:", error);
       return [];
     }
   }
@@ -273,65 +343,264 @@ class OfflineService {
           break;
         }
         default:
+          console.warn(
+            `Unknown collection type: ${operation.collection}`,
+            operation
+          );
           return false;
       }
 
       const service = Object.values(services)[0];
-      if (!service) return false;
-
-      // Execute operation
-      switch (operation.type) {
-        case "create":
-          if (
-            service.addSymptom ||
-            service.addMedication ||
-            service.addMood ||
-            service.addAllergy ||
-            service.addLabResult
-          ) {
-            await service[
-              `add${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`
-            ](operation.data.userId, operation.data);
-          }
-          break;
-        case "update":
-          if (
-            service.updateSymptom ||
-            service.updateMedication ||
-            service.updateMood ||
-            service.updateAllergy ||
-            service.updateLabResult
-          ) {
-            await service[
-              `update${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`
-            ](operation.data.id, operation.data);
-          }
-          break;
-        case "delete":
-          if (
-            service.deleteSymptom ||
-            service.deleteMedication ||
-            service.deleteMood ||
-            service.deleteAllergy ||
-            service.deleteLabResult
-          ) {
-            await service[
-              `delete${operation.collection.charAt(0).toUpperCase() + operation.collection.slice(1).slice(0, -1)}`
-            ](operation.data.id);
-          }
-          break;
+      if (!service) {
+        console.warn(
+          `Service not found for collection: ${operation.collection}`
+        );
+        return false;
       }
 
-      // Remove from queue
-      await this.removeOperationFromQueue(operation.id);
-      return true;
+      // Execute operation directly to Firebase to bypass service layer offline checks
+      let operationSucceeded = false;
+      switch (operation.type) {
+        case "create": {
+          // Prepare data for Firebase
+          const dataToSave: any = { ...operation.data };
+
+          // Helper function to safely convert to Timestamp
+          const toTimestamp = (value: any): Timestamp | any => {
+            if (!value) return value;
+            if (value instanceof Date) {
+              return Timestamp.fromDate(value);
+            }
+            if (typeof value === "string") {
+              const date = new Date(value);
+              if (!isNaN(date.getTime())) {
+                return Timestamp.fromDate(date);
+              }
+            }
+            // If it's already a Timestamp-like object, try to convert
+            if (
+              value &&
+              typeof value === "object" &&
+              "seconds" in value &&
+              "nanoseconds" in value
+            ) {
+              return Timestamp.fromMillis(
+                value.seconds * 1000 + (value.nanoseconds || 0) / 1_000_000
+              );
+            }
+            return value;
+          };
+
+          // Convert Date objects to Timestamps
+          if (dataToSave.timestamp) {
+            dataToSave.timestamp = toTimestamp(dataToSave.timestamp);
+          }
+          if (dataToSave.startDate) {
+            dataToSave.startDate = toTimestamp(dataToSave.startDate);
+          }
+          if (dataToSave.endDate) {
+            dataToSave.endDate = toTimestamp(dataToSave.endDate);
+          }
+          if (dataToSave.date) {
+            dataToSave.date = toTimestamp(dataToSave.date);
+          }
+
+          // Filter out undefined values and null values that might cause issues
+          const cleanedData = Object.fromEntries(
+            Object.entries(dataToSave).filter(
+              ([_, value]) => value !== undefined && value !== null
+            )
+          );
+
+          // Validate required fields for symptoms
+          if (operation.collection === "symptoms") {
+            if (!cleanedData.userId) {
+              throw new Error("Missing userId in symptom data");
+            }
+            if (!cleanedData.timestamp) {
+              throw new Error("Missing timestamp in symptom data");
+            }
+            if (!cleanedData.type) {
+              throw new Error("Missing type in symptom data");
+            }
+          }
+
+          // Write directly to Firebase
+          const docRef = await addDoc(
+            collection(db, operation.collection),
+            cleanedData
+          );
+
+          // Add to health timeline for symptoms
+          if (operation.collection === "symptoms" && operation.data.userId) {
+            try {
+              await healthTimelineService.addEvent({
+                userId: operation.data.userId,
+                eventType: "symptom_logged",
+                title: `Symptom logged: ${operation.data.type || "Unknown"}`,
+                description:
+                  operation.data.description ||
+                  `Severity: ${operation.data.severity || "N/A"}/5`,
+                timestamp: operation.data.timestamp || new Date(),
+                severity:
+                  operation.data.severity >= 4
+                    ? "error"
+                    : operation.data.severity >= 3
+                      ? "warn"
+                      : "info",
+                icon: "thermometer",
+                metadata: {
+                  symptomId: docRef.id,
+                  symptomType: operation.data.type,
+                  severity: operation.data.severity,
+                },
+                relatedEntityId: docRef.id,
+                relatedEntityType: "symptom",
+                actorType: "user",
+              });
+            } catch (timelineError) {
+              // Don't fail sync if timeline update fails
+              console.warn("Failed to update health timeline:", timelineError);
+            }
+          }
+
+          operationSucceeded = true;
+          console.log(
+            `Successfully synced ${operation.type} ${operation.collection}:`,
+            docRef.id
+          );
+          break;
+        }
+        case "update": {
+          if (!operation.data.id) {
+            console.warn("Update operation missing ID:", operation);
+            return false;
+          }
+
+          // Prepare data for Firebase
+          const updates: any = { ...operation.data };
+          delete updates.id; // Remove id from updates
+
+          // Convert Date objects to Timestamps
+          if (updates.timestamp && updates.timestamp instanceof Date) {
+            updates.timestamp = Timestamp.fromDate(updates.timestamp);
+          }
+          if (updates.startDate && updates.startDate instanceof Date) {
+            updates.startDate = Timestamp.fromDate(updates.startDate);
+          }
+          if (updates.endDate && updates.endDate instanceof Date) {
+            updates.endDate = Timestamp.fromDate(updates.endDate);
+          }
+          if (updates.date && updates.date instanceof Date) {
+            updates.date = Timestamp.fromDate(updates.date);
+          }
+
+          // Filter out undefined values
+          const cleanedUpdates = Object.fromEntries(
+            Object.entries(updates).filter(([_, value]) => value !== undefined)
+          );
+
+          // Update directly in Firebase
+          await updateDoc(
+            doc(db, operation.collection, operation.data.id),
+            cleanedUpdates
+          );
+
+          operationSucceeded = true;
+          console.log(
+            `Successfully synced ${operation.type} ${operation.collection}:`,
+            operation.data.id
+          );
+          break;
+        }
+        case "delete": {
+          if (!operation.data.id) {
+            console.warn("Delete operation missing ID:", operation);
+            return false;
+          }
+
+          // For medications, mark as inactive instead of deleting
+          if (operation.collection === "medications") {
+            await updateDoc(doc(db, operation.collection, operation.data.id), {
+              isActive: false,
+            });
+          } else {
+            // Delete directly from Firebase
+            await deleteDoc(doc(db, operation.collection, operation.data.id));
+          }
+
+          operationSucceeded = true;
+          console.log(
+            `Successfully synced ${operation.type} ${operation.collection}:`,
+            operation.data.id
+          );
+          break;
+        }
+        default:
+          console.warn(`Unknown operation type: ${operation.type}`, operation);
+          return false;
+      }
+
+      // Only remove from queue if operation succeeded
+      if (operationSucceeded) {
+        await this.removeOperationFromQueue(operation.id);
+        return true;
+      }
+
+      return false;
     } catch (error) {
+      // Log error for debugging with full details
+      const errorDetails: any = {
+        operationId: operation.id,
+        retries: operation.retries,
+        operationType: operation.type,
+        collection: operation.collection,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      };
+
+      // Add Firebase error code if available
+      if (error && typeof error === "object" && "code" in error) {
+        errorDetails.firebaseErrorCode = (error as any).code;
+      }
+
+      // Log operation data (safe stringify)
+      try {
+        const dataPreview = { ...operation.data };
+        // Remove potentially large fields for logging
+        if (dataPreview.description)
+          dataPreview.description = dataPreview.description.substring(0, 50);
+        errorDetails.operationDataPreview = dataPreview;
+      } catch (e) {
+        errorDetails.operationDataError = "Could not serialize operation data";
+      }
+
+      console.error(
+        `Sync operation failed: ${operation.type} ${operation.collection}`,
+        errorDetails
+      );
+
+      // Also log the raw error with all properties
+      console.error("Raw error object:", {
+        error,
+        errorString: String(error),
+        errorType: typeof error,
+        errorKeys: error && typeof error === "object" ? Object.keys(error) : [],
+        errorCode: (error as any)?.code,
+        errorMessage: (error as any)?.message,
+      });
+
       // Increment retries
       operation.retries++;
       if (operation.retries < 5) {
         await this.updateOperationInQueue(operation);
       } else {
-        // Too many retries, remove from queue
+        // Too many retries, remove from queue and log
+        console.warn(`Removing operation after ${operation.retries} retries:`, {
+          id: operation.id,
+          type: operation.type,
+          collection: operation.collection,
+        });
         await this.removeOperationFromQueue(operation.id);
       }
       return false;
@@ -366,23 +635,41 @@ class OfflineService {
    */
   async syncAll(): Promise<{ success: number; failed: number }> {
     if (!this.isOnline) {
+      console.log("Cannot sync: device is offline");
       return { success: 0, failed: 0 };
     }
 
-    const queue = await this.getOfflineQueue();
-    let success = 0;
-    let failed = 0;
-
-    for (const operation of queue) {
-      const result = await this.syncOperation(operation);
-      if (result) {
-        success++;
-      } else {
-        failed++;
-      }
+    // Prevent concurrent syncs
+    if (this.isSyncing) {
+      return { success: 0, failed: 0 };
     }
 
-    return { success, failed };
+    this.isSyncing = true;
+
+    try {
+      const queue = await this.getOfflineQueue();
+      if (queue.length === 0) {
+        return { success: 0, failed: 0 };
+      }
+
+      console.log(`Starting sync of ${queue.length} operations`);
+      let success = 0;
+      let failed = 0;
+
+      for (const operation of queue) {
+        const result = await this.syncOperation(operation);
+        if (result) {
+          success++;
+        } else {
+          failed++;
+        }
+      }
+
+      console.log(`Sync completed: ${success} succeeded, ${failed} failed`);
+      return { success, failed };
+    } finally {
+      this.isSyncing = false;
+    }
   }
 
   /**
@@ -408,6 +695,13 @@ class OfflineService {
       queueLength: queue.length,
       lastSync: offlineData.lastSync,
     };
+  }
+
+  /**
+   * Get detailed queue information for debugging
+   */
+  async getQueueDetails(): Promise<OfflineOperation[]> {
+    return this.getOfflineQueue();
   }
 
   /**

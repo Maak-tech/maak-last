@@ -30,7 +30,6 @@ if (Platform.OS !== "web") {
 
 import { I18nextProvider } from "react-i18next";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import OfflineIndicator from "@/app/components/OfflineIndicator";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -158,7 +157,6 @@ export default function RootLayout() {
           <AuthProvider>
             <FallDetectionProvider>
               <StatusBar style="auto" />
-              <OfflineIndicator />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

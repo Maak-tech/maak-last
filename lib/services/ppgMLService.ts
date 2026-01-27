@@ -125,12 +125,31 @@ export const ppgMLService = {
           heartRateVariability: data.heartRateVariability,
           respiratoryRate: data.respiratoryRate,
           signalQuality: data.signalQuality,
+          confidence: data.confidence,
           isEstimate: (data.confidence || 0) < 0.7,
           error:
             data.warnings.length > 0 ? data.warnings.join(", ") : undefined,
         };
       }
-      // ML service failed, return error result
+      // ML service failed, but if it still produced a heart rate,
+      // return it as a low-confidence estimate to prefer ML outputs.
+      if (Number.isFinite(data.heartRate)) {
+        return {
+          success: false,
+          heartRate: data.heartRate,
+          heartRateVariability: data.heartRateVariability,
+          respiratoryRate: data.respiratoryRate,
+          signalQuality: data.signalQuality || 0,
+          confidence: data.confidence,
+          isEstimate: true,
+          error:
+            data.warnings.length > 0
+              ? data.warnings.join(", ")
+              : data.error || "ML analysis low confidence",
+        };
+      }
+
+      // ML service failed without usable output
       return {
         success: false,
         signalQuality: data.signalQuality || 0,

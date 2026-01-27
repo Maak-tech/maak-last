@@ -24,6 +24,8 @@ import {
 } from "./symptomPatternRecognitionService";
 import { symptomService } from "./symptomService";
 
+const SYMPTOM_FETCH_LIMIT = 50;
+
 export interface AIInsightsDashboard {
   id: string;
   userId: string;
@@ -58,6 +60,30 @@ export interface InsightPriority {
 }
 
 class AIInsightsService {
+  private async withTimeout<T>(
+    label: string,
+    promise: Promise<T>,
+    timeoutMs: number,
+    fallback: T
+  ): Promise<T> {
+    const safePromise = promise.catch((error) => {
+      if (__DEV__) {
+        console.warn(`[AIInsights] ${label} failed`, error);
+      }
+      return fallback;
+    });
+
+    const timeoutPromise = new Promise<T>((resolve) => {
+      setTimeout(() => {
+        if (__DEV__) {
+          console.warn(`[AIInsights] ${label} timed out after ${timeoutMs}ms`);
+        }
+        resolve(fallback);
+      }, timeoutMs);
+    });
+
+    return Promise.race([safePromise, timeoutPromise]);
+  }
   /**
    * Batch fetch all required data once to reduce database queries
    */
@@ -68,7 +94,7 @@ class AIInsightsService {
   }> {
     // Fetch all data in parallel with optimized limits
     const [symptoms, medications, medicalHistory] = await Promise.all([
-      symptomService.getUserSymptoms(userId, 100), // Reduced from default
+      symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT), // Limit for faster loads
       medicationService.getUserMedications(userId),
       medicalHistoryService.getUserMedicalHistory(userId),
     ]);
@@ -84,30 +110,140 @@ class AIInsightsService {
     includeAINarrative = true
   ): Promise<AIInsightsDashboard> {
     // Fetch all required data once
-    const { symptoms, medications, medicalHistory } =
-      await this.fetchRequiredData(userId);
+    const { symptoms, medications, medicalHistory } = await this.withTimeout(
+      "fetchRequiredData",
+      this.fetchRequiredData(userId),
+      8000,
+      { symptoms: [], medications: [], medicalHistory: [] }
+    );
+
+    const now = new Date();
+    const fallbackCorrelation: CorrelationInsight = {
+      id: `correlation-${userId}-${now.getTime()}`,
+      title: "Health Data Correlation Analysis",
+      description:
+        "Analysis of relationships between your symptoms, medications, mood, and vital signs.",
+      correlationResults: [],
+      timestamp: now,
+      userId,
+    };
+
+    const fallbackSymptomAnalysis: PatternAnalysisResult = {
+      patterns: [],
+      diagnosisSuggestions: [],
+      riskAssessment: {
+        overallRisk: "low",
+        concerns: [],
+        recommendations: [],
+      },
+      analysisTimestamp: now,
+    };
+
+    const fallbackRiskAssessment: HealthRiskAssessment = {
+      id: `risk-assessment-${userId}-${now.getTime()}`,
+      userId,
+      overallRiskScore: 0,
+      riskLevel: "low",
+      riskFactors: [],
+      conditionRisks: [],
+      preventiveRecommendations: [],
+      timeline: "long_term",
+      assessmentDate: now,
+      nextAssessmentDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+    };
+
+    const hasData =
+      symptoms.length > 0 ||
+      medications.length > 0 ||
+      medicalHistory.length > 0;
+    if (!hasData) {
+      const insightsSummary = this.calculateInsightsSummary(
+        fallbackCorrelation,
+        fallbackSymptomAnalysis,
+        fallbackRiskAssessment,
+        [],
+        []
+      );
+      return {
+        id: `ai-insights-${userId}-${Date.now()}`,
+        userId,
+        timestamp: new Date(),
+        correlationAnalysis: fallbackCorrelation,
+        symptomAnalysis: fallbackSymptomAnalysis,
+        riskAssessment: fallbackRiskAssessment,
+        medicationAlerts: [],
+        healthSuggestions: [],
+        personalizedTips: [],
+        insightsSummary,
+        aiNarrative: undefined,
+      };
+    }
 
     // Generate all AI insights in parallel, reusing fetched data
-    const [
-      correlationAnalysis,
-      symptomAnalysis,
-      riskAssessment,
-      medicationAlerts,
-      healthSuggestions,
-      personalizedTips,
-    ] = await Promise.all([
-      correlationAnalysisService.generateCorrelationAnalysis(userId),
-      this.generateSymptomAnalysis(
-        userId,
-        symptoms,
-        medications,
-        medicalHistory
+    // Use Promise.allSettled to allow partial results and prevent blocking
+    const results = await Promise.allSettled([
+      this.withTimeout(
+        "correlationAnalysis",
+        correlationAnalysisService.generateCorrelationAnalysis(userId),
+        8000, // Reduced from 12s to 8s for faster loading
+        fallbackCorrelation
       ),
-      riskAssessmentService.generateRiskAssessment(userId),
-      medicationInteractionService.generateRealtimeAlerts(userId),
-      proactiveHealthSuggestionsService.generateSuggestions(userId),
-      proactiveHealthSuggestionsService.getPersonalizedTips(userId),
+      this.withTimeout(
+        "symptomAnalysis",
+        this.generateSymptomAnalysis(
+          userId,
+          symptoms,
+          medications,
+          medicalHistory
+        ),
+        6000, // Reduced from 10s to 6s
+        fallbackSymptomAnalysis
+      ),
+      this.withTimeout(
+        "riskAssessment",
+        riskAssessmentService.generateRiskAssessment(userId),
+        8000, // Reduced from 12s to 8s
+        fallbackRiskAssessment
+      ),
+      this.withTimeout(
+        "medicationAlerts",
+        medicationInteractionService.generateRealtimeAlerts(userId),
+        5000, // Reduced from 8s to 5s
+        []
+      ),
+      this.withTimeout(
+        "healthSuggestions",
+        proactiveHealthSuggestionsService.generateSuggestions(userId),
+        5000, // Reduced from 8s to 5s
+        []
+      ),
+      this.withTimeout(
+        "personalizedTips",
+        proactiveHealthSuggestionsService.getPersonalizedTips(userId),
+        4000, // Reduced from 6s to 4s
+        []
+      ),
     ]);
+
+    // Extract results with fallbacks - allows partial data to be shown
+    const correlationAnalysis =
+      results[0].status === "fulfilled"
+        ? results[0].value
+        : fallbackCorrelation;
+    const symptomAnalysis =
+      results[1].status === "fulfilled"
+        ? results[1].value
+        : fallbackSymptomAnalysis;
+    const riskAssessment =
+      results[2].status === "fulfilled"
+        ? results[2].value
+        : fallbackRiskAssessment;
+    const medicationAlerts =
+      results[3].status === "fulfilled" ? results[3].value : [];
+    const healthSuggestions =
+      results[4].status === "fulfilled" ? results[4].value : [];
+    const personalizedTips =
+      results[5].status === "fulfilled" ? results[5].value : [];
 
     // Generate AI narrative if requested
     let aiNarrative: string | undefined;
@@ -474,7 +610,7 @@ class AIInsightsService {
 
   private async getRecentSymptoms(userId: string): Promise<Symptom[]> {
     try {
-      return await symptomService.getUserSymptoms(userId, 100);
+      return await symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT);
     } catch (error) {
       console.error("Failed to fetch symptoms:", error);
       return [];

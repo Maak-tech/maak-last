@@ -23,6 +23,7 @@ import {
   MapPin,
   Moon,
   Plus,
+  RefreshCw,
   Shield,
   Sun,
   TestTube,
@@ -65,14 +66,15 @@ import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { calendarService } from "@/lib/services/calendarService";
 import {
+  calculateHealthScoreFromData,
   type HealthScoreResult,
-  healthScoreService,
 } from "@/lib/services/healthScoreService";
 import { medicationService } from "@/lib/services/medicationService";
 import {
   type ExportFormat,
   exportMetrics,
 } from "@/lib/services/metricsExportService";
+import { offlineService } from "@/lib/services/offlineService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import type {
@@ -151,6 +153,11 @@ export default function ProfileScreen() {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{
+    isOnline: boolean;
+    queueLength: number;
+  }>({ isOnline: true, queueLength: 0 });
 
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
@@ -166,8 +173,13 @@ export default function ProfileScreen() {
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
-      loadHealthData();
+      // Load settings immediately (fast)
       loadUserSettings();
+      // Load health data in background (can be slower)
+      // Don't await to prevent blocking UI
+      loadHealthData().catch(() => {
+        // Silently handle errors - UI will show loading state
+      });
     }, [user])
   );
 
@@ -183,9 +195,92 @@ export default function ProfileScreen() {
   }, [params.openCalendar]);
 
   useEffect(() => {
+    // Load settings immediately
     loadUserSettings();
-    loadHealthData();
+    // Load health data without blocking
+    loadHealthData().catch(() => {
+      // Silently handle errors
+    });
+    checkSyncStatus();
+
+    // Subscribe to sync status changes
+    const unsubscribe = offlineService.onNetworkStatusChange(() => {
+      checkSyncStatus();
+    });
+
+    // Poll sync status periodically
+    const interval = setInterval(() => {
+      checkSyncStatus();
+    }, 5000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, [user]);
+
+  const checkSyncStatus = async () => {
+    try {
+      const status = await offlineService.getSyncStatus();
+      setSyncStatus({
+        isOnline: status.isOnline,
+        queueLength: status.queueLength,
+      });
+    } catch (error) {
+      // Silently handle error
+    }
+  };
+
+  const handleSync = async () => {
+    if (syncing || !syncStatus.isOnline) return;
+
+    setSyncing(true);
+    try {
+      const result = await offlineService.syncAll();
+
+      // Wait a bit for queue to update, then check status
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await checkSyncStatus();
+
+      if (result.success > 0 && result.failed === 0) {
+        Alert.alert(
+          t("syncComplete", "Sync Complete"),
+          t(
+            "syncSuccessMessage",
+            `${result.success} item(s) synced successfully.`
+          )
+        );
+      } else if (result.success > 0 && result.failed > 0) {
+        Alert.alert(
+          t("syncPartial", "Sync Partial"),
+          t(
+            "syncPartialMessage",
+            `${result.success} succeeded, ${result.failed} failed.`
+          )
+        );
+      } else if (result.failed > 0 && result.success === 0) {
+        Alert.alert(
+          t("syncError", "Sync Error"),
+          t(
+            "syncFailedMessage",
+            `Failed to sync ${result.failed} item(s). Please check your connection and try again.`
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Sync error:", error);
+      Alert.alert(
+        t("syncError", "Sync Error"),
+        t("syncErrorMessage", "Failed to sync. Please try again.")
+      );
+    } finally {
+      setSyncing(false);
+      // Refresh status one more time after a delay
+      setTimeout(() => {
+        checkSyncStatus();
+      }, 1000);
+    }
+  };
 
   const loadUserSettings = async () => {
     try {
@@ -209,24 +304,60 @@ export default function ProfileScreen() {
         setLoading(true);
       }
 
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Health data loading timeout")),
-          15_000
-        )
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise<[Symptom[], Medication[]]>(
+        (_, reject) =>
+          setTimeout(
+            () => reject(new Error("Health data loading timeout")),
+            10_000 // 10 second timeout
+          )
       );
 
-      const dataPromise = Promise.all([
+      // Fetch symptoms and medications first (health score will use this data)
+      const dataPromise = Promise.allSettled([
         symptomService.getUserSymptoms(user.id),
         medicationService.getUserMedications(user.id),
-        healthScoreService.calculateHealthScore(user.id),
       ]);
 
-      const [symptoms, medications, healthScoreResult] = (await Promise.race([
-        dataPromise,
-        timeoutPromise,
-      ])) as [Symptom[], Medication[], HealthScoreResult];
+      const results = await Promise.race([dataPromise, timeoutPromise]).catch(
+        () => {
+          // Return empty arrays on timeout
+          return [
+            { status: "fulfilled" as const, value: [] },
+            { status: "fulfilled" as const, value: [] },
+          ];
+        }
+      );
+
+      // Extract results with fallbacks
+      const symptoms =
+        results[0].status === "fulfilled" ? results[0].value : [];
+      const medications =
+        results[1].status === "fulfilled" ? results[1].value : [];
+
+      // Calculate health score from fetched data (faster, avoids duplicate fetch)
+      // Use calculateHealthScoreFromData instead of calculateHealthScore to reuse data
+      let healthScoreResult: HealthScoreResult;
+      try {
+        healthScoreResult = calculateHealthScoreFromData(symptoms, medications);
+      } catch (error) {
+        // Fallback if calculation fails
+        healthScoreResult = {
+          score: 85,
+          breakdown: {
+            baseScore: 100,
+            symptomPenalty: 0,
+            medicationBonus: 0,
+          },
+          factors: {
+            recentSymptoms: 0,
+            symptomSeverityAvg: 0,
+            medicationCompliance: 100,
+            activeMedications: 0,
+          },
+          rating: "fair",
+        };
+      }
 
       // Filter recent symptoms for display
       const recentSymptoms = symptoms.filter(
@@ -800,6 +931,18 @@ export default function ProfileScreen() {
           value: isRTL ? t("arabic") : t("english"),
           onPress: () => setLanguagePickerVisible(true),
         },
+        {
+          icon: RefreshCw,
+          label: t("syncData", "Sync Data"),
+          value: syncing
+            ? t("syncing", "Syncing...")
+            : syncStatus.queueLength > 0
+              ? `${syncStatus.queueLength} ${t("pending", "pending")}`
+              : syncStatus.isOnline
+                ? t("synced", "Synced")
+                : t("offline", "Offline"),
+          onPress: handleSync,
+        },
       ],
     },
     // Support section for all users
@@ -1015,13 +1158,20 @@ export default function ProfileScreen() {
 
                 return (
                   <TouchableOpacity
-                    disabled={!item.onPress}
+                    disabled={
+                      !item.onPress ||
+                      (syncing && item.label === t("syncData", "Sync Data"))
+                    }
                     key={itemIndex}
                     onPress={item.onPress}
                     style={[
                       styles.sectionItem,
                       itemIndex === section.items.length - 1 &&
                         styles.lastSectionItem,
+                      syncing &&
+                        item.label === t("syncData", "Sync Data") && {
+                          opacity: 0.6,
+                        },
                     ]}
                   >
                     <View style={styles.sectionItemLeft}>
@@ -1065,7 +1215,9 @@ export default function ProfileScreen() {
                         />
                       ) : (
                         <>
-                          {exporting && item.label === t("healthReports") ? (
+                          {(exporting && item.label === t("healthReports")) ||
+                          (syncing &&
+                            item.label === t("syncData", "Sync Data")) ? (
                             <ActivityIndicator color="#2563EB" size="small" />
                           ) : (
                             <>

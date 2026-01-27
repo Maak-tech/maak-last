@@ -11,7 +11,8 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions } from "@/lib/firebase";
 import {
   escalationService,
   healthTimelineService,
@@ -22,62 +23,286 @@ import { emergencySmsService } from "./emergencySmsService";
 import { pushNotificationService } from "./pushNotificationService";
 import { userService } from "./userService";
 
+const removeUndefinedValues = (
+  obj: Record<string, unknown>
+): Record<string, unknown> => {
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      cleaned[key] = value.filter((item) => item !== undefined);
+    } else if (
+      value !== null &&
+      typeof value === "object" &&
+      !(value instanceof Timestamp)
+    ) {
+      cleaned[key] = removeUndefinedValues(value as Record<string, unknown>);
+    } else {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+};
+
 export const alertService = {
   async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, "alerts"), {
-        ...alertData,
-        timestamp: Timestamp.fromDate(alertData.timestamp),
-      });
+      const cleanedAlertData = removeUndefinedValues(
+        alertData as Record<string, unknown>
+      ) as Omit<EmergencyAlert, "id">;
 
-      await healthTimelineService.addEvent({
-        userId: alertData.userId,
-        eventType: "alert_created",
-        title: `Alert: ${alertData.type}`,
-        description: alertData.message,
-        timestamp: alertData.timestamp,
-        severity:
-          alertData.severity === "critical"
-            ? "critical"
-            : alertData.severity === "high"
-              ? "error"
-              : "warn",
-        icon:
-          alertData.type === "fall"
-            ? "alert-triangle"
-            : alertData.type === "medication"
-              ? "pill"
-              : "heart-pulse",
-        metadata: {
-          alertId: docRef.id,
-          alertType: alertData.type,
-          alertSeverity: alertData.severity,
-        },
-        relatedEntityId: docRef.id,
-        relatedEntityType: "alert",
-        actorType: "system",
-      });
+      // Try direct Firestore write first
+      try {
+        const docRef = await addDoc(collection(db, "alerts"), {
+          ...cleanedAlertData,
+          timestamp: Timestamp.fromDate(alertData.timestamp),
+        });
 
-      observabilityEmitter.emit({
-        domain: "alerts",
-        source: "alertService",
-        message: `Alert created: ${alertData.type}`,
-        severity:
-          alertData.severity === "critical"
-            ? "critical"
-            : alertData.severity === "high"
-              ? "error"
-              : "warn",
-        status: "success",
-        metadata: {
-          alertId: docRef.id,
-          alertType: alertData.type,
+        await healthTimelineService.addEvent({
           userId: alertData.userId,
-        },
-      });
+          eventType: "alert_created",
+          title: `Alert: ${alertData.type}`,
+          description: alertData.message,
+          timestamp: alertData.timestamp,
+          severity:
+            alertData.severity === "critical"
+              ? "critical"
+              : alertData.severity === "high"
+                ? "error"
+                : "warn",
+          icon:
+            alertData.type === "fall"
+              ? "alert-triangle"
+              : alertData.type === "medication"
+                ? "pill"
+                : "heart-pulse",
+          metadata: {
+            alertId: docRef.id,
+            alertType: alertData.type,
+            alertSeverity: alertData.severity,
+          },
+          relatedEntityId: docRef.id,
+          relatedEntityType: "alert",
+          actorType: "system",
+        });
 
-      return docRef.id;
+        observabilityEmitter.emit({
+          domain: "alerts",
+          source: "alertService",
+          message: `Alert created: ${alertData.type}`,
+          severity:
+            alertData.severity === "critical"
+              ? "critical"
+              : alertData.severity === "high"
+                ? "error"
+                : "warn",
+          status: "success",
+          metadata: {
+            alertId: docRef.id,
+            alertType: alertData.type,
+            userId: alertData.userId,
+          },
+        });
+
+        return docRef.id;
+      } catch (directError: any) {
+        // If permission-denied, try Cloud Function fallback
+        const errorCode =
+          typeof directError === "object" &&
+          directError &&
+          "code" in directError
+            ? String((directError as { code?: unknown }).code)
+            : undefined;
+
+        if (errorCode === "permission-denied" && auth.currentUser) {
+          // Verify functions is initialized
+          if (!functions) {
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message: "Cloud Functions not initialized, cannot use fallback",
+              severity: "error",
+              status: "failure",
+              metadata: {
+                alertType: alertData.type,
+                userId: alertData.userId,
+                errorCode: "permission-denied",
+              },
+            });
+            throw new Error("Cloud Functions not initialized");
+          }
+
+          // Use Cloud Function to create alert server-side
+          observabilityEmitter.emit({
+            domain: "alerts",
+            source: "alertService",
+            message: "Attempting Cloud Function fallback for alert creation",
+            severity: "warn",
+            status: "in_progress",
+            metadata: {
+              alertType: alertData.type,
+              userId: alertData.userId,
+              errorCode: "permission-denied",
+              method: "cloud_function_fallback",
+            },
+          });
+
+          try {
+            // Convert Date to ISO string for Cloud Function serialization
+            const createAlertFunc = httpsCallable(functions, "createAlert");
+
+            if (__DEV__) {
+              console.log("[alertService] Calling Cloud Function createAlert", {
+                userId: alertData.userId,
+                alertType: alertData.type,
+                authUid: auth.currentUser?.uid,
+              });
+            }
+
+            const result = (await createAlertFunc({
+              alertData: {
+                ...cleanedAlertData,
+                timestamp:
+                  alertData.timestamp instanceof Date
+                    ? alertData.timestamp.toISOString()
+                    : alertData.timestamp,
+              },
+            })) as { data: { success: boolean; alertId: string } };
+
+            if (__DEV__) {
+              console.log("[alertService] Cloud Function response", {
+                success: result.data?.success,
+                alertId: result.data?.alertId,
+              });
+            }
+
+            if (result.data?.success && result.data?.alertId) {
+              const alertId = result.data.alertId;
+
+              // Add timeline event (may also fail, but that's okay)
+              try {
+                await healthTimelineService.addEvent({
+                  userId: alertData.userId,
+                  eventType: "alert_created",
+                  title: `Alert: ${alertData.type}`,
+                  description: alertData.message,
+                  timestamp: alertData.timestamp,
+                  severity:
+                    alertData.severity === "critical"
+                      ? "critical"
+                      : alertData.severity === "high"
+                        ? "error"
+                        : "warn",
+                  icon:
+                    alertData.type === "fall"
+                      ? "alert-triangle"
+                      : alertData.type === "medication"
+                        ? "pill"
+                        : "heart-pulse",
+                  metadata: {
+                    alertId,
+                    alertType: alertData.type,
+                    alertSeverity: alertData.severity,
+                  },
+                  relatedEntityId: alertId,
+                  relatedEntityType: "alert",
+                  actorType: "system",
+                });
+              } catch {
+                // Timeline event failure is non-critical
+              }
+
+              observabilityEmitter.emit({
+                domain: "alerts",
+                source: "alertService",
+                message: `Alert created via Cloud Function: ${alertData.type}`,
+                severity:
+                  alertData.severity === "critical"
+                    ? "critical"
+                    : alertData.severity === "high"
+                      ? "error"
+                      : "warn",
+                status: "success",
+                metadata: {
+                  alertId,
+                  alertType: alertData.type,
+                  userId: alertData.userId,
+                  method: "cloud_function",
+                },
+              });
+
+              return alertId;
+            }
+            // Cloud Function returned but without success/alertId
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message: "Cloud Function returned invalid response",
+              severity: "error",
+              status: "failure",
+              metadata: {
+                alertType: alertData.type,
+                userId: alertData.userId,
+                response: result.data,
+              },
+            });
+            throw new Error("Cloud Function returned invalid response");
+          } catch (cloudFunctionError: any) {
+            // Cloud Function call failed
+            const cfErrorCode =
+              typeof cloudFunctionError === "object" &&
+              cloudFunctionError &&
+              "code" in cloudFunctionError
+                ? String((cloudFunctionError as { code?: unknown }).code)
+                : undefined;
+            const cfErrorMessage =
+              cloudFunctionError instanceof Error
+                ? cloudFunctionError.message
+                : "Unknown Cloud Function error";
+
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message: "Cloud Function fallback failed",
+              severity: "error",
+              status: "failure",
+              error: {
+                message: cfErrorMessage,
+                code: cfErrorCode,
+              },
+              metadata: {
+                alertType: alertData.type,
+                userId: alertData.userId,
+                errorCode: cfErrorCode,
+                method: "cloud_function_fallback",
+              },
+            });
+
+            if (__DEV__) {
+              console.error("[alertService] Cloud Function error", {
+                error: cloudFunctionError,
+                code: cfErrorCode,
+                message: cfErrorMessage,
+              });
+            }
+
+            // Re-throw Cloud Function error
+            throw cloudFunctionError;
+          }
+        }
+
+        // Re-throw if fallback didn't work or wasn't applicable
+        throw directError;
+      }
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      const errorCode =
+        typeof error === "object" && error && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : undefined;
       observabilityEmitter.emit({
         domain: "alerts",
         source: "alertService",
@@ -85,9 +310,14 @@ export const alertService = {
         severity: "error",
         status: "failure",
         error: {
-          message: error instanceof Error ? error.message : "Unknown error",
+          message: errorMessage,
+          code: errorCode,
         },
-        metadata: { alertType: alertData.type, userId: alertData.userId },
+        metadata: {
+          alertType: alertData.type,
+          userId: alertData.userId,
+          errorCode,
+        },
       });
       throw error;
     }
@@ -165,18 +395,229 @@ export const alertService = {
 
       const alertData = alertDoc.data();
 
-      await updateDoc(alertRef, {
-        resolved: true,
-        resolvedAt: Timestamp.now(),
-        resolvedBy: resolverId,
-      });
+      // Try Cloud Function first for more reliable resolution (bypasses Firestore rules)
+      // This ensures consistent behavior regardless of Firestore rule deployment status
+      if (auth.currentUser && functions) {
+        try {
+          observabilityEmitter.emit({
+            domain: "alerts",
+            source: "alertService",
+            message: "Attempting to resolve alert via Cloud Function",
+            severity: "info",
+            status: "in_progress",
+            metadata: {
+              alertId,
+              resolverId,
+              method: "cloud_function",
+            },
+          });
 
-      const updatedDoc = await getDoc(alertRef);
-      const updatedData = updatedDoc.data();
+          const resolveAlertFunc = httpsCallable(functions, "resolveAlert");
+          const result = await resolveAlertFunc({ alertId });
 
-      if (!updatedData?.resolved) {
-        throw new Error(`Alert ${alertId} was not marked as resolved`);
+          // Verify the result indicates success
+          if (!result.data || (result.data as any).success !== true) {
+            throw new Error(
+              "Cloud Function did not return success: " +
+                JSON.stringify(result.data)
+            );
+          }
+
+          observabilityEmitter.emit({
+            domain: "alerts",
+            source: "alertService",
+            message: "Alert resolved via Cloud Function",
+            severity: "info",
+            status: "success",
+            metadata: {
+              alertId,
+              resolverId,
+              method: "cloud_function",
+            },
+          });
+
+          // Still need to add health timeline event and resolve escalation
+          // These should work since we have permission to read the alert
+          // Wrap in try-catch so they don't fail the whole operation if they error
+          try {
+            await healthTimelineService.addEvent({
+              userId: alertData.userId,
+              eventType: "alert_resolved",
+              title: `Alert resolved: ${alertData.type}`,
+              description: "Alert was resolved",
+              timestamp: new Date(),
+              severity: "info",
+              icon: "check-circle",
+              metadata: {
+                alertId,
+                alertType: alertData.type,
+                resolvedBy: resolverId,
+              },
+              relatedEntityId: alertId,
+              relatedEntityType: "alert",
+              actorId: resolverId,
+              actorType: "user",
+            });
+          } catch (timelineError) {
+            // Log but don't fail - alert is already resolved
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message:
+                "Failed to add health timeline event after alert resolution",
+              severity: "warn",
+              status: "partial_success",
+              error: {
+                message:
+                  timelineError instanceof Error
+                    ? timelineError.message
+                    : "Unknown error",
+              },
+              metadata: { alertId, resolverId },
+            });
+          }
+
+          try {
+            await escalationService.resolveEscalation(alertId, resolverId);
+          } catch (escalationError) {
+            // Log but don't fail - alert is already resolved
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message: "Failed to resolve escalation after alert resolution",
+              severity: "warn",
+              status: "partial_success",
+              error: {
+                message:
+                  escalationError instanceof Error
+                    ? escalationError.message
+                    : "Unknown error",
+              },
+              metadata: { alertId, resolverId },
+            });
+          }
+
+          observabilityEmitter.emit({
+            domain: "alerts",
+            source: "alertService",
+            message: `Alert resolved: ${alertData.type}`,
+            severity: "info",
+            status: "success",
+            metadata: {
+              alertId,
+              alertType: alertData.type,
+              resolvedBy: resolverId,
+            },
+          });
+
+          return;
+        } catch (cloudFunctionError: any) {
+          const errorCode =
+            typeof cloudFunctionError === "object" &&
+            cloudFunctionError &&
+            "code" in cloudFunctionError
+              ? String((cloudFunctionError as { code?: unknown }).code)
+              : undefined;
+
+          const errorMessage = cloudFunctionError?.message || "Unknown error";
+
+          // If Cloud Function doesn't exist or failed, fall back to direct Firestore update
+          if (
+            errorCode === "not-found" ||
+            errorMessage.includes("not found") ||
+            errorMessage.includes("does not exist") ||
+            errorMessage.includes("Function") ||
+            errorMessage.includes("function")
+          ) {
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message:
+                "Cloud Function not available, falling back to direct Firestore update",
+              severity: "warn",
+              status: "in_progress",
+              metadata: {
+                alertId,
+                resolverId,
+              },
+            });
+            // Fall through to direct Firestore update
+          } else {
+            // Cloud Function returned an error - pass it through
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message: "Cloud Function failed for alert resolution",
+              severity: "error",
+              status: "failure",
+              error: {
+                message: errorMessage,
+                code: errorCode,
+              },
+              metadata: {
+                alertId,
+                resolverId,
+              },
+            });
+
+            // If permission-denied, pass through the actual error message
+            if (errorCode === "permission-denied") {
+              throw new Error(errorMessage);
+            }
+
+            throw new Error(`Failed to resolve alert: ${errorMessage}`);
+          }
+        }
       }
+
+      // Fallback to direct Firestore update if Cloud Function not available
+      try {
+        await updateDoc(alertRef, {
+          resolved: true,
+          resolvedAt: Timestamp.now(),
+          resolvedBy: resolverId,
+        });
+
+        const updatedDoc = await getDoc(alertRef);
+        const updatedData = updatedDoc.data();
+
+        if (!updatedData?.resolved) {
+          throw new Error(`Alert ${alertId} was not marked as resolved`);
+        }
+      } catch (directError: any) {
+        // Direct Firestore update failed - throw error since Cloud Function already tried
+        const errorCode =
+          typeof directError === "object" &&
+          directError &&
+          "code" in directError
+            ? String((directError as { code?: unknown }).code)
+            : undefined;
+
+        const errorMessage =
+          directError?.message || String(directError) || "Unknown error";
+
+        observabilityEmitter.emit({
+          domain: "alerts",
+          source: "alertService",
+          message: "Direct Firestore update failed for alert resolution",
+          severity: "error",
+          status: "failure",
+          error: {
+            message: errorMessage,
+            code: errorCode,
+          },
+          metadata: {
+            alertId,
+            resolverId,
+            hasAuth: !!auth.currentUser,
+            hasFunctions: !!functions,
+          },
+        });
+
+        throw new Error(`Failed to resolve alert: ${errorMessage}`);
+      }
+
+      // If we get here, direct Firestore update succeeded
 
       await healthTimelineService.addEvent({
         userId: alertData.userId,
@@ -220,6 +661,7 @@ export const alertService = {
         status: "failure",
         error: {
           message: error.message || "Unknown error",
+          code: error.code,
         },
         metadata: { alertId, resolverId },
       });

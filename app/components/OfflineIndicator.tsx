@@ -1,8 +1,8 @@
-import { RefreshCw, Wifi, WifiOff } from "lucide-react-native";
+import { Wifi, WifiOff } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Animated, TouchableOpacity, View } from "react-native";
-import { Caption, Text } from "@/components/design-system/Typography";
+import { Animated, View } from "react-native";
+import { Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import { offlineService } from "@/lib/services/offlineService";
 
@@ -12,7 +12,6 @@ export default function OfflineIndicator() {
   const { theme } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [queueLength, setQueueLength] = useState(0);
-  const [syncing, setSyncing] = useState(false);
   const [slideAnim] = useState(() => new Animated.Value(-100));
 
   // Use ref to track if component is mounted to prevent state updates after unmount
@@ -85,18 +84,6 @@ export default function OfflineIndicator() {
     }
   }, [isOnline, queueLength, slideAnim]);
 
-  const handleSync = async () => {
-    if (syncing || !isOnline) return;
-
-    setSyncing(true);
-    try {
-      await offlineService.syncAll();
-      await checkStatus();
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   // Always render to ensure hooks are called consistently
   // Hide visually when online and no queue
   const shouldShow = !isOnline || queueLength > 0;
@@ -147,34 +134,6 @@ export default function OfflineIndicator() {
             : t("offlineMode", "Offline Mode")}
         </Text>
       </View>
-      {isOnline && queueLength > 0 && (
-        <TouchableOpacity
-          disabled={syncing}
-          onPress={handleSync}
-          style={{
-            flexDirection: isRTL ? "row-reverse" : "row",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <RefreshCw
-            color={theme.colors.neutral.white}
-            size={14}
-            style={{
-              opacity: syncing ? 0.5 : 1,
-            }}
-          />
-          <Caption
-            numberOfLines={1}
-            style={{
-              color: theme.colors.neutral.white,
-              fontSize: 11,
-            }}
-          >
-            {t("sync", "Sync")}
-          </Caption>
-        </TouchableOpacity>
-      )}
     </Animated.View>
   );
 }

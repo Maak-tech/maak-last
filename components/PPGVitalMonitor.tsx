@@ -190,7 +190,7 @@ export default function PPGVitalMonitor({
     },
     60: {
       title: "Complete!",
-      detail: "Medical-grade accuracy achieved",
+      detail: "Measurement complete",
       icon: "✅",
       progress: "100%",
     },
@@ -1541,7 +1541,7 @@ export default function PPGVitalMonitor({
                       <Text
                         style={styles.instructionText as StyleProp<TextStyle>}
                       >
-                        60 seconds for medical-grade accuracy • Hold steady
+                        60 seconds for accurate measurement • Hold steady
                       </Text>
                       {fingerDetectionFailed && (
                         <View

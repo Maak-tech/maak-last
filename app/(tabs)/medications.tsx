@@ -1,8 +1,9 @@
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
   Clock,
   Edit,
+  Info,
   Minus,
   Pill,
   Plus,
@@ -24,6 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import CoachMark from "@/app/components/CoachMark";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";
@@ -272,6 +274,9 @@ export default function MedicationsScreen() {
   );
   const [showSuggestions, setShowSuggestions] = useState(false);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const [refillSummary, setRefillSummary] = useState(
     medicationRefillService.getRefillPredictions([])
   );
@@ -279,11 +284,35 @@ export default function MedicationsScreen() {
 
   const isRTL = i18n.language === "ar";
 
+  const applyMedicationSuggestions = useCallback((query: string) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      setMedicationSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const filtered = COMMON_MEDICATIONS_MIDDLE_EAST.filter((med) =>
+      med.toLowerCase().includes(normalizedQuery)
+    );
+    setMedicationSuggestions(filtered);
+    setShowSuggestions(filtered.length > 0);
+  }, []);
+
   useEffect(() => {
     if (params.tour === "1") {
       setShowHowTo(true);
     }
   }, [params.tour]);
+
+  useEffect(
+    () => () => {
+      if (suggestionsDebounceRef.current) {
+        clearTimeout(suggestionsDebounceRef.current);
+      }
+    },
+    []
+  );
   const isAdmin = user?.role === "admin";
   const hasFamily = Boolean(user?.familyId);
   const {
@@ -1615,18 +1644,17 @@ export default function MedicationsScreen() {
                 }}
                 onChangeText={(text: string) => {
                   setNewMedication({ ...newMedication, name: text });
-                  // Filter suggestions based on input
-                  if (text.trim().length > 0) {
-                    const filtered = COMMON_MEDICATIONS_MIDDLE_EAST.filter(
-                      (med) =>
-                        med.toLowerCase().includes(text.toLowerCase().trim())
-                    );
-                    setMedicationSuggestions(filtered); // Show all matches
-                    setShowSuggestions(filtered.length > 0);
-                  } else {
-                    setMedicationSuggestions([]);
-                    setShowSuggestions(false);
+                  if (suggestionsDebounceRef.current) {
+                    clearTimeout(suggestionsDebounceRef.current);
                   }
+                  if (text.trim().length === 0) {
+                    applyMedicationSuggestions("");
+                    return;
+                  }
+                  // Debounce filtering to reduce work on each keystroke
+                  suggestionsDebounceRef.current = setTimeout(() => {
+                    applyMedicationSuggestions(text);
+                  }, 250);
                 }}
                 onFocus={() => {
                   // Clear any existing timeout when input is focused
@@ -1636,14 +1664,7 @@ export default function MedicationsScreen() {
                   }
                   // Show suggestions when input is focused if there's text
                   if (newMedication.name.trim().length > 0) {
-                    const filtered = COMMON_MEDICATIONS_MIDDLE_EAST.filter(
-                      (med) =>
-                        med
-                          .toLowerCase()
-                          .includes(newMedication.name.toLowerCase().trim())
-                    );
-                    setMedicationSuggestions(filtered);
-                    setShowSuggestions(filtered.length > 0);
+                    applyMedicationSuggestions(newMedication.name);
                   }
                 }}
                 placeholder={isRTL ? "اسم الدواء" : "Medication name"}

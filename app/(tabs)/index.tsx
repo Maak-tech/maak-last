@@ -48,6 +48,7 @@ import {
 import { medicationService } from "@/lib/services/medicationService";
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
 import type { Medication, Symptom, User as UserType } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
@@ -2036,12 +2037,38 @@ export default function DashboardScreen() {
                                 );
                               }
                             } catch (error: any) {
-                              // Silently handle alert resolution error
+                              logger.error(
+                                "Failed to resolve alert",
+                                error,
+                                "HomeScreen"
+                              );
+
+                              const errorMessage =
+                                error?.message || "Unknown error";
+                              let displayMessage = errorMessage;
+
+                              // Check for specific error types
+                              if (
+                                errorMessage.includes("permission-denied") ||
+                                errorMessage.includes("permission")
+                              ) {
+                                displayMessage = isRTL
+                                  ? "ليس لديك الصلاحية لحل هذا التنبيه"
+                                  : "You don't have permission to resolve this alert";
+                              } else if (
+                                errorMessage.includes("does not exist") ||
+                                errorMessage.includes("not found")
+                              ) {
+                                displayMessage = isRTL
+                                  ? "التنبيه غير موجود"
+                                  : "Alert not found";
+                              }
+
                               Alert.alert(
                                 isRTL ? "خطأ" : "Error",
                                 isRTL
-                                  ? `فشل في حل التنبيه: ${error.message || "خطأ غير معروف"}`
-                                  : `Failed to resolve alert: ${error.message || "Unknown error"}`
+                                  ? `فشل في حل التنبيه: ${displayMessage}`
+                                  : `Failed to resolve alert: ${displayMessage}`
                               );
                             } finally {
                               setLoadingAlerts(false);
