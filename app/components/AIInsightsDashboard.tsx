@@ -24,8 +24,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, Card } from "@/components/design-system";
-import { Badge } from "@/components/design-system/AdditionalComponents";
+import { Button } from "@/components/design-system";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   type AIInsightsDashboard as AIInsightsDashboardData,
@@ -424,9 +423,9 @@ function AIInsightsDashboard({
 
   if (loading && !insights) {
     return (
-      <View style={styles.center}>
+      <View className="items-center justify-center py-5">
         <ActivityIndicator color="#3B82F6" size="large" />
-        <Text style={[styles.text, styles.mt2]}>
+        <Text className="mt-2 text-on-surface-secondary text-sm">
           {t("aiInsightsAnalyzing", "Analyzing your health data...")}
         </Text>
       </View>
@@ -435,16 +434,17 @@ function AIInsightsDashboard({
 
   if (error && !insights) {
     return (
-      <View style={styles.center}>
+      <View className="items-center justify-center py-5">
         <AlertTriangle color="#EF4444" size={48} />
-        <Text style={[styles.text, styles.mt2, styles.textCenter]}>
+        <Text className="mt-2 text-center text-on-surface-secondary text-sm">
           {error || t("aiInsightsUnableToLoad", "Unable to load insights")}
         </Text>
-        <Button
-          onPress={() => loadInsights(true)}
-          style={styles.mt4}
-          title={t("retry", "Retry")}
-        />
+        <View className="mt-4">
+          <Button
+            onPress={() => loadInsights(true)}
+            title={t("retry", "Retry")}
+          />
+        </View>
       </View>
     );
   }
@@ -464,15 +464,15 @@ function AIInsightsDashboard({
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
-        <View style={styles.p4}>
+    <SafeAreaView className="flex-1 bg-surface">
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        <View className="p-4">
           {/* Header */}
-          <View style={styles.mb4}>
-            <Text style={[styles.title, styles.mb2]}>
+          <View className="mb-4">
+            <Text className="mb-2 font-semibold text-2xl text-on-surface">
               {t("healthInsights", "Health Insights")}
             </Text>
-            <Text style={[styles.subtitle, styles.textMuted]}>
+            <Text className="text-on-surface-secondary">
               {t(
                 "healthInsightsSubtitle",
                 "Personalized analysis of your health patterns and recommendations"
@@ -481,7 +481,7 @@ function AIInsightsDashboard({
           </View>
 
           {/* Summary Cards */}
-          <View style={[styles.row, styles.mb4]}>
+          <View className="mb-4 flex-row">
             <SummaryCard
               color="#3B82F6"
               icon="Brain"
@@ -508,9 +508,9 @@ function AIInsightsDashboard({
 
           {/* Category Tabs */}
           <ScrollView
+            className="mb-4"
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.mb4}
           >
             {[
               {
@@ -545,24 +545,25 @@ function AIInsightsDashboard({
               },
             ].map((category) => (
               <TouchableOpacity
+                className={`mr-2 flex-row items-center rounded-full px-4 py-2 ${
+                  selectedCategory === category.key
+                    ? "bg-blue-600"
+                    : "bg-surface-tertiary"
+                }`}
                 key={category.key}
                 onPress={() => setSelectedCategory(category.key)}
-                style={[
-                  styles.categoryTab,
-                  selectedCategory === category.key && styles.categoryTabActive,
-                ]}
               >
                 {getIcon(
                   category.icon,
                   16,
-                  selectedCategory === category.key ? "#FFFFFF" : "#6B7280"
+                  selectedCategory === category.key ? "#FFFFFF" : "#64748B"
                 )}
                 <Text
-                  style={[
-                    styles.categoryTabText,
-                    selectedCategory === category.key &&
-                      styles.categoryTabTextActive,
-                  ]}
+                  className={`ml-1.5 text-sm ${
+                    selectedCategory === category.key
+                      ? "font-medium text-white"
+                      : "text-on-surface-secondary"
+                  }`}
                 >
                   {category.label}
                 </Text>
@@ -578,23 +579,19 @@ function AIInsightsDashboard({
           />
 
           {/* AI Narrative */}
-          {insights.aiNarrative && (
-            <Card
-              contentStyle={undefined}
-              onPress={() => {}}
-              style={styles.mb4}
-            >
-              <View style={styles.row}>
+          {insights.aiNarrative ? (
+            <View className="mb-4 rounded-xl bg-surface-secondary p-4">
+              <View className="mb-2 flex-row items-center">
                 {getIcon("Brain", 20, "#3B82F6")}
-                <Text style={[styles.cardTitle, styles.ml2]}>
+                <Text className="ml-2 font-semibold text-base text-on-surface">
                   {t("healthSummary", "Health Summary")}
                 </Text>
               </View>
-              <Text style={[styles.text, styles.mt2, styles.lineHeight]}>
+              <Text className="mt-2 text-on-surface text-sm leading-5">
                 {insights.aiNarrative}
               </Text>
-            </Card>
-          )}
+            </View>
+          ) : null}
 
           {/* Action Plan */}
           <ActionPlanSection insights={insights} />
@@ -617,22 +614,20 @@ function SummaryCard({
   color: string;
 }) {
   return (
-    <Card
-      contentStyle={undefined}
-      onPress={() => {}}
-      style={[
-        styles.summaryCard,
-        { borderLeftColor: color, borderLeftWidth: 4 },
-      ]}
+    <View
+      className="mx-1 flex-1 rounded-xl bg-surface-secondary p-4"
+      style={{ borderLeftColor: color, borderLeftWidth: 4 }}
     >
-      <View style={styles.row}>
+      <View className="flex-row items-center">
         {getIcon(icon, 24, color)}
-        <View style={styles.ml3}>
-          <Text style={[styles.textSm, styles.textMuted]}>{title}</Text>
-          <Text style={[styles.title, { color }]}>{value}</Text>
+        <View className="ml-3">
+          <Text className="text-on-surface-secondary text-xs">{title}</Text>
+          <Text className="font-semibold text-2xl" style={{ color }}>
+            {value}
+          </Text>
         </View>
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -726,7 +721,7 @@ function CorrelationsContent({
   const { t } = useTranslation();
   return (
     <View>
-      <Text style={[styles.sectionTitle, styles.mb3]}>
+      <Text className="mb-3 font-semibold text-lg text-on-surface">
         {t("insightsHealthDataCorrelationsTitle", "Health Data Correlations")}
       </Text>
       {(insights.correlationAnalysis?.correlationResults || []).map(
@@ -762,7 +757,7 @@ function PatternsContent({
   const { t } = useTranslation();
   return (
     <View>
-      <Text style={[styles.sectionTitle, styles.mb3]}>
+      <Text className="mb-3 font-semibold text-lg text-on-surface">
         {t("insightsSymptomPatternsTitle", "Symptom Patterns & Diagnosis")}
       </Text>
       {(insights.symptomAnalysis?.diagnosisSuggestions || []).map(
@@ -821,25 +816,25 @@ function RiskContent({
 
   return (
     <View>
-      <Text style={[styles.sectionTitle, styles.mb3]}>
+      <Text className="mb-3 font-semibold text-lg text-on-surface">
         {t("insightsRiskAssessmentTitle", "Health Risk Assessment")}
       </Text>
 
-      <Card contentStyle={undefined} onPress={() => {}} style={styles.mb3}>
-        <View style={styles.row}>
+      <View className="mb-3 rounded-xl bg-surface-secondary p-4">
+        <View className="flex-row items-center">
           {getIcon("Shield", 24, getRiskColor(risk.riskLevel))}
-          <View style={styles.ml3}>
-            <Text style={styles.cardTitle}>
+          <View className="ml-3">
+            <Text className="font-semibold text-base text-on-surface">
               {t("overallRiskLabel", "Overall Risk")}:{" "}
               {risk.riskLevel.toUpperCase()}
             </Text>
-            <Text style={[styles.text, styles.mt1]}>
+            <Text className="mt-1 text-on-surface text-sm">
               {t("scoreLabel", "Score")}: {risk.overallRiskScore}/100
             </Text>
           </View>
         </View>
 
-        <Text style={[styles.text, styles.mt3]}>
+        <Text className="mt-3 text-on-surface text-sm">
           {t("nextAssessmentLabel", "Next Assessment")}:{" "}
           {new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
             year: "numeric",
@@ -847,9 +842,9 @@ function RiskContent({
             day: "numeric",
           }).format(risk.nextAssessmentDate)}
         </Text>
-      </Card>
+      </View>
 
-      <Text style={[styles.subtitle, styles.mb2]}>
+      <Text className="mb-2 text-on-surface-secondary">
         {t("keyRiskFactors", "Key Risk Factors")}
       </Text>
       {risk.riskFactors.slice(0, 5).map((factor: any, index: number) => (
@@ -860,7 +855,7 @@ function RiskContent({
         />
       ))}
 
-      <Text style={[styles.subtitle, styles.mb2, styles.mt4]}>
+      <Text className="mt-4 mb-2 text-on-surface-secondary">
         {t("recommendations", "Recommendations")}
       </Text>
       {risk.preventiveRecommendations.map((rec: any, index: number) => (
@@ -887,7 +882,7 @@ function MedicationsContent({
   const { t } = useTranslation();
   return (
     <View>
-      <Text style={[styles.sectionTitle, styles.mb3]}>
+      <Text className="mb-3 font-semibold text-lg text-on-surface">
         {t("insightsMedicationInsightsTitle", "Medication Insights")}
       </Text>
       {insights.medicationAlerts.map((alert: any, index: number) => (
@@ -920,7 +915,7 @@ function SuggestionsContent({
   const { t } = useTranslation();
   return (
     <View>
-      <Text style={[styles.sectionTitle, styles.mb3]}>
+      <Text className="mb-3 font-semibold text-lg text-on-surface">
         {t(
           "insightsPersonalizedRecommendationsTitle",
           "Personalized Recommendations"
@@ -964,7 +959,9 @@ function ActionPlanSection({
   const [loading, setLoading] = useState(false);
 
   const loadActionPlan = async () => {
-    if (!insights.userId) return;
+    if (!insights.userId) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -978,91 +975,90 @@ function ActionPlanSection({
   };
 
   return (
-    <Card contentStyle={undefined} onPress={() => {}} style={styles.mb4}>
-      <View style={styles.row}>
+    <View className="mb-4 rounded-xl bg-surface-secondary p-4">
+      <View className="flex-row items-center">
         {getIcon("Target", 20, "#3B82F6")}
-        <Text style={[styles.cardTitle, styles.ml2]}>
+        <Text className="ml-2 font-semibold text-base text-on-surface">
           {t("healthActionPlan", "Health Action Plan")}
         </Text>
       </View>
 
       {actionPlan ? (
-        <View style={styles.mt3}>
-          {actionPlan.immediate.length > 0 && (
-            <View style={styles.mb3}>
-              <Text
-                style={[styles.textSm, styles.fontBold, { color: "#EF4444" }]}
-              >
+        <View className="mt-3">
+          {actionPlan.immediate.length > 0 ? (
+            <View className="mb-3">
+              <Text className="font-semibold text-red-500 text-xs">
                 {t("immediateActions", "Immediate Actions")}
               </Text>
               {actionPlan.immediate.map((action: string, index: number) => (
                 <Text
+                  className="mt-1 text-on-surface text-sm"
                   key={`immediate-${index}`}
-                  style={[styles.text, styles.mt1]}
                 >
                   • {action}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
 
-          {actionPlan.shortTerm.length > 0 && (
-            <View style={styles.mb3}>
-              <Text
-                style={[styles.textSm, styles.fontBold, { color: "#F59E0B" }]}
-              >
+          {actionPlan.shortTerm.length > 0 ? (
+            <View className="mb-3">
+              <Text className="font-semibold text-amber-500 text-xs">
                 {t("shortTermGoals", "Short-term Goals")}
               </Text>
               {actionPlan.shortTerm.map((action: string, index: number) => (
-                <Text key={`short-${index}`} style={[styles.text, styles.mt1]}>
+                <Text
+                  className="mt-1 text-on-surface text-sm"
+                  key={`short-${index}`}
+                >
                   • {action}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
 
-          {actionPlan.longTerm.length > 0 && (
-            <View style={styles.mb3}>
-              <Text
-                style={[styles.textSm, styles.fontBold, { color: "#10B981" }]}
-              >
+          {actionPlan.longTerm.length > 0 ? (
+            <View className="mb-3">
+              <Text className="font-semibold text-emerald-500 text-xs">
                 {t("longTermGoals", "Long-term Goals")}
               </Text>
               {actionPlan.longTerm.map((action: string, index: number) => (
-                <Text key={`long-${index}`} style={[styles.text, styles.mt1]}>
+                <Text
+                  className="mt-1 text-on-surface text-sm"
+                  key={`long-${index}`}
+                >
                   • {action}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
 
-          {actionPlan.monitoring.length > 0 && (
+          {actionPlan.monitoring.length > 0 ? (
             <View>
-              <Text
-                style={[styles.textSm, styles.fontBold, { color: "#6B7280" }]}
-              >
+              <Text className="font-semibold text-on-surface-secondary text-xs">
                 Ongoing Monitoring
               </Text>
               {actionPlan.monitoring.map((item: string, index: number) => (
                 <Text
+                  className="mt-1 text-on-surface text-sm"
                   key={`monitor-${index}`}
-                  style={[styles.text, styles.mt1]}
                 >
                   • {item}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
         </View>
       ) : (
-        <Button
-          loading={loading}
-          onPress={loadActionPlan}
-          style={styles.mt3}
-          title={t("generateActionPlan", "Generate Action Plan")}
-        />
+        <View className="mt-3">
+          <Button
+            loading={loading}
+            onPress={loadActionPlan}
+            title={t("generateActionPlan", "Generate Action Plan")}
+          />
+        </View>
       )}
-    </Card>
+    </View>
   );
 }
 
@@ -1094,33 +1090,35 @@ function CompactInsightsView({
         : "Your health data looks good";
 
   return (
-    <Card
-      contentStyle={undefined}
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-3 rounded-xl bg-surface-secondary p-4"
       onPress={() => onPress?.(insights)}
-      style={styles.mb3}
     >
-      <View style={styles.row}>
+      <View className="flex-row items-center">
         {getIcon("Brain", 24, "#3B82F6")}
-        <View style={styles.ml3}>
-          <Text style={styles.cardTitle}>
+        <View className="ml-3 flex-1">
+          <Text className="font-semibold text-base text-on-surface">
             {isRTL ? "التحليلات الصحية " : "Health Insights"}
           </Text>
-          <Text style={[styles.text, styles.textMuted]}>
+          <Text className="mt-1 text-on-surface-secondary text-sm">
             {prioritizedInsights}
           </Text>
-          <View style={[styles.row, styles.mt1]}>
-            <Badge style={{}}>
-              {insights?.riskAssessment?.riskLevel || "low"}
-            </Badge>
-            <Text style={[styles.textSm, styles.textMuted, styles.ml2]}>
+          <View className="mt-2 flex-row items-center gap-2">
+            <View className="rounded-full bg-surface px-2 py-0.5">
+              <Text className="font-medium text-on-surface-secondary text-xs">
+                {insights?.riskAssessment?.riskLevel || "low"}
+              </Text>
+            </View>
+            <Text className="text-on-surface-secondary text-xs">
               {insightsSummary.totalInsights}{" "}
               {isRTL ? "التحليل الصحي " : "insights"}
             </Text>
           </View>
         </View>
-        {getIcon("ChevronRight", 16, "#6B7280")}
+        {getIcon("ChevronRight", 16, "#94A3B8")}
       </View>
-    </Card>
+    </TouchableOpacity>
   );
 }
 
@@ -1133,14 +1131,18 @@ function InsightCard({
   onPress?: () => void;
 }) {
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <Text style={styles.cardTitle}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <Text className="font-semibold text-base text-on-surface">
         {insight.title || insight.condition || "Insight"}
       </Text>
-      <Text style={[styles.text, styles.mt1]}>
+      <Text className="mt-1 text-on-surface text-sm">
         {insight.description || insight.reasoning || "Details available"}
       </Text>
-    </Card>
+    </TouchableOpacity>
   );
 }
 
@@ -1159,22 +1161,30 @@ function CorrelationCard({
         : "#6B7280";
 
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <View style={styles.row}>
-        <Text style={styles.cardTitle}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <View className="flex-row items-center">
+        <Text className="flex-1 font-semibold text-base text-on-surface">
           {correlation.data.factor1} ↔ {correlation.data.factor2}
         </Text>
-        <Badge
-          style={{}}
-        >{`${(correlation.strength * 100).toFixed(0)}%`}</Badge>
+        <View className="rounded-full bg-surface px-2 py-0.5">
+          <Text className="font-medium text-on-surface-secondary text-xs">
+            {`${(correlation.strength * 100).toFixed(0)}%`}
+          </Text>
+        </View>
       </View>
-      <Text style={[styles.text, styles.mt1]}>{correlation.description}</Text>
-      {correlation.recommendation && (
-        <Text style={[styles.textSm, styles.textMuted, styles.mt1]}>
+      <Text className="mt-1 text-on-surface text-sm">
+        {correlation.description}
+      </Text>
+      {correlation.recommendation ? (
+        <Text className="mt-1 text-on-surface-secondary text-xs">
           💡 {correlation.recommendation}
         </Text>
-      )}
-    </Card>
+      ) : null}
+    </TouchableOpacity>
   );
 }
 
@@ -1194,21 +1204,33 @@ function DiagnosisCard({
   const urgencyColor = urgencyMap[String(diagnosis.urgency)] || "#6B7280";
 
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <View style={styles.row}>
-        <Text style={styles.cardTitle}>{diagnosis.condition}</Text>
-        <Badge style={{}}>{`${diagnosis.confidence}%`}</Badge>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <View className="flex-row items-center">
+        <Text className="flex-1 font-semibold text-base text-on-surface">
+          {diagnosis.condition}
+        </Text>
+        <View className="rounded-full bg-surface px-2 py-0.5">
+          <Text className="font-medium text-on-surface-secondary text-xs">
+            {`${diagnosis.confidence}%`}
+          </Text>
+        </View>
       </View>
-      <Text style={[styles.text, styles.mt1]}>{diagnosis.reasoning}</Text>
-      <Text style={[styles.textSm, styles.textMuted, styles.mt2]}>
+      <Text className="mt-1 text-on-surface text-sm">
+        {diagnosis.reasoning}
+      </Text>
+      <Text className="mt-2 text-on-surface-secondary text-xs">
         {diagnosis.disclaimer}
       </Text>
-      {diagnosis.recommendations && diagnosis.recommendations.length > 0 && (
-        <Text style={[styles.textSm, styles.mt2]}>
+      {diagnosis.recommendations && diagnosis.recommendations.length > 0 ? (
+        <Text className="mt-2 text-on-surface-secondary text-xs">
           💡 {diagnosis.recommendations[0]}
         </Text>
-      )}
-    </Card>
+      ) : null}
+    </TouchableOpacity>
   );
 }
 
@@ -1220,13 +1242,25 @@ function PatternCard({
   onPress?: () => void;
 }) {
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <View style={styles.row}>
-        <Text style={styles.cardTitle}>{pattern.name}</Text>
-        <Badge style={{}}>{`${pattern.confidence}%`}</Badge>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <View className="flex-row items-center">
+        <Text className="flex-1 font-semibold text-base text-on-surface">
+          {pattern.name}
+        </Text>
+        <View className="rounded-full bg-surface px-2 py-0.5">
+          <Text className="font-medium text-on-surface-secondary text-xs">
+            {`${pattern.confidence}%`}
+          </Text>
+        </View>
       </View>
-      <Text style={[styles.text, styles.mt1]}>{pattern.description}</Text>
-    </Card>
+      <Text className="mt-1 text-on-surface text-sm">
+        {pattern.description}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -1241,13 +1275,23 @@ function RiskFactorCard({
     factor.impact > 25 ? "#EF4444" : factor.impact > 15 ? "#F59E0B" : "#10B981";
 
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <View style={styles.row}>
-        <Text style={styles.cardTitle}>{factor.name}</Text>
-        <Badge style={{}}>{`Impact: ${factor.impact}`}</Badge>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <View className="flex-row items-center">
+        <Text className="flex-1 font-semibold text-base text-on-surface">
+          {factor.name}
+        </Text>
+        <View className="rounded-full bg-surface px-2 py-0.5">
+          <Text className="font-medium text-on-surface-secondary text-xs">
+            Impact: {factor.impact}
+          </Text>
+        </View>
       </View>
-      <Text style={[styles.text, styles.mt1]}>{factor.description}</Text>
-    </Card>
+      <Text className="mt-1 text-on-surface text-sm">{factor.description}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -1266,18 +1310,24 @@ function MedicationAlertCard({
   const severityColor = severityMap[String(alert.severity)] || "#6B7280";
 
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <View style={styles.row}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <View className="flex-row items-center">
         {getIcon("AlertTriangle", 20, severityColor)}
-        <Text style={[styles.cardTitle, styles.ml2]}>{alert.title}</Text>
+        <Text className="ml-2 font-semibold text-base text-on-surface">
+          {alert.title}
+        </Text>
       </View>
-      <Text style={[styles.text, styles.mt1]}>{alert.message}</Text>
-      {alert.recommendations && alert.recommendations.length > 0 && (
-        <Text style={[styles.textSm, styles.textMuted, styles.mt1]}>
+      <Text className="mt-1 text-on-surface text-sm">{alert.message}</Text>
+      {alert.recommendations && alert.recommendations.length > 0 ? (
+        <Text className="mt-1 text-on-surface-secondary text-xs">
           💡 {alert.recommendations[0]}
         </Text>
-      )}
-    </Card>
+      ) : null}
+    </TouchableOpacity>
   );
 }
 
@@ -1296,25 +1346,30 @@ function SuggestionCard({
   const priorityColor = priorityMap[String(suggestion.priority)] || "#6B7280";
 
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <View style={styles.row}>
-        <Text style={styles.cardTitle}>{suggestion.title}</Text>
-        <Badge style={{}}>{suggestion.priority}</Badge>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <View className="flex-row items-center">
+        <Text className="flex-1 font-semibold text-base text-on-surface">
+          {suggestion.title}
+        </Text>
+        <View className="rounded-full bg-surface px-2 py-0.5">
+          <Text className="font-medium text-on-surface-secondary text-xs">
+            {suggestion.priority}
+          </Text>
+        </View>
       </View>
-      <Text style={[styles.text, styles.mt1]}>{suggestion.description}</Text>
-      {suggestion.action?.label && (
-        <Text
-          style={[
-            styles.textSm,
-            styles.fontBold,
-            styles.mt1,
-            { color: "#3B82F6" },
-          ]}
-        >
+      <Text className="mt-1 text-on-surface text-sm">
+        {suggestion.description}
+      </Text>
+      {suggestion.action?.label ? (
+        <Text className="mt-1 font-semibold text-blue-600 text-xs">
           {suggestion.action.label}
         </Text>
-      )}
-    </Card>
+      ) : null}
+    </TouchableOpacity>
   );
 }
 
@@ -1326,30 +1381,38 @@ function RecommendationCard({
   onPress?: () => void;
 }) {
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <Text style={[styles.text, styles.textCenter]}>• {recommendation}</Text>
-    </Card>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <Text className="text-center text-on-surface text-sm">
+        • {recommendation}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
 function TipCard({ tip, onPress }: { tip: string; onPress?: () => void }) {
   return (
-    <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <View style={styles.row}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      className="mb-2 rounded-xl bg-surface-secondary p-4"
+      onPress={onPress}
+    >
+      <View className="flex-row items-center">
         {getIcon("Lightbulb", 16, "#F59E0B")}
-        <Text style={[styles.text, styles.ml2]}>{tip}</Text>
+        <Text className="ml-2 text-on-surface text-sm">{tip}</Text>
       </View>
-    </Card>
+    </TouchableOpacity>
   );
 }
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <View style={[styles.center, styles.py4]}>
+    <View className="items-center justify-center py-4">
       {getIcon("Info", 32, "#9CA3AF")}
-      <Text
-        style={[styles.text, styles.textMuted, styles.mt2, styles.textCenter]}
-      >
+      <Text className="mt-2 text-center text-on-surface-secondary text-sm">
         {message}
       </Text>
     </View>

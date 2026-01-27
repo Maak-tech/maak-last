@@ -6,23 +6,40 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 export default function TabLayout() {
   const { t } = useTranslation();
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
   const { user } = useAuth();
 
   // User role logic
   const isAdmin = user?.role === "admin";
-  const isRegularUser = !isAdmin;
+
+  // NativeWind semantic colors resolved from CSS variables
+  // These match the values in global.css
+  const tabBarColors = isDark
+    ? {
+        // Dark mode - matching global.css .dark values
+        background: "#25211c", // surface-secondary dark
+        border: "#3d3630", // border-default dark
+        inactive: "#b8a99a", // on-surface-secondary dark
+        active: "#3B82F6", // primary.light - better contrast on dark background
+      }
+    : {
+        // Light mode - matching global.css :root values
+        background: "#ffffff", // surface-secondary light
+        border: "#e8e4dd", // border-default light
+        inactive: "#6b5d47", // on-surface-secondary light
+        active: "#1E3A8A", // primary.main - good contrast on light background
+      };
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary.main,
-        tabBarInactiveTintColor: theme.colors.text.secondary,
+        tabBarActiveTintColor: tabBarColors.active,
+        tabBarInactiveTintColor: tabBarColors.inactive,
         tabBarStyle: {
-          backgroundColor: theme.colors.background.secondary,
+          backgroundColor: tabBarColors.background,
           borderTopWidth: 1,
-          borderTopColor: theme.colors.border.light,
+          borderTopColor: tabBarColors.border,
           height: 80,
           paddingBottom: 20,
           paddingTop: 8,

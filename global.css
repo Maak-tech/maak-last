@@ -4,25 +4,27 @@
 
 /* Theme CSS variables */
 :root {
-  --color-background: #f8fafc;
+  /* Light mode - Warm, soft palette with subtle cream and warm grays */
+  --color-background: #faf9f6;
   --color-background-secondary: #ffffff;
-  --color-background-tertiary: #f1f5f9;
-  --color-text-primary: #1e293b;
-  --color-text-secondary: #64748b;
-  --color-text-tertiary: #94a3b8;
-  --color-border: #e2e8f0;
+  --color-background-tertiary: #f5f3ef;
+  --color-text-primary: #2c2416;
+  --color-text-secondary: #6b5d47;
+  --color-text-tertiary: #9a8d7a;
+  --color-border: #e8e4dd;
   --color-input-bg: #ffffff;
 }
 
 .dark {
-  --color-background: #0f172a;
-  --color-background-secondary: #1e293b;
-  --color-background-tertiary: #334155;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-text-tertiary: #64748b;
-  --color-border: #334155;
-  --color-input-bg: #1e293b;
+  /* Dark mode - Deep, rich tones with warm undertones */
+  --color-background: #1a1612;
+  --color-background-secondary: #25211c;
+  --color-background-tertiary: #2f2a24;
+  --color-text-primary: #f5f1eb;
+  --color-text-secondary: #b8a99a;
+  --color-text-tertiary: #8b7d6e;
+  --color-border: #3d3630;
+  --color-input-bg: #25211c;
 }
 
 /* Set Geist as default font globally */

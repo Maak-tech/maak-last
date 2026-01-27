@@ -35,7 +35,7 @@ import DashboardWidgetSettings from "@/app/components/DashboardWidgetSettings";
 import HealthInsightsCard from "@/app/components/HealthInsightsCard";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import { Card } from "@/components/design-system";
-import { Caption, Heading, Text } from "@/components/design-system/Typography";
+import { Text } from "@/components/design-system/Typography";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -55,7 +55,7 @@ import { createThemedStyles, getTextStyle } from "@/utils/styles";
 export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
   const { user, updateUser } = useAuth();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
@@ -1697,12 +1697,9 @@ export default function DashboardScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container as ViewStyle}>
-        <View style={styles.centerContainer as ViewStyle}>
-          <Text
-            color={theme.colors.accent.error}
-            style={styles.errorText as TextStyle}
-          >
+      <SafeAreaView className="flex-1 bg-surface">
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-red-500">
             {t(
               "pleaseLogInToViewDashboard",
               "Please log in to view your dashboard"
@@ -1714,49 +1711,31 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container as ViewStyle}>
+    <SafeAreaView className="flex-1 bg-surface">
       <ScrollView
-        contentContainerStyle={styles.contentInner as ViewStyle}
+        className="flex-1 px-4"
+        contentContainerStyle={{ paddingVertical: 16 }}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
         }
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        style={styles.content as ViewStyle}
       >
         {/* Header with SOS Button */}
-        <View style={styles.headerWithSOS as ViewStyle}>
-          <View
-            style={[
-              styles.headerContent as ViewStyle,
-              isRTL && { marginEnd: theme.spacing.md },
-            ]}
-          >
-            <Heading
-              color={theme.colors.primary.main}
-              level={4}
-              style={
-                [
-                  styles.welcomeText,
-                  isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
-              }
+        <View className="mb-6 flex-row items-start justify-between">
+          <View className={`flex-1 ${isRTL ? "mr-3" : ""}`}>
+            <Text
+              className="mb-1 font-bold text-2xl"
+              style={{ color: isDark ? "#f5f1eb" : "#2c2416" }}
             >
               {isRTL
                 ? `مرحباً، ${user.firstName || "User"}`
                 : `Welcome, ${user.firstName || "User"}`}
-            </Heading>
-            <Caption
-              color={theme.colors.text.secondary}
-              numberOfLines={undefined}
-              style={
-                [
-                  styles.dateText,
-                  isRTL && styles.rtlText,
-                  isRTL && styles.dateTextRTL,
-                ] as StyleProp<TextStyle>
-              }
+            </Text>
+            <Text
+              className="text-sm"
+              style={{ color: isDark ? "#b8a99a" : "#6b5d47" }}
             >
               {new Date().toLocaleDateString(
                 isRTL ? "ar-u-ca-gregory" : "en-US",
@@ -1767,18 +1746,14 @@ export default function DashboardScreen() {
                   day: "numeric",
                 }
               )}
-            </Caption>
+            </Text>
           </View>
           <View
-            style={{
-              flexDirection: isRTL ? "row-reverse" : "row",
-              gap: 12,
-              zIndex: 1001,
-              flexShrink: 0,
-            }}
+            className={`z-[1001] flex-shrink-0 flex-row gap-3 ${isRTL ? "flex-row-reverse" : ""}`}
           >
-            {isAdmin && (
+            {isAdmin ? (
               <Pressable
+                className="z-[1001] h-10 min-h-[40px] min-w-[40px] items-center justify-center rounded-full bg-surface-secondary p-2.5"
                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
@@ -1786,37 +1761,18 @@ export default function DashboardScreen() {
                   );
                   setShowWidgetSettings(true);
                 }}
-                style={({ pressed }) => ({
-                  backgroundColor: theme.colors.background.secondary,
-                  borderRadius: 20,
-                  padding: 10,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  zIndex: 1001,
-                  elevation: 5,
-                  minWidth: 40,
-                  minHeight: 40,
-                  opacity: pressed ? 0.7 : 1,
-                })}
               >
-                <Settings color={theme.colors.text.primary} size={20} />
+                <Settings color={isDark ? "#f5f1eb" : "#2c2416"} size={20} />
               </Pressable>
-            )}
+            ) : null}
             <TouchableOpacity
               activeOpacity={0.7}
+              className={`flex-row items-center gap-2 rounded-full bg-red-500 px-4 py-2 ${isRTL ? "ml-3" : ""}`}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               onPress={handleSOS}
-              style={[
-                styles.sosHeaderButton as ViewStyle,
-                isRTL && { marginStart: theme.spacing.md },
-              ]}
             >
-              <Phone color={theme.colors.neutral.white} size={20} />
-              <Text
-                color={theme.colors.neutral.white}
-                style={styles.sosHeaderText as StyleProp<TextStyle>}
-                weight="bold"
-              >
+              <Phone color="#ffffff" size={20} />
+              <Text className="font-bold text-white">
                 {isRTL ? "SOS" : "SOS"}
               </Text>
             </TouchableOpacity>
@@ -2224,228 +2180,130 @@ export default function DashboardScreen() {
         </Modal>
 
         {/* Health Tracking Section for Regular Users */}
-        {!isAdmin && (
-          <View style={styles.trackingSection as ViewStyle}>
-            <View style={styles.sectionHeader as ViewStyle}>
-              <Text
-                style={
-                  [
-                    styles.sectionTitle,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
-              </Text>
-            </View>
+        {isAdmin ? null : (
+          <View className="mb-6">
+            <Text
+              className="mb-4 font-semibold text-lg"
+              style={{ color: isDark ? "#f5f1eb" : "#2c2416" }}
+            >
+              {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
+            </Text>
 
-            <View style={styles.trackingOptions as ViewStyle}>
+            <View className="flex-row flex-wrap justify-between">
+              {/* Symptoms Card */}
               <TouchableOpacity
+                activeOpacity={0.8}
+                className="mb-3 w-[48.5%] overflow-hidden rounded-2xl"
                 onPress={() => router.push("/(tabs)/symptoms")}
-                style={styles.trackingCard as ViewStyle}
+                style={{ backgroundColor: isDark ? "#2a2520" : "#ffffff" }}
               >
                 <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.primary[50] },
-                    ] as StyleProp<ViewStyle>
-                  }
+                  className="items-center justify-center py-5"
+                  style={{ backgroundColor: isDark ? "#1e3a8a15" : "#EEF4FF" }}
                 >
-                  <Activity color={theme.colors.primary.main} size={28} />
+                  <Activity color={isDark ? "#60A5FA" : "#1E3A8A"} size={32} />
                 </View>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardTitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "الأعراض الصحية" : "Symptoms"}
-                </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms"}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/symptoms")}
-                  style={styles.trackingCardButton as ViewStyle}
-                >
-                  <Activity color={theme.colors.neutral.white} size={16} />
+                <View className="p-3">
                   <Text
-                    style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
-                    }
+                    className="font-semibold text-base"
+                    style={{ color: isDark ? "#f5f1eb" : "#2c2416" }}
                   >
-                    {isRTL ? "تسجيل" : "Log"}
+                    {isRTL ? "الأعراض" : "Symptoms"}
                   </Text>
-                </TouchableOpacity>
+                  <Text
+                    className="mt-0.5 text-xs"
+                    style={{ color: isDark ? "#a89a8b" : "#7a6d5a" }}
+                  >
+                    {isRTL ? "تسجيل الأعراض" : "Log symptoms"}
+                  </Text>
+                </View>
               </TouchableOpacity>
 
+              {/* Medications Card */}
               <TouchableOpacity
+                activeOpacity={0.8}
+                className="mb-3 w-[48.5%] overflow-hidden rounded-2xl"
                 onPress={() => router.push("/(tabs)/medications")}
-                style={styles.trackingCard as ViewStyle}
+                style={{ backgroundColor: isDark ? "#2a2520" : "#ffffff" }}
               >
                 <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.success + "20" },
-                    ] as StyleProp<ViewStyle>
-                  }
+                  className="items-center justify-center py-5"
+                  style={{ backgroundColor: isDark ? "#10b98115" : "#ECFDF5" }}
                 >
-                  <Pill color={theme.colors.accent.success} size={28} />
+                  <Pill color={isDark ? "#34D399" : "#10B981"} size={32} />
                 </View>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardTitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "الأدوية" : "Medications"}
-                </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL
-                    ? "إدارة الأدوية والتذكيرات"
-                    : "Manage meds & reminders"}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/medications")}
-                  style={styles.trackingCardButton as ViewStyle}
-                >
-                  <Pill color={theme.colors.neutral.white} size={16} />
+                <View className="p-3">
                   <Text
-                    style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
-                    }
+                    className="font-semibold text-base"
+                    style={{ color: isDark ? "#f5f1eb" : "#2c2416" }}
                   >
-                    {isRTL ? "إدارة" : "Manage"}
+                    {isRTL ? "الأدوية" : "Medications"}
                   </Text>
-                </TouchableOpacity>
+                  <Text
+                    className="mt-0.5 text-xs"
+                    style={{ color: isDark ? "#a89a8b" : "#7a6d5a" }}
+                  >
+                    {isRTL ? "إدارة الأدوية" : "Manage meds"}
+                  </Text>
+                </View>
               </TouchableOpacity>
 
+              {/* Mood Card */}
               <TouchableOpacity
+                activeOpacity={0.8}
+                className="w-[48.5%] overflow-hidden rounded-2xl"
                 onPress={() => router.push("/(tabs)/moods")}
-                style={styles.trackingCard as ViewStyle}
+                style={{ backgroundColor: isDark ? "#2a2520" : "#ffffff" }}
               >
                 <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.warning + "20" },
-                    ] as StyleProp<ViewStyle>
-                  }
+                  className="items-center justify-center py-5"
+                  style={{ backgroundColor: isDark ? "#f59e0b15" : "#FFFBEB" }}
                 >
-                  <Smile color={theme.colors.accent.warning} size={28} />
+                  <Smile color={isDark ? "#FBBF24" : "#F59E0B"} size={32} />
                 </View>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardTitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "الحالة النفسية" : "Mood"}
-                </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "تسجيل المزاج اليومي" : "Track daily mood"}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/moods")}
-                  style={
-                    [
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.warning },
-                    ] as StyleProp<ViewStyle>
-                  }
-                >
-                  <Smile color={theme.colors.neutral.white} size={16} />
+                <View className="p-3">
                   <Text
-                    style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
-                    }
+                    className="font-semibold text-base"
+                    style={{ color: isDark ? "#f5f1eb" : "#2c2416" }}
                   >
-                    {isRTL ? "تسجيل" : "Log"}
+                    {isRTL ? "المزاج" : "Mood"}
                   </Text>
-                </TouchableOpacity>
+                  <Text
+                    className="mt-0.5 text-xs"
+                    style={{ color: isDark ? "#a89a8b" : "#7a6d5a" }}
+                  >
+                    {isRTL ? "تتبع المزاج" : "Track mood"}
+                  </Text>
+                </View>
               </TouchableOpacity>
 
+              {/* Vitals Card */}
               <TouchableOpacity
+                activeOpacity={0.8}
+                className="w-[48.5%] overflow-hidden rounded-2xl"
                 onPress={() => router.push("/(tabs)/vitals")}
-                style={styles.trackingCard as ViewStyle}
+                style={{ backgroundColor: isDark ? "#2a2520" : "#ffffff" }}
               >
                 <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.info + "20" },
-                    ] as StyleProp<ViewStyle>
-                  }
+                  className="items-center justify-center py-5"
+                  style={{ backgroundColor: isDark ? "#ef444415" : "#FEF2F2" }}
                 >
-                  <Heart color={theme.colors.accent.info} size={28} />
+                  <Heart color={isDark ? "#F87171" : "#EF4444"} size={32} />
                 </View>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardTitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "العلامات الحيوية" : "Vitals"}
-                </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse"}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/vitals")}
-                  style={
-                    [
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.info },
-                    ] as StyleProp<ViewStyle>
-                  }
-                >
-                  <Heart color={theme.colors.neutral.white} size={16} />
+                <View className="p-3">
                   <Text
-                    style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
-                    }
+                    className="font-semibold text-base"
+                    style={{ color: isDark ? "#f5f1eb" : "#2c2416" }}
                   >
-                    {isRTL ? "قياس" : "Measure"}
+                    {isRTL ? "الحيوية" : "Vitals"}
                   </Text>
-                </TouchableOpacity>
+                  <Text
+                    className="mt-0.5 text-xs"
+                    style={{ color: isDark ? "#a89a8b" : "#7a6d5a" }}
+                  >
+                    {isRTL ? "الضغط والنبض" : "BP & pulse"}
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
           </View>

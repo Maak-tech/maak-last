@@ -980,31 +980,25 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={[styles.header, isRTL && { flexDirection: "row-reverse" }]}>
-        <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
+    <SafeAreaView className="flex-1 bg-surface">
+      <View className="flex-row items-center justify-between px-5 pt-5 pb-4">
+        <Text className="font-bold text-2xl text-on-surface">
           {t("profile")}
         </Text>
         {isAdmin && (
           <TouchableOpacity
             activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className="h-10 w-10 items-center justify-center rounded-full bg-surface-tertiary"
             onPress={() => setShowSearch(true)}
-            style={{
-              backgroundColor: isDark ? "#1E293B" : "#F1F5F9",
-              borderRadius: 20,
-              padding: 10,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
           >
-            <Text style={{ fontSize: 20 }}>🔍</Text>
+            <Text className="text-xl">🔍</Text>
           </TouchableOpacity>
         )}
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.contentInner}
+        className="flex-1 px-5"
+        contentContainerStyle={{ paddingVertical: 16 }}
         refreshControl={
           <RefreshControl
             onRefresh={() => loadHealthData(true)}
@@ -1013,120 +1007,86 @@ export default function ProfileScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
-        style={styles.content}
       >
         {/* User Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <Avatar
-              avatarType={user?.avatarType}
-              name={user?.firstName}
-              onPress={() => setAvatarCreatorVisible(true)}
-              size="xl"
-              style={{ width: 200, height: 200 }}
-            />
-          </View>
-
-          <View style={styles.userInfo}>
-            <Text style={[styles.userName, isRTL && { textAlign: "left" }]}>
-              {user?.firstName && user?.lastName
-                ? `${user.firstName} ${user.lastName}`
-                : user?.firstName || "User"}
+        <View className="mb-4 items-center rounded-2xl bg-surface-secondary p-5">
+          <Avatar
+            avatarType={user?.avatarType}
+            name={user?.firstName}
+            onPress={() => setAvatarCreatorVisible(true)}
+            size="xl"
+            style={{ width: 120, height: 120 }}
+          />
+          <Text className="mt-3 font-bold text-on-surface text-xl">
+            {user?.firstName && user?.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user?.firstName || "User"}
+          </Text>
+          <Text className="mt-1 text-on-surface-secondary">{user?.email}</Text>
+          <View className="mt-2 rounded-full bg-surface-tertiary px-3 py-1">
+            <Text className="font-medium text-on-surface-secondary text-xs">
+              {t("memberSince")}{" "}
+              {new Date(user?.createdAt || new Date()).getFullYear()}
             </Text>
-            <Text style={[styles.userEmail, isRTL && { textAlign: "left" }]}>
-              {user?.email}
-            </Text>
-            <View style={styles.memberSince}>
-              <Text
-                style={[styles.memberSinceText, isRTL && { textAlign: "left" }]}
-              >
-                {t("memberSince")}{" "}
-                {new Date(user?.createdAt || new Date()).getFullYear()}
-              </Text>
-            </View>
           </View>
         </View>
 
-        {/* Improved Health Summary */}
-        <View style={styles.healthSummary}>
-          <Text style={[styles.healthTitle, isRTL && { textAlign: "left" }]}>
+        {/* Health Summary */}
+        <View className="mb-4 rounded-2xl bg-surface-secondary p-4">
+          <Text className="mb-3 font-semibold text-lg text-on-surface">
             {t("healthSummary")}
           </Text>
 
           {loading ? (
-            <View style={styles.loadingContainer}>
+            <View className="items-center py-5">
               <ActivityIndicator color="#2563EB" size="large" />
             </View>
           ) : (
-            <View style={styles.healthGrid}>
+            <View className="flex-row gap-3">
               <TouchableOpacity
                 activeOpacity={0.7}
+                className="flex-1 items-center rounded-xl bg-surface p-3"
                 onPress={() => setHealthScoreModalVisible(true)}
-                style={styles.healthCard}
               >
-                <View style={styles.healthIconContainer}>
-                  <Activity color="#10B981" size={24} />
+                <View className="mb-2 h-10 w-10 items-center justify-center rounded-full bg-surface-secondary">
+                  <Activity color="#10B981" size={20} />
                 </View>
-                <Text
-                  style={[
-                    styles.healthCardValue,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
+                <Text className="font-bold text-on-surface text-xl">
                   {healthData.healthScore}
                 </Text>
                 <Text
+                  className="text-center text-on-surface-secondary text-xs"
                   numberOfLines={2}
-                  style={[
-                    styles.healthCardLabel,
-                    isRTL && { textAlign: "left" },
-                  ]}
                 >
                   {t("healthScore")}
                 </Text>
               </TouchableOpacity>
 
-              <View style={styles.healthCard}>
-                <View style={styles.healthIconContainer}>
-                  <Heart color="#EF4444" size={24} />
+              <View className="flex-1 items-center rounded-xl bg-surface p-3">
+                <View className="mb-2 h-10 w-10 items-center justify-center rounded-full bg-surface-secondary">
+                  <Heart color="#EF4444" size={20} />
                 </View>
-                <Text
-                  style={[
-                    styles.healthCardValue,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
+                <Text className="font-bold text-on-surface text-xl">
                   {healthData.symptoms.length}
                 </Text>
                 <Text
+                  className="text-center text-on-surface-secondary text-xs"
                   numberOfLines={2}
-                  style={[
-                    styles.healthCardLabel,
-                    isRTL && { textAlign: "left" },
-                  ]}
                 >
                   {t("symptomsThisMonth")}
                 </Text>
               </View>
 
-              <View style={styles.healthCard}>
-                <View style={styles.healthIconContainer}>
-                  <Calendar color="#3B82F6" size={24} />
+              <View className="flex-1 items-center rounded-xl bg-surface p-3">
+                <View className="mb-2 h-10 w-10 items-center justify-center rounded-full bg-surface-secondary">
+                  <Calendar color="#3B82F6" size={20} />
                 </View>
-                <Text
-                  style={[
-                    styles.healthCardValue,
-                    isRTL && { textAlign: "left" },
-                  ]}
-                >
+                <Text className="font-bold text-on-surface text-xl">
                   {healthData.medications.length}
                 </Text>
                 <Text
+                  className="text-center text-on-surface-secondary text-xs"
                   numberOfLines={2}
-                  style={[
-                    styles.healthCardLabel,
-                    isRTL && { textAlign: "left" },
-                  ]}
                 >
                   {t("activeMedications")}
                 </Text>
@@ -1136,7 +1096,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* AI Insights Dashboard */}
-        <View style={styles.aiInsightsSection}>
+        <View className="mb-4">
           <AIInsightsDashboard
             compact={true}
             onInsightPress={() => {
@@ -1147,57 +1107,43 @@ export default function ProfileScreen() {
 
         {/* Settings Sections */}
         {profileSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
+          <View className="mb-4" key={sectionIndex}>
+            <Text className="mb-2 ml-1 font-semibold text-on-surface">
               {section.title}
             </Text>
 
-            <View style={styles.sectionItems}>
+            <View className="overflow-hidden rounded-xl bg-surface-secondary">
               {section.items.map((item, itemIndex) => {
                 const IconComponent = item.icon;
 
                 return (
                   <TouchableOpacity
+                    className={`flex-row items-center justify-between px-4 py-3.5 ${
+                      itemIndex !== section.items.length - 1
+                        ? "border-border-default border-b"
+                        : ""
+                    } ${syncing && item.label === t("syncData", "Sync Data") ? "opacity-60" : ""}`}
                     disabled={
                       !item.onPress ||
                       (syncing && item.label === t("syncData", "Sync Data"))
                     }
                     key={itemIndex}
                     onPress={item.onPress}
-                    style={[
-                      styles.sectionItem,
-                      itemIndex === section.items.length - 1 &&
-                        styles.lastSectionItem,
-                      syncing &&
-                        item.label === t("syncData", "Sync Data") && {
-                          opacity: 0.6,
-                        },
-                    ]}
                   >
-                    <View style={styles.sectionItemLeft}>
-                      <View style={styles.sectionItemIcon}>
-                        <IconComponent color="#64748B" size={20} />
+                    <View className="mr-3 flex-1 flex-row items-center">
+                      <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-surface">
+                        <IconComponent color="#64748B" size={18} />
                       </View>
-                      <View
-                        style={{
-                          flex: 1,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
+                      <View className="flex-1 flex-row items-center gap-2">
                         <Text
+                          className="flex-1 font-medium text-on-surface"
                           numberOfLines={1}
-                          style={[
-                            styles.sectionItemLabel,
-                            isRTL && { textAlign: "left" },
-                          ]}
                         >
                           {item.label}
                         </Text>
                         {item.comingSoon && (
-                          <View style={styles.comingSoonBadge}>
-                            <Text style={styles.comingSoonText}>
+                          <View className="rounded bg-amber-100 px-1.5 py-0.5">
+                            <Text className="font-bold text-[10px] text-amber-800">
                               {t("comingSoon")}
                             </Text>
                           </View>
@@ -1205,7 +1151,7 @@ export default function ProfileScreen() {
                       </View>
                     </View>
 
-                    <View style={styles.sectionItemRight}>
+                    <View className="flex-row items-center gap-2">
                       {item.hasSwitch ? (
                         <Switch
                           onValueChange={item.onSwitchChange}
@@ -1221,25 +1167,22 @@ export default function ProfileScreen() {
                             <ActivityIndicator color="#2563EB" size="small" />
                           ) : (
                             <>
-                              {item.value && (
+                              {item.value ? (
                                 <Text
+                                  className="max-w-[80px] text-on-surface-secondary text-sm"
                                   numberOfLines={1}
-                                  style={[
-                                    styles.sectionItemValue,
-                                    isRTL && { textAlign: "left" },
-                                  ]}
                                 >
                                   {item.value}
                                 </Text>
-                              )}
+                              ) : null}
                               <ChevronRight
                                 color="#94A3B8"
                                 size={16}
-                                style={[
-                                  isRTL && {
-                                    transform: [{ rotate: "180deg" }],
-                                  },
-                                ]}
+                                style={
+                                  isRTL
+                                    ? { transform: [{ rotate: "180deg" }] }
+                                    : undefined
+                                }
                               />
                             </>
                           )}
@@ -1254,18 +1197,17 @@ export default function ProfileScreen() {
         ))}
 
         {/* Sign Out Button */}
-        <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>
-          <LogOut color="#EF4444" size={20} />
-          <Text style={[styles.signOutText, isRTL && { textAlign: "left" }]}>
-            {t("signOut")}
-          </Text>
+        <TouchableOpacity
+          className="mb-4 flex-row items-center justify-center gap-2 rounded-xl bg-surface-secondary py-4"
+          onPress={handleLogout}
+        >
+          <LogOut color="#EF4444" size={18} />
+          <Text className="font-semibold text-red-500">{t("signOut")}</Text>
         </TouchableOpacity>
 
         {/* App Version */}
-        <View style={styles.appVersion}>
-          <Text style={[styles.appVersionText, isRTL && { textAlign: "left" }]}>
-            Maak v1.0.0
-          </Text>
+        <View className="items-center pb-5">
+          <Text className="text-on-surface-tertiary text-xs">Maak v1.0.0</Text>
         </View>
       </ScrollView>
 
@@ -1276,24 +1218,26 @@ export default function ProfileScreen() {
         transparent={true}
         visible={languagePickerVisible}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
+        <View className="flex-1 items-center justify-center bg-black/50 px-5">
+          <View className="w-full max-w-[400px] rounded-2xl bg-surface-secondary p-6">
+            <Text className="mb-4 font-semibold text-lg text-on-surface">
               {t("selectLanguage")}
             </Text>
 
             <TouchableOpacity
+              className={`mb-2 flex-row items-center justify-between rounded-lg px-3 py-4 ${
+                i18n.language === "en"
+                  ? "border border-blue-600 bg-blue-50"
+                  : "bg-surface"
+              }`}
               onPress={() => handleLanguageChange("en")}
-              style={[
-                styles.languageOption,
-                i18n.language === "en" && styles.selectedLanguage,
-              ]}
             >
               <Text
-                style={[
-                  styles.languageText,
-                  i18n.language === "en" && styles.selectedLanguageText,
-                ]}
+                className={`font-medium ${
+                  i18n.language === "en"
+                    ? "font-semibold text-blue-600"
+                    : "text-on-surface"
+                }`}
               >
                 {t("english")}
               </Text>
@@ -1301,18 +1245,19 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              className={`mb-2 flex-row items-center justify-between rounded-lg px-3 py-4 ${
+                i18n.language === "ar"
+                  ? "border border-blue-600 bg-blue-50"
+                  : "bg-surface"
+              }`}
               onPress={() => handleLanguageChange("ar")}
-              style={[
-                styles.languageOption,
-                i18n.language === "ar" && styles.selectedLanguage,
-              ]}
             >
               <Text
-                style={[
-                  styles.languageText,
-                  styles.rtlText,
-                  i18n.language === "ar" && styles.selectedLanguageText,
-                ]}
+                className={`text-right font-medium ${
+                  i18n.language === "ar"
+                    ? "font-semibold text-blue-600"
+                    : "text-on-surface"
+                }`}
               >
                 {t("arabic")}
               </Text>
@@ -1320,15 +1265,10 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              className="mt-2 items-center py-3"
               onPress={() => setLanguagePickerVisible(false)}
-              style={styles.cancelButton}
             >
-              <Text
-                style={[
-                  styles.cancelButtonText,
-                  isRTL && { textAlign: "left" },
-                ]}
-              >
+              <Text className="font-medium text-on-surface-secondary">
                 {t("cancel")}
               </Text>
             </TouchableOpacity>
@@ -1343,20 +1283,26 @@ export default function ProfileScreen() {
         transparent={true}
         visible={avatarCreatorVisible}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
+        <View className="flex-1 items-center justify-center bg-black/50 px-5">
+          <View className="w-full max-w-[400px] rounded-2xl bg-surface-secondary p-6">
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="font-semibold text-lg text-on-surface">
                 {t("chooseYourAvatar")}
               </Text>
               <TouchableOpacity
+                className="h-10 w-10 items-center justify-center rounded-full bg-surface"
                 onPress={() => setAvatarCreatorVisible(false)}
-                style={styles.modalCloseButton}
               >
                 <X color="#64748B" size={24} />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.avatarGrid}>
+            <ScrollView
+              contentContainerStyle={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                justifyContent: "space-between",
+              }}
+            >
               {(
                 [
                   "man",
@@ -1368,6 +1314,11 @@ export default function ProfileScreen() {
                 ] as AvatarType[]
               ).map((type) => (
                 <TouchableOpacity
+                  className={`mb-3 w-[30%] items-center rounded-xl border-2 py-3 ${
+                    user?.avatarType === type
+                      ? "border-blue-600 bg-blue-50"
+                      : "border-border-default bg-surface"
+                  }`}
                   key={type}
                   onPress={async () => {
                     try {
@@ -1382,25 +1333,19 @@ export default function ProfileScreen() {
                         setAvatarCreatorVisible(false);
                         Alert.alert(t("success"), t("avatarSavedSuccessfully"));
                       }
-                    } catch (error) {
+                    } catch {
                       Alert.alert(t("error"), t("failedToSaveAvatar"));
                     } finally {
                       setLoading(false);
                     }
                   }}
-                  style={[
-                    styles.avatarOption,
-                    user?.avatarType === type && styles.avatarOptionSelected,
-                  ]}
                 >
                   <Avatar
                     avatarType={type}
-                    size="xl"
-                    style={{ width: 80, height: 80 }}
+                    size="lg"
+                    style={{ width: 60, height: 60 }}
                   />
-                  <Text
-                    style={[styles.avatarLabel, isRTL && { textAlign: "left" }]}
-                  >
+                  <Text className="mt-1 text-center text-on-surface-secondary text-xs">
                     {type === "man" && t("man")}
                     {type === "woman" && t("woman")}
                     {type === "boy" && t("boy")}
@@ -1422,144 +1367,94 @@ export default function ProfileScreen() {
         transparent={true}
         visible={healthScoreModalVisible}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, isRTL && { textAlign: "left" }]}>
+        <View className="flex-1 items-center justify-center bg-black/50 px-5">
+          <View className="w-full max-w-[400px] rounded-2xl bg-surface-secondary p-6">
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="font-semibold text-lg text-on-surface">
                 {isRTL ? "تفاصيل نقاط الصحة" : "Health Score Breakdown"}
               </Text>
               <TouchableOpacity
+                className="h-10 w-10 items-center justify-center rounded-full bg-surface"
                 onPress={() => setHealthScoreModalVisible(false)}
-                style={styles.modalCloseButton}
               >
                 <X color="#64748B" size={24} />
               </TouchableOpacity>
             </View>
-            <ScrollView
-              contentContainerStyle={styles.healthScoreBreakdownContent}
-            >
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
               {healthData.healthScoreResult ? (
                 <>
                   {/* Overall Score */}
-                  <View style={styles.breakdownSection}>
-                    <View style={styles.scoreDisplay}>
-                      <Text
-                        style={[
-                          styles.scoreValue,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
-                        {healthData.healthScoreResult.score}
+                  <View className="mb-6 items-center">
+                    <Text className="font-bold text-5xl text-on-surface">
+                      {healthData.healthScoreResult.score}
+                    </Text>
+                    <Text className="mb-3 text-on-surface-secondary">
+                      {isRTL ? "من 100" : "out of 100"}
+                    </Text>
+                    <View className="rounded-full bg-surface px-4 py-1.5">
+                      <Text className="font-medium text-on-surface text-sm">
+                        {healthData.healthScoreResult.rating === "excellent" &&
+                          (isRTL ? "ممتاز" : "Excellent")}
+                        {healthData.healthScoreResult.rating === "good" &&
+                          (isRTL ? "جيد" : "Good")}
+                        {healthData.healthScoreResult.rating === "fair" &&
+                          (isRTL ? "مقبول" : "Fair")}
+                        {healthData.healthScoreResult.rating === "poor" &&
+                          (isRTL ? "ضعيف" : "Poor")}
+                        {healthData.healthScoreResult.rating === "critical" &&
+                          (isRTL ? "حرج" : "Critical")}
                       </Text>
-                      <Text
-                        style={[
-                          styles.scoreOutOf,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
-                        {isRTL ? "من 100" : "out of 100"}
-                      </Text>
-                      <View style={styles.ratingBadge}>
-                        <Text
-                          style={[
-                            styles.ratingText,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
-                          {healthData.healthScoreResult.rating ===
-                            "excellent" && (isRTL ? "ممتاز" : "Excellent")}
-                          {healthData.healthScoreResult.rating === "good" &&
-                            (isRTL ? "جيد" : "Good")}
-                          {healthData.healthScoreResult.rating === "fair" &&
-                            (isRTL ? "مقبول" : "Fair")}
-                          {healthData.healthScoreResult.rating === "poor" &&
-                            (isRTL ? "ضعيف" : "Poor")}
-                          {healthData.healthScoreResult.rating === "critical" &&
-                            (isRTL ? "حرج" : "Critical")}
-                        </Text>
-                      </View>
                     </View>
                   </View>
 
                   {/* Calculation Breakdown */}
-                  <View style={styles.breakdownSection}>
-                    <Text
-                      style={[
-                        styles.breakdownTitle,
-                        isRTL && { textAlign: "left" },
-                      ]}
-                    >
+                  <View className="mb-6">
+                    <Text className="mb-3 font-bold text-lg text-on-surface">
                       {isRTL
                         ? "كيف تم حساب النقاط"
                         : "How Your Score Was Calculated"}
                     </Text>
 
                     {/* Base Score */}
-                    <View style={styles.breakdownRow}>
-                      <Text
-                        style={[
-                          styles.breakdownLabel,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                    <View className="flex-row items-center justify-between border-surface border-b py-3">
+                      <Text className="flex-1 font-medium text-on-surface">
                         {isRTL ? "النقاط الأساسية" : "Base Score"}
                       </Text>
-                      <Text
-                        style={[
-                          styles.breakdownValue,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                      <Text className="font-bold text-emerald-500">
                         +{healthData.healthScoreResult.breakdown.baseScore}
                       </Text>
                     </View>
 
                     {/* Symptom Penalty */}
                     {healthData.healthScoreResult.breakdown.symptomPenalty >
-                      0 && (
-                      <View style={styles.breakdownRow}>
-                        <Text
-                          style={[
-                            styles.breakdownLabel,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
+                    0 ? (
+                      <View className="flex-row items-center justify-between border-surface border-b py-3">
+                        <Text className="flex-1 font-medium text-on-surface">
                           {isRTL ? " خصم الأعراض الصحية" : "Symptom Penalty"}
                         </Text>
-                        <Text
-                          style={[
-                            styles.breakdownValueNegative,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
+                        <Text className="font-bold text-red-500">
                           -
                           {healthData.healthScoreResult.breakdown.symptomPenalty.toFixed(
                             1
                           )}
                         </Text>
                       </View>
-                    )}
+                    ) : null}
 
                     {/* Medication Bonus */}
                     {healthData.healthScoreResult.breakdown.medicationBonus !==
-                      0 && (
-                      <View style={styles.breakdownRow}>
-                        <Text
-                          style={[
-                            styles.breakdownLabel,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
+                    0 ? (
+                      <View className="flex-row items-center justify-between border-surface border-b py-3">
+                        <Text className="flex-1 font-medium text-on-surface">
                           {isRTL ? "مكافأة الأدوية" : "Medication Bonus"}
                         </Text>
                         <Text
-                          style={[
+                          className={`font-bold ${
                             healthData.healthScoreResult.breakdown
                               .medicationBonus > 0
-                              ? styles.breakdownValuePositive
-                              : styles.breakdownValueNegative,
-                            isRTL && { textAlign: "left" },
-                          ]}
+                              ? "text-emerald-500"
+                              : "text-red-500"
+                          }`}
                         >
                           {healthData.healthScoreResult.breakdown
                             .medicationBonus > 0
@@ -1570,128 +1465,70 @@ export default function ProfileScreen() {
                           )}
                         </Text>
                       </View>
-                    )}
+                    ) : null}
 
                     {/* Final Score */}
-                    <View style={[styles.breakdownRow, styles.finalScoreRow]}>
-                      <Text
-                        style={[
-                          styles.breakdownLabel,
-                          styles.finalScoreLabel,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                    <View className="mt-2 flex-row items-center justify-between border-border-default border-t-2 pt-4">
+                      <Text className="font-bold text-lg text-on-surface">
                         {isRTL ? "النقاط النهائية" : "Final Score"}
                       </Text>
-                      <Text
-                        style={[
-                          styles.breakdownValue,
-                          styles.finalScoreValue,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                      <Text className="font-bold text-blue-600 text-xl">
                         {healthData.healthScoreResult.score}
                       </Text>
                     </View>
                   </View>
 
                   {/* Factors */}
-                  <View style={styles.breakdownSection}>
-                    <Text
-                      style={[
-                        styles.breakdownTitle,
-                        isRTL && { textAlign: "left" },
-                      ]}
-                    >
+                  <View className="mb-6">
+                    <Text className="mb-3 font-bold text-lg text-on-surface">
                       {isRTL ? "العوامل المؤثرة" : "Contributing Factors"}
                     </Text>
 
-                    <View style={styles.factorRow}>
-                      <Text
-                        style={[
-                          styles.factorLabel,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                    <View className="flex-row items-center justify-between border-surface border-b py-2.5">
+                      <Text className="flex-1 text-on-surface-secondary text-sm">
                         {isRTL
                           ? "الأعراض الصحية الأخيرة (7 أيام)"
                           : "Recent Symptoms (7 days)"}
                       </Text>
-                      <Text
-                        style={[
-                          styles.factorValue,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                      <Text className="font-medium text-on-surface text-sm">
                         {healthData.healthScoreResult.factors.recentSymptoms}
                       </Text>
                     </View>
 
-                    {healthData.healthScoreResult.factors.recentSymptoms >
-                      0 && (
-                      <View style={styles.factorRow}>
-                        <Text
-                          style={[
-                            styles.factorLabel,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
+                    {healthData.healthScoreResult.factors.recentSymptoms > 0 ? (
+                      <View className="flex-row items-center justify-between border-surface border-b py-2.5">
+                        <Text className="flex-1 text-on-surface-secondary text-sm">
                           {isRTL
                             ? "متوسط شدة الأعراض الصحية"
                             : "Average Symptom Severity"}
                         </Text>
-                        <Text
-                          style={[
-                            styles.factorValue,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
+                        <Text className="font-medium text-on-surface text-sm">
                           {healthData.healthScoreResult.factors.symptomSeverityAvg.toFixed(
                             1
                           )}
                           /10
                         </Text>
                       </View>
-                    )}
+                    ) : null}
 
-                    <View style={styles.factorRow}>
-                      <Text
-                        style={[
-                          styles.factorLabel,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                    <View className="flex-row items-center justify-between border-surface border-b py-2.5">
+                      <Text className="flex-1 text-on-surface-secondary text-sm">
                         {isRTL ? "الأدوية الفعالة" : "Active Medications"}
                       </Text>
-                      <Text
-                        style={[
-                          styles.factorValue,
-                          isRTL && { textAlign: "left" },
-                        ]}
-                      >
+                      <Text className="font-medium text-on-surface text-sm">
                         {healthData.healthScoreResult.factors.activeMedications}
                       </Text>
                     </View>
 
                     {healthData.healthScoreResult.factors.activeMedications >
-                      0 && (
-                      <View style={styles.factorRow}>
-                        <Text
-                          style={[
-                            styles.factorLabel,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
+                    0 ? (
+                      <View className="flex-row items-center justify-between py-2.5">
+                        <Text className="flex-1 text-on-surface-secondary text-sm">
                           {isRTL
                             ? "الالتزام بالأدوية"
                             : "Medication Compliance"}
                         </Text>
-                        <Text
-                          style={[
-                            styles.factorValue,
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
+                        <Text className="font-medium text-on-surface text-sm">
                           {
                             healthData.healthScoreResult.factors
                               .medicationCompliance
@@ -1699,18 +1536,13 @@ export default function ProfileScreen() {
                           %
                         </Text>
                       </View>
-                    )}
+                    ) : null}
                   </View>
 
                   {/* Info Note */}
-                  <View style={styles.infoNote}>
+                  <View className="flex-row gap-3 rounded-xl bg-surface p-4">
                     <HelpCircle color="#64748B" size={16} />
-                    <Text
-                      style={[
-                        styles.infoNoteText,
-                        isRTL && { textAlign: "left" },
-                      ]}
-                    >
+                    <Text className="flex-1 text-on-surface-secondary text-xs leading-5">
                       {isRTL
                         ? "يتم حساب نقاط الصحة بناءً على الأعراض الصحية الأخيرة (آخر 7 أيام) والالتزام بالأدوية. النقاط الأساسية هي 100، وتُخصم النقاط بسبب الأعراض وتُضاف المكافآت للالتزام الجيد بالأدوية."
                         : "Your health score is calculated based on recent symptoms (last 7 days) and medication compliance. Base score is 100, with points deducted for symptoms and bonuses added for good medication adherence."}
@@ -1718,11 +1550,9 @@ export default function ProfileScreen() {
                   </View>
                 </>
               ) : (
-                <View style={styles.loadingContainer}>
+                <View className="items-center py-5">
                   <ActivityIndicator color="#2563EB" size="large" />
-                  <Text
-                    style={[styles.loadingText, isRTL && { textAlign: "left" }]}
-                  >
+                  <Text className="mt-3 text-on-surface-secondary text-sm">
                     {isRTL ? "جاري تحميل التفاصيل..." : "Loading details..."}
                   </Text>
                 </View>
