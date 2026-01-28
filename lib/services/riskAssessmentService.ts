@@ -209,7 +209,10 @@ class RiskAssessmentService {
   /**
    * Generate comprehensive risk assessment for a user
    */
-  async generateRiskAssessment(userId: string): Promise<HealthRiskAssessment> {
+  async generateRiskAssessment(
+    userId: string,
+    isArabic = false
+  ): Promise<HealthRiskAssessment> {
     // Gather all relevant health data
     const [user, medicalHistory, symptoms, vitals, medications, moods] =
       await Promise.all([
@@ -228,11 +231,12 @@ class RiskAssessmentService {
       symptoms,
       vitals,
       medications,
-      moods
+      moods,
+      isArabic
     );
 
     // Calculate condition-specific risks
-    const conditionRisks = this.calculateConditionRisks(riskFactors);
+    const conditionRisks = this.calculateConditionRisks(riskFactors, isArabic);
 
     // Calculate overall risk score
     const overallRiskScore = this.calculateOverallRiskScore(riskFactors);
@@ -240,7 +244,8 @@ class RiskAssessmentService {
     // Generate preventive recommendations
     const preventiveRecommendations = this.generatePreventiveRecommendations(
       riskFactors,
-      conditionRisks
+      conditionRisks,
+      isArabic
     );
 
     // Determine timeline
@@ -274,7 +279,8 @@ class RiskAssessmentService {
     symptoms: Symptom[],
     vitals: VitalSign[],
     medications: Medication[],
-    moods: Mood[]
+    moods: Mood[],
+    isArabic = false
   ): Promise<RiskFactor[]> {
     const riskFactors: RiskFactor[] = [];
 
@@ -326,7 +332,10 @@ class RiskAssessmentService {
   /**
    * Calculate condition-specific risks
    */
-  private calculateConditionRisks(riskFactors: RiskFactor[]): ConditionRisk[] {
+  private calculateConditionRisks(
+    riskFactors: RiskFactor[],
+    isArabic = false
+  ): ConditionRisk[] {
     const conditionRisks: ConditionRisk[] = [];
 
     Object.entries(CONDITION_SPECIFIC_RISKS).forEach(([category, config]) => {
@@ -379,7 +388,8 @@ class RiskAssessmentService {
    */
   private generatePreventiveRecommendations(
     riskFactors: RiskFactor[],
-    conditionRisks: ConditionRisk[]
+    conditionRisks: ConditionRisk[],
+    isArabic = false
   ): string[] {
     const recommendations: Set<string> = new Set();
 
@@ -412,9 +422,15 @@ class RiskAssessmentService {
     );
     if (highRiskFactors.length > 0) {
       recommendations.add(
-        "Consult with healthcare provider about your risk factors"
+        isArabic
+          ? "استشر مقدم الرعاية الصحية حول عوامل الخطر لديك"
+          : "Consult with healthcare provider about your risk factors"
       );
-      recommendations.add("Consider more frequent health monitoring");
+      recommendations.add(
+        isArabic
+          ? "فكر في مراقبة صحية أكثر تكراراً"
+          : "Consider more frequent health monitoring"
+      );
     }
 
     return Array.from(recommendations);

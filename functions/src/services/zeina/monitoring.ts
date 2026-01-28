@@ -29,8 +29,9 @@ export interface HealthStatus {
 /**
  * Perform health check
  * Tests basic functionality without making actual LLM calls
+ * @param apiKey - Optional API key to check (for use with secrets)
  */
-export async function healthCheck(): Promise<HealthStatus> {
+export async function healthCheck(apiKey?: string): Promise<HealthStatus> {
   const warnings: string[] = [];
   const errors: string[] = [];
   const checks = {
@@ -41,13 +42,13 @@ export async function healthCheck(): Promise<HealthStatus> {
 
   // Check API configuration
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    const key = apiKey || process.env.OPENAI_API_KEY;
+    if (!key) {
       warnings.push(
         "OpenAI API key not configured - running in deterministic mode"
       );
       checks.configuration = false;
-    } else if (apiKey.length < 10) {
+    } else if (key.length < 10) {
       errors.push("OpenAI API key appears invalid");
       checks.configuration = false;
     }

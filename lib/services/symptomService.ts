@@ -68,6 +68,24 @@ export const symptomService = {
           actorType: "user",
         });
 
+        // Check for concerning trends and create alerts (non-blocking)
+        // This will be picked up by the real-time WebSocket service
+        import("./trendAlertService")
+          .then(({ checkTrendsForNewSymptom }) => {
+            checkTrendsForNewSymptom(
+              symptomData.userId,
+              symptomData.type
+            ).catch((error) => {
+              // Silently handle errors - trend checking is non-critical
+              if (__DEV__) {
+                console.error("Error checking trends for symptom:", error);
+              }
+            });
+          })
+          .catch(() => {
+            // Silently handle import errors
+          });
+
         return docRef.id;
       }
       // Offline - queue the operation

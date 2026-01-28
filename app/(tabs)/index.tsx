@@ -32,7 +32,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 // Design System Components
 import DashboardWidgetSettings from "@/app/components/DashboardWidgetSettings";
-import HealthInsightsCard from "@/app/components/HealthInsightsCard";
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import { Card } from "@/components/design-system";
 import { Caption, Heading, Text } from "@/components/design-system/Typography";
@@ -813,8 +812,66 @@ export default function DashboardScreen() {
     loadDashboardData();
   };
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (date: Date | string | any) => {
+    // Convert to Date object if needed
+    let dateObj: Date;
+    if (date instanceof Date) {
+      dateObj = date;
+    } else if (date?.toDate && typeof date.toDate === "function") {
+      dateObj = date.toDate();
+    } else {
+      dateObj = new Date(date);
+    }
+
+    // Validate date
+    if (isNaN(dateObj.getTime())) {
+      return "";
+    }
+
+    return dateObj.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatDate = (date: Date | string | any) => {
+    // Convert to Date object if needed
+    let dateObj: Date;
+    if (date instanceof Date) {
+      dateObj = date;
+    } else if (date?.toDate && typeof date.toDate === "function") {
+      dateObj = date.toDate();
+    } else {
+      dateObj = new Date(date);
+    }
+
+    // Validate date
+    if (isNaN(dateObj.getTime())) {
+      return "";
+    }
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const symptomDate = new Date(
+      dateObj.getFullYear(),
+      dateObj.getMonth(),
+      dateObj.getDate()
+    );
+
+    if (symptomDate.getTime() === today.getTime()) {
+      return isRTL ? "اليوم" : "Today";
+    }
+    if (symptomDate.getTime() === yesterday.getTime()) {
+      return isRTL ? "أمس" : "Yesterday";
+    }
+    return new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(dateObj);
+  };
 
   const getSeverityColor = (severity: number) =>
     theme.colors.severity[severity as keyof typeof theme.colors.severity] ||
@@ -1486,6 +1543,7 @@ export default function DashboardScreen() {
                         ] as StyleProp<TextStyle>
                       }
                     >
+                      {formatDate(symptom.timestamp)} •{" "}
                       {formatTime(symptom.timestamp)}
                     </Text>
                   </View>
@@ -1593,7 +1651,6 @@ export default function DashboardScreen() {
       case "healthInsights":
         return (
           <View key="healthInsights" style={styles.section as ViewStyle}>
-            <HealthInsightsCard />
             <ProactiveHealthSuggestions maxSuggestions={5} />
           </View>
         );

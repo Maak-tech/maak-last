@@ -137,7 +137,8 @@ class CorrelationAnalysisService {
    */
   private async analyzeSymptomMedicationCorrelations(
     symptoms: Symptom[],
-    medications: Medication[]
+    medications: Medication[],
+    isArabic = false
   ): Promise<CorrelationResult[]> {
     const results: CorrelationResult[] = [];
 
@@ -194,13 +195,19 @@ class CorrelationAnalysisService {
           type: "symptom_medication",
           strength,
           confidence,
-          description:
-            strength > 0
+          description: isArabic
+            ? strength > 0
+              ? `تحسنت الأعراض بعد بدء تناول ${medication.name}`
+              : `ساءت الأعراض بعد بدء تناول ${medication.name}`
+            : strength > 0
               ? `Symptoms improved after starting ${medication.name}`
               : `Symptoms worsened after starting ${medication.name}`,
           actionable: strength > 0,
-          recommendation:
-            strength > 0
+          recommendation: isArabic
+            ? strength > 0
+              ? `استمر في تناول ${medication.name} حسب الوصفة`
+              : `ناقش فعالية ${medication.name} مع مقدم الرعاية الصحية`
+            : strength > 0
               ? `Continue ${medication.name} as prescribed`
               : `Discuss ${medication.name} effectiveness with healthcare provider`,
           data: {
@@ -226,7 +233,8 @@ class CorrelationAnalysisService {
    */
   private async analyzeSymptomMoodCorrelations(
     symptoms: Symptom[],
-    moods: Mood[]
+    moods: Mood[],
+    isArabic = false
   ): Promise<CorrelationResult[]> {
     const results: CorrelationResult[] = [];
 
@@ -272,15 +280,23 @@ class CorrelationAnalysisService {
           type: "symptom_mood",
           strength: correlation,
           confidence,
-          description:
-            correlation < -0.5
+          description: isArabic
+            ? correlation < -0.5
+              ? "شدة الأعراض العالية مرتبطة بقوة بانخفاض المزاج"
+              : correlation > 0.5
+                ? "شدة الأعراض العالية ترتبط بشدة المزاج العالية"
+                : "علاقة معتدلة بين شدة الأعراض والمزاج"
+            : correlation < -0.5
               ? "Higher symptom severity is strongly associated with lower mood"
               : correlation > 0.5
                 ? "Higher symptom severity correlates with higher mood intensity"
                 : "Moderate relationship between symptom severity and mood",
           actionable: Math.abs(correlation) > 0.6,
-          recommendation:
-            correlation < -0.5
+          recommendation: isArabic
+            ? correlation < -0.5
+              ? "فكر في مراقبة المزاج عندما تكون الأعراض شديدة"
+              : "راقب كل من الأعراض والمزاج لتتبع صحي شامل"
+            : correlation < -0.5
               ? "Consider mood monitoring when symptoms are severe"
               : "Monitor both symptoms and mood for comprehensive health tracking",
           data: {
@@ -304,7 +320,8 @@ class CorrelationAnalysisService {
    */
   private async analyzeSymptomVitalCorrelations(
     symptoms: Symptom[],
-    vitals: VitalSign[]
+    vitals: VitalSign[],
+    isArabic = false
   ): Promise<CorrelationResult[]> {
     const results: CorrelationResult[] = [];
 
@@ -359,12 +376,14 @@ class CorrelationAnalysisService {
             confidence,
             description: this.getVitalCorrelationDescription(
               vitalType,
-              correlation
+              correlation,
+              isArabic
             ),
             actionable: Math.abs(correlation) > 0.6,
             recommendation: this.getVitalCorrelationRecommendation(
               vitalType,
-              correlation
+              correlation,
+              isArabic
             ),
             data: {
               factor1: "Symptom Severity",
@@ -390,7 +409,8 @@ class CorrelationAnalysisService {
     symptoms: Symptom[],
     medications: Medication[],
     moods: Mood[],
-    vitals: VitalSign[]
+    vitals: VitalSign[],
+    isArabic = false
   ): Promise<CorrelationResult[]> {
     const results: CorrelationResult[] = [];
 
@@ -634,7 +654,8 @@ class CorrelationAnalysisService {
    */
   async generateCorrelationAnalysis(
     userId: string,
-    daysBack = 90
+    daysBack = 90,
+    isArabic = false
   ): Promise<CorrelationInsight> {
     const endDate = new Date();
     const startDate = new Date();
@@ -657,15 +678,25 @@ class CorrelationAnalysisService {
     const correlationResults = [
       ...(await this.analyzeSymptomMedicationCorrelations(
         filteredSymptoms,
-        medications
+        medications,
+        isArabic
       )),
-      ...(await this.analyzeSymptomMoodCorrelations(filteredSymptoms, moods)),
-      ...(await this.analyzeSymptomVitalCorrelations(filteredSymptoms, vitals)),
+      ...(await this.analyzeSymptomMoodCorrelations(
+        filteredSymptoms,
+        moods,
+        isArabic
+      )),
+      ...(await this.analyzeSymptomVitalCorrelations(
+        filteredSymptoms,
+        vitals,
+        isArabic
+      )),
       ...(await this.analyzeTemporalPatterns(
         filteredSymptoms,
         medications,
         moods,
-        vitals
+        vitals,
+        isArabic
       )),
     ];
 
@@ -678,8 +709,12 @@ class CorrelationAnalysisService {
 
     return {
       id: `correlation-${userId}-${Date.now()}`,
-      title: "Health Data Correlation Analysis",
-      description: `Analysis of relationships between your symptoms, medications, mood, and vital signs over the past ${daysBack} days`,
+      title: isArabic
+        ? "تحليل ارتباط البيانات الصحية"
+        : "Health Data Correlation Analysis",
+      description: isArabic
+        ? `تحليل العلاقات بين أعراضك الصحية والأدوية والمزاج والعلامات الحيوية خلال آخر ${daysBack} يوم`
+        : `Analysis of relationships between your symptoms, medications, mood, and vital signs over the past ${daysBack} days`,
       correlationResults: correlationResults.slice(0, 10), // Top 10 correlations
       timestamp: new Date(),
       userId,
@@ -850,8 +885,14 @@ class CorrelationAnalysisService {
 
   private getVitalCorrelationDescription(
     vitalType: string,
-    correlation: number
+    correlation: number,
+    isArabic = false
   ): string {
+    if (isArabic) {
+      const direction = correlation > 0 ? "أعلى" : "أقل";
+      const strength = Math.abs(correlation) > 0.7 ? "بقوة" : "باعتدال";
+      return `قيم ${vitalType} ترتبط ${strength} بشدة الأعراض (${direction} ${vitalType} مرتبط بأعراض أكثر شدة)`;
+    }
     const direction = correlation > 0 ? "higher" : "lower";
     const strength = Math.abs(correlation) > 0.7 ? "strongly" : "moderately";
 
@@ -860,8 +901,23 @@ class CorrelationAnalysisService {
 
   private getVitalCorrelationRecommendation(
     vitalType: string,
-    correlation: number
+    correlation: number,
+    isArabic = false
   ): string {
+    if (isArabic) {
+      if (Math.abs(correlation) < 0.5)
+        return "استمر في مراقبة كل من الأعراض والعلامات الحيوية";
+
+      if (correlation > 0.7) {
+        return `راقب ${vitalType} عن كثب عندما تتفاقم الأعراض، حيث قد تكون مرتبطة`;
+      }
+      if (correlation < -0.7) {
+        return `لاحظ أن ${vitalType} يميل إلى الانخفاض عندما تكون الأعراض شديدة`;
+      }
+
+      return "فكر في مناقشة هذه العلاقة مع مقدم الرعاية الصحية";
+    }
+
     if (Math.abs(correlation) < 0.5)
       return "Continue monitoring both symptoms and vital signs";
 

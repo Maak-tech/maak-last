@@ -45,7 +45,8 @@ export async function sendVitalAlertToAdmins(
   value: number,
   unit: string,
   severity: "critical" | "warning",
-  direction: "low" | "high"
+  direction: "low" | "high",
+  openaiApiKey?: string
 ): Promise<void> {
   const traceId = createTraceId();
 
@@ -160,6 +161,7 @@ export async function sendVitalAlertToAdmins(
         alert: alertInfo,
         recentVitalsSummary: recentVitals,
         traceId,
+        openaiApiKey,
       });
 
       // Enrich alert with analysis

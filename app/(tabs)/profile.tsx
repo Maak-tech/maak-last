@@ -162,6 +162,18 @@ export default function ProfileScreen() {
   const isRTL = i18n.language === "ar";
   const isAdmin = user?.role === "admin";
 
+  const checkSyncStatus = useCallback(async () => {
+    try {
+      const status = await offlineService.getSyncStatus();
+      setSyncStatus({
+        isOnline: status.isOnline,
+        queueLength: status.queueLength,
+      });
+    } catch {
+      // Silently handle error
+    }
+  }, []);
+
   // Helper function to convert Western numerals to Arabic numerals
   const toArabicNumerals = (num: number): string => {
     const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
@@ -194,6 +206,38 @@ export default function ProfileScreen() {
     }
   }, [params.openCalendar]);
 
+  // Subscribe to real-time health updates (replaces polling)
+  useRealtimeHealth({
+    userId: user?.id,
+    familyId: user?.familyId,
+    familyMemberIds: user?.familyId
+      ? [] // Will be populated when family members are loaded
+      : [],
+    onTrendAlert: (alert) => {
+      // Show notification for critical trend alerts
+      if (alert.severity === "critical") {
+        Alert.alert(
+          isRTL ? "تنبيه صحي حرج" : "Critical Health Alert",
+          alert.trendAnalysis.message,
+          [{ text: isRTL ? "موافق" : "OK" }]
+        );
+      }
+      // Refresh health data to show updated trends
+      loadHealthData().catch(() => {
+        // Silently handle errors
+      });
+    },
+    onAlertCreated: (alert) => {
+      // Refresh sync status when alerts are created
+      checkSyncStatus();
+    },
+    onAlertResolved: () => {
+      // Refresh sync status when alerts are resolved
+      checkSyncStatus();
+    },
+    enabled: !!user?.id,
+  });
+
   useEffect(() => {
     // Load settings immediately
     loadUserSettings();
@@ -208,28 +252,13 @@ export default function ProfileScreen() {
       checkSyncStatus();
     });
 
-    // Poll sync status periodically
-    const interval = setInterval(() => {
-      checkSyncStatus();
-    }, 5000);
+    // Note: Removed polling interval - now using real-time WebSocket subscriptions
+    // Real-time updates are handled by useRealtimeHealth hook above
 
     return () => {
       unsubscribe();
-      clearInterval(interval);
     };
-  }, [user]);
-
-  const checkSyncStatus = async () => {
-    try {
-      const status = await offlineService.getSyncStatus();
-      setSyncStatus({
-        isOnline: status.isOnline,
-        queueLength: status.queueLength,
-      });
-    } catch (error) {
-      // Silently handle error
-    }
-  };
+  }, [user, checkSyncStatus]);
 
   const handleSync = async () => {
     if (syncing || !syncStatus.isOnline) return;

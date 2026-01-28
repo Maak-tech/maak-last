@@ -53,9 +53,9 @@ export const FEATURES = {
   },
   FALL_DETECTION: {
     id: "fall_detection",
-    name: "Fall Detection",
+    name: "Fall Detection", // Translated in components using this feature
     accessLevel: FeatureAccessLevel.FREE,
-    description: "Automatic fall detection",
+    description: "Automatic fall detection", // Translated in components using this feature
   },
 
   // Premium Individual Features
@@ -223,6 +223,23 @@ class FeatureGateService {
   }
 
   /**
+   * Get translated feature name
+   */
+  getFeatureDisplayName(featureId: FeatureId, isRTL = false): string {
+    const feature = FEATURES[featureId];
+    if (!feature) {
+      return isRTL ? "ميزة غير متاحة" : "Feature not available";
+    }
+
+    // Translate fall detection name
+    if (featureId === "FALL_DETECTION") {
+      return isRTL ? i18n.t("fallDetection") : i18n.t("fallDetection");
+    }
+
+    return feature.name;
+  }
+
+  /**
    * Get upgrade message for a feature
    */
   getUpgradeMessage(featureId: FeatureId, isRTL = false): string {
@@ -231,23 +248,24 @@ class FeatureGateService {
       return isRTL ? "ميزة غير متاحة" : "Feature not available";
     }
 
-    const { accessLevel, name } = feature;
+    const { accessLevel } = feature;
+    const displayName = this.getFeatureDisplayName(featureId, isRTL);
 
     switch (accessLevel) {
       case FeatureAccessLevel.PREMIUM_INDIVIDUAL:
         return isRTL
-          ? `يتطلب ${name} اشتراك الخطة الفردية`
-          : `${name} requires an Individual Plan subscription`;
+          ? `يتطلب ${displayName} اشتراك الخطة الفردية`
+          : `${displayName} requires an Individual Plan subscription`;
 
       case FeatureAccessLevel.PREMIUM_FAMILY:
         return isRTL
-          ? `يتطلب ${name} اشتراك خطة العائلة`
-          : `${name} requires a Family Plan subscription`;
+          ? `يتطلب ${displayName} اشتراك خطة العائلة`
+          : `${displayName} requires a Family Plan subscription`;
 
       case FeatureAccessLevel.PREMIUM_ANY:
         return isRTL
-          ? `يتطلب ${name} اشتراك مميز`
-          : `${name} requires a Premium subscription`;
+          ? `يتطلب ${displayName} اشتراك مميز`
+          : `${displayName} requires a Premium subscription`;
 
       default:
         return isRTL ? "ميزة غير متاحة" : "Feature not available";

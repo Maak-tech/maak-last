@@ -12,6 +12,7 @@ import {
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 import {
   type FeatureId,
+  featureGateService,
   useFeatureGate,
 } from "@/lib/services/featureGateService";
 import { paywallGuard } from "@/lib/utils/paywallGuard";
@@ -74,12 +75,17 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
     if (showUpgradePrompt) {
       setShowPaywall(true);
     } else {
+      const featureDisplayName = feature
+        ? featureGateService.getFeatureDisplayName(featureId, isRTL)
+        : isRTL
+          ? "هذه الميزة"
+          : "This feature";
       Alert.alert(
         isRTL ? "ميزة مميزة" : "Premium Feature",
         customMessage ||
           (isRTL
-            ? `يتطلب ${feature?.name || "هذه الميزة"} اشتراك مميز`
-            : `${feature?.name || "This feature"} requires a Premium subscription`),
+            ? `يتطلب ${featureDisplayName} اشتراك مميز`
+            : `${featureDisplayName} requires a Premium subscription`),
         [
           {
             text: isRTL ? "إلغاء" : "Cancel",
@@ -175,12 +181,17 @@ export function useFeatureAccess(featureId: FeatureId) {
   const isRTL = i18n.language === "ar";
 
   const showUpgradeAlert = (customMessage?: string) => {
+    const featureDisplayName = feature
+      ? featureGateService.getFeatureDisplayName(featureId, isRTL)
+      : isRTL
+        ? "هذه الميزة"
+        : "This feature";
     Alert.alert(
       isRTL ? "ميزة مميزة" : "Premium Feature",
       customMessage ||
         (isRTL
-          ? `يتطلب ${feature?.name || "هذه الميزة"} اشتراك مميز`
-          : `${feature?.name || "This feature"} requires a Premium subscription`),
+          ? `يتطلب ${featureDisplayName} اشتراك مميز`
+          : `${featureDisplayName} requires a Premium subscription`),
       [
         {
           text: isRTL ? "إلغاء" : "Cancel",

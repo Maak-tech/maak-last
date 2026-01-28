@@ -301,7 +301,8 @@ function AIInsightsDashboard({
       // AI narrative will be loaded separately if needed
       const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
         user.id,
-        false // Don't wait for AI narrative - load it separately
+        false, // Don't wait for AI narrative - load it separately
+        isRTL // Pass Arabic language flag
       );
 
       // Use a longer timeout but don't block - show cached/partial data if available
@@ -371,7 +372,7 @@ function AIInsightsDashboard({
       );
 
       Promise.race([
-        aiInsightsService.generateAIInsightsDashboard(user.id, true),
+        aiInsightsService.generateAIInsightsDashboard(user.id, true, isRTL),
         narrativeTimeoutPromise,
       ])
         .then((dashboardWithNarrative) => {
@@ -968,7 +969,10 @@ function ActionPlanSection({
 
     try {
       setLoading(true);
-      const plan = await aiInsightsService.generateActionPlan(insights.userId);
+      const plan = await aiInsightsService.generateActionPlan(
+        insights.userId,
+        isRTL
+      );
       setActionPlan(plan);
     } catch (error) {
       console.error("Failed to load action plan:", error);

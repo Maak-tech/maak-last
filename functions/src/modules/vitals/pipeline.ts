@@ -53,6 +53,7 @@ export interface ProcessVitalOptions {
   reading: VitalReading;
   skipPersistence?: boolean; // If reading is already in Firestore
   skipNotifications?: boolean; // For testing or specific use cases
+  openaiApiKey?: string; // OpenAI API key for Zeina analysis
 }
 
 /**
@@ -122,7 +123,7 @@ export async function processVitalReading(
   options: ProcessVitalOptions
 ): Promise<ProcessVitalResult> {
   const traceId = options.traceId || createTraceId();
-  const { reading, skipPersistence, skipNotifications } = options;
+  const { reading, skipPersistence, skipNotifications, openaiApiKey } = options;
 
   logger.info("Starting vital processing pipeline", {
     traceId,
@@ -347,6 +348,7 @@ export async function processVitalReading(
         alert: alertInfo,
         recentVitalsSummary: recentVitals,
         traceId,
+        openaiApiKey,
       });
 
       await enrichAlertWithAnalysis(alertId, analysis, traceId);

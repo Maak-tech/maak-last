@@ -154,6 +154,7 @@ export default function PPGVitalMonitorVisionCamera({
   // Worklets run on a separate runtime and cannot safely read/write React refs.
   const frameCountRef = useRef(0);
   const ppgSignalRef = useRef<number[]>([]);
+  const lastCameraErrorLogRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCapturingRef = useRef(false);
@@ -1540,7 +1541,13 @@ export default function PPGVitalMonitorVisionCamera({
                 frameProcessor={frameProcessor}
                 isActive={status === "measuring"}
                 onError={(error) => {
-                  console.error("Camera error:", error);
+                  if (__DEV__) {
+                    const now = Date.now();
+                    if (now - lastCameraErrorLogRef.current > 5000) {
+                      lastCameraErrorLogRef.current = now;
+                      console.error("Camera error:", error);
+                    }
+                  }
                   setError(`Camera error: ${error.message}`);
                   setStatus("error");
                 }}

@@ -393,11 +393,13 @@ export default function AllergiesScreen() {
     },
     contentInner: {
       paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
+      paddingBottom: theme.spacing.xl,
     },
     statsSection: {
       marginTop: theme.spacing.lg,
       marginBottom: theme.spacing.base,
+      width: "100%",
     },
     sectionTitle: {
       color: theme.colors.text.primary,
@@ -406,20 +408,31 @@ export default function AllergiesScreen() {
     statsGrid: {
       flexDirection: "row",
       gap: theme.spacing.md,
+      flexWrap: "nowrap",
+      width: "100%",
     },
     statCard: {
       flex: 1,
+      minWidth: 0,
       padding: theme.spacing.lg,
       alignItems: "center",
+      overflow: "hidden",
     },
     statValue: {
       fontSize: 32,
       color: theme.colors.text.primary,
       marginBottom: theme.spacing.xs,
+      textAlign: "center",
+      includeFontPadding: false,
+      flexShrink: 1,
+      paddingHorizontal: theme.spacing.xs,
+      minHeight: 40,
     },
     statLabel: {
       color: theme.colors.text.secondary,
       textAlign: "center",
+      flexShrink: 1,
+      paddingHorizontal: theme.spacing.xs,
     },
     allergiesSection: {
       marginTop: theme.spacing.lg,

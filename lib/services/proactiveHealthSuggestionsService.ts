@@ -553,6 +553,21 @@ const getLocalizedSuggestionText = (
         category: "عاجل",
       },
     },
+    fallDetectionAlert: {
+      en: {
+        title: "Fall Detection Alert",
+        description:
+          "A fall has been detected. Immediate attention may be required.",
+        actionLabel: "View Alert",
+        category: "Urgent",
+      },
+      ar: {
+        title: "تنبيه اكتشاف السقوط",
+        description: "تم اكتشاف سقوط. قد يكون الاهتمام الفوري مطلوباً.",
+        actionLabel: "عرض التنبيه",
+        category: "عاجل",
+      },
+    },
   };
 
   const locale = isArabic ? "ar" : "en";
@@ -777,13 +792,42 @@ class ProactiveHealthSuggestionsService {
 
     if (highSeverityAlerts.length > 0) {
       const alert = highSeverityAlerts[0];
+
+      // Use specific localization for fall detection alerts
+      const suggestionKey =
+        alert.type === "fall" ? "fallDetectionAlert" : "highSeverityAlert";
+
+      // Translate alert type for non-fall alerts
+      let translatedAlertType = alert.type;
+      if (alert.type === "fall") {
+        translatedAlertType = isArabic ? "سقوط" : "fall";
+      } else if (alert.type === "emergency") {
+        translatedAlertType = isArabic ? "طوارئ" : "emergency";
+      } else if (alert.type === "medication") {
+        translatedAlertType = isArabic ? "دواء" : "medication";
+      } else if (alert.type === "vitals") {
+        translatedAlertType = isArabic ? "مؤشرات حيوية" : "vitals";
+      }
+
+      // Translate alert message if it's a fall detection message
+      let translatedMessage = alert.message?.substring(0, 50) || "";
+      if (
+        alert.type === "fall" &&
+        isArabic &&
+        alert.message?.toLowerCase().includes("fall detected")
+      ) {
+        translatedMessage = "تم اكتشاف سقوط. قد يكون الاهتمام الفوري مطلوباً.";
+      }
+
       const localizedText = getLocalizedSuggestionText(
-        "highSeverityAlert",
+        suggestionKey,
         isArabic,
-        {
-          alertType: alert.type,
-          message: alert.message?.substring(0, 50) || "",
-        }
+        alert.type === "fall"
+          ? undefined
+          : {
+              alertType: translatedAlertType,
+              message: translatedMessage,
+            }
       );
       suggestions.push({
         id: `alert-high-${alert.id}`,
@@ -1587,7 +1631,10 @@ class ProactiveHealthSuggestionsService {
     isArabic = false
   ): Promise<string[]> {
     try {
-      const insights = await healthInsightsService.getAllInsights(userId);
+      const insights = await healthInsightsService.getAllInsights(
+        userId,
+        isArabic
+      );
       const tips: string[] = [];
 
       // Generate tips based on insights

@@ -46,6 +46,56 @@ const removeUndefinedValues = (
   return cleaned;
 };
 
+/**
+ * Extracts error code and message from Firebase Functions errors
+ * Firebase Functions errors can have different structures depending on how they're thrown
+ */
+const extractFirebaseFunctionsError = (
+  error: any
+): {
+  code: string | undefined;
+  message: string;
+} => {
+  if (!error) {
+    return { code: undefined, message: "Unknown error" };
+  }
+
+  // Firebase Functions HttpsError structure
+  // Error can be: { code: "...", message: "...", details: ... }
+  // Or wrapped in error.details or error.error
+  let code: string | undefined;
+  let message = "Unknown error";
+
+  // Try to extract code from various possible locations
+  if (error.code) {
+    code = String(error.code);
+  } else if (error.details?.code) {
+    code = String(error.details.code);
+  } else if (error.error?.code) {
+    code = String(error.error.code);
+  }
+
+  // Try to extract message
+  if (error.message) {
+    message = String(error.message);
+  } else if (error.details?.message) {
+    message = String(error.details.message);
+  } else if (error.error?.message) {
+    message = String(error.error.message);
+  } else if (typeof error === "string") {
+    message = error;
+  } else {
+    // Try to stringify the error for debugging
+    try {
+      message = JSON.stringify(error);
+    } catch {
+      message = String(error);
+    }
+  }
+
+  return { code, message };
+};
+
 export const alertService = {
   async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
     try {
@@ -416,11 +466,24 @@ export const alertService = {
           const result = await resolveAlertFunc({ alertId });
 
           // Verify the result indicates success
-          if (!result.data || (result.data as any).success !== true) {
-            throw new Error(
-              "Cloud Function did not return success: " +
-                JSON.stringify(result.data)
-            );
+          const resultData = result.data as any;
+          if (!resultData || resultData.success !== true) {
+            const errorMessage =
+              resultData?.message ||
+              `Cloud Function did not return success: ${JSON.stringify(resultData)}`;
+
+            if (__DEV__) {
+              console.error(
+                "[alertService] Cloud Function returned non-success",
+                {
+                  resultData,
+                  alertId,
+                  resolverId,
+                }
+              );
+            }
+
+            throw new Error(errorMessage);
           }
 
           observabilityEmitter.emit({
@@ -477,21 +540,43 @@ export const alertService = {
             });
           }
 
+          // Escalation resolution is now handled by the Cloud Function
+          // Only attempt client-side resolution if Cloud Function didn't handle it
+          // (This is a fallback for edge cases, but should rarely be needed)
           try {
             await escalationService.resolveEscalation(alertId, resolverId);
-          } catch (escalationError) {
+          } catch (escalationError: any) {
             // Log but don't fail - alert is already resolved
+            // The Cloud Function should have handled escalation resolution
+            // This error is expected if Firestore rules don't allow client-side updates
+            const errorCode =
+              escalationError?.code ||
+              (typeof escalationError === "object" &&
+              escalationError &&
+              "code" in escalationError
+                ? String(escalationError.code)
+                : undefined);
+
+            // Only log as warning if it's a permission error (expected)
+            // Log as error for other issues
+            const severity =
+              errorCode === "permission-denied" ? "warn" : "error";
+
             observabilityEmitter.emit({
               domain: "alerts",
               source: "alertService",
-              message: "Failed to resolve escalation after alert resolution",
-              severity: "warn",
+              message:
+                errorCode === "permission-denied"
+                  ? "Escalation resolution handled by Cloud Function (client-side permission denied expected)"
+                  : "Failed to resolve escalation after alert resolution",
+              severity,
               status: "partial_success",
               error: {
                 message:
                   escalationError instanceof Error
                     ? escalationError.message
                     : "Unknown error",
+                code: errorCode,
               },
               metadata: { alertId, resolverId },
             });
@@ -512,22 +597,34 @@ export const alertService = {
 
           return;
         } catch (cloudFunctionError: any) {
-          const errorCode =
-            typeof cloudFunctionError === "object" &&
-            cloudFunctionError &&
-            "code" in cloudFunctionError
-              ? String((cloudFunctionError as { code?: unknown }).code)
-              : undefined;
+          // Extract error details using helper function
+          const { code: errorCode, message: errorMessage } =
+            extractFirebaseFunctionsError(cloudFunctionError);
 
-          const errorMessage = cloudFunctionError?.message || "Unknown error";
+          // Log detailed error information for debugging
+          if (__DEV__) {
+            console.error("[alertService] Cloud Function error details", {
+              error: cloudFunctionError,
+              errorCode,
+              errorMessage,
+              errorKeys: cloudFunctionError
+                ? Object.keys(cloudFunctionError)
+                : [],
+              alertId,
+              resolverId,
+              errorString: JSON.stringify(cloudFunctionError, null, 2),
+            });
+          }
 
           // If Cloud Function doesn't exist or failed, fall back to direct Firestore update
           if (
             errorCode === "not-found" ||
+            errorCode === "unavailable" ||
             errorMessage.includes("not found") ||
             errorMessage.includes("does not exist") ||
             errorMessage.includes("Function") ||
-            errorMessage.includes("function")
+            errorMessage.includes("function") ||
+            errorMessage.includes("UNAVAILABLE")
           ) {
             observabilityEmitter.emit({
               domain: "alerts",
@@ -539,11 +636,47 @@ export const alertService = {
               metadata: {
                 alertId,
                 resolverId,
+                errorCode,
+                errorMessage,
+              },
+            });
+            // Fall through to direct Firestore update
+          } else if (errorCode === "permission-denied") {
+            // Permission denied - log and throw with clear message
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message: "Cloud Function permission denied for alert resolution",
+              severity: "error",
+              status: "failure",
+              error: {
+                message: errorMessage,
+                code: errorCode,
+              },
+              metadata: {
+                alertId,
+                resolverId,
+                userId: alertData?.userId,
+              },
+            });
+
+            // Try fallback to direct Firestore update for permission-denied
+            // Sometimes Firestore rules allow what Cloud Function doesn't
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message:
+                "Cloud Function permission denied, attempting direct Firestore update",
+              severity: "warn",
+              status: "in_progress",
+              metadata: {
+                alertId,
+                resolverId,
               },
             });
             // Fall through to direct Firestore update
           } else {
-            // Cloud Function returned an error - pass it through
+            // Cloud Function returned an error - log and try fallback
             observabilityEmitter.emit({
               domain: "alerts",
               source: "alertService",
@@ -557,15 +690,26 @@ export const alertService = {
               metadata: {
                 alertId,
                 resolverId,
+                errorDetails: cloudFunctionError,
               },
             });
 
-            // If permission-denied, pass through the actual error message
-            if (errorCode === "permission-denied") {
-              throw new Error(errorMessage);
-            }
-
-            throw new Error(`Failed to resolve alert: ${errorMessage}`);
+            // For other errors, try fallback to direct Firestore update
+            // This provides better resilience
+            observabilityEmitter.emit({
+              domain: "alerts",
+              source: "alertService",
+              message:
+                "Cloud Function error, attempting direct Firestore update fallback",
+              severity: "warn",
+              status: "in_progress",
+              metadata: {
+                alertId,
+                resolverId,
+                errorCode,
+              },
+            });
+            // Fall through to direct Firestore update
           }
         }
       }
@@ -653,6 +797,22 @@ export const alertService = {
         },
       });
     } catch (error: any) {
+      // Extract error details using helper function
+      const { code: errorCode, message: errorMessage } =
+        extractFirebaseFunctionsError(error);
+
+      // Log detailed error information
+      if (__DEV__) {
+        console.error("[alertService] Final error in resolveAlert", {
+          error,
+          errorCode,
+          errorMessage,
+          alertId,
+          resolverId,
+          errorKeys: error ? Object.keys(error) : [],
+        });
+      }
+
       observabilityEmitter.emit({
         domain: "alerts",
         source: "alertService",
@@ -660,14 +820,23 @@ export const alertService = {
         severity: "error",
         status: "failure",
         error: {
-          message: error.message || "Unknown error",
-          code: error.code,
+          message: errorMessage,
+          code: errorCode,
         },
-        metadata: { alertId, resolverId },
+        metadata: {
+          alertId,
+          resolverId,
+          errorDetails: error,
+        },
       });
-      throw new Error(
-        `Failed to resolve alert: ${error.message || "Unknown error"}`
-      );
+
+      // Preserve original error message if it's meaningful
+      const finalMessage =
+        errorMessage !== "Unknown error"
+          ? `Failed to resolve alert: ${errorMessage}`
+          : `Failed to resolve alert: ${errorCode || "Unknown error"}`;
+
+      throw new Error(finalMessage);
     }
   },
 

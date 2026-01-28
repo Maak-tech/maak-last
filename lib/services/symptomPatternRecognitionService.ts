@@ -397,7 +397,8 @@ class SymptomPatternRecognitionService {
     userId: string,
     recentSymptoms: Symptom[],
     medicalHistory?: MedicalHistory[],
-    medications?: Medication[]
+    medications?: Medication[],
+    isArabic = false
   ): Promise<PatternAnalysisResult> {
     // Identify symptom patterns
     const patterns = this.identifySymptomPatterns(recentSymptoms);

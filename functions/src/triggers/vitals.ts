@@ -3,18 +3,25 @@
  * Processes new vital readings and checks against benchmarks
  */
 
+import { defineSecret } from "firebase-functions/params";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import type { VitalType } from "../modules/alerts/engine";
 import { processVitalReading } from "../modules/vitals/pipeline";
 import { createTraceId } from "../observability/correlation";
 import { logger } from "../observability/logger";
 
+// Define secret for OpenAI API key
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+
 /**
  * Firestore trigger: Check vitals against benchmarks when new vital is created
  * Uses the unified vitals processing pipeline
  */
 export const checkVitalBenchmarks = onDocumentCreated(
-  "vitals/{vitalId}",
+  {
+    document: "vitals/{vitalId}",
+    secrets: [OPENAI_API_KEY],
+  },
   async (event) => {
     const traceId = createTraceId();
     const vitalId = event.params.vitalId;
@@ -59,6 +66,7 @@ export const checkVitalBenchmarks = onDocumentCreated(
           vitalId, // Already persisted
         },
         skipPersistence: true, // Already in Firestore from the trigger
+        openaiApiKey: OPENAI_API_KEY.value(),
       });
 
       if (result.success) {

@@ -320,6 +320,33 @@ const resources = {
       activeMedications: "Active Medications",
       notifications: "Notifications",
       fallDetection: "Fall Detection",
+      // Fall Detection translations
+      fallDetected: "🚨 Fall Detected",
+      fallDetectedMessage:
+        "A fall has been detected. Emergency notifications have been sent to your family members.",
+      imOk: "I'm OK",
+      needHelp: "Need Help",
+      alertResolved: "Resolved",
+      alertResolvedSuccessfully: "Alert resolved successfully",
+      failedToResolveAlert: "Failed to resolve alert",
+      noPermissionToResolveAlert:
+        "You don't have permission to resolve this alert",
+      alertNotFound: "Alert not found",
+      userNotLoggedIn: "User not logged in",
+      failedToTestFallDetection: "Failed to test fall detection",
+      unknownError: "Unknown error",
+      fallDetectionNotAvailableWeb:
+        "Fall detection is not available on web. Use a mobile device.",
+      motionPermissionsNotGranted:
+        "Motion permissions are not granted. Go to Settings → Motion Permissions to enable.",
+      fallDetectionDisabled:
+        "Fall detection is disabled. Enable it in Settings.",
+      fallDetectionEnabledButNotActive:
+        "Fall detection is enabled but not active. Check console logs for initialization errors.",
+      fallDetectionWorkingCorrectly: "Fall detection is working correctly!",
+      fallDetectionInitializing:
+        "Fall detection is initializing. Wait a few seconds and check again.",
+      automaticFallDetection: "Automatic fall detection",
       language: "Language",
       comingSoon: "Coming Soon",
       ok: "OK",
@@ -1467,6 +1494,31 @@ const resources = {
       activeMedications: "أدوية نشطة",
       notifications: "الإشعارات",
       fallDetection: "كشف السقوط",
+      // Fall Detection translations
+      fallDetected: "🚨 تم اكتشاف سقوط",
+      fallDetectedMessage:
+        "تم اكتشاف سقوط. تم إرسال إشعارات الطوارئ إلى أفراد عائلتك.",
+      imOk: "أنا بخير",
+      needHelp: "أحتاج مساعدة",
+      alertResolved: "تم الحل",
+      alertResolvedSuccessfully: "تم حل التنبيه بنجاح",
+      failedToResolveAlert: "فشل في حل التنبيه",
+      noPermissionToResolveAlert: "ليس لديك إذن لحل هذا التنبيه",
+      alertNotFound: "التنبيه غير موجود",
+      userNotLoggedIn: "المستخدم غير مسجل الدخول",
+      failedToTestFallDetection: "فشل في اختبار كشف السقوط",
+      unknownError: "خطأ غير معروف",
+      fallDetectionNotAvailableWeb:
+        "كشف السقوط غير متاح على الويب. استخدم جهازًا محمولاً.",
+      motionPermissionsNotGranted:
+        "لم يتم منح أذونات الحركة. انتقل إلى الإعدادات → أذونات الحركة للتفعيل.",
+      fallDetectionDisabled: "كشف السقوط معطل. قم بتفعيله في الإعدادات.",
+      fallDetectionEnabledButNotActive:
+        "كشف السقوط مفعل ولكنه غير نشط. تحقق من سجلات وحدة التحكم لأخطاء التهيئة.",
+      fallDetectionWorkingCorrectly: "كشف السقوط يعمل بشكل صحيح!",
+      fallDetectionInitializing:
+        "كشف السقوط قيد التهيئة. انتظر بضع ثوانٍ وتحقق مرة أخرى.",
+      automaticFallDetection: "كشف السقوط التلقائي",
       language: "اللغة",
       comingSoon: "قريباً",
       ok: "موافق",

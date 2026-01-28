@@ -7,7 +7,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -336,10 +336,6 @@ export default function TrackScreen() {
       loadSymptoms();
     }, [loadSymptoms])
   );
-
-  useEffect(() => {
-    loadSymptoms();
-  }, [loadSymptoms]);
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);

@@ -249,3 +249,44 @@ export function isTrendConcerning(
 ): boolean {
   return analysis.severity === "critical" || analysis.severity === "warning";
 }
+
+/**
+ * Create an alert for a concerning trend
+ * This will be picked up by the real-time WebSocket service
+ */
+export async function createTrendAlert(
+  userId: string,
+  trendAnalysis: TrendAnalysis | SymptomTrendAnalysis,
+  type: "vital_trend" | "symptom_trend"
+): Promise<string | null> {
+  if (!isTrendConcerning(trendAnalysis)) {
+    return null;
+  }
+
+  try {
+    const { alertService } = await import("./alertService");
+
+    const alertType = type === "vital_trend" ? "vital_trend" : "symptom_trend";
+    const severity =
+      trendAnalysis.severity === "critical" ? "critical" : "high";
+
+    const alertId = await alertService.createAlert({
+      userId,
+      type: alertType as any,
+      severity,
+      message: trendAnalysis.message,
+      timestamp: new Date(),
+      resolved: false,
+      responders: [],
+      metadata: {
+        trendAnalysis,
+        trendType: type,
+      },
+    });
+
+    return alertId;
+  } catch (error) {
+    console.error("Error creating trend alert:", error);
+    return null;
+  }
+}

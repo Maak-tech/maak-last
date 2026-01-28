@@ -47,11 +47,11 @@ import type {
  * - Never throws errors that would break alert flow
  * - Always returns success=true with valid output
  *
- * @param request - Analysis request with traceId and alertContext
+ * @param request - Analysis request with traceId and alertContext, optionally openaiApiKey
  * @returns ZeinaAnalysisResult with output or error
  */
 export async function runZeinaAnalysis(
-  request: ZeinaAnalysisRequest
+  request: ZeinaAnalysisRequest & { openaiApiKey?: string }
 ): Promise<ZeinaAnalysisResult> {
   const { traceId, alertContext } = request;
   const startTime = Date.now();
@@ -87,7 +87,9 @@ export async function runZeinaAnalysis(
 
     if (useAI) {
       try {
-        rawResponse = await callLLM(zeinaInput, prompt, traceId);
+        // API key can be passed via request.secrets or fall back to process.env
+        const apiKey = (request as any).openaiApiKey;
+        rawResponse = await callLLM(zeinaInput, prompt, traceId, apiKey);
         const llmDuration = Date.now() - llmStartTime;
 
         if (rawResponse) {

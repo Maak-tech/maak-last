@@ -61,6 +61,8 @@ async function getAuthenticatedFunctions(): Promise<Functions | null> {
   return functionsInstance;
 }
 
+let hasLoggedMlUnavailable = false;
+
 export const ppgMLService = {
   /**
    * Analyze PPG signal using ML models (PaPaGei)
@@ -162,7 +164,8 @@ export const ppgMLService = {
         error?.message?.includes("User must be authenticated") ||
         error?.message?.includes("unauthenticated");
 
-      if (!isAuthError) {
+      if (__DEV__ && !isAuthError && !hasLoggedMlUnavailable) {
+        hasLoggedMlUnavailable = true;
         console.warn(
           "ML service unavailable, will use traditional processing:",
           error

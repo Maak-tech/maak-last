@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AIInsightsDashboard as AIInsightsDashboardData,
   aiInsightsService,
@@ -89,20 +89,31 @@ export function useAIInsights(
 
   // Cache management
   const [lastLoadTime, setLastLoadTime] = useState<Date | null>(null);
+  const lastLoadTimeRef = useRef<Date | null>(lastLoadTime);
+  const dashboardRef = useRef<AIInsightsDashboardData | null>(null);
+
+  useEffect(() => {
+    lastLoadTimeRef.current = lastLoadTime;
+  }, [lastLoadTime]);
+
+  useEffect(() => {
+    dashboardRef.current = dashboard;
+  }, [dashboard]);
 
   const isCacheValid = useCallback(() => {
-    if (!lastLoadTime) return false;
+    if (!lastLoadTimeRef.current) return false;
     const now = new Date();
-    const diffMinutes = (now.getTime() - lastLoadTime.getTime()) / (1000 * 60);
+    const diffMinutes =
+      (now.getTime() - lastLoadTimeRef.current.getTime()) / (1000 * 60);
     return diffMinutes < cacheTimeout;
-  }, [lastLoadTime, cacheTimeout]);
+  }, [cacheTimeout]);
 
   // Load full dashboard
   const loadDashboard = useCallback(
     async (force = false) => {
       if (!userId) return;
 
-      if (!force && isCacheValid() && dashboard) {
+      if (!force && isCacheValid() && dashboardRef.current) {
         return; // Use cached data
       }
 
@@ -132,7 +143,7 @@ export function useAIInsights(
         setLoading(false);
       }
     },
-    [userId, includeNarrative, isCacheValid, dashboard]
+    [userId, includeNarrative, isCacheValid]
   );
 
   // Load individual insights

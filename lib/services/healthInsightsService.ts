@@ -11,6 +11,12 @@ import { db } from "@/lib/firebase";
 import type { Medication, Mood, Symptom } from "@/types";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
+import {
+  analyzeSymptomTrend,
+  analyzeVitalTrend,
+  createTrendAlert,
+  isTrendConcerning,
+} from "./trendDetectionService";
 
 export interface PatternInsight {
   type: "temporal" | "correlation" | "trend" | "recommendation";
@@ -539,7 +545,9 @@ class HealthInsightsService {
   private detectTrends(
     symptoms: Symptom[],
     moods: Mood[],
-    isArabic = false
+    isArabic = false,
+    userId?: string,
+    createAlerts = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
 
@@ -547,7 +555,59 @@ class HealthInsightsService {
       return insights; // Need at least a week of data
     }
 
-    // Analyze symptom trend over last 2 weeks
+    // Group symptoms by type and analyze trends for each
+    const symptomsByType: Record<string, Symptom[]> = {};
+    symptoms.forEach((symptom) => {
+      if (!symptomsByType[symptom.type]) {
+        symptomsByType[symptom.type] = [];
+      }
+      symptomsByType[symptom.type].push(symptom);
+    });
+
+    // Analyze trends for each symptom type
+    for (const [symptomType, symptomList] of Object.entries(symptomsByType)) {
+      const trendAnalysis = analyzeSymptomTrend(
+        symptomList.map((s) => ({
+          type: s.type,
+          severity: s.severity,
+          timestamp: s.timestamp,
+        })),
+        symptomType,
+        7 // 7 days
+      );
+
+      if (trendAnalysis && isTrendConcerning(trendAnalysis)) {
+        const localizedText = getLocalizedInsightText(
+          trendAnalysis.trend === "increasing"
+            ? "increasingSymptomSeverity"
+            : "improvingSymptomSeverity",
+          isArabic
+        );
+        insights.push({
+          type: "trend",
+          title: localizedText.title,
+          description: trendAnalysis.message || localizedText.description,
+          confidence: trendAnalysis.severity === "critical" ? 90 : 75,
+          actionable: true,
+          recommendation: localizedText.recommendation,
+          data: {
+            symptomType,
+            trendAnalysis,
+          },
+        });
+
+        // Create alert if concerning trend detected
+        if (createAlerts && userId) {
+          createTrendAlert(userId, trendAnalysis, "symptom_trend").catch(
+            (error) => {
+              console.error("Error creating symptom trend alert:", error);
+            }
+          );
+        }
+      }
+    }
+
+    // Fallback: Analyze symptom trend over last 2 weeks (for backward compatibility)
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
@@ -811,7 +871,9 @@ class HealthInsightsService {
 
   private detectVitalTrends(
     vitals: VitalSample[],
-    isArabic = false
+    isArabic = false,
+    userId?: string,
+    createAlerts = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
     if (vitals.length < 4) return insights;
@@ -825,27 +887,31 @@ class HealthInsightsService {
     }
 
     for (const [type, readings] of Object.entries(vitalsByType)) {
-      if (readings.length < 4) continue;
-      const sorted = [...readings].sort(
-        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+      if (readings.length < 3) continue; // Need at least 3 for trend analysis
+
+      // Use proper trend analysis function
+      const trendAnalysis = analyzeVitalTrend(
+        readings.map((r) => ({
+          value: r.value,
+          timestamp: r.timestamp,
+        })),
+        type,
+        readings[0]?.unit || "",
+        7 // 7 days
       );
 
-      const recent = sorted.slice(0, 3).map((r) => r.value);
-      const older = sorted.slice(-3).map((r) => r.value);
-      const recentAvg = recent.reduce((sum, v) => sum + v, 0) / recent.length;
-      const olderAvg = older.reduce((sum, v) => sum + v, 0) / older.length;
+      if (!trendAnalysis) continue;
 
-      if (olderAvg === 0) continue;
+      // Only show insights for concerning trends
+      if (!isTrendConcerning(trendAnalysis)) continue;
 
-      const percentChange = ((recentAvg - olderAvg) / olderAvg) * 100;
-      if (Math.abs(percentChange) < 10) continue;
-
-      const trend = percentChange > 0 ? "increasing" : "decreasing";
       const trendLabel = isArabic
-        ? trend === "increasing"
+        ? trendAnalysis.trend === "increasing"
           ? "مرتفعة"
-          : "منخفضة"
-        : trend;
+          : trendAnalysis.trend === "decreasing"
+            ? "منخفضة"
+            : "مستقرة"
+        : trendAnalysis.trend;
 
       const localizedText = getLocalizedInsightText(
         "vitalTrendInsight",
@@ -853,23 +919,36 @@ class HealthInsightsService {
         {
           vitalType: this.getVitalDisplayName(type, isArabic),
           trend: trendLabel,
-          change: Math.abs(percentChange).toFixed(1),
+          change: Math.abs(trendAnalysis.changePercent).toFixed(1),
         }
       );
 
       insights.push({
         type: "trend",
         title: localizedText.title,
-        description: localizedText.description,
-        confidence: Math.min(90, Math.round(Math.abs(percentChange) * 2)),
+        description: trendAnalysis.message || localizedText.description,
+        confidence: Math.min(
+          90,
+          Math.round(Math.abs(trendAnalysis.changePercent) * 2)
+        ),
         actionable: true,
         recommendation: localizedText.recommendation,
         data: {
           vitalType: type,
-          recentAvg: Number(recentAvg.toFixed(2)),
-          olderAvg: Number(olderAvg.toFixed(2)),
+          trendAnalysis,
+          recentAvg: Number(trendAnalysis.currentValue.toFixed(2)),
+          olderAvg: Number(trendAnalysis.averageValue.toFixed(2)),
         },
       });
+
+      // Create alert if concerning trend detected and createAlerts is true
+      if (createAlerts && userId && isTrendConcerning(trendAnalysis)) {
+        createTrendAlert(userId, trendAnalysis, "vital_trend").catch(
+          (error) => {
+            console.error("Error creating trend alert:", error);
+          }
+        );
+      }
     }
 
     return insights;
@@ -1341,11 +1420,12 @@ class HealthInsightsService {
     }
 
     // Generate insights with localization
+    // Note: createAlerts is false for summaries - alerts are created when vitals/symptoms are added
     const allInsights = [
       ...this.detectTemporalPatterns(weekSymptoms, weekMoods, isArabic),
       ...this.detectMedicationCorrelations(weekSymptoms, medications, isArabic),
-      ...this.detectTrends(weekSymptoms, weekMoods, isArabic),
-      ...this.detectVitalTrends(weekVitals, isArabic),
+      ...this.detectTrends(weekSymptoms, weekMoods, isArabic, userId, false),
+      ...this.detectVitalTrends(weekVitals, isArabic, userId, false),
       ...this.detectVitalRanges(weekVitals, isArabic),
       ...this.detectIntegrationSpecificInsights(weekVitals, isArabic),
       ...this.generateRecommendations(
@@ -1484,6 +1564,7 @@ class HealthInsightsService {
         : 0;
 
     // Generate insights with localization
+    // Note: createAlerts is false for summaries - alerts are created when vitals/symptoms are added
     const allInsights = [
       ...this.detectTemporalPatterns(monthSymptoms, monthMoods, isArabic),
       ...this.detectMedicationCorrelations(
@@ -1491,8 +1572,8 @@ class HealthInsightsService {
         medications,
         isArabic
       ),
-      ...this.detectTrends(monthSymptoms, monthMoods, isArabic),
-      ...this.detectVitalTrends(monthVitals, isArabic),
+      ...this.detectTrends(monthSymptoms, monthMoods, isArabic, userId, false),
+      ...this.detectVitalTrends(monthVitals, isArabic, userId, false),
       ...this.detectVitalRanges(monthVitals, isArabic),
       ...this.detectIntegrationSpecificInsights(monthVitals, isArabic),
       ...this.generateRecommendations(
@@ -1553,8 +1634,8 @@ class HealthInsightsService {
     return [
       ...this.detectTemporalPatterns(symptoms, moodsData, isArabic),
       ...this.detectMedicationCorrelations(symptoms, medications, isArabic),
-      ...this.detectTrends(symptoms, moodsData, isArabic),
-      ...this.detectVitalTrends(vitals, isArabic),
+      ...this.detectTrends(symptoms, moodsData, isArabic, userId, false),
+      ...this.detectVitalTrends(vitals, isArabic, userId, false),
       ...this.detectVitalRanges(vitals, isArabic),
       ...this.detectIntegrationSpecificInsights(vitals, isArabic),
       ...this.generateRecommendations(

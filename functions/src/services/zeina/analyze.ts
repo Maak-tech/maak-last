@@ -109,16 +109,16 @@ class AnthropicProvider implements LLMProvider {
 /**
  * Get configured LLM provider
  */
-function getLLMProvider(): LLMProvider | null {
+function getLLMProvider(apiKey?: string): LLMProvider | null {
   const provider = process.env.ZEINA_LLM_PROVIDER || "openai";
 
   if (provider === "openai") {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    const key = apiKey || process.env.OPENAI_API_KEY;
+    if (!key) {
       return null;
     }
     const model = process.env.ZEINA_MODEL || "gpt-4o-mini";
-    return new OpenAIProvider(apiKey, model);
+    return new OpenAIProvider(key, model);
   }
 
   if (provider === "anthropic") {
@@ -135,12 +135,14 @@ function getLLMProvider(): LLMProvider | null {
  * @param input - Sanitized ZeinaInput (no PHI)
  * @param prompt - Generated prompt (no PHI)
  * @param traceId - Trace ID for logging
+ * @param apiKey - Optional API key (falls back to process.env)
  * @returns RawAIResponse or null on failure
  */
 export async function callLLM(
   input: ZeinaInput,
   prompt: string,
-  traceId: string
+  traceId: string,
+  apiKey?: string
 ): Promise<RawAIResponse | null> {
   const timeout = Number.parseInt(process.env.ZEINA_TIMEOUT_MS || "8000", 10);
   const maxRetries = Number.parseInt(process.env.ZEINA_MAX_RETRIES || "2", 10);
@@ -152,7 +154,7 @@ export async function callLLM(
     fn: "zeina.analyze.callLLM",
   });
 
-  const provider = getLLMProvider();
+  const provider = getLLMProvider(apiKey);
   if (!provider) {
     logger.warn("No LLM provider configured, using deterministic fallback", {
       traceId,

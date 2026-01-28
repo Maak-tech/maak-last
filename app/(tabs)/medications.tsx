@@ -526,10 +526,6 @@ export default function MedicationsScreen() {
     }, [user, selectedFilter])
   );
 
-  useEffect(() => {
-    loadMedications();
-  }, [user, selectedFilter]);
-
   // Cleanup timeout on unmount
   useEffect(
     () => () => {

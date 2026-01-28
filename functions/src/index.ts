@@ -1,6 +1,8 @@
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
+import { defineSecret } from "firebase-functions/params";
+import { onCall } from "firebase-functions/v2/https";
 import { ingestVital } from "./api/vitals";
 import { getFamilyAdmins } from "./modules/family/admins";
 import { getFamilyMemberIds } from "./modules/family/familyMembers";
@@ -10,6 +12,13 @@ import { logger } from "./observability/logger";
 import { sendPushNotificationInternal } from "./services/notifications";
 import { sendEmergencySmsToContacts } from "./services/notifications/sms";
 import type { NotificationPayload } from "./services/notifications/types";
+
+// Define secrets
+// Note: OPENAI_API_KEY is defined in triggers/vitals.ts for the checkVitalBenchmarks trigger
+const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
+const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
+const TWILIO_FROM_NUMBER = defineSecret("TWILIO_FROM_NUMBER");
+const PPG_ML_SERVICE_API_KEY = defineSecret("PPG_ML_SERVICE_API_KEY");
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -422,6 +431,47 @@ export const resolveAlert = functions.https.onCall(
         );
       }
 
+      // Also resolve any active escalations for this alert
+      // This bypasses Firestore permission issues since we're in a Cloud Function
+      try {
+        const escalationsQuery = db
+          .collection("escalations")
+          .where("alertId", "==", alertId)
+          .where("status", "in", ["active", "acknowledged"]);
+
+        const escalationsSnapshot = await escalationsQuery.get();
+
+        if (!escalationsSnapshot.empty) {
+          const batch = db.batch();
+          escalationsSnapshot.docs.forEach((escalationDoc) => {
+            batch.update(escalationDoc.ref, {
+              status: "resolved",
+              resolvedBy: resolverId,
+              resolvedAt: FieldValue.serverTimestamp(),
+              nextEscalationAt: null,
+            });
+          });
+
+          await batch.commit();
+
+          logger.info("Escalations resolved successfully", {
+            traceId,
+            alertId,
+            escalationCount: escalationsSnapshot.docs.length,
+            resolvedBy: resolverId,
+            fn: "resolveAlert",
+          });
+        }
+      } catch (escalationError: any) {
+        // Log but don't fail - alert is already resolved
+        logger.warn("Failed to resolve escalations", {
+          traceId,
+          alertId,
+          error: escalationError?.message || "Unknown error",
+          fn: "resolveAlert",
+        });
+      }
+
       logger.info("Alert resolved successfully", {
         traceId,
         alertId,
@@ -555,12 +605,16 @@ export const sendFallAlert = functions.https.onCall(
   }
 );
 
-export const sendEmergencySms = functions.https.onCall(
-  async (data: any, context: any) => {
+export const sendEmergencySms = onCall(
+  {
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER],
+  },
+  async (request) => {
     const traceId = createTraceId();
-    const { userId, message, alertType } = data || {};
+    const { userId, message, alertType } = request.data || {};
+    const context = request.auth;
 
-    if (!context.auth) {
+    if (!context) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -582,7 +636,7 @@ export const sendEmergencySms = functions.https.onCall(
 
     const userData = userDoc.data() || {};
     const familyId = userData.familyId as string | undefined;
-    const callerUid = context.auth.uid;
+    const callerUid = context.uid;
 
     if (callerUid !== userId) {
       if (!familyId) {
@@ -604,6 +658,9 @@ export const sendEmergencySms = functions.https.onCall(
     const result = await sendEmergencySmsToContacts({
       userId,
       message,
+      twilioAccountSid: TWILIO_ACCOUNT_SID.value(),
+      twilioAuthToken: TWILIO_AUTH_TOKEN.value(),
+      twilioFromNumber: TWILIO_FROM_NUMBER.value(),
     });
 
     logger.info("Emergency SMS send attempted", {
@@ -762,21 +819,23 @@ export const sendSymptomAlert = functions.https.onCall(
 export { scheduledMedicationReminders } from "./jobs/medicationReminders";
 
 // PPG ML Analysis endpoint
-export const analyzePPGWithML = functions.https.onCall(
-  async (data: any, context: any) => {
+export const analyzePPGWithML = onCall(
+  { secrets: [PPG_ML_SERVICE_API_KEY] },
+  async (request) => {
     const traceId = createTraceId();
-    const { signal, frameRate, userId } = data;
+    const { signal, frameRate, userId } = request.data;
+    const context = request.auth;
 
     logger.info("PPG ML analysis requested", {
       traceId,
-      uid: context.auth?.uid,
-      userId: userId || context.auth?.uid,
+      uid: context?.uid,
+      userId: userId || context?.uid,
       signalLength: signal?.length,
       frameRate,
       fn: "analyzePPGWithML",
     });
 
-    if (!(context.auth || userId)) {
+    if (!(context || userId)) {
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -803,12 +862,17 @@ export const analyzePPGWithML = functions.https.onCall(
         "./services/ppgMLService.js"
       );
 
-      const targetUserId = userId || context.auth?.uid;
-      const result = await mlAnalyze(signal, frameRate, targetUserId);
+      const targetUserId = userId || context?.uid;
+      const result = await mlAnalyze(
+        signal,
+        frameRate,
+        targetUserId,
+        PPG_ML_SERVICE_API_KEY.value()
+      );
 
       logger.info("PPG ML analysis completed", {
         traceId,
-        uid: context.auth?.uid,
+        uid: context?.uid,
         success: result.success,
         heartRate: result.heartRate,
         signalQuality: result.signalQuality,
@@ -819,7 +883,7 @@ export const analyzePPGWithML = functions.https.onCall(
     } catch (error: any) {
       logger.error("Error in PPG ML analysis", error as Error, {
         traceId,
-        uid: context.auth?.uid,
+        uid: context?.uid,
         fn: "analyzePPGWithML",
       });
 

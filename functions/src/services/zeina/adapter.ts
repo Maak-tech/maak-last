@@ -37,6 +37,7 @@ export interface ZeinaAnalysisInput {
     medications?: string[];
   };
   traceId?: string;
+  openaiApiKey?: string; // OpenAI API key for LLM calls
 }
 
 export interface RecommendedAction {
@@ -103,6 +104,7 @@ export async function analyze(
     const result = await runZeinaAnalysis({
       traceId,
       alertContext,
+      openaiApiKey: input.openaiApiKey,
     });
 
     if (!(result.success && result.output)) {

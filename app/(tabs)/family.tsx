@@ -72,6 +72,7 @@ import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { alertService } from "@/lib/services/alertService";
+import { allergyService } from "@/lib/services/allergyService";
 import {
   type CaregiverOverview,
   caregiverDashboardService,
@@ -95,7 +96,7 @@ import {
 import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
-import type { User } from "@/types";
+import type { Allergy, User } from "@/types";
 import { getTextStyle } from "@/utils/styles";
 import {
   acknowledgeHealthEvent,
@@ -118,6 +119,28 @@ const RELATIONS = [
   { key: "other", labelEn: "Other", labelAr: "آخر" },
 ];
 
+// Allergy keys mapping to translation keys
+const ALLERGY_KEYS = [
+  "allergyPeanuts",
+  "allergyTreeNuts",
+  "allergyMilk",
+  "allergyEggs",
+  "allergyFish",
+  "allergyShellfish",
+  "allergySoy",
+  "allergyWheat",
+  "allergyPollen",
+  "allergyDustMites",
+  "allergyPetDander",
+  "allergyMold",
+  "allergyLatex",
+  "allergyPenicillin",
+  "allergyAspirin",
+  "allergyBeeStings",
+  "allergySesame",
+  "allergySulfites",
+];
+
 interface FamilyMemberMetrics {
   id: string;
   user: User;
@@ -126,6 +149,7 @@ interface FamilyMemberMetrics {
   activeMedications: number;
   alertsCount: number;
   vitals?: VitalSigns | null;
+  allergies: Allergy[];
 }
 
 type FamilyMembersCache = {
@@ -287,6 +311,40 @@ export default function FamilyScreen() {
     return reasonMap[reason] || reason;
   };
 
+  // Helper function to get translated allergy name
+  const getTranslatedAllergyName = (name: string): string => {
+    // Check if it's a translation key
+    if (ALLERGY_KEYS.includes(name)) {
+      return t(name);
+    }
+    // Handle backward compatibility: map old English names to translation keys
+    const englishToKeyMap: Record<string, string> = {
+      Peanuts: "allergyPeanuts",
+      "Tree Nuts": "allergyTreeNuts",
+      Milk: "allergyMilk",
+      Eggs: "allergyEggs",
+      Fish: "allergyFish",
+      Shellfish: "allergyShellfish",
+      Soy: "allergySoy",
+      Wheat: "allergyWheat",
+      Pollen: "allergyPollen",
+      "Dust Mites": "allergyDustMites",
+      "Pet Dander": "allergyPetDander",
+      Mold: "allergyMold",
+      Latex: "allergyLatex",
+      Penicillin: "allergyPenicillin",
+      Aspirin: "allergyAspirin",
+      "Bee Stings": "allergyBeeStings",
+      Sesame: "allergySesame",
+      Sulfites: "allergySulfites",
+    };
+    if (englishToKeyMap[name]) {
+      return t(englishToKeyMap[name]);
+    }
+    // Otherwise return as-is (custom allergy)
+    return name;
+  };
+
   useEffect(() => {
     const loadMedicationAlertsSetting = async () => {
       try {
@@ -400,7 +458,7 @@ export default function FamilyScreen() {
         setRefreshing(false);
       }
     },
-    [user?.familyId, isRTL, loading, refreshing, familyMembers.length]
+    [user?.familyId, isRTL]
   );
 
   // Load family members when user changes
@@ -728,13 +786,16 @@ export default function FamilyScreen() {
 
       const metricsPromises = members.map(async (member) => {
         try {
-          // Fetch symptoms, medications, alerts, and vitals for each member
+          // Fetch symptoms, medications, alerts, allergies, and vitals for each member
           // Limit symptoms to recent ones (last 7 days) for faster loading
           // Use shorter timeout for individual member to fail fast
           const dataPromise = Promise.all([
             symptomService.getUserSymptoms(member.id, 7), // Limit to 7 recent symptoms for faster loading
             medicationService.getUserMedications(member.id),
             alertService.getActiveAlertsCount(member.id),
+            allergyService
+              .getUserAllergies(member.id, 10)
+              .catch(() => []), // Limit to 10 allergies for display
             healthContextService
               .getUserHealthContext(member.id)
               .catch(() => null),
@@ -745,11 +806,12 @@ export default function FamilyScreen() {
             setTimeout(() => reject(new Error("Member data timeout")), 5000)
           );
 
-          const [symptoms, medications, alertsCount, healthContext] =
+          const [symptoms, medications, alertsCount, allergies, healthContext] =
             (await Promise.race([dataPromise, memberTimeoutPromise])) as [
               any[],
               any[],
               number,
+              Allergy[],
               any,
             ];
 
@@ -805,6 +867,7 @@ export default function FamilyScreen() {
             activeMedications: activeMedications.length,
             alertsCount,
             vitals,
+            allergies: allergies || [],
           };
         } catch (error) {
           // Return default metrics if error
@@ -816,6 +879,7 @@ export default function FamilyScreen() {
             activeMedications: 0,
             alertsCount: 0,
             vitals: null,
+            allergies: [],
           };
         }
       });
@@ -1769,6 +1833,63 @@ export default function FamilyScreen() {
       familyMembers.length,
     ])
   );
+
+  // Subscribe to real-time family member updates (replaces polling)
+  useRealtimeHealth({
+    userId: user?.id,
+    familyId: user?.familyId,
+    familyMemberIds: familyMembers.map((m) => m.id),
+    onFamilyMemberUpdate: (update) => {
+      // Refresh member metrics when updates occur
+      if (familyMembers.length > 0) {
+        loadMemberMetrics(familyMembers).catch((error) => {
+          if (__DEV__) {
+            console.error("Error refreshing member metrics:", error);
+          }
+        });
+      }
+
+      // Refresh events if alert-related
+      if (
+        update.updateType === "alert_created" ||
+        update.updateType === "alert_resolved"
+      ) {
+        loadEvents(false, familyMembers).catch(() => {
+          // Silently handle errors
+        });
+      }
+
+      // Refresh dashboard if in dashboard view
+      if (viewMode === "dashboard") {
+        if (isAdmin) {
+          loadCaregiverDashboard().catch(() => {
+            // Silently handle errors
+          });
+        } else {
+          loadElderlyDashboard().catch(() => {
+            // Silently handle errors
+          });
+        }
+      }
+    },
+    onTrendAlert: (alert) => {
+      // Show notification for critical trend alerts
+      if (alert.severity === "critical") {
+        Alert.alert(
+          isRTL ? "تنبيه صحي حرج" : "Critical Health Trend",
+          alert.trendAnalysis.message,
+          [{ text: isRTL ? "موافق" : "OK" }]
+        );
+      }
+      // Refresh member metrics to show updated trends
+      if (familyMembers.length > 0) {
+        loadMemberMetrics(familyMembers).catch(() => {
+          // Silently handle errors
+        });
+      }
+    },
+    enabled: !!user?.id && !!user?.familyId && familyMembers.length > 0,
+  });
 
   const handleElderlyEmergency = async () => {
     Alert.alert(
@@ -2822,7 +2943,7 @@ export default function FamilyScreen() {
                                 ),
                                 {
                                   fontSize: 32,
-                                  marginTop: theme.spacing.xs,
+                                  marginTop: theme.spacing.sm,
                                   width: "100%",
                                   textAlign: "center",
                                 },
@@ -3513,87 +3634,122 @@ export default function FamilyScreen() {
           ) : (
             // List View
             <View style={styles.membersList}>
-              {familyMembers.map((member) => (
-                <View key={member.id} style={styles.memberItem}>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => router.push(`/family/${member.id}`)}
-                    style={styles.memberLeft}
-                  >
-                    <View style={styles.avatarContainer}>
-                      <Avatar
-                        avatarType={member.avatarType}
-                        badgeColor="#10B981"
-                        name={
-                          member.firstName && member.lastName
+              {familyMembers.map((member) => {
+                const metrics = memberMetrics.find((m) => m.id === member.id);
+                const allergies = metrics?.allergies || [];
+                return (
+                  <View key={member.id} style={styles.memberItem}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => router.push(`/family/${member.id}`)}
+                      style={styles.memberLeft}
+                    >
+                      <View style={styles.avatarContainer}>
+                        <Avatar
+                          avatarType={member.avatarType}
+                          badgeColor="#10B981"
+                          name={
+                            member.firstName && member.lastName
+                              ? `${member.firstName} ${member.lastName}`
+                              : member.firstName || "User"
+                          }
+                          showBadge={member.id === user?.id}
+                          size="md"
+                          source={
+                            member.avatar ? { uri: member.avatar } : undefined
+                          }
+                        />
+                      </View>
+
+                      <View style={styles.memberInfo}>
+                        <Text
+                          style={[styles.memberName, isRTL && styles.rtlText]}
+                        >
+                          {member.firstName && member.lastName
                             ? `${member.firstName} ${member.lastName}`
-                            : member.firstName || "User"
-                        }
-                        showBadge={member.id === user?.id}
-                        size="md"
-                        source={
-                          member.avatar ? { uri: member.avatar } : undefined
-                        }
-                      />
-                    </View>
-
-                    <View style={styles.memberInfo}>
-                      <Text
-                        style={[styles.memberName, isRTL && styles.rtlText]}
-                      >
-                        {member.firstName && member.lastName
-                          ? `${member.firstName} ${member.lastName}`
-                          : member.firstName || "User"}
-                      </Text>
-                      <Text
-                        style={[styles.memberRelation, isRTL && styles.rtlText]}
-                      >
-                        {member.role === "admin"
-                          ? isRTL
-                            ? "مدير"
-                            : "Admin"
-                          : isRTL
-                            ? "فرد عائلي"
-                            : "Member"}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <View style={styles.memberRight}>
-                    <View style={styles.memberStats}>
-                      <View
-                        style={[
-                          styles.statusIndicator,
-                          {
-                            backgroundColor: "#10B981",
-                          },
-                        ]}
-                      >
-                        <Text style={styles.statusText}>
-                          {isRTL ? "فعال" : "Active"}
+                            : member.firstName || "User"}
                         </Text>
+                        <Text
+                          style={[
+                            styles.memberRelation,
+                            isRTL && styles.rtlText,
+                          ]}
+                        >
+                          {member.role === "admin"
+                            ? isRTL
+                              ? "مدير"
+                              : "Admin"
+                            : isRTL
+                              ? "فرد عائلي"
+                              : "Member"}
+                        </Text>
+                        {allergies.length > 0 && (
+                          <View style={styles.allergiesContainer}>
+                            <Text
+                              style={[
+                                styles.allergiesLabel,
+                                isRTL && styles.rtlText,
+                              ]}
+                            >
+                              {isRTL ? "الحساسية: " : "Allergies: "}
+                            </Text>
+                            <Text
+                              numberOfLines={1}
+                              style={[
+                                styles.allergiesText,
+                                isRTL && styles.rtlText,
+                              ]}
+                            >
+                              {allergies
+                                .slice(0, 3)
+                                .map((allergy) =>
+                                  getTranslatedAllergyName(allergy.name)
+                                )
+                                .join(", ")}
+                              {allergies.length > 3 &&
+                                ` ${isRTL ? "+" : "+"}${allergies.length - 3}`}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+
+                    <View style={styles.memberRight}>
+                      <View style={styles.memberStats}>
+                        <View
+                          style={[
+                            styles.statusIndicator,
+                            {
+                              backgroundColor: "#10B981",
+                            },
+                          ]}
+                        >
+                          <Text style={styles.statusText}>
+                            {isRTL ? "فعال" : "Active"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.memberActions}>
+                        <TouchableOpacity
+                          onPress={() => handleEditMember(member)}
+                          style={styles.actionButton}
+                        >
+                          <Edit color="#64748B" size={16} />
+                        </TouchableOpacity>
+                        {member.id !== user?.id && (
+                          <TouchableOpacity
+                            onPress={() => handleDeleteMember(member)}
+                            style={[styles.actionButton, styles.deleteButton]}
+                          >
+                            <Trash2 color="#EF4444" size={16} />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
-
-                    <View style={styles.memberActions}>
-                      <TouchableOpacity
-                        onPress={() => handleEditMember(member)}
-                        style={styles.actionButton}
-                      >
-                        <Edit color="#64748B" size={16} />
-                      </TouchableOpacity>
-                      {member.id !== user?.id && (
-                        <TouchableOpacity
-                          onPress={() => handleDeleteMember(member)}
-                          style={[styles.actionButton, styles.deleteButton]}
-                        >
-                          <Trash2 color="#EF4444" size={16} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
@@ -5904,6 +6060,24 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-Regular",
     color: "#64748B",
     marginBottom: 2,
+  },
+  allergiesContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    flexWrap: "wrap",
+  },
+  allergiesLabel: {
+    fontSize: 12,
+    fontFamily: "Geist-Medium",
+    color: "#64748B",
+    marginEnd: 4,
+  },
+  allergiesText: {
+    fontSize: 12,
+    fontFamily: "Geist-Regular",
+    color: "#DC2626",
+    flex: 1,
   },
   memberLastActive: {
     fontSize: 12,

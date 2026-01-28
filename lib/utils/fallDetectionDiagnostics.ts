@@ -51,28 +51,21 @@ export const getFallDetectionDiagnostics = async (
   }
 
   // Generate recommendations
+  const isRTL = i18n.language === "ar";
   if (Platform.OS === "web") {
-    diagnostics.recommendations.push(
-      "Fall detection is not available on web. Use a mobile device."
-    );
+    diagnostics.recommendations.push(i18n.t("fallDetectionNotAvailableWeb"));
   } else if (!diagnostics.permissionsGranted) {
-    diagnostics.recommendations.push(
-      "Motion permissions are not granted. Go to Settings → Motion Permissions to enable."
-    );
+    diagnostics.recommendations.push(i18n.t("motionPermissionsNotGranted"));
   } else if (!diagnostics.isEnabled) {
-    diagnostics.recommendations.push(
-      "Fall detection is disabled. Enable it in Settings."
-    );
+    diagnostics.recommendations.push(i18n.t("fallDetectionDisabled"));
   } else if (!diagnostics.isActive) {
     diagnostics.recommendations.push(
-      "Fall detection is enabled but not active. Check console logs for initialization errors."
+      i18n.t("fallDetectionEnabledButNotActive")
     );
   } else if (diagnostics.isInitialized) {
-    diagnostics.recommendations.push("Fall detection is working correctly!");
+    diagnostics.recommendations.push(i18n.t("fallDetectionWorkingCorrectly"));
   } else {
-    diagnostics.recommendations.push(
-      "Fall detection is initializing. Wait a few seconds and check again."
-    );
+    diagnostics.recommendations.push(i18n.t("fallDetectionInitializing"));
   }
 
   return diagnostics;

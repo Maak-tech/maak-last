@@ -52,16 +52,16 @@ const normalizeEmergencyContacts = (
   return contacts;
 };
 
-const getTwilioClient = () => {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
+const getTwilioClient = (accountSid?: string, authToken?: string) => {
+  const sid = accountSid || process.env.TWILIO_ACCOUNT_SID;
+  const token = authToken || process.env.TWILIO_AUTH_TOKEN;
 
-  if (!(accountSid && authToken)) {
+  if (!(sid && token)) {
     return null;
   }
 
   try {
-    return twilio(accountSid, authToken);
+    return twilio(sid, token);
   } catch (error) {
     logger.error("Failed to initialize Twilio client", error as Error, {
       fn: "getTwilioClient",
@@ -73,12 +73,18 @@ const getTwilioClient = () => {
 export const sendEmergencySmsToContacts = async ({
   userId,
   message,
+  twilioAccountSid,
+  twilioAuthToken,
+  twilioFromNumber,
 }: {
   userId: string;
   message: string;
+  twilioAccountSid?: string;
+  twilioAuthToken?: string;
+  twilioFromNumber?: string;
 }): Promise<{ success: boolean; sent: number; failed: number }> => {
-  const fromNumber = process.env.TWILIO_FROM_NUMBER;
-  const twilioClient = getTwilioClient();
+  const fromNumber = twilioFromNumber || process.env.TWILIO_FROM_NUMBER;
+  const twilioClient = getTwilioClient(twilioAccountSid, twilioAuthToken);
 
   if (!(twilioClient && fromNumber)) {
     logger.warn("Twilio is not configured; skipping SMS send", {

@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { Alert } from "react-native";
 import { useFallDetection } from "@/hooks/useFallDetection";
 import { auth } from "@/lib/firebase";
@@ -48,6 +49,8 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === "ar";
   const [isEnabled, setIsEnabled] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastAlert, setLastAlert] = useState<{
@@ -67,54 +70,51 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       // Show alert to user
       const isLocalAlert =
         alertId === "demo-alert" || alertId === "error-alert";
-      Alert.alert(
-        "🚨 Fall Detected",
-        "A fall has been detected. Emergency notifications have been sent to your family members.",
-        [
-          {
-            text: "I'm OK",
-            onPress: async () => {
-              try {
-                if (user?.id && !isLocalAlert) {
-                  await alertService.resolveAlert(alertId, user.id);
-                  Alert.alert("Resolved", "Alert resolved successfully", [
-                    { text: "OK" },
-                  ]);
-                }
-              } catch (error: any) {
-                const errorMessage = error?.message || "Unknown error";
-                let displayMessage = "Failed to resolve alert";
-
-                if (
-                  errorMessage.includes("permission-denied") ||
-                  errorMessage.includes("permission")
-                ) {
-                  displayMessage =
-                    "You don't have permission to resolve this alert";
-                } else if (
-                  errorMessage.includes("does not exist") ||
-                  errorMessage.includes("not found")
-                ) {
-                  displayMessage = "Alert not found";
-                } else {
-                  displayMessage = `Failed to resolve alert: ${errorMessage}`;
-                }
-
-                Alert.alert("Error", displayMessage, [{ text: "OK" }]);
+      Alert.alert(t("fallDetected"), t("fallDetectedMessage"), [
+        {
+          text: t("imOk"),
+          onPress: async () => {
+            try {
+              if (user?.id && !isLocalAlert) {
+                await alertService.resolveAlert(alertId, user.id);
+                Alert.alert(
+                  t("alertResolved"),
+                  t("alertResolvedSuccessfully"),
+                  [{ text: t("ok") }]
+                );
               }
-            },
+            } catch (error: any) {
+              const errorMessage = error?.message || "Unknown error";
+              let displayMessage = t("failedToResolveAlert");
+
+              if (
+                errorMessage.includes("permission-denied") ||
+                errorMessage.includes("permission")
+              ) {
+                displayMessage = t("noPermissionToResolveAlert");
+              } else if (
+                errorMessage.includes("does not exist") ||
+                errorMessage.includes("not found")
+              ) {
+                displayMessage = t("alertNotFound");
+              } else {
+                displayMessage = `${t("failedToResolveAlert")}: ${errorMessage}`;
+              }
+
+              Alert.alert(t("error"), displayMessage, [{ text: t("ok") }]);
+            }
           },
-          {
-            text: "Need Help",
-            style: "destructive",
-            onPress: () => {
-              // Keep alert active - family members will be notified
-            },
+        },
+        {
+          text: t("needHelp"),
+          style: "destructive",
+          onPress: () => {
+            // Keep alert active - family members will be notified
           },
-        ]
-      );
+        },
+      ]);
     },
-    [user?.id]
+    [user?.id, t]
   );
 
   // Initialize fall detection hook
@@ -189,7 +189,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   const testFallDetection = useCallback(async () => {
     try {
       if (!user?.id) {
-        Alert.alert("Error", "User not logged in");
+        Alert.alert(t("error"), t("userNotLoggedIn"));
         return;
       }
 
@@ -219,12 +219,15 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       if (__DEV__) {
-        Alert.alert("Error", `Failed to test fall detection: ${errorMessage}`);
+        Alert.alert(
+          t("error"),
+          `${t("failedToTestFallDetection")}: ${errorMessage}`
+        );
       } else {
-        Alert.alert("Error", "Failed to test fall detection");
+        Alert.alert(t("error"), t("failedToTestFallDetection"));
       }
     }
-  }, [user?.id, handleFallDetected]);
+  }, [user?.id, handleFallDetected, t]);
 
   // Run diagnostics
   const runDiagnostics = useCallback(async () => {

@@ -107,7 +107,8 @@ class AIInsightsService {
    */
   async generateAIInsightsDashboard(
     userId: string,
-    includeAINarrative = true
+    includeAINarrative = true,
+    isArabic = false
   ): Promise<AIInsightsDashboard> {
     // Fetch all required data once
     const { symptoms, medications, medicalHistory } = await this.withTimeout(
@@ -120,9 +121,12 @@ class AIInsightsService {
     const now = new Date();
     const fallbackCorrelation: CorrelationInsight = {
       id: `correlation-${userId}-${now.getTime()}`,
-      title: "Health Data Correlation Analysis",
-      description:
-        "Analysis of relationships between your symptoms, medications, mood, and vital signs.",
+      title: isArabic
+        ? "تحليل ارتباط البيانات الصحية"
+        : "Health Data Correlation Analysis",
+      description: isArabic
+        ? "تحليل العلاقات بين أعراضك الصحية والأدوية والمزاج والعلامات الحيوية."
+        : "Analysis of relationships between your symptoms, medications, mood, and vital signs.",
       correlationResults: [],
       timestamp: now,
       userId,
@@ -184,7 +188,11 @@ class AIInsightsService {
     const results = await Promise.allSettled([
       this.withTimeout(
         "correlationAnalysis",
-        correlationAnalysisService.generateCorrelationAnalysis(userId),
+        correlationAnalysisService.generateCorrelationAnalysis(
+          userId,
+          90,
+          isArabic
+        ),
         8000, // Reduced from 12s to 8s for faster loading
         fallbackCorrelation
       ),
@@ -194,14 +202,15 @@ class AIInsightsService {
           userId,
           symptoms,
           medications,
-          medicalHistory
+          medicalHistory,
+          isArabic
         ),
         6000, // Reduced from 10s to 6s
         fallbackSymptomAnalysis
       ),
       this.withTimeout(
         "riskAssessment",
-        riskAssessmentService.generateRiskAssessment(userId),
+        riskAssessmentService.generateRiskAssessment(userId, isArabic),
         8000, // Reduced from 12s to 8s
         fallbackRiskAssessment
       ),
@@ -213,13 +222,13 @@ class AIInsightsService {
       ),
       this.withTimeout(
         "healthSuggestions",
-        proactiveHealthSuggestionsService.generateSuggestions(userId),
+        proactiveHealthSuggestionsService.generateSuggestions(userId, isArabic),
         5000, // Reduced from 8s to 5s
         []
       ),
       this.withTimeout(
         "personalizedTips",
-        proactiveHealthSuggestionsService.getPersonalizedTips(userId),
+        proactiveHealthSuggestionsService.getPersonalizedTips(userId, isArabic),
         4000, // Reduced from 6s to 4s
         []
       ),
@@ -289,7 +298,8 @@ class AIInsightsService {
     userId: string,
     symptoms?: Symptom[],
     medications?: Medication[],
-    medicalHistory?: MedicalHistory[]
+    medicalHistory?: MedicalHistory[],
+    isArabic = false
   ): Promise<PatternAnalysisResult> {
     // Use provided data or fetch if not provided (for backward compatibility)
     const [symptomsData, medicalHistoryData, medicationsData] =
@@ -307,7 +317,8 @@ class AIInsightsService {
       userId,
       symptomsData,
       medicalHistoryData,
-      medicationsData
+      medicationsData,
+      isArabic
     );
   }
 
@@ -540,13 +551,20 @@ class AIInsightsService {
   /**
    * Generate health action plan based on insights
    */
-  async generateActionPlan(userId: string): Promise<{
+  async generateActionPlan(
+    userId: string,
+    isArabic = false
+  ): Promise<{
     immediate: string[];
     shortTerm: string[];
     longTerm: string[];
     monitoring: string[];
   }> {
-    const dashboard = await this.generateAIInsightsDashboard(userId, false);
+    const dashboard = await this.generateAIInsightsDashboard(
+      userId,
+      false,
+      isArabic
+    );
 
     const immediate: string[] = [];
     const shortTerm: string[] = [];
@@ -557,14 +575,20 @@ class AIInsightsService {
     dashboard.medicationAlerts
       .filter((a) => a.severity === "major")
       .forEach((alert) => {
-        immediate.push(`Address medication interaction: ${alert.title}`);
+        immediate.push(
+          isArabic
+            ? `معالجة تفاعل الدواء: ${alert.title}`
+            : `Address medication interaction: ${alert.title}`
+        );
       });
 
     dashboard.symptomAnalysis.diagnosisSuggestions
       .filter((d) => d.urgency === "emergency" || d.urgency === "high")
       .forEach((suggestion) => {
         immediate.push(
-          `Seek medical attention for possible ${suggestion.condition}`
+          isArabic
+            ? `اطلب الرعاية الطبية لاحتمال ${suggestion.condition}`
+            : `Seek medical attention for possible ${suggestion.condition}`
         );
       });
 
@@ -591,15 +615,27 @@ class AIInsightsService {
       });
 
     // Monitoring actions
-    monitoring.push("Continue tracking symptoms and vital signs regularly");
-    monitoring.push("Monitor medication effectiveness and side effects");
     monitoring.push(
-      "Schedule regular health check-ups based on risk assessment"
+      isArabic
+        ? "استمر في تتبع الأعراض الصحية والعلامات الحيوية بانتظام"
+        : "Continue tracking symptoms and vital signs regularly"
+    );
+    monitoring.push(
+      isArabic
+        ? "راقب فعالية الأدوية والآثار الجانبية"
+        : "Monitor medication effectiveness and side effects"
+    );
+    monitoring.push(
+      isArabic
+        ? "حدد مواعيد فحوصات صحية منتظمة بناءً على تقييم المخاطر"
+        : "Schedule regular health check-ups based on risk assessment"
     );
 
     if (dashboard.riskAssessment.nextAssessmentDate) {
       monitoring.push(
-        `Next comprehensive assessment: ${dashboard.riskAssessment.nextAssessmentDate.toLocaleDateString()}`
+        isArabic
+          ? `التقييم الشامل التالي: ${dashboard.riskAssessment.nextAssessmentDate.toLocaleDateString(isArabic ? "ar-u-ca-gregory" : "en-US")}`
+          : `Next comprehensive assessment: ${dashboard.riskAssessment.nextAssessmentDate.toLocaleDateString()}`
       );
     }
 

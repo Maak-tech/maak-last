@@ -154,10 +154,20 @@ export const ppgMLService = new PPGMLService({
 export async function analyzePPGWithML(
   signal: number[],
   frameRate: number,
-  userId?: string
+  userId?: string,
+  apiKey?: string
 ): Promise<PPGAnalysisResponse> {
   try {
-    const result = await ppgMLService.analyzePPG({
+    // Use provided API key or fall back to singleton instance
+    const service = apiKey
+      ? new PPGMLService({
+          baseUrl: mlServiceBaseUrl,
+          timeout: 10_000,
+          apiKey,
+        })
+      : ppgMLService;
+
+    const result = await service.analyzePPG({
       signal,
       frameRate,
       userId,
