@@ -286,7 +286,6 @@ export async function createTrendAlert(
 
     return alertId;
   } catch (error) {
-    console.error("Error creating trend alert:", error);
     return null;
   }
 }

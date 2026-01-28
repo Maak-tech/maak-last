@@ -409,7 +409,6 @@ class FamilyHealthReportService {
 
       return JSON.stringify(report, replacer, 2);
     } catch (error) {
-      console.error("Error exporting report as JSON:", error);
       throw new Error(
         `Failed to export report: ${error instanceof Error ? error.message : "Unknown error"}`
       );

@@ -7,7 +7,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -124,10 +124,6 @@ export default function AllergiesScreen() {
       loadAllergies();
     }, [loadAllergies])
   );
-
-  useEffect(() => {
-    loadAllergies();
-  }, [loadAllergies]);
 
   // Helper function to get translated allergy name
   const getTranslatedAllergyName = (name: string): string => {
@@ -416,14 +412,14 @@ export default function AllergiesScreen() {
       minWidth: 0,
       padding: theme.spacing.lg,
       alignItems: "center",
-      overflow: "hidden",
     },
     statValue: {
       fontSize: 32,
       color: theme.colors.text.primary,
+      lineHeight: 38,
+      marginTop: theme.spacing.xs,
       marginBottom: theme.spacing.xs,
       textAlign: "center",
-      includeFontPadding: false,
       flexShrink: 1,
       paddingHorizontal: theme.spacing.xs,
       minHeight: 40,
@@ -713,7 +709,7 @@ export default function AllergiesScreen() {
           <View style={styles.statsGrid}>
             <Card
               contentStyle={undefined}
-              onPress={undefined}
+              pressable={false}
               style={styles.statCard}
               variant="elevated"
             >
@@ -733,7 +729,7 @@ export default function AllergiesScreen() {
             </Card>
             <Card
               contentStyle={undefined}
-              onPress={undefined}
+              pressable={false}
               style={styles.statCard}
               variant="elevated"
             >
@@ -786,7 +782,7 @@ export default function AllergiesScreen() {
               <Card
                 contentStyle={undefined}
                 key={allergy.id}
-                onPress={undefined}
+                pressable={false}
                 style={styles.allergyCard}
                 variant="elevated"
               >

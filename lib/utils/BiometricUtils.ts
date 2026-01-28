@@ -201,10 +201,7 @@ export async function processPPGSignalWithML(
         mlResult.error?.includes("User must be authenticated");
 
       if (!isAuthError) {
-        // ML completely failed for non-auth reasons, log warning
-        console.warn(
-          "ML processing failed, falling back to traditional processing"
-        );
+        // ML completely failed for non-auth reasons
       }
       // Fall through to traditional processing
     } catch (error: any) {
@@ -215,10 +212,7 @@ export async function processPPGSignalWithML(
         error?.message?.includes("unauthenticated");
 
       if (!isAuthError) {
-        console.warn(
-          "ML service unavailable, using traditional processing:",
-          error
-        );
+        // ML service unavailable, using traditional processing
       }
       // Fall through to traditional processing
     }

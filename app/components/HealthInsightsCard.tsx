@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -49,7 +49,7 @@ export default function HealthInsightsCard({
   );
   const [expanded, setExpanded] = useState(false);
 
-  const styles = getStyles(theme, isRTL);
+  const styles = useMemo(() => getStyles(theme, isRTL), [theme, isRTL]);
 
   const loadInsights = useCallback(async () => {
     if (!user) return;
@@ -94,24 +94,36 @@ export default function HealthInsightsCard({
       const members = await userService.getFamilyMembers(user.familyId);
       const otherMembers = members.filter((member) => member.id !== user.id);
 
-      const results = await Promise.allSettled(
-        otherMembers.map(async (member) => {
-          const [summary, allInsights] = await Promise.all([
-            healthInsightsService.getWeeklySummary(member.id, undefined, isRTL),
-            healthInsightsService.getAllInsights(member.id, isRTL),
-          ]);
+      const memberInsights: FamilyMemberInsights[] = [];
+      const batchSize = 2;
 
-          return {
-            member,
-            summary,
-            insights: allInsights.slice(0, 2),
-          };
-        })
-      );
+      for (let i = 0; i < otherMembers.length; i += batchSize) {
+        const batch = otherMembers.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (member) => {
+            const [summary, allInsights] = await Promise.all([
+              healthInsightsService.getWeeklySummary(
+                member.id,
+                undefined,
+                isRTL
+              ),
+              healthInsightsService.getAllInsights(member.id, isRTL),
+            ]);
 
-      const memberInsights = results.flatMap((result) =>
-        result.status === "fulfilled" ? [result.value] : []
-      );
+            return {
+              member,
+              summary,
+              insights: allInsights.slice(0, 2),
+            };
+          })
+        );
+
+        memberInsights.push(
+          ...results.flatMap((result) =>
+            result.status === "fulfilled" ? [result.value] : []
+          )
+        );
+      }
 
       setFamilyInsights(memberInsights);
     } catch {
@@ -285,7 +297,7 @@ export default function HealthInsightsCard({
 
   if (loading) {
     return (
-      <Card contentStyle={undefined} onPress={undefined} style={styles.card}>
+      <Card contentStyle={undefined} pressable={false} style={styles.card}>
         <View style={styles.centerContainer}>
           <ActivityIndicator color={theme.colors.primary.main} size="small" />
           <Caption numberOfLines={1} style={styles.loadingText}>
@@ -301,7 +313,7 @@ export default function HealthInsightsCard({
   }
 
   return (
-    <Card contentStyle={undefined} onPress={undefined} style={styles.card}>
+    <Card contentStyle={undefined} pressable={false} style={styles.card}>
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => setExpanded(!expanded)}

@@ -598,11 +598,9 @@ class HealthInsightsService {
 
         // Create alert if concerning trend detected
         if (createAlerts && userId) {
-          createTrendAlert(userId, trendAnalysis, "symptom_trend").catch(
-            (error) => {
-              console.error("Error creating symptom trend alert:", error);
-            }
-          );
+          createTrendAlert(userId, trendAnalysis, "symptom_trend").catch(() => {
+            // Error creating symptom trend alert
+          });
         }
       }
     }
@@ -943,11 +941,9 @@ class HealthInsightsService {
 
       // Create alert if concerning trend detected and createAlerts is true
       if (createAlerts && userId && isTrendConcerning(trendAnalysis)) {
-        createTrendAlert(userId, trendAnalysis, "vital_trend").catch(
-          (error) => {
-            console.error("Error creating trend alert:", error);
-          }
-        );
+        createTrendAlert(userId, trendAnalysis, "vital_trend").catch(() => {
+          // Error creating trend alert
+        });
       }
     }
 

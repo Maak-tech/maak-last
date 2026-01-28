@@ -66,18 +66,10 @@ class AIInsightsService {
     timeoutMs: number,
     fallback: T
   ): Promise<T> {
-    const safePromise = promise.catch((error) => {
-      if (__DEV__) {
-        console.warn(`[AIInsights] ${label} failed`, error);
-      }
-      return fallback;
-    });
+    const safePromise = promise.catch(() => fallback);
 
     const timeoutPromise = new Promise<T>((resolve) => {
       setTimeout(() => {
-        if (__DEV__) {
-          console.warn(`[AIInsights] ${label} timed out after ${timeoutMs}ms`);
-        }
         resolve(fallback);
       }, timeoutMs);
     });
@@ -384,7 +376,6 @@ class AIInsightsService {
       return narrative?.narrative || this.generateFallbackNarrative(context);
     } catch (error) {
       // Missing API key or network errors should not spam logs; fallback is fine.
-      if (__DEV__) console.warn("AI narrative generation failed", error);
       return this.generateFallbackNarrative({
         correlations: [],
         symptomPatterns: [],
@@ -648,7 +639,6 @@ class AIInsightsService {
     try {
       return await symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT);
     } catch (error) {
-      console.error("Failed to fetch symptoms:", error);
       return [];
     }
   }
@@ -657,7 +647,6 @@ class AIInsightsService {
     try {
       return await medicalHistoryService.getUserMedicalHistory(userId);
     } catch (error) {
-      console.error("Failed to fetch medical history:", error);
       return [];
     }
   }
@@ -666,7 +655,6 @@ class AIInsightsService {
     try {
       return await medicationService.getUserMedications(userId);
     } catch (error) {
-      console.error("Failed to fetch medications:", error);
       return [];
     }
   }

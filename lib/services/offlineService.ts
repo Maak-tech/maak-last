@@ -92,7 +92,7 @@ class OfflineService {
           try {
             listener(this.isOnline);
           } catch (error) {
-            console.error("Error in sync listener:", error);
+            // Error in sync listener
           }
         });
       }
@@ -183,8 +183,8 @@ class OfflineService {
     if (this.isOnline && !this.isSyncing) {
       // Use setTimeout to avoid blocking the current operation
       setTimeout(() => {
-        this.syncOperation(newOperation).catch((error) => {
-          console.error("Error syncing operation immediately:", error);
+        this.syncOperation(newOperation).catch(() => {
+          // Error syncing operation immediately
         });
       }, 100);
     }
@@ -239,7 +239,6 @@ class OfflineService {
         return restoredOp;
       });
     } catch (error) {
-      console.error("Error getting offline queue:", error);
       return [];
     }
   }
@@ -343,18 +342,11 @@ class OfflineService {
           break;
         }
         default:
-          console.warn(
-            `Unknown collection type: ${operation.collection}`,
-            operation
-          );
           return false;
       }
 
       const service = Object.values(services)[0];
       if (!service) {
-        console.warn(
-          `Service not found for collection: ${operation.collection}`
-        );
         return false;
       }
 
@@ -460,20 +452,14 @@ class OfflineService {
               });
             } catch (timelineError) {
               // Don't fail sync if timeline update fails
-              console.warn("Failed to update health timeline:", timelineError);
             }
           }
 
           operationSucceeded = true;
-          console.log(
-            `Successfully synced ${operation.type} ${operation.collection}:`,
-            docRef.id
-          );
           break;
         }
         case "update": {
           if (!operation.data.id) {
-            console.warn("Update operation missing ID:", operation);
             return false;
           }
 
@@ -507,15 +493,10 @@ class OfflineService {
           );
 
           operationSucceeded = true;
-          console.log(
-            `Successfully synced ${operation.type} ${operation.collection}:`,
-            operation.data.id
-          );
           break;
         }
         case "delete": {
           if (!operation.data.id) {
-            console.warn("Delete operation missing ID:", operation);
             return false;
           }
 
@@ -530,14 +511,9 @@ class OfflineService {
           }
 
           operationSucceeded = true;
-          console.log(
-            `Successfully synced ${operation.type} ${operation.collection}:`,
-            operation.data.id
-          );
           break;
         }
         default:
-          console.warn(`Unknown operation type: ${operation.type}`, operation);
           return false;
       }
 
@@ -575,32 +551,14 @@ class OfflineService {
         errorDetails.operationDataError = "Could not serialize operation data";
       }
 
-      console.error(
-        `Sync operation failed: ${operation.type} ${operation.collection}`,
-        errorDetails
-      );
-
-      // Also log the raw error with all properties
-      console.error("Raw error object:", {
-        error,
-        errorString: String(error),
-        errorType: typeof error,
-        errorKeys: error && typeof error === "object" ? Object.keys(error) : [],
-        errorCode: (error as any)?.code,
-        errorMessage: (error as any)?.message,
-      });
+      // Sync operation failed
 
       // Increment retries
       operation.retries++;
       if (operation.retries < 5) {
         await this.updateOperationInQueue(operation);
       } else {
-        // Too many retries, remove from queue and log
-        console.warn(`Removing operation after ${operation.retries} retries:`, {
-          id: operation.id,
-          type: operation.type,
-          collection: operation.collection,
-        });
+        // Too many retries, remove from queue
         await this.removeOperationFromQueue(operation.id);
       }
       return false;
@@ -635,7 +593,6 @@ class OfflineService {
    */
   async syncAll(): Promise<{ success: number; failed: number }> {
     if (!this.isOnline) {
-      console.log("Cannot sync: device is offline");
       return { success: 0, failed: 0 };
     }
 
@@ -652,7 +609,6 @@ class OfflineService {
         return { success: 0, failed: 0 };
       }
 
-      console.log(`Starting sync of ${queue.length} operations`);
       let success = 0;
       let failed = 0;
 
@@ -665,7 +621,6 @@ class OfflineService {
         }
       }
 
-      console.log(`Sync completed: ${success} succeeded, ${failed} failed`);
       return { success, failed };
     } finally {
       this.isSyncing = false;

@@ -1,5 +1,5 @@
 import { Brain } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -58,93 +58,107 @@ export default function AnalyticsScreen() {
     includeNarrative: true,
   });
 
-  const styles = createThemedStyles((theme) => ({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background.primary,
-    } as ViewStyle,
-    header: {
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.base,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
-    } as ViewStyle,
-    headerTitle: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
-      fontSize: 24,
-    } as TextStyle,
-    dateRangeSelector: {
-      flexDirection: (isRTL
-        ? "row-reverse"
-        : "row") as ViewStyle["flexDirection"],
-      gap: theme.spacing.xs,
-      flexWrap: "wrap" as ViewStyle["flexWrap"],
-    } as ViewStyle,
-    dateRangeButton: {
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.xs,
-      borderRadius: theme.borderRadius.full,
-      borderWidth: 1,
-      borderColor:
-        typeof theme.colors.border === "string"
-          ? theme.colors.border
-          : theme.colors.border.light,
-      backgroundColor: theme.colors.background.secondary,
-    } as ViewStyle,
-    dateRangeButtonActive: {
-      backgroundColor: theme.colors.primary.main,
-      borderColor: theme.colors.primary.main,
-    } as ViewStyle,
-    dateRangeButtonText: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
-      fontSize: 12,
-    } as TextStyle,
-    dateRangeButtonTextActive: {
-      color: theme.colors.neutral.white,
-    } as TextStyle,
-    content: {
-      paddingBottom: theme.spacing.xl,
-    } as ViewStyle,
-    section: {
-      marginVertical: theme.spacing.base,
-    } as ViewStyle,
-    sectionHeader: {
-      flexDirection: (isRTL
-        ? "row-reverse"
-        : "row") as ViewStyle["flexDirection"],
-      justifyContent: "space-between" as ViewStyle["justifyContent"],
-      alignItems: "center" as ViewStyle["alignItems"],
-      paddingHorizontal: theme.spacing.base,
-      marginBottom: theme.spacing.sm,
-    } as ViewStyle,
-    comparisonToggle: {
-      flexDirection: (isRTL
-        ? "row-reverse"
-        : "row") as ViewStyle["flexDirection"],
-      alignItems: "center" as ViewStyle["alignItems"],
-      gap: theme.spacing.xs,
-    } as ViewStyle,
-    emptyContainer: {
-      flex: 1,
-      justifyContent: "center" as ViewStyle["justifyContent"],
-      alignItems: "center" as ViewStyle["alignItems"],
-      padding: theme.spacing.xl,
-    } as ViewStyle,
-    emptyText: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      textAlign: "center" as TextStyle["textAlign"],
-      marginTop: theme.spacing.base,
-    } as TextStyle & ViewStyle,
-    rtlText: {
-      textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
-    } as TextStyle,
-    text: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-    } as TextStyle,
-    mt2: {
-      marginTop: theme.spacing.xs,
-    } as TextStyle,
-  }))(theme);
+  const styles = useMemo(
+    () =>
+      createThemedStyles((theme) => ({
+        container: {
+          flex: 1,
+          backgroundColor: theme.colors.background.primary,
+        } as ViewStyle,
+        header: {
+          paddingHorizontal: theme.spacing.base,
+          paddingVertical: theme.spacing.base,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border.light,
+        } as ViewStyle,
+        headerTitle: {
+          ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
+          fontSize: 24,
+        } as TextStyle,
+        dateRangeSelector: {
+          flexDirection: (isRTL
+            ? "row-reverse"
+            : "row") as ViewStyle["flexDirection"],
+          gap: theme.spacing.xs,
+          flexWrap: "wrap" as ViewStyle["flexWrap"],
+        } as ViewStyle,
+        dateRangeButton: {
+          paddingHorizontal: theme.spacing.base,
+          paddingVertical: theme.spacing.xs,
+          borderRadius: theme.borderRadius.full,
+          borderWidth: 1,
+          borderColor:
+            typeof theme.colors.border === "string"
+              ? theme.colors.border
+              : theme.colors.border.light,
+          backgroundColor: theme.colors.background.secondary,
+        } as ViewStyle,
+        dateRangeButtonActive: {
+          backgroundColor: theme.colors.primary.main,
+          borderColor: theme.colors.primary.main,
+        } as ViewStyle,
+        dateRangeButtonText: {
+          ...getTextStyle(
+            theme,
+            "caption",
+            "medium",
+            theme.colors.text.secondary
+          ),
+          fontSize: 12,
+        } as TextStyle,
+        dateRangeButtonTextActive: {
+          color: theme.colors.neutral.white,
+        } as TextStyle,
+        content: {
+          paddingBottom: theme.spacing.xl,
+        } as ViewStyle,
+        section: {
+          marginVertical: theme.spacing.base,
+        } as ViewStyle,
+        sectionHeader: {
+          flexDirection: (isRTL
+            ? "row-reverse"
+            : "row") as ViewStyle["flexDirection"],
+          justifyContent: "space-between" as ViewStyle["justifyContent"],
+          alignItems: "center" as ViewStyle["alignItems"],
+          paddingHorizontal: theme.spacing.base,
+          marginBottom: theme.spacing.sm,
+        } as ViewStyle,
+        comparisonToggle: {
+          flexDirection: (isRTL
+            ? "row-reverse"
+            : "row") as ViewStyle["flexDirection"],
+          alignItems: "center" as ViewStyle["alignItems"],
+          gap: theme.spacing.xs,
+        } as ViewStyle,
+        emptyContainer: {
+          flex: 1,
+          justifyContent: "center" as ViewStyle["justifyContent"],
+          alignItems: "center" as ViewStyle["alignItems"],
+          padding: theme.spacing.xl,
+        } as ViewStyle,
+        emptyText: {
+          ...getTextStyle(
+            theme,
+            "body",
+            "regular",
+            theme.colors.text.secondary
+          ),
+          textAlign: "center" as TextStyle["textAlign"],
+          marginTop: theme.spacing.base,
+        } as TextStyle & ViewStyle,
+        rtlText: {
+          textAlign: (isRTL ? "right" : "left") as TextStyle["textAlign"],
+        } as TextStyle,
+        text: {
+          ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+        } as TextStyle,
+        mt2: {
+          marginTop: theme.spacing.xs,
+        } as TextStyle,
+      }))(theme),
+    [theme, isRTL]
+  );
 
   const getDaysFromRange = (range: DateRange): number => {
     switch (range) {
@@ -180,8 +194,6 @@ export default function AnalyticsScreen() {
           setLoading(true);
         }
 
-        const days = getDaysFromRange(dateRange);
-
         // Load data in parallel
         const [userSymptoms, userMedications, userVitals] = await Promise.all([
           symptomService.getUserSymptoms(user.id, 1000), // Get more for better charts
@@ -201,7 +213,7 @@ export default function AnalyticsScreen() {
         setRefreshing(false);
       }
     },
-    [user, dateRange]
+    [user]
   );
 
   useEffect(() => {
@@ -215,55 +227,69 @@ export default function AnalyticsScreen() {
   ];
 
   // Prepare chart data
-  const symptomChartData = chartsService.prepareSymptomTimeSeries(
-    symptoms,
-    getDaysFromRange(dateRange)
+  const daysInRange = useMemo(() => getDaysFromRange(dateRange), [dateRange]);
+
+  const symptomChartData = useMemo(
+    () => chartsService.prepareSymptomTimeSeries(symptoms, daysInRange),
+    [symptoms, daysInRange]
   );
 
-  const medicationComplianceData =
-    chartsService.prepareMedicationComplianceTimeSeries(
-      medications,
-      getDaysFromRange(dateRange)
-    );
-
-  const correlationData = chartsService.calculateCorrelation(
-    symptoms,
-    medications,
-    getDaysFromRange(dateRange)
+  const medicationComplianceData = useMemo(
+    () =>
+      chartsService.prepareMedicationComplianceTimeSeries(
+        medications,
+        daysInRange
+      ),
+    [medications, daysInRange]
   );
 
-  const symptomIsoDates = buildIsoDateSeries(getDaysFromRange(dateRange));
-  const symptomTrend = chartsService.predictTrend(
-    symptomIsoDates.map((iso, index) => ({
-      x: iso,
-      y: symptomChartData.datasets[0].data[index],
-    })),
-    7
+  const correlationData = useMemo(
+    () =>
+      chartsService.calculateCorrelation(symptoms, medications, daysInRange),
+    [symptoms, medications, daysInRange]
+  );
+
+  const symptomIsoDates = useMemo(
+    () => buildIsoDateSeries(daysInRange),
+    [daysInRange]
+  );
+
+  const symptomTrend = useMemo(
+    () =>
+      chartsService.predictTrend(
+        symptomIsoDates.map((iso, index) => ({
+          x: iso,
+          y: symptomChartData.datasets[0].data[index],
+        })),
+        7
+      ),
+    [symptomIsoDates, symptomChartData]
   );
 
   // Prepare comparison data if comparison is enabled
-  const symptomComparisonData =
-    showComparison && comparisonRange
-      ? (() => {
-          const currentDays = getDaysFromRange(dateRange);
-          const previousDays = getDaysFromRange(comparisonRange);
-          const previousSymptomChartData =
-            chartsService.prepareSymptomTimeSeries(symptoms, previousDays);
-          const currentIsoDates = buildIsoDateSeries(currentDays);
-          const previousIsoDates = buildIsoDateSeries(previousDays);
+  const symptomComparisonData = useMemo(() => {
+    if (!(showComparison && comparisonRange)) return null;
 
-          return chartsService.prepareComparisonData(
-            currentIsoDates.map((iso, index) => ({
-              x: iso,
-              y: symptomChartData.datasets[0].data[index],
-            })),
-            previousIsoDates.map((iso, index) => ({
-              x: iso,
-              y: previousSymptomChartData.datasets[0].data[index],
-            }))
-          );
-        })()
-      : null;
+    const currentDays = getDaysFromRange(dateRange);
+    const previousDays = getDaysFromRange(comparisonRange);
+    const previousSymptomChartData = chartsService.prepareSymptomTimeSeries(
+      symptoms,
+      previousDays
+    );
+    const currentIsoDates = buildIsoDateSeries(currentDays);
+    const previousIsoDates = buildIsoDateSeries(previousDays);
+
+    return chartsService.prepareComparisonData(
+      currentIsoDates.map((iso, index) => ({
+        x: iso,
+        y: symptomChartData.datasets[0].data[index],
+      })),
+      previousIsoDates.map((iso, index) => ({
+        x: iso,
+        y: previousSymptomChartData.datasets[0].data[index],
+      }))
+    );
+  }, [showComparison, comparisonRange, dateRange, symptoms, symptomChartData]);
 
   if (!user) {
     return (
@@ -473,7 +499,7 @@ export default function AnalyticsScreen() {
               <CorrelationChart data={correlationData} title="" />
               <Card
                 contentStyle={undefined}
-                onPress={undefined}
+                pressable={false}
                 style={{ marginHorizontal: 16, marginTop: 8 }}
                 variant="elevated"
               >
@@ -610,7 +636,7 @@ export default function AnalyticsScreen() {
             <View style={{ paddingHorizontal: 16, gap: 12 }}>
               <Card
                 contentStyle={undefined}
-                onPress={undefined}
+                pressable={false}
                 style={undefined}
                 variant="elevated"
               >
@@ -636,7 +662,7 @@ export default function AnalyticsScreen() {
 
               <Card
                 contentStyle={undefined}
-                onPress={undefined}
+                pressable={false}
                 style={undefined}
                 variant="elevated"
               >

@@ -31,7 +31,7 @@ export interface ActionResult {
 }
 
 // Symptom mapping for natural language to symptom types
-const SYMPTOM_TYPE_MAP: Record<string, string> = {
+export const SYMPTOM_TYPE_MAP: Record<string, string> = {
   // Head
   headache: "headache",
   "head pain": "headache",
@@ -105,7 +105,7 @@ const SYMPTOM_TYPE_MAP: Record<string, string> = {
 };
 
 // Body part mapping
-const BODY_PART_MAP: Record<string, string> = {
+export const BODY_PART_MAP: Record<string, string> = {
   head: "Head",
   neck: "Neck",
   chest: "Chest",
@@ -211,7 +211,6 @@ class ZeinaActionsService {
           : `I've logged your ${symptomName}${severityText}. ${symptomAdvice}`,
       };
     } catch (error) {
-      console.error("Error logging symptom:", error);
       return {
         success: false,
         action: "log_symptom",
@@ -268,7 +267,6 @@ class ZeinaActionsService {
         speakableResponse: `I've added ${name} to your medications. You're taking ${dosage}, ${frequency}. Would you like me to set up a reminder for this medication?`,
       };
     } catch (error) {
-      console.error("Error adding medication:", error);
       return {
         success: false,
         action: "add_medication",
@@ -339,7 +337,6 @@ class ZeinaActionsService {
         speakableResponse: `I've sent a ${alertTypeText} to your family members. They'll be notified shortly.`,
       };
     } catch (error) {
-      console.error("Error alerting family:", error);
       return {
         success: false,
         action: "alert_family",
@@ -404,7 +401,6 @@ class ZeinaActionsService {
           : `I've recorded your ${vitalName} at ${value} ${displayUnit}. ${vitalAdvice}`,
       };
     } catch (error) {
-      console.error("Error logging vital:", error);
       return {
         success: false,
         action: "log_vital",
@@ -477,7 +473,6 @@ class ZeinaActionsService {
         speakableResponse: `I've set a ${recurringText} reminder for ${medicationName} at ${time}. I'll make sure you don't miss it.`,
       };
     } catch (error) {
-      console.error("Error setting reminder:", error);
       return {
         success: false,
         action: "set_reminder",
@@ -522,7 +517,6 @@ class ZeinaActionsService {
           : "I've logged your check-in. How are you feeling right now?",
       };
     } catch (error) {
-      console.error("Error requesting check-in:", error);
       return {
         success: false,
         action: "request_check_in",
@@ -589,7 +583,6 @@ class ZeinaActionsService {
         speakableResponse: `I've logged that you're feeling ${this.getMoodDescription(normalizedMood)}. ${moodFeedback}`,
       };
     } catch (error) {
-      console.error("Error logging mood:", error);
       return {
         success: false,
         action: "log_mood",
@@ -725,7 +718,6 @@ class ZeinaActionsService {
         speakableResponse: `It looks like you've already taken your ${medicationName} today. Is there something else I can help you with?`,
       };
     } catch (error) {
-      console.error("Error marking medication taken:", error);
       return {
         success: false,
         action: "mark_medication_taken",
@@ -905,7 +897,6 @@ class ZeinaActionsService {
         speakableResponse: `I've added your ${allergen} allergy${severityText} to your profile. ${this.getAllergyAdvice(allergen, severity)}`,
       };
     } catch (error) {
-      console.error("Error adding allergy:", error);
       return {
         success: false,
         action: "add_allergy",
@@ -968,7 +959,6 @@ class ZeinaActionsService {
         speakableResponse: `I've added ${condition}${statusText} to your medical history. ${this.getMedicalHistoryAdvice(condition)}`,
       };
     } catch (error) {
-      console.error("Error adding medical history:", error);
       return {
         success: false,
         action: "add_medical_history",

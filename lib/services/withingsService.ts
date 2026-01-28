@@ -77,30 +77,12 @@ export const withingsService = {
    */
   isAvailable: async (): Promise<ProviderAvailability> => {
     try {
-      // Debug: Log the actual values being checked
-      console.log("[Withings] Checking availability:");
-      console.log(
-        "[Withings] CLIENT_ID:",
-        WITHINGS_CLIENT_ID
-          ? `${WITHINGS_CLIENT_ID.substring(0, 4)}...`
-          : "undefined"
-      );
-      console.log(
-        "[Withings] CLIENT_SECRET:",
-        WITHINGS_CLIENT_SECRET ? "***" : "undefined"
-      );
-      console.log(
-        "[Withings] From Constants:",
-        Constants.expoConfig?.extra?.withingsClientId ? "present" : "missing"
-      );
-
       if (
         WITHINGS_CLIENT_ID === "YOUR_WITHINGS_CLIENT_ID" ||
         WITHINGS_CLIENT_SECRET === "YOUR_WITHINGS_CLIENT_SECRET" ||
         !WITHINGS_CLIENT_ID?.trim() ||
         !WITHINGS_CLIENT_SECRET?.trim()
       ) {
-        console.log("[Withings] Not available - credentials missing or empty");
         return {
           available: false,
           reason:
@@ -108,12 +90,10 @@ export const withingsService = {
         };
       }
 
-      console.log("[Withings] Available!");
       return {
         available: true,
       };
     } catch (error: any) {
-      console.error("[Withings] Error checking availability:", error);
       return {
         available: false,
         reason: error?.message || "Unknown error",
@@ -167,23 +147,6 @@ export const withingsService = {
 
       const scopes = getWithingsScopesForMetrics(selectedMetrics);
 
-      // Log redirect URI for debugging
-      if (__DEV__) {
-        console.log("[Withings] Starting OAuth flow");
-        console.log("[Withings] Redirect URI:", REDIRECT_URI);
-        console.log(
-          "[Withings] Redirect URI (encoded):",
-          encodeURIComponent(REDIRECT_URI)
-        );
-        console.log(
-          "[Withings] Client ID:",
-          WITHINGS_CLIENT_ID
-            ? `${WITHINGS_CLIENT_ID.substring(0, 4)}...`
-            : "undefined"
-        );
-        console.log("[Withings] Scopes:", scopes);
-      }
-
       // Build OAuth URL with proper encoding
       const redirectUriEncoded = encodeURIComponent(REDIRECT_URI);
       const authUrl =
@@ -193,10 +156,6 @@ export const withingsService = {
         `redirect_uri=${redirectUriEncoded}&` +
         `scope=${encodeURIComponent(scopes.join(","))}&` +
         `state=${encodeURIComponent("withings_auth")}`;
-
-      if (__DEV__) {
-        console.log("[Withings] Full OAuth URL:", authUrl);
-      }
 
       // Use web callback URL for OAuth (registered with Withings)
       // The web page will redirect to deep link after extracting the code
@@ -769,18 +728,10 @@ export const withingsService = {
           const responseData = await response.json();
 
           if (responseData.status !== 0) {
-            // Log but don't throw - subscription failures are not critical
-            console.warn(
-              `Failed to subscribe to Withings notifications for category ${category}:`,
-              responseData.error
-            );
+            // Subscription failures are not critical
           }
         } catch (error) {
           // Silently handle individual category subscription failures
-          console.warn(
-            `Error subscribing to Withings category ${category}:`,
-            error
-          );
         }
       }
     } catch (error) {

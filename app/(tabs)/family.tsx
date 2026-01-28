@@ -70,6 +70,7 @@ import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useRealtimeHealth } from "@/hooks/useRealtimeHealth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { alertService } from "@/lib/services/alertService";
 import { allergyService } from "@/lib/services/allergyService";
@@ -293,6 +294,8 @@ export default function FamilyScreen() {
   const loadMemberMetricsRef = useRef<
     ((members: User[]) => Promise<void>) | null
   >(null);
+  const loadingEventsRef = useRef(false);
+  const familyMembersRef = useRef<User[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
     type: "personal",
@@ -372,6 +375,7 @@ export default function FamilyScreen() {
         setLoading(false);
         setRefreshing(false);
         setFamilyMembers([]);
+        familyMembersRef.current = [];
         setMemberMetrics([]);
         return;
       }
@@ -387,6 +391,7 @@ export default function FamilyScreen() {
 
             if (Array.isArray(cached.members)) {
               setFamilyMembers(cached.members);
+              familyMembersRef.current = cached.members;
               usedCache = true;
               setLoading(false);
             }
@@ -418,27 +423,32 @@ export default function FamilyScreen() {
         ])) as User[];
 
         setFamilyMembers(members);
-        await AsyncStorage.setItem(
+        familyMembersRef.current = members;
+
+        // Clear loading state immediately so UI can render members
+        // Don't wait for cache write or metrics loading
+        if (!usedCache) {
+          setLoading(false);
+        }
+
+        // Cache write in background (non-blocking)
+        AsyncStorage.setItem(
           cacheKey,
           JSON.stringify({ members, cachedAt: Date.now() })
-        );
+        ).catch(() => {
+          // Silently fail cache write - not critical
+        });
 
         // Load metrics in the background (non-blocking) for attention items
         // This allows the UI to render immediately while metrics load
         // Use the ref if available (it will be set after loadMemberMetrics is defined)
-        if (members.length > 0 && loadMemberMetricsRef.current) {
-          loadMemberMetricsRef.current(members).catch((error) => {
-            // Silently handle errors - metrics are not critical for initial render
-            if (__DEV__) {
-              console.error("Error loading member metrics:", error);
-            }
-          });
-        }
+        // Metrics will be loaded lazily when dashboard view is accessed via useFocusEffect
         // Note: If ref is not set yet, metrics will be loaded by useFocusEffect
       } catch (error) {
         // Set empty array to prevent infinite loading unless we have cache
         if (!usedCache) {
           setFamilyMembers([]);
+          familyMembersRef.current = [];
           setMemberMetrics([]);
         }
         // Only show alert if it's not a timeout (to avoid spam)
@@ -479,9 +489,6 @@ export default function FamilyScreen() {
     // Safety timeout: ensure loading is never stuck true for more than 20 seconds
     const timeoutId = setTimeout(() => {
       setLoading(false);
-      if (__DEV__) {
-        console.warn("Family tab loading timeout - forcing loading to false");
-      }
     }, 20_000);
 
     return () => clearTimeout(timeoutId);
@@ -490,17 +497,18 @@ export default function FamilyScreen() {
 
   const loadEvents = useCallback(
     async (isRefresh = false, membersOverride?: typeof familyMembers) => {
-      // Prevent concurrent loads
-      if (!isRefresh && loadingEvents) return;
+      // Prevent concurrent loads using ref to avoid dependency issues
+      if (!isRefresh && loadingEventsRef.current) return;
 
       if (!user?.id) return;
 
       const startTime = Date.now();
 
-      // Use provided members or fall back to state (for backward compatibility)
-      const membersToUse = membersOverride ?? familyMembers;
+      // Use provided members or fall back to ref (avoids dependency on familyMembers array)
+      const membersToUse = membersOverride ?? familyMembersRef.current;
 
       try {
+        loadingEventsRef.current = true;
         if (isRefresh) {
           setLoadingEvents(true);
         } else {
@@ -561,10 +569,11 @@ export default function FamilyScreen() {
         const durationMs = Date.now() - startTime;
         logger.error("Failed to load health events", error, "FamilyScreen");
       } finally {
+        loadingEventsRef.current = false;
         setLoadingEvents(false);
       }
     },
-    [user?.id, user?.familyId, isAdmin, loadingEvents]
+    [user?.id, user?.familyId, isAdmin]
   );
 
   const handleAcknowledgeEvent = async (eventId: string) => {
@@ -767,137 +776,155 @@ export default function FamilyScreen() {
     }
   };
 
-  const loadMemberMetrics = useCallback(async (members: User[]) => {
-    if (!members.length) {
-      setMemberMetrics([]);
-      return;
-    }
+  const loadMemberMetrics = useCallback(
+    async (members: User[]) => {
+      if (!members.length) {
+        setMemberMetrics([]);
+        return;
+      }
 
-    try {
-      setLoadingMetrics(true);
+      try {
+        setLoadingMetrics(true);
 
-      // Add timeout to prevent infinite loading (reduced from 20s to 15s)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Member metrics loading timeout")),
-          15_000
-        )
-      );
+        // Use Promise.allSettled to prevent one slow member from blocking others
+        // This allows partial results to be displayed while others are still loading
+        const metricsPromises = members.map(async (member) => {
+          try {
+            // Fetch only essential data for faster loading
+            // Use Promise.allSettled to handle partial failures gracefully
+            const results = await Promise.allSettled([
+              // Only fetch recent symptoms (last 7 days) - limit to 5 for count
+              symptomService
+                .getUserSymptoms(member.id, 5)
+                .catch(() => []),
+              // Only fetch active medications for count
+              medicationService
+                .getUserMedications(member.id)
+                .catch(() => []),
+              // Alerts count is lightweight
+              alertService
+                .getActiveAlertsCount(member.id)
+                .catch(() => 0),
+              // Limit allergies to 10 for display
+              allergyService
+                .getUserAllergies(member.id, 10)
+                .catch(() => []),
+              // Health context (vitals) - only if dashboard view needs it
+              viewMode === "dashboard"
+                ? healthContextService
+                    .getUserHealthContext(member.id)
+                    .catch(() => null)
+                : Promise.resolve(null),
+            ]);
 
-      const metricsPromises = members.map(async (member) => {
-        try {
-          // Fetch symptoms, medications, alerts, allergies, and vitals for each member
-          // Limit symptoms to recent ones (last 7 days) for faster loading
-          // Use shorter timeout for individual member to fail fast
-          const dataPromise = Promise.all([
-            symptomService.getUserSymptoms(member.id, 7), // Limit to 7 recent symptoms for faster loading
-            medicationService.getUserMedications(member.id),
-            alertService.getActiveAlertsCount(member.id),
-            allergyService
-              .getUserAllergies(member.id, 10)
-              .catch(() => []), // Limit to 10 allergies for display
-            healthContextService
-              .getUserHealthContext(member.id)
-              .catch(() => null),
-          ]);
+            const [
+              symptomsResult,
+              medicationsResult,
+              alertsResult,
+              allergiesResult,
+              healthContextResult,
+            ] = results;
 
-          // Add timeout for individual member data fetch (reduced from 10s to 5s)
-          const memberTimeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Member data timeout")), 5000)
-          );
+            const symptoms =
+              symptomsResult.status === "fulfilled" ? symptomsResult.value : [];
+            const medications =
+              medicationsResult.status === "fulfilled"
+                ? medicationsResult.value
+                : [];
+            const alertsCount =
+              alertsResult.status === "fulfilled" ? alertsResult.value : 0;
+            const allergies =
+              allergiesResult.status === "fulfilled"
+                ? allergiesResult.value
+                : [];
+            const healthContext =
+              healthContextResult.status === "fulfilled"
+                ? healthContextResult.value
+                : null;
 
-          const [symptoms, medications, alertsCount, allergies, healthContext] =
-            (await Promise.race([dataPromise, memberTimeoutPromise])) as [
-              any[],
-              any[],
-              number,
-              Allergy[],
-              any,
-            ];
-
-          // Calculate health score using the centralized service
-          const healthScoreResult =
-            healthScoreService.calculateHealthScoreFromData(
-              symptoms,
-              medications
+            // Calculate health score using the centralized service
+            const healthScoreResult =
+              healthScoreService.calculateHealthScoreFromData(
+                symptoms,
+                medications
+              );
+            const healthScore = healthScoreResult.score;
+            const activeMedications = medications.filter(
+              (m: { isActive: boolean }) => m.isActive
             );
-          const healthScore = healthScoreResult.score;
-          const activeMedications = medications.filter(
-            (m: { isActive: boolean }) => m.isActive
-          );
 
-          // Count symptoms this week
-          const symptomsThisWeek = symptoms.filter(
-            (s: { timestamp: Date }) =>
-              new Date(s.timestamp).getTime() >
-              Date.now() - 7 * 24 * 60 * 60 * 1000
-          ).length;
+            // Count symptoms this week (already limited to recent by getUserSymptoms)
+            const symptomsThisWeek = symptoms.length;
 
-          // Extract vitals from health context
-          let vitals: VitalSigns | null = null;
-          if (healthContext?.vitalSigns) {
-            const vs = healthContext.vitalSigns;
-            vitals = {
-              heartRate: vs.heartRate,
-              bloodPressure: vs.bloodPressure
-                ? (() => {
-                    const bp = vs.bloodPressure.split("/");
-                    if (bp.length === 2) {
-                      return {
-                        systolic: Number.parseFloat(bp[0]),
-                        diastolic: Number.parseFloat(bp[1]),
-                      };
-                    }
-                    return;
-                  })()
-                : undefined,
-              bodyTemperature: vs.temperature,
-              oxygenSaturation: vs.oxygenLevel,
-              bloodGlucose: vs.glucoseLevel,
-              weight: vs.weight,
-              timestamp: vs.lastUpdated || new Date(),
+            // Extract vitals from health context (only if dashboard view)
+            let vitals: VitalSigns | null = null;
+            if (viewMode === "dashboard" && healthContext?.vitalSigns) {
+              const vs = healthContext.vitalSigns;
+              vitals = {
+                heartRate: vs.heartRate,
+                bloodPressure: vs.bloodPressure
+                  ? (() => {
+                      const bp = vs.bloodPressure.split("/");
+                      if (bp.length === 2) {
+                        return {
+                          systolic: Number.parseFloat(bp[0]),
+                          diastolic: Number.parseFloat(bp[1]),
+                        };
+                      }
+                      return;
+                    })()
+                  : undefined,
+                bodyTemperature: vs.temperature,
+                oxygenSaturation: vs.oxygenLevel,
+                bloodGlucose: vs.glucoseLevel,
+                weight: vs.weight,
+                timestamp: vs.lastUpdated || new Date(),
+              };
+            }
+
+            return {
+              id: member.id,
+              user: member,
+              healthScore,
+              symptomsThisWeek,
+              activeMedications: activeMedications.length,
+              alertsCount,
+              vitals,
+              allergies: allergies || [],
+            };
+          } catch (error) {
+            // Return default metrics if error - don't block other members
+            return {
+              id: member.id,
+              user: member,
+              healthScore: 100,
+              symptomsThisWeek: 0,
+              activeMedications: 0,
+              alertsCount: 0,
+              vitals: null,
+              allergies: [],
             };
           }
+        });
 
-          return {
-            id: member.id,
-            user: member,
-            healthScore,
-            symptomsThisWeek,
-            activeMedications: activeMedications.length,
-            alertsCount,
-            vitals,
-            allergies: allergies || [],
-          };
-        } catch (error) {
-          // Return default metrics if error
-          return {
-            id: member.id,
-            user: member,
-            healthScore: 100,
-            symptomsThisWeek: 0,
-            activeMedications: 0,
-            alertsCount: 0,
-            vitals: null,
-            allergies: [],
-          };
-        }
-      });
+        // Use allSettled to get partial results even if some fail
+        const results = await Promise.allSettled(metricsPromises);
+        const metrics = results
+          .map((result) =>
+            result.status === "fulfilled" ? result.value : null
+          )
+          .filter((m): m is FamilyMemberMetrics => m !== null);
 
-      const metricsPromise = Promise.all(metricsPromises);
-      const metrics = (await Promise.race([
-        metricsPromise,
-        timeoutPromise,
-      ])) as FamilyMemberMetrics[];
-
-      setMemberMetrics(metrics);
-    } catch (error) {
-      // Set empty metrics to prevent infinite loading
-      setMemberMetrics([]);
-    } finally {
-      setLoadingMetrics(false);
-    }
-  }, []);
+        setMemberMetrics(metrics);
+      } catch (error) {
+        // Set empty metrics to prevent infinite loading
+        setMemberMetrics([]);
+      } finally {
+        setLoadingMetrics(false);
+      }
+    },
+    [viewMode]
+  );
 
   // Store reference after function is defined
   // Also trigger metrics load if family members are already loaded
@@ -910,10 +937,8 @@ export default function FamilyScreen() {
       memberMetrics.length === 0 &&
       !loadingMetrics
     ) {
-      loadMemberMetrics(familyMembers).catch((error) => {
-        if (__DEV__) {
-          console.error("Error loading member metrics after ref set:", error);
-        }
+      loadMemberMetrics(familyMembers).catch(() => {
+        // Error loading member metrics after ref set
       });
     }
   }, [
@@ -1676,7 +1701,6 @@ export default function FamilyScreen() {
         );
       }
     } catch (error) {
-      console.error("Failed to export PDF report:", error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
@@ -1783,14 +1807,19 @@ export default function FamilyScreen() {
             members = await userService.getFamilyMembers(user.familyId);
             // Update state immediately so UI can render
             setFamilyMembers(members);
+            familyMembersRef.current = members;
           }
 
-          // Always load metrics in background (non-blocking) if we have members
-          if (members.length > 0) {
-            loadMemberMetrics(members).catch((error) => {
-              if (__DEV__) {
-                console.error("Error loading member metrics:", error);
-              }
+          // Load metrics in background (non-blocking) only if needed
+          // Skip if metrics are already loaded for the same number of members
+          const needsMetricsLoad =
+            members.length > 0 &&
+            (memberMetrics.length === 0 ||
+              memberMetrics.length !== members.length);
+
+          if (needsMetricsLoad) {
+            loadMemberMetrics(members).catch(() => {
+              // Error loading member metrics
             });
           }
 
@@ -1817,9 +1846,6 @@ export default function FamilyScreen() {
         } catch (error) {
           // Error handling is done in individual load functions
           // This catch prevents unhandled promise rejection
-          if (__DEV__) {
-            console.error("Error loading family data:", error);
-          }
         }
       };
 
@@ -1831,6 +1857,8 @@ export default function FamilyScreen() {
       isAdmin,
       loading,
       familyMembers.length,
+      memberMetrics.length,
+      loadMemberMetrics,
     ])
   );
 
@@ -1842,10 +1870,8 @@ export default function FamilyScreen() {
     onFamilyMemberUpdate: (update) => {
       // Refresh member metrics when updates occur
       if (familyMembers.length > 0) {
-        loadMemberMetrics(familyMembers).catch((error) => {
-          if (__DEV__) {
-            console.error("Error refreshing member metrics:", error);
-          }
+        loadMemberMetrics(familyMembers).catch(() => {
+          // Error refreshing member metrics
         });
       }
 
@@ -2722,7 +2748,7 @@ export default function FamilyScreen() {
                     return (
                       <Card
                         contentStyle={undefined}
-                        onPress={undefined}
+                        pressable={false}
                         style={{ marginBottom: theme.spacing.base }}
                         variant="elevated"
                       >
@@ -3771,7 +3797,7 @@ export default function FamilyScreen() {
                 {elderlyDashboardData.nextMedication && (
                   <Card
                     contentStyle={undefined}
-                    onPress={undefined}
+                    pressable={false}
                     style={{
                       backgroundColor: theme.colors.primary.main + "10",
                       borderColor: theme.colors.primary.main,
@@ -3821,7 +3847,7 @@ export default function FamilyScreen() {
                 {/* Health Score */}
                 <Card
                   contentStyle={undefined}
-                  onPress={undefined}
+                  pressable={false}
                   style={{
                     alignItems: "center",
                     padding: 24,
@@ -3861,7 +3887,7 @@ export default function FamilyScreen() {
                 {elderlyDashboardData.hasAlerts && (
                   <Card
                     contentStyle={undefined}
-                    onPress={undefined}
+                    pressable={false}
                     style={{
                       backgroundColor: "#FEE2E2",
                       borderColor: "#EF4444",
@@ -4092,7 +4118,7 @@ export default function FamilyScreen() {
                     <Card
                       contentStyle={undefined}
                       key={`${entry.medication.id}-${entry.member.id}`}
-                      onPress={undefined}
+                      pressable={false}
                       style={{ marginBottom: theme.spacing.base }}
                       variant="elevated"
                     >
@@ -4315,7 +4341,7 @@ export default function FamilyScreen() {
                       <Card
                         contentStyle={undefined}
                         key={`${entry.medication.id}-${entry.member.id}`}
-                        onPress={undefined}
+                        pressable={false}
                         style={{ marginBottom: theme.spacing.base }}
                         variant="elevated"
                       >
@@ -4403,7 +4429,7 @@ export default function FamilyScreen() {
                   <Card
                     contentStyle={undefined}
                     key={`${entry.medication.id}-${entry.member.id}`}
-                    onPress={undefined}
+                    pressable={false}
                     style={{ marginBottom: theme.spacing.base }}
                     variant="elevated"
                   >
@@ -5289,7 +5315,7 @@ export default function FamilyScreen() {
             {/* Generate Report Card */}
             <Card
               contentStyle={undefined}
-              onPress={undefined}
+              pressable={false}
               style={{
                 marginBottom: 20,
                 backgroundColor: theme.colors.background.secondary,
@@ -5503,7 +5529,7 @@ export default function FamilyScreen() {
                         <Card
                           contentStyle={undefined}
                           key={index}
-                          onPress={undefined}
+                          pressable={false}
                           style={{
                             backgroundColor: theme.colors.accent.error + "20",
                             borderColor: theme.colors.accent.error,
@@ -5560,7 +5586,7 @@ export default function FamilyScreen() {
                     <Card
                       contentStyle={undefined}
                       key={memberReport.member.id}
-                      onPress={undefined}
+                      pressable={false}
                       style={{
                         marginBottom: 12,
                         backgroundColor: theme.colors.background.secondary,

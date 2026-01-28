@@ -1,5 +1,5 @@
 import { AlertTriangle, X } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Modal,
@@ -45,130 +45,166 @@ export default function MedicationInteractionWarning({
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
-  const styles = createThemedStyles((theme) => ({
-    container: {
-      marginBottom: theme.spacing.base,
-    } as ViewStyle,
-    infoCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderColor: theme.colors.border.light,
-      borderWidth: 1,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.base,
-    } as ViewStyle,
-    warningCard: {
-      backgroundColor: theme.colors.accent.error + "10",
-      borderColor: theme.colors.accent.error,
-      borderWidth: 2,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.base,
-    } as ViewStyle,
-    warningHeader: {
-      flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
-      alignItems: "center" as const,
-      gap: theme.spacing.sm,
-      marginBottom: theme.spacing.sm,
-    } as ViewStyle,
-    warningTitle: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.accent.error),
-      flex: 1,
-    } as TextStyle,
-    warningText: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-      marginBottom: theme.spacing.xs,
-    } as TextStyle,
-    infoText: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-    } as TextStyle,
-    viewDetailsButton: {
-      marginTop: theme.spacing.sm,
-      paddingVertical: theme.spacing.sm,
-      paddingHorizontal: theme.spacing.base,
-      backgroundColor: theme.colors.accent.error,
-      borderRadius: theme.borderRadius.md,
-      alignItems: "center" as const,
-    } as ViewStyle,
-    viewDetailsButtonText: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.neutral.white),
-    } as TextStyle,
-    modalContainer: {
-      flex: 1,
-      backgroundColor: theme.colors.background.primary,
-    } as ViewStyle,
-    modalHeader: {
-      flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
-      justifyContent: "space-between" as const,
-      alignItems: "center" as const,
-      padding: theme.spacing.base,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
-    } as ViewStyle,
-    modalTitle: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
-      fontSize: 20,
-    } as TextStyle,
-    modalContent: {
-      padding: theme.spacing.base,
-    } as ViewStyle,
-    interactionCard: {
-      marginBottom: theme.spacing.base,
-      borderLeftWidth: 4,
-    } as ViewStyle,
-    interactionHeader: {
-      flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
-      justifyContent: "space-between" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.sm,
-    } as ViewStyle,
-    interactionMedications: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.text.primary),
-      marginBottom: theme.spacing.xs,
-    } as TextStyle,
-    interactionDescription: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      marginBottom: theme.spacing.sm,
-    } as TextStyle,
-    effectsList: {
-      marginBottom: theme.spacing.sm,
-    } as ViewStyle,
-    effectsTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
-      marginBottom: theme.spacing.xs,
-    } as TextStyle,
-    effectItem: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      marginLeft: isRTL ? 0 : theme.spacing.base,
-      marginRight: isRTL ? theme.spacing.base : 0,
-      marginBottom: theme.spacing.xs,
-    } as TextStyle,
-    recommendationsList: {
-      marginTop: theme.spacing.sm,
-    } as ViewStyle,
-    recommendationItem: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
-      marginLeft: isRTL ? 0 : theme.spacing.base,
-      marginRight: isRTL ? theme.spacing.base : 0,
-      marginBottom: theme.spacing.xs,
-    } as TextStyle,
-    rtlText: {
-      textAlign: (isRTL ? "right" : "left") as
-        | "left"
-        | "right"
-        | "center"
-        | "justify"
-        | "auto",
-    } as TextStyle,
-  }))(theme) as any;
-
-  useEffect(() => {
-    checkInteractions();
-  }, [medications, newMedicationName]);
+  const styles = useMemo(
+    () =>
+      createThemedStyles((theme) => ({
+        container: {
+          marginBottom: theme.spacing.base,
+        } as ViewStyle,
+        infoCard: {
+          backgroundColor: theme.colors.background.secondary,
+          borderColor: theme.colors.border.light,
+          borderWidth: 1,
+          borderRadius: theme.borderRadius.md,
+          padding: theme.spacing.base,
+        } as ViewStyle,
+        warningCard: {
+          backgroundColor: theme.colors.accent.error + "10",
+          borderColor: theme.colors.accent.error,
+          borderWidth: 2,
+          borderRadius: theme.borderRadius.md,
+          padding: theme.spacing.base,
+        } as ViewStyle,
+        warningHeader: {
+          flexDirection: (isRTL ? "row-reverse" : "row") as
+            | "row"
+            | "row-reverse",
+          alignItems: "center" as const,
+          gap: theme.spacing.sm,
+          marginBottom: theme.spacing.sm,
+        } as ViewStyle,
+        warningTitle: {
+          ...getTextStyle(
+            theme,
+            "subheading",
+            "bold",
+            theme.colors.accent.error
+          ),
+          flex: 1,
+        } as TextStyle,
+        warningText: {
+          ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+          marginBottom: theme.spacing.xs,
+        } as TextStyle,
+        infoText: {
+          ...getTextStyle(
+            theme,
+            "body",
+            "regular",
+            theme.colors.text.secondary
+          ),
+        } as TextStyle,
+        viewDetailsButton: {
+          marginTop: theme.spacing.sm,
+          paddingVertical: theme.spacing.sm,
+          paddingHorizontal: theme.spacing.base,
+          backgroundColor: theme.colors.accent.error,
+          borderRadius: theme.borderRadius.md,
+          alignItems: "center" as const,
+        } as ViewStyle,
+        viewDetailsButtonText: {
+          ...getTextStyle(
+            theme,
+            "body",
+            "semibold",
+            theme.colors.neutral.white
+          ),
+        } as TextStyle,
+        modalContainer: {
+          flex: 1,
+          backgroundColor: theme.colors.background.primary,
+        } as ViewStyle,
+        modalHeader: {
+          flexDirection: (isRTL ? "row-reverse" : "row") as
+            | "row"
+            | "row-reverse",
+          justifyContent: "space-between" as const,
+          alignItems: "center" as const,
+          padding: theme.spacing.base,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border.light,
+        } as ViewStyle,
+        modalTitle: {
+          ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
+          fontSize: 20,
+        } as TextStyle,
+        modalContent: {
+          padding: theme.spacing.base,
+        } as ViewStyle,
+        interactionCard: {
+          marginBottom: theme.spacing.base,
+          borderLeftWidth: 4,
+        } as ViewStyle,
+        interactionHeader: {
+          flexDirection: (isRTL ? "row-reverse" : "row") as
+            | "row"
+            | "row-reverse",
+          justifyContent: "space-between" as const,
+          alignItems: "center" as const,
+          marginBottom: theme.spacing.sm,
+        } as ViewStyle,
+        interactionMedications: {
+          ...getTextStyle(
+            theme,
+            "subheading",
+            "bold",
+            theme.colors.text.primary
+          ),
+          marginBottom: theme.spacing.xs,
+        } as TextStyle,
+        interactionDescription: {
+          ...getTextStyle(
+            theme,
+            "body",
+            "regular",
+            theme.colors.text.secondary
+          ),
+          marginBottom: theme.spacing.sm,
+        } as TextStyle,
+        effectsList: {
+          marginBottom: theme.spacing.sm,
+        } as ViewStyle,
+        effectsTitle: {
+          ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
+          marginBottom: theme.spacing.xs,
+        } as TextStyle,
+        effectItem: {
+          ...getTextStyle(
+            theme,
+            "body",
+            "regular",
+            theme.colors.text.secondary
+          ),
+          marginLeft: isRTL ? 0 : theme.spacing.base,
+          marginRight: isRTL ? theme.spacing.base : 0,
+          marginBottom: theme.spacing.xs,
+        } as TextStyle,
+        recommendationsList: {
+          marginTop: theme.spacing.sm,
+        } as ViewStyle,
+        recommendationItem: {
+          ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
+          marginLeft: isRTL ? 0 : theme.spacing.base,
+          marginRight: isRTL ? theme.spacing.base : 0,
+          marginBottom: theme.spacing.xs,
+        } as TextStyle,
+        rtlText: {
+          textAlign: (isRTL ? "right" : "left") as
+            | "left"
+            | "right"
+            | "center"
+            | "justify"
+            | "auto",
+        } as TextStyle,
+      }))(theme) as any,
+    [theme, isRTL]
+  );
 
   const effectiveMedicationCount =
     medications.length + (newMedicationName ? 1 : 0);
   const hasEnoughMedications = effectiveMedicationCount >= 2;
 
-  const checkInteractions = async () => {
+  const checkInteractions = useCallback(async () => {
     setLoading(true);
     try {
       let medsToCheck = medications;
@@ -206,14 +242,33 @@ export default function MedicationInteractionWarning({
     } finally {
       setLoading(false);
     }
-  };
+  }, [medications, newMedicationName]);
+
+  const medicationSignature = useMemo(
+    () => medications.map((medication) => medication.id).join("|"),
+    [medications]
+  );
+
+  useEffect(() => {
+    if (!(medicationSignature || newMedicationName)) {
+      setInteractions([]);
+      setLoading(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      void checkInteractions();
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [medicationSignature, newMedicationName, checkInteractions]);
 
   if (loading) {
     return (
       <View style={styles.container}>
         <Card
           contentStyle={undefined}
-          onPress={undefined}
+          pressable={false}
           style={styles.infoCard}
           variant="elevated"
         >
@@ -232,7 +287,7 @@ export default function MedicationInteractionWarning({
       <View style={styles.container}>
         <Card
           contentStyle={undefined}
-          onPress={undefined}
+          pressable={false}
           style={styles.infoCard}
           variant="elevated"
         >
@@ -251,7 +306,7 @@ export default function MedicationInteractionWarning({
       <View style={styles.container}>
         <Card
           contentStyle={undefined}
-          onPress={undefined}
+          pressable={false}
           style={styles.infoCard}
           variant="elevated"
         >
@@ -272,7 +327,7 @@ export default function MedicationInteractionWarning({
     <View style={styles.container}>
       <Card
         contentStyle={undefined}
-        onPress={undefined}
+        pressable={false}
         style={styles.warningCard}
         variant="elevated"
       >
@@ -345,7 +400,7 @@ export default function MedicationInteractionWarning({
               <Card
                 contentStyle={undefined}
                 key={index}
-                onPress={undefined}
+                pressable={false}
                 style={[
                   styles.interactionCard,
                   {

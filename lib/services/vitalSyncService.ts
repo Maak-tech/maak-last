@@ -122,11 +122,8 @@ async function saveVitalSample(
     // This will be picked up by the real-time WebSocket service
     import("./trendAlertService")
       .then(({ checkTrendsForNewVital }) => {
-        checkTrendsForNewVital(userId, vitalType, unit).catch((error) => {
+        checkTrendsForNewVital(userId, vitalType, unit).catch(() => {
           // Silently handle errors - trend checking is non-critical
-          if (__DEV__) {
-            console.error("Error checking trends for vital:", error);
-          }
         });
       })
       .catch(() => {

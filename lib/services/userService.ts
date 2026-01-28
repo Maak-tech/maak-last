@@ -502,11 +502,6 @@ export const userService = {
           });
         }
       } catch (familyError: any) {
-        console.error(
-          "[removeFamilyMember] Error updating families:",
-          familyError?.code,
-          familyError?.message
-        );
         throw new Error(
           `Failed to update family: ${familyError?.code || familyError?.message}`
         );
@@ -520,11 +515,6 @@ export const userService = {
           role: "admin", // They become admin of their own (empty) account
         });
       } catch (userError: any) {
-        console.error(
-          "[removeFamilyMember] Error updating user:",
-          userError?.code,
-          userError?.message
-        );
         // If permission denied, provide more context
         if (userError?.code === "permission-denied") {
           throw new Error(

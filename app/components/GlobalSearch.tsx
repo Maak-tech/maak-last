@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -63,7 +63,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
 
-  const styles = getStyles(theme, isRTL);
+  const styles = useMemo(() => getStyles(theme, isRTL), [theme, isRTL]);
 
   useEffect(() => {
     if (visible) {
@@ -154,26 +154,29 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
     );
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const formatDate = useCallback(
+    (date: Date) => {
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) {
-      return isRTL ? "اليوم" : "Today";
-    }
-    if (diffDays === 1) {
-      return isRTL ? "أمس" : "Yesterday";
-    }
-    if (diffDays < 7) {
-      return isRTL ? `منذ ${diffDays} أيام` : `${diffDays} days ago`;
-    }
-    return date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
-      month: "short",
-      day: "numeric",
-      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-    });
-  };
+      if (diffDays === 0) {
+        return isRTL ? "اليوم" : "Today";
+      }
+      if (diffDays === 1) {
+        return isRTL ? "أمس" : "Yesterday";
+      }
+      if (diffDays < 7) {
+        return isRTL ? `منذ ${diffDays} أيام` : `${diffDays} days ago`;
+      }
+      return date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
+        month: "short",
+        day: "numeric",
+        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+      });
+    },
+    [isRTL]
+  );
 
   return (
     <Modal
@@ -327,7 +330,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
                   >
                     <Card
                       contentStyle={undefined}
-                      onPress={undefined}
+                      pressable={false}
                       style={styles.resultCard}
                     >
                       <View style={styles.resultHeader}>

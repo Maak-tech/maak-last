@@ -1541,13 +1541,6 @@ export default function PPGVitalMonitorVisionCamera({
                 frameProcessor={frameProcessor}
                 isActive={status === "measuring"}
                 onError={(error) => {
-                  if (__DEV__) {
-                    const now = Date.now();
-                    if (now - lastCameraErrorLogRef.current > 5000) {
-                      lastCameraErrorLogRef.current = now;
-                      console.error("Camera error:", error);
-                    }
-                  }
                   setError(`Camera error: ${error.message}`);
                   setStatus("error");
                 }}

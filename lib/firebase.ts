@@ -186,17 +186,10 @@ try {
   try {
     app = getApp();
   } catch (fallbackError) {
-    // Log the error for debugging
-    console.error("Firebase initialization failed:", error);
-    console.error("Fallback to getApp also failed:", fallbackError);
-
     // On native platforms, React Native Firebase might be the only option
     if (Platform.OS !== "web" && rnFirebaseApp) {
       // Don't throw error - React Native Firebase will handle auth
       // The web SDK app might not be needed if using RN Firebase exclusively
-      console.warn(
-        "Web SDK Firebase initialization failed, but React Native Firebase may be available"
-      );
     } else {
       throw new Error(
         `Firebase initialization failed: ${error?.message || "Unknown error"}. Please check your environment variables and Firebase configuration.`

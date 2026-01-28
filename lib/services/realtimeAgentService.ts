@@ -860,31 +860,12 @@ class RealtimeAgentService {
           this.apiKey = trimmed;
           return;
         }
-        if (__DEV__) {
-          console.warn(
-            `[Zeina] ⚠️ Invalid API key format in app config (should start with 'sk-'): ${this.maskApiKey(trimmed)}\n` +
-              "Check that OPENAI_API_KEY or ZEINA_API_KEY in .env has a valid format."
-          );
-        }
       }
 
-      // If app config key missing/invalid, report configuration state.
+      // If app config key missing/invalid
       this.apiKey = null;
-      if (__DEV__) {
-        const hasZeinaKey = !!config?.zeinaApiKey;
-        const hasOpenAIKey = !!config?.openaiApiKey;
-        console.warn(
-          "[Zeina] ❌ No API key found in app config.\n" +
-            `  - ZEINA_API_KEY: ${hasZeinaKey ? "present but empty" : "not set"}\n` +
-            `  - OPENAI_API_KEY: ${hasOpenAIKey ? "present but empty" : "not set"}\n` +
-            "  Check that OPENAI_API_KEY or ZEINA_API_KEY is set in .env and rebuild the app."
-        );
-      }
     } catch (error) {
       this.apiKey = null;
-      if (__DEV__) {
-        console.error("[Zeina] ❌ Error loading API key:", error);
-      }
     }
   }
 
@@ -1124,10 +1105,6 @@ class RealtimeAgentService {
             );
           }
 
-          if (__DEV__) {
-            console.error("[Zeina] ❌ WebSocket error:", detailedError.message);
-          }
-
           clearTimeout(connectionTimeout);
           this.eventHandlers.onError?.(detailedError);
           this.setConnectionState("error");
@@ -1338,9 +1315,6 @@ class RealtimeAgentService {
       }
     } catch (error) {
       // WebSocket might be in an invalid state
-      if (__DEV__) {
-        console.warn("[Zeina] Error sending message:", error);
-      }
     }
   }
 
@@ -1881,9 +1855,6 @@ class RealtimeAgentService {
           }
         } catch (error) {
           // Ignore close errors - connection may already be closed
-          if (__DEV__) {
-            console.warn("[Zeina] Error closing WebSocket:", error);
-          }
         }
       }
       this.ws = null;

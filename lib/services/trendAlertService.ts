@@ -66,7 +66,6 @@ export async function checkTrendsForNewVital(
       await createTrendAlert(userId, trendAnalysis, "vital_trend");
     }
   } catch (error) {
-    console.error("Error checking trends for new vital:", error);
     // Don't throw - trend checking is non-critical
   }
 }
@@ -116,7 +115,6 @@ export async function checkTrendsForNewSymptom(
       await createTrendAlert(userId, trendAnalysis, "symptom_trend");
     }
   } catch (error) {
-    console.error("Error checking trends for new symptom:", error);
     // Don't throw - trend checking is non-critical
   }
 }
@@ -225,7 +223,6 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
       }
     }
   } catch (error) {
-    console.error("Error checking all trends for user:", error);
     // Don't throw - trend checking is non-critical
   }
 }

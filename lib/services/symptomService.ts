@@ -75,11 +75,8 @@ export const symptomService = {
             checkTrendsForNewSymptom(
               symptomData.userId,
               symptomData.type
-            ).catch((error) => {
+            ).catch(() => {
               // Silently handle errors - trend checking is non-critical
-              if (__DEV__) {
-                console.error("Error checking trends for symptom:", error);
-              }
             });
           })
           .catch(() => {

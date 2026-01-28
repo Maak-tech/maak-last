@@ -642,7 +642,6 @@ class SymptomPatternRecognitionService {
       }
     } catch (error) {
       // Missing API key or network errors should not spam logs; fallback is fine.
-      if (__DEV__) console.warn("AI diagnosis generation failed", error);
     }
 
     return [];

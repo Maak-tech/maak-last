@@ -325,11 +325,29 @@ class EscalationService {
 
       return true;
     } catch (error) {
-      logger.error(
-        "Failed to resolve escalation",
-        { alertId, error },
-        "EscalationService"
-      );
+      const errorCode =
+        typeof error === "object" && error && "code" in error && error.code
+          ? String(error.code)
+          : undefined;
+      const severity = errorCode === "permission-denied" ? "warn" : "error";
+      const message =
+        errorCode === "permission-denied"
+          ? "Escalation resolution blocked by permissions (expected client-side)"
+          : "Failed to resolve escalation";
+
+      if (severity === "warn") {
+        logger.warn(
+          message,
+          { alertId, error, errorCode },
+          "EscalationService"
+        );
+      } else {
+        logger.error(
+          message,
+          { alertId, error, errorCode },
+          "EscalationService"
+        );
+      }
       return false;
     }
   }

@@ -185,7 +185,6 @@ export default function RegisterScreen() {
         // Clear any previous errors on success
         setErrors({});
       } catch (error: any) {
-        console.error("Phone signup error:", error);
         setErrors({
           general:
             error.message ||

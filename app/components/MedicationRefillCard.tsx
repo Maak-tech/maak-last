@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
 import { Card } from "@/components/design-system";
@@ -28,7 +28,7 @@ export default function MedicationRefillCard({
   const isRTL = i18n.language === "ar";
   const [expanded, setExpanded] = useState(false);
 
-  const styles = getStyles(theme, isRTL);
+  const styles = useMemo(() => getStyles(theme, isRTL), [theme, isRTL]);
 
   if (refillSummary.predictions.length === 0) {
     return null;
@@ -84,7 +84,7 @@ export default function MedicationRefillCard({
   };
 
   return (
-    <Card contentStyle={undefined} onPress={undefined} style={styles.card}>
+    <Card contentStyle={undefined} pressable={false} style={styles.card}>
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => setExpanded(!expanded)}

@@ -246,9 +246,6 @@ export default function VitalsScreen() {
       ...theme.shadows.md,
       minWidth: 0, // Allow flex items to shrink below content size for proper text wrapping
     },
-    vitalCardLarge: {
-      flex: 2,
-    },
     vitalHeader: {
       flexDirection: "row" as const,
       justifyContent: "space-between" as const,
@@ -274,10 +271,6 @@ export default function VitalsScreen() {
     vitalValue: {
       ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
       fontSize: 24,
-      flexShrink: 1,
-    },
-    vitalValueLarge: {
-      fontSize: 32,
       flexShrink: 1,
     },
     vitalUnit: {
@@ -2043,18 +2036,10 @@ export default function VitalsScreen() {
                   {rowCards.map((vital, index) => {
                     const IconComponent = vital.icon;
                     const TrendIcon = getTrendIcon(vital.trend);
-                    // First card in first row is large, others are regular size
-                    const isLarge = rowIndex === 0 && index === 0;
-
                     return (
                       <View
                         key={vital.key}
-                        style={
-                          [
-                            styles.vitalCard,
-                            isLarge && styles.vitalCardLarge,
-                          ] as StyleProp<ViewStyle>
-                        }
+                        style={[styles.vitalCard] as StyleProp<ViewStyle>}
                       >
                         <View style={styles.vitalHeader as ViewStyle}>
                           <View
@@ -2094,7 +2079,6 @@ export default function VitalsScreen() {
                             style={
                               [
                                 styles.vitalValue,
-                                isLarge && styles.vitalValueLarge,
                                 isRTL && styles.rtlText,
                               ] as StyleProp<TextStyle>
                             }

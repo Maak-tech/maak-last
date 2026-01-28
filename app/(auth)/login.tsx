@@ -564,6 +564,15 @@ export default function LoginScreen() {
 
             {loginMethod === "email" && (
               <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    t("forgotPassword", "Forgot Password"),
+                    t(
+                      "forgotPasswordFeature",
+                      "Password reset feature is coming soon. Please contact support if you need to reset your password."
+                    )
+                  );
+                }}
                 style={[styles.forgotButton, isRTL && styles.forgotButtonRTL]}
               >
                 <Text style={[styles.forgotText, isRTL && styles.rtlText]}>

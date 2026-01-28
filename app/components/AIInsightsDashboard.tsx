@@ -396,12 +396,8 @@ function AIInsightsDashboard({
         })
         .catch((err) => {
           // Silently fail - narrative is optional and can be slow
-          if (__DEV__) {
-            console.warn("Failed to load AI narrative (optional):", err);
-          }
         });
     } catch (err) {
-      console.error("Failed to load AI insights:", err);
       const errorMessage =
         err instanceof Error && err.message.includes("timeout")
           ? t(
@@ -975,7 +971,7 @@ function ActionPlanSection({
       );
       setActionPlan(plan);
     } catch (error) {
-      console.error("Failed to load action plan:", error);
+      // Failed to load action plan
     } finally {
       setLoading(false);
     }

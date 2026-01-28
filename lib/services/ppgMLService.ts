@@ -166,10 +166,6 @@ export const ppgMLService = {
 
       if (__DEV__ && !isAuthError && !hasLoggedMlUnavailable) {
         hasLoggedMlUnavailable = true;
-        console.warn(
-          "ML service unavailable, will use traditional processing:",
-          error
-        );
       }
 
       // Return error result - caller should fallback to traditional processing

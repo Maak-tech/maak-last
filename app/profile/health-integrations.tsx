@@ -176,18 +176,6 @@ export default function HealthIntegrationsScreen() {
       setFitbitAvailable(fitbitAvailability.available);
       setWithingsAvailable(withingsAvailability.available);
 
-      // Debug logging (remove in production)
-      console.log(
-        "Fitbit available:",
-        fitbitAvailability.available,
-        fitbitAvailability.reason
-      );
-      console.log(
-        "Withings available:",
-        withingsAvailability.available,
-        withingsAvailability.reason
-      );
-
       const connectionsMap = new Map<HealthProvider, ProviderConnection>();
 
       // Use static list instead of providers array to avoid dependency issues
@@ -200,7 +188,6 @@ export default function HealthIntegrationsScreen() {
 
       setConnections(connectionsMap);
     } catch (error) {
-      console.error("Error loading connections:", error);
       // Set to false on error so they show as "Coming Soon" instead of platform error
       setFitbitAvailable(false);
       setWithingsAvailable(false);

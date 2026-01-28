@@ -533,7 +533,6 @@ export const healthDataService = {
 
       return vitals;
     } catch (error) {
-      console.error("Error getting vitals from Firestore:", error);
       return null;
     }
   },

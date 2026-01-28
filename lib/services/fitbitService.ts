@@ -172,23 +172,6 @@ WebBrowser.maybeCompleteAuthSession();
 export const fitbitService = {
   isAvailable: async (): Promise<ProviderAvailability> => {
     try {
-      // Debug: Log the actual values being checked
-      console.log("[Fitbit] Checking availability:");
-      console.log(
-        "[Fitbit] CLIENT_ID:",
-        FITBIT_CLIENT_ID
-          ? `${FITBIT_CLIENT_ID.substring(0, 4)}...`
-          : "undefined"
-      );
-      console.log(
-        "[Fitbit] CLIENT_SECRET:",
-        FITBIT_CLIENT_SECRET ? "***" : "undefined"
-      );
-      console.log(
-        "[Fitbit] From Constants:",
-        Constants.expoConfig?.extra?.fitbitClientId ? "present" : "missing"
-      );
-
       // Check if credentials are configured
       if (
         FITBIT_CLIENT_ID === "YOUR_FITBIT_CLIENT_ID" ||
@@ -196,7 +179,6 @@ export const fitbitService = {
         !FITBIT_CLIENT_ID?.trim() ||
         !FITBIT_CLIENT_SECRET?.trim()
       ) {
-        console.log("[Fitbit] Not available - credentials missing or empty");
         return {
           available: false,
           reason:
@@ -204,12 +186,10 @@ export const fitbitService = {
         };
       }
 
-      console.log("[Fitbit] Available!");
       return {
         available: true,
       };
     } catch (error: any) {
-      console.error("[Fitbit] Error checking availability:", error);
       return {
         available: false,
         reason: error?.message || "Unknown error",
@@ -253,34 +233,11 @@ export const fitbitService = {
         scopes.push("profile");
       }
 
-      // Log redirect URI for debugging
-      if (__DEV__) {
-        console.log("[Fitbit] Starting OAuth flow");
-        console.log("[Fitbit] Redirect URI:", REDIRECT_URI);
-        console.log(
-          "[Fitbit] Redirect URI (encoded):",
-          encodeURIComponent(REDIRECT_URI)
-        );
-        console.log(
-          "[Fitbit] Client ID:",
-          FITBIT_CLIENT_ID
-            ? `${FITBIT_CLIENT_ID.substring(0, 4)}...`
-            : "undefined"
-        );
-        console.log("[Fitbit] Scopes:", scopes);
-      }
-
       // Generate PKCE verifier + challenge (Fitbit requires 43-128 chars)
       const { verifier, challenge } = createPkcePair();
 
       // Validate key and verifier before storing
       const storeKey = FITBIT_PKCE_VERIFIER_KEY;
-      console.log(
-        "[Fitbit] SecureStore key:",
-        storeKey,
-        "length:",
-        storeKey?.length
-      );
 
       if (!storeKey || storeKey.trim().length === 0) {
         throw new Error("Invalid SecureStore key: key cannot be empty");
@@ -309,10 +266,6 @@ export const fitbitService = {
         `scope=${encodeURIComponent(scopes.join(" "))}&` +
         `code_challenge=${encodeURIComponent(challenge)}&` +
         "code_challenge_method=S256";
-
-      if (__DEV__) {
-        console.log("[Fitbit] Full OAuth URL:", authUrl);
-      }
 
       // Use web callback URL for OAuth (registered with Fitbit)
       // The web page will redirect to deep link after extracting the code

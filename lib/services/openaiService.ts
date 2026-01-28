@@ -62,13 +62,6 @@ class OpenAIService {
       // Fallback to openaiApiKey if zeinaApiKey not set or empty
       this.zeinaApiKey = zeinaKey || openaiKey;
 
-      if (__DEV__ && !this.hasLoggedKeyDebug) {
-        this.hasLoggedKeyDebug = true;
-        console.log(
-          `[OpenAI] Config keys loaded. openaiApiKey=${this.maskKey(openaiKey)} zeinaApiKey=${this.maskKey(zeinaKey)}`
-        );
-      }
-
       // API key validation handled in getApiKey method
     } catch (error) {
       if (__DEV__) {
@@ -180,13 +173,6 @@ class OpenAIService {
       (error as any).isExpectedError = true;
       (error as any).isApiKeyError = true;
       throw error;
-    }
-
-    if (__DEV__ && !this.hasLoggedKeyDebug) {
-      this.hasLoggedKeyDebug = true;
-      console.log(
-        `[OpenAI] Using API key ${this.maskKey(activeApiKey)} with model ${this.model}`
-      );
     }
 
     return aiInstrumenter.track(
@@ -326,10 +312,6 @@ class OpenAIService {
       }
     } catch (error: any) {
       // Keep console noise low; callers already handle fallbacks.
-      // Only log unexpected errors (API key errors are already handled above)
-      if (__DEV__ && !error?.isApiKeyError && !error?.isExpectedError) {
-        console.warn("generateHealthInsights failed", error);
-      }
       return null;
     }
   }

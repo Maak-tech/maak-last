@@ -40,10 +40,6 @@ export default function PPGMeasureScreen() {
         // VisionCamera failed to load - NO FALLBACK ALLOWED
         // Simulated data is scientifically invalid and completely disabled
         // Show error to user - this is the ONLY acceptable outcome
-        console.error("Failed to load VisionCamera PPG component:", error);
-        console.error(
-          "NO FALLBACK TO SIMULATED DATA - Real PPG measurement requires VisionCamera"
-        );
 
         // Set component to null - will show error message
         setPPGComponent(null);

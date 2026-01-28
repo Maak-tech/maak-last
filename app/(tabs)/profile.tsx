@@ -64,6 +64,7 @@ import { Badge } from "@/components/design-system/AdditionalComponents";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useRealtimeHealth } from "@/hooks/useRealtimeHealth";
 import { calendarService } from "@/lib/services/calendarService";
 import {
   calculateHealthScoreFromData,
@@ -297,7 +298,6 @@ export default function ProfileScreen() {
         );
       }
     } catch (error) {
-      console.error("Sync error:", error);
       Alert.alert(
         t("syncError", "Sync Error"),
         t("syncErrorMessage", "Failed to sync. Please try again.")

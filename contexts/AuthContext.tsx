@@ -849,6 +849,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               {},
               "AuthContext"
             );
+            throw new Error(
+              "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
+            );
           }
 
           // Use React Native Firebase for native phone auth
@@ -1163,6 +1166,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             "React Native Firebase app not ready",
             {},
             "AuthContext"
+          );
+          throw new Error(
+            "Firebase is not initialized. Please ensure GoogleService-Info.plist (iOS) or google-services.json (Android) is properly configured and restart the app."
           );
         }
         // Use React Native Firebase for native phone auth

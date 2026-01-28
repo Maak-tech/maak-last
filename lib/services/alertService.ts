@@ -203,14 +203,6 @@ export const alertService = {
             // Convert Date to ISO string for Cloud Function serialization
             const createAlertFunc = httpsCallable(functions, "createAlert");
 
-            if (__DEV__) {
-              console.log("[alertService] Calling Cloud Function createAlert", {
-                userId: alertData.userId,
-                alertType: alertData.type,
-                authUid: auth.currentUser?.uid,
-              });
-            }
-
             const result = (await createAlertFunc({
               alertData: {
                 ...cleanedAlertData,
@@ -220,13 +212,6 @@ export const alertService = {
                     : alertData.timestamp,
               },
             })) as { data: { success: boolean; alertId: string } };
-
-            if (__DEV__) {
-              console.log("[alertService] Cloud Function response", {
-                success: result.data?.success,
-                alertId: result.data?.alertId,
-              });
-            }
 
             if (result.data?.success && result.data?.alertId) {
               const alertId = result.data.alertId;
@@ -329,14 +314,6 @@ export const alertService = {
                 method: "cloud_function_fallback",
               },
             });
-
-            if (__DEV__) {
-              console.error("[alertService] Cloud Function error", {
-                error: cloudFunctionError,
-                code: cfErrorCode,
-                message: cfErrorMessage,
-              });
-            }
 
             // Re-throw Cloud Function error
             throw cloudFunctionError;
@@ -472,17 +449,6 @@ export const alertService = {
               resultData?.message ||
               `Cloud Function did not return success: ${JSON.stringify(resultData)}`;
 
-            if (__DEV__) {
-              console.error(
-                "[alertService] Cloud Function returned non-success",
-                {
-                  resultData,
-                  alertId,
-                  resolverId,
-                }
-              );
-            }
-
             throw new Error(errorMessage);
           }
 
@@ -600,21 +566,6 @@ export const alertService = {
           // Extract error details using helper function
           const { code: errorCode, message: errorMessage } =
             extractFirebaseFunctionsError(cloudFunctionError);
-
-          // Log detailed error information for debugging
-          if (__DEV__) {
-            console.error("[alertService] Cloud Function error details", {
-              error: cloudFunctionError,
-              errorCode,
-              errorMessage,
-              errorKeys: cloudFunctionError
-                ? Object.keys(cloudFunctionError)
-                : [],
-              alertId,
-              resolverId,
-              errorString: JSON.stringify(cloudFunctionError, null, 2),
-            });
-          }
 
           // If Cloud Function doesn't exist or failed, fall back to direct Firestore update
           if (
@@ -800,18 +751,6 @@ export const alertService = {
       // Extract error details using helper function
       const { code: errorCode, message: errorMessage } =
         extractFirebaseFunctionsError(error);
-
-      // Log detailed error information
-      if (__DEV__) {
-        console.error("[alertService] Final error in resolveAlert", {
-          error,
-          errorCode,
-          errorMessage,
-          alertId,
-          resolverId,
-          errorKeys: error ? Object.keys(error) : [],
-        });
-      }
 
       observabilityEmitter.emit({
         domain: "alerts",

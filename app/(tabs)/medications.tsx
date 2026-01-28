@@ -1296,7 +1296,7 @@ export default function MedicationsScreen() {
         {/* Today's Progress */}
         <Card
           contentStyle={undefined}
-          onPress={undefined}
+          pressable={false}
           style={styles.progressCard}
           variant="elevated"
         >
@@ -1361,7 +1361,7 @@ export default function MedicationsScreen() {
           {medications.length > 0 ? (
             <Card
               contentStyle={undefined}
-              onPress={undefined}
+              pressable={false}
               style={styles.medicationsList}
               variant="elevated"
             >

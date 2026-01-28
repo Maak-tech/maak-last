@@ -90,9 +90,6 @@ export const familyInviteService = {
 
       return code;
     } catch (error) {
-      if (__DEV__) {
-        console.error("Failed to create invitation code:", error);
-      }
       throw error;
     }
   },

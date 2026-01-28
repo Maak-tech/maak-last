@@ -692,7 +692,7 @@ export default function TrackScreen() {
           <View style={styles.statsGrid}>
             <Card
               contentStyle={undefined}
-              onPress={undefined}
+              pressable={false}
               style={styles.statCard}
               variant="elevated"
             >
@@ -722,7 +722,7 @@ export default function TrackScreen() {
             </Card>
             <Card
               contentStyle={undefined}
-              onPress={undefined}
+              pressable={false}
               style={styles.statCard}
               variant="elevated"
             >
@@ -775,7 +775,7 @@ export default function TrackScreen() {
               <Card
                 contentStyle={undefined}
                 key={symptom.id}
-                onPress={undefined}
+                pressable={false}
                 style={styles.symptomCard}
                 variant="elevated"
               >

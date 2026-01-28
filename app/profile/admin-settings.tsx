@@ -168,7 +168,6 @@ export default function AdminSettingsScreen() {
               Alert.alert(t("success"), t("memberRemoved"));
             } catch (error: any) {
               const errorMessage = error?.message || String(error);
-              console.error("Error removing member:", errorMessage);
               Alert.alert(
                 t("error"),
                 isRTL

@@ -145,7 +145,6 @@ class RealtimeHealthService {
         });
       },
       (error) => {
-        console.error("Error subscribing to trend alerts:", error);
         this.eventHandlers.onError?.(error as Error);
       }
     );
@@ -243,7 +242,6 @@ class RealtimeHealthService {
             });
           },
           (error) => {
-            console.error("Error subscribing to family alerts:", error);
             this.eventHandlers.onError?.(error as Error);
           }
         );
@@ -299,7 +297,6 @@ class RealtimeHealthService {
           });
         },
         (error) => {
-          console.error("Error subscribing to family vitals:", error);
           this.eventHandlers.onError?.(error as Error);
         }
       );
@@ -366,7 +363,6 @@ class RealtimeHealthService {
         });
       },
       (error) => {
-        console.error("Error subscribing to user alerts:", error);
         this.eventHandlers.onError?.(error as Error);
       }
     );
@@ -422,7 +418,6 @@ class RealtimeHealthService {
         });
       },
       (error) => {
-        console.error("Error subscribing to user vitals:", error);
         this.eventHandlers.onError?.(error as Error);
       }
     );
