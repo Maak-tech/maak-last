@@ -1893,7 +1893,11 @@ export default function DashboardScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container as ViewStyle}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container as ViewStyle}
+      >
         <View style={styles.centerContainer as ViewStyle}>
           <Text
             color={theme.colors.accent.error}
@@ -1910,7 +1914,11 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container as ViewStyle}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container as ViewStyle}
+    >
       <ScrollView
         contentContainerStyle={styles.contentInner as ViewStyle}
         keyboardShouldPersistTaps="handled"

@@ -27,6 +27,8 @@ eas secret:create --scope project --name DEXCOM_REDIRECT_URI --value "YOUR_VALUE
 
 eas secret:create --scope project --name REVENUECAT_PROJECT_ID --value "YOUR_VALUE" --type string --visibility secret --environment all
 
+eas secret:create --scope project --name REVENUECAT_API_KEY --value "YOUR_PRODUCTION_API_KEY" --type string --visibility secret --environment production
+
 # Firebase public config (these are public, but still need to be in EAS)
 eas secret:create --scope project --name EXPO_PUBLIC_FIREBASE_API_KEY --value "YOUR_VALUE" --type string --visibility secret --environment all
 
@@ -67,7 +69,11 @@ eas env:list
 - ✅ `FITBIT_CLIENT_ID` & `FITBIT_CLIENT_SECRET` - OAuth for Fitbit integration
 - ✅ `WITHINGS_CLIENT_ID` & `WITHINGS_CLIENT_SECRET` - OAuth for Withings integration
 - ✅ `DEXCOM_REDIRECT_URI` - Dexcom OAuth redirect
-- ✅ `REVENUECAT_PROJECT_ID` - RevenueCat for in-app purchases
+- ✅ `REVENUECAT_PROJECT_ID` - RevenueCat project ID (proj76462039)
+- ✅ `REVENUECAT_API_KEY` - RevenueCat production API key (REQUIRED for production builds)
+  - **App ID**: `app7fb7d2f755`
+  - **How to get**: Go to [RevenueCat Dashboard](https://app.revenuecat.com/) → Select your app → Project Settings → API Keys → Copy Public API Key
+  - **Important**: Use production API key (starts with `appl_` for iOS or `goog_` for Android)
 - ✅ `EXPO_PUBLIC_FIREBASE_*` - Firebase public config (needed for app initialization)
 
 ### Firebase Functions Secrets (Server Side Only)

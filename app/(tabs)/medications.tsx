@@ -1198,7 +1198,11 @@ export default function MedicationsScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container}
+      >
         <View style={styles.centerContainer}>
           <Text color="#EF4444" style={styles.errorText}>
             Please log in to track medications
@@ -1209,7 +1213,11 @@ export default function MedicationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}

@@ -1357,7 +1357,11 @@ export default function VitalsScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container as ViewStyle}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container as ViewStyle}
+      >
         <View style={styles.loadingContainer as ViewStyle}>
           <Text style={styles.loadingText as StyleProp<TextStyle>}>
             Please log in to view vitals
@@ -1385,7 +1389,11 @@ export default function VitalsScreen() {
       (Platform.OS === "android" && healthConnectAvailable === false)
     ) {
       return (
-        <SafeAreaView style={styles.container as ViewStyle}>
+        <SafeAreaView
+          edges={["top"]}
+          pointerEvents="box-none"
+          style={styles.container as ViewStyle}
+        >
           <View
             style={
               [
@@ -1444,7 +1452,11 @@ export default function VitalsScreen() {
     }
 
     return (
-      <SafeAreaView style={styles.container as ViewStyle}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container as ViewStyle}
+      >
         <ScrollView
           contentContainerStyle={styles.contentInner as ViewStyle}
           showsVerticalScrollIndicator={false}
@@ -1810,7 +1822,11 @@ export default function VitalsScreen() {
   // Show simple permission card for Android or when not showing metric selection
   if (!hasPermissions) {
     return (
-      <SafeAreaView style={styles.container as ViewStyle}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container as ViewStyle}
+      >
         <View style={styles.permissionCard as ViewStyle}>
           <View
             style={{ alignSelf: "flex-end", marginBottom: theme.spacing.sm }}
@@ -1909,7 +1925,11 @@ export default function VitalsScreen() {
   const vitalCards = getVitalCards();
 
   return (
-    <SafeAreaView style={styles.container as ViewStyle}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container as ViewStyle}
+    >
       {/* Header */}
       <View style={styles.header as ViewStyle}>
         <TouchableOpacity

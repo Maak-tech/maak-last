@@ -293,7 +293,11 @@ export default function AnalyticsScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container as ViewStyle}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container as ViewStyle}
+      >
         <View style={styles.emptyContainer as ViewStyle}>
           <Text style={styles.emptyText as TextStyle}>
             {isRTL ? "يجب تسجيل الدخول" : "Please log in"}
@@ -304,7 +308,11 @@ export default function AnalyticsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container as ViewStyle}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container as ViewStyle}
+    >
       <View style={styles.header as ViewStyle}>
         <View style={{ marginBottom: theme.spacing.base }}>
           <Heading

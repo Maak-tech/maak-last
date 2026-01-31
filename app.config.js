@@ -83,7 +83,7 @@ export default {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.maak.health",
+      bundleIdentifier: "com.maaktech.maak",
       buildNumber: "27",
       jsEngine: "hermes",
       ...(fs.existsSync("./GoogleService-Info.plist") &&
@@ -128,7 +128,7 @@ export default {
         foregroundImage: "./assets/images/generated_image.png",
         backgroundColor: "#2563EB",
       },
-      package: "com.maak.health",
+      package: "com.maaktech.maak",
       versionCode: 1,
       jsEngine: "hermes",
       googleServicesFile: "./google-services.json",

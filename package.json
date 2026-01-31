@@ -130,11 +130,7 @@
   },
   "overrides": {
     "xmldom": "npm:@xmldom/xmldom@^0.8.10",
-    "expo-constants": "~18.0.13",
-    "lucide-react-native": {
-      "react": "19.1.0",
-      "react-native": "0.81.5"
-    }
+    "expo-constants": "~18.0.13"
   },
   "expo": {
     "doctor": {

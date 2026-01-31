@@ -12,7 +12,7 @@ public class ExpoRevenuecatDirectoryModule: Module {
     
     /**
      * Ensures the RevenueCat cache directory exists
-     * Creates the directory at: Documents/com.maak.health.revenuecat.etags/
+     * Creates the directory at: Documents/com.maaktech.maak.revenuecat.etags/
      * This prevents NSCocoaErrorDomain Code=4 errors when RevenueCat tries to cache data
      */
     private func ensureRevenueCatDirectory() -> Bool {
@@ -26,7 +26,7 @@ public class ExpoRevenuecatDirectoryModule: Module {
         
         // RevenueCat cache directory path
         let revenueCatDirectory = documentsDirectory.appendingPathComponent(
-            "com.maak.health.revenuecat.etags",
+            "com.maaktech.maak.revenuecat.etags",
             isDirectory: true
         )
         

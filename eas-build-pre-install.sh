@@ -15,6 +15,11 @@ echo "$GOOGLE_SERVICES_JSON" > google-services.json
 
 echo "✅ Successfully restored google-services.json"
 
+# Configure npm to use legacy-peer-deps to handle peer dependency conflicts
+# This is needed because lucide-react-native doesn't officially support React 19 yet
+echo "📦 Configuring npm to use legacy-peer-deps for peer dependency resolution"
+npm config set legacy-peer-deps true
+
 # Clean CocoaPods cache to fix React Native module redefinition errors
 # Note: In EAS builds, ios directory is created during prebuild, so we clean after prebuild
 # This will be handled by a post-install hook if needed

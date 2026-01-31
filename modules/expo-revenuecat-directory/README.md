@@ -4,7 +4,7 @@ This Expo module ensures the RevenueCat cache directory exists on iOS before Rev
 
 ## Problem
 
-RevenueCat SDK on iOS tries to cache data to a directory (`Documents/com.maak.health.revenuecat.etags/`) that may not exist yet, causing a non-critical error:
+RevenueCat SDK on iOS tries to cache data to a directory (`Documents/com.maaktech.maak.revenuecat.etags/`) that may not exist yet, causing a non-critical error:
 
 ```
 ERROR [RevenueCat] Failed to save codable to cache: Error Domain=NSCocoaErrorDomain Code=4 "The file doesn't exist."
@@ -47,7 +47,7 @@ This module is **fully compatible with Android builds**:
 
 The directory is created at:
 ```
-Documents/com.maak.health.revenuecat.etags/
+Documents/com.maaktech.maak.revenuecat.etags/
 ```
 
 This matches the path RevenueCat SDK expects for its cache.

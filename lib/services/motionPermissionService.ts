@@ -135,7 +135,7 @@ export const openMotionSettings = async () => {
     }
   } else {
     // Android - open app settings
-    const url = `package:${Constants.expoConfig?.android?.package || "com.maak.health"}`;
+    const url = `package:${Constants.expoConfig?.android?.package || "com.maaktech.maak"}`;
     const canOpen = await Linking.canOpenURL(url);
     if (canOpen) {
       await Linking.openURL(url);

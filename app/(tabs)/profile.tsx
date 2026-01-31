@@ -1056,7 +1056,11 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
       <View style={[styles.header, isRTL && { flexDirection: "row-reverse" }]}>
         <Text style={[styles.title, isRTL && { textAlign: "left" }]}>
           {t("profile")}

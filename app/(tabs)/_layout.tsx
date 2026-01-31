@@ -23,13 +23,14 @@ export default function TabLayout() {
           backgroundColor: theme.colors.background.secondary,
           borderTopWidth: 1,
           borderTopColor: theme.colors.border.light,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 8,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontFamily: "Geist-Medium",
+        },
+        tabBarHideOnKeyboard: true,
+        tabBarItemStyle: {
+          paddingVertical: 4,
         },
       }}
     >

@@ -2428,7 +2428,11 @@ export default function FamilyScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
       <View style={styles.header}>
         <Text style={[styles.title, isRTL && styles.rtlText]}>
           {t("family")}

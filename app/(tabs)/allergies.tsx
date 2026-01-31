@@ -648,7 +648,11 @@ export default function AllergiesScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container}
+      >
         <View style={styles.centerContainer}>
           <Text color="#EF4444" style={{}}>
             {t(
@@ -662,7 +666,11 @@ export default function AllergiesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}

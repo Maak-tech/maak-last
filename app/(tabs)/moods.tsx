@@ -697,7 +697,11 @@ export default function MoodsScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView
+        edges={["top"]}
+        pointerEvents="box-none"
+        style={styles.container}
+      >
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>
             {t("pleaseLogInToTrackMoods", "Please log in to track moods")}
@@ -708,7 +712,11 @@ export default function MoodsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      edges={["top"]}
+      pointerEvents="box-none"
+      style={styles.container}
+    >
       {/* Custom Header with Back Button */}
       <View style={styles.customHeader}>
         <TouchableOpacity

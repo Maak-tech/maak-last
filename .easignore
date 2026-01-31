@@ -1,0 +1,8 @@
+# Exclude bun.lock to force EAS Build to use npm
+bun.lock
+bun.lockb
+
+# Exclude other unnecessary files
+node_modules/
+.git/
+.DS_Store

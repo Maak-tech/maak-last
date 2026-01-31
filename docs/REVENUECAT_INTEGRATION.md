@@ -13,13 +13,28 @@ RevenueCat has been integrated into the Maak Health app to handle subscription m
 
 ## Configuration
 
+### App ID
+- **Production App ID**: `app7fb7d2f755`
+- This is your RevenueCat app identifier in the dashboard
+
 ### API Key
-The RevenueCat API key is configured in `lib/services/revenueCatService.ts`:
-```typescript
-const REVENUECAT_API_KEY = "test_vluBajsHEoAjMjzoArPVpklOCRc";
+The RevenueCat API key is loaded from environment variables via `app.config.js`:
+- **Development**: Uses test key automatically if `REVENUECAT_API_KEY` is not set
+- **Production**: **REQUIRED** - Must be set in EAS secrets as `REVENUECAT_API_KEY`
+
+**To get your production API key:**
+1. Go to [RevenueCat Dashboard](https://app.revenuecat.com/)
+2. Select your app (App ID: `app7fb7d2f755`)
+3. Navigate to **Project Settings** → **API Keys**
+4. Copy the **Public API Key** (starts with `appl_` for iOS or `goog_` for Android)
+5. For React Native, you can use either the iOS or Android key (they work cross-platform)
+
+**To set up production API key in EAS:**
+```bash
+eas secret:create --scope project --name REVENUECAT_API_KEY --value "YOUR_PRODUCTION_API_KEY" --type string --visibility secret --environment production
 ```
 
-**Note**: This is a test key. Replace with your production key before releasing to production.
+**Note**: The test key (`test_vluBajsHEoAjMjzoArPVpklOCRc`) is only used in development builds when no API key is configured.
 
 ### Product Identifiers
 The following products are configured:
@@ -445,9 +460,10 @@ Props:
    - Configure webhooks in RevenueCat dashboard
    - Handle subscription events server-side if needed
 
-3. **Replace test API key**
-   - Update `REVENUECAT_API_KEY` in `lib/services/revenueCatService.ts`
-   - Use production key for production builds
+3. **Set up production API key**
+   - Get your production API key from RevenueCat dashboard (App ID: `app7fb7d2f755`)
+   - Set it in EAS secrets: `eas secret:create --scope project --name REVENUECAT_API_KEY --value "YOUR_KEY" --type string --visibility secret --environment production`
+   - The key will automatically be used in production builds
 
 4. **Test thoroughly**
    - Test all purchase flows
