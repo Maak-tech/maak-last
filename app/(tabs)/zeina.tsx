@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -72,9 +73,11 @@ export default function ZeinaScreen() {
   }, [params.tour]);
 
   useEffect(() => {
-    initializeChat();
-    checkVoiceAvailability();
-    checkRecognitionAvailability();
+    const task = InteractionManager.runAfterInteractions(() => {
+      initializeChat();
+      checkVoiceAvailability();
+      checkRecognitionAvailability();
+    });
 
     // Initialize voice settings from local storage
     const loadVoiceSettings = async () => {
@@ -102,6 +105,10 @@ export default function ZeinaScreen() {
     };
 
     loadVoiceSettings();
+
+    return () => {
+      task.cancel?.();
+    };
   }, []);
 
   const checkRecognitionAvailability = async () => {

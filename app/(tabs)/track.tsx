@@ -13,10 +13,11 @@ import {
   TestTube,
   Zap,
 } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  InteractionManager,
   RefreshControl,
   ScrollView,
   type StyleProp,
@@ -58,6 +59,7 @@ export default function TrackScreen() {
   const [showBloodPressureEntry, setShowBloodPressureEntry] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
   const bloodPressureCardRef = useRef<View>(null);
+  const hasLoadedOnceRef = useRef(false);
   const [stats, setStats] = useState({
     totalSymptoms: 0,
     totalMedications: 0,
@@ -75,6 +77,7 @@ export default function TrackScreen() {
   }
 
   const isRTL = i18n.language === "ar";
+  const showBlockingLoading = loading && !hasLoadedOnceRef.current;
 
   useEffect(() => {
     if (params.tour === "1") {
@@ -82,297 +85,367 @@ export default function TrackScreen() {
     }
   }, [params.tour]);
 
-  const styles = createThemedStyles((theme) => ({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background.primary,
-    },
-    header: {
-      paddingHorizontal: theme.spacing.lg,
-      paddingTop: theme.spacing.lg,
-      paddingBottom: theme.spacing.base,
-      backgroundColor: theme.colors.background.secondary,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
-    },
-    headerRow: {
-      flexDirection: "row" as const,
-      justifyContent: "space-between" as const,
-      alignItems: "center" as const,
-    },
-    headerTitle: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
-      fontSize: 28,
-    },
-    headerSubtitle: {
-      ...getTextStyle(theme, "body", "regular", theme.colors.text.secondary),
-      marginTop: 4,
-    },
-    helpButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: "center" as const,
-      justifyContent: "center" as const,
-      backgroundColor: theme.colors.background.primary,
-      borderWidth: 1,
-      borderColor: theme.colors.border.light,
-    },
-    content: {
-      flex: 1,
-    },
-    contentInner: {
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.base,
-    },
-    summaryGrid: {
-      flexDirection: "row" as const,
-      gap: theme.spacing.md,
-      marginTop: theme.spacing.lg,
-      marginBottom: theme.spacing.xl,
-    },
-    summaryCard: {
-      flex: 1,
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      alignItems: "center" as const,
-      ...theme.shadows.md,
-    },
-    summaryIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.md,
-    },
-    summaryValue: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
-      fontSize: 24,
-      marginBottom: 4,
-    },
-    summaryLabel: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
-      textAlign: "center" as const,
-    },
-    trackingSection: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      marginBottom: theme.spacing.lg,
-      ...theme.shadows.md,
-    },
-    sectionHeader: {
-      flexDirection: "row" as const,
-      justifyContent: "space-between" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.lg,
-    },
-    sectionTitle: {
-      ...getTextStyle(theme, "subheading", "bold", theme.colors.primary.main),
-    },
-    trackingOptions: {
-      flexDirection: "row" as const,
-      gap: theme.spacing.md,
-    },
-    trackingCard: {
-      flex: 1,
-      backgroundColor: theme.colors.background.primary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.lg,
-      borderWidth: 2,
-      borderColor: theme.colors.border.light,
-      alignItems: "center" as const,
-    },
-    trackingCardIcon: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginBottom: theme.spacing.md,
-    },
-    trackingCardTitle: {
-      ...getTextStyle(theme, "body", "bold", theme.colors.text.primary),
-      marginBottom: theme.spacing.sm,
-      textAlign: "center" as const,
-    },
-    trackingCardSubtitle: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-      textAlign: "center" as const,
-      marginBottom: theme.spacing.md,
-    },
-    trackingCardButton: {
-      backgroundColor: theme.colors.primary.main,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.borderRadius.md,
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: theme.spacing.xs,
-    },
-    trackingCardButtonText: {
-      ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
-    },
-    recentSection: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.base,
-      marginBottom: theme.spacing.lg,
-      ...theme.shadows.md,
-    },
-    recentItem: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      paddingVertical: theme.spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
-    },
-    recentIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      marginEnd: theme.spacing.md,
-    },
-    recentInfo: {
-      flex: 1,
-    },
-    recentTitle: {
-      ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
-      marginBottom: 2,
-    },
-    recentSubtitle: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
-    },
-    viewAllButton: {
-      flexDirection: "row" as const,
-      alignItems: "center" as const,
-      gap: 4,
-    },
-    viewAllText: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.primary.main),
-    },
-    onelineCard: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.xl,
-      padding: theme.spacing.xl,
-      marginBottom: theme.spacing.xl,
-      alignItems: "center" as const,
-      borderWidth: 1,
-      borderColor: theme.colors.border.light,
-    },
-    onelineText: {
-      ...getTextStyle(
-        theme,
-        "subheading",
-        "medium",
-        theme.colors.text.secondary
-      ),
-      fontStyle: "italic" as const,
-      textAlign: "center" as const,
-      marginBottom: theme.spacing.sm,
-      opacity: 0.8,
-    },
-    onelineSource: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.secondary.main),
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: "center" as const,
-      alignItems: "center" as const,
-      paddingTop: 100,
-    },
-    loadingText: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
-      marginTop: theme.spacing.base,
-    },
-    rtlText: {
-      textAlign: "right" as const,
-    },
-  }))(theme);
+  // Memoize styles to prevent recreation on every render
+  const styles = useMemo(
+    () =>
+      createThemedStyles((theme) => ({
+        container: {
+          flex: 1,
+          backgroundColor: theme.colors.background.primary,
+        },
+        header: {
+          paddingHorizontal: theme.spacing.lg,
+          paddingTop: theme.spacing.lg,
+          paddingBottom: theme.spacing.base,
+          backgroundColor: theme.colors.background.secondary,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border.light,
+        },
+        headerRow: {
+          flexDirection: "row" as const,
+          justifyContent: "space-between" as const,
+          alignItems: "center" as const,
+        },
+        headerTitle: {
+          ...getTextStyle(theme, "heading", "bold", theme.colors.primary.main),
+          fontSize: 28,
+        },
+        headerSubtitle: {
+          ...getTextStyle(
+            theme,
+            "body",
+            "regular",
+            theme.colors.text.secondary
+          ),
+          marginTop: 4,
+        },
+        helpButton: {
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          backgroundColor: theme.colors.background.primary,
+          borderWidth: 1,
+          borderColor: theme.colors.border.light,
+        },
+        content: {
+          flex: 1,
+        },
+        contentInner: {
+          paddingHorizontal: theme.spacing.base,
+          paddingVertical: theme.spacing.base,
+        },
+        summaryGrid: {
+          flexDirection: "row" as const,
+          gap: theme.spacing.md,
+          marginTop: theme.spacing.lg,
+          marginBottom: theme.spacing.xl,
+        },
+        summaryCard: {
+          flex: 1,
+          backgroundColor: theme.colors.background.secondary,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing.lg,
+          alignItems: "center" as const,
+          ...theme.shadows.md,
+        },
+        summaryIcon: {
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          justifyContent: "center" as const,
+          alignItems: "center" as const,
+          marginBottom: theme.spacing.md,
+        },
+        summaryValue: {
+          ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
+          fontSize: 24,
+          marginBottom: 4,
+        },
+        summaryLabel: {
+          ...getTextStyle(
+            theme,
+            "caption",
+            "medium",
+            theme.colors.text.secondary
+          ),
+          textAlign: "center" as const,
+        },
+        trackingSection: {
+          backgroundColor: theme.colors.background.secondary,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing.lg,
+          marginBottom: theme.spacing.lg,
+          ...theme.shadows.md,
+        },
+        sectionHeader: {
+          flexDirection: (isRTL ? "row-reverse" : "row") as const,
+          justifyContent: "space-between" as const,
+          alignItems: "center" as const,
+          marginBottom: theme.spacing.lg,
+        },
+        sectionTitle: {
+          ...getTextStyle(
+            theme,
+            "subheading",
+            "bold",
+            theme.colors.primary.main
+          ),
+        },
+        sectionTitleRTL: {
+          textAlign: "right" as const,
+        },
+        trackingOptions: {
+          flexDirection: "row" as const,
+          gap: theme.spacing.md,
+        },
+        trackingCard: {
+          flex: 1,
+          backgroundColor: theme.colors.background.primary,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing.lg,
+          borderWidth: 2,
+          borderColor: theme.colors.border.light,
+          alignItems: "center" as const,
+        },
+        trackingCardIcon: {
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          justifyContent: "center" as const,
+          alignItems: "center" as const,
+          marginBottom: theme.spacing.md,
+        },
+        trackingCardTitle: {
+          ...getTextStyle(theme, "body", "bold", theme.colors.text.primary),
+          marginBottom: theme.spacing.sm,
+          textAlign: "center" as const,
+        },
+        trackingCardSubtitle: {
+          ...getTextStyle(
+            theme,
+            "caption",
+            "regular",
+            theme.colors.text.secondary
+          ),
+          textAlign: "center" as const,
+          marginBottom: theme.spacing.md,
+        },
+        trackingCardButton: {
+          backgroundColor: theme.colors.primary.main,
+          paddingHorizontal: theme.spacing.lg,
+          paddingVertical: theme.spacing.sm,
+          borderRadius: theme.borderRadius.md,
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          gap: theme.spacing.xs,
+        },
+        trackingCardButtonText: {
+          ...getTextStyle(theme, "caption", "bold", theme.colors.neutral.white),
+        },
+        recentSection: {
+          backgroundColor: theme.colors.background.secondary,
+          borderRadius: theme.borderRadius.lg,
+          padding: theme.spacing.base,
+          marginBottom: theme.spacing.lg,
+          ...theme.shadows.md,
+        },
+        recentItem: {
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          paddingVertical: theme.spacing.md,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border.light,
+        },
+        recentIcon: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          justifyContent: "center" as const,
+          alignItems: "center" as const,
+          marginEnd: theme.spacing.md,
+        },
+        recentInfo: {
+          flex: 1,
+        },
+        recentTitle: {
+          ...getTextStyle(theme, "body", "semibold", theme.colors.text.primary),
+          marginBottom: 2,
+        },
+        recentSubtitle: {
+          ...getTextStyle(
+            theme,
+            "caption",
+            "regular",
+            theme.colors.text.secondary
+          ),
+        },
+        viewAllButton: {
+          flexDirection: "row" as const,
+          alignItems: "center" as const,
+          gap: 4,
+        },
+        viewAllText: {
+          ...getTextStyle(theme, "body", "medium", theme.colors.primary.main),
+        },
+        onelineCard: {
+          backgroundColor: theme.colors.background.secondary,
+          borderRadius: theme.borderRadius.xl,
+          padding: theme.spacing.xl,
+          marginBottom: theme.spacing.xl,
+          alignItems: "center" as const,
+          borderWidth: 1,
+          borderColor: theme.colors.border.light,
+        },
+        onelineText: {
+          ...getTextStyle(
+            theme,
+            "subheading",
+            "medium",
+            theme.colors.text.secondary
+          ),
+          fontStyle: "italic" as const,
+          textAlign: "center" as const,
+          marginBottom: theme.spacing.sm,
+          opacity: 0.8,
+        },
+        onelineSource: {
+          ...getTextStyle(
+            theme,
+            "caption",
+            "medium",
+            theme.colors.secondary.main
+          ),
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: "center" as const,
+          alignItems: "center" as const,
+          paddingTop: 100,
+        },
+        inlineLoadingContainer: {
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+          paddingVertical: theme.spacing.lg,
+        },
+        loadingText: {
+          ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
+          marginTop: theme.spacing.base,
+        },
+        rtlText: {
+          textAlign: "right" as const,
+        },
+      }))(theme),
+    [theme]
+  );
 
-  const loadTrackingData = async (isRefresh = false) => {
-    if (!user) return;
-
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+  // Memoize loadTrackingData to prevent recreation
+  const loadTrackingData = useCallback(
+    async (isRefresh = false) => {
+      if (!user) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
       }
 
-      // Load personal medications
-      const medications = await medicationService.getTodaysMedications(user.id);
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
-      // Load other data in parallel
-      const [symptoms, medicalHistory, moods, moodStats, allergies] =
-        await Promise.all([
+        // Load all data in parallel for better performance
+        const [
+          medications,
+          symptoms,
+          medicalHistory,
+          moods,
+          moodStats,
+          allergies,
+        ] = await Promise.all([
+          medicationService.getTodaysMedications(user.id),
           symptomService.getUserSymptoms(user.id, 3),
-          medicalHistoryService.getUserMedicalHistory(user.id),
+          medicalHistoryService.getUserMedicalHistory(user.id, 3), // Limit to 3 most recent
           moodService.getUserMoods(user.id, 3),
           moodService.getMoodStats(user.id, 7),
           allergyService.getUserAllergies(user.id, 3),
         ]);
 
-      setRecentSymptoms(symptoms);
-      setRecentMedicalHistory(medicalHistory.slice(0, 3)); // Get 3 most recent
-      setRecentMoods(moods);
-      setRecentAllergies(allergies);
+        setRecentSymptoms(symptoms);
+        setRecentMedicalHistory(medicalHistory); // Already limited to 3
+        setRecentMoods(moods);
+        setRecentAllergies(allergies);
 
-      // Calculate stats (optimized single pass)
-      const totalSymptoms = symptoms.length;
-      const totalMedications = medications.length;
+        // Calculate stats (optimized single pass)
+        const totalSymptoms = symptoms.length;
+        const totalMedications = medications.length;
 
-      // Optimize date calculation for symptomsThisWeek
-      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      const symptomsThisWeek = symptoms.filter(
-        (s) => new Date(s.timestamp).getTime() > sevenDaysAgo
-      ).length;
+        // Optimize date calculation for symptomsThisWeek
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const symptomsThisWeek = symptoms.filter(
+          (s) => new Date(s.timestamp).getTime() > sevenDaysAgo
+        ).length;
 
-      // Single pass for medication reminders calculation
-      let totalReminders = 0;
-      let takenReminders = 0;
-      medications.forEach((med) => {
-        const reminders = Array.isArray(med.reminders) ? med.reminders : [];
-        totalReminders += reminders.length;
-        takenReminders += reminders.filter((r) => r.taken).length;
-      });
+        // Single pass for medication reminders calculation
+        let totalReminders = 0;
+        let takenReminders = 0;
+        medications.forEach((med) => {
+          const reminders = Array.isArray(med.reminders) ? med.reminders : [];
+          totalReminders += reminders.length;
+          takenReminders += reminders.filter((r) => r.taken).length;
+        });
 
-      const compliance =
-        totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
-      const upcomingMedications = totalReminders - takenReminders;
+        const compliance =
+          totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
+        const upcomingMedications = totalReminders - takenReminders;
 
-      const totalConditions = medicalHistory.filter((h) => !h.isFamily).length;
+        const totalConditions = medicalHistory.filter(
+          (h) => !h.isFamily
+        ).length;
 
-      setStats({
-        totalSymptoms,
-        totalMedications,
-        symptomsThisWeek,
-        medicationCompliance: Math.round(compliance),
-        upcomingMedications,
-        totalConditions,
-        moodsThisWeek: moodStats?.totalMoods || 0,
-        avgMoodIntensity: moodStats?.avgIntensity || 0,
-      });
-    } catch (error) {
-      // Silently handle error
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+        setStats({
+          totalSymptoms,
+          totalMedications,
+          symptomsThisWeek,
+          medicationCompliance: Math.round(compliance),
+          upcomingMedications,
+          totalConditions,
+          moodsThisWeek: moodStats?.totalMoods || 0,
+          avgMoodIntensity: moodStats?.avgIntensity || 0,
+        });
+      } catch (error) {
+        // Silently handle error
+      } finally {
+        hasLoadedOnceRef.current = true;
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [user]
+  );
 
   useEffect(() => {
-    loadTrackingData();
-  }, [user]);
+    let cancelled = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) {
+        loadTrackingData();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      task.cancel?.();
+    };
+  }, [loadTrackingData]);
 
   useFocusEffect(
     useCallback(() => {
-      loadTrackingData();
-    }, [user])
+      if (!(loading || refreshing)) {
+        loadTrackingData();
+      }
+    }, [loadTrackingData, loading, refreshing])
   );
 
   const formatTime = (
@@ -420,6 +493,51 @@ export default function TrackScreen() {
     return moodMap[moodType] || "😐";
   };
 
+  // Memoize navigation handlers to prevent recreation on every render
+  const navigateToSymptoms = useCallback(() => {
+    router.push("/(tabs)/symptoms");
+  }, []);
+
+  const navigateToMedications = useCallback(() => {
+    router.push("/(tabs)/medications");
+  }, []);
+
+  const navigateToMoods = useCallback(() => {
+    router.push("/(tabs)/moods");
+  }, []);
+
+  const navigateToAllergies = useCallback(() => {
+    router.push("/(tabs)/allergies");
+  }, []);
+
+  const navigateToVitals = useCallback(() => {
+    router.push("/(tabs)/vitals");
+  }, []);
+
+  const navigateToMedicalHistory = useCallback(() => {
+    router.push("/profile/medical-history");
+  }, []);
+
+  const navigateToTimeline = useCallback(() => {
+    router.push("/(tabs)/timeline");
+  }, []);
+
+  const navigateToLabResults = useCallback(() => {
+    router.push("/(tabs)/lab-results");
+  }, []);
+
+  const navigateToPPGMeasure = useCallback(() => {
+    router.push("/ppg-measure");
+  }, []);
+
+  const handleBloodPressurePress = useCallback(() => {
+    setShowBloodPressureEntry(true);
+  }, []);
+
+  const handleShowHowTo = useCallback(() => {
+    setShowHowTo(true);
+  }, []);
+
   if (!user) {
     return (
       <SafeAreaView style={styles.container as ViewStyle}>
@@ -455,7 +573,7 @@ export default function TrackScreen() {
             {isRTL ? "تتبع الصحة" : "Health Tracking"}
           </Text>
           <TouchableOpacity
-            onPress={() => setShowHowTo(true)}
+            onPress={handleShowHowTo}
             style={styles.helpButton as ViewStyle}
           >
             <Info color={theme.colors.text.secondary} size={18} />
@@ -488,7 +606,7 @@ export default function TrackScreen() {
         style={styles.content as ViewStyle}
       >
         {/* Summary Stats */}
-        {loading ? (
+        {showBlockingLoading ? (
           <View style={styles.loadingContainer as ViewStyle}>
             <ActivityIndicator color={theme.colors.primary.main} size="large" />
             <Text
@@ -504,6 +622,24 @@ export default function TrackScreen() {
           </View>
         ) : (
           <>
+            {loading ? (
+              <View style={styles.inlineLoadingContainer as ViewStyle}>
+                <ActivityIndicator
+                  color={theme.colors.primary.main}
+                  size="small"
+                />
+                <Text
+                  style={
+                    [
+                      styles.loadingText,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {isRTL ? "جاري التحديث..." : "Updating..."}
+                </Text>
+              </View>
+            ) : null}
             <View style={styles.summaryGrid as ViewStyle}>
               <View style={styles.summaryCard as ViewStyle}>
                 <View
@@ -581,6 +717,7 @@ export default function TrackScreen() {
                   style={
                     [
                       styles.sectionTitle,
+                      isRTL && styles.sectionTitleRTL,
                       isRTL && styles.rtlText,
                     ] as StyleProp<TextStyle>
                   }
@@ -591,7 +728,7 @@ export default function TrackScreen() {
 
               <View style={styles.trackingOptions as ViewStyle}>
                 <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/symptoms")}
+                  onPress={navigateToSymptoms}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -627,7 +764,7 @@ export default function TrackScreen() {
                       : "Log and monitor symptoms"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/symptoms")}
+                    onPress={navigateToSymptoms}
                     style={styles.trackingCardButton as ViewStyle}
                   >
                     <Activity color={theme.colors.neutral.white} size={16} />
@@ -642,7 +779,7 @@ export default function TrackScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/medications")}
+                  onPress={navigateToMedications}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -678,7 +815,7 @@ export default function TrackScreen() {
                       : "Manage meds and reminders"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/medications")}
+                    onPress={navigateToMedications}
                     style={styles.trackingCardButton as ViewStyle}
                   >
                     <Pill color={theme.colors.neutral.white} size={16} />
@@ -703,7 +840,7 @@ export default function TrackScreen() {
                 }
               >
                 <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/moods")}
+                  onPress={navigateToMoods}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -737,7 +874,7 @@ export default function TrackScreen() {
                     {isRTL ? "تسجيل ومراقبة الحالة النفسية" : "Track your mood"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/moods")}
+                    onPress={navigateToMoods}
                     style={
                       [
                         styles.trackingCardButton,
@@ -758,7 +895,7 @@ export default function TrackScreen() {
 
                 {/* Allergies Tracking */}
                 <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/allergies")}
+                  onPress={navigateToAllergies}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -795,7 +932,7 @@ export default function TrackScreen() {
                     {isRTL ? "تسجيل ومراقبة الحساسية" : "Track your allergies"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/allergies")}
+                    onPress={navigateToAllergies}
                     style={
                       [
                         styles.trackingCardButton,
@@ -833,7 +970,7 @@ export default function TrackScreen() {
                   style={{ flex: 1 }}
                 >
                   <TouchableOpacity
-                    onPress={() => setShowBloodPressureEntry(true)}
+                    onPress={handleBloodPressurePress}
                     style={styles.trackingCard as ViewStyle}
                   >
                     <View
@@ -867,7 +1004,7 @@ export default function TrackScreen() {
                       {isRTL ? "تسجيل ضغط الدم يدوياً" : "Manual entry"}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => setShowBloodPressureEntry(true)}
+                      onPress={handleBloodPressurePress}
                       style={
                         [
                           styles.trackingCardButton,
@@ -887,61 +1024,65 @@ export default function TrackScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/vitals")}
-                  style={styles.trackingCard as ViewStyle}
-                >
-                  <View
-                    style={
-                      [
-                        styles.trackingCardIcon,
-                        { backgroundColor: theme.colors.secondary.main + "20" },
-                      ] as StyleProp<ViewStyle>
-                    }
-                  >
-                    <Zap color={theme.colors.secondary.main} size={28} />
-                  </View>
-                  <Text
-                    style={
-                      [
-                        styles.trackingCardTitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
-                  </Text>
-                  <Text
-                    style={
-                      [
-                        styles.trackingCardSubtitle,
-                        isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL
-                      ? "مراقبة النبض، الخطوات، النوم"
-                      : "Monitor heart rate, steps, sleep"}
-                  </Text>
+                <View style={{ flex: 1 }}>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/vitals")}
-                    style={
-                      [
-                        styles.trackingCardButton,
-                        { backgroundColor: theme.colors.secondary.main },
-                      ] as StyleProp<ViewStyle>
-                    }
+                    onPress={navigateToVitals}
+                    style={styles.trackingCard as ViewStyle}
                   >
-                    <Heart color={theme.colors.neutral.white} size={16} />
-                    <Text
+                    <View
                       style={
-                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                        [
+                          styles.trackingCardIcon,
+                          {
+                            backgroundColor: theme.colors.secondary.main + "20",
+                          },
+                        ] as StyleProp<ViewStyle>
                       }
                     >
-                      {isRTL ? "عرض" : "View"}
+                      <Zap color={theme.colors.secondary.main} size={28} />
+                    </View>
+                    <Text
+                      style={
+                        [
+                          styles.trackingCardTitle,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
                     </Text>
+                    <Text
+                      style={
+                        [
+                          styles.trackingCardSubtitle,
+                          isRTL && styles.rtlText,
+                        ] as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL
+                        ? "مراقبة النبض، الخطوات، النوم"
+                        : "Monitor heart rate, steps, sleep"}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={navigateToVitals}
+                      style={
+                        [
+                          styles.trackingCardButton,
+                          { backgroundColor: theme.colors.secondary.main },
+                        ] as StyleProp<ViewStyle>
+                      }
+                    >
+                      <Heart color={theme.colors.neutral.white} size={16} />
+                      <Text
+                        style={
+                          styles.trackingCardButtonText as StyleProp<TextStyle>
+                        }
+                      >
+                        {isRTL ? "عرض" : "View"}
+                      </Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
-                </TouchableOpacity>
+                </View>
               </View>
 
               {/* Medical History and PPG Heart Rate Monitor */}
@@ -954,7 +1095,7 @@ export default function TrackScreen() {
                 }
               >
                 <TouchableOpacity
-                  onPress={() => router.push("/profile/medical-history")}
+                  onPress={navigateToMedicalHistory}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -990,7 +1131,7 @@ export default function TrackScreen() {
                       : "Record and manage medical conditions"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/profile/medical-history")}
+                    onPress={navigateToMedicalHistory}
                     style={
                       [
                         styles.trackingCardButton,
@@ -1075,7 +1216,7 @@ export default function TrackScreen() {
                   </Text>
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    onPress={() => router.push("/ppg-measure")}
+                    onPress={navigateToPPGMeasure}
                     style={
                       [
                         styles.trackingCardButton,
@@ -1105,7 +1246,7 @@ export default function TrackScreen() {
                 }
               >
                 <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/timeline")}
+                  onPress={navigateToTimeline}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -1141,7 +1282,7 @@ export default function TrackScreen() {
                       : "View all health events chronologically"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/timeline")}
+                    onPress={navigateToTimeline}
                     style={
                       [
                         styles.trackingCardButton,
@@ -1162,7 +1303,7 @@ export default function TrackScreen() {
 
                 {/* Lab Results */}
                 <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/lab-results")}
+                  onPress={navigateToLabResults}
                   style={styles.trackingCard as ViewStyle}
                 >
                   <View
@@ -1198,7 +1339,7 @@ export default function TrackScreen() {
                       : "Track lab tests and results"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/lab-results")}
+                    onPress={navigateToLabResults}
                     style={
                       [
                         styles.trackingCardButton,
@@ -1227,6 +1368,7 @@ export default function TrackScreen() {
                     style={
                       [
                         styles.sectionTitle,
+                        isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
@@ -1234,7 +1376,7 @@ export default function TrackScreen() {
                     {isRTL ? "الأعراض الصحيةالأخيرة" : "Recent Symptoms"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/symptoms")}
+                    onPress={navigateToSymptoms}
                     style={styles.viewAllButton as ViewStyle}
                   >
                     <Text
@@ -1254,7 +1396,7 @@ export default function TrackScreen() {
                 {recentSymptoms.slice(0, 3).map((symptom) => (
                   <TouchableOpacity
                     key={symptom.id}
-                    onPress={() => router.push("/(tabs)/symptoms")}
+                    onPress={navigateToSymptoms}
                     style={styles.recentItem as ViewStyle}
                   >
                     <View
@@ -1303,6 +1445,7 @@ export default function TrackScreen() {
                     style={
                       [
                         styles.sectionTitle,
+                        isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
@@ -1310,7 +1453,7 @@ export default function TrackScreen() {
                     {isRTL ? "الحالات النفسية الأخيرة" : "Recent Moods"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/moods")}
+                    onPress={navigateToMoods}
                     style={styles.viewAllButton as ViewStyle}
                   >
                     <Text
@@ -1330,7 +1473,7 @@ export default function TrackScreen() {
                 {recentMoods.slice(0, 3).map((mood) => (
                   <TouchableOpacity
                     key={mood.id}
-                    onPress={() => router.push("/(tabs)/moods")}
+                    onPress={navigateToMoods}
                     style={styles.recentItem as ViewStyle}
                   >
                     <View
@@ -1383,6 +1526,7 @@ export default function TrackScreen() {
                     style={
                       [
                         styles.sectionTitle,
+                        isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
@@ -1390,7 +1534,7 @@ export default function TrackScreen() {
                     {isRTL ? "الحساسية الفترة الأخيرة" : "Recent Allergies"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/(tabs)/allergies")}
+                    onPress={navigateToAllergies}
                     style={styles.viewAllButton as ViewStyle}
                   >
                     <Text
@@ -1410,7 +1554,7 @@ export default function TrackScreen() {
                 {recentAllergies.slice(0, 3).map((allergy) => (
                   <TouchableOpacity
                     key={allergy.id}
-                    onPress={() => router.push("/(tabs)/allergies")}
+                    onPress={navigateToAllergies}
                     style={styles.recentItem as ViewStyle}
                   >
                     <View
@@ -1465,6 +1609,7 @@ export default function TrackScreen() {
                     style={
                       [
                         styles.sectionTitle,
+                        isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
@@ -1472,7 +1617,7 @@ export default function TrackScreen() {
                     {isRTL ? "التاريخ الطبي الأخير" : "Recent Medical History"}
                   </Text>
                   <TouchableOpacity
-                    onPress={() => router.push("/profile/medical-history")}
+                    onPress={navigateToMedicalHistory}
                     style={styles.viewAllButton as ViewStyle}
                   >
                     <Text
@@ -1492,7 +1637,7 @@ export default function TrackScreen() {
                 {recentMedicalHistory.slice(0, 3).map((history) => (
                   <TouchableOpacity
                     key={history.id}
-                    onPress={() => router.push("/profile/medical-history")}
+                    onPress={navigateToMedicalHistory}
                     style={styles.recentItem as ViewStyle}
                   >
                     <View

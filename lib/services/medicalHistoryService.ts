@@ -15,13 +15,21 @@ import { db } from "@/lib/firebase";
 import type { MedicalHistory } from "@/types";
 
 export const medicalHistoryService = {
-  async getUserMedicalHistory(userId: string): Promise<MedicalHistory[]> {
+  async getUserMedicalHistory(
+    userId: string,
+    limitCount?: number
+  ): Promise<MedicalHistory[]> {
     try {
-      const q = query(
-        collection(db, "medicalHistory"),
+      const queryConstraints = [
         where("userId", "==", userId),
-        orderBy("diagnosedDate", "desc")
-      );
+        orderBy("diagnosedDate", "desc"),
+      ];
+
+      if (limitCount && limitCount > 0) {
+        queryConstraints.push(limit(limitCount));
+      }
+
+      const q = query(collection(db, "medicalHistory"), ...queryConstraints);
 
       const querySnapshot = await getDocs(q);
       const medicalHistory: MedicalHistory[] = [];

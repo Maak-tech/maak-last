@@ -468,7 +468,12 @@ export default function FamilyMemberHealthView() {
         {/* Alerts Section */}
         {alerts.length > 0 && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
+            <View
+              style={[
+                styles.sectionHeader,
+                isRTL && { flexDirection: "row-reverse" },
+              ]}
+            >
               <AlertTriangle color="#EF4444" size={20} />
               <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "التنبيهات الصحية الفعالة" : "Active Alerts"}
@@ -506,7 +511,12 @@ export default function FamilyMemberHealthView() {
         {/* Vitals Section */}
         {vitals && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
+            <View
+              style={[
+                styles.sectionHeader,
+                isRTL && { flexDirection: "row-reverse" },
+              ]}
+            >
               <Gauge color="#2563EB" size={20} />
               <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
                 {isRTL ? "العلامات الحيوية" : "Vital Signs"}
@@ -717,7 +727,12 @@ export default function FamilyMemberHealthView() {
 
         {/* Symptoms Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.sectionHeader,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
             <Activity color="#F59E0B" size={20} />
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {isRTL ? "الأعراض الصحية المراقبة" : "Tracked Symptoms"}
@@ -787,7 +802,12 @@ export default function FamilyMemberHealthView() {
 
         {/* Medications Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.sectionHeader,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
             <Pill color="#2563EB" size={20} />
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {isRTL ? "الأدوية" : "Medications"}
@@ -888,7 +908,12 @@ export default function FamilyMemberHealthView() {
 
         {/* Medical History Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.sectionHeader,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
             <History color="#8B5CF6" size={20} />
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {isRTL ? "التاريخ الطبي" : "Medical History"}
@@ -974,7 +999,12 @@ export default function FamilyMemberHealthView() {
 
         {/* Allergies Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.sectionHeader,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
             <ShieldAlert color="#DC2626" size={20} />
             <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
               {isRTL ? "الحساسية" : "Allergies"}

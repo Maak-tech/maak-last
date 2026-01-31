@@ -1343,7 +1343,11 @@ export default function MedicationsScreen() {
         <View style={styles.section}>
           <Heading
             level={5}
-            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
           >
             {selectedFilter.type === "family"
               ? isRTL
@@ -2200,6 +2204,9 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
+  },
+  sectionTitleRTL: {
+    textAlign: "right",
   },
   medicationsList: {
     backgroundColor: "#FFFFFF",

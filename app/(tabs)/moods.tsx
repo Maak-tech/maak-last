@@ -762,7 +762,13 @@ export default function MoodsScreen() {
 
         {/* Stats Section */}
         <View style={styles.statsSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
+          >
             {t("thisWeek")}
           </Text>
           <View style={styles.statsGrid}>
@@ -797,7 +803,13 @@ export default function MoodsScreen() {
 
         {/* Moods List */}
         <View style={styles.moodsSection}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
+          >
             {selectedFilter.type === "family"
               ? isRTL
                 ? "حالات النفسية لعائلتك الفترة الأخيرة"
@@ -1241,6 +1253,9 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
+  },
+  sectionTitleRTL: {
+    textAlign: "right",
   },
   statsGrid: {
     flexDirection: "row",

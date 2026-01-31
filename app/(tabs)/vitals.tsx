@@ -50,9 +50,6 @@ import {
   getAvailableMetricsForProvider,
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
-// Lazy import to prevent early native module loading
-// import { appleHealthService } from "@/lib/services/appleHealthService";
-// import { googleHealthService } from "@/lib/services/googleHealthService";
 import {
   saveProviderConnection,
   syncHealthData,
@@ -293,6 +290,11 @@ export default function VitalsScreen() {
       alignItems: "center" as const,
       paddingTop: 100,
     },
+    inlineLoadingContainer: {
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      paddingVertical: theme.spacing.lg,
+    },
     loadingText: {
       ...getTextStyle(theme, "body", "medium", theme.colors.text.secondary),
       marginTop: theme.spacing.base,
@@ -369,6 +371,9 @@ export default function VitalsScreen() {
       fontSize: 17,
       fontWeight: "600",
       marginStart: theme.spacing.base,
+    },
+    groupTitleRTL: {
+      textAlign: "right" as const,
     },
     groupCount: {
       fontSize: 14,
@@ -515,12 +520,12 @@ export default function VitalsScreen() {
       // This prevents crashes when navigating to this screen before React Native bridge is ready
       // The initial load is handled by useEffect with a delay
       // On subsequent focuses, refresh immediately since bridge should be ready
-      if (initialLoadCompleted.current) {
+      if (initialLoadCompleted.current && !(loading || refreshing)) {
         // Already loaded once, safe to refresh immediately
         loadVitalsData();
       }
       // If initial load hasn't completed yet, let useEffect handle it
-    }, [loadVitalsData])
+    }, [loadVitalsData, loading, refreshing])
   );
 
   const loadAvailableMetrics = () => {
@@ -1362,26 +1367,6 @@ export default function VitalsScreen() {
     );
   }
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container as ViewStyle}>
-        <View style={styles.loadingContainer as ViewStyle}>
-          <ActivityIndicator color={theme.colors.primary.main} size="large" />
-          <Text
-            style={
-              [
-                styles.loadingText,
-                isRTL && styles.rtlText,
-              ] as StyleProp<TextStyle>
-            }
-          >
-            {isRTL ? "جاري تحميل البيانات الصحية..." : "Loading health data..."}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   // Show pre-permission metric selection screen for iOS/Android when permissions not granted
   // This is shown BEFORE the iOS HealthKit permission screen
   if (
@@ -1619,6 +1604,7 @@ export default function VitalsScreen() {
                           [
                             styles.groupTitle,
                             { color: theme.colors.text.primary },
+                            isRTL && styles.groupTitleRTL,
                             isRTL && styles.rtlText,
                           ] as StyleProp<TextStyle>
                         }
@@ -2023,6 +2009,23 @@ export default function VitalsScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content as ViewStyle}
       >
+        {loading ? (
+          <View style={styles.inlineLoadingContainer as ViewStyle}>
+            <ActivityIndicator color={theme.colors.primary.main} size="small" />
+            <Text
+              style={
+                [
+                  styles.loadingText,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
+              {isRTL
+                ? "جاري تحميل البيانات الصحية..."
+                : "Loading health data..."}
+            </Text>
+          </View>
+        ) : null}
         {/* Vitals Grid */}
         <View style={styles.vitalsGrid as ViewStyle}>
           {/* Render all vital cards dynamically in rows of 2 */}

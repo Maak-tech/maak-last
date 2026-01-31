@@ -3,15 +3,12 @@
  * Processes new vital readings and checks against benchmarks
  */
 
-import { defineSecret } from "firebase-functions/params";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import type { VitalType } from "../modules/alerts/engine";
 import { processVitalReading } from "../modules/vitals/pipeline";
 import { createTraceId } from "../observability/correlation";
 import { logger } from "../observability/logger";
-
-// Define secret for OpenAI API key
-const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+import { OPENAI_API_KEY } from "../secrets";
 
 /**
  * Firestore trigger: Check vitals against benchmarks when new vital is created

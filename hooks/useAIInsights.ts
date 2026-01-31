@@ -135,7 +135,6 @@ export function useAIInsights(
 
         setLastLoadTime(new Date());
       } catch (err) {
-        console.error("Failed to load AI insights dashboard:", err);
         setError(
           err instanceof Error ? err.message : "Failed to load insights"
         );
@@ -155,7 +154,7 @@ export function useAIInsights(
         await correlationAnalysisService.generateCorrelationAnalysis(userId);
       setCorrelations(result);
     } catch (err) {
-      console.error("Failed to load correlations:", err);
+      // Error handled silently
     }
   }, [userId]);
 
@@ -170,7 +169,7 @@ export function useAIInsights(
         );
       setSymptomAnalysis(symptoms);
     } catch (err) {
-      console.error("Failed to load symptom analysis:", err);
+      // Error handled silently
     }
   }, [userId]);
 
@@ -181,7 +180,7 @@ export function useAIInsights(
       const result = await riskAssessmentService.generateRiskAssessment(userId);
       setRiskAssessment(result);
     } catch (err) {
-      console.error("Failed to load risk assessment:", err);
+      // Error handled silently
     }
   }, [userId]);
 
@@ -193,7 +192,7 @@ export function useAIInsights(
         await medicationInteractionService.generateRealtimeAlerts(userId);
       setMedicationAlerts(alerts);
     } catch (err) {
-      console.error("Failed to load medication alerts:", err);
+      // Error handled silently
     }
   }, [userId]);
 
@@ -205,7 +204,7 @@ export function useAIInsights(
         await proactiveHealthSuggestionsService.generateSuggestions(userId);
       setHealthSuggestions(suggestions);
     } catch (err) {
-      console.error("Failed to load health suggestions:", err);
+      // Error handled silently
     }
   }, [userId]);
 
@@ -230,8 +229,7 @@ export function useAIInsights(
   // Dismiss insight (placeholder for future implementation)
   const dismissInsight = useCallback(async (insightId: string) => {
     // This would implement dismissal logic with local storage or backend
-    console.log(`Dismissing insight: ${insightId}`);
-    // For now, just log - could be implemented to hide insights from UI
+    // For now, just a placeholder - could be implemented to hide insights from UI
   }, []);
 
   // Auto-load on mount

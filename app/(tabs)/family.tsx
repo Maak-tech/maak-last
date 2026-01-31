@@ -2427,24 +2427,6 @@ export default function FamilyScreen() {
     setSelectedFilter(filter);
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={[styles.title, isRTL ? styles.rtlText : {}]}>
-            {t("family")}
-          </Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#2563EB" size="large" />
-          <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-            {isRTL ? "جاري التحميل..." : "Loading..."}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -2493,6 +2475,14 @@ export default function FamilyScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.content}
       >
+        {loading ? (
+          <View style={styles.inlineLoadingContainer}>
+            <ActivityIndicator color="#2563EB" size="small" />
+            <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+              {isRTL ? "جاري التحميل..." : "Loading..."}
+            </Text>
+          </View>
+        ) : null}
         {/* View Data Filter */}
         <FamilyDataFilter
           currentUserId={user?.id || ""}
@@ -2553,9 +2543,20 @@ export default function FamilyScreen() {
 
         {/* Needs Attention */}
         <View style={styles.section}>
-          <View style={styles.attentionHeader}>
+          <View
+            style={[
+              styles.attentionHeader,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
             <AlertTriangle color="#F59E0B" size={20} />
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                isRTL && styles.sectionTitleRTL,
+                isRTL && styles.rtlText,
+              ]}
+            >
               {isRTL ? "يحتاج انتباه" : "Needs Attention"}
             </Text>
           </View>
@@ -2691,7 +2692,13 @@ export default function FamilyScreen() {
 
         {/* Family Members */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
+          >
             {t("familyMembers")}
           </Text>
 
@@ -3783,7 +3790,13 @@ export default function FamilyScreen() {
         {/* Elderly Dashboard Section - for non-admin users */}
         {!isAdmin && viewMode === "dashboard" && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                isRTL && styles.sectionTitleRTL,
+                isRTL && styles.rtlText,
+              ]}
+            >
               {isRTL ? "لوحة التحكم" : "My Dashboard"}
             </Text>
 
@@ -4007,7 +4020,13 @@ export default function FamilyScreen() {
               marginBottom: theme.spacing.base,
             }}
           >
-            <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                isRTL && styles.sectionTitleRTL,
+                isRTL && styles.rtlText,
+              ]}
+            >
               {isRTL
                 ? "جدول الأدوية المشترك للعائلة"
                 : "Shared Medication Schedule"}
@@ -4512,9 +4531,20 @@ export default function FamilyScreen() {
         {/* Health Events Section */}
         {isAdmin && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
+            <View
+              style={[
+                styles.sectionHeader,
+                isRTL && { flexDirection: "row-reverse" },
+              ]}
+            >
               <AlertTriangle color="#EF4444" size={20} />
-              <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  isRTL && styles.sectionTitleRTL,
+                  isRTL && styles.rtlText,
+                ]}
+              >
                 {isRTL ? "الأحداث الصحية" : "Health Events"}
               </Text>
               <Text style={[styles.sectionCount, isRTL && styles.rtlText]}>
@@ -4658,7 +4688,13 @@ export default function FamilyScreen() {
 
         {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && styles.rtlText]}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
+          >
             {isRTL ? "إجراءات سريعة" : "Quick Actions"}
           </Text>
 
@@ -5927,6 +5963,9 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     marginBottom: 12,
   },
+  sectionTitleRTL: {
+    textAlign: "right",
+  },
   dashboardGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -6284,6 +6323,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  inlineLoadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
   },
   loadingText: {
     fontSize: 16,

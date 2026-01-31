@@ -150,7 +150,12 @@ export default function TermsConditionsScreen() {
     return (
       <View style={[styles.sectionCard, level > 2 && styles.subsectionCard]}>
         {level === 2 && (
-          <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.sectionHeader,
+              isRTL && { flexDirection: "row-reverse" },
+            ]}
+          >
             <View
               style={[styles.sectionIcon, { backgroundColor: color + "20" }]}
             >

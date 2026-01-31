@@ -401,6 +401,9 @@ export default function AllergiesScreen() {
       color: theme.colors.text.primary,
       marginBottom: theme.spacing.md,
     },
+    sectionTitleRTL: {
+      textAlign: "right" as const,
+    },
     statsGrid: {
       flexDirection: "row",
       gap: theme.spacing.md,
@@ -702,7 +705,11 @@ export default function AllergiesScreen() {
         <View style={styles.statsSection}>
           <Heading
             level={5}
-            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
           >
             {t("statistics")}
           </Heading>
@@ -760,7 +767,11 @@ export default function AllergiesScreen() {
         <View style={styles.allergiesSection}>
           <Heading
             level={5}
-            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
           >
             {t("myAllergies")}
           </Heading>

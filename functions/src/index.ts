@@ -1,7 +1,6 @@
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
-import { defineSecret } from "firebase-functions/params";
 import { onCall } from "firebase-functions/v2/https";
 import { ingestVital } from "./api/vitals";
 import { getFamilyAdmins } from "./modules/family/admins";
@@ -9,16 +8,16 @@ import { getFamilyMemberIds } from "./modules/family/familyMembers";
 import { createTraceId } from "./observability/correlation";
 // New structure imports
 import { logger } from "./observability/logger";
+// Import centralized secrets
+import {
+  PPG_ML_SERVICE_API_KEY,
+  TWILIO_ACCOUNT_SID,
+  TWILIO_AUTH_TOKEN,
+  TWILIO_FROM_NUMBER,
+} from "./secrets";
 import { sendPushNotificationInternal } from "./services/notifications";
 import { sendEmergencySmsToContacts } from "./services/notifications/sms";
 import type { NotificationPayload } from "./services/notifications/types";
-
-// Define secrets
-// Note: OPENAI_API_KEY is defined in triggers/vitals.ts for the checkVitalBenchmarks trigger
-const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
-const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
-const TWILIO_FROM_NUMBER = defineSecret("TWILIO_FROM_NUMBER");
-const PPG_ML_SERVICE_API_KEY = defineSecret("PPG_ML_SERVICE_API_KEY");
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -1037,8 +1036,7 @@ export { analyzeHealthTrends } from "./jobs/healthTrends";
 /**
  * Get admin users for a family
  */
-// Export sendVitalAlertToAdmins for backward compatibility
-export { sendVitalAlertToAdmins } from "./modules/alerts/vitalAlert";
+// Removed deprecated sendVitalAlertToAdmins export - use processVitalReading from modules/vitals/pipeline.ts instead
 
 // Re-export symptoms trigger
 export { checkSymptomBenchmarks } from "./triggers/symptoms";

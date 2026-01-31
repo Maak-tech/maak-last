@@ -685,7 +685,11 @@ export default function TrackScreen() {
         <View style={styles.statsSection}>
           <Heading
             level={5}
-            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
           >
             {t("thisWeek")}
           </Heading>
@@ -747,7 +751,11 @@ export default function TrackScreen() {
         <View style={styles.symptomsSection}>
           <Heading
             level={5}
-            style={[styles.sectionTitle, isRTL && styles.rtlText]}
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.sectionTitleRTL,
+              isRTL && styles.rtlText,
+            ]}
           >
             {selectedFilter.type === "family"
               ? t("recentFamilySymptoms", "Recent Family Symptoms")
@@ -1148,6 +1156,9 @@ const styles = StyleSheet.create({
     fontFamily: "Geist-SemiBold",
     color: "#1E293B",
     marginBottom: 12,
+  },
+  sectionTitleRTL: {
+    textAlign: "right",
   },
   statsGrid: {
     flexDirection: "row",

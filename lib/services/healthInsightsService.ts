@@ -605,49 +605,6 @@ class HealthInsightsService {
       }
     }
 
-    // Fallback: Analyze symptom trend over last 2 weeks (for backward compatibility)
-    const twoWeeksAgo = new Date();
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-
-    const recentSymptoms = symptoms.filter((s) => s.timestamp >= twoWeeksAgo);
-    const olderSymptoms = symptoms.filter((s) => s.timestamp < twoWeeksAgo);
-
-    if (recentSymptoms.length > 0 && olderSymptoms.length > 0) {
-      const recentAvg =
-        recentSymptoms.reduce((sum, s) => sum + s.severity, 0) /
-        recentSymptoms.length;
-      const olderAvg =
-        olderSymptoms.reduce((sum, s) => sum + s.severity, 0) /
-        olderSymptoms.length;
-
-      if (recentAvg > olderAvg + 0.5) {
-        const localizedText = getLocalizedInsightText(
-          "increasingSymptomSeverity",
-          isArabic
-        );
-        insights.push({
-          type: "trend",
-          title: localizedText.title,
-          description: localizedText.description,
-          confidence: 75,
-          actionable: true,
-          recommendation: localizedText.recommendation,
-        });
-      } else if (recentAvg < olderAvg - 0.5) {
-        const localizedText = getLocalizedInsightText(
-          "improvingSymptomSeverity",
-          isArabic
-        );
-        insights.push({
-          type: "trend",
-          title: localizedText.title,
-          description: localizedText.description,
-          confidence: 75,
-          actionable: false,
-        });
-      }
-    }
-
     // Analyze mood trends
     if (moods.length >= 7) {
       const recentMoods = moods.slice(0, Math.floor(moods.length / 2));

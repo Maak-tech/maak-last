@@ -68,8 +68,6 @@ class PPGMLService {
       const data = await response.json();
       return data as PPGAnalysisResponse;
     } catch (error: any) {
-      console.error("Error calling PPG ML service:", error);
-
       // Return fallback response
       return {
         success: false,
@@ -114,7 +112,6 @@ class PPGMLService {
       const data = await response.json();
       return data.embeddings;
     } catch (error: any) {
-      console.error("Error extracting embeddings:", error);
       throw error;
     }
   }
@@ -179,7 +176,6 @@ export async function analyzePPGWithML(
 
     return result;
   } catch (error: any) {
-    console.error("Error in analyzePPGWithML:", error);
     return {
       success: false,
       signalQuality: 0,

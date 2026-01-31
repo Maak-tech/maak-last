@@ -368,7 +368,15 @@ export default function AnalyticsScreen() {
           {symptoms.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText as TextStyle}>
+                <Heading
+                  level={6}
+                  style={
+                    [
+                      styles.rtlText,
+                      isRTL && { textAlign: "right" as const },
+                    ] as TextStyle
+                  }
+                >
                   {isRTL ? "اتجاهات الأعراض الصحية" : "Symptom Trends"}
                 </Heading>
                 <TouchableOpacity
@@ -457,7 +465,15 @@ export default function AnalyticsScreen() {
           {symptoms.length > 7 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText as TextStyle}>
+                <Heading
+                  level={6}
+                  style={
+                    [
+                      styles.rtlText,
+                      isRTL && { textAlign: "right" as const },
+                    ] as TextStyle
+                  }
+                >
                   {isRTL ? "التنبؤ باتجاه الأعراض الصحية" : "Trend Prediction"}
                 </Heading>
               </View>
@@ -473,7 +489,15 @@ export default function AnalyticsScreen() {
           {medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText as TextStyle}>
+                <Heading
+                  level={6}
+                  style={
+                    [
+                      styles.rtlText,
+                      isRTL && { textAlign: "right" as const },
+                    ] as TextStyle
+                  }
+                >
                   {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
                 </Heading>
               </View>
@@ -490,7 +514,15 @@ export default function AnalyticsScreen() {
           {symptoms.length > 0 && medications.length > 0 && (
             <View style={styles.section as ViewStyle}>
               <View style={styles.sectionHeader as ViewStyle}>
-                <Heading level={6} style={styles.rtlText as TextStyle}>
+                <Heading
+                  level={6}
+                  style={
+                    [
+                      styles.rtlText,
+                      isRTL && { textAlign: "right" as const },
+                    ] as TextStyle
+                  }
+                >
                   {isRTL
                     ? "تحليل الارتباط بين الأعراض الصحية والأدوية"
                     : "Correlation Analysis"}
@@ -528,7 +560,15 @@ export default function AnalyticsScreen() {
           {/* AI Insights Section */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading level={6} style={styles.rtlText as TextStyle}>
+              <Heading
+                level={6}
+                style={
+                  [
+                    styles.rtlText,
+                    isRTL && { textAlign: "right" as const },
+                  ] as TextStyle
+                }
+              >
                 {isRTL ? "رؤى الذكاء الاصطناعي" : "AI Insights"}
               </Heading>
               <TouchableOpacity
@@ -629,7 +669,15 @@ export default function AnalyticsScreen() {
           {/* Summary Stats */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading level={6} style={styles.rtlText as TextStyle}>
+              <Heading
+                level={6}
+                style={
+                  [
+                    styles.rtlText,
+                    isRTL && { textAlign: "right" as const },
+                  ] as TextStyle
+                }
+              >
                 {isRTL ? "ملخص الإحصائيات" : "Summary Statistics"}
               </Heading>
             </View>

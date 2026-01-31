@@ -38,6 +38,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   Modal,
   Platform,
   RefreshControl,
@@ -111,6 +112,10 @@ export default function ProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const calendarOpenedFromParam = useRef(false);
+  const loadHealthDataRef = useRef(false);
+  const loadHealthDataTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
   const [avatarCreatorVisible, setAvatarCreatorVisible] = useState(false);
@@ -183,17 +188,31 @@ export default function ProfileScreen() {
       .replace(/\d/g, (digit) => arabicNumerals[Number.parseInt(digit)]);
   };
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused - debounced to prevent multiple loads
   useFocusEffect(
     useCallback(() => {
       // Load settings immediately (fast)
       loadUserSettings();
-      // Load health data in background (can be slower)
-      // Don't await to prevent blocking UI
-      loadHealthData().catch(() => {
-        // Silently handle errors - UI will show loading state
-      });
-    }, [user])
+      // Debounce health data loading to prevent multiple simultaneous loads
+      if (loadHealthDataTimeoutRef.current) {
+        clearTimeout(loadHealthDataTimeoutRef.current);
+      }
+      if (!(loading || refreshing || loadHealthDataRef.current)) {
+        loadHealthDataTimeoutRef.current = setTimeout(() => {
+          // Defer heavy operations until interactions are complete
+          InteractionManager.runAfterInteractions(() => {
+            loadHealthData().catch(() => {
+              // Silently handle errors - UI will show loading state
+            });
+          });
+        }, 300); // 300ms debounce
+      }
+      return () => {
+        if (loadHealthDataTimeoutRef.current) {
+          clearTimeout(loadHealthDataTimeoutRef.current);
+        }
+      };
+    }, [user?.id, loading, refreshing])
   );
 
   // Check for calendar open parameter
@@ -223,10 +242,17 @@ export default function ProfileScreen() {
           [{ text: isRTL ? "موافق" : "OK" }]
         );
       }
-      // Refresh health data to show updated trends
-      loadHealthData().catch(() => {
-        // Silently handle errors
-      });
+      // Debounce health data refresh to prevent excessive reloads
+      if (loadHealthDataTimeoutRef.current) {
+        clearTimeout(loadHealthDataTimeoutRef.current);
+      }
+      loadHealthDataTimeoutRef.current = setTimeout(() => {
+        if (!loadHealthDataRef.current) {
+          loadHealthData().catch(() => {
+            // Silently handle errors
+          });
+        }
+      }, 1000); // 1 second debounce for real-time updates
     },
     onAlertCreated: (alert) => {
       // Refresh sync status when alerts are created
@@ -242,9 +268,11 @@ export default function ProfileScreen() {
   useEffect(() => {
     // Load settings immediately
     loadUserSettings();
-    // Load health data without blocking
-    loadHealthData().catch(() => {
-      // Silently handle errors
+    // Defer health data loading until interactions are complete
+    InteractionManager.runAfterInteractions(() => {
+      loadHealthData().catch(() => {
+        // Silently handle errors
+      });
     });
     checkSyncStatus();
 
@@ -258,6 +286,9 @@ export default function ProfileScreen() {
 
     return () => {
       unsubscribe();
+      if (loadHealthDataTimeoutRef.current) {
+        clearTimeout(loadHealthDataTimeoutRef.current);
+      }
     };
   }, [user, checkSyncStatus]);
 
@@ -324,8 +355,9 @@ export default function ProfileScreen() {
   };
 
   const loadHealthData = async (isRefresh = false) => {
-    if (!user?.id) return;
+    if (!user?.id || loadHealthDataRef.current) return;
 
+    loadHealthDataRef.current = true;
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -338,14 +370,19 @@ export default function ProfileScreen() {
         (_, reject) =>
           setTimeout(
             () => reject(new Error("Health data loading timeout")),
-            10_000 // 10 second timeout
+            8000 // Reduced to 8 second timeout
           )
       );
 
-      // Fetch symptoms and medications first (health score will use this data)
+      // OPTIMIZATION: Only fetch recent symptoms (last 90 days) instead of ALL symptoms
+      // This dramatically reduces data transfer and processing time
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      // Fetch symptoms and medications with limits to improve performance
       const dataPromise = Promise.allSettled([
-        symptomService.getUserSymptoms(user.id),
-        medicationService.getUserMedications(user.id),
+        symptomService.getUserSymptoms(user.id, 200), // Limit to 200 most recent symptoms
+        medicationService.getUserMedications(user.id), // Medications are usually fewer
       ]);
 
       const results = await Promise.race([dataPromise, timeoutPromise]).catch(
@@ -364,11 +401,28 @@ export default function ProfileScreen() {
       const medications =
         results[1].status === "fulfilled" ? results[1].value : [];
 
+      // Filter recent symptoms for display (last 30 days)
+      const recentSymptoms = symptoms.filter(
+        (s) =>
+          new Date(s.timestamp).getTime() >
+          Date.now() - 30 * 24 * 60 * 60 * 1000
+      );
+      const activeMedications = medications.filter((m) => m.isActive);
+
+      // OPTIMIZATION: Calculate health score only with recent data (last 90 days)
+      // This reduces computation time significantly
+      const symptomsForScore = symptoms.filter(
+        (s) => new Date(s.timestamp).getTime() >= ninetyDaysAgo.getTime()
+      );
+
       // Calculate health score from fetched data (faster, avoids duplicate fetch)
       // Use calculateHealthScoreFromData instead of calculateHealthScore to reuse data
       let healthScoreResult: HealthScoreResult;
       try {
-        healthScoreResult = calculateHealthScoreFromData(symptoms, medications);
+        healthScoreResult = calculateHealthScoreFromData(
+          symptomsForScore,
+          medications
+        );
       } catch (error) {
         // Fallback if calculation fails
         healthScoreResult = {
@@ -388,14 +442,6 @@ export default function ProfileScreen() {
         };
       }
 
-      // Filter recent symptoms for display
-      const recentSymptoms = symptoms.filter(
-        (s) =>
-          new Date(s.timestamp).getTime() >
-          Date.now() - 30 * 24 * 60 * 60 * 1000
-      );
-      const activeMedications = medications.filter((m) => m.isActive);
-
       setHealthData({
         symptoms: recentSymptoms,
         medications: activeMedications,
@@ -413,6 +459,7 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      loadHealthDataRef.current = false;
     }
   };
 
@@ -1177,7 +1224,9 @@ export default function ProfileScreen() {
         {/* Settings Sections */}
         {profileSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && { textAlign: "left" }]}>
+            <Text
+              style={[styles.sectionTitle, isRTL && { textAlign: "right" }]}
+            >
               {section.title}
             </Text>
 
@@ -1195,6 +1244,7 @@ export default function ProfileScreen() {
                     onPress={item.onPress}
                     style={[
                       styles.sectionItem,
+                      isRTL && { flexDirection: "row-reverse" },
                       itemIndex === section.items.length - 1 &&
                         styles.lastSectionItem,
                       syncing &&
@@ -1203,14 +1253,19 @@ export default function ProfileScreen() {
                         },
                     ]}
                   >
-                    <View style={styles.sectionItemLeft}>
+                    <View
+                      style={[
+                        styles.sectionItemLeft,
+                        isRTL && styles.sectionItemLeftRTL,
+                      ]}
+                    >
                       <View style={styles.sectionItemIcon}>
                         <IconComponent color="#64748B" size={20} />
                       </View>
                       <View
                         style={{
                           flex: 1,
-                          flexDirection: "row",
+                          flexDirection: isRTL ? "row-reverse" : "row",
                           alignItems: "center",
                           gap: 8,
                         }}
@@ -1219,7 +1274,7 @@ export default function ProfileScreen() {
                           numberOfLines={1}
                           style={[
                             styles.sectionItemLabel,
-                            isRTL && { textAlign: "left" },
+                            isRTL && { textAlign: "right" },
                           ]}
                         >
                           {item.label}
@@ -1285,7 +1340,7 @@ export default function ProfileScreen() {
         {/* Sign Out Button */}
         <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>
           <LogOut color="#EF4444" size={20} />
-          <Text style={[styles.signOutText, isRTL && { textAlign: "left" }]}>
+          <Text style={[styles.signOutText, isRTL && { textAlign: "right" }]}>
             {t("signOut")}
           </Text>
         </TouchableOpacity>
@@ -3363,6 +3418,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
+  sectionItemRTL: {
+    flexDirection: "row-reverse" as const,
+  },
   lastSectionItem: {
     borderBottomWidth: 0,
   },
@@ -3371,6 +3429,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     marginEnd: 12,
+  },
+  sectionItemLeftRTL: {
+    flexDirection: "row-reverse" as const,
+    marginEnd: 0,
+    marginStart: 12,
   },
   sectionItemIcon: {
     width: 32,

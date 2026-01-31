@@ -32,7 +32,6 @@ import {
   type HealthMetric,
 } from "@/lib/health/healthMetricsCatalog";
 // Lazy import to prevent early native module loading
-// import { appleHealthService } from "@/lib/services/appleHealthService";
 import { saveProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
 
