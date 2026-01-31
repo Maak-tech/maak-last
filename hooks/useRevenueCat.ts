@@ -17,7 +17,6 @@ export interface UseRevenueCatReturn {
   subscriptionStatus: SubscriptionStatus;
   hasActiveSubscription: boolean;
   hasFamilyPlan: boolean;
-  hasIndividualPlan: boolean;
   refreshCustomerInfo: () => Promise<void>;
   refreshOfferings: () => Promise<void>;
   purchasePackage: (
@@ -146,8 +145,6 @@ export function useRevenueCat(): UseRevenueCatReturn {
 
   const hasActiveSubscription = subscriptionStatus.isActive;
   const hasFamilyPlan = subscriptionStatus.isFamilyPlan;
-  const hasIndividualPlan =
-    subscriptionStatus.isActive && !subscriptionStatus.isFamilyPlan;
 
   return {
     isLoading,
@@ -157,7 +154,6 @@ export function useRevenueCat(): UseRevenueCatReturn {
     subscriptionStatus,
     hasActiveSubscription,
     hasFamilyPlan,
-    hasIndividualPlan,
     refreshCustomerInfo,
     refreshOfferings,
     purchasePackage,

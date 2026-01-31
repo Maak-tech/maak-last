@@ -52,26 +52,21 @@ const getRevenueCatApiKey = (): string => {
 const REVENUECAT_API_KEY = getRevenueCatApiKey();
 
 // Product identifiers
+// Only Family Plan is available (monthly and yearly)
 export const PRODUCT_IDENTIFIERS = {
-  INDIVIDUAL_MONTHLY: "Individual_Monthly_Premium",
   FAMILY_MONTHLY: "Family_Monthly_Premium",
-  INDIVIDUAL_YEARLY: "Individual_Yearly_Premium",
   FAMILY_YEARLY: "Family_Yearly_Premium",
 } as const;
 
 // Entitlement identifiers
+// Only Family Plan entitlement exists
 export const ENTITLEMENT_IDENTIFIERS = {
   FAMILY_PLAN: "Family Plan",
-  INDIVIDUAL_PLAN: "Individual Plan",
 } as const;
 
 // Plan limits
+// Family Plan: 1 admin + 3 family members = 4 total users
 export const PLAN_LIMITS = {
-  INDIVIDUAL: {
-    adminMembers: 1,
-    familyMembers: 1,
-    totalMembers: 2,
-  },
   FAMILY: {
     adminMembers: 1,
     familyMembers: 3,
@@ -80,7 +75,8 @@ export const PLAN_LIMITS = {
 } as const;
 
 // Subscription types
-export type SubscriptionType = "individual" | "family";
+// Only Family Plan is available
+export type SubscriptionType = "family";
 export type SubscriptionPeriod = "monthly" | "yearly";
 
 export interface SubscriptionStatus {
@@ -542,16 +538,14 @@ class RevenueCatService {
   }
 
   /**
-   * Check if user has active subscription (either Individual or Family Plan)
+   * Check if user has active subscription (Family Plan)
    */
   async hasActiveSubscription(): Promise<boolean> {
     try {
       const customerInfo = await this.getCustomerInfo();
       const activeEntitlements = customerInfo.entitlements.active;
       return (
-        activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN] !== undefined ||
-        activeEntitlements[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN] !==
-          undefined
+        activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN] !== undefined
       );
     } catch (error) {
       logger.error(
@@ -583,27 +577,6 @@ class RevenueCatService {
   }
 
   /**
-   * Check if user has Individual Plan entitlement
-   */
-  async hasIndividualPlanEntitlement(): Promise<boolean> {
-    try {
-      const customerInfo = await this.getCustomerInfo();
-      const entitlement =
-        customerInfo.entitlements.active[
-          ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN
-        ];
-      return entitlement !== undefined;
-    } catch (error) {
-      logger.error(
-        "Failed to check Individual Plan entitlement",
-        error,
-        "RevenueCatService"
-      );
-      return false;
-    }
-  }
-
-  /**
    * Get detailed subscription status
    */
   async getSubscriptionStatus(): Promise<SubscriptionStatus> {
@@ -611,16 +584,9 @@ class RevenueCatService {
       const customerInfo = await this.getCustomerInfo();
       const activeEntitlements = customerInfo.entitlements.active;
 
-      // Check for Family Plan first (higher priority)
-      let entitlement = activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN];
-      let isFamilyPlan = true;
-
-      // If no Family Plan, check for Individual Plan
-      if (!entitlement) {
-        entitlement =
-          activeEntitlements[ENTITLEMENT_IDENTIFIERS.INDIVIDUAL_PLAN];
-        isFamilyPlan = false;
-      }
+      // Check for Family Plan entitlement
+      const entitlement =
+        activeEntitlements[ENTITLEMENT_IDENTIFIERS.FAMILY_PLAN];
 
       if (!entitlement) {
         return {
@@ -634,9 +600,6 @@ class RevenueCatService {
       }
 
       const productIdentifier = entitlement.productIdentifier;
-      const subscriptionType: SubscriptionType = isFamilyPlan
-        ? "family"
-        : "individual";
       const subscriptionPeriod: SubscriptionPeriod = productIdentifier.includes(
         "Yearly"
       )
@@ -645,8 +608,8 @@ class RevenueCatService {
 
       return {
         isActive: true,
-        isFamilyPlan,
-        subscriptionType,
+        isFamilyPlan: true,
+        subscriptionType: "family",
         subscriptionPeriod,
         expirationDate: entitlement.expirationDate
           ? new Date(entitlement.expirationDate)
@@ -747,16 +710,15 @@ class RevenueCatService {
 
   /**
    * Get plan limits for the current subscription
+   * Returns Family Plan limits (1 admin + 3 family members = 4 total)
    */
-  async getPlanLimits(): Promise<
-    typeof PLAN_LIMITS.INDIVIDUAL | typeof PLAN_LIMITS.FAMILY | null
-  > {
+  async getPlanLimits(): Promise<typeof PLAN_LIMITS.FAMILY | null> {
     try {
       const status = await this.getSubscriptionStatus();
       if (!status.isActive) {
         return null;
       }
-      return status.isFamilyPlan ? PLAN_LIMITS.FAMILY : PLAN_LIMITS.INDIVIDUAL;
+      return PLAN_LIMITS.FAMILY;
     } catch (error) {
       logger.error("Failed to get plan limits", error, "RevenueCatService");
       return null;

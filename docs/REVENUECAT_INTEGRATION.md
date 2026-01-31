@@ -38,16 +38,16 @@ eas secret:create --scope project --name REVENUECAT_API_KEY --value "YOUR_PRODUC
 
 ### Product Identifiers
 The following products are configured:
-- `Individual_Monthly_Premium` - Individual Monthly Premium
-- `Family_Monthly_Premium` - Family Monthly Premium
-- `Individual_Yearly_Premium` - Individual Yearly Premium
-- `Family_Yearly_Premium` - Family Yearly Premium
+- `Family_Monthly_Premium` - Family Plan Monthly Premium
+- `Family_Yearly_Premium` - Family Plan Yearly Premium
 
 ### Entitlement Identifiers
 - `Family Plan` - Used to check if user has Family Plan access
   - **Plan Limits**: 1 admin member + 3 family members (total 4 members)
-- `Individual Plan` - Used to check if user has Individual Plan access
-  - **Plan Limits**: 1 admin member + 1 family member (total 2 members)
+  - **Features**: 
+    - Add and monitor family members' health
+    - All family members can use Zeina AI assistant
+    - Full access to premium features for all 4 users
 
 ## Initialization
 
@@ -201,7 +201,7 @@ function RestoreButton() {
 import { useSubscription } from "@/hooks/useSubscription";
 
 function PremiumFeature() {
-  const { isPremium, isFamilyPlan, isIndividualPlan } = useSubscription();
+  const { isPremium, isFamilyPlan } = useSubscription();
 
   if (!isPremium) {
     return (
@@ -216,7 +216,6 @@ function PremiumFeature() {
     <View>
       <Text>Premium feature content</Text>
       {isFamilyPlan && <Text>Family Plan features enabled</Text>}
-      {isIndividualPlan && <Text>Individual Plan features enabled</Text>}
     </View>
   );
 }
@@ -253,13 +252,12 @@ function FamilyManagement() {
     planLimits, 
     maxFamilyMembers, 
     maxTotalMembers,
-    isFamilyPlan,
-    isIndividualPlan 
+    isFamilyPlan
   } = useSubscription();
 
   return (
     <View>
-      <Text>Plan: {isFamilyPlan ? "Family Plan" : isIndividualPlan ? "Individual Plan" : "Free"}</Text>
+      <Text>Plan: {isFamilyPlan ? "Family Plan" : "Free"}</Text>
       {planLimits && (
         <>
           <Text>Max Family Members: {maxFamilyMembers}</Text>

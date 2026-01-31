@@ -9,22 +9,16 @@ export function useSubscription() {
   const {
     hasActiveSubscription,
     hasFamilyPlan,
-    hasIndividualPlan,
     subscriptionStatus,
     isLoading,
   } = useRevenueCat();
 
-  // Get plan limits based on subscription type
-  const planLimits = hasFamilyPlan
-    ? PLAN_LIMITS.FAMILY
-    : hasIndividualPlan
-      ? PLAN_LIMITS.INDIVIDUAL
-      : null;
+  // Get plan limits - only Family Plan is available
+  const planLimits = hasFamilyPlan ? PLAN_LIMITS.FAMILY : null;
 
   return {
     isPremium: hasActiveSubscription,
     isFamilyPlan: hasFamilyPlan,
-    isIndividualPlan: hasIndividualPlan,
     subscriptionStatus,
     planLimits,
     maxFamilyMembers: planLimits?.familyMembers ?? 0,

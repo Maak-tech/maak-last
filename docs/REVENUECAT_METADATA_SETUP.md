@@ -38,10 +38,8 @@ Based on your `app.config.js`, here's what needs to be configured in RevenueCat:
 Ensure these products are created in RevenueCat with matching identifiers:
 
 ### Product Identifiers (from your code):
-- `Individual_Monthly_Premium` - Individual Monthly Premium
-- `Family_Monthly_Premium` - Family Monthly Premium
-- `Individual_Yearly_Premium` - Individual Yearly Premium
-- `Family_Yearly_Premium` - Family Yearly Premium
+- `Family_Monthly_Premium` - Family Plan Monthly Premium
+- `Family_Yearly_Premium` - Family Plan Yearly Premium
 
 ### For each product, configure:
 1. **Product ID**: Must match exactly (case-sensitive)
@@ -74,22 +72,25 @@ Create these entitlements in RevenueCat:
 
 ## Step 5: App Store Connect Metadata (iOS)
 
-If the error is about App Store Connect metadata:
+If the error is about App Store Connect metadata, see the detailed guide: [App Store Connect Subscription Setup](./APP_STORE_CONNECT_SUBSCRIPTION_SETUP.md)
 
+**Quick Summary:**
 1. Go to [App Store Connect](https://appstoreconnect.apple.com/)
 2. Navigate to your app → **Subscriptions**
-3. For each subscription group:
-   - Add at least one **Localization** (e.g., English)
-   - Add **Subscription Name** and **Description**
+3. Create subscription group with localization
+4. Create 4 subscriptions with Product IDs matching your code
+5. For each subscription:
+   - Add at least one **Localization** (e.g., English) ← **Most common missing item!**
+   - Add **Subscription Name** and **Description** in localization
    - Add **Pricing** information
-   - Add a **Screenshot** showing the in-app purchase
+   - Add a **Screenshot** (6.5" display, 1290 x 2796 pixels) ← **Often missing!**
 
 ### Required Metadata:
-- **Subscription Group Name**: Localized name
-- **Individual Subscription Name**: Localized name
-- **Description**: Localized description
-- **Pricing**: Set price for each territory
-- **Screenshot**: 6.5" display screenshot (required)
+- **Subscription Group**: Must have at least one localization
+- **Individual Subscription Name**: Localized name (in localization section)
+- **Description**: Localized description (in localization section)
+- **Pricing**: Set price for at least one territory
+- **Screenshot**: 6.5" display screenshot (1290 x 2796 pixels) - **REQUIRED**
 
 ## Step 6: Google Play Console Metadata (Android)
 

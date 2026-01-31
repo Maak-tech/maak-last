@@ -41,7 +41,6 @@ export default function AdminSettingsScreen() {
     subscriptionStatus,
     hasActiveSubscription,
     hasFamilyPlan,
-    hasIndividualPlan,
     refreshCustomerInfo,
     restorePurchases,
     isLoading: subscriptionLoading,
@@ -194,7 +193,6 @@ export default function AdminSettingsScreen() {
 
   const getSubscriptionTypeLabel = () => {
     if (hasFamilyPlan) return t("familyPlan");
-    if (hasIndividualPlan) return t("individualPlan");
     return t("subscriptionInactive");
   };
 
