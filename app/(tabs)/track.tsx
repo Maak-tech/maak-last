@@ -442,9 +442,21 @@ export default function TrackScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!(loading || refreshing)) {
-        loadTrackingData();
+      if (loading || refreshing) {
+        return;
       }
+
+      let cancelled = false;
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (!cancelled) {
+          loadTrackingData();
+        }
+      });
+
+      return () => {
+        cancelled = true;
+        task.cancel?.();
+      };
     }, [loadTrackingData, loading, refreshing])
   );
 

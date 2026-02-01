@@ -38,6 +38,7 @@ import {
   ActivityIndicator,
   Alert,
   Clipboard,
+  InteractionManager,
   Keyboard,
   Linking,
   Modal,
@@ -1849,7 +1850,17 @@ export default function FamilyScreen() {
         }
       };
 
-      loadData();
+      let cancelled = false;
+      const task = InteractionManager.runAfterInteractions(() => {
+        if (!cancelled) {
+          loadData();
+        }
+      });
+
+      return () => {
+        cancelled = true;
+        task.cancel?.();
+      };
     }, [
       user?.id,
       user?.familyId,

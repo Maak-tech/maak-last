@@ -677,6 +677,11 @@ class SmartNotificationService {
         )
       );
 
+      // Create content-based keys for new notifications (more reliable than time-based)
+      const newContentKeys = new Set(
+        newNotifications.map((n) => this.getContentBasedKey(n))
+      );
+
       // Track weekly_summary dedupe keys to cancel existing ones
       const weeklySummaryDedupeKeys = new Set(
         newNotifications
@@ -696,6 +701,40 @@ class SmartNotificationService {
         if (scheduledKey && keysToSchedule.has(scheduledKey)) {
           identifiersToCancel.push(identifier);
           continue;
+        }
+
+        // Check by content-based key (more reliable, doesn't depend on exact time)
+        const scheduledContent = scheduled?.content;
+        if (scheduledContent) {
+          const scheduledData = scheduledContent.data || {};
+          const scheduledUserId = scheduledData.userId || "unknown";
+
+          // Build content key from scheduled notification
+          const scheduledMedicationName = scheduledData.medicationName;
+          const scheduledReminderTime = scheduledData.reminderTime;
+          let scheduledContentKey: string | null = null;
+
+          if (scheduledMedicationName && scheduledReminderTime) {
+            scheduledContentKey = `medication_reminder:${scheduledUserId}:${scheduledMedicationName}:${scheduledReminderTime}`;
+          } else {
+            const scheduledType = scheduledData.type || "";
+            const scheduledTitle = scheduledContent.title?.trim() || "";
+            const scheduledBody = scheduledContent.body?.trim() || "";
+            const titleHash = scheduledTitle
+              .substring(0, 50)
+              .toLowerCase()
+              .replace(/\s+/g, "_");
+            const bodyHash = scheduledBody
+              .substring(0, 50)
+              .toLowerCase()
+              .replace(/\s+/g, "_");
+            scheduledContentKey = `${scheduledType}:${scheduledUserId}:${titleHash}:${bodyHash}`;
+          }
+
+          if (scheduledContentKey && newContentKeys.has(scheduledContentKey)) {
+            identifiersToCancel.push(identifier);
+            continue;
+          }
         }
 
         // Special handling for weekly_summary: cancel existing ones with same dedupe key
@@ -910,17 +949,29 @@ class SmartNotificationService {
         continue;
       }
 
-      // For other notifications, create a unique key based on type, user context, and time window
-      const timeWindow = Math.floor(
-        notification.scheduledTime.getTime() / (30 * 60 * 1000)
-      ); // 30-minute windows
-      const key = `${notification.type}-${userId}-${timeWindow}`;
+      // Create a content-based key that doesn't depend on exact time
+      // This prevents duplicates even if scheduled times differ slightly
+      const contentKey = this.getContentBasedKey(notification);
 
-      // Suppress if we've seen a similar notification in the same time window
+      // Also check time window (using a wider 2-hour window for better deduplication)
+      const timeWindow = Math.floor(
+        notification.scheduledTime.getTime() / (2 * 60 * 60 * 1000)
+      ); // 2-hour windows instead of 30 minutes
+
+      // Use both content key and time window for deduplication
+      const key = `${contentKey}:${timeWindow}`;
+
+      // Suppress if we've seen a similar notification with same content in the same time window
       if (seen.has(key)) {
-        // Keep critical notifications even if duplicates
+        // Keep critical notifications even if duplicates, but only if they're truly different
         if (notification.priority === "critical") {
-          filtered.push(notification);
+          // For critical, check if it's actually different content
+          const isDifferent = !filtered.some(
+            (n) => this.getContentBasedKey(n) === contentKey
+          );
+          if (isDifferent) {
+            filtered.push(notification);
+          }
         }
       } else {
         seen.add(key);
@@ -929,6 +980,31 @@ class SmartNotificationService {
     }
 
     return filtered;
+  }
+
+  /**
+   * Get a content-based key for deduplication that doesn't depend on exact scheduled time
+   */
+  private getContentBasedKey(notification: SmartNotification): string {
+    const userId = notification.data?.userId || "general";
+    const dataType = notification.data?.type || notification.type;
+
+    // For medication reminders, use medication name and reminder time
+    const medicationName = notification.data?.medicationName;
+    const reminderTime = notification.data?.reminderTime;
+    if (medicationName && reminderTime) {
+      return `medication_reminder:${userId}:${medicationName}:${reminderTime}`;
+    }
+
+    // For other notifications, use type, title, and body to create a stable key
+    const title = notification.title?.trim() || "";
+    const body = notification.body?.trim() || "";
+
+    // Create a hash-like key from title and body (first 50 chars of each)
+    const titleHash = title.substring(0, 50).toLowerCase().replace(/\s+/g, "_");
+    const bodyHash = body.substring(0, 50).toLowerCase().replace(/\s+/g, "_");
+
+    return `${dataType}:${userId}:${titleHash}:${bodyHash}`;
   }
 
   /**
@@ -941,6 +1017,76 @@ class SmartNotificationService {
     // Safety check for notification
     if (!(notification && notification.title && notification.body)) {
       return;
+    }
+
+    // Final duplicate check: verify no similar notification already exists
+    try {
+      const allScheduled =
+        await Notifications.getAllScheduledNotificationsAsync();
+      const contentKey = this.getContentBasedKey(notification);
+      const notificationTime = notification.scheduledTime.getTime();
+
+      // Check for similar notifications within a 2-hour window
+      const timeWindowStart = notificationTime - 2 * 60 * 60 * 1000;
+      const timeWindowEnd = notificationTime + 2 * 60 * 60 * 1000;
+
+      const hasDuplicate = allScheduled.some((scheduled: any) => {
+        const scheduledContent = scheduled?.content;
+        if (!scheduledContent) return false;
+
+        const scheduledData = scheduledContent.data || {};
+        const scheduledUserId = scheduledData.userId || "unknown";
+
+        // Build content key from scheduled notification
+        const scheduledMedicationName = scheduledData.medicationName;
+        const scheduledReminderTime = scheduledData.reminderTime;
+        let scheduledContentKey: string | null = null;
+
+        if (scheduledMedicationName && scheduledReminderTime) {
+          scheduledContentKey = `medication_reminder:${scheduledUserId}:${scheduledMedicationName}:${scheduledReminderTime}`;
+        } else {
+          const scheduledType = scheduledData.type || "";
+          const scheduledTitle = scheduledContent.title?.trim() || "";
+          const scheduledBody = scheduledContent.body?.trim() || "";
+          const titleHash = scheduledTitle
+            .substring(0, 50)
+            .toLowerCase()
+            .replace(/\s+/g, "_");
+          const bodyHash = scheduledBody
+            .substring(0, 50)
+            .toLowerCase()
+            .replace(/\s+/g, "_");
+          scheduledContentKey = `${scheduledType}:${scheduledUserId}:${titleHash}:${bodyHash}`;
+        }
+
+        // Check if content matches
+        if (scheduledContentKey !== contentKey) return false;
+
+        // Check if time is within window
+        const trigger = scheduled?.trigger;
+        if (trigger) {
+          const triggerDate =
+            this.extractTriggerDateFromScheduledRequest(scheduled);
+          if (triggerDate) {
+            const triggerTime = triggerDate.getTime();
+            if (
+              triggerTime >= timeWindowStart &&
+              triggerTime <= timeWindowEnd
+            ) {
+              return true; // Found duplicate
+            }
+          }
+        }
+
+        return false;
+      });
+
+      if (hasDuplicate) {
+        // Skip scheduling duplicate notification
+        return;
+      }
+    } catch (error) {
+      // If duplicate check fails, continue with scheduling (fail open)
     }
 
     const content = {

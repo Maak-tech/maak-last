@@ -64,6 +64,10 @@ export const ENTITLEMENT_IDENTIFIERS = {
   FAMILY_PLAN: "Family Plan",
 } as const;
 
+// Offering identifier
+// RevenueCat Offering ID for the Family Plan offering
+export const OFFERING_IDENTIFIER = "ofrng88ce8c174f";
+
 // Plan limits
 // Family Plan: 1 admin + 3 family members = 4 total users
 export const PLAN_LIMITS = {
@@ -450,7 +454,9 @@ class RevenueCatService {
           timeoutPromise,
         ]);
 
-        const currentOfferings = offerings.current;
+        // Try to get the specific offering by ID, fall back to current offering
+        const currentOfferings =
+          offerings.all[OFFERING_IDENTIFIER] || offerings.current;
 
         // Update cache
         this.cachedOfferings = currentOfferings;
@@ -458,7 +464,10 @@ class RevenueCatService {
 
         logger.debug(
           "Offerings fetched successfully",
-          { cached: true },
+          {
+            cached: true,
+            offeringId: currentOfferings?.identifier || "current",
+          },
           "RevenueCatService"
         );
 

@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  InteractionManager,
   Linking,
   Modal,
   Pressable,
@@ -28,7 +29,10 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 // Design System Components
 import ProactiveHealthSuggestions from "@/app/components/ProactiveHealthSuggestions";
 import { Card } from "@/components/design-system";
@@ -49,6 +53,7 @@ export default function DashboardScreen() {
   const { t, i18n } = useTranslation();
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<Symptom[]>([]);
@@ -109,6 +114,7 @@ export default function DashboardScreen() {
         contentInner: {
           paddingHorizontal: theme.spacing.base,
           paddingVertical: theme.spacing.base,
+          paddingBottom: 100, // Extra padding for tab bar
         },
         header: {
           marginBottom: theme.spacing.xl,
@@ -744,17 +750,30 @@ export default function DashboardScreen() {
     notificationsEnabled,
   ]);
 
-  useEffect(() => {
-    loadDashboardDataMemoized();
+  const scheduleDashboardLoad = useCallback(() => {
+    const handle = InteractionManager.runAfterInteractions(() => {
+      loadDashboardDataMemoized();
+    });
+
+    return () => {
+      handle.cancel?.();
+    };
   }, [loadDashboardDataMemoized]);
+
+  useEffect(() => {
+    const cancel = scheduleDashboardLoad();
+    return cancel;
+  }, [scheduleDashboardLoad]);
 
   // Refresh data when tab is focused (only if not already loading)
   useFocusEffect(
     useCallback(() => {
-      if (!(loading || refreshing)) {
-        loadDashboardDataMemoized();
+      if (loading || refreshing) {
+        return;
       }
-    }, [loadDashboardDataMemoized, loading, refreshing])
+
+      return scheduleDashboardLoad();
+    }, [loading, refreshing, scheduleDashboardLoad])
   );
 
   useEffect(() => {
@@ -1919,226 +1938,178 @@ export default function DashboardScreen() {
       pointerEvents="box-none"
       style={styles.container as ViewStyle}
     >
-      <ScrollView
-        contentContainerStyle={styles.contentInner as ViewStyle}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
-        }
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        style={styles.content as ViewStyle}
-      >
-        {/* Header with SOS Button */}
-        <View style={styles.headerWithSOS as ViewStyle}>
-          {isRTL ? (
-            <>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                onPress={handleSOS}
-                style={[
-                  styles.sosHeaderButton as ViewStyle,
-                  { marginEnd: theme.spacing.md },
-                ]}
-              >
-                <Phone color={theme.colors.neutral.white} size={20} />
-                <Text
-                  color={theme.colors.neutral.white}
-                  style={styles.sosHeaderText as StyleProp<TextStyle>}
-                  weight="bold"
-                >
-                  SOS
-                </Text>
-              </TouchableOpacity>
-              <View
-                style={[
-                  {
-                    marginStart: theme.spacing.md,
-                    alignItems: "flex-end",
-                    flexShrink: 0,
-                  },
-                ]}
-              >
-                <Heading
-                  color={theme.colors.primary.main}
-                  level={4}
-                  style={
-                    [
-                      styles.welcomeText,
-                      styles.rtlText,
-                      { textAlign: "right" },
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {`مرحباً، ${user.firstName || "User"}`}
-                </Heading>
-                <Caption
-                  color={theme.colors.text.secondary}
-                  numberOfLines={undefined}
-                  style={
-                    [
-                      styles.dateText,
-                      styles.rtlText,
-                      styles.dateTextRTL,
-                      { textAlign: "right" },
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {new Date().toLocaleDateString("ar-u-ca-gregory", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Caption>
-              </View>
-            </>
-          ) : (
-            <>
-              <View
-                style={[
-                  styles.headerContent as ViewStyle,
-                  isRTL && { marginEnd: theme.spacing.md },
-                ]}
-              >
-                <Heading
-                  color={theme.colors.primary.main}
-                  level={4}
-                  style={
-                    [
-                      styles.welcomeText,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {`Welcome, ${user.firstName || "User"}`}
-                </Heading>
-                <Caption
-                  color={theme.colors.text.secondary}
-                  numberOfLines={undefined}
-                  style={
-                    [
-                      styles.dateText,
-                      isRTL && styles.rtlText,
-                      isRTL && styles.dateTextRTL,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {new Date().toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </Caption>
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                onPress={handleSOS}
-                style={[
-                  styles.sosHeaderButton as ViewStyle,
-                  isRTL && { marginStart: theme.spacing.md },
-                ]}
-              >
-                <Phone color={theme.colors.neutral.white} size={20} />
-                <Text
-                  color={theme.colors.neutral.white}
-                  style={styles.sosHeaderText as StyleProp<TextStyle>}
-                  weight="bold"
-                >
-                  SOS
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
-        {/* Render widgets dynamically */}
-        {isAdmin && enabledWidgets.map((widgetId) => renderWidget(widgetId))}
-
-        {/* Alerts Modal */}
-        <Modal
-          animationType="slide"
-          onRequestClose={() => setShowAlertsModal(false)}
-          transparent={true}
-          visible={showAlertsModal}
+      <View style={{ flex: 1, marginBottom: 80 }}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.contentInner as ViewStyle,
+            { paddingBottom: 20 + insets.bottom },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl onRefresh={onRefresh} refreshing={refreshing} />
+          }
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          style={styles.content as ViewStyle}
         >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              justifyContent: "flex-end",
-            }}
+          {/* Header with SOS Button */}
+          <View style={styles.headerWithSOS as ViewStyle}>
+            {isRTL ? (
+              <>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={handleSOS}
+                  style={[
+                    styles.sosHeaderButton as ViewStyle,
+                    { marginEnd: theme.spacing.md },
+                  ]}
+                >
+                  <Phone color={theme.colors.neutral.white} size={20} />
+                  <Text
+                    color={theme.colors.neutral.white}
+                    style={styles.sosHeaderText as StyleProp<TextStyle>}
+                    weight="bold"
+                  >
+                    SOS
+                  </Text>
+                </TouchableOpacity>
+                <View
+                  style={[
+                    {
+                      marginStart: theme.spacing.md,
+                      alignItems: "flex-end",
+                      flexShrink: 0,
+                    },
+                  ]}
+                >
+                  <Heading
+                    color={theme.colors.primary.main}
+                    level={4}
+                    style={
+                      [
+                        styles.welcomeText,
+                        styles.rtlText,
+                        { textAlign: "right" },
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {`مرحباً، ${user.firstName || "User"}`}
+                  </Heading>
+                  <Caption
+                    color={theme.colors.text.secondary}
+                    numberOfLines={undefined}
+                    style={
+                      [
+                        styles.dateText,
+                        styles.rtlText,
+                        styles.dateTextRTL,
+                        { textAlign: "right" },
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {new Date().toLocaleDateString("ar-u-ca-gregory", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </Caption>
+                </View>
+              </>
+            ) : (
+              <>
+                <View
+                  style={[
+                    styles.headerContent as ViewStyle,
+                    isRTL && { marginEnd: theme.spacing.md },
+                  ]}
+                >
+                  <Heading
+                    color={theme.colors.primary.main}
+                    level={4}
+                    style={
+                      [
+                        styles.welcomeText,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {`Welcome, ${user.firstName || "User"}`}
+                  </Heading>
+                  <Caption
+                    color={theme.colors.text.secondary}
+                    numberOfLines={undefined}
+                    style={
+                      [
+                        styles.dateText,
+                        isRTL && styles.rtlText,
+                        isRTL && styles.dateTextRTL,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </Caption>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={handleSOS}
+                  style={[
+                    styles.sosHeaderButton as ViewStyle,
+                    isRTL && { marginStart: theme.spacing.md },
+                  ]}
+                >
+                  <Phone color={theme.colors.neutral.white} size={20} />
+                  <Text
+                    color={theme.colors.neutral.white}
+                    style={styles.sosHeaderText as StyleProp<TextStyle>}
+                    weight="bold"
+                  >
+                    SOS
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+
+          {/* Render widgets dynamically */}
+          {isAdmin && enabledWidgets.map((widgetId) => renderWidget(widgetId))}
+
+          {/* Alerts Modal */}
+          <Modal
+            animationType="slide"
+            onRequestClose={() => setShowAlertsModal(false)}
+            transparent={true}
+            visible={showAlertsModal}
           >
             <View
               style={{
-                backgroundColor: theme.colors.background.primary,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                maxHeight: "80%",
-                padding: theme.spacing.base,
+                flex: 1,
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                justifyContent: "flex-end",
               }}
             >
               <View
                 style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: theme.spacing.base,
+                  backgroundColor: theme.colors.background.primary,
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  maxHeight: "80%",
+                  padding: theme.spacing.base,
                 }}
               >
-                <Text
-                  style={
-                    [
-                      getTextStyle(
-                        theme,
-                        "heading",
-                        "bold",
-                        theme.colors.text.primary
-                      ),
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL
-                    ? "التنبيهات الطوارئ الصحية الفعالة"
-                    : "Active Emergency Alerts"}
-                </Text>
-                <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
-                  <Text
-                    style={
-                      getTextStyle(
-                        theme,
-                        "body",
-                        "medium",
-                        theme.colors.primary.main
-                      ) as StyleProp<TextStyle>
-                    }
-                  >
-                    {isRTL ? "إغلاق" : "Close"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {loadingAlerts ? (
                 <View
                   style={{
-                    paddingVertical: theme.spacing.xl,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                  }}
-                >
-                  <ActivityIndicator
-                    color={theme.colors.primary.main}
-                    size="large"
-                  />
-                </View>
-              ) : userAlerts.length === 0 ? (
-                <View
-                  style={{
-                    paddingVertical: theme.spacing.xl,
-                    alignItems: "center",
+                    marginBottom: theme.spacing.base,
                   }}
                 >
                   <Text
@@ -2146,560 +2117,613 @@ export default function DashboardScreen() {
                       [
                         getTextStyle(
                           theme,
-                          "body",
-                          "regular",
-                          theme.colors.text.secondary
+                          "heading",
+                          "bold",
+                          theme.colors.text.primary
                         ),
                         isRTL && styles.rtlText,
                       ] as StyleProp<TextStyle>
                     }
                   >
                     {isRTL
-                      ? "لا توجد تنبيهات طوارئ صحية نشطة"
-                      : "No active emergency alerts"}
+                      ? "التنبيهات الطوارئ الصحية الفعالة"
+                      : "Active Emergency Alerts"}
                   </Text>
-                </View>
-              ) : (
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  {userAlerts.map((alert) => (
-                    <View
-                      key={alert.id}
-                      style={{
-                        backgroundColor: theme.colors.background.secondary,
-                        borderRadius: theme.borderRadius.lg,
-                        padding: theme.spacing.base,
-                        marginBottom: theme.spacing.md,
-                        borderStartWidth: 4,
-                        borderStartColor: theme.colors.accent.error,
-                      }}
-                    >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                          marginBottom: theme.spacing.sm,
-                        }}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={
-                              [
-                                getTextStyle(
-                                  theme,
-                                  "subheading",
-                                  "bold",
-                                  theme.colors.text.primary
-                                ),
-                                isRTL && styles.rtlText,
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {alert.type === "fall"
-                              ? isRTL
-                                ? "تنبيه سقوط"
-                                : "Fall Detection"
-                              : alert.type === "emergency"
-                                ? isRTL
-                                  ? "طوارئ"
-                                  : "Emergency"
-                                : alert.type === "medication"
-                                  ? isRTL
-                                    ? "دواء"
-                                    : "Medication"
-                                  : isRTL
-                                    ? "مؤشرات حيوية"
-                                    : "Vitals"}
-                          </Text>
-                          <Text
-                            style={
-                              [
-                                getTextStyle(
-                                  theme,
-                                  "caption",
-                                  "regular",
-                                  theme.colors.text.secondary
-                                ),
-                                isRTL && styles.rtlText,
-                                { marginTop: 4 },
-                              ] as StyleProp<TextStyle>
-                            }
-                          >
-                            {alert.timestamp.toLocaleString()}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          disabled={loadingAlerts}
-                          onPress={async () => {
-                            try {
-                              setLoadingAlerts(true);
-
-                              await alertService.resolveAlert(
-                                alert.id,
-                                user.id
-                              );
-
-                              // Wait for Firestore to update
-                              await new Promise((resolve) =>
-                                setTimeout(resolve, 1500)
-                              );
-
-                              // Refresh alerts list
-                              const updatedAlerts =
-                                await alertService.getActiveAlerts(user.id);
-
-                              setUserAlerts(updatedAlerts);
-                              setAlertsCount(updatedAlerts.length);
-
-                              // Refresh dashboard data
-                              await loadDashboardData();
-
-                              if (updatedAlerts.length === 0) {
-                                setShowAlertsModal(false);
-                                Alert.alert(
-                                  isRTL ? "نجح" : "Success",
-                                  isRTL
-                                    ? "تم حل جميع التنبيهات الطوارئ الصحية الفعالة"
-                                    : "All alerts resolved"
-                                );
-                              } else {
-                                Alert.alert(
-                                  isRTL ? "نجح" : "Success",
-                                  isRTL ? "تم حل التنبيه" : "Alert resolved"
-                                );
-                              }
-                            } catch (error: any) {
-                              logger.error(
-                                "Failed to resolve alert",
-                                error,
-                                "HomeScreen"
-                              );
-
-                              const errorMessage =
-                                error?.message || "Unknown error";
-                              let displayMessage = errorMessage;
-
-                              // Check for specific error types
-                              if (
-                                errorMessage.includes("permission-denied") ||
-                                errorMessage.includes("permission")
-                              ) {
-                                displayMessage = isRTL
-                                  ? "ليس لديك الصلاحية لحل هذا التنبيه"
-                                  : "You don't have permission to resolve this alert";
-                              } else if (
-                                errorMessage.includes("does not exist") ||
-                                errorMessage.includes("not found")
-                              ) {
-                                displayMessage = isRTL
-                                  ? "التنبيه غير موجود"
-                                  : "Alert not found";
-                              }
-
-                              Alert.alert(
-                                isRTL ? "خطأ" : "Error",
-                                isRTL
-                                  ? `فشل في حل التنبيه: ${displayMessage}`
-                                  : `Failed to resolve alert: ${displayMessage}`
-                              );
-                            } finally {
-                              setLoadingAlerts(false);
-                            }
-                          }}
-                          style={{
-                            backgroundColor: loadingAlerts
-                              ? theme.colors.neutral[400]
-                              : theme.colors.accent.error,
-                            paddingHorizontal: theme.spacing.md,
-                            paddingVertical: theme.spacing.sm,
-                            borderRadius: theme.borderRadius.md,
-                            opacity: loadingAlerts ? 0.6 : 1,
-                          }}
-                        >
-                          <Text
-                            style={
-                              getTextStyle(
-                                theme,
-                                "caption",
-                                "bold",
-                                theme.colors.neutral.white
-                              ) as StyleProp<TextStyle>
-                            }
-                          >
-                            {isRTL ? "حل" : "Resolve"}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Text
-                        style={
-                          [
-                            getTextStyle(
-                              theme,
-                              "body",
-                              "regular",
-                              theme.colors.text.primary
-                            ),
-                            isRTL && styles.rtlText,
-                            { marginTop: theme.spacing.sm },
-                          ] as StyleProp<TextStyle>
-                        }
-                      >
-                        {alert.message}
-                      </Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-          </View>
-        </Modal>
-
-        <Modal
-          animationType="fade"
-          onRequestClose={handleTourFinish}
-          transparent={true}
-          visible={showTour && tourSteps.length > 0}
-        >
-          <View style={styles.tourOverlay as ViewStyle}>
-            <View style={styles.tourCard as ViewStyle}>
-              <Text
-                style={
-                  [
-                    styles.tourTitle,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-                weight="bold"
-              >
-                {activeTourStep.title}
-              </Text>
-              <Text
-                style={
-                  [
-                    styles.tourBody,
-                    isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {activeTourStep.body}
-              </Text>
-              <View style={styles.tourProgressRow as ViewStyle}>
-                <Text style={styles.tourProgressText as StyleProp<TextStyle>}>
-                  {tourStep + 1}/{tourSteps.length}
-                </Text>
-                <View style={styles.tourDots as ViewStyle}>
-                  {tourSteps.map((_, index) => (
-                    <View
-                      key={`tour-dot-${index}`}
+                  <TouchableOpacity onPress={() => setShowAlertsModal(false)}>
+                    <Text
                       style={
-                        [
-                          styles.tourDot,
-                          index === tourStep && styles.tourDotActive,
-                        ] as StyleProp<ViewStyle>
+                        getTextStyle(
+                          theme,
+                          "body",
+                          "medium",
+                          theme.colors.primary.main
+                        ) as StyleProp<TextStyle>
                       }
-                    />
-                  ))}
-                </View>
-              </View>
-              <View style={styles.tourFooter as ViewStyle}>
-                <Pressable
-                  onPress={handleTourFinish}
-                  style={styles.tourButton as ViewStyle}
-                >
-                  <Text style={styles.tourButtonText as StyleProp<TextStyle>}>
-                    {isRTL ? "تخطي" : "Skip"}
-                  </Text>
-                </Pressable>
-                <View style={styles.tourActions as ViewStyle}>
-                  {tourStep > 0 && (
-                    <Pressable
-                      onPress={handleTourBack}
-                      style={styles.tourButton as ViewStyle}
                     >
-                      <Text
-                        style={styles.tourButtonText as StyleProp<TextStyle>}
-                      >
-                        {isRTL ? "رجوع" : "Back"}
-                      </Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    onPress={handleTourNext}
-                    style={
-                      [
-                        styles.tourButton,
-                        styles.tourButtonPrimary,
-                      ] as StyleProp<ViewStyle>
-                    }
+                      {isRTL ? "إغلاق" : "Close"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {loadingAlerts ? (
+                  <View
+                    style={{
+                      paddingVertical: theme.spacing.xl,
+                      alignItems: "center",
+                    }}
+                  >
+                    <ActivityIndicator
+                      color={theme.colors.primary.main}
+                      size="large"
+                    />
+                  </View>
+                ) : userAlerts.length === 0 ? (
+                  <View
+                    style={{
+                      paddingVertical: theme.spacing.xl,
+                      alignItems: "center",
+                    }}
                   >
                     <Text
                       style={
                         [
-                          styles.tourButtonText,
-                          styles.tourButtonTextPrimary,
+                          getTextStyle(
+                            theme,
+                            "body",
+                            "regular",
+                            theme.colors.text.secondary
+                          ),
+                          isRTL && styles.rtlText,
                         ] as StyleProp<TextStyle>
                       }
                     >
-                      {tourStep >= tourSteps.length - 1
-                        ? isRTL
-                          ? "إنهاء"
-                          : "Done"
-                        : isRTL
-                          ? "التالي"
-                          : "Next"}
+                      {isRTL
+                        ? "لا توجد تنبيهات طوارئ صحية نشطة"
+                        : "No active emergency alerts"}
+                    </Text>
+                  </View>
+                ) : (
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                    {userAlerts.map((alert) => (
+                      <View
+                        key={alert.id}
+                        style={{
+                          backgroundColor: theme.colors.background.secondary,
+                          borderRadius: theme.borderRadius.lg,
+                          padding: theme.spacing.base,
+                          marginBottom: theme.spacing.md,
+                          borderStartWidth: 4,
+                          borderStartColor: theme.colors.accent.error,
+                        }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            marginBottom: theme.spacing.sm,
+                          }}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={
+                                [
+                                  getTextStyle(
+                                    theme,
+                                    "subheading",
+                                    "bold",
+                                    theme.colors.text.primary
+                                  ),
+                                  isRTL && styles.rtlText,
+                                ] as StyleProp<TextStyle>
+                              }
+                            >
+                              {alert.type === "fall"
+                                ? isRTL
+                                  ? "تنبيه سقوط"
+                                  : "Fall Detection"
+                                : alert.type === "emergency"
+                                  ? isRTL
+                                    ? "طوارئ"
+                                    : "Emergency"
+                                  : alert.type === "medication"
+                                    ? isRTL
+                                      ? "دواء"
+                                      : "Medication"
+                                    : isRTL
+                                      ? "مؤشرات حيوية"
+                                      : "Vitals"}
+                            </Text>
+                            <Text
+                              style={
+                                [
+                                  getTextStyle(
+                                    theme,
+                                    "caption",
+                                    "regular",
+                                    theme.colors.text.secondary
+                                  ),
+                                  isRTL && styles.rtlText,
+                                  { marginTop: 4 },
+                                ] as StyleProp<TextStyle>
+                              }
+                            >
+                              {alert.timestamp.toLocaleString()}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            disabled={loadingAlerts}
+                            onPress={async () => {
+                              try {
+                                setLoadingAlerts(true);
+
+                                await alertService.resolveAlert(
+                                  alert.id,
+                                  user.id
+                                );
+
+                                // Wait for Firestore to update
+                                await new Promise((resolve) =>
+                                  setTimeout(resolve, 1500)
+                                );
+
+                                // Refresh alerts list
+                                const updatedAlerts =
+                                  await alertService.getActiveAlerts(user.id);
+
+                                setUserAlerts(updatedAlerts);
+                                setAlertsCount(updatedAlerts.length);
+
+                                // Refresh dashboard data
+                                await loadDashboardData();
+
+                                if (updatedAlerts.length === 0) {
+                                  setShowAlertsModal(false);
+                                  Alert.alert(
+                                    isRTL ? "نجح" : "Success",
+                                    isRTL
+                                      ? "تم حل جميع التنبيهات الطوارئ الصحية الفعالة"
+                                      : "All alerts resolved"
+                                  );
+                                } else {
+                                  Alert.alert(
+                                    isRTL ? "نجح" : "Success",
+                                    isRTL ? "تم حل التنبيه" : "Alert resolved"
+                                  );
+                                }
+                              } catch (error: any) {
+                                logger.error(
+                                  "Failed to resolve alert",
+                                  error,
+                                  "HomeScreen"
+                                );
+
+                                const errorMessage =
+                                  error?.message || "Unknown error";
+                                let displayMessage = errorMessage;
+
+                                // Check for specific error types
+                                if (
+                                  errorMessage.includes("permission-denied") ||
+                                  errorMessage.includes("permission")
+                                ) {
+                                  displayMessage = isRTL
+                                    ? "ليس لديك الصلاحية لحل هذا التنبيه"
+                                    : "You don't have permission to resolve this alert";
+                                } else if (
+                                  errorMessage.includes("does not exist") ||
+                                  errorMessage.includes("not found")
+                                ) {
+                                  displayMessage = isRTL
+                                    ? "التنبيه غير موجود"
+                                    : "Alert not found";
+                                }
+
+                                Alert.alert(
+                                  isRTL ? "خطأ" : "Error",
+                                  isRTL
+                                    ? `فشل في حل التنبيه: ${displayMessage}`
+                                    : `Failed to resolve alert: ${displayMessage}`
+                                );
+                              } finally {
+                                setLoadingAlerts(false);
+                              }
+                            }}
+                            style={{
+                              backgroundColor: loadingAlerts
+                                ? theme.colors.neutral[400]
+                                : theme.colors.accent.error,
+                              paddingHorizontal: theme.spacing.md,
+                              paddingVertical: theme.spacing.sm,
+                              borderRadius: theme.borderRadius.md,
+                              opacity: loadingAlerts ? 0.6 : 1,
+                            }}
+                          >
+                            <Text
+                              style={
+                                getTextStyle(
+                                  theme,
+                                  "caption",
+                                  "bold",
+                                  theme.colors.neutral.white
+                                ) as StyleProp<TextStyle>
+                              }
+                            >
+                              {isRTL ? "حل" : "Resolve"}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text
+                          style={
+                            [
+                              getTextStyle(
+                                theme,
+                                "body",
+                                "regular",
+                                theme.colors.text.primary
+                              ),
+                              isRTL && styles.rtlText,
+                              { marginTop: theme.spacing.sm },
+                            ] as StyleProp<TextStyle>
+                          }
+                        >
+                          {alert.message}
+                        </Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            </View>
+          </Modal>
+
+          <Modal
+            animationType="fade"
+            onRequestClose={handleTourFinish}
+            transparent={true}
+            visible={showTour && tourSteps.length > 0}
+          >
+            <View style={styles.tourOverlay as ViewStyle}>
+              <View style={styles.tourCard as ViewStyle}>
+                <Text
+                  style={
+                    [
+                      styles.tourTitle,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                  weight="bold"
+                >
+                  {activeTourStep.title}
+                </Text>
+                <Text
+                  style={
+                    [
+                      styles.tourBody,
+                      isRTL && styles.rtlText,
+                    ] as StyleProp<TextStyle>
+                  }
+                >
+                  {activeTourStep.body}
+                </Text>
+                <View style={styles.tourProgressRow as ViewStyle}>
+                  <Text style={styles.tourProgressText as StyleProp<TextStyle>}>
+                    {tourStep + 1}/{tourSteps.length}
+                  </Text>
+                  <View style={styles.tourDots as ViewStyle}>
+                    {tourSteps.map((_, index) => (
+                      <View
+                        key={`tour-dot-${index}`}
+                        style={
+                          [
+                            styles.tourDot,
+                            index === tourStep && styles.tourDotActive,
+                          ] as StyleProp<ViewStyle>
+                        }
+                      />
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.tourFooter as ViewStyle}>
+                  <Pressable
+                    onPress={handleTourFinish}
+                    style={styles.tourButton as ViewStyle}
+                  >
+                    <Text style={styles.tourButtonText as StyleProp<TextStyle>}>
+                      {isRTL ? "تخطي" : "Skip"}
                     </Text>
                   </Pressable>
+                  <View style={styles.tourActions as ViewStyle}>
+                    {tourStep > 0 && (
+                      <Pressable
+                        onPress={handleTourBack}
+                        style={styles.tourButton as ViewStyle}
+                      >
+                        <Text
+                          style={styles.tourButtonText as StyleProp<TextStyle>}
+                        >
+                          {isRTL ? "رجوع" : "Back"}
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={handleTourNext}
+                      style={
+                        [
+                          styles.tourButton,
+                          styles.tourButtonPrimary,
+                        ] as StyleProp<ViewStyle>
+                      }
+                    >
+                      <Text
+                        style={
+                          [
+                            styles.tourButtonText,
+                            styles.tourButtonTextPrimary,
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
+                        {tourStep >= tourSteps.length - 1
+                          ? isRTL
+                            ? "إنهاء"
+                            : "Done"
+                          : isRTL
+                            ? "التالي"
+                            : "Next"}
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
 
-        {/* Health Tracking Section for Regular Users */}
-        {!isAdmin && (
-          <View style={styles.trackingSection as ViewStyle}>
-            <View style={styles.sectionHeader as ViewStyle}>
-              <Text
-                style={
-                  [
-                    styles.sectionTitle,
-                    isRTL && styles.rtlText,
-                    isRTL && { textAlign: "right" as const },
-                  ] as StyleProp<TextStyle>
-                }
-              >
-                {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
-              </Text>
-            </View>
-
-            <View style={styles.trackingOptions as ViewStyle}>
-              <TouchableOpacity
-                onPress={navigateToSymptoms}
-                style={styles.trackingCard as ViewStyle}
-              >
-                <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.primary[50] },
-                    ] as StyleProp<ViewStyle>
-                  }
-                >
-                  <Activity color={theme.colors.primary.main} size={28} />
-                </View>
+          {/* Health Tracking Section for Regular Users */}
+          {!isAdmin && (
+            <View style={styles.trackingSection as ViewStyle}>
+              <View style={styles.sectionHeader as ViewStyle}>
                 <Text
                   style={
                     [
-                      styles.trackingCardTitle,
+                      styles.sectionTitle,
                       isRTL && styles.rtlText,
+                      isRTL && { textAlign: "right" as const },
                     ] as StyleProp<TextStyle>
                   }
                 >
-                  {isRTL ? "الأعراض الصحية" : "Symptoms"}
+                  {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
                 </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms"}
-                </Text>
+              </View>
+
+              <View style={styles.trackingOptions as ViewStyle}>
                 <TouchableOpacity
                   onPress={navigateToSymptoms}
-                  style={styles.trackingCardButton as ViewStyle}
+                  style={styles.trackingCard as ViewStyle}
                 >
-                  <Activity color={theme.colors.neutral.white} size={16} />
-                  <Text
+                  <View
                     style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.primary[50] },
+                      ] as StyleProp<ViewStyle>
                     }
                   >
-                    {isRTL ? "تسجيل" : "Log"}
+                    <Activity color={theme.colors.primary.main} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الأعراض الصحية" : "Symptoms"}
                   </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={navigateToSymptoms}
+                    style={styles.trackingCardButton as ViewStyle}
+                  >
+                    <Activity color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "تسجيل" : "Log"}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={navigateToMedications}
-                style={styles.trackingCard as ViewStyle}
-              >
-                <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.success + "20" },
-                    ] as StyleProp<ViewStyle>
-                  }
-                >
-                  <Pill color={theme.colors.accent.success} size={28} />
-                </View>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardTitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "الأدوية" : "Medications"}
-                </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL
-                    ? "إدارة الأدوية والتذكيرات"
-                    : "Manage meds & reminders"}
-                </Text>
                 <TouchableOpacity
                   onPress={navigateToMedications}
-                  style={styles.trackingCardButton as ViewStyle}
+                  style={styles.trackingCard as ViewStyle}
                 >
-                  <Pill color={theme.colors.neutral.white} size={16} />
-                  <Text
+                  <View
                     style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.success + "20" },
+                      ] as StyleProp<ViewStyle>
                     }
                   >
-                    {isRTL ? "إدارة" : "Manage"}
+                    <Pill color={theme.colors.accent.success} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الأدوية" : "Medications"}
                   </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL
+                      ? "إدارة الأدوية والتذكيرات"
+                      : "Manage meds & reminders"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={navigateToMedications}
+                    style={styles.trackingCardButton as ViewStyle}
+                  >
+                    <Pill color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "إدارة" : "Manage"}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={navigateToMoods}
-                style={styles.trackingCard as ViewStyle}
-              >
-                <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.warning + "20" },
-                    ] as StyleProp<ViewStyle>
-                  }
-                >
-                  <Smile color={theme.colors.accent.warning} size={28} />
-                </View>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardTitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "الحالة النفسية" : "Mood"}
-                </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "تسجيل المزاج اليومي" : "Track daily mood"}
-                </Text>
                 <TouchableOpacity
                   onPress={navigateToMoods}
-                  style={
-                    [
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.warning },
-                    ] as StyleProp<ViewStyle>
-                  }
+                  style={styles.trackingCard as ViewStyle}
                 >
-                  <Smile color={theme.colors.neutral.white} size={16} />
-                  <Text
+                  <View
                     style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.warning + "20" },
+                      ] as StyleProp<ViewStyle>
                     }
                   >
-                    {isRTL ? "تسجيل" : "Log"}
+                    <Smile color={theme.colors.accent.warning} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "الحالة النفسية" : "Mood"}
                   </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "تسجيل المزاج اليومي" : "Track daily mood"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={navigateToMoods}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.warning },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Smile color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "تسجيل" : "Log"}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={navigateToVitals}
-                style={styles.trackingCard as ViewStyle}
-              >
-                <View
-                  style={
-                    [
-                      styles.trackingCardIcon,
-                      { backgroundColor: theme.colors.accent.info + "20" },
-                    ] as StyleProp<ViewStyle>
-                  }
-                >
-                  <Heart color={theme.colors.accent.info} size={28} />
-                </View>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardTitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "العلامات الحيوية" : "Vitals"}
-                </Text>
-                <Text
-                  style={
-                    [
-                      styles.trackingCardSubtitle,
-                      isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
-                  }
-                >
-                  {isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse"}
-                </Text>
                 <TouchableOpacity
                   onPress={navigateToVitals}
-                  style={
-                    [
-                      styles.trackingCardButton,
-                      { backgroundColor: theme.colors.accent.info },
-                    ] as StyleProp<ViewStyle>
-                  }
+                  style={styles.trackingCard as ViewStyle}
                 >
-                  <Heart color={theme.colors.neutral.white} size={16} />
-                  <Text
+                  <View
                     style={
-                      styles.trackingCardButtonText as StyleProp<TextStyle>
+                      [
+                        styles.trackingCardIcon,
+                        { backgroundColor: theme.colors.accent.info + "20" },
+                      ] as StyleProp<ViewStyle>
                     }
                   >
-                    {isRTL ? "قياس" : "Measure"}
+                    <Heart color={theme.colors.accent.info} size={28} />
+                  </View>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardTitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "العلامات الحيوية" : "Vitals"}
                   </Text>
+                  <Text
+                    style={
+                      [
+                        styles.trackingCardSubtitle,
+                        isRTL && styles.rtlText,
+                      ] as StyleProp<TextStyle>
+                    }
+                  >
+                    {isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse"}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={navigateToVitals}
+                    style={
+                      [
+                        styles.trackingCardButton,
+                        { backgroundColor: theme.colors.accent.info },
+                      ] as StyleProp<ViewStyle>
+                    }
+                  >
+                    <Heart color={theme.colors.neutral.white} size={16} />
+                    <Text
+                      style={
+                        styles.trackingCardButtonText as StyleProp<TextStyle>
+                      }
+                    >
+                      {isRTL ? "قياس" : "Measure"}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Maak One-liner */}
-        <View style={styles.onelineCard as ViewStyle}>
-          <Text
-            style={
-              [
-                styles.onelineText,
-                isRTL && styles.rtlText,
-              ] as StyleProp<TextStyle>
-            }
-          >
-            {isRTL
-              ? '"لأن الصحة تبدأ من المنزل"'
-              : '"Because health starts at home."'}
-          </Text>
-        </View>
-      </ScrollView>
+          {/* Maak One-liner */}
+          <View style={styles.onelineCard as ViewStyle}>
+            <Text
+              style={
+                [
+                  styles.onelineText,
+                  isRTL && styles.rtlText,
+                ] as StyleProp<TextStyle>
+              }
+            >
+              {isRTL
+                ? '"لأن الصحة تبدأ من المنزل"'
+                : '"Because health starts at home."'}
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

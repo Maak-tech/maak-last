@@ -22,6 +22,7 @@ export const useSmartNotifications = (
 
   const checkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastCheckTimeRef = useRef<number>(0);
+  const isCheckingRef = useRef<boolean>(false); // Prevent concurrent checks
   const { ensureInitialized } = useNotifications();
 
   const { user } = useAuth();
@@ -31,14 +32,21 @@ export const useSmartNotifications = (
       return;
     }
 
-    // Rate limiting: Don't check more than once per hour
+    // Prevent concurrent scheduling
+    if (isCheckingRef.current) {
+      return;
+    }
+
+    // Rate limiting: Don't check more than once per 2 hours (increased from 1 hour)
     const now = Date.now();
     const timeSinceLastCheck = now - lastCheckTimeRef.current;
-    const minIntervalMs = 60 * 60 * 1000; // 1 hour minimum between checks
+    const minIntervalMs = 2 * 60 * 60 * 1000; // 2 hours minimum between checks
 
     if (timeSinceLastCheck < minIntervalMs && lastCheckTimeRef.current > 0) {
       return;
     }
+
+    isCheckingRef.current = true;
 
     try {
       // Ensure notifications are initialized
@@ -81,6 +89,8 @@ export const useSmartNotifications = (
       }
     } catch (error) {
       // Silently handle errors
+    } finally {
+      isCheckingRef.current = false;
     }
   }, [medications, enabled, ensureInitialized, user?.id]);
 

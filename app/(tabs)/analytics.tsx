@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
+  InteractionManager,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -217,7 +218,17 @@ export default function AnalyticsScreen() {
   );
 
   useEffect(() => {
-    loadAnalyticsData();
+    let cancelled = false;
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) {
+        loadAnalyticsData();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      task.cancel?.();
+    };
   }, [loadAnalyticsData]);
 
   const dateRanges: Array<{ value: DateRange; label: string }> = [
