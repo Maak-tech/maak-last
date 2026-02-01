@@ -25,3 +25,13 @@ npm config set legacy-peer-deps true
 # This will be handled by a post-install hook if needed
 echo "ℹ️  Note: iOS CocoaPods cache will be cleaned during prebuild phase"
 
+# Ensure bun.lock is up to date (Bun v1.2+ uses text-based bun.lock by default)
+# If EAS Build expects bun.lockb, this will be handled by bun install
+echo "📦 Checking Bun lockfile..."
+if [ -f "bun.lock" ]; then
+  echo "✅ Found bun.lock (text format)"
+fi
+if [ -f "bun.lockb" ]; then
+  echo "✅ Found bun.lockb (binary format)"
+fi
+
