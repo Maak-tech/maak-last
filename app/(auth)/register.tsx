@@ -1,6 +1,5 @@
 import { Link, useRouter } from "expo-router";
-import type { ConfirmationResult } from "firebase/auth";
-import { Check, Mail, Phone, Users, X } from "lucide-react-native";
+import { Check, Users, X } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -21,31 +20,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import i18nInstance from "@/lib/i18n";
 import type { AvatarType } from "@/types";
 
-// Type for React Native Firebase confirmation result
-interface RNFirebaseConfirmationResult {
-  confirm: (code: string) => Promise<any>;
-}
-
-// Combined confirmation result type (matches AuthContext)
-type PhoneConfirmationResult =
-  | ConfirmationResult
-  | RNFirebaseConfirmationResult;
-
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
-  const { signUp, signUpWithPhone, verifyPhoneCode, loading, user } = useAuth();
+  const { signUp, loading, user } = useAuth();
   const router = useRouter();
-  const [signupMethod, setSignupMethod] = useState<"email" | "phone">("email");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [confirmationResult, setConfirmationResult] =
-    useState<PhoneConfirmationResult | null>(null);
-  const [showOtpInput, setShowOtpInput] = useState(false);
   const [familyCode, setFamilyCode] = useState("");
   const [showFamilyCode, setShowFamilyCode] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -85,146 +68,46 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (signupMethod === "email") {
-      if (!(email && password && confirmPassword)) {
-        setErrors({
-          general: isRTL
-            ? "يرجى ملء جميع الحقول المطلوبة"
-            : "Please fill in all required fields",
-        });
-        return;
-      }
-
-      if (password !== confirmPassword) {
-        setErrors({
-          confirmPassword: isRTL
-            ? "كلمات المرور غير متطابقة"
-            : "Passwords do not match",
-        });
-        return;
-      }
-
-      if (password.length < 6) {
-        setErrors({
-          password: isRTL
-            ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل"
-            : "Password must be at least 6 characters",
-        });
-        return;
-      }
-
-      try {
-        // Store family code in AsyncStorage if provided (will be processed after signup)
-        if (familyCode.trim()) {
-          const AsyncStorage = await import(
-            "@react-native-async-storage/async-storage"
-          );
-          await AsyncStorage.default.setItem(
-            "pendingFamilyCode",
-            familyCode.trim()
-          );
-        }
-
-        await signUp(email, password, firstName, lastName, selectedAvatarType);
-        // Don't navigate here - let the useEffect above handle navigation
-        // once the auth state has fully updated
-      } catch (error: any) {
-        setErrors({
-          general:
-            error.message ||
-            (isRTL
-              ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
-              : "Registration failed. Please try again."),
-        });
-      }
-    } else {
-      // Phone signup
-      if (!phoneNumber.trim()) {
-        setErrors({
-          general: isRTL
-            ? "يرجى إدخال رقم الهاتف"
-            : "Please enter your phone number",
-        });
-        return;
-      }
-
-      // Validate phone number format - must include country code
-      const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
-      const hasCountryCode =
-        cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
-
-      if (!hasCountryCode && cleanedPhone.length < 10) {
-        setErrors({
-          general: isRTL
-            ? "يرجى إدخال رقم هاتف صحيح مع رمز الدولة (مثال: +1234567890 للولايات المتحدة، +966501234567 للسعودية)"
-            : "Please enter a valid phone number with country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia)",
-        });
-        return;
-      }
-
-      try {
-        // Store family code in AsyncStorage if provided
-        if (familyCode.trim()) {
-          const AsyncStorage = await import(
-            "@react-native-async-storage/async-storage"
-          );
-          await AsyncStorage.default.setItem(
-            "pendingFamilyCode",
-            familyCode.trim()
-          );
-        }
-
-        const confirmation = await signUpWithPhone(
-          phoneNumber.trim(),
-          firstName,
-          lastName,
-          selectedAvatarType
-        );
-        setConfirmationResult(confirmation);
-        setShowOtpInput(true);
-        // Clear any previous errors on success
-        setErrors({});
-      } catch (error: any) {
-        setErrors({
-          general:
-            error.message ||
-            (isRTL
-              ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
-              : "Failed to send verification code. Please try again."),
-        });
-      }
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    setErrors({});
-
-    if (!otpCode.trim() || otpCode.trim().length < 6) {
+    if (!(email && password && confirmPassword)) {
       setErrors({
         general: isRTL
-          ? "يرجى إدخال رمز التحقق المكون من 6 أرقام"
-          : "Please enter the 6-digit verification code",
+          ? "يرجى ملء جميع الحقول المطلوبة"
+          : "Please fill in all required fields",
       });
       return;
     }
 
-    if (!confirmationResult) {
+    if (password !== confirmPassword) {
       setErrors({
-        general: isRTL
-          ? "خطأ في التحقق. يرجى المحاولة مرة أخرى."
-          : "Verification error. Please try again.",
+        confirmPassword: isRTL
+          ? "كلمات المرور غير متطابقة"
+          : "Passwords do not match",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrors({
+        password: isRTL
+          ? "يجب أن تكون كلمة المرور 6 أحرف على الأقل"
+          : "Password must be at least 6 characters",
       });
       return;
     }
 
     try {
-      await verifyPhoneCode(
-        confirmationResult,
-        otpCode.trim(),
-        firstName,
-        lastName,
-        selectedAvatarType
-      );
+      // Store family code in AsyncStorage if provided (will be processed after signup)
+      if (familyCode.trim()) {
+        const AsyncStorage = await import(
+          "@react-native-async-storage/async-storage"
+        );
+        await AsyncStorage.default.setItem(
+          "pendingFamilyCode",
+          familyCode.trim()
+        );
+      }
+
+      await signUp(email, password, firstName, lastName, selectedAvatarType);
       // Don't navigate here - let the useEffect above handle navigation
       // once the auth state has fully updated
     } catch (error: any) {
@@ -232,62 +115,8 @@ export default function RegisterScreen() {
         general:
           error.message ||
           (isRTL
-            ? "رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى."
-            : "Invalid verification code. Please try again."),
-      });
-    }
-  };
-
-  const handleResendCode = async () => {
-    setErrors({});
-
-    if (!firstName) {
-      setErrors({
-        general: isRTL
-          ? "يرجى إدخال الاسم الأول"
-          : "Please enter your first name",
-      });
-      return;
-    }
-
-    if (!phoneNumber.trim()) {
-      setErrors({
-        general: isRTL
-          ? "يرجى إدخال رقم الهاتف"
-          : "Please enter your phone number",
-      });
-      return;
-    }
-
-    const cleanedPhone = phoneNumber.trim().replace(/[\s\-()]/g, "");
-    const hasCountryCode =
-      cleanedPhone.startsWith("+") || cleanedPhone.startsWith("00");
-
-    if (!hasCountryCode && cleanedPhone.length < 10) {
-      setErrors({
-        general: isRTL
-          ? "يرجى إدخال رقم هاتف صحيح مع رمز الدولة (مثال: +1234567890 للولايات المتحدة، +966501234567 للسعودية)"
-          : "Please enter a valid phone number with country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia)",
-      });
-      return;
-    }
-
-    try {
-      const confirmation = await signUpWithPhone(
-        phoneNumber.trim(),
-        firstName,
-        lastName,
-        selectedAvatarType
-      );
-      setConfirmationResult(confirmation);
-      setShowOtpInput(true);
-    } catch (error: any) {
-      setErrors({
-        general:
-          error.message ||
-          (isRTL
-            ? "فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى."
-            : "Failed to send verification code. Please try again."),
+            ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
+            : "Registration failed. Please try again."),
       });
     }
   };
@@ -410,220 +239,74 @@ export default function RegisterScreen() {
               />
             </View>
 
-            {/* Signup Method Toggle */}
-            <View style={styles.methodToggleContainer}>
-              <TouchableOpacity
-                onPress={() => {
-                  setSignupMethod("email");
-                  setShowOtpInput(false);
-                  setConfirmationResult(null);
-                  setErrors({});
-                }}
-                style={[
-                  styles.methodToggle,
-                  signupMethod === "email" && styles.methodToggleActive,
-                ]}
-              >
-                <Mail
-                  color={signupMethod === "email" ? "#2563EB" : "#64748B"}
-                  size={20}
-                />
-                <Text
-                  style={[
-                    styles.methodToggleText,
-                    signupMethod === "email" && styles.methodToggleTextActive,
-                    isRTL && styles.rtlText,
-                  ]}
-                >
-                  {t("email")}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setSignupMethod("phone");
-                  setShowOtpInput(false);
-                  setConfirmationResult(null);
-                  setErrors({});
-                }}
-                style={[
-                  styles.methodToggle,
-                  signupMethod === "phone" && styles.methodToggleActive,
-                ]}
-              >
-                <Phone
-                  color={signupMethod === "phone" ? "#2563EB" : "#64748B"}
-                  size={20}
-                />
-                <Text
-                  style={[
-                    styles.methodToggleText,
-                    signupMethod === "phone" && styles.methodToggleTextActive,
-                    isRTL && styles.rtlText,
-                  ]}
-                >
-                  {t("phone", "Phone")}
-                </Text>
-              </TouchableOpacity>
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                {t("email")}
+              </Text>
+              <TextInput
+                autoCapitalize="none"
+                autoComplete="username"
+                keyboardType="email-address"
+                onChangeText={setEmail}
+                placeholder={t("enterYourEmail", "Enter your email")}
+                style={[styles.input, isRTL && styles.rtlInput]}
+                textAlign={isRTL ? "right" : "left"}
+                textContentType="username"
+                value={email ?? ""}
+              />
             </View>
 
-            {signupMethod === "email" ? (
-              <>
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {t("email")}
-                  </Text>
-                  <TextInput
-                    autoCapitalize="none"
-                    autoComplete="username"
-                    keyboardType="email-address"
-                    onChangeText={setEmail}
-                    placeholder={t("enterYourEmail", "Enter your email")}
-                    style={[styles.input, isRTL && styles.rtlInput]}
-                    textAlign={isRTL ? "right" : "left"}
-                    textContentType="username"
-                    value={email ?? ""}
-                  />
-                </View>
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                {t("password")}
+              </Text>
+              <TextInput
+                autoComplete="off"
+                onChangeText={setPassword}
+                passwordRules=""
+                placeholder={t("enterYourPassword", "Enter your password")}
+                secureTextEntry
+                style={[
+                  styles.input,
+                  isRTL && styles.rtlInput,
+                  errors?.password && styles.inputError,
+                ]}
+                textAlign={isRTL ? "right" : "left"}
+                textContentType="none"
+                value={password ?? ""}
+              />
+              {errors?.password && (
+                <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
+                  {errors.password}
+                </Text>
+              )}
+            </View>
 
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {t("password")}
-                  </Text>
-                  <TextInput
-                    autoComplete="off"
-                    onChangeText={setPassword}
-                    passwordRules=""
-                    placeholder={t("enterYourPassword", "Enter your password")}
-                    secureTextEntry
-                    style={[
-                      styles.input,
-                      isRTL && styles.rtlInput,
-                      errors?.password && styles.inputError,
-                    ]}
-                    textAlign={isRTL ? "right" : "left"}
-                    textContentType="none"
-                    value={password ?? ""}
-                  />
-                  {errors?.password && (
-                    <Text
-                      style={[styles.fieldErrorText, isRTL && styles.rtlText]}
-                    >
-                      {errors.password}
-                    </Text>
-                  )}
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {t("confirmPassword")}
-                  </Text>
-                  <TextInput
-                    autoComplete="off"
-                    onChangeText={setConfirmPassword}
-                    passwordRules=""
-                    placeholder={t(
-                      "confirmYourPassword",
-                      "Confirm your password"
-                    )}
-                    secureTextEntry
-                    style={[
-                      styles.input,
-                      isRTL && styles.rtlInput,
-                      errors?.confirmPassword && styles.inputError,
-                    ]}
-                    textAlign={isRTL ? "right" : "left"}
-                    textContentType="none"
-                    value={confirmPassword ?? ""}
-                  />
-                  {errors?.confirmPassword && (
-                    <Text
-                      style={[styles.fieldErrorText, isRTL && styles.rtlText]}
-                    >
-                      {errors.confirmPassword}
-                    </Text>
-                  )}
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.inputContainer}>
-                  <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                    {t("phoneNumber", "Phone Number")}
-                  </Text>
-                  <TextInput
-                    autoCapitalize="none"
-                    keyboardType="phone-pad"
-                    onChangeText={(text) => {
-                      setPhoneNumber(text);
-                      // Clear errors when user starts typing
-                      if (errors.general) {
-                        setErrors({});
-                      }
-                    }}
-                    placeholder={
-                      isRTL
-                        ? "مثال: +1234567890 أو +966501234567"
-                        : "Example: +1234567890 or +966501234567"
-                    }
-                    style={[styles.input, isRTL && styles.rtlInput]}
-                    textAlign={isRTL ? "right" : "left"}
-                    value={phoneNumber ?? ""}
-                  />
-                  <Text style={[styles.helperText, isRTL && styles.rtlText]}>
-                    {isRTL
-                      ? "أدخل رقم هاتفك مع رمز الدولة (مثال: +1234567890 للولايات المتحدة، +966501234567 للسعودية). سنرسل لك رمز تحقق عبر الرسائل النصية"
-                      : "Include country code (e.g., +1234567890 for US, +966501234567 for Saudi Arabia). We'll send you a verification code via SMS"}
-                  </Text>
-                </View>
-
-                {showOtpInput && (
-                  <View style={styles.inputContainer}>
-                    <Text style={[styles.helperText, isRTL && styles.rtlText]}>
-                      {isRTL
-                        ? "تم إرسال الرمز. أدخله بالأسفل أو أعد الإرسال."
-                        : "Code sent. Enter it below or resend."}
-                    </Text>
-                    <Text style={[styles.label, isRTL && styles.labelRTL]}>
-                      {t("verificationCode", "Verification Code")}
-                    </Text>
-                    <TextInput
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      onChangeText={setOtpCode}
-                      placeholder={t(
-                        "enter6DigitCode",
-                        "Enter 6-digit verification code"
-                      )}
-                      style={[styles.input, isRTL && styles.rtlInput]}
-                      textAlign={isRTL ? "right" : "left"}
-                      value={otpCode ?? ""}
-                    />
-                    <TouchableOpacity
-                      onPress={handleVerifyOtp}
-                      style={styles.verifyButton}
-                    >
-                      <Text style={styles.verifyButtonText}>
-                        {loading
-                          ? t("verifying", "Verifying...")
-                          : t("verify", "Verify")}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      disabled={loading}
-                      onPress={handleResendCode}
-                      style={[
-                        styles.resendButton,
-                        loading && styles.resendButtonDisabled,
-                      ]}
-                    >
-                      <Text style={styles.resendButtonText}>
-                        {t("resendCode", "Resend code")}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </>
-            )}
+            <View style={styles.inputContainer}>
+              <Text style={[styles.label, isRTL && styles.labelRTL]}>
+                {t("confirmPassword")}
+              </Text>
+              <TextInput
+                autoComplete="off"
+                onChangeText={setConfirmPassword}
+                passwordRules=""
+                placeholder={t("confirmYourPassword", "Confirm your password")}
+                secureTextEntry
+                style={[
+                  styles.input,
+                  isRTL && styles.rtlInput,
+                  errors?.confirmPassword && styles.inputError,
+                ]}
+                textAlign={isRTL ? "right" : "left"}
+                textContentType="none"
+                value={confirmPassword ?? ""}
+              />
+              {errors?.confirmPassword && (
+                <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
+                  {errors.confirmPassword}
+                </Text>
+              )}
+            </View>
 
             {/* Family Code Section */}
             <View style={styles.familySection}>
@@ -672,45 +355,18 @@ export default function RegisterScreen() {
               )}
             </View>
 
-            {!showOtpInput && (
-              <TouchableOpacity
-                disabled={loading}
-                onPress={handleRegister}
-                style={[
-                  styles.registerButton,
-                  loading && styles.registerButtonDisabled,
-                ]}
-              >
-                <Text style={styles.registerButtonText}>
-                  {loading
-                    ? t("loading")
-                    : signupMethod === "phone"
-                      ? isRTL
-                        ? "إرسال رمز التحقق"
-                        : "Send Verification Code"
-                      : t("createAccount")}
-                </Text>
-              </TouchableOpacity>
-            )}
-            {signupMethod === "phone" && !showOtpInput && (
-              <TouchableOpacity
-                disabled={!confirmationResult}
-                onPress={() => {
-                  if (confirmationResult) {
-                    setShowOtpInput(true);
-                    setErrors({});
-                  }
-                }}
-                style={[
-                  styles.enterCodeButton,
-                  !confirmationResult && styles.enterCodeButtonDisabled,
-                ]}
-              >
-                <Text style={styles.enterCodeButtonText}>
-                  {t("enterCode", "Enter code")}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              disabled={loading}
+              onPress={handleRegister}
+              style={[
+                styles.registerButton,
+                loading && styles.registerButtonDisabled,
+              ]}
+            >
+              <Text style={styles.registerButtonText}>
+                {loading ? t("loading") : t("createAccount")}
+              </Text>
+            </TouchableOpacity>
 
             <View
               style={[styles.loginContainer, isRTL && styles.loginContainerRTL]}
@@ -979,21 +635,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Geist-SemiBold",
   },
-  enterCodeButton: {
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
-    marginBottom: 24,
-    backgroundColor: "#F1F5F9",
-  },
-  enterCodeButtonDisabled: {
-    opacity: 0.6,
-  },
-  enterCodeButtonText: {
-    color: "#2563EB",
-    fontSize: 14,
-    fontFamily: "Geist-SemiBold",
-  },
   loginContainer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -1142,20 +783,6 @@ const styles = StyleSheet.create({
     color: "#64748B",
     marginTop: 4,
     lineHeight: 16,
-  },
-  phoneNoticeContainer: {
-    backgroundColor: "#FEF3C7",
-    borderColor: "#F59E0B",
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  phoneNoticeText: {
-    color: "#92400E",
-    fontSize: 14,
-    fontFamily: "Geist-Regular",
-    lineHeight: 20,
   },
   methodToggleContainer: {
     flexDirection: "row",

@@ -17,21 +17,41 @@ RevenueCat has been integrated into the Maak Health app to handle subscription m
 - **Production App ID**: `app7fb7d2f755`
 - This is your RevenueCat app identifier in the dashboard
 
-### API Key
-The RevenueCat API key is loaded from environment variables via `app.config.js`:
-- **Development**: Uses test key automatically if `REVENUECAT_API_KEY` is not set
-- **Production**: **REQUIRED** - Must be set in EAS secrets as `REVENUECAT_API_KEY`
+### API Keys
+RevenueCat uses two types of API keys, each with different purposes:
 
-**To get your production API key:**
+#### 1. Public SDK API Key (`PUBLIC_REVENUECAT_API_KEY`)
+- **Purpose**: Used by the React Native SDK (client-side) for subscription management
+- **Format**: Starts with `appl_` (iOS) or `goog_` (Android)
+- **Location**: Set in `.env` file and GitHub Codespace secrets
+- **Usage**: Required for the app to initialize RevenueCat SDK
+- **Security**: Safe to include in client-side code (it's public)
+
+#### 2. Secret API Key (`REVENUECAT_API_KEY`)
+- **Purpose**: Used for server-side RevenueCat REST API calls (if needed)
+- **Format**: Starts with `sk_`
+- **Location**: Set in `.env` file and GitHub Codespace secrets
+- **Usage**: For backend operations like webhooks, server-side validation, etc.
+- **Security**: **NEVER** expose this in client-side code - keep it server-side only
+
+**Current Configuration:**
+- The SDK uses `PUBLIC_REVENUECAT_API_KEY` (primary) or falls back to `REVENUECAT_API_KEY` for backward compatibility
+- Both keys should be set in your `.env` file and GitHub Codespace secrets
+
+**To get your API keys:**
 1. Go to [RevenueCat Dashboard](https://app.revenuecat.com/)
 2. Select your app (App ID: `app7fb7d2f755`)
 3. Navigate to **Project Settings** → **API Keys**
-4. Copy the **Public API Key** (starts with `appl_` for iOS or `goog_` for Android)
-5. For React Native, you can use either the iOS or Android key (they work cross-platform)
+4. Copy the **Public API Key** (starts with `appl_` for iOS or `goog_` for Android) for `PUBLIC_REVENUECAT_API_KEY`
+5. Copy the **Secret API Key** (starts with `sk_`) for `REVENUECAT_API_KEY`
 
-**To set up production API key in EAS:**
+**To set up in EAS Secrets:**
 ```bash
-eas secret:create --scope project --name REVENUECAT_API_KEY --value "YOUR_PRODUCTION_API_KEY" --type string --visibility secret --environment production
+# Public SDK key (for client-side)
+eas secret:create --scope project --name PUBLIC_REVENUECAT_API_KEY --value "YOUR_PUBLIC_API_KEY" --type string --visibility secret --environment production
+
+# Secret API key (for server-side, if needed)
+eas secret:create --scope project --name REVENUECAT_API_KEY --value "YOUR_SECRET_API_KEY" --type string --visibility secret --environment production
 ```
 
 **Note**: The test key (`test_vluBajsHEoAjMjzoArPVpklOCRc`) is only used in development builds when no API key is configured.

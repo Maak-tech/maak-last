@@ -276,9 +276,18 @@ export default {
       openaiApiKey: process.env.OPENAI_API_KEY || "",
       zeinaApiKey:
         process.env.ZEINA_API_KEY || process.env.OPENAI_API_KEY || "", // Prefer ZEINA_API_KEY if set
-      // RevenueCat API Key - REQUIRED for production
-      // Stored in Expo Secrets, use production key from RevenueCat dashboard for production builds
-      revenueCatApiKey: process.env.REVENUECAT_API_KEY || "",
+      // RevenueCat API Keys - REQUIRED for production
+      // PUBLIC_REVENUECAT_API_KEY: Public SDK API key (starts with appl_ for iOS or goog_ for Android)
+      //   - Used by the React Native SDK for client-side subscription management
+      //   - Safe to include in client-side code
+      // REVENUECAT_API_KEY: Secret API key (starts with sk_)
+      //   - Used for server-side RevenueCat REST API calls (if needed)
+      //   - Should NEVER be exposed in client-side code
+      // The SDK prioritizes PUBLIC_REVENUECAT_API_KEY, falls back to REVENUECAT_API_KEY for compatibility
+      revenueCatApiKey:
+        process.env.PUBLIC_REVENUECAT_API_KEY ||
+        process.env.REVENUECAT_API_KEY ||
+        "",
     },
   },
 };
