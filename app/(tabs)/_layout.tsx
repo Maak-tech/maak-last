@@ -1,6 +1,8 @@
 import { Tabs } from "expo-router";
 import { Activity, Home, Sparkles, User, Users } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -8,6 +10,7 @@ export default function TabLayout() {
   const { t } = useTranslation();
   const { isDark } = useTheme();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   // User role logic
   const isAdmin = user?.role === "admin";
@@ -30,6 +33,12 @@ export default function TabLayout() {
         active: "#1E3A8A", // primary.main - good contrast on light background
       };
 
+  // Calculate tab bar height accounting for safe area insets on mobile
+  const basePaddingBottom = Platform.OS === "web" ? 20 : 8;
+  const paddingBottom =
+    basePaddingBottom + (Platform.OS !== "web" ? insets.bottom : 0);
+  const tabBarHeight = Platform.OS === "web" ? 80 : 60 + paddingBottom;
+
   return (
     <Tabs
       screenOptions={{
@@ -40,8 +49,8 @@ export default function TabLayout() {
           backgroundColor: tabBarColors.background,
           borderTopWidth: 1,
           borderTopColor: tabBarColors.border,
-          height: 80,
-          paddingBottom: 20,
+          height: tabBarHeight,
+          paddingBottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: {

@@ -7,7 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { useColorScheme, View } from "react-native";
+import { useColorScheme } from "react-native";
 import { Theme } from "@/constants/theme";
 
 type ThemeMode = "light" | "dark" | "system";
@@ -107,9 +107,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   return (
-    <ThemeContext.Provider value={value}>
-      <View className={`flex-1 ${isDark ? "dark" : ""}`}>{children}</View>
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 };
 
