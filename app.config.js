@@ -116,6 +116,9 @@ export default {
           "Maak Health needs access to your microphone to use voice features with Zeina, your health assistant.",
         ITSAppUsesNonExemptEncryption: false,
         UIBackgroundModes: ["location", "processing"],
+        BGTaskSchedulerPermittedIdentifiers: [
+          "com.maaktech.maak.background-task",
+        ],
         UITextInputContextIdentifier: "",
       },
       entitlements: {
