@@ -180,7 +180,7 @@ export default function TrackScreen() {
           ...theme.shadows.md,
         },
         sectionHeader: {
-          flexDirection: (isRTL ? "row-reverse" : "row") as const,
+          flexDirection: isRTL ? "row-reverse" : "row",
           justifyContent: "space-between" as const,
           alignItems: "center" as const,
           marginBottom: theme.spacing.lg,
@@ -579,7 +579,7 @@ export default function TrackScreen() {
             [
               styles.headerRow,
               isRTL && { flexDirection: "row-reverse" as const },
-            ] as StyleProp<ViewStyle>
+            ]
           }
         >
           <Text
@@ -587,7 +587,7 @@ export default function TrackScreen() {
               [
                 styles.headerTitle,
                 isRTL && { textAlign: "left" as const },
-              ] as StyleProp<TextStyle>
+              ]
             }
           >
             {isRTL ? "تتبع الصحة" : "Health Tracking"}
@@ -604,7 +604,7 @@ export default function TrackScreen() {
             [
               styles.headerSubtitle,
               isRTL && { textAlign: "left" as const },
-            ] as StyleProp<TextStyle>
+            ]
           }
         >
           {isRTL
@@ -634,7 +634,7 @@ export default function TrackScreen() {
                 [
                   styles.loadingText,
                   isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
+                ]
               }
             >
               {isRTL ? "جاري التحميل..." : "Loading..."}
@@ -653,7 +653,7 @@ export default function TrackScreen() {
                     [
                       styles.loadingText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "جاري التحديث..." : "Updating..."}
@@ -667,7 +667,7 @@ export default function TrackScreen() {
                     [
                       styles.summaryIcon,
                       { backgroundColor: theme.colors.primary[50] },
-                    ] as StyleProp<ViewStyle>
+                    ]
                   }
                 >
                   <Activity color={theme.colors.primary.main} size={24} />
@@ -677,7 +677,7 @@ export default function TrackScreen() {
                     [
                       styles.summaryValue,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {stats.symptomsThisWeek}
@@ -687,7 +687,7 @@ export default function TrackScreen() {
                     [
                       styles.summaryLabel,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL
@@ -702,7 +702,7 @@ export default function TrackScreen() {
                     [
                       styles.summaryIcon,
                       { backgroundColor: theme.colors.accent.success + "20" },
-                    ] as StyleProp<ViewStyle>
+                    ]
                   }
                 >
                   <Pill color={theme.colors.accent.success} size={24} />
@@ -712,7 +712,7 @@ export default function TrackScreen() {
                     [
                       styles.summaryValue,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {stats.medicationCompliance}%
@@ -722,7 +722,7 @@ export default function TrackScreen() {
                     [
                       styles.summaryLabel,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "الالتزام بالدواء" : "Med Compliance"}
@@ -739,7 +739,7 @@ export default function TrackScreen() {
                       styles.sectionTitle,
                       isRTL && styles.sectionTitleRTL,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "خيارات التتبع الصحي" : "Health Tracking Options"}
@@ -756,7 +756,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.primary[50] },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Activity color={theme.colors.primary.main} size={28} />
@@ -766,7 +766,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الأعراض الصحية " : "Tracked Symptoms"}
@@ -776,7 +776,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -807,7 +807,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.success + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Pill color={theme.colors.accent.success} size={28} />
@@ -817,7 +817,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الأدوية" : "Medications"}
@@ -827,7 +827,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -856,7 +856,7 @@ export default function TrackScreen() {
                   [
                     styles.trackingOptions,
                     { marginTop: theme.spacing.md },
-                  ] as StyleProp<ViewStyle>
+                  ]
                 }
               >
                 <TouchableOpacity
@@ -868,7 +868,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.warning + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Smile color={theme.colors.accent.warning} size={28} />
@@ -878,7 +878,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الحالة النفسية" : "Mood"}
@@ -888,7 +888,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "تسجيل ومراقبة الحالة النفسية" : "Track your mood"}
@@ -899,7 +899,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.accent.warning },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Smile color={theme.colors.neutral.white} size={16} />
@@ -923,7 +923,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.error + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <AlertTriangle
@@ -936,7 +936,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الحساسية" : "Allergies"}
@@ -946,7 +946,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "تسجيل ومراقبة الحساسية" : "Track your allergies"}
@@ -957,7 +957,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.accent.error },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <AlertTriangle
@@ -981,7 +981,7 @@ export default function TrackScreen() {
                   [
                     styles.trackingOptions,
                     { marginTop: theme.spacing.md },
-                  ] as StyleProp<ViewStyle>
+                  ]
                 }
               >
                 <View
@@ -998,7 +998,7 @@ export default function TrackScreen() {
                         [
                           styles.trackingCardIcon,
                           { backgroundColor: theme.colors.accent.error + "20" },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <Droplet color={theme.colors.accent.error} size={28} />
@@ -1008,7 +1008,7 @@ export default function TrackScreen() {
                         [
                           styles.trackingCardTitle,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL ? "ضغط الدم" : "Blood Pressure"}
@@ -1018,7 +1018,7 @@ export default function TrackScreen() {
                         [
                           styles.trackingCardSubtitle,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL ? "تسجيل ضغط الدم يدوياً" : "Manual entry"}
@@ -1029,7 +1029,7 @@ export default function TrackScreen() {
                         [
                           styles.trackingCardButton,
                           { backgroundColor: theme.colors.accent.error },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <Droplet color={theme.colors.neutral.white} size={16} />
@@ -1056,7 +1056,7 @@ export default function TrackScreen() {
                           {
                             backgroundColor: theme.colors.secondary.main + "20",
                           },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <Zap color={theme.colors.secondary.main} size={28} />
@@ -1066,7 +1066,7 @@ export default function TrackScreen() {
                         [
                           styles.trackingCardTitle,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
@@ -1076,7 +1076,7 @@ export default function TrackScreen() {
                         [
                           styles.trackingCardSubtitle,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL
@@ -1089,7 +1089,7 @@ export default function TrackScreen() {
                         [
                           styles.trackingCardButton,
                           { backgroundColor: theme.colors.secondary.main },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <Heart color={theme.colors.neutral.white} size={16} />
@@ -1111,7 +1111,7 @@ export default function TrackScreen() {
                   [
                     styles.trackingOptions,
                     { marginTop: theme.spacing.md },
-                  ] as StyleProp<ViewStyle>
+                  ]
                 }
               >
                 <TouchableOpacity
@@ -1123,7 +1123,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.info + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <FileText color={theme.colors.accent.info} size={28} />
@@ -1133,7 +1133,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "التاريخ الطبي" : "Medical History"}
@@ -1143,7 +1143,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -1156,7 +1156,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.accent.info },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <FileText color={theme.colors.neutral.white} size={16} />
@@ -1207,7 +1207,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.error + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Heart color={theme.colors.accent.error} size={28} />
@@ -1217,7 +1217,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "مراقب العلامات الحيوية" : "Vitals Monitor"}
@@ -1227,7 +1227,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -1241,7 +1241,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.accent.error },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Heart color={theme.colors.neutral.white} size={16} />
@@ -1262,7 +1262,7 @@ export default function TrackScreen() {
                   [
                     styles.trackingOptions,
                     { marginTop: theme.spacing.md },
-                  ] as StyleProp<ViewStyle>
+                  ]
                 }
               >
                 <TouchableOpacity
@@ -1274,7 +1274,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.secondary.main + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Clock color={theme.colors.secondary.main} size={28} />
@@ -1284,7 +1284,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "السجل الزمني الصحي" : "Health Timeline"}
@@ -1294,7 +1294,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -1307,7 +1307,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.secondary.main },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Clock color={theme.colors.neutral.white} size={16} />
@@ -1331,7 +1331,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.primary.main + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <TestTube color={theme.colors.primary.main} size={28} />
@@ -1341,7 +1341,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "نتائج المختبر" : "Lab Results"}
@@ -1351,7 +1351,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -1364,7 +1364,7 @@ export default function TrackScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.primary.main },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <TestTube color={theme.colors.neutral.white} size={16} />
@@ -1390,7 +1390,7 @@ export default function TrackScreen() {
                         styles.sectionTitle,
                         isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الأعراض الصحيةالأخيرة" : "Recent Symptoms"}
@@ -1404,7 +1404,7 @@ export default function TrackScreen() {
                         [
                           styles.viewAllText,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL ? "عرض الكل" : "View All"}
@@ -1424,7 +1424,7 @@ export default function TrackScreen() {
                         [
                           styles.recentIcon,
                           { backgroundColor: theme.colors.primary[50] },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <Activity color={theme.colors.primary.main} size={20} />
@@ -1435,7 +1435,7 @@ export default function TrackScreen() {
                           [
                             styles.recentTitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {t(symptom.type)}
@@ -1445,7 +1445,7 @@ export default function TrackScreen() {
                           [
                             styles.recentSubtitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {formatTime(symptom.timestamp)} •{" "}
@@ -1467,7 +1467,7 @@ export default function TrackScreen() {
                         styles.sectionTitle,
                         isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الحالات النفسية الأخيرة" : "Recent Moods"}
@@ -1481,7 +1481,7 @@ export default function TrackScreen() {
                         [
                           styles.viewAllText,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL ? "عرض الكل" : "View All"}
@@ -1503,7 +1503,7 @@ export default function TrackScreen() {
                           {
                             backgroundColor: theme.colors.accent.warning + "20",
                           },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <Text style={{ fontSize: 20 }}>
@@ -1516,7 +1516,7 @@ export default function TrackScreen() {
                           [
                             styles.recentTitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {t(mood.mood)}
@@ -1526,7 +1526,7 @@ export default function TrackScreen() {
                           [
                             styles.recentSubtitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {formatTime(mood.timestamp)} •{" "}
@@ -1548,7 +1548,7 @@ export default function TrackScreen() {
                         styles.sectionTitle,
                         isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الحساسية الفترة الأخيرة" : "Recent Allergies"}
@@ -1562,7 +1562,7 @@ export default function TrackScreen() {
                         [
                           styles.viewAllText,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL ? "عرض الكل" : "View All"}
@@ -1584,7 +1584,7 @@ export default function TrackScreen() {
                           {
                             backgroundColor: theme.colors.accent.error + "20",
                           },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <AlertTriangle
@@ -1598,7 +1598,7 @@ export default function TrackScreen() {
                           [
                             styles.recentTitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {allergy.name}
@@ -1608,7 +1608,7 @@ export default function TrackScreen() {
                           [
                             styles.recentSubtitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {allergy.severity.charAt(0).toUpperCase() +
@@ -1631,7 +1631,7 @@ export default function TrackScreen() {
                         styles.sectionTitle,
                         isRTL && styles.sectionTitleRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "التاريخ الطبي الأخير" : "Recent Medical History"}
@@ -1645,7 +1645,7 @@ export default function TrackScreen() {
                         [
                           styles.viewAllText,
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL ? "عرض الكل" : "View All"}
@@ -1665,7 +1665,7 @@ export default function TrackScreen() {
                         [
                           styles.recentIcon,
                           { backgroundColor: theme.colors.accent.info + "20" },
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <FileText color={theme.colors.accent.info} size={20} />
@@ -1676,7 +1676,7 @@ export default function TrackScreen() {
                           [
                             styles.recentTitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {history.condition}
@@ -1686,7 +1686,7 @@ export default function TrackScreen() {
                           [
                             styles.recentSubtitle,
                             isRTL && styles.rtlText,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {history.diagnosedDate
@@ -1713,7 +1713,7 @@ export default function TrackScreen() {
                   [
                     styles.onelineText,
                     isRTL && styles.rtlText,
-                  ] as StyleProp<TextStyle>
+                  ]
                 }
               >
                 {isRTL ? '"الصحة، تتجاوز الحدود"' : '"Health, beyond borders"'}
@@ -1752,3 +1752,4 @@ export default function TrackScreen() {
     </SafeAreaView>
   );
 }
+

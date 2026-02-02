@@ -956,9 +956,10 @@ function ActionPlanSection({
 }: {
   insights: AIInsightsDashboardData;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [actionPlan, setActionPlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const isRTL = i18n.language === "ar";
 
   const loadActionPlan = async () => {
     if (!insights.userId) return;

@@ -15,13 +15,13 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface Resource {
   id: string;

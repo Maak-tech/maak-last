@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
+import { logger } from "@/lib/utils/logger";
 
 // Track scheduled medication notification IDs to prevent duplicates
 const scheduledMedicationNotifications: Map<string, string> = new Map();
@@ -49,9 +50,19 @@ export const useNotifications = () => {
             errorMessage.toLowerCase().includes("bundle") ||
             errorMessage.toLowerCase().includes("server")
           ) {
+            logger.warn(
+              "Notification init skipped due to bundle loading error",
+              { errorMessage },
+              "useNotifications"
+            );
             // Don't throw - allow initialization to continue gracefully
             return;
           }
+          logger.warn(
+            "Failed to import notification modules",
+            { errorMessage },
+            "useNotifications"
+          );
           throw importError;
         }
 
@@ -67,6 +78,11 @@ export const useNotifications = () => {
             }),
           });
         } catch (handlerError) {
+          logger.warn(
+            "Failed to set notification handler",
+            handlerError,
+            "useNotifications"
+          );
           // Continue with initialization even if handler fails
         }
 
@@ -82,6 +98,11 @@ export const useNotifications = () => {
         try {
           await Promise.race([registrationPromise, timeoutPromise]);
         } catch (registrationError) {
+          logger.warn(
+            "Notification registration failed",
+            registrationError,
+            "useNotifications"
+          );
           // Continue with initialization even if registration fails
         }
 
@@ -113,11 +134,21 @@ export const useNotifications = () => {
               }
             );
         } catch (listenerError) {
+          logger.warn(
+            "Failed to attach notification listeners",
+            listenerError,
+            "useNotifications"
+          );
           // Silently handle listener error
         }
 
         isInitialized.current = true;
       } catch (error) {
+        logger.warn(
+          "Notification initialization failed",
+          error,
+          "useNotifications"
+        );
         // Silently handle initialization error
       } finally {
         initializationInProgress.current = false;

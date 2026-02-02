@@ -139,6 +139,7 @@ export const alertService = {
         });
 
         observabilityEmitter.emit({
+          eventType: "alert_service",
           domain: "alerts",
           source: "alertService",
           message: `Alert created: ${alertData.type}`,
@@ -170,7 +171,8 @@ export const alertService = {
           // Verify functions is initialized
           if (!functions) {
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message: "Cloud Functions not initialized, cannot use fallback",
               severity: "error",
@@ -186,11 +188,12 @@ export const alertService = {
 
           // Use Cloud Function to create alert server-side
           observabilityEmitter.emit({
-            domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
             source: "alertService",
             message: "Attempting Cloud Function fallback for alert creation",
             severity: "warn",
-            status: "in_progress",
+            status: "pending",
             metadata: {
               alertType: alertData.type,
               userId: alertData.userId,
@@ -250,7 +253,8 @@ export const alertService = {
               }
 
               observabilityEmitter.emit({
-                domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
                 source: "alertService",
                 message: `Alert created via Cloud Function: ${alertData.type}`,
                 severity:
@@ -272,7 +276,8 @@ export const alertService = {
             }
             // Cloud Function returned but without success/alertId
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message: "Cloud Function returned invalid response",
               severity: "error",
@@ -298,7 +303,8 @@ export const alertService = {
                 : "Unknown Cloud Function error";
 
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message: "Cloud Function fallback failed",
               severity: "error",
@@ -331,7 +337,8 @@ export const alertService = {
           ? String((error as { code?: unknown }).code)
           : undefined;
       observabilityEmitter.emit({
-        domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
         source: "alertService",
         message: "Failed to create alert",
         severity: "error",
@@ -427,11 +434,12 @@ export const alertService = {
       if (auth.currentUser && functions) {
         try {
           observabilityEmitter.emit({
-            domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
             source: "alertService",
             message: "Attempting to resolve alert via Cloud Function",
             severity: "info",
-            status: "in_progress",
+            status: "pending",
             metadata: {
               alertId,
               resolverId,
@@ -453,7 +461,8 @@ export const alertService = {
           }
 
           observabilityEmitter.emit({
-            domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
             source: "alertService",
             message: "Alert resolved via Cloud Function",
             severity: "info",
@@ -490,12 +499,13 @@ export const alertService = {
           } catch (timelineError) {
             // Log but don't fail - alert is already resolved
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message:
                 "Failed to add health timeline event after alert resolution",
               severity: "warn",
-              status: "partial_success",
+              status: "success",
               error: {
                 message:
                   timelineError instanceof Error
@@ -529,14 +539,15 @@ export const alertService = {
               errorCode === "permission-denied" ? "warn" : "error";
 
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message:
                 errorCode === "permission-denied"
                   ? "Escalation resolution handled by Cloud Function (client-side permission denied expected)"
                   : "Failed to resolve escalation after alert resolution",
               severity,
-              status: "partial_success",
+              status: "success",
               error: {
                 message:
                   escalationError instanceof Error
@@ -549,7 +560,8 @@ export const alertService = {
           }
 
           observabilityEmitter.emit({
-            domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
             source: "alertService",
             message: `Alert resolved: ${alertData.type}`,
             severity: "info",
@@ -578,12 +590,13 @@ export const alertService = {
             errorMessage.includes("UNAVAILABLE")
           ) {
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message:
                 "Cloud Function not available, falling back to direct Firestore update",
               severity: "warn",
-              status: "in_progress",
+              status: "pending",
               metadata: {
                 alertId,
                 resolverId,
@@ -595,7 +608,8 @@ export const alertService = {
           } else if (errorCode === "permission-denied") {
             // Permission denied - log and throw with clear message
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message: "Cloud Function permission denied for alert resolution",
               severity: "error",
@@ -614,12 +628,13 @@ export const alertService = {
             // Try fallback to direct Firestore update for permission-denied
             // Sometimes Firestore rules allow what Cloud Function doesn't
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message:
                 "Cloud Function permission denied, attempting direct Firestore update",
               severity: "warn",
-              status: "in_progress",
+              status: "pending",
               metadata: {
                 alertId,
                 resolverId,
@@ -629,7 +644,8 @@ export const alertService = {
           } else {
             // Cloud Function returned an error - log and try fallback
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message: "Cloud Function failed for alert resolution",
               severity: "error",
@@ -648,12 +664,13 @@ export const alertService = {
             // For other errors, try fallback to direct Firestore update
             // This provides better resilience
             observabilityEmitter.emit({
-              domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
               source: "alertService",
               message:
                 "Cloud Function error, attempting direct Firestore update fallback",
               severity: "warn",
-              status: "in_progress",
+              status: "pending",
               metadata: {
                 alertId,
                 resolverId,
@@ -692,6 +709,7 @@ export const alertService = {
           directError?.message || String(directError) || "Unknown error";
 
         observabilityEmitter.emit({
+          eventType: "alert_service",
           domain: "alerts",
           source: "alertService",
           message: "Direct Firestore update failed for alert resolution",
@@ -736,7 +754,8 @@ export const alertService = {
       await escalationService.resolveEscalation(alertId, resolverId);
 
       observabilityEmitter.emit({
-        domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
         source: "alertService",
         message: `Alert resolved: ${alertData.type}`,
         severity: "info",
@@ -753,7 +772,8 @@ export const alertService = {
         extractFirebaseFunctionsError(error);
 
       observabilityEmitter.emit({
-        domain: "alerts",
+          eventType: "alert_service",
+          domain: "alerts",
         source: "alertService",
         message: "Failed to resolve alert",
         severity: "error",
@@ -869,6 +889,7 @@ export const alertService = {
         }
       } catch (notificationError) {
         observabilityEmitter.emit({
+          eventType: "alert_service",
           domain: "notifications",
           source: "alertService",
           message: "Failed to send fall alert notification",
@@ -1081,3 +1102,6 @@ export const alertService = {
     }
   },
 };
+
+
+

@@ -129,6 +129,14 @@ export const getFirebaseConfig = () => ({
   measurementId,
 });
 
+export const isFirebaseReady = (): boolean => {
+  try {
+    return getApps().length > 0;
+  } catch {
+    return false;
+  }
+};
+
 // Validate required Firebase configuration
 const requiredEnvVars = {
   apiKey,
@@ -269,15 +277,16 @@ export { auth };
 if (!app) {
   throw new Error("Firebase app is not initialized");
 }
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app, "us-central1");
+const initializedApp = app as ReturnType<typeof initializeApp>;
+export const db = getFirestore(initializedApp);
+export const storage = getStorage(initializedApp);
+export const functions = getFunctions(initializedApp, "us-central1");
 
 // Initialize Analytics only for web platform (not supported in React Native)
 let analytics;
 if (Platform.OS === "web" && typeof window !== "undefined") {
   try {
-    analytics = getAnalytics(app);
+    analytics = getAnalytics(initializedApp);
   } catch {
     // Analytics may already be initialized or window may not be available
     // Silently handle initialization errors
@@ -285,5 +294,5 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
 }
 
 export { analytics };
-export { app };
-export default app;
+export { initializedApp as app };
+export default initializedApp;

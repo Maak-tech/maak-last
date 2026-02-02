@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAppStateAwareAnimation } from "@/hooks/useAppStateAwareAnimation";
+import { timingIfActive } from "@/lib/utils/animationGuards";
 import type { User as UserType } from "@/types";
 
 export interface FilterOption {
@@ -38,7 +40,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
 }) => {
   const { i18n } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [animatedHeight] = useState(new Animated.Value(60));
+  const animatedHeight = useAppStateAwareAnimation(60);
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const isRTL = useMemo(() => i18n.language === "ar", [i18n.language]);
@@ -103,7 +105,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
       ? 60
       : Math.min(240, 60 + Math.ceil((filterOptions.length - 15) / 3) * 40);
 
-    const animation = Animated.timing(animatedHeight, {
+    const animation = timingIfActive(animatedHeight, {
       toValue: newHeight,
       duration: 300,
       useNativeDriver: false,

@@ -13,8 +13,8 @@ export const createThemedStyles =
   <T extends StyleSheet.NamedStyles<T>>(
     stylesFunction: ThemedStylesFunction<T>
   ) =>
-  (theme: typeof Theme.light): StyleSheet.NamedStyles<T> =>
-    StyleSheet.create(stylesFunction(theme));
+  (theme: typeof Theme.light): T =>
+    StyleSheet.create(stylesFunction(theme)) as T;
 
 import type { TextStyle } from "react-native";
 

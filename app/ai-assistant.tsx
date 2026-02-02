@@ -41,6 +41,7 @@ export default function AIAssistant() {
   const params = useLocalSearchParams<{ openSettings?: string }>();
   const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
+  const isMountedRef = useRef(true);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -192,6 +193,12 @@ export default function AIAssistant() {
   };
 
   useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
@@ -199,13 +206,17 @@ export default function AIAssistant() {
     try {
       // Initialize OpenAI service (uses env key)
       await openaiService.initialize();
+      if (!isMountedRef.current) return;
       const model = await openaiService.getModel();
+      if (!isMountedRef.current) return;
       setSelectedModel(model);
       setTempModel(model);
 
       // Load health context
+      if (!isMountedRef.current) return;
       setIsLoading(true);
       const prompt = await healthContextService.getContextualPrompt();
+      if (!isMountedRef.current) return;
       setSystemPrompt(prompt);
 
       // Add system message
@@ -232,10 +243,13 @@ export default function AIAssistant() {
       // Create new chat session
       await createNewSession([systemMessage, welcomeMessage]);
 
+      if (!isMountedRef.current) return;
       setIsLoading(false);
     } catch (error) {
       // Silently handle error
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

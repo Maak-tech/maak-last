@@ -4,10 +4,8 @@ import {
   correlationAnalysisService,
 } from "./correlationAnalysisService";
 import { medicalHistoryService } from "./medicalHistoryService";
-import {
-  type MedicationInteractionAlert,
-  medicationInteractionService,
-} from "./medicationInteractionService";
+import { medicationInteractionService } from "./medicationInteractionService";
+import type { MedicationInteractionAlert } from "@/types";
 import { medicationService } from "./medicationService";
 import openaiService from "./openaiService";
 import {
@@ -661,3 +659,8 @@ class AIInsightsService {
 }
 
 export const aiInsightsService = new AIInsightsService();
+
+
+
+
+

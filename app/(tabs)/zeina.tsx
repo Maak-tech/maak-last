@@ -48,6 +48,7 @@ export default function ZeinaScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const inputFieldRef = useRef<View>(null);
+  const isMountedRef = useRef(true);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -65,6 +66,12 @@ export default function ZeinaScreen() {
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
   const [showHowTo, setShowHowTo] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (params.tour === "1") {
@@ -114,18 +121,26 @@ export default function ZeinaScreen() {
   const checkRecognitionAvailability = async () => {
     try {
       const available = await voiceService.isRecognitionAvailable();
-      setRecognitionAvailable(available);
+      if (isMountedRef.current) {
+        setRecognitionAvailable(available);
+      }
     } catch (error) {
-      setRecognitionAvailable(false);
+      if (isMountedRef.current) {
+        setRecognitionAvailable(false);
+      }
     }
   };
 
   const checkVoiceAvailability = async () => {
     try {
       const available = await voiceService.isAvailable();
-      setVoiceEnabled(available);
+      if (isMountedRef.current) {
+        setVoiceEnabled(available);
+      }
     } catch (error) {
-      setVoiceEnabled(false);
+      if (isMountedRef.current) {
+        setVoiceEnabled(false);
+      }
     }
   };
 
@@ -216,15 +231,20 @@ export default function ZeinaScreen() {
 
   const initializeChat = async () => {
     try {
-      setIsLoading(true);
+      if (isMountedRef.current) {
+        setIsLoading(true);
+      }
       // Initialize OpenAI service (uses env key)
       await openaiService.initialize();
+      if (!isMountedRef.current) return;
       const model = await openaiService.getModel();
+      if (!isMountedRef.current) return;
       setSelectedModel(model);
       setTempModel(model);
 
       // Load health context
       const prompt = await healthContextService.getContextualPrompt();
+      if (!isMountedRef.current) return;
       setSystemPrompt(prompt);
 
       // Add system message
@@ -248,10 +268,14 @@ export default function ZeinaScreen() {
 
       setMessages([systemMessage, welcomeMessage]);
 
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     } catch (error) {
       // Silently handle error
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

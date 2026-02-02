@@ -15,6 +15,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
+import { configureLayoutAnimationIfActive } from "@/lib/utils/appStateGuards";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function AppleHealthIntroScreen() {
@@ -140,7 +141,7 @@ export default function AppleHealthIntroScreen() {
 
   const toggleLearnMore = () => {
     if (Platform.OS === "ios") {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      configureLayoutAnimationIfActive(LayoutAnimation.Presets.easeInEaseOut);
     }
     setExpanded((v) => !v);
   };

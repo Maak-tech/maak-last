@@ -1,40 +1,32 @@
-import { useEffect, useRef } from "react";
-import {
-  Animated,
-  AppState,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useAppStateAwareAnimation } from "../../hooks/useAppStateAwareAnimation";
+import { springIfActive } from "../../lib/utils/animationGuards";
 import { borderRadius, colors, shadows, spacing } from "./theme";
 
+/**
+ * @typedef {Object} CardProps
+ * @property {import("react").ReactNode} children
+ * @property {(() => void)=} onPress
+ * @property {"elevated" | "outlined" | "filled"=} variant
+ * @property {import("react-native").StyleProp<import("react-native").ViewStyle>=} style
+ * @property {boolean=} pressable
+ * @property {import("react-native").StyleProp<import("react-native").ViewStyle>=} contentStyle
+ */
+
+/** @param {CardProps} props */
 const Card = ({
   children,
-  onPress,
+  onPress = undefined,
   variant = "elevated", // elevated, outlined, filled
-  style,
+  style = undefined,
   pressable = true,
-  contentStyle,
+  contentStyle = undefined,
 }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  // Stop animations when app goes to background to prevent crashes
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "background" || nextAppState === "inactive") {
-        // Stop any running animations when backgrounded
-        scaleAnim.stopAnimation();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [scaleAnim]);
+  const scaleAnim = useAppStateAwareAnimation(1);
 
   const handlePressIn = () => {
     if (pressable && onPress) {
-      Animated.spring(scaleAnim, {
+      springIfActive(scaleAnim, {
         toValue: 0.97,
         useNativeDriver: true,
       }).start();
@@ -43,7 +35,7 @@ const Card = ({
 
   const handlePressOut = () => {
     if (pressable && onPress) {
-      Animated.spring(scaleAnim, {
+      springIfActive(scaleAnim, {
         toValue: 1,
         friction: 3,
         tension: 40,

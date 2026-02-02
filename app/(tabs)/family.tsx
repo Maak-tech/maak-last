@@ -44,7 +44,6 @@ import {
   Modal,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Share,
   StyleSheet,
@@ -54,6 +53,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AlertsCard from "@/app/components/AlertsCard";
 import CoachMark from "@/app/components/CoachMark";
 import FamilyDataFilter, {
@@ -150,7 +150,7 @@ interface FamilyMemberMetrics {
   symptomsThisWeek: number;
   activeMedications: number;
   alertsCount: number;
-  vitals?: VitalSigns | null;
+  vitals: VitalSigns | null;
   allergies: Allergy[];
 }
 
@@ -890,7 +890,7 @@ export default function FamilyScreen() {
               symptomsThisWeek,
               activeMedications: activeMedications.length,
               alertsCount,
-              vitals,
+              vitals: vitals ?? null,
               allergies: allergies || [],
             };
           } catch (error) {

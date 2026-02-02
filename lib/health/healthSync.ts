@@ -5,7 +5,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { fitbitService } from "../services/fitbitService";
 // Import services
 // Lazy import to prevent early native module loading

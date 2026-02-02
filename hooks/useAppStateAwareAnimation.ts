@@ -3,7 +3,7 @@
  * Prevents crashes from animations running during background state
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, AppState, type AppStateStatus } from "react-native";
 
 /**

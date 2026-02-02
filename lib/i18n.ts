@@ -328,7 +328,6 @@ const resources = {
       needHelp: "Need Help",
       alertResolved: "Resolved",
       alertResolvedSuccessfully: "Alert resolved successfully",
-      failedToResolveAlert: "Failed to resolve alert",
       noPermissionToResolveAlert:
         "You don't have permission to resolve this alert",
       alertNotFound: "Alert not found",
@@ -1502,7 +1501,6 @@ const resources = {
       needHelp: "أحتاج مساعدة",
       alertResolved: "تم الحل",
       alertResolvedSuccessfully: "تم حل التنبيه بنجاح",
-      failedToResolveAlert: "فشل في حل التنبيه",
       noPermissionToResolveAlert: "ليس لديك إذن لحل هذا التنبيه",
       alertNotFound: "التنبيه غير موجود",
       userNotLoggedIn: "المستخدم غير مسجل الدخول",
@@ -2271,8 +2269,12 @@ const resources = {
 // Helper function to set RTL layout direction
 const setRTL = (isRTL: boolean) => {
   if (Platform.OS === "android" || Platform.OS === "ios") {
-    I18nManager.forceRTL(isRTL);
-    I18nManager.allowRTL(isRTL);
+    try {
+      I18nManager.forceRTL(isRTL);
+      I18nManager.allowRTL(isRTL);
+    } catch {
+      // Silently handle environments where RTL toggling isn't supported
+    }
     // Note: On Android, you may need to restart the app for changes to take effect
     // On iOS, it should work immediately
   }

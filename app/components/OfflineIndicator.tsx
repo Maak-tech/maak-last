@@ -4,7 +4,9 @@ import { useTranslation } from "react-i18next";
 import { Animated, View } from "react-native";
 import { Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAppStateAwareAnimation } from "@/hooks/useAppStateAwareAnimation";
 import { offlineService } from "@/lib/services/offlineService";
+import { springIfActive } from "@/lib/utils/animationGuards";
 
 export default function OfflineIndicator() {
   // Call all hooks unconditionally at the top - MUST be in same order every render
@@ -12,7 +14,7 @@ export default function OfflineIndicator() {
   const { theme } = useTheme();
   const [isOnline, setIsOnline] = useState(true);
   const [queueLength, setQueueLength] = useState(0);
-  const [slideAnim] = useState(() => new Animated.Value(-100));
+  const slideAnim = useAppStateAwareAnimation(-100);
 
   // Use ref to track if component is mounted to prevent state updates after unmount
   const isMountedRef = useRef(true);
@@ -68,14 +70,14 @@ export default function OfflineIndicator() {
   useEffect(() => {
     // Animate slide in/out based on online status and queue
     if (!isOnline || queueLength > 0) {
-      Animated.spring(slideAnim, {
+      springIfActive(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
         tension: 50,
         friction: 7,
       }).start();
     } else {
-      Animated.spring(slideAnim, {
+      springIfActive(slideAnim, {
         toValue: -100,
         useNativeDriver: true,
         tension: 50,

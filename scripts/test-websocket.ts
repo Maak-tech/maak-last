@@ -13,6 +13,7 @@ if (!openaiKey) {
   console.log("❌ No OpenAI API key found. Set OPENAI_API_KEY in .env");
   process.exit(1);
 }
+const safeOpenaiKey = openaiKey as string;
 
 console.log("🔍 Testing WebSocket connection to OpenAI Realtime API...\n");
 
@@ -28,7 +29,7 @@ async function testWebSocketConnection() {
     const response = await fetch("https://api.openai.com/v1/models", {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${openaiKey}`,
+        Authorization: `Bearer ${safeOpenaiKey}`,
         "Content-Type": "application/json",
       },
     });
@@ -47,7 +48,9 @@ async function testWebSocketConnection() {
     console.log("\n📋 WebSocket Connection Details:");
     console.log(`   URL: ${wsUrl}`);
     console.log("   Headers:");
-    console.log(`     Authorization: Bearer ${openaiKey.substring(0, 20)}...`);
+    console.log(
+      `     Authorization: Bearer ${safeOpenaiKey.substring(0, 20)}...`
+    );
     console.log("     OpenAI-Beta: realtime=v1");
 
     console.log("\n🔧 React Native WebSocket Issues:");

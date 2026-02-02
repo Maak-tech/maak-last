@@ -798,7 +798,7 @@ class ProactiveHealthSuggestionsService {
         alert.type === "fall" ? "fallDetectionAlert" : "highSeverityAlert";
 
       // Translate alert type for non-fall alerts
-      let translatedAlertType = alert.type;
+      let translatedAlertType: string = alert.type;
       if (alert.type === "fall") {
         translatedAlertType = isArabic ? "سقوط" : "fall";
       } else if (alert.type === "emergency") {

@@ -42,7 +42,6 @@ import {
   Modal,
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
@@ -51,6 +50,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import GlobalSearch from "@/app/components/GlobalSearch";
 import Avatar from "@/components/Avatar";
@@ -365,11 +365,20 @@ export default function ProfileScreen() {
         setLoading(true);
       }
 
+      type SettledHealthResults = [
+        PromiseSettledResult<Symptom[]>,
+        PromiseSettledResult<Medication[]>,
+      ];
+
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise<[Symptom[], Medication[]]>(
-        (_, reject) =>
+      const timeoutPromise: Promise<SettledHealthResults> = new Promise(
+        (resolve) =>
           setTimeout(
-            () => reject(new Error("Health data loading timeout")),
+            () =>
+              resolve([
+                { status: "fulfilled", value: [] },
+                { status: "fulfilled", value: [] },
+              ]),
             8000 // Reduced to 8 second timeout
           )
       );
@@ -385,15 +394,7 @@ export default function ProfileScreen() {
         medicationService.getUserMedications(user.id), // Medications are usually fewer
       ]);
 
-      const results = await Promise.race([dataPromise, timeoutPromise]).catch(
-        () => {
-          // Return empty arrays on timeout
-          return [
-            { status: "fulfilled" as const, value: [] },
-            { status: "fulfilled" as const, value: [] },
-          ];
-        }
-      );
+      const results = await Promise.race([dataPromise, timeoutPromise]);
 
       // Extract results with fallbacks
       const symptoms =

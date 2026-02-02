@@ -13,12 +13,12 @@ import {
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 // Design System Components
 import { Button, Card, Input } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";

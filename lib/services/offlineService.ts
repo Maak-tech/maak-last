@@ -1,4 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  Timestamp,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { healthTimelineService } from "@/lib/observability";
 import type {
   Allergy,
   LabResult,

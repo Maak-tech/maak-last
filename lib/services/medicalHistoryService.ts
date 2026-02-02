@@ -5,8 +5,10 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
+  type QueryConstraint,
   Timestamp,
   updateDoc,
   where,
@@ -20,7 +22,7 @@ export const medicalHistoryService = {
     limitCount?: number
   ): Promise<MedicalHistory[]> {
     try {
-      const queryConstraints = [
+      const queryConstraints: QueryConstraint[] = [
         where("userId", "==", userId),
         orderBy("diagnosedDate", "desc"),
       ];

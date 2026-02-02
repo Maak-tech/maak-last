@@ -234,7 +234,7 @@ export default function DashboardScreen() {
           marginBottom: theme.spacing.base,
         },
         sectionHeader: {
-          flexDirection: (isRTL ? "row-reverse" : "row") as const,
+          flexDirection: isRTL ? "row-reverse" : "row",
           justifyContent: "space-between" as const,
           alignItems: "center" as const,
           marginBottom: theme.spacing.base,
@@ -1276,7 +1276,7 @@ export default function DashboardScreen() {
                         styles.statValue,
                         isRTL && styles.statValueRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                     weight="bold"
                   >
@@ -1288,7 +1288,7 @@ export default function DashboardScreen() {
                         styles.statLabel,
                         isRTL && styles.statLabelRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                     weight="medium"
                   >
@@ -1321,7 +1321,7 @@ export default function DashboardScreen() {
                         styles.statValue,
                         isRTL && styles.statValueRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                     weight="bold"
                   >
@@ -1333,7 +1333,7 @@ export default function DashboardScreen() {
                         styles.statLabel,
                         isRTL && styles.statLabelRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                     weight="medium"
                   >
@@ -1364,7 +1364,7 @@ export default function DashboardScreen() {
                         styles.statValue,
                         isRTL && styles.statValueRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                     weight="bold"
                   >
@@ -1376,7 +1376,7 @@ export default function DashboardScreen() {
                         styles.statLabel,
                         isRTL && styles.statLabelRTL,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                     weight="medium"
                   >
@@ -1398,7 +1398,7 @@ export default function DashboardScreen() {
                     styles.sectionTitle,
                     isRTL && styles.rtlText,
                     isRTL && { textAlign: "right" as const },
-                  ] as StyleProp<TextStyle>
+                  ]
                 }
               >
                 {isRTL ? "أدوية اليوم" : "Today's Medications"}
@@ -1412,7 +1412,7 @@ export default function DashboardScreen() {
                     [
                       styles.viewAllText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "عرض الكل" : "View All"}
@@ -1464,7 +1464,7 @@ export default function DashboardScreen() {
                               styles.medicationName,
                               isRTL && styles.medicationNameRTL,
                               isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
+                            ]
                           }
                         >
                           {medication.name}
@@ -1475,7 +1475,7 @@ export default function DashboardScreen() {
                               styles.medicationDosage,
                               isRTL && styles.medicationDosageRTL,
                               isRTL && styles.rtlText,
-                            ] as StyleProp<TextStyle>
+                            ]
                           }
                         >
                           {medication.dosage} • {medication.frequency}
@@ -1486,7 +1486,7 @@ export default function DashboardScreen() {
                                   styles.medicationDosage,
                                   isRTL && styles.rtlText,
                                   { marginTop: 2 },
-                                ] as StyleProp<TextStyle>
+                                ]
                               }
                             >
                               {" • "}
@@ -1513,7 +1513,7 @@ export default function DashboardScreen() {
                                 opacity:
                                   markingMedication === medication.id ? 0.6 : 1,
                               },
-                            ] as StyleProp<ViewStyle>
+                            ]
                           }
                         >
                           {markingMedication === medication.id ? (
@@ -1535,7 +1535,7 @@ export default function DashboardScreen() {
                             [
                               styles.statusCheckContainer,
                               { backgroundColor: theme.colors.accent.success },
-                            ] as StyleProp<ViewStyle>
+                            ]
                           }
                         >
                           <Check
@@ -1555,7 +1555,7 @@ export default function DashboardScreen() {
                                 borderColor: theme.colors.border.medium,
                                 borderWidth: 2,
                               },
-                            ] as StyleProp<ViewStyle>
+                            ]
                           }
                         >
                           <Check
@@ -1579,7 +1579,7 @@ export default function DashboardScreen() {
                     [
                       styles.emptyText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL
@@ -1601,7 +1601,7 @@ export default function DashboardScreen() {
                     styles.sectionTitle,
                     isRTL && styles.rtlText,
                     isRTL && { textAlign: "right" as const },
-                  ] as StyleProp<TextStyle>
+                  ]
                 }
               >
                 {isRTL ? "الأعراض الصحية الأخيرة" : "Recent Symptoms"}
@@ -1615,7 +1615,7 @@ export default function DashboardScreen() {
                     [
                       styles.viewAllText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "عرض الكل" : "View All"}
@@ -1649,7 +1649,7 @@ export default function DashboardScreen() {
                                       ? getSeverityColor(symptom.severity)
                                       : theme.colors.neutral[200],
                                 },
-                              ] as StyleProp<ViewStyle>
+                              ]
                             }
                           />
                         ))}
@@ -1659,7 +1659,7 @@ export default function DashboardScreen() {
                           [
                             styles.symptomInfo,
                             styles.symptomInfoRTL,
-                          ] as ViewStyle
+                          ]
                         }
                       >
                         <Text
@@ -1668,7 +1668,7 @@ export default function DashboardScreen() {
                               styles.symptomType,
                               styles.symptomTypeRTL,
                               styles.rtlText,
-                            ] as StyleProp<TextStyle>
+                            ]
                           }
                         >
                           {t(symptom.type)}
@@ -1679,7 +1679,7 @@ export default function DashboardScreen() {
                               styles.symptomTime,
                               styles.rtlText,
                               { textAlign: "right" as const },
-                            ] as StyleProp<TextStyle>
+                            ]
                           }
                         >
                           {formatDate(symptom.timestamp)} •{" "}
@@ -1691,12 +1691,12 @@ export default function DashboardScreen() {
                     <>
                       <View style={styles.symptomInfo as ViewStyle}>
                         <Text
-                          style={[styles.symptomType] as StyleProp<TextStyle>}
+                          style={[styles.symptomType]}
                         >
                           {t(symptom.type)}
                         </Text>
                         <Text
-                          style={[styles.symptomTime] as StyleProp<TextStyle>}
+                          style={[styles.symptomTime]}
                         >
                           {formatDate(symptom.timestamp)} •{" "}
                           {formatTime(symptom.timestamp)}
@@ -1715,7 +1715,7 @@ export default function DashboardScreen() {
                                       ? getSeverityColor(symptom.severity)
                                       : theme.colors.neutral[200],
                                 },
-                              ] as StyleProp<ViewStyle>
+                              ]
                             }
                           />
                         ))}
@@ -1734,7 +1734,7 @@ export default function DashboardScreen() {
                     [
                       styles.emptyText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL
@@ -1774,7 +1774,7 @@ export default function DashboardScreen() {
                     [
                       styles.alertTitle,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                   weight="bold"
                 >
@@ -1788,7 +1788,7 @@ export default function DashboardScreen() {
                     [
                       styles.alertText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL
@@ -1826,7 +1826,7 @@ export default function DashboardScreen() {
                     styles.sectionTitle,
                     isRTL && styles.rtlText,
                     isRTL && { textAlign: "right" as const },
-                  ] as StyleProp<TextStyle>
+                  ]
                 }
               >
                 {isRTL ? "إجراءات سريعة" : "Quick Actions"}
@@ -1844,7 +1844,7 @@ export default function DashboardScreen() {
                     [
                       styles.quickActionText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "تتبع الصحة" : "Track Health"}
@@ -1861,7 +1861,7 @@ export default function DashboardScreen() {
                     [
                       styles.quickActionText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "إدارة الأدوية" : "Medications"}
@@ -1878,7 +1878,7 @@ export default function DashboardScreen() {
                     [
                       styles.quickActionText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "المؤشرات الحيوية" : "Vital Signs"}
@@ -1895,7 +1895,7 @@ export default function DashboardScreen() {
                     [
                       styles.quickActionText,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "إدارة العائلة" : "Manage Family"}
@@ -1991,7 +1991,7 @@ export default function DashboardScreen() {
                         styles.welcomeText,
                         styles.rtlText,
                         { textAlign: "right" },
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {`مرحباً، ${user.firstName || "User"}`}
@@ -2005,7 +2005,7 @@ export default function DashboardScreen() {
                         styles.rtlText,
                         styles.dateTextRTL,
                         { textAlign: "right" },
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {new Date().toLocaleDateString("ar-u-ca-gregory", {
@@ -2032,7 +2032,7 @@ export default function DashboardScreen() {
                       [
                         styles.welcomeText,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {`Welcome, ${user.firstName || "User"}`}
@@ -2045,7 +2045,7 @@ export default function DashboardScreen() {
                         styles.dateText,
                         isRTL && styles.rtlText,
                         isRTL && styles.dateTextRTL,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {new Date().toLocaleDateString("en-US", {
@@ -2122,7 +2122,7 @@ export default function DashboardScreen() {
                           theme.colors.text.primary
                         ),
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -2174,7 +2174,7 @@ export default function DashboardScreen() {
                             theme.colors.text.secondary
                           ),
                           isRTL && styles.rtlText,
-                        ] as StyleProp<TextStyle>
+                        ]
                       }
                     >
                       {isRTL
@@ -2215,7 +2215,7 @@ export default function DashboardScreen() {
                                     theme.colors.text.primary
                                   ),
                                   isRTL && styles.rtlText,
-                                ] as StyleProp<TextStyle>
+                                ]
                               }
                             >
                               {alert.type === "fall"
@@ -2245,7 +2245,7 @@ export default function DashboardScreen() {
                                   ),
                                   isRTL && styles.rtlText,
                                   { marginTop: 4 },
-                                ] as StyleProp<TextStyle>
+                                ]
                               }
                             >
                               {alert.timestamp.toLocaleString()}
@@ -2364,7 +2364,7 @@ export default function DashboardScreen() {
                               ),
                               isRTL && styles.rtlText,
                               { marginTop: theme.spacing.sm },
-                            ] as StyleProp<TextStyle>
+                            ]
                           }
                         >
                           {alert.message}
@@ -2390,7 +2390,7 @@ export default function DashboardScreen() {
                     [
                       styles.tourTitle,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                   weight="bold"
                 >
@@ -2401,7 +2401,7 @@ export default function DashboardScreen() {
                     [
                       styles.tourBody,
                       isRTL && styles.rtlText,
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {activeTourStep.body}
@@ -2418,7 +2418,7 @@ export default function DashboardScreen() {
                           [
                             styles.tourDot,
                             index === tourStep && styles.tourDotActive,
-                          ] as StyleProp<ViewStyle>
+                          ]
                         }
                       />
                     ))}
@@ -2452,7 +2452,7 @@ export default function DashboardScreen() {
                         [
                           styles.tourButton,
                           styles.tourButtonPrimary,
-                        ] as StyleProp<ViewStyle>
+                        ]
                       }
                     >
                       <Text
@@ -2460,7 +2460,7 @@ export default function DashboardScreen() {
                           [
                             styles.tourButtonText,
                             styles.tourButtonTextPrimary,
-                          ] as StyleProp<TextStyle>
+                          ]
                         }
                       >
                         {tourStep >= tourSteps.length - 1
@@ -2488,7 +2488,7 @@ export default function DashboardScreen() {
                       styles.sectionTitle,
                       isRTL && styles.rtlText,
                       isRTL && { textAlign: "right" as const },
-                    ] as StyleProp<TextStyle>
+                    ]
                   }
                 >
                   {isRTL ? "تتبع الصحة اليومي" : "Daily Health Tracking"}
@@ -2505,7 +2505,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.primary[50] },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Activity color={theme.colors.primary.main} size={28} />
@@ -2515,7 +2515,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الأعراض الصحية" : "Symptoms"}
@@ -2525,7 +2525,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "تسجيل الأعراض الصحية" : "Log health symptoms"}
@@ -2554,7 +2554,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.success + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Pill color={theme.colors.accent.success} size={28} />
@@ -2564,7 +2564,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الأدوية" : "Medications"}
@@ -2574,7 +2574,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL
@@ -2605,7 +2605,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.warning + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Smile color={theme.colors.accent.warning} size={28} />
@@ -2615,7 +2615,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "الحالة النفسية" : "Mood"}
@@ -2625,7 +2625,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "تسجيل المزاج اليومي" : "Track daily mood"}
@@ -2636,7 +2636,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.accent.warning },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Smile color={theme.colors.neutral.white} size={16} />
@@ -2659,7 +2659,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardIcon,
                         { backgroundColor: theme.colors.accent.info + "20" },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Heart color={theme.colors.accent.info} size={28} />
@@ -2669,7 +2669,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardTitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "العلامات الحيوية" : "Vitals"}
@@ -2679,7 +2679,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardSubtitle,
                         isRTL && styles.rtlText,
-                      ] as StyleProp<TextStyle>
+                      ]
                     }
                   >
                     {isRTL ? "قياس الضغط والنبض" : "Blood pressure & pulse"}
@@ -2690,7 +2690,7 @@ export default function DashboardScreen() {
                       [
                         styles.trackingCardButton,
                         { backgroundColor: theme.colors.accent.info },
-                      ] as StyleProp<ViewStyle>
+                      ]
                     }
                   >
                     <Heart color={theme.colors.neutral.white} size={16} />
@@ -2714,7 +2714,7 @@ export default function DashboardScreen() {
                 [
                   styles.onelineText,
                   isRTL && styles.rtlText,
-                ] as StyleProp<TextStyle>
+                ]
               }
             >
               {isRTL
@@ -2727,3 +2727,4 @@ export default function DashboardScreen() {
     </SafeAreaView>
   );
 }
+

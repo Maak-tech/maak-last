@@ -18,7 +18,6 @@ import {
   ActivityIndicator,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   type StyleProp,
   Text,
@@ -28,6 +27,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Card } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import {

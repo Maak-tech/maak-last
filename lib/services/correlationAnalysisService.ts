@@ -545,7 +545,7 @@ class CorrelationAnalysisService {
       ([, a], [, b]) => b - a
     )[0];
 
-    if (peakHour && Number.parseFloat(peakHour[1]) > 3.5) {
+    if (peakHour && peakHour[1] > 3.5) {
       const hour = Number.parseInt(peakHour[0]);
       const period =
         hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
@@ -564,7 +564,7 @@ class CorrelationAnalysisService {
           correlationType: "temporal pattern",
           supportingData: {
             peakHour: `${hour}:00`,
-            averageSeverity: Number.parseFloat(peakHour[1]).toFixed(1),
+            averageSeverity: peakHour[1].toFixed(1),
           },
         },
       });

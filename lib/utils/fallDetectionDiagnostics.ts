@@ -4,6 +4,7 @@
  */
 
 import { Platform } from "react-native";
+import i18n from "@/lib/i18n";
 
 export interface FallDetectionDiagnostics {
   platform: string;
@@ -51,7 +52,6 @@ export const getFallDetectionDiagnostics = async (
   }
 
   // Generate recommendations
-  const isRTL = i18n.language === "ar";
   if (Platform.OS === "web") {
     diagnostics.recommendations.push(i18n.t("fallDetectionNotAvailableWeb"));
   } else if (!diagnostics.permissionsGranted) {

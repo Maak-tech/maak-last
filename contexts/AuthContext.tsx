@@ -16,6 +16,7 @@ import { Alert } from "react-native";
 import { auth, db } from "@/lib/firebase";
 import { familyInviteService } from "@/lib/services/familyInviteService";
 import { fcmService } from "@/lib/services/fcmService";
+import { isFirebaseReady } from "@/lib/firebase";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
@@ -267,7 +268,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // Initialize FCM in background (don't block on this)
           setTimeout(() => {
             if (isMounted) {
+              if (!isFirebaseReady()) {
+                logger.info(
+                  "Skipping FCM init: Firebase not ready",
+                  { userId: userData.id },
+                  "AuthContext"
+                );
+                return;
+              }
               fcmService.initializeFCM(userData.id).catch((error) => {
+                logger.warn(
+                  "FCM initialization failed",
+                  error,
+                  "AuthContext"
+                );
                 // Silently fail - will use local notifications
               });
             }

@@ -4,6 +4,18 @@
 // Polyfill to prevent PushNotificationIOS errors
 import "@/lib/polyfills/pushNotificationIOS";
 
+// CRITICAL: Initialize error handlers AFTER TextImpl patch
+// This ensures we wrap the TextImpl handler and catch all errors
+import "@/lib/utils/errorHandler";
+import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
+
+// Initialize error handlers immediately (wraps TextImpl handler)
+try {
+  initializeErrorHandlers();
+} catch {
+  // Silently handle environments where global error handlers aren't available
+}
+
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
 
@@ -12,8 +24,8 @@ import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-import { I18nManager, NativeModules, Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AppState, I18nManager, NativeModules, Platform } from "react-native";
 
 // Initialize React Native Firebase early (must be imported before any Firebase operations)
 // This ensures the default Firebase app is initialized from native config files
@@ -33,22 +45,31 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
+import { observabilityEmitter } from "@/lib/observability";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
 
 // Keep splash screen visible while fonts load
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Avoid crashing on platforms where this isn't supported
+});
 
 // Configure how notifications should be displayed when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true, // Show notification banner at top
-    shouldShowList: true, // Show in notification list
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true, // Show notification banner at top
+      shouldShowList: true, // Show in notification list
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch {
+  // Silently handle environments where notifications aren't available
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -57,23 +78,42 @@ export default function RootLayout() {
     "Geist-SemiBold": require("@/assets/fonts/Geist-SemiBold.ttf"),
     "Geist-Bold": require("@/assets/fonts/Geist-Bold.ttf"),
   });
+  const [isAppActive, setIsAppActive] = useState(
+    AppState.currentState === "active"
+  );
+  const [hasBeenActive, setHasBeenActive] = useState(
+    AppState.currentState === "active"
+  );
+  const backgroundLaunchLoggedRef = useRef(false);
 
   // Set RTL direction based on current language
   useEffect(() => {
+    if (!isAppActive) return;
+
     const updateRTL = () => {
       const isRTL = i18n.language === "ar";
       if (Platform.OS === "android" || Platform.OS === "ios") {
         // Only update if RTL state has changed
         if (I18nManager.isRTL !== isRTL) {
-          I18nManager.forceRTL(isRTL);
-          I18nManager.allowRTL(isRTL);
+          try {
+            I18nManager.forceRTL(isRTL);
+            I18nManager.allowRTL(isRTL);
+          } catch {
+            // Silently handle environments where RTL toggling isn't supported
+          }
 
           // On Android, RTL changes require a reload
           if (
             Platform.OS === "android" &&
             NativeModules.UIManager?.setLayoutAnimationEnabledExperimental
           ) {
-            NativeModules.UIManager.setLayoutAnimationEnabledExperimental(true);
+            try {
+              NativeModules.UIManager.setLayoutAnimationEnabledExperimental(
+                true
+              );
+            } catch {
+              // Silently handle environments where this isn't supported
+            }
           }
         }
       }
@@ -92,16 +132,18 @@ export default function RootLayout() {
     return () => {
       i18n.off("languageChanged", languageChangeHandler);
     };
-  }, []);
+  }, [isAppActive]);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && hasBeenActive) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, hasBeenActive]);
 
   // Initialize RevenueCat SDK
   useEffect(() => {
+    if (!isAppActive) return;
+
     const initializeRevenueCat = async () => {
       try {
         await revenueCatService.initialize();
@@ -112,11 +154,13 @@ export default function RootLayout() {
     };
 
     initializeRevenueCat();
-  }, []);
+  }, [isAppActive]);
 
   // HealthKit module check removed for production
 
   useEffect(() => {
+    if (!isAppActive) return;
+
     // Request notification permissions on app start
     const requestPermissions = async () => {
       try {
@@ -144,35 +188,91 @@ export default function RootLayout() {
     };
 
     requestPermissions();
+  }, [isAppActive]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const active = nextState === "active";
+      setIsAppActive(active);
+      if (active) {
+        setHasBeenActive(true);
+      }
+    });
+
+    return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    if (hasBeenActive || isAppActive) return;
+    if (backgroundLaunchLoggedRef.current) return;
+    backgroundLaunchLoggedRef.current = true;
+    if (!isFirebaseReady()) {
+      logger.info(
+        "Skipping background launch observability: Firebase not ready",
+        { appState: AppState.currentState },
+        "RootLayout"
+      );
+      return;
+    }
+    observabilityEmitter.emitPlatformEvent(
+      "app_background_launch",
+      "App launched in background; UI mount skipped",
+      {
+        source: "root_layout",
+        severity: "warn",
+        status: "cancelled",
+        metadata: {
+          appState: AppState.currentState,
+        },
+      }
+    );
+  }, [hasBeenActive, isAppActive]);
 
   if (!(fontsLoaded || fontError)) {
     return null;
   }
+  // If the app launches in background, skip mounting UI until it becomes active.
+  if (!hasBeenActive) {
+    return null;
+  }
 
   return (
-    <SafeAreaProvider>
-      <I18nextProvider i18n={i18n}>
-        <ThemeProvider>
-          <AuthProvider>
-            <FallDetectionProvider>
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="profile" options={{ headerShown: false }} />
-                <Stack.Screen name="family" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="onboarding"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="+not-found" />
-              </Stack>
-            </FallDetectionProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </I18nextProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <I18nextProvider i18n={i18n}>
+          <ThemeProvider>
+            <AuthProvider>
+              <FallDetectionProvider>
+                <StatusBar style="auto" />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="profile"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="family"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="onboarding"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="(auth)"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+              </FallDetectionProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </I18nextProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

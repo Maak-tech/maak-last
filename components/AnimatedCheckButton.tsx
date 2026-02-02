@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { Check } from "lucide-react-native";
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
   Animated,
   Platform,
@@ -11,6 +11,11 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
+import {
+  useAppStateAwareAnimation,
+  useIsAppActive,
+} from "@/hooks/useAppStateAwareAnimation";
+import { timingIfActive } from "@/lib/utils/animationGuards";
 import { getTextStyle } from "@/utils/styles";
 
 interface AnimatedCheckButtonProps {
@@ -31,8 +36,9 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
   style,
 }) => {
   const { theme } = useTheme();
-  const scaleValue = useRef(new Animated.Value(1)).current;
-  const checkOpacity = useRef(new Animated.Value(isChecked ? 1 : 0)).current;
+  const scaleValue = useAppStateAwareAnimation(1);
+  const checkOpacity = useAppStateAwareAnimation(isChecked ? 1 : 0);
+  const isAppActive = useIsAppActive();
 
   const sizes = {
     sm: { width: 32, height: 32, iconSize: 14 },
@@ -42,32 +48,18 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
 
   const currentSize = sizes[size];
 
-  // Stop animations when app goes to background to prevent crashes
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "background" || nextAppState === "inactive") {
-        // Stop any running animations when backgrounded
-        scaleValue.stopAnimation();
-        checkOpacity.stopAnimation();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [scaleValue, checkOpacity]);
-
-  useEffect(() => {
-    Animated.timing(checkOpacity, {
+    if (!isAppActive) return;
+    timingIfActive(checkOpacity, {
       toValue: isChecked ? 1 : 0.3,
       duration: 200,
       useNativeDriver: Platform.OS !== "web",
     }).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isChecked]);
+  }, [isChecked, isAppActive]);
 
   const handlePress = () => {
-    if (disabled) return;
+    if (disabled || !isAppActive) return;
 
     // Haptic feedback (only on native platforms)
     if (Platform.OS !== "web") {
@@ -76,12 +68,12 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
 
     // Scale animation
     Animated.sequence([
-      Animated.timing(scaleValue, {
+      timingIfActive(scaleValue, {
         toValue: 0.95,
         duration: 100,
         useNativeDriver: Platform.OS !== "web",
       }),
-      Animated.timing(scaleValue, {
+      timingIfActive(scaleValue, {
         toValue: 1,
         duration: 100,
         useNativeDriver: Platform.OS !== "web",

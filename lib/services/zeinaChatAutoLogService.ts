@@ -3,6 +3,8 @@ import {
   SYMPTOM_TYPE_MAP,
   zeinaActionsService,
 } from "./zeinaActionsService";
+import { auth } from "@/lib/firebase";
+import { calendarService } from "./calendarService";
 
 type ExtractedVital = {
   type:
@@ -81,18 +83,18 @@ const parseSeverity = (text: string): number | undefined => {
 
 const parseConditionSeverity = (
   text: string
-): "mild" | "moderate" | "severe" | undefined => {
-  if (/\b(severe|critical)\b/.test(text)) return "severe";
-  if (/\b(moderate|medium)\b/.test(text)) return "moderate";
-  if (/\b(mild|light)\b/.test(text)) return "mild";
+): "active" | "resolved" | "managed" | "in_remission" | undefined => {
+  if (/\b(resolved|cleared)\b/.test(text)) return "resolved";
+  if (/\b(in remission|remission)\b/.test(text)) return "in_remission";
+  if (/\b(managed|under control|stable)\b/.test(text)) return "managed";
   return;
 };
 
 const parseAllergySeverity = (
   text: string
-): "mild" | "moderate" | "severe" | "severe-life-threatening" | undefined => {
+): "mild" | "moderate" | "severe" | "life-threatening" | undefined => {
   if (/\b(life[- ]?threatening|anaphylaxis)\b/.test(text)) {
-    return "severe-life-threatening";
+    return "life-threatening";
   }
   if (/\b(severe)\b/.test(text)) return "severe";
   if (/\b(moderate|medium)\b/.test(text)) return "moderate";

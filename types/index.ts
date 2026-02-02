@@ -113,6 +113,7 @@ export interface MedicationReminder {
   time: string;
   taken: boolean;
   takenAt?: Date | any; // Can be Date or Firestore Timestamp
+  takenBy?: string;
 }
 
 export interface MedicalHistory {

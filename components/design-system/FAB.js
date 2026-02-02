@@ -1,11 +1,6 @@
-import { useEffect, useRef } from "react";
-import {
-  Animated,
-  AppState,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useAppStateAwareAnimation } from "../../hooks/useAppStateAwareAnimation";
+import { springIfActive } from "../../lib/utils/animationGuards";
 import { colors, shadows, spacing } from "./theme";
 
 const FAB = ({
@@ -16,31 +11,17 @@ const FAB = ({
   position = "bottom-right", // bottom-right, bottom-left, bottom-center
   style,
 }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  // Stop animations when app goes to background to prevent crashes
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState === "background" || nextAppState === "inactive") {
-        // Stop any running animations when backgrounded
-        scaleAnim.stopAnimation();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [scaleAnim]);
+  const scaleAnim = useAppStateAwareAnimation(1);
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
+    springIfActive(scaleAnim, {
       toValue: 0.9,
       useNativeDriver: true,
     }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
+    springIfActive(scaleAnim, {
       toValue: 1,
       friction: 3,
       tension: 40,

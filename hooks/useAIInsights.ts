@@ -7,10 +7,8 @@ import {
   type CorrelationInsight,
   correlationAnalysisService,
 } from "@/lib/services/correlationAnalysisService";
-import {
-  type MedicationInteractionAlert,
-  medicationInteractionService,
-} from "@/lib/services/medicationInteractionService";
+import { medicationInteractionService } from "@/lib/services/medicationInteractionService";
+import type { MedicationInteractionAlert } from "@/types";
 import {
   type HealthSuggestion,
   proactiveHealthSuggestionsService,
@@ -266,3 +264,8 @@ export function useAIInsights(
     dismissInsight,
   };
 }
+
+
+
+
+

@@ -36,6 +36,9 @@ export function createWebSocketWithHeaders(
   options?: WebSocketWithHeadersOptions
 ): WebSocket {
   const headers = options?.headers || {};
+  const WebSocketCtor = WebSocket as unknown as {
+    new (url: string, protocols?: string | string[], options?: any): WebSocket;
+  };
 
   try {
     // Try using react-native-websocket first (better header support)
@@ -57,7 +60,10 @@ export function createWebSocketWithHeaders(
     }
 
     // Create WebSocket with options
-    const ws = new WebSocket(url, protocols, wsOptions);
+    const ws =
+      Object.keys(wsOptions).length > 0
+        ? new WebSocketCtor(url, protocols, wsOptions)
+        : new WebSocket(url, protocols);
     return ws;
   } catch (error) {
     // Last resort fallback without headers

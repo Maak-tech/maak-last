@@ -1,4 +1,5 @@
 import { useSubscription } from "@/hooks/useSubscription";
+import i18n from "@/lib/i18n";
 
 /**
  * Feature Access Levels

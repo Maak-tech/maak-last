@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   InteractionManager,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Text,
   type TextStyle,
@@ -13,6 +12,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import CorrelationChart from "@/app/components/CorrelationChart";
 import HealthChart from "@/app/components/HealthChart";
@@ -329,8 +329,8 @@ export default function AnalyticsScreen() {
           <Heading
             level={4}
             style={[
-              styles.headerTitle as TextStyle,
-              isRTL && (styles.rtlText as TextStyle),
+              styles.headerTitle,
+              isRTL && styles.rtlText,
             ]}
           >
             {isRTL ? "التحليلات الصحية والاتجاهات" : "Analytics & Trends"}
@@ -349,7 +349,7 @@ export default function AnalyticsScreen() {
                   dateRange === range.value
                     ? styles.dateRangeButtonActive
                     : undefined,
-                ] as ViewStyle[]
+                ]
               }
             >
               <Text
@@ -359,7 +359,7 @@ export default function AnalyticsScreen() {
                     dateRange === range.value
                       ? styles.dateRangeButtonTextActive
                       : undefined,
-                  ] as TextStyle[]
+                  ]
                 }
               >
                 {range.label}
@@ -393,7 +393,7 @@ export default function AnalyticsScreen() {
                     [
                       styles.rtlText,
                       isRTL && { textAlign: "right" as const },
-                    ] as TextStyle
+                    ]
                   }
                 >
                   {isRTL ? "اتجاهات الأعراض الصحية" : "Symptom Trends"}
@@ -490,7 +490,7 @@ export default function AnalyticsScreen() {
                     [
                       styles.rtlText,
                       isRTL && { textAlign: "right" as const },
-                    ] as TextStyle
+                    ]
                   }
                 >
                   {isRTL ? "التنبؤ باتجاه الأعراض الصحية" : "Trend Prediction"}
@@ -514,7 +514,7 @@ export default function AnalyticsScreen() {
                     [
                       styles.rtlText,
                       isRTL && { textAlign: "right" as const },
-                    ] as TextStyle
+                    ]
                   }
                 >
                   {isRTL ? "الالتزام بالأدوية" : "Medication Compliance"}
@@ -539,7 +539,7 @@ export default function AnalyticsScreen() {
                     [
                       styles.rtlText,
                       isRTL && { textAlign: "right" as const },
-                    ] as TextStyle
+                    ]
                   }
                 >
                   {isRTL
@@ -579,15 +579,15 @@ export default function AnalyticsScreen() {
           {/* AI Insights Section */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading
-                level={6}
-                style={
-                  [
-                    styles.rtlText,
-                    isRTL && { textAlign: "right" as const },
-                  ] as TextStyle
-                }
-              >
+                <Heading
+                  level={6}
+                  style={
+                    [
+                      styles.rtlText,
+                      isRTL && { textAlign: "right" as const },
+                    ]
+                  }
+                >
                 {isRTL ? "رؤى الذكاء الاصطناعي" : "AI Insights"}
               </Heading>
               <TouchableOpacity
@@ -688,15 +688,15 @@ export default function AnalyticsScreen() {
           {/* Summary Stats */}
           <View style={styles.section as ViewStyle}>
             <View style={styles.sectionHeader as ViewStyle}>
-              <Heading
-                level={6}
-                style={
-                  [
-                    styles.rtlText,
-                    isRTL && { textAlign: "right" as const },
-                  ] as TextStyle
-                }
-              >
+                <Heading
+                  level={6}
+                  style={
+                    [
+                      styles.rtlText,
+                      isRTL && { textAlign: "right" as const },
+                    ]
+                  }
+                >
                 {isRTL ? "ملخص الإحصائيات" : "Summary Statistics"}
               </Heading>
             </View>

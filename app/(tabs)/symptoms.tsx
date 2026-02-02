@@ -13,12 +13,12 @@ import {
   Alert,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import FamilyDataFilter, {
   type FilterOption,
 } from "@/app/components/FamilyDataFilter";

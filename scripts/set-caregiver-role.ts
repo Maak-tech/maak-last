@@ -1,9 +1,33 @@
+import type { User } from "../types";
 import { userService } from "../lib/services/userService";
+
+const getAllUsers = async (): Promise<User[]> => {
+  const { collection, getDocs } = await import("firebase/firestore");
+  const { db } = await import("../lib/firebase");
+
+  const querySnapshot = await getDocs(collection(db, "users"));
+  const users: User[] = [];
+
+  querySnapshot.forEach((doc) => {
+    const data = doc.data() as Omit<User, "id">;
+    const createdAtRaw = (data as { createdAt?: any }).createdAt;
+    users.push({
+      id: doc.id,
+      ...data,
+      createdAt:
+        createdAtRaw && typeof createdAtRaw.toDate === "function"
+          ? createdAtRaw.toDate()
+          : (createdAtRaw as Date) || new Date(),
+    });
+  });
+
+  return users;
+};
 
 async function setZeinaAsCaregiver() {
   try {
     // Find user with firstName "Zeina"
-    const users = await userService.getAllUsers(); // We'll need to add this method
+    const users = await getAllUsers();
     const zeina = users.find(
       (user) => user.firstName?.toLowerCase() === "zeina"
     );
@@ -51,26 +75,6 @@ async function setZeinaAsCaregiver() {
     process.exit(1);
   }
 }
-
-// Add method to get all users (needed for finding Zeina)
-userService.getAllUsers = async (): Promise<any[]> => {
-  const { collection, getDocs } = await import("firebase/firestore");
-  const { db } = await import("../lib/firebase");
-
-  const querySnapshot = await getDocs(collection(db, "users"));
-  const users: any[] = [];
-
-  querySnapshot.forEach((doc) => {
-    const data = doc.data();
-    users.push({
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt?.toDate() || new Date(),
-    });
-  });
-
-  return users;
-};
 
 // Run the script
 setZeinaAsCaregiver()

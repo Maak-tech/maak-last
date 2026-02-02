@@ -1,5 +1,6 @@
-import { useState } from "react";
 import { Animated, StyleSheet, Text, TextInput, View } from "react-native";
+import { timingIfActive } from "../../lib/utils/animationGuards";
+import { useAppStateAwareAnimation } from "../../hooks/useAppStateAwareAnimation";
 import { borderRadius, colors, spacing, typography } from "./theme";
 
 const Input = ({
@@ -17,12 +18,10 @@ const Input = ({
   style,
   ...props
 }) => {
-  const [isFocused, setIsFocused] = useState(false);
-  const focusAnim = new Animated.Value(0);
+  const focusAnim = useAppStateAwareAnimation(0);
 
   const handleFocus = () => {
-    setIsFocused(true);
-    Animated.timing(focusAnim, {
+    timingIfActive(focusAnim, {
       toValue: 1,
       duration: 200,
       useNativeDriver: false,
@@ -30,8 +29,7 @@ const Input = ({
   };
 
   const handleBlur = () => {
-    setIsFocused(false);
-    Animated.timing(focusAnim, {
+    timingIfActive(focusAnim, {
       toValue: 0,
       duration: 200,
       useNativeDriver: false,

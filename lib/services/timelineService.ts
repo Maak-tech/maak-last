@@ -231,7 +231,7 @@ class TimelineService {
             id: `history-${history.id}`,
             type: "medicalHistory",
             title: history.condition,
-            description: history.notes || history.status,
+            description: history.notes || history.severity || "",
             timestamp:
               history.diagnosedDate instanceof Date
                 ? history.diagnosedDate

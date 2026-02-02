@@ -15,10 +15,12 @@ export function useSubscription() {
 
   // Get plan limits - only Family Plan is available
   const planLimits = hasFamilyPlan ? PLAN_LIMITS.FAMILY : null;
+  const isIndividualPlan = hasActiveSubscription && !hasFamilyPlan;
 
   return {
     isPremium: hasActiveSubscription,
     isFamilyPlan: hasFamilyPlan,
+    isIndividualPlan,
     subscriptionStatus,
     planLimits,
     maxFamilyMembers: planLimits?.familyMembers ?? 0,

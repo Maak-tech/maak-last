@@ -33,7 +33,6 @@ import {
   Linking,
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   type StyleProp,
   Switch,
@@ -43,6 +42,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import CoachMark from "@/app/components/CoachMark";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";

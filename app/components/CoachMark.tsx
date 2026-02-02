@@ -225,7 +225,7 @@ export default function CoachMark({
         {highlightStyle && (
           <View
             pointerEvents="none"
-            style={[styles.highlight, highlightStyle] as ViewStyle}
+            style={[styles.highlight, highlightStyle]}
           />
         )}
         {targetLayout && (
@@ -240,7 +240,7 @@ export default function CoachMark({
                     ? tooltipTop - arrowSize
                     : tooltipTop + tooltipHeight,
                 },
-              ] as ViewStyle
+              ]
             }
           />
         )}
@@ -255,7 +255,7 @@ export default function CoachMark({
             [
               styles.tooltip,
               { left: tooltipLeft, top: tooltipTop },
-            ] as ViewStyle
+            ]
           }
         >
           <Text style={[styles.title, isRTL && { textAlign: "right" }]}>
@@ -276,7 +276,7 @@ export default function CoachMark({
                   onPrimaryAction();
                   onClose();
                 }}
-                style={[styles.button, styles.buttonPrimary] as ViewStyle}
+                style={[styles.button, styles.buttonPrimary]}
               >
                 <Text style={[styles.buttonText, styles.buttonTextPrimary]}>
                   {primaryActionLabel}
@@ -289,3 +289,4 @@ export default function CoachMark({
     </Modal>
   );
 }
+

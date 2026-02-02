@@ -37,7 +37,10 @@ async function testCalendarAdd() {
     console.log("✅ Event added successfully with ID:", docRef.id);
   } catch (error) {
     console.error("❌ Error adding calendar event:", error);
-    console.error("Error details:", error.message);
+    console.error(
+      "Error details:",
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }
 
