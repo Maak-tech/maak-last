@@ -216,6 +216,21 @@ export const syncHealthData = async (
   retryOnce = true
 ): Promise<SyncResult> => {
   try {
+    // CRITICAL: Check app state before heavy operations
+    // Defer sync if app is backgrounded or inactive to prevent crashes
+    const appState = AppState.currentState;
+    if (appState !== "active") {
+      // Return early if app is not active - sync will be retried when app becomes active
+      return {
+        success: false,
+        provider,
+        syncedAt: new Date().toISOString(),
+        metricsCount: 0,
+        samplesCount: 0,
+        error: "App is not in active state - sync deferred",
+      };
+    }
+
     // Get provider connection
     const connection = await getProviderConnection(provider);
     if (!(connection && connection.connected)) {

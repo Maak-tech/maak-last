@@ -1,4 +1,11 @@
-import { Animated, StyleSheet, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef } from "react";
+import {
+  Animated,
+  AppState,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { borderRadius, colors, shadows, spacing } from "./theme";
 
 const Card = ({
@@ -9,7 +16,21 @@ const Card = ({
   pressable = true,
   contentStyle,
 }) => {
-  const scaleAnim = new Animated.Value(1);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Stop animations when app goes to background to prevent crashes
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
+        // Stop any running animations when backgrounded
+        scaleAnim.stopAnimation();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [scaleAnim]);
 
   const handlePressIn = () => {
     if (pressable && onPress) {

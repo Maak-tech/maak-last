@@ -42,6 +42,21 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
 
   const currentSize = sizes[size];
 
+  // Stop animations when app goes to background to prevent crashes
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "background" || nextAppState === "inactive") {
+        // Stop any running animations when backgrounded
+        scaleValue.stopAnimation();
+        checkOpacity.stopAnimation();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [scaleValue, checkOpacity]);
+
   useEffect(() => {
     Animated.timing(checkOpacity, {
       toValue: isChecked ? 1 : 0.3,

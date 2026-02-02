@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Linking,
   Platform,
   RefreshControl,
@@ -477,12 +478,15 @@ export default function VitalsScreen() {
           setLastSync(new Date());
 
           // Automatically sync to Firestore so family members can see the data
-          // This runs in background and doesn't block UI
-          const provider =
-            Platform.OS === "ios" ? "apple_health" : "health_connect";
-          syncHealthData(provider).catch(() => {
-            // Silently fail - sync is not critical for displaying vitals
-          });
+          // Only sync if app is active to prevent crashes when backgrounded
+          const appState = AppState.currentState;
+          if (appState === "active") {
+            const provider =
+              Platform.OS === "ios" ? "apple_health" : "health_connect";
+            syncHealthData(provider).catch(() => {
+              // Silently fail - sync is not critical for displaying vitals
+            });
+          }
         }
 
         // Mark initial load as completed
