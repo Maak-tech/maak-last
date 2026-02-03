@@ -139,17 +139,19 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
-      <ScrollView
-        bounces={false}
-        contentContainerStyle={styles.scrollContainer}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        style={styles.keyboardContainer}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-          style={styles.keyboardContainer}
+        <ScrollView
+          bounces={false}
+          contentContainerStyle={styles.scrollContainer}
+          contentInsetAdjustmentBehavior="never"
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets={false}
         >
           <View
             style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}
@@ -389,8 +391,8 @@ export default function RegisterScreen() {
               </Link>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Avatar Picker Modal */}
       <Modal
