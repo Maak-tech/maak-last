@@ -38,6 +38,16 @@ export default function RegisterScreen() {
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
 
   const isRTL = i18n.language === "ar";
+  const keyboardAvoidanceEnabled = false; // Diagnostic: disable to rule out keyboard/layout loops
+  const KeyboardContainer = keyboardAvoidanceEnabled
+    ? KeyboardAvoidingView
+    : View;
+  const keyboardContainerProps = keyboardAvoidanceEnabled
+    ? {
+        behavior: Platform.OS === "ios" ? "padding" : undefined,
+        keyboardVerticalOffset: Platform.OS === "ios" ? 0 : 20,
+      }
+    : {};
 
   // Navigate away when user becomes available (after successful registration)
   useEffect(() => {
@@ -139,9 +149,8 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <KeyboardContainer
+        {...keyboardContainerProps}
         style={styles.keyboardContainer}
       >
         <ScrollView
@@ -392,7 +401,7 @@ export default function RegisterScreen() {
             </View>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardContainer>
 
       {/* Avatar Picker Modal */}
       <Modal

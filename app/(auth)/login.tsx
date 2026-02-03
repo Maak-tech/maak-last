@@ -29,6 +29,16 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isRTL = i18n.language === "ar";
+  const keyboardAvoidanceEnabled = false; // Diagnostic: disable to rule out keyboard/layout loops
+  const KeyboardContainer = keyboardAvoidanceEnabled
+    ? KeyboardAvoidingView
+    : View;
+  const keyboardContainerProps = keyboardAvoidanceEnabled
+    ? {
+        behavior: Platform.OS === "ios" ? "padding" : undefined,
+        keyboardVerticalOffset: Platform.OS === "ios" ? 0 : 20,
+      }
+    : {};
 
   // Navigate away when user becomes available (after successful login)
   useEffect(() => {
@@ -123,9 +133,8 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      <KeyboardContainer
+        {...keyboardContainerProps}
         style={styles.keyboardContainer}
       >
         <ScrollView
@@ -316,7 +325,7 @@ export default function LoginScreen() {
             </View>
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardContainer>
     </SafeAreaView>
   );
 }
