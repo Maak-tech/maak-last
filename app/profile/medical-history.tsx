@@ -27,6 +27,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { medicalHistoryService } from "@/lib/services/medicalHistoryService";
 import { userService } from "@/lib/services/userService";
 import type { MedicalHistory, User } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 const SEVERITY_OPTIONS = [
   { key: "mild", labelEn: "Mild", labelAr: "خفيف" },
@@ -457,9 +458,8 @@ export default function MedicalHistoryScreen() {
                                 isRTL && { textAlign: "left" },
                               ]}
                             >
-                              {new Date(
-                                record.diagnosedDate
-                              ).toLocaleDateString(
+                              {safeFormatDate(
+                                new Date(record.diagnosedDate),
                                 isRTL ? "ar-u-ca-gregory" : "en-US"
                               )}
                             </Text>

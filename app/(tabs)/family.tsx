@@ -99,6 +99,7 @@ import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import type { Allergy, User } from "@/types";
+import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 import { getTextStyle } from "@/utils/styles";
 import {
   acknowledgeHealthEvent,
@@ -1067,14 +1068,14 @@ export default function FamilyScreen() {
 
   const formatMedicationTime = (date?: Date) => {
     if (!date) return "";
-    return date.toLocaleTimeString(isRTL ? "ar" : "en-US", {
+    return safeFormatTime(date, isRTL ? "ar" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
   const formatMedicationDate = (date: Date) =>
-    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
+    safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       weekday: "long",
       month: "long",
       day: "numeric",

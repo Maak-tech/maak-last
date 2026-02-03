@@ -33,6 +33,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { labResultService } from "@/lib/services/labResultService";
 import type { LabResult } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function LabResultsScreen() {
@@ -230,7 +231,7 @@ export default function LabResultsScreen() {
   }, [loadLabResults]);
 
   const formatDate = (date: Date) =>
-    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
+    safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",

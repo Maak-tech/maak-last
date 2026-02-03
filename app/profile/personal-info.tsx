@@ -29,6 +29,7 @@ import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/lib/services/userService";
 import type { AvatarType } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 export const options = {
   headerShown: false,
@@ -143,7 +144,8 @@ export default function PersonalInfoScreen() {
   );
 
   const memberSinceDate = new Date(user?.createdAt || new Date());
-  const formattedDate = memberSinceDate.toLocaleDateString(
+  const formattedDate = safeFormatDate(
+    memberSinceDate,
     isRTL ? "ar-u-ca-gregory" : "en-US",
     {
       year: "numeric",

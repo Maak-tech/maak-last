@@ -57,6 +57,7 @@ import type {
   Symptom,
   User,
 } from "@/types";
+import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 
 export default function FamilyMemberHealthView() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
@@ -179,22 +180,18 @@ export default function FamilyMemberHealthView() {
     loadMemberHealthData();
   }, [loadMemberHealthData]);
 
-  const formatDate = (date: Date | string) => {
-    const d = typeof date === "string" ? new Date(date) : date;
-    return new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
+  const formatDate = (date: Date | string) =>
+    safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }).format(d);
-  };
+    });
 
-  const formatTime = (date: Date | string) => {
-    const d = typeof date === "string" ? new Date(date) : date;
-    return new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
+  const formatTime = (date: Date | string) =>
+    safeFormatTime(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
-    }).format(d);
-  };
+    });
 
   const getSeverityColor = (severity: number) => {
     if (severity >= 4) return "#EF4444";

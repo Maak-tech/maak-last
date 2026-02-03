@@ -24,6 +24,7 @@ import {
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motionPermissionService } from "@/lib/services/motionPermissionService";
+import { safeFormatDateTime } from "@/utils/dateFormat";
 
 export default function FallDetectionSettingsScreen() {
   const { t, i18n } = useTranslation();
@@ -430,8 +431,13 @@ export default function FallDetectionSettingsScreen() {
                     ]}
                   >
                     {isRTL
-                      ? `تم في: ${new Date(lastAlert.timestamp).toLocaleString("ar-u-ca-gregory")}`
-                      : `At: ${new Date(lastAlert.timestamp).toLocaleString()}`}
+                      ? `تم في: ${safeFormatDateTime(
+                          new Date(lastAlert.timestamp),
+                          "ar-u-ca-gregory"
+                        )}`
+                      : `At: ${safeFormatDateTime(
+                          new Date(lastAlert.timestamp)
+                        )}`}
                   </Text>
                 </View>
               </View>

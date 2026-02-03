@@ -31,6 +31,7 @@ import {
   type AIInsightsDashboard as AIInsightsDashboardData,
   aiInsightsService,
 } from "@/lib/services/aiInsightsService";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 // Icon mapping function
 const getIcon = (name: string, size: number, color: string) => {
@@ -838,11 +839,7 @@ function RiskContent({
 
         <Text style={[styles.text, styles.mt3]}>
           {t("nextAssessmentLabel", "Next Assessment")}:{" "}
-          {new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          }).format(risk.nextAssessmentDate)}
+          {formatDateShort(risk.nextAssessmentDate, isRTL)}
         </Text>
       </Card>
 
@@ -1371,6 +1368,14 @@ function getRiskColor(riskLevel: string): string {
     default:
       return "#6B7280";
   }
+}
+
+function formatDateShort(date: Date | string, isRTL: boolean): string {
+  return safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export { AIInsightsDashboard };

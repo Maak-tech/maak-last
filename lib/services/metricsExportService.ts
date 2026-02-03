@@ -9,6 +9,7 @@ import { Paths } from "expo-file-system";
 import { Platform, Share } from "react-native";
 import { logger } from "@/lib/utils/logger";
 import type { MedicalHistory, Medication, Mood, Symptom } from "@/types";
+import { safeFormatDate, safeFormatDateTime } from "@/utils/dateFormat";
 import { auth } from "../firebase";
 import type { HealthProvider } from "../health/healthMetricsCatalog";
 import { getProviderConnection } from "../health/healthSync";
@@ -342,7 +343,7 @@ const convertToCSV = (data: HealthReportData): string => {
         `"${symptom.type.replace(/"/g, '""')}"`,
         symptom.severity.toString(),
         `"${(symptom.description || "").replace(/"/g, '""')}"`,
-        new Date(symptom.timestamp).toLocaleDateString(),
+        safeFormatDate(new Date(symptom.timestamp)),
         `"${(symptom.location || "").replace(/"/g, '""')}"`,
         `"${(symptom.triggers?.join(", ") || "").replace(/"/g, '""')}"`,
       ];
@@ -361,8 +362,8 @@ const convertToCSV = (data: HealthReportData): string => {
         `"${med.name.replace(/"/g, '""')}"`,
         `"${med.dosage.replace(/"/g, '""')}"`,
         `"${med.frequency.replace(/"/g, '""')}"`,
-        new Date(med.startDate).toLocaleDateString(),
-        med.endDate ? new Date(med.endDate).toLocaleDateString() : "Ongoing",
+        safeFormatDate(new Date(med.startDate)),
+        med.endDate ? safeFormatDate(new Date(med.endDate)) : "Ongoing",
         med.isActive ? "Active" : "Inactive",
         `"${(med.notes || "").replace(/"/g, '""')}"`,
       ];
@@ -382,7 +383,7 @@ const convertToCSV = (data: HealthReportData): string => {
       const row = [
         `"${history.condition.replace(/"/g, '""')}"`,
         history.diagnosedDate
-          ? new Date(history.diagnosedDate).toLocaleDateString()
+          ? safeFormatDate(new Date(history.diagnosedDate))
           : "Unknown",
         history.severity || "Not specified",
         "Ongoing",
@@ -405,7 +406,7 @@ const convertToCSV = (data: HealthReportData): string => {
         mood.mood,
         mood.intensity.toString(),
         `"${(mood.notes || "").replace(/"/g, '""')}"`,
-        new Date(mood.timestamp).toLocaleString(),
+        safeFormatDateTime(new Date(mood.timestamp)),
       ];
       rows.push(row.join(","));
     }
@@ -422,8 +423,8 @@ const convertToPDFHTML = (
   startDate: Date,
   endDate: Date
 ): string => {
-  const exportDate = new Date().toLocaleDateString();
-  const dateRange = `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+  const exportDate = safeFormatDate(new Date());
+  const dateRange = `${safeFormatDate(startDate)} - ${safeFormatDate(endDate)}`;
 
   const totalVitalSamples = data.vitals.reduce(
     (sum, m) => sum + m.samples.length,
@@ -673,7 +674,7 @@ const convertToPDFHTML = (
       // Limit to first 100 aggregated samples to avoid huge PDFs
       const samplesToShow = aggregatedSamples.slice(0, 100);
       for (const aggregated of samplesToShow) {
-        const dateFormatted = new Date(aggregated.date).toLocaleDateString();
+        const dateFormatted = safeFormatDate(new Date(aggregated.date));
 
         html += `
               <tr>
@@ -740,7 +741,7 @@ const convertToPDFHTML = (
               <tr>
                 <td>${symptom.type}</td>
                 <td>${symptom.severity}/5</td>
-                <td>${new Date(symptom.timestamp).toLocaleDateString()}</td>
+                <td>${safeFormatDate(new Date(symptom.timestamp))}</td>
                 <td>${symptom.location || "N/A"}</td>
                 <td>${(symptom.description || "").substring(0, 50)}${(symptom.description || "").length > 50 ? "..." : ""}</td>
               </tr>
@@ -794,8 +795,8 @@ const convertToPDFHTML = (
                 <td>${med.name}</td>
                 <td>${med.dosage}</td>
                 <td>${med.frequency}</td>
-                <td>${new Date(med.startDate).toLocaleDateString()}</td>
-                <td>${med.endDate ? new Date(med.endDate).toLocaleDateString() : "Ongoing"}</td>
+                <td>${safeFormatDate(new Date(med.startDate))}</td>
+                <td>${med.endDate ? safeFormatDate(new Date(med.endDate)) : "Ongoing"}</td>
                 <td>${med.isActive ? "Active" : "Inactive"}</td>
               </tr>
       `;
@@ -836,7 +837,7 @@ const convertToPDFHTML = (
       html += `
               <tr>
                 <td>${history.condition}</td>
-                <td>${history.diagnosedDate ? new Date(history.diagnosedDate).toLocaleDateString() : "Unknown"}</td>
+                <td>${history.diagnosedDate ? safeFormatDate(new Date(history.diagnosedDate)) : "Unknown"}</td>
                 <td>${history.severity || "Not specified"}</td>
                 <td>${history.isFamily ? `Family (${history.relation || "N/A"})` : "Personal"}</td>
                 <td>${(history.notes || "").substring(0, 50)}${(history.notes || "").length > 50 ? "..." : ""}</td>
@@ -895,7 +896,7 @@ const convertToPDFHTML = (
               <tr>
                 <td>${mood.mood}</td>
                 <td>${mood.intensity}/5</td>
-                <td>${new Date(mood.timestamp).toLocaleString()}</td>
+                <td>${safeFormatDateTime(new Date(mood.timestamp))}</td>
                 <td>${(mood.notes || "").substring(0, 50)}${(mood.notes || "").length > 50 ? "..." : ""}</td>
               </tr>
       `;

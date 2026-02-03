@@ -61,6 +61,7 @@ import {
   healthDataService,
   type VitalSigns,
 } from "@/lib/services/healthDataService";
+import { safeFormatNumber, safeFormatTime } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface VitalCard {
@@ -1008,7 +1009,7 @@ export default function VitalsScreen() {
         if (v >= 1000) {
           return `${(v / 1000).toFixed(1)}k`;
         }
-        return v.toLocaleString();
+        return safeFormatNumber(v);
       }),
       unit: "steps",
       trend: "stable",
@@ -1979,8 +1980,8 @@ export default function VitalsScreen() {
                   }
                 >
                   {isRTL
-                    ? `آخر مزامنة: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                    : `Last sync: ${lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                    ? `آخر مزامنة: ${safeFormatTime(lastSync, "ar", { hour: "2-digit", minute: "2-digit" })}`
+                    : `Last sync: ${safeFormatTime(lastSync, "en-US", { hour: "2-digit", minute: "2-digit" })}`}
                 </Text>
               </>
             )}

@@ -27,6 +27,7 @@ import openaiService, {
 } from "../lib/services/openaiService";
 import { voiceService } from "../lib/services/voiceService";
 import ChatMessage from "./components/ChatMessage";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 interface ChatSession {
   id: string;
@@ -266,7 +267,7 @@ export default function AIAssistant() {
         const words = firstUserMessage.content.split(" ").slice(0, 5);
         title = words.join(" ") + (words.length >= 5 ? "..." : "");
       } else {
-        title = `${t("healthChat", "Health Chat")} ${new Date().toLocaleDateString()}`;
+        title = `${t("healthChat", "Health Chat")} ${safeFormatDate(new Date())}`;
       }
 
       const sessionData = {

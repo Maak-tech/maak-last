@@ -14,6 +14,7 @@ import {
   type PatternInsight,
   type WeeklySummary,
 } from "./healthInsightsService";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 export interface HealthContext {
   profile: {
@@ -198,8 +199,9 @@ class HealthContextService {
               name: data.name || "Unknown medication",
               dosage: data.dosage || "",
               frequency: data.frequency || "",
-              startDate: data.startDate?.toDate?.()?.toLocaleDateString() || "",
-              endDate: data.endDate?.toDate?.()?.toLocaleDateString() || "",
+              startDate:
+                safeFormatDate(data.startDate?.toDate?.()) || "",
+              endDate: safeFormatDate(data.endDate?.toDate?.()) || "",
               notes: data.notes || "",
               isActive: data.isActive !== false,
               reminders: data.reminders || [],
@@ -223,7 +225,7 @@ class HealthContextService {
             name: data.name || data.symptom || "Unknown symptom",
             severity: data.severity || "moderate",
             date:
-              data.timestamp?.toDate?.()?.toLocaleDateString() ||
+              safeFormatDate(data.timestamp?.toDate?.()) ||
               data.date ||
               "",
             bodyPart: data.bodyPart || data.location || "",
@@ -243,8 +245,7 @@ class HealthContextService {
           const data = doc.data();
           const entry = {
             condition: data.condition || data.name || "",
-            diagnosedDate:
-              data.diagnosedDate?.toDate?.()?.toLocaleDateString() || "",
+            diagnosedDate: safeFormatDate(data.diagnosedDate?.toDate?.()) || "",
             status: data.status || "ongoing",
             notes: data.notes || "",
             relationship: data.relationship || "",
@@ -788,7 +789,7 @@ ${
         .slice(0, 5)
         .map(
           (alert) =>
-            `• ${alert.timestamp.toLocaleDateString()}: ${alert.type} - ${alert.details}`
+            `• ${safeFormatDate(alert.timestamp)}: ${alert.type} - ${alert.details}`
         )
         .join("\n")
     : ""
@@ -797,7 +798,7 @@ ${
 ${
   context.vitalSigns.lastUpdated
     ? `
-${isArabic ? "العلامات الحيوية الأخيرة" : "RECENT VITAL SIGNS"} (${context.vitalSigns.lastUpdated.toLocaleDateString()}):
+${isArabic ? "العلامات الحيوية الأخيرة" : "RECENT VITAL SIGNS"} (${safeFormatDate(context.vitalSigns.lastUpdated)}):
 • ${isArabic ? "معدل ضربات القلب" : "Heart Rate"}: ${context.vitalSigns.heartRate || (isArabic ? "غير مسجل" : "Not recorded")} bpm
 • ${isArabic ? "ضغط الدم" : "Blood Pressure"}: ${context.vitalSigns.bloodPressure || (isArabic ? "غير مسجل" : "Not recorded")}
 • ${isArabic ? "درجة الحرارة" : "Temperature"}: ${context.vitalSigns.temperature || (isArabic ? "غير مسجل" : "Not recorded")}°F

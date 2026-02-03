@@ -4,6 +4,8 @@
  */
 
 import { Platform } from "react-native";
+import { isFirebaseReady } from "@/lib/firebase";
+import { observabilityEmitter } from "@/lib/observability";
 import { logger } from "./logger";
 
 // Store original handlers
@@ -37,10 +39,12 @@ function handleGlobalError(error: Error, isFatal = false) {
       return;
     }
 
+    const stack = error?.stack ? error.stack.slice(0, 2000) : undefined;
+
     // For all other errors, log them before passing to original handler
     const errorDetails = {
       message: errorMessage,
-      stack: error?.stack,
+      stack,
       name: error?.name,
       isFatal,
       platform: Platform.OS,
@@ -56,12 +60,36 @@ function handleGlobalError(error: Error, isFatal = false) {
     console.error("Stack:", error?.stack);
     console.error("===========================");
 
-    // TODO: Send to crash reporting service (Sentry, Crashlytics, etc.)
-    // Example:
-    // Sentry.captureException(error, {
-    //   tags: { isFatal, platform: Platform.OS },
-    //   extra: errorDetails,
-    // });
+    // Forward fatal errors to Firestore-based observability for production visibility.
+    try {
+      if (isFirebaseReady()) {
+        void observabilityEmitter.emitPlatformEvent(
+          isFatal ? "js_fatal_error" : "js_error",
+          errorMessage || "Unknown JS error",
+          {
+            source: "error_handler",
+            severity: isFatal ? "critical" : "error",
+            status: "failure",
+            error: {
+              code: error?.name,
+              message: errorMessage || "Unknown JS error",
+              stack,
+            },
+            metadata: {
+              eventType: isFatal ? "fatal" : "non_fatal",
+              source: "global_error_handler",
+              stack,
+            },
+          }
+        );
+      }
+    } catch (reportError) {
+      logger.error(
+        "Failed to report global error to observability",
+        reportError,
+        "ErrorHandler"
+      );
+    }
 
     // Call original handler if it exists (this is the TextImpl handler)
     if (originalErrorHandler) {
@@ -81,9 +109,10 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
   try {
     const error =
       event?.reason || event?.error || new Error("Unhandled Promise Rejection");
+    const stack = error?.stack ? error.stack.slice(0, 2000) : undefined;
     const errorDetails = {
       message: error?.message || String(error),
-      stack: error?.stack,
+      stack,
       name: error?.name,
       platform: Platform.OS,
       timestamp: new Date().toISOString(),
@@ -97,11 +126,36 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
     console.error("Event:", event);
     console.error("===================================");
 
-    // TODO: Send to crash reporting service
-    // Sentry.captureException(error, {
-    //   tags: { type: "promise_rejection", platform: Platform.OS },
-    //   extra: errorDetails,
-    // });
+    // Forward unhandled rejections to Firestore-based observability.
+    try {
+      if (isFirebaseReady()) {
+        void observabilityEmitter.emitPlatformEvent(
+          "js_unhandled_rejection",
+          error?.message || "Unhandled Promise Rejection",
+          {
+            source: "error_handler",
+            severity: "error",
+            status: "failure",
+            error: {
+              code: error?.name,
+              message: error?.message || "Unhandled Promise Rejection",
+              stack,
+            },
+            metadata: {
+              eventType: "unhandled_promise_rejection",
+              source: "promise_rejection_handler",
+              stack,
+            },
+          }
+        );
+      }
+    } catch (reportError) {
+      logger.error(
+        "Failed to report promise rejection to observability",
+        reportError,
+        "ErrorHandler"
+      );
+    }
 
     // Call original handler if it exists
     if (originalPromiseRejectionHandler) {

@@ -14,6 +14,7 @@ import { alertService } from "@/lib/services/alertService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import type { EmergencyAlert, User } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 interface AlertsCardProps {
   refreshTrigger?: number;
@@ -269,7 +270,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     if (minutes < 1) return isRTL ? "الآن" : "now";
     if (minutes < 60) return isRTL ? `منذ ${minutes}د` : `${minutes}m ago`;
     if (hours < 24) return isRTL ? `منذ ${hours}س` : `${hours}h ago`;
-    return timestamp.toLocaleDateString();
+    return safeFormatDate(timestamp);
   };
 
   const renderAlert = ({ item }: { item: EmergencyAlert }) => {

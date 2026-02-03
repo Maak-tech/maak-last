@@ -41,6 +41,11 @@ import {
   type TimelineEvent,
   timelineService,
 } from "@/lib/services/timelineService";
+import {
+  safeFormatDate,
+  safeFormatDateTime,
+  safeFormatTime,
+} from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 type ViewMode = "day" | "week" | "month" | "year";
@@ -393,34 +398,37 @@ export default function TimelineScreen() {
   const formatDateRange = () => {
     switch (viewMode) {
       case "day":
-        return currentDate.toLocaleDateString(
-          isRTL ? "ar-u-ca-gregory" : "en-US",
-          {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          }
-        );
+        return safeFormatDate(currentDate, isRTL ? "ar-u-ca-gregory" : "en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
       case "week": {
         const weekStart = new Date(currentDate);
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        return `${weekStart.toLocaleDateString(
+        return `${safeFormatDate(
+          weekStart,
           isRTL ? "ar-u-ca-gregory" : "en-US",
           {
             month: "short",
             day: "numeric",
           }
-        )} - ${weekEnd.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })}`;
+        )} - ${safeFormatDate(
+          weekEnd,
+          isRTL ? "ar-u-ca-gregory" : "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          }
+        )}`;
       }
       case "month":
-        return currentDate.toLocaleDateString(
+        return safeFormatDate(
+          currentDate,
           isRTL ? "ar-u-ca-gregory" : "en-US",
           {
             month: "long",
@@ -653,7 +661,8 @@ export default function TimelineScreen() {
                     }
                     weight="bold"
                   >
-                    {date.toLocaleDateString(
+                    {safeFormatDate(
+                      date,
                       isRTL ? "ar-u-ca-gregory" : "en-US",
                       {
                         weekday: "long",
@@ -728,7 +737,8 @@ export default function TimelineScreen() {
                               numberOfLines={1}
                               style={styles.eventTime as TextStyle}
                             >
-                              {event.timestamp.toLocaleTimeString(
+                              {safeFormatTime(
+                                event.timestamp,
                                 isRTL ? "ar" : "en-US",
                                 {
                                   hour: "2-digit",
@@ -877,7 +887,8 @@ export default function TimelineScreen() {
                     numberOfLines={1}
                     style={[styles.rtlText as TextStyle] as any}
                   >
-                    {selectedEvent.timestamp.toLocaleString(
+                    {safeFormatDateTime(
+                      selectedEvent.timestamp,
                       isRTL ? "ar" : "en-US"
                     )}
                   </Caption>

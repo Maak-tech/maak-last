@@ -19,6 +19,7 @@ import {
 } from "@/lib/services/healthInsightsService";
 import { userService } from "@/lib/services/userService";
 import type { User } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 interface HealthInsightsCardProps {
   onViewDetails?: () => void;
@@ -168,7 +169,7 @@ export default function HealthInsightsCard({
   };
 
   const formatDate = (date: Date) =>
-    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
+    safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       month: "short",
       day: "numeric",
     });

@@ -6,6 +6,7 @@ import { medicationService } from "./medicationService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import { symptomService } from "./symptomService";
 import { userService } from "./userService";
+import { safeFormatTime } from "@/utils/dateFormat";
 
 export interface CaregiverDashboardData {
   member: User;
@@ -222,7 +223,7 @@ class CaregiverDashboardService {
       const nextMedication = nextEntry
         ? {
             name: nextEntry.medication.name,
-            time: nextEntry.nextDose!.toLocaleTimeString("en-US", {
+            time: safeFormatTime(nextEntry.nextDose, "en-US", {
               hour: "2-digit",
               minute: "2-digit",
             }),

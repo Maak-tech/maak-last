@@ -41,6 +41,7 @@ const ALLOWED_METADATA_KEYS = new Set([
   "count",
   "retryCount",
   "latencyMs",
+  "stack",
 ]);
 
 const PHI_PATTERNS = [

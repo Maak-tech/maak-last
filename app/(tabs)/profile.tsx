@@ -86,6 +86,11 @@ import type {
   RecurrencePattern,
   Symptom,
 } from "@/types";
+import {
+  safeFormatDate,
+  safeFormatDateTime,
+  safeFormatTime,
+} from "@/utils/dateFormat";
 
 interface ProfileSectionItem {
   icon: any;
@@ -582,7 +587,7 @@ export default function ProfileScreen() {
     new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
   const formatMonthYear = (date: Date) =>
-    date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
+    safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       month: "long",
       year: "numeric",
     });
@@ -621,7 +626,7 @@ export default function ProfileScreen() {
     });
 
   const formatTime = (date: Date) =>
-    date.toLocaleTimeString(isRTL ? "ar" : "en-US", {
+    safeFormatTime(date, isRTL ? "ar" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -2067,8 +2072,8 @@ export default function ProfileScreen() {
           >
             <Heading level={6} style={{ marginBottom: 16 }}>
               {isRTL
-                ? `الأحداث في ${calendarSelectedDate.toLocaleDateString("ar-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}`
-                : `Events on ${calendarSelectedDate.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`}
+                ? `الأحداث في ${safeFormatDate(calendarSelectedDate, "ar-u-ca-gregory", { day: "numeric", month: "long", year: "numeric" })}`
+                : `Events on ${safeFormatDate(calendarSelectedDate, "en-US", { day: "numeric", month: "long", year: "numeric" })}`}
             </Heading>
 
             {calendarLoading ? (
@@ -2234,11 +2239,12 @@ export default function ProfileScreen() {
                     {isRTL ? "التاريخ والوقت" : "Date & Time"}
                   </TypographyText>
                   <Caption numberOfLines={1} style={{}}>
-                    {selectedEvent.startDate.toLocaleString(
+                    {safeFormatDateTime(
+                      selectedEvent.startDate,
                       isRTL ? "ar-u-ca-gregory" : "en-US"
                     )}
                     {selectedEvent.endDate &&
-                      ` - ${selectedEvent.endDate.toLocaleString(isRTL ? "ar-u-ca-gregory" : "en-US")}`}
+                      ` - ${safeFormatDateTime(selectedEvent.endDate, isRTL ? "ar-u-ca-gregory" : "en-US")}`}
                   </Caption>
                 </View>
                 {selectedEvent.location && (
@@ -2505,14 +2511,11 @@ export default function ProfileScreen() {
                       size={16}
                     />
                     <Text style={{ color: theme.colors.text.primary, flex: 1 }}>
-                      {eventStartDate.toLocaleDateString(
-                        isRTL ? "ar" : "en-US",
-                        {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        }
-                      )}
+                      {safeFormatDate(eventStartDate, isRTL ? "ar" : "en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
                     </Text>
                   </TouchableOpacity>
                   {!eventAllDay && (
@@ -2594,7 +2597,7 @@ export default function ProfileScreen() {
                         style={{ color: theme.colors.text.primary, flex: 1 }}
                       >
                         {eventEndDate
-                          ? eventEndDate.toLocaleDateString(
+                          ? safeFormatDate(eventEndDate, 
                               isRTL ? "ar" : "en-US",
                               {
                                 year: "numeric",
@@ -2855,7 +2858,7 @@ export default function ProfileScreen() {
                           : theme.colors.text.primary,
                       }}
                     >
-                      {date.toLocaleDateString(
+                      {safeFormatDate(date, 
                         isRTL ? "ar-u-ca-gregory" : "en-US",
                         {
                           weekday: "long",
@@ -3081,7 +3084,7 @@ export default function ProfileScreen() {
                           : theme.colors.text.primary,
                       }}
                     >
-                      {date.toLocaleDateString(
+                      {safeFormatDate(date, 
                         isRTL ? "ar-u-ca-gregory" : "en-US",
                         {
                           weekday: "long",

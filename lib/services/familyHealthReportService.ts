@@ -16,6 +16,7 @@ import { moodService } from "./moodService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import { symptomService } from "./symptomService";
 import { userService } from "./userService";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 export interface ReportPrivacySettings {
   includeSymptoms: boolean;
@@ -437,7 +438,7 @@ class FamilyHealthReportService {
         } else {
           return date?.toString() || "N/A";
         }
-        return dateObj.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US");
+        return safeFormatDate(dateObj, isRTL ? "ar-u-ca-gregory" : "en-US");
       } catch {
         return date?.toString() || "N/A";
       }
@@ -730,7 +731,7 @@ class FamilyHealthReportService {
         } else {
           return date?.toString() || "N/A";
         }
-        return dateObj.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US");
+        return safeFormatDate(dateObj, isRTL ? "ar-u-ca-gregory" : "en-US");
       } catch {
         return date?.toString() || "N/A";
       }

@@ -24,6 +24,7 @@ import {
   type SearchFilters,
   type SearchResult,
 } from "@/lib/services/globalSearchService";
+import { safeFormatDate } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function GlobalSearchScreen() {
@@ -311,7 +312,7 @@ export default function GlobalSearchScreen() {
         </Text>
 
         <Text style={styles.resultTimestamp as TextStyle}>
-          {item.timestamp.toLocaleDateString()}
+          {safeFormatDate(item.timestamp)}
         </Text>
       </Card>
     </TouchableOpacity>

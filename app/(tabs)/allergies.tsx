@@ -28,6 +28,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { allergyService } from "@/lib/services/allergyService";
 import { userService } from "@/lib/services/userService";
 import type { Allergy, User as UserType } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 // Allergy keys mapping to translation keys
 const ALLERGY_KEYS = [
@@ -322,7 +323,7 @@ export default function AllergiesScreen() {
         dateObj = new Date(date);
       }
       if (isNaN(dateObj.getTime())) return "";
-      return dateObj.toLocaleDateString([], {
+      return safeFormatDate(dateObj, undefined, {
         year: "numeric",
         month: "short",
         day: "numeric",

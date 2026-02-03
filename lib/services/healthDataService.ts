@@ -12,6 +12,7 @@ import {
 import { Platform } from "react-native";
 import { auth, db } from "@/lib/firebase";
 import { appleHealthService } from "./appleHealthService";
+import { safeFormatNumber } from "@/utils/dateFormat";
 
 // iOS HealthKit permissions - legacy format (not used with @kingstinct/react-native-healthkit)
 const HealthKitPermissions = {
@@ -1117,7 +1118,7 @@ export const healthDataService = {
       heartRate: vitals.heartRate
         ? `${Math.round(vitals.heartRate)} BPM`
         : "N/A",
-      steps: vitals.steps ? vitals.steps.toLocaleString() : "N/A",
+      steps: vitals.steps ? safeFormatNumber(vitals.steps) : "N/A",
       sleep: vitals.sleepHours ? `${vitals.sleepHours.toFixed(1)}h` : "N/A",
       weight: vitals.weight ? `${vitals.weight.toFixed(1)} kg` : "N/A",
       bloodPressure: vitals.bloodPressure

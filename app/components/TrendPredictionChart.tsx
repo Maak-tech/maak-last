@@ -6,6 +6,7 @@ import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Caption, Heading } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { TrendPrediction } from "@/lib/services/chartsService";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 interface TrendPredictionChartProps {
   prediction: TrendPrediction;
@@ -31,7 +32,7 @@ export default function TrendPredictionChart({
   const allLabels = [
     ...prediction.historical.map((p) =>
       typeof p.x === "string"
-        ? new Date(p.x).toLocaleDateString(locale, {
+        ? safeFormatDate(new Date(p.x), locale, {
             month: "short",
             day: "numeric",
           })
@@ -39,7 +40,7 @@ export default function TrendPredictionChart({
     ),
     ...prediction.predicted.map((p) =>
       typeof p.x === "string"
-        ? new Date(p.x).toLocaleDateString(locale, {
+        ? safeFormatDate(new Date(p.x), locale, {
             month: "short",
             day: "numeric",
           })

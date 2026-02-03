@@ -22,6 +22,7 @@ import {
   type HealthTrend,
   healthSummaryService,
 } from "@/lib/services/healthSummaryService";
+import { safeFormatDate } from "@/utils/dateFormat";
 import { getTextStyle } from "@/utils/styles";
 
 export default function HealthSummaryScreen() {
@@ -294,23 +295,18 @@ export default function HealthSummaryScreen() {
   };
 
   const formatDateRange = (start: Date, end: Date): string => {
-    const options: Intl.DateTimeFormatOptions = {
+    const options = {
       month: "short",
       day: "numeric",
       year:
         start.getFullYear() !== new Date().getFullYear()
           ? "numeric"
           : undefined,
-    };
+    } as const;
 
-    const startStr = start.toLocaleDateString(
-      isRTL ? "ar-u-ca-gregory" : "en-US",
-      options
-    );
-    const endStr = end.toLocaleDateString(
-      isRTL ? "ar-u-ca-gregory" : "en-US",
-      options
-    );
+    const locale = isRTL ? "ar-u-ca-gregory" : "en-US";
+    const startStr = safeFormatDate(start, locale, options);
+    const endStr = safeFormatDate(end, locale, options);
 
     return `${startStr} - ${endStr}`;
   };

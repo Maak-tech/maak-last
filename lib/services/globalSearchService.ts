@@ -2,6 +2,7 @@ import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
 import { symptomService } from "./symptomService";
 import { userService } from "./userService";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 export interface SearchResult {
   id: string;
@@ -145,7 +146,7 @@ class GlobalSearchService {
             id: symptom.id,
             type: "symptom",
             title: symptom.type,
-            subtitle: `Severity: ${symptom.severity}/5 • ${symptom.timestamp.toLocaleDateString()}`,
+            subtitle: `Severity: ${symptom.severity}/5 • ${safeFormatDate(symptom.timestamp)}`,
             description: symptom.description || "No description",
             timestamp: symptom.timestamp,
             relevance,
@@ -189,7 +190,7 @@ class GlobalSearchService {
             id: mood.id,
             type: "mood",
             title: this.getMoodLabel(mood.intensity),
-            subtitle: `${mood.timestamp.toLocaleDateString()} • ${mood.mood}`,
+            subtitle: `${safeFormatDate(mood.timestamp)} • ${mood.mood}`,
             description: mood.notes || "No notes",
             timestamp: mood.timestamp,
             relevance,

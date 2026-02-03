@@ -21,6 +21,7 @@ import {
   symptomPatternRecognitionService,
 } from "./symptomPatternRecognitionService";
 import { symptomService } from "./symptomService";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 const SYMPTOM_FETCH_LIMIT = 50;
 
@@ -621,10 +622,14 @@ class AIInsightsService {
     );
 
     if (dashboard.riskAssessment.nextAssessmentDate) {
+      const assessmentDate = safeFormatDate(
+        dashboard.riskAssessment.nextAssessmentDate,
+        isArabic ? "ar-u-ca-gregory" : "en-US"
+      );
       monitoring.push(
         isArabic
-          ? `التقييم الشامل التالي: ${dashboard.riskAssessment.nextAssessmentDate.toLocaleDateString(isArabic ? "ar-u-ca-gregory" : "en-US")}`
-          : `Next comprehensive assessment: ${dashboard.riskAssessment.nextAssessmentDate.toLocaleDateString()}`
+          ? `التقييم الشامل التالي: ${assessmentDate}`
+          : `Next comprehensive assessment: ${assessmentDate}`
       );
     }
 

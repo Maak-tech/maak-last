@@ -30,6 +30,7 @@ import { useRevenueCat } from "@/hooks/useRevenueCat";
 import { useSubscription } from "@/hooks/useSubscription";
 import { userService } from "@/lib/services/userService";
 import type { User as UserType } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
@@ -184,7 +185,7 @@ export default function AdminSettingsScreen() {
 
   const formatDate = (date: Date | null) => {
     if (!date) return isRTL ? "غير محدد" : "Not specified";
-    return date.toLocaleDateString(isRTL ? "ar-u-ca-gregory" : "en-US", {
+    return safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",

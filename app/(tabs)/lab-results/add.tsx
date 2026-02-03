@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { labResultService } from "@/lib/services/labResultService";
 import type { LabResult, LabResultValue } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 const COMMON_LABS: Array<{
@@ -632,7 +633,7 @@ export default function AddLabResultScreen() {
             placeholder={isRTL ? "تاريخ الاختبار" : "Test Date"}
             placeholderTextColor={theme.colors.text.secondary}
             style={[styles.input, isRTL && styles.rtlText]}
-            value={testDate.toLocaleDateString()}
+            value={safeFormatDate(testDate)}
           />
           <Caption numberOfLines={2} style={[styles.rtlText, { marginTop: 4 }]}>
             {isRTL

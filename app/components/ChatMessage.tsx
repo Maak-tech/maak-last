@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { safeFormatTime } from "@/utils/dateFormat";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -94,7 +95,7 @@ export default function ChatMessage({
         </Text>
         {timestamp && (
           <Text style={styles.timestamp}>
-            {timestamp.toLocaleTimeString([], {
+            {safeFormatTime(timestamp, [], {
               hour: "2-digit",
               minute: "2-digit",
             })}

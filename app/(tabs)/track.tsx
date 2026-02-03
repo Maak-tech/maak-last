@@ -38,6 +38,7 @@ import { medicationService } from "@/lib/services/medicationService";
 import { moodService } from "@/lib/services/moodService";
 import { symptomService } from "@/lib/services/symptomService";
 import type { Allergy, MedicalHistory, Mood, Symptom } from "@/types";
+import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function TrackScreen() {
@@ -491,7 +492,7 @@ export default function TrackScreen() {
     } else {
       return "";
     }
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return safeFormatTime(date, undefined, { hour: "2-digit", minute: "2-digit" });
   };
 
   const getMoodEmoji = (moodType: string) => {
@@ -1690,7 +1691,7 @@ export default function TrackScreen() {
                         }
                       >
                         {history.diagnosedDate
-                          ? new Date(history.diagnosedDate).toLocaleDateString()
+                          ? safeFormatDate(history.diagnosedDate)
                           : isRTL
                             ? "بدون تاريخ"
                             : "No date"}{" "}

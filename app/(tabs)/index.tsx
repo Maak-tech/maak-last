@@ -47,6 +47,11 @@ import { symptomService } from "@/lib/services/symptomService";
 import { userService } from "@/lib/services/userService";
 import { logger } from "@/lib/utils/logger";
 import type { Medication, Symptom, User as UserType } from "@/types";
+import {
+  safeFormatDate,
+  safeFormatDateTime,
+  safeFormatTime,
+} from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function DashboardScreen() {
@@ -936,7 +941,7 @@ export default function DashboardScreen() {
       return "";
     }
 
-    return dateObj.toLocaleTimeString([], {
+    return safeFormatTime(dateObj, undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -974,11 +979,28 @@ export default function DashboardScreen() {
     if (symptomDate.getTime() === yesterday.getTime()) {
       return isRTL ? "أمس" : "Yesterday";
     }
-    return new Intl.DateTimeFormat(isRTL ? "ar-u-ca-gregory" : "en-US", {
+    return safeFormatDate(dateObj, isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }).format(dateObj);
+    });
+  };
+
+  const formatDateTime = (date: Date | string | any) => {
+    let dateObj: Date;
+    if (date instanceof Date) {
+      dateObj = date;
+    } else if (date?.toDate && typeof date.toDate === "function") {
+      dateObj = date.toDate();
+    } else {
+      dateObj = new Date(date);
+    }
+
+    if (isNaN(dateObj.getTime())) {
+      return "";
+    }
+
+    return safeFormatDateTime(dateObj, isRTL ? "ar" : "en-US");
   };
 
   const getSeverityColor = (severity: number) =>
@@ -2008,7 +2030,7 @@ export default function DashboardScreen() {
                       ]
                     }
                   >
-                    {new Date().toLocaleDateString("ar-u-ca-gregory", {
+                    {safeFormatDate(new Date(), "ar-u-ca-gregory", {
                       weekday: "long",
                       year: "numeric",
                       month: "long",
@@ -2048,7 +2070,7 @@ export default function DashboardScreen() {
                       ]
                     }
                   >
-                    {new Date().toLocaleDateString("en-US", {
+                    {safeFormatDate(new Date(), "en-US", {
                       weekday: "long",
                       year: "numeric",
                       month: "long",
@@ -2248,7 +2270,7 @@ export default function DashboardScreen() {
                                 ]
                               }
                             >
-                              {alert.timestamp.toLocaleString()}
+                            {formatDateTime(alert.timestamp)}
                             </Text>
                           </View>
                           <TouchableOpacity
