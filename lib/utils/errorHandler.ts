@@ -63,7 +63,13 @@ function handleGlobalError(error: Error, isFatal = false) {
     // Forward fatal errors to Firestore-based observability for production visibility.
     try {
       if (isFirebaseReady()) {
-        void observabilityEmitter.emitPlatformEvent(
+        const emit =
+          isFatal &&
+          typeof observabilityEmitter.emitImmediatePlatformEvent === "function"
+            ? observabilityEmitter.emitImmediatePlatformEvent
+            : observabilityEmitter.emitPlatformEvent;
+
+        void emit(
           isFatal ? "js_fatal_error" : "js_error",
           errorMessage || "Unknown JS error",
           {

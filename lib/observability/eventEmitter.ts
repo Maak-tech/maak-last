@@ -233,6 +233,54 @@ class ObservabilityEventEmitter {
     return correlationId;
   }
 
+  async emitImmediate(
+    event: Omit<ObservabilityEvent, "id" | "timestamp">
+  ): Promise<string> {
+    if (!this.isEnabled) return "";
+
+    const correlationId = event.correlationId || generateCorrelationId();
+    const fullEvent: ObservabilityEvent = {
+      ...event,
+      timestamp: new Date(),
+      correlationId,
+    };
+
+    try {
+      await addDoc(
+        collection(db, EVENTS_COLLECTION),
+        sanitizeForFirestore(fullEvent as any)
+      );
+    } catch (error) {
+      logger.error(
+        "Failed to emit observability event immediately",
+        error,
+        "ObservabilityEmitter"
+      );
+    }
+
+    if (event.severity === "error" || event.severity === "critical") {
+      logger.error(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    } else if (event.severity === "warn") {
+      logger.warn(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    } else {
+      logger.info(
+        `[${event.domain}] ${event.message}`,
+        event.metadata,
+        event.source
+      );
+    }
+
+    return correlationId;
+  }
+
   async emitHealthEvent(
     eventType: string,
     message: string,
@@ -334,6 +382,35 @@ class ObservabilityEventEmitter {
     };
 
     return this.emit(event);
+  }
+
+  async emitImmediatePlatformEvent(
+    eventType: string,
+    message: string,
+    options: {
+      source: string;
+      severity?: EventSeverity;
+      status?: EventStatus;
+      durationMs?: number;
+      error?: { code?: string; message: string; stack?: string };
+      correlationId?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<string> {
+    const event: Omit<ObservabilityEvent, "id" | "timestamp"> = {
+      eventType,
+      domain: "platform",
+      severity: options.severity || "info",
+      status: options.status || "success",
+      message,
+      source: options.source,
+      durationMs: options.durationMs,
+      error: options.error,
+      correlationId: options.correlationId,
+      metadata: options.metadata,
+    };
+
+    return this.emitImmediate(event);
   }
 
   async recordMetric(
