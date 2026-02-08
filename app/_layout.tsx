@@ -25,7 +25,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { AppState, I18nManager, NativeModules, Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 // Initialize React Native Firebase early (must be imported before any Firebase operations)
 // This ensures the default Firebase app is initialized from native config files
@@ -85,54 +85,6 @@ export default function RootLayout() {
     AppState.currentState === "active"
   );
   const backgroundLaunchLoggedRef = useRef(false);
-
-  // Set RTL direction based on current language
-  useEffect(() => {
-    if (!isAppActive) return;
-
-    const updateRTL = () => {
-      const isRTL = i18n.language === "ar";
-      if (Platform.OS === "android" || Platform.OS === "ios") {
-        // Only update if RTL state has changed
-        if (I18nManager.isRTL !== isRTL) {
-          try {
-            I18nManager.forceRTL(isRTL);
-            I18nManager.allowRTL(isRTL);
-          } catch {
-            // Silently handle environments where RTL toggling isn't supported
-          }
-
-          // On Android, RTL changes require a reload
-          if (
-            Platform.OS === "android" &&
-            NativeModules.UIManager?.setLayoutAnimationEnabledExperimental
-          ) {
-            try {
-              NativeModules.UIManager.setLayoutAnimationEnabledExperimental(
-                true
-              );
-            } catch {
-              // Silently handle environments where this isn't supported
-            }
-          }
-        }
-      }
-    };
-
-    // Update on mount
-    updateRTL();
-
-    // Listen for language changes
-    const languageChangeHandler = () => {
-      updateRTL();
-    };
-
-    i18n.on("languageChanged", languageChangeHandler);
-
-    return () => {
-      i18n.off("languageChanged", languageChangeHandler);
-    };
-  }, [isAppActive]);
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && hasBeenActive) {

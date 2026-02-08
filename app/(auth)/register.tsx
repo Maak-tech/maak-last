@@ -44,7 +44,7 @@ export default function RegisterScreen() {
     : View;
   const keyboardContainerProps = keyboardAvoidanceEnabled
     ? {
-        behavior: Platform.OS === "ios" ? "padding" : undefined,
+        behavior: Platform.OS === "ios" ? ("padding" as const) : undefined,
         keyboardVerticalOffset: Platform.OS === "ios" ? 0 : 20,
       }
     : {};
