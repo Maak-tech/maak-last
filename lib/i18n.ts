@@ -2268,16 +2268,16 @@ const resources = {
 
 // Helper function to set RTL layout direction
 const setRTL = (isRTL: boolean) => {
-  if (!(Platform.OS === "android" || Platform.OS === "ios")) {
+  // Avoid runtime layout-direction mutations on iOS because they can destabilize
+  // UIKit trait propagation in production/TestFlight builds.
+  if (Platform.OS !== "android") {
     return;
   }
 
   try {
-    // Keep RTL allowed on mobile without mutating UIKit layout direction at runtime on iOS.
+    // Android supports runtime RTL mutation.
     I18nManager.allowRTL(true);
-
-    // Android can safely toggle forceRTL, but iOS runtime forceRTL can destabilize trait updates.
-    if (Platform.OS === "android" && I18nManager.isRTL !== isRTL) {
+    if (I18nManager.isRTL !== isRTL) {
       I18nManager.forceRTL(isRTL);
     }
   } catch {

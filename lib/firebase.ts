@@ -193,32 +193,42 @@ try {
   // If initialization fails, try to get existing app as fallback
   try {
     app = getApp();
-  } catch (fallbackError) {
+  } catch {
     // On native platforms, React Native Firebase might be the only option
     if (Platform.OS !== "web" && rnFirebaseApp) {
-      // Don't throw error - React Native Firebase will handle auth
-      // The web SDK app might not be needed if using RN Firebase exclusively
+      // Continue with a guarded fallback web app initialization below.
+      // Do not crash startup.
     } else {
-      throw new Error(
-        `Firebase initialization failed: ${error?.message || "Unknown error"}. Please check your environment variables and Firebase configuration.`
-      );
+      // Continue with a guarded fallback web app initialization below.
+      // Do not crash startup.
     }
   }
 }
 
-// Ensure app is initialized (unless we're on native and using RN Firebase exclusively)
-if (!app && Platform.OS === "web") {
-  throw new Error(
-    "Firebase app initialization failed. Please check your Firebase configuration."
-  );
-}
+// Ensure we always have a Firebase app instance, even if configuration is degraded.
+const getSafeApp = (): ReturnType<typeof initializeApp> => {
+  if (app) return app;
 
-// Type guard: ensure app is defined before use
-if (!app) {
-  throw new Error(
-    "Firebase app is not initialized. Please check your Firebase configuration."
-  );
-}
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    app = existingApps[0];
+    return app;
+  }
+
+  // Last-resort fallback to avoid hard startup crashes.
+  app = initializeApp({
+    apiKey: apiKey || "missing-api-key",
+    authDomain: authDomain || "localhost",
+    projectId: projectId || "missing-project-id",
+    storageBucket: storageBucket || "missing-storage-bucket",
+    messagingSenderId: messagingSenderId || "000000000000",
+    appId: appId || "missing-app-id",
+    measurementId,
+  });
+  return app;
+};
+
+const safeApp = getSafeApp();
 
 // Initialize Auth with platform-appropriate persistence
 // For web: use browserLocalPersistence
@@ -227,24 +237,21 @@ let auth: Auth;
 try {
   if (Platform.OS === "web") {
     // For web, use browserLocalPersistence
-    if (!app) {
-      throw new Error("Firebase app is not initialized");
-    }
     try {
-      auth = initializeAuth(app, {
+      auth = initializeAuth(safeApp, {
         persistence: browserLocalPersistence,
       });
     } catch (error: any) {
       // If auth is already initialized (e.g., during hot reload), use getAuth instead
       if (error.code === "auth/already-initialized") {
-        auth = getAuth(app);
+        auth = getAuth(safeApp);
         // Set persistence explicitly for existing auth instance
         setPersistence(auth, browserLocalPersistence).catch(() => {
           // Silently handle persistence errors
         });
       } else {
         // Fallback to getAuth if initialization fails
-        auth = getAuth(app);
+        auth = getAuth(safeApp);
         setPersistence(auth, browserLocalPersistence).catch(() => {
           // Silently handle persistence errors
         });
@@ -252,32 +259,26 @@ try {
     }
   } else {
     // For React Native (iOS/Android), use initializeAuth with AsyncStorage persistence
-    if (!app) {
-      throw new Error("Firebase app is not initialized");
-    }
     try {
-      auth = initializeAuth(app, {
+      auth = initializeAuth(safeApp, {
         persistence: getReactNativePersistence(ReactNativeAsyncStorage),
       });
     } catch (error: any) {
       // If auth is already initialized (e.g., during hot reload), use getAuth instead
       if (error.code === "auth/already-initialized") {
-        auth = getAuth(app);
+        auth = getAuth(safeApp);
       } else {
-        auth = getAuth(app);
+        auth = getAuth(safeApp);
       }
     }
   }
 } catch (error) {
   // Final fallback: use getAuth
-  auth = getAuth(app);
+  auth = getAuth(safeApp);
 }
 
 export { auth };
-if (!app) {
-  throw new Error("Firebase app is not initialized");
-}
-const initializedApp = app as ReturnType<typeof initializeApp>;
+const initializedApp = safeApp;
 export const db = getFirestore(initializedApp);
 export const storage = getStorage(initializedApp);
 export const functions = getFunctions(initializedApp, "us-central1");
