@@ -262,8 +262,8 @@ class HealthAnalyticsService {
         vitalType,
         mean,
         standardDeviation,
-        min: values[0],
-        max: values.at(-1),
+        min: values[0] ?? 0,
+        max: values.at(-1) ?? 0,
         sampleCount: values.length,
         lastUpdated: new Date(),
         percentiles: {
@@ -303,7 +303,7 @@ class HealthAnalyticsService {
     const weight = index - lower;
 
     if (upper >= sortedValues.length) {
-      return sortedValues.at(-1);
+      return sortedValues.at(-1) ?? 0;
     }
     if (lower < 0) {
       return sortedValues[0];
@@ -442,6 +442,9 @@ class HealthAnalyticsService {
       }
 
       const latestReading = readings.at(-1);
+      if (!latestReading) {
+        continue;
+      }
       const score = this.scoreVitalReading(latestReading);
       totalScore += score;
       validCount += 1;
@@ -715,6 +718,9 @@ class HealthAnalyticsService {
 
       const baseline = baselines.get(vitalType);
       const latestReading = readings.at(-1);
+      if (!latestReading) {
+        continue;
+      }
 
       const anomaly = this.detectAnomaly(latestReading, baseline || null);
       if (anomaly.isAnomaly) {

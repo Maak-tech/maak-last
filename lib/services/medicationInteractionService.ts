@@ -1,13 +1,13 @@
 import type { Medication, MedicationInteractionAlert } from "@/types";
 import { medicationService } from "./medicationService";
 
-export interface DrugInteraction {
+export type DrugInteraction = {
   severity: "major" | "moderate" | "minor";
   description: string;
   medications: string[];
   effects: string[];
   recommendations: string[];
-}
+};
 
 // Common drug interactions database
 // In production, this would be integrated with a professional drug interaction API
@@ -186,9 +186,7 @@ class MedicationInteractionService {
   /**
    * Check for interactions between medications
    */
-  async checkInteractions(
-    medications: Medication[]
-  ): Promise<DrugInteraction[]> {
+  checkInteractions(medications: Medication[]): DrugInteraction[] {
     const interactions: DrugInteraction[] = [];
     const activeMedications = medications.filter((m) => m.isActive);
 
@@ -217,6 +215,7 @@ class MedicationInteractionService {
   /**
    * Check interaction between two medications
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Pair-wise interaction matching intentionally checks both medication directions and partial-name matches. */
   private checkPairInteraction(
     med1Name: string,
     med2Name: string
@@ -349,7 +348,7 @@ class MedicationInteractionService {
   ): Promise<MedicationInteractionAlert[]> {
     try {
       const medications = await medicationService.getUserMedications(userId);
-      const interactions = await this.checkInteractions(medications);
+      const interactions = this.checkInteractions(medications);
 
       const alerts: MedicationInteractionAlert[] = interactions.map(
         (interaction) => ({
@@ -456,9 +455,9 @@ class MedicationInteractionService {
       minor: 0,
     };
 
-    interactions.forEach((interaction) => {
-      bySeverity[interaction.severity]++;
-    });
+    for (const interaction of interactions) {
+      bySeverity[interaction.severity] += 1;
+    }
 
     const mostSevere =
       interactions.length > 0

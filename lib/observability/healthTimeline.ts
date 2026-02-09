@@ -132,14 +132,18 @@ class HealthTimelineService {
         timestamp: doc.data().timestamp.toDate(),
       })) as HealthTimelineEvent[];
 
-      if (options.startDate) {
-        events = events.filter((e) => e.timestamp >= options.startDate);
+      const startDate = options.startDate;
+      const endDate = options.endDate;
+      const eventTypes = options.eventTypes;
+
+      if (startDate) {
+        events = events.filter((e) => e.timestamp >= startDate);
       }
-      if (options.endDate) {
-        events = events.filter((e) => e.timestamp <= options.endDate);
+      if (endDate) {
+        events = events.filter((e) => e.timestamp <= endDate);
       }
-      if (options.eventTypes && options.eventTypes.length > 0) {
-        events = events.filter((e) => options.eventTypes.includes(e.eventType));
+      if (eventTypes && eventTypes.length > 0) {
+        events = events.filter((e) => eventTypes.includes(e.eventType));
       }
 
       return events;
@@ -189,15 +193,13 @@ class HealthTimelineService {
       }
 
       let filteredEvents = allEvents;
-      if (options.startDate) {
-        filteredEvents = filteredEvents.filter(
-          (e) => e.timestamp >= options.startDate
-        );
+      const startDate = options.startDate;
+      const endDate = options.endDate;
+      if (startDate) {
+        filteredEvents = filteredEvents.filter((e) => e.timestamp >= startDate);
       }
-      if (options.endDate) {
-        filteredEvents = filteredEvents.filter(
-          (e) => e.timestamp <= options.endDate
-        );
+      if (endDate) {
+        filteredEvents = filteredEvents.filter((e) => e.timestamp <= endDate);
       }
 
       filteredEvents.sort(

@@ -1,3 +1,6 @@
+/* biome-ignore-all lint/complexity/noForEach: Legacy offline queue/listener iteration will be refactored in a separate pass. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Offline sync orchestration intentionally handles many operation-specific branches in one module. */
+/* biome-ignore-all lint/style/noNestedTernary: Existing severity mapping logic in offline sync uses compact conditional expressions pending refactor. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   addDoc,
@@ -37,16 +40,30 @@ type OfflineOperationData = {
   [key: string]: unknown;
 };
 
-export interface OfflineOperation {
+const asDate = (value: Date | Timestamp | string | undefined): Date => {
+  if (!value) {
+    return new Date();
+  }
+  if (value instanceof Date) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+  return value.toDate();
+};
+
+export type OfflineOperation = {
   id: string;
   type: "create" | "update" | "delete";
   collection: string;
   data: OfflineOperationData;
   timestamp: Date;
   retries: number;
-}
+};
 
-export interface OfflineData {
+export type OfflineData = {
   symptoms: Symptom[];
   medications: Medication[];
   moods: Mood[];
@@ -54,7 +71,7 @@ export interface OfflineData {
   vitals: VitalSign[];
   labResults: LabResult[];
   lastSync: Date | null;
-}
+};
 
 class OfflineService {
   private isOnline = true;
@@ -221,7 +238,9 @@ class OfflineService {
   async getOfflineQueue(): Promise<OfflineOperation[]> {
     try {
       const queueJson = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
-      if (!queueJson) return [];
+      if (!queueJson) {
+        return [];
+      }
 
       const queue = JSON.parse(queueJson);
       return queue.map((op: OfflineOperation) => {
@@ -270,12 +289,12 @@ class OfflineService {
    * Store data locally for offline access
    */
   async storeOfflineData<T>(
-    dataCollection: keyof OfflineData,
+    dataCollection: Exclude<keyof OfflineData, "lastSync">,
     data: T[]
   ): Promise<void> {
     try {
       const offlineData = await this.getOfflineData();
-      offlineData[dataCollection] = data as OfflineData[typeof dataCollection];
+      (offlineData as Record<string, unknown>)[dataCollection] = data;
       offlineData.lastSync = new Date();
 
       await AsyncStorage.setItem(OFFLINE_DATA_KEY, JSON.stringify(offlineData));
@@ -323,7 +342,9 @@ class OfflineService {
   /**
    * Get data from specific collection (offline-first)
    */
-  async getOfflineCollection<T>(dataCollection: keyof OfflineData): Promise<T[]> {
+  async getOfflineCollection<T>(
+    dataCollection: Exclude<keyof OfflineData, "lastSync">
+  ): Promise<T[]> {
     const offlineData = await this.getOfflineData();
     return (offlineData[dataCollection] || []) as T[];
   }
@@ -332,7 +353,9 @@ class OfflineService {
    * Sync a single operation
    */
   private async syncOperation(operation: OfflineOperation): Promise<boolean> {
-    if (!this.isOnline) return false;
+    if (!this.isOnline) {
+      return false;
+    }
 
     try {
       // Import services dynamically to avoid circular dependencies
@@ -381,9 +404,11 @@ class OfflineService {
           const dataToSave: OfflineOperationData = { ...operation.data };
 
           // Helper function to safely convert to Timestamp
-          const toTimestamp = (value: unknown): Timestamp | unknown => {
+          const toTimestamp = (
+            value: unknown
+          ): Date | Timestamp | string | undefined => {
             if (!value) {
-              return value;
+              return;
             }
             if (value instanceof Date) {
               return Timestamp.fromDate(value);
@@ -401,11 +426,24 @@ class OfflineService {
               "seconds" in value &&
               "nanoseconds" in value
             ) {
-              return Timestamp.fromMillis(
-                value.seconds * 1000 + (value.nanoseconds || 0) / 1_000_000
-              );
+              const valueRecord = value as {
+                seconds?: unknown;
+                nanoseconds?: unknown;
+              };
+              if (typeof valueRecord.seconds === "number") {
+                const nanos =
+                  typeof valueRecord.nanoseconds === "number"
+                    ? valueRecord.nanoseconds
+                    : 0;
+                return Timestamp.fromMillis(
+                  valueRecord.seconds * 1000 + nanos / 1_000_000
+                );
+              }
             }
-            return value;
+            if (typeof value === "string") {
+              return value;
+            }
+            return;
           };
 
           // Convert Date objects to Timestamps
@@ -457,12 +495,12 @@ class OfflineService {
                 title: `Symptom logged: ${operation.data.type || "Unknown"}`,
                 description:
                   operation.data.description ||
-                  `Severity: ${operation.data.severity || "N/A"}/5`,
-                timestamp: operation.data.timestamp || new Date(),
+                  `Severity: ${operation.data.severity ?? "N/A"}/5`,
+                timestamp: asDate(operation.data.timestamp),
                 severity:
-                  operation.data.severity >= 4
+                  (operation.data.severity ?? 0) >= 4
                     ? "error"
-                    : operation.data.severity >= 3
+                    : (operation.data.severity ?? 0) >= 3
                       ? "warn"
                       : "info",
                 icon: "thermometer",
@@ -584,8 +622,9 @@ class OfflineService {
       try {
         const dataPreview = { ...operation.data };
         // Remove potentially large fields for logging
-        if (dataPreview.description)
+        if (dataPreview.description) {
           dataPreview.description = dataPreview.description.substring(0, 50);
+        }
         errorDetails.operationDataPreview = dataPreview;
       } catch (_e) {
         errorDetails.operationDataError = "Could not serialize operation data";

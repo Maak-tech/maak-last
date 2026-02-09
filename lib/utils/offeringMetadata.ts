@@ -23,16 +23,17 @@ export function getLocalizedMetadataString(
 
   // If it's a localized object (e.g., { en: "...", ar: "..." })
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const localizedValue = value as Record<string, unknown>;
     // Try the requested language first
-    if (typeof value[language] === "string") {
-      return value[language];
+    if (typeof localizedValue[language] === "string") {
+      return localizedValue[language];
     }
     // Fall back to English
-    if (typeof value.en === "string") {
-      return value.en;
+    if (typeof localizedValue.en === "string") {
+      return localizedValue.en;
     }
     // Fall back to first available string value
-    const firstStringValue = Object.values(value).find(
+    const firstStringValue = Object.values(localizedValue).find(
       (v) => typeof v === "string"
     );
     if (typeof firstStringValue === "string") {

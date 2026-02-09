@@ -1,3 +1,14 @@
+/* biome-ignore-all lint/complexity/noForEach: Legacy notification generation code relies on array iteration helpers and will be migrated incrementally. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: This service centralizes multi-factor notification orchestration and ranking logic. */
+/* biome-ignore-all lint/style/noNestedTernary: Existing notification text/priority mapping uses compact conditional expressions in legacy paths. */
+/* biome-ignore-all lint/nursery/noIncrementDecrement: Existing counters in this legacy scheduler use increment semantics. */
+/* biome-ignore-all lint/complexity/noStaticOnlyClass: Static action handler class is intentionally used as a namespaced API surface. */
+/* biome-ignore-all lint/style/useDefaultSwitchClause: Some switch statements intentionally enumerate known value domains without fallback behavior. */
+
+import type {
+  NotificationRequestInput,
+  SchedulableTriggerInputTypes,
+} from "expo-notifications";
 import i18n from "@/lib/i18n";
 import type { Medication, MedicationReminder } from "@/types";
 import { medicationRefillService } from "./medicationRefillService";
@@ -105,6 +116,19 @@ const asRecord = (value: unknown): Record<string, unknown> | null =>
     ? (value as Record<string, unknown>)
     : null;
 
+const toValidDate = (value: unknown, fallback = new Date()): Date => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? fallback : value;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return fallback;
+};
+
 class SmartNotificationService {
   private static readonly DEDUPE_WINDOW_MS = 30 * 60 * 1000;
 
@@ -114,7 +138,9 @@ class SmartNotificationService {
     );
   }
 
-  private extractTriggerDateFromScheduledRequest(request: unknown): Date | null {
+  private extractTriggerDateFromScheduledRequest(
+    request: unknown
+  ): Date | null {
     try {
       const requestRecord = asRecord(request);
       const trigger = requestRecord?.trigger;
@@ -124,7 +150,13 @@ class SmartNotificationService {
 
       const triggerRecord = asRecord(trigger);
       const rawDate = triggerRecord?.date ?? triggerRecord?.value;
-      if (!rawDate) {
+      if (
+        !(
+          rawDate instanceof Date ||
+          typeof rawDate === "string" ||
+          typeof rawDate === "number"
+        )
+      ) {
         return null;
       }
 
@@ -152,9 +184,7 @@ class SmartNotificationService {
         ? data.medicationName
         : undefined;
     const reminderTime =
-      typeof data?.reminderTime === "string"
-        ? data.reminderTime
-        : undefined;
+      typeof data?.reminderTime === "string" ? data.reminderTime : undefined;
     if (medicationName && reminderTime) {
       return `medication_reminder:${userId}:${medicationName}:${reminderTime}`;
     }
@@ -174,7 +204,9 @@ class SmartNotificationService {
     return `${dataType}:${userId}:${windowId}`;
   }
 
-  private getSchedulingKeyFromScheduledRequest(request: unknown): string | null {
+  private getSchedulingKeyFromScheduledRequest(
+    request: unknown
+  ): string | null {
     try {
       const requestRecord = asRecord(request);
       const content = asRecord(requestRecord?.content);
@@ -734,8 +766,12 @@ class SmartNotificationService {
 
       const identifiersToCancel: string[] = [];
 
-      for (const scheduled of scheduledNotifications) {
-        const identifier = scheduled?.identifier;
+      for (const scheduledItem of scheduledNotifications) {
+        const scheduled = asRecord(scheduledItem);
+        if (!scheduled) {
+          continue;
+        }
+        const identifier = scheduled.identifier;
         if (typeof identifier !== "string" || identifier.length === 0) {
           continue;
         }
@@ -748,10 +784,13 @@ class SmartNotificationService {
         }
 
         // Check by content-based key (more reliable, doesn't depend on exact time)
-        const scheduledContent = scheduled?.content;
+        const scheduledContent = asRecord(scheduled.content);
         if (scheduledContent) {
-          const scheduledData = scheduledContent.data || {};
-          const scheduledUserId = scheduledData.userId || "unknown";
+          const scheduledData = asRecord(scheduledContent.data) ?? {};
+          const scheduledUserId =
+            typeof scheduledData.userId === "string"
+              ? scheduledData.userId
+              : "unknown";
 
           // Build content key from scheduled notification
           const scheduledMedicationName = scheduledData.medicationName;
@@ -761,9 +800,16 @@ class SmartNotificationService {
           if (scheduledMedicationName && scheduledReminderTime) {
             scheduledContentKey = `medication_reminder:${scheduledUserId}:${scheduledMedicationName}:${scheduledReminderTime}`;
           } else {
-            const scheduledType = scheduledData.type || "";
-            const scheduledTitle = scheduledContent.title?.trim() || "";
-            const scheduledBody = scheduledContent.body?.trim() || "";
+            const scheduledType =
+              typeof scheduledData.type === "string" ? scheduledData.type : "";
+            const scheduledTitle =
+              typeof scheduledContent.title === "string"
+                ? scheduledContent.title.trim()
+                : "";
+            const scheduledBody =
+              typeof scheduledContent.body === "string"
+                ? scheduledContent.body.trim()
+                : "";
             const titleHash = scheduledTitle
               .substring(0, 50)
               .toLowerCase()
@@ -782,7 +828,7 @@ class SmartNotificationService {
         }
 
         // Special handling for weekly_summary: cancel existing ones with same dedupe key
-        const scheduledData = scheduled?.content?.data || {};
+        const scheduledData = asRecord(scheduledContent?.data) ?? {};
         if (
           scheduledData.type === "weekly_summary" &&
           scheduledData.dedupeKey &&
@@ -812,7 +858,7 @@ class SmartNotificationService {
 
         // Legacy cleanup: if we're scheduling wellness check-ins, cancel any existing check-ins for the same user
         if (newNotificationTypes.has("wellness_checkin")) {
-          const notificationData = scheduled?.content?.data || {};
+          const notificationData = asRecord(scheduledContent?.data) ?? {};
           const notificationType = notificationData.type;
           const scheduledUserId = notificationData.userId;
 
@@ -1060,8 +1106,10 @@ class SmartNotificationService {
     notification: SmartNotification,
     Notifications: {
       getAllScheduledNotificationsAsync: () => Promise<unknown[]>;
-      scheduleNotificationAsync: (request: unknown) => Promise<unknown>;
-      SchedulableTriggerInputTypes: { DATE: unknown };
+      scheduleNotificationAsync: (
+        request: NotificationRequestInput
+      ) => Promise<string>;
+      SchedulableTriggerInputTypes: { DATE: SchedulableTriggerInputTypes.DATE };
       AndroidNotificationPriority?: {
         MAX?: unknown;
         HIGH?: unknown;
@@ -1093,7 +1141,10 @@ class SmartNotificationService {
         }
 
         const scheduledData = asRecord(scheduledContent.data) ?? {};
-        const scheduledUserId = scheduledData.userId || "unknown";
+        const scheduledUserId =
+          typeof scheduledData.userId === "string"
+            ? scheduledData.userId
+            : "unknown";
 
         // Build content key from scheduled notification
         const scheduledMedicationName = scheduledData.medicationName;
@@ -1103,9 +1154,16 @@ class SmartNotificationService {
         if (scheduledMedicationName && scheduledReminderTime) {
           scheduledContentKey = `medication_reminder:${scheduledUserId}:${scheduledMedicationName}:${scheduledReminderTime}`;
         } else {
-          const scheduledType = scheduledData.type || "";
-          const scheduledTitle = scheduledContent.title?.trim() || "";
-          const scheduledBody = scheduledContent.body?.trim() || "";
+          const scheduledType =
+            typeof scheduledData.type === "string" ? scheduledData.type : "";
+          const scheduledTitle =
+            typeof scheduledContent.title === "string"
+              ? scheduledContent.title.trim()
+              : "";
+          const scheduledBody =
+            typeof scheduledContent.body === "string"
+              ? scheduledContent.body.trim()
+              : "";
           const titleHash = scheduledTitle
             .substring(0, 50)
             .toLowerCase()
@@ -3042,9 +3100,9 @@ class SmartNotificationService {
    * Calculate comprehensive user statistics
    */
   private calculateUserStats(
-    symptoms: Array<Record<string, unknown>>,
+    symptoms: Record<string, unknown>[],
     medications: Medication[],
-    moodEntries: Array<Record<string, unknown>>
+    moodEntries: Record<string, unknown>[]
   ): Omit<UserStats, "achievements"> {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -3053,14 +3111,22 @@ class SmartNotificationService {
     const lastSymptomDate =
       symptoms.length > 0
         ? new Date(
-            Math.max(...symptoms.map((s) => new Date(s.timestamp).getTime()))
+            Math.max(
+              ...symptoms.map((s) =>
+                toValidDate(s.timestamp, new Date(0)).getTime()
+              )
+            )
           )
         : new Date(0);
 
     const lastMoodDate =
       moodEntries.length > 0
         ? new Date(
-            Math.max(...moodEntries.map((m) => new Date(m.timestamp).getTime()))
+            Math.max(
+              ...moodEntries.map((m) =>
+                toValidDate(m.timestamp, new Date(0)).getTime()
+              )
+            )
           )
         : new Date(0);
 
@@ -3092,8 +3158,12 @@ class SmartNotificationService {
 
     // Calculate streaks (simplified - consecutive days with activity)
     const activityDates = new Set([
-      ...symptoms.map((s) => new Date(s.timestamp).toDateString()),
-      ...moodEntries.map((m) => new Date(m.timestamp).toDateString()),
+      ...symptoms.map((s) =>
+        toValidDate(s.timestamp, new Date(0)).toDateString()
+      ),
+      ...moodEntries.map((m) =>
+        toValidDate(m.timestamp, new Date(0)).toDateString()
+      ),
     ]);
 
     let currentStreak = 0;
@@ -3190,7 +3260,7 @@ class SmartNotificationService {
    * Calculate vital check history
    */
   private calculateVitalCheckHistory(
-    vitalSigns: Array<Record<string, unknown>>
+    vitalSigns: Record<string, unknown>[]
   ): VitalCheckHistory {
     const history: VitalCheckHistory = {};
 
@@ -3199,46 +3269,50 @@ class SmartNotificationService {
     }
 
     // Group by vital type and find most recent
-    const vitalGroups = vitalSigns.reduce(
-      (acc, vital) => {
-        if (!acc[vital.type]) {
-          acc[vital.type] = [];
-        }
-        acc[vital.type].push(vital);
-        return acc;
-      },
-      {} as Record<string, Array<Record<string, unknown>>>
-    );
+    const vitalGroups = vitalSigns.reduce<
+      Record<string, Record<string, unknown>[]>
+    >((acc, vital) => {
+      const type = typeof vital.type === "string" ? vital.type : "unknown";
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+      acc[type].push(vital);
+      return acc;
+    }, {});
 
     // Find latest date for each vital type
-    Object.keys(vitalGroups).forEach((vitalType) => {
-      const vitals = vitalGroups[vitalType];
-      const latestVital = vitals.sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      )[0];
+    for (const [vitalType, vitals] of Object.entries(vitalGroups)) {
+      const sortedVitals = vitals.sort(
+        (a: Record<string, unknown>, b: Record<string, unknown>) =>
+          toValidDate(b.timestamp, new Date(0)).getTime() -
+          toValidDate(a.timestamp, new Date(0)).getTime()
+      );
+      const latestVital = sortedVitals[0];
+      if (!latestVital) {
+        continue;
+      }
 
       switch (vitalType) {
         case "bloodPressure":
-          history.lastBloodPressure = new Date(latestVital.timestamp);
+          history.lastBloodPressure = toValidDate(latestVital.timestamp);
           break;
         case "heartRate":
-          history.lastHeartRate = new Date(latestVital.timestamp);
+          history.lastHeartRate = toValidDate(latestVital.timestamp);
           break;
         case "temperature":
-          history.lastTemperature = new Date(latestVital.timestamp);
+          history.lastTemperature = toValidDate(latestVital.timestamp);
           break;
         case "weight":
-          history.lastWeight = new Date(latestVital.timestamp);
+          history.lastWeight = toValidDate(latestVital.timestamp);
           break;
         case "bloodSugar":
-          history.lastBloodSugar = new Date(latestVital.timestamp);
+          history.lastBloodSugar = toValidDate(latestVital.timestamp);
           break;
         case "respiratoryRate":
-          history.lastRespiratoryRate = new Date(latestVital.timestamp);
+          history.lastRespiratoryRate = toValidDate(latestVital.timestamp);
           break;
       }
-    });
+    }
 
     return history;
   }
@@ -3261,7 +3335,9 @@ class SmartNotificationService {
           mentalHealth: [], // We'll need to add this
         };
       }
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
 
     return {
       conditions: [],
@@ -3290,9 +3366,7 @@ class SmartNotificationService {
    * Note: This would need to be implemented to fetch historical vital signs from your database
    * For now, returning empty array as this requires database integration
    */
-  private getUserVitalSigns(
-    _userId: string
-  ): Record<string, unknown>[] {
+  private getUserVitalSigns(_userId: string): Record<string, unknown>[] {
     return [];
   }
 
@@ -3334,18 +3408,16 @@ class SmartNotificationService {
   /**
    * Calculate family health statistics
    */
-  private calculateFamilyHealthStats(
-    familyMembers: FamilyMemberHealth[]
-  ): {
+  private calculateFamilyHealthStats(familyMembers: FamilyMemberHealth[]): {
     membersNeedingAttention: number;
     criticalAlerts: number;
     upcomingMedications: number;
-    achievements: Array<Record<string, unknown>>;
+    achievements: Record<string, unknown>[];
   } {
     let membersNeedingAttention = 0;
     let criticalAlerts = 0;
     let upcomingMedications = 0;
-    const achievements: Array<Record<string, unknown>> = [];
+    const achievements: Record<string, unknown>[] = [];
 
     familyMembers.forEach((member) => {
       // Count members needing attention (low health score or recent alerts)
@@ -3406,7 +3478,7 @@ class SmartNotificationService {
    */
   private async getUserSymptoms(
     userId: string
-  ): Promise<Array<Record<string, unknown>>> {
+  ): Promise<Record<string, unknown>[]> {
     try {
       // Use your existing symptom service
       const { symptomService } = await import("./symptomService");
@@ -3428,7 +3500,7 @@ class SmartNotificationService {
 
   private async getUserMoods(
     userId: string
-  ): Promise<Array<Record<string, unknown>>> {
+  ): Promise<Record<string, unknown>[]> {
     try {
       // Use your existing mood service
       const { moodService } = await import("./moodService");
@@ -3943,7 +4015,9 @@ class SmartNotificationService {
           },
         });
       });
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
 
     return notifications;
   }
@@ -4064,7 +4138,9 @@ class SmartNotificationService {
           ],
         });
       }
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
 
     return notifications;
   }
@@ -4522,7 +4598,9 @@ export class NotificationResponseHandler {
         timestamp: new Date(),
         notes: "Logged via notification",
       });
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
   }
 
   private static async handleEmergency(userId: string): Promise<void> {
@@ -4537,7 +4615,9 @@ export class NotificationResponseHandler {
         timestamp: new Date(),
         resolved: false,
       });
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
   }
 
   private static async logEveningCheckin(
@@ -4553,7 +4633,9 @@ export class NotificationResponseHandler {
         timestamp: new Date(),
         notes: "Evening check-in via notification",
       });
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
   }
 
   private static confirmMedicationTaken(_userId: string): Promise<void> {
@@ -4600,7 +4682,9 @@ export class NotificationResponseHandler {
       if (!taken) {
         // Could add logic here to schedule a follow-up reminder
       }
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
   }
 
   private static async quickHealthLog(userId: string): Promise<void> {
@@ -4614,7 +4698,9 @@ export class NotificationResponseHandler {
         description: "Quick health check via notification - feeling good",
         location: "General",
       });
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
   }
 
   private static logNoSymptoms(_userId: string): Promise<void> {
@@ -4644,9 +4730,7 @@ export class NotificationResponseHandler {
     return Promise.resolve();
   }
 
-  private static sendFamilyMedicationReminders(
-    _userId: string
-  ): Promise<void> {
+  private static sendFamilyMedicationReminders(_userId: string): Promise<void> {
     return Promise.resolve();
   }
 
@@ -4659,16 +4743,16 @@ export class NotificationResponseHandler {
         "emergency",
         "response"
       );
-    } catch (_error) { /* no-op */ }
+    } catch (_error) {
+      /* no-op */
+    }
   }
 
   private static callEmergencyContacts(_userId: string): Promise<void> {
     return Promise.resolve();
   }
 
-  private static confirmFamilyAppointments(
-    _userId: string
-  ): Promise<void> {
+  private static confirmFamilyAppointments(_userId: string): Promise<void> {
     return Promise.resolve();
   }
 
@@ -4683,10 +4767,7 @@ export class NotificationResponseHandler {
   }
 
   // Simplified helper methods for quick actions
-  private static logHydration(
-    _userId: string,
-    _type: string
-  ): Promise<void> {
+  private static logHydration(_userId: string, _type: string): Promise<void> {
     return Promise.resolve();
   }
 
@@ -4707,6 +4788,3 @@ export class NotificationResponseHandler {
 }
 
 export const smartNotificationService = new SmartNotificationService();
-
-
-

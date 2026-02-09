@@ -14,6 +14,7 @@
  * - Navigate to app sections
  */
 
+/* biome-ignore-all lint/performance/useTopLevelRegex: Localized parsing regexes are intentional in natural-language date extraction helpers. */
 import { addDoc, collection, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { Symptom } from "@/types";
@@ -22,13 +23,13 @@ import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 
 // Action result type for consistent responses
-export interface ActionResult {
+export type ActionResult = {
   success: boolean;
   action: string;
   message: string;
   data?: unknown;
   speakableResponse: string; // What Zeina should say to the user
-}
+};
 
 // Symptom mapping for natural language to symptom types
 export const SYMPTOM_TYPE_MAP: Record<string, string> = {
@@ -135,6 +136,7 @@ class ZeinaActionsService {
   /**
    * Log a symptom for the current user
    */
+  /* biome-ignore lint/nursery/useMaxParams: Public command API intentionally mirrors natural-language argument extraction. */
   async logSymptom(
     symptomName: string,
     severity?: number,
@@ -301,12 +303,12 @@ class ZeinaActionsService {
       }
 
       // Map alert types to EmergencyAlert types
-      const mappedType: "fall" | "emergency" | "medication" | "vitals" =
-        alertType === "emergency"
-          ? "emergency"
-          : alertType === "medication_reminder"
-            ? "medication"
-            : "vitals"; // check_in and symptom_alert map to vitals
+      let mappedType: "fall" | "emergency" | "medication" | "vitals" = "vitals";
+      if (alertType === "emergency") {
+        mappedType = "emergency";
+      } else if (alertType === "medication_reminder") {
+        mappedType = "medication";
+      }
 
       // Map severity: emergency -> critical, others -> low
       const severity: "low" | "medium" | "high" | "critical" =
@@ -350,6 +352,7 @@ class ZeinaActionsService {
   /**
    * Log a vital sign measurement
    */
+  /* biome-ignore lint/nursery/useMaxParams: Public command API intentionally mirrors natural-language argument extraction. */
   async logVitalSign(
     vitalType: string,
     value: number,
@@ -1010,10 +1013,15 @@ class ZeinaActionsService {
       "wasp",
     ];
 
-    if (medications.some((m) => lowerAllergen.includes(m))) return "medication";
-    if (foods.some((f) => lowerAllergen.includes(f))) return "food";
-    if (environmental.some((e) => lowerAllergen.includes(e)))
+    if (medications.some((m) => lowerAllergen.includes(m))) {
+      return "medication";
+    }
+    if (foods.some((f) => lowerAllergen.includes(f))) {
+      return "food";
+    }
+    if (environmental.some((e) => lowerAllergen.includes(e))) {
       return "environmental";
+    }
     return "other";
   }
 
@@ -1044,10 +1052,12 @@ class ZeinaActionsService {
       "copd",
     ];
 
-    if (severeConditions.some((c) => lowerCondition.includes(c)))
+    if (severeConditions.some((c) => lowerCondition.includes(c))) {
       return "severe";
-    if (moderateConditions.some((c) => lowerCondition.includes(c)))
+    }
+    if (moderateConditions.some((c) => lowerCondition.includes(c))) {
       return "moderate";
+    }
     return "mild";
   }
 
@@ -1146,16 +1156,32 @@ class ZeinaActionsService {
 
   private getSeverityText(severity: number, isArabic = false): string {
     if (isArabic) {
-      if (severity <= 1) return " كـخفيف جداً";
-      if (severity <= 2) return " كـخفيف";
-      if (severity <= 3) return " كـمتوسط";
-      if (severity <= 4) return " كـشديد";
+      if (severity <= 1) {
+        return " كـخفيف جداً";
+      }
+      if (severity <= 2) {
+        return " كـخفيف";
+      }
+      if (severity <= 3) {
+        return " كـمتوسط";
+      }
+      if (severity <= 4) {
+        return " كـشديد";
+      }
       return " كـشديد جداً";
     }
-    if (severity <= 1) return " as very mild";
-    if (severity <= 2) return " as mild";
-    if (severity <= 3) return " as moderate";
-    if (severity <= 4) return " as significant";
+    if (severity <= 1) {
+      return " as very mild";
+    }
+    if (severity <= 2) {
+      return " as mild";
+    }
+    if (severity <= 3) {
+      return " as moderate";
+    }
+    if (severity <= 4) {
+      return " as significant";
+    }
     return " as severe";
   }
 
@@ -1248,6 +1274,7 @@ class ZeinaActionsService {
     return vitalType;
   }
 
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Vital-specific guidance requires explicit per-metric branch logic for safety and clarity. */
   private getVitalAdvice(
     vitalType: string,
     value: number,

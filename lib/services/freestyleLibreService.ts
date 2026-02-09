@@ -26,11 +26,54 @@ type LibrePayload = {
   glucoseMeasurements?: LibreReading[];
 };
 
+type NormalizedSample = {
+  value: number | string;
+  unit?: string;
+  startDate: string;
+  endDate?: string;
+  source?: string;
+};
+
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
     return error.message;
   }
   return String(error);
+};
+
+const getLibreReadings = (data: unknown): LibreReading[] => {
+  const payload = data as LibrePayload;
+  if (!Array.isArray(payload.glucoseMeasurements)) {
+    return [];
+  }
+  return payload.glucoseMeasurements;
+};
+
+const toNormalizedSamples = (
+  readings: LibreReading[],
+  options: {
+    unit: string;
+    source: string;
+    getValue: (reading: LibreReading) => number | string | undefined;
+  }
+): NormalizedSample[] => {
+  const samples: NormalizedSample[] = [];
+
+  for (const reading of readings) {
+    const value = options.getValue(reading);
+    if (value === undefined) {
+      continue;
+    }
+
+    samples.push({
+      value,
+      unit: options.unit,
+      startDate: reading.timestamp || new Date().toISOString(),
+      source: options.source,
+    });
+  }
+
+  return samples;
 };
 
 /**
@@ -69,31 +112,31 @@ export const freestyleLibreService = {
    * Handle authentication redirect
    */
   handleRedirect: (_url: string): Promise<void> =>
-    Promise.reject(new Error("Freestyle Libre integration not yet implemented.")),
+    Promise.reject(
+      new Error("Freestyle Libre integration not yet implemented.")
+    ),
 
   /**
    * Refresh access token if needed
    */
   refreshTokenIfNeeded: async (): Promise<void> => {
-    try {
-      const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS);
+    const tokensJson = await getItemAsync(
+      HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS
+    );
 
-      if (!tokensJson) {
-        throw new Error("No Freestyle Libre tokens found");
-      }
-
-      const tokens: FreestyleLibreTokens = JSON.parse(tokensJson);
-
-      // Check if token needs refresh (placeholder logic)
-      if (Date.now() < tokens.expiresAt - 5 * 60 * 1000) {
-        return; // Token still valid
-      }
-
-      // Placeholder refresh logic
-      throw new Error("Token refresh not implemented for Freestyle Libre");
-    } catch (error: unknown) {
-      throw error;
+    if (!tokensJson) {
+      throw new Error("No Freestyle Libre tokens found");
     }
+
+    const tokens: FreestyleLibreTokens = JSON.parse(tokensJson);
+
+    // Check if token needs refresh (placeholder logic)
+    if (Date.now() < tokens.expiresAt - 5 * 60 * 1000) {
+      return; // Token still valid
+    }
+
+    // Placeholder refresh logic
+    throw new Error("Token refresh not implemented for Freestyle Libre");
   },
 
   /**
@@ -102,7 +145,9 @@ export const freestyleLibreService = {
   getAccessToken: async (): Promise<string> => {
     await freestyleLibreService.refreshTokenIfNeeded();
 
-    const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS);
+    const tokensJson = await getItemAsync(
+      HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS
+    );
 
     if (!tokensJson) {
       throw new Error("Not authenticated with Freestyle Libre");
@@ -132,77 +177,30 @@ export const freestyleLibreService = {
   parseFreestyleLibreData: (
     metricKey: string,
     data: unknown
-  ): Array<{
-    value: number | string;
-    unit?: string;
-    startDate: string;
-    endDate?: string;
-    source?: string;
-  }> => {
-    const samples: Array<{
-      value: number | string;
-      unit?: string;
-      startDate: string;
-      endDate?: string;
-      source?: string;
-    }> = [];
-
+  ): NormalizedSample[] => {
     try {
-      // Placeholder parsing logic for Freestyle Libre data structure
-      // Actual implementation would depend on Abbott's API response format
-
-      const payload = data as LibrePayload;
+      const readings = getLibreReadings(data);
 
       switch (metricKey) {
-        case "blood_glucose": {
-          // Parse glucose readings from Freestyle Libre
-          if (
-            payload.glucoseMeasurements &&
-            Array.isArray(payload.glucoseMeasurements)
-          ) {
-            for (const reading of payload.glucoseMeasurements) {
-              if (reading.value !== undefined) {
-                samples.push({
-                  value: reading.value,
-                  unit: "mg/dL",
-                  startDate: reading.timestamp || new Date().toISOString(),
-                  source: "Freestyle Libre",
-                });
-              }
-            }
-          }
-          break;
-        }
-
-        case "glucose_trend": {
-          // Parse trend data if available
-          if (
-            payload.glucoseMeasurements &&
-            Array.isArray(payload.glucoseMeasurements)
-          ) {
-            for (const reading of payload.glucoseMeasurements) {
-              if (reading.trend !== undefined) {
-                samples.push({
-                  value: reading.trend,
-                  unit: "trend",
-                  startDate: reading.timestamp || new Date().toISOString(),
-                  source: "Freestyle Libre",
-                });
-              }
-            }
-          }
-          break;
-        }
-
+        case "blood_glucose":
+          return toNormalizedSamples(readings, {
+            unit: "mg/dL",
+            source: "Freestyle Libre",
+            getValue: (reading) => reading.value,
+          });
+        case "glucose_trend":
+          return toNormalizedSamples(readings, {
+            unit: "trend",
+            source: "Freestyle Libre",
+            getValue: (reading) => reading.trend,
+          });
         default:
-          // Unknown metric key - skip
-          break;
+          return [];
       }
     } catch (_error) {
       // Silently handle parsing error
+      return [];
     }
-
-    return samples;
   },
 
   /**

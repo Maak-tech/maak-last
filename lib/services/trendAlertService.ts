@@ -3,14 +3,16 @@
  * Automatically checks for concerning trends when new health data is added
  * and creates alerts that are picked up by the real-time WebSocket service
  */
+/* biome-ignore-all lint/complexity/noForEach: Snapshot-to-group transforms use forEach in this legacy trend check path. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Trend checks intentionally combine vital and symptom aggregation with alert dispatch. */
 
 import {
-  Timestamp,
   collection,
   getDocs,
   limit,
   orderBy,
   query,
+  Timestamp,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -166,7 +168,9 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
 
     // Check trends for each vital type
     for (const [type, readings] of Object.entries(vitalsByType)) {
-      if (readings.length < 3) continue;
+      if (readings.length < 3) {
+        continue;
+      }
 
       const trendAnalysis = analyzeVitalTrend(
         readings.map((r) => ({ value: r.value, timestamp: r.timestamp })),
@@ -213,7 +217,9 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
 
       // Check trends for each symptom type
       for (const [type, readings] of Object.entries(symptomsByType)) {
-        if (readings.length === 0) continue;
+        if (readings.length === 0) {
+          continue;
+        }
 
         const trendAnalysis = analyzeSymptomTrend(readings, type, 7);
 

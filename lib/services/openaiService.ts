@@ -1,12 +1,12 @@
 import Constants from "expo-constants";
 import { aiInstrumenter } from "@/lib/observability";
 
-export interface ChatMessage {
+export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
-}
+};
 
 export const AI_MODELS = {
   "gpt-4o-mini": "GPT-4o Mini (Cheapest)",
@@ -15,7 +15,7 @@ export const AI_MODELS = {
   "gpt-4o": "GPT-4o (Latest)",
 };
 
-export interface ChatCompletionChunk {
+export type ChatCompletionChunk = {
   id: string;
   object: string;
   created: number;
@@ -28,7 +28,7 @@ export interface ChatCompletionChunk {
     index: number;
     finish_reason: string | null;
   }>;
-}
+};
 
 type ExpectedApiError = Error & {
   isExpectedError?: boolean;
@@ -41,11 +41,12 @@ const markExpectedApiError = (message: string): ExpectedApiError => {
   error.isApiKeyError = true;
   return error;
 };
+const MARKDOWN_JSON_BLOCK_REGEX = /```(?:json)?\s*(\{[\s\S]*\})\s*```/;
 
 class OpenAIService {
   private apiKey: string | null = null;
   private zeinaApiKey: string | null = null;
-  private baseURL = "https://api.openai.com/v1";
+  private readonly baseURL = "https://api.openai.com/v1";
   private model = "gpt-3.5-turbo"; // Default to cheaper model
 
   initialize(_usePremiumKey = false): void {
@@ -121,6 +122,7 @@ class OpenAIService {
     return Promise.resolve();
   }
 
+  /* biome-ignore lint/nursery/useMaxParams: Stream callback API intentionally accepts chunk/complete/error handlers plus premium-key selector for caller ergonomics. */
   async createChatCompletionStream(
     messages: ChatMessage[],
     onChunk: (text: string) => void,
@@ -152,6 +154,72 @@ class OpenAIService {
     }
   }
 
+  private async requestChatCompletion(
+    messages: ChatMessage[],
+    activeApiKey: string
+  ): Promise<string> {
+    const response = await fetch(`${this.baseURL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${activeApiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: messages.map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })),
+        temperature: 0.7,
+        max_tokens: 1000,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = "";
+      try {
+        const errorData = await response.text();
+        const errorJson = JSON.parse(errorData);
+        errorMessage = errorJson.error?.message || errorData;
+      } catch {
+        errorMessage = `HTTP ${response.status}`;
+      }
+
+      if (response.status === 429) {
+        throw new Error(
+          "API quota exceeded. Please add billing to your OpenAI account or switch to GPT-3.5 Turbo (cheaper model)."
+        );
+      }
+      if (response.status === 401) {
+        const error = markExpectedApiError(
+          "Invalid or expired OpenAI API key. The API key must be configured at build time via OPENAI_API_KEY or ZEINA_API_KEY environment variable. Please check your .env file and rebuild the app."
+        );
+        throw error;
+      }
+      if (response.status === 404) {
+        throw new Error(
+          `Model ${this.model} not found. Please select a different model in settings.`
+        );
+      }
+      if (response.status === 400) {
+        throw new Error(
+          `Bad request: ${errorMessage}. Please check your API key and selected model.`
+        );
+      }
+
+      throw new Error(`OpenAI API error: ${errorMessage}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.choices?.[0]?.message) {
+      throw new Error("Invalid response format from OpenAI API");
+    }
+
+    return data.choices[0].message.content;
+  }
+
   async createChatCompletion(
     messages: ChatMessage[],
     usePremiumKey = false
@@ -176,71 +244,8 @@ class OpenAIService {
       throw error;
     }
 
-    return aiInstrumenter.track(
-      "chat_completion",
-      async () => {
-        const response = await fetch(`${this.baseURL}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${activeApiKey}`,
-          },
-          body: JSON.stringify({
-            model: this.model,
-            messages: messages.map((msg) => ({
-              role: msg.role,
-              content: msg.content,
-            })),
-            temperature: 0.7,
-            max_tokens: 1000,
-            stream: false,
-          }),
-        });
-
-        if (!response.ok) {
-          let errorMessage = "";
-          try {
-            const errorData = await response.text();
-            const errorJson = JSON.parse(errorData);
-            errorMessage = errorJson.error?.message || errorData;
-          } catch {
-            errorMessage = `HTTP ${response.status}`;
-          }
-
-          if (response.status === 429) {
-            throw new Error(
-              "API quota exceeded. Please add billing to your OpenAI account or switch to GPT-3.5 Turbo (cheaper model)."
-            );
-          }
-          if (response.status === 401) {
-            const error = markExpectedApiError(
-              "Invalid or expired OpenAI API key. The API key must be configured at build time via OPENAI_API_KEY or ZEINA_API_KEY environment variable. Please check your .env file and rebuild the app."
-            );
-            throw error;
-          }
-          if (response.status === 404) {
-            throw new Error(
-              `Model ${this.model} not found. Please select a different model in settings.`
-            );
-          }
-          if (response.status === 400) {
-            throw new Error(
-              `Bad request: ${errorMessage}. Please check your API key and selected model.`
-            );
-          }
-
-          throw new Error(`OpenAI API error: ${errorMessage}`);
-        }
-
-        const data = await response.json();
-
-        if (!(data.choices && data.choices[0] && data.choices[0].message)) {
-          throw new Error("Invalid response format from OpenAI API");
-        }
-
-        return data.choices[0].message.content;
-      },
-      { trackLatency: true }
+    return aiInstrumenter.track("chat_completion", () =>
+      this.requestChatCompletion(messages, activeApiKey)
     );
   }
 
@@ -289,9 +294,7 @@ class OpenAIService {
         // Try to parse JSON from the response
         try {
           // Extract JSON from markdown code blocks if present
-          const jsonMatch = response.match(
-            /```(?:json)?\s*(\{[\s\S]*\})\s*```/
-          );
+          const jsonMatch = response.match(MARKDOWN_JSON_BLOCK_REGEX);
           const jsonString = jsonMatch ? jsonMatch[1] : response.trim();
           return JSON.parse(jsonString) as Record<string, unknown>;
         } catch (_parseError) {

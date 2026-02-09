@@ -477,7 +477,14 @@ export const useFallDetection = (
 
             subscription = DeviceMotion.addListener(
               // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Fall-phase state machine intentionally lives in the streaming callback.
-              (data: DeviceMotionSample) => {
+              (measurement) => {
+                const data: DeviceMotionSample = {
+                  acceleration:
+                    measurement.acceleration === null
+                      ? undefined
+                      : measurement.acceleration,
+                  rotation: measurement.rotation ?? undefined,
+                };
                 if (!(isSubscriptionActive && data)) {
                   return;
                 }
@@ -650,10 +657,13 @@ export const useFallDetection = (
                     );
 
                     // Calculate jerk (rate of change of acceleration)
-                    const timeDelta =
+                    const lastFiltered =
                       filteredDataRef.current.length > 0
-                        ? now - filteredDataRef.current.at(-1).timestamp
-                        : FALL_CONFIG.UPDATE_INTERVAL;
+                        ? filteredDataRef.current.at(-1)
+                        : undefined;
+                    const timeDelta = lastFiltered
+                      ? now - lastFiltered.timestamp
+                      : FALL_CONFIG.UPDATE_INTERVAL;
                     const jerk = calculateJerk(
                       previousAccelRef.current,
                       filteredAccel,

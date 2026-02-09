@@ -1,3 +1,8 @@
+/* biome-ignore-all lint/complexity/noForEach: Legacy symptom aggregation paths still use forEach and will be migrated in a dedicated cleanup pass. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Family symptom/stat aggregation intentionally combines query and rollup logic in single methods. */
+/* biome-ignore-all lint/style/noNonNullAssertion: Existing map-lookup paths guard initialization prior to access in this legacy module. */
+/* biome-ignore-all lint/nursery/noIncrementDecrement: Existing counters in this legacy analytics code use increment semantics. */
+/* biome-ignore-all lint/style/noNestedTernary: Severity-to-level mappings currently use compact conditional expressions. */
 import {
   addDoc,
   collection,
@@ -172,8 +177,12 @@ export const symptomService = {
         await offlineService.getOfflineCollection<Symptom>("symptoms");
       return cachedSymptoms
         .filter((s) => {
-          if (s.userId !== userId) return false;
-          if (!s.timestamp) return false;
+          if (s.userId !== userId) {
+            return false;
+          }
+          if (!s.timestamp) {
+            return false;
+          }
           // Ensure timestamp is a Date object
           if (!(s.timestamp instanceof Date)) {
             s.timestamp = new Date(s.timestamp);
@@ -199,8 +208,12 @@ export const symptomService = {
           await offlineService.getOfflineCollection<Symptom>("symptoms");
         return cachedSymptoms
           .filter((s) => {
-            if (s.userId !== userId) return false;
-            if (!s.timestamp) return false;
+            if (s.userId !== userId) {
+              return false;
+            }
+            if (!s.timestamp) {
+              return false;
+            }
             // Ensure timestamp is a Date object
             if (!(s.timestamp instanceof Date)) {
               s.timestamp = new Date(s.timestamp);
@@ -323,7 +336,9 @@ export const symptomService = {
             where("familyId", "==", familyId)
           );
           const familyMembersSnapshot = await getDocs(familyMembersQuery);
-          const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
+          const memberIds = familyMembersSnapshot.docs.map(
+            (itemDoc) => itemDoc.id
+          );
 
           if (memberIds.length === 0) {
             return [];
@@ -390,7 +405,8 @@ export const symptomService = {
       const membersMap = new Map();
       familyMembersSnapshot.docs.forEach((itemDoc) => {
         const data = itemDoc.data();
-        membersMap.set(itemDoc.id,
+        membersMap.set(
+          itemDoc.id,
           data.name ||
             `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
             "Unknown"
@@ -451,7 +467,7 @@ export const symptomService = {
             affectedMembers: data.users.size,
             users: Array.from(data.users).map((memberUserId) => ({
               userId: memberUserId,
-            userName: membersMap.get(memberUserId) || "Unknown",
+              userName: membersMap.get(memberUserId) || "Unknown",
             })),
           }))
           .sort((a, b) => b.count - a.count)
@@ -540,11 +556,14 @@ export const symptomService = {
             where("familyId", "==", familyId)
           );
           const familyMembersSnapshot = await getDocs(familyMembersQuery);
-          const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
+          const memberIds = familyMembersSnapshot.docs.map(
+            (itemDoc) => itemDoc.id
+          );
           const membersMap = new Map();
           familyMembersSnapshot.docs.forEach((itemDoc) => {
             const data = itemDoc.data();
-            membersMap.set(itemDoc.id,
+            membersMap.set(
+              itemDoc.id,
               data.name ||
                 `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
                 "Unknown"
@@ -600,7 +619,7 @@ export const symptomService = {
               affectedMembers: data.users.size,
               users: Array.from(data.users).map((memberUserId) => ({
                 userId: memberUserId,
-            userName: membersMap.get(memberUserId) || "Unknown",
+                userName: membersMap.get(memberUserId) || "Unknown",
               })),
             }))
             .sort((a, b) => b.count - a.count)
@@ -833,5 +852,3 @@ export const symptomService = {
     }
   },
 };
-
-

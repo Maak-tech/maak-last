@@ -3,6 +3,7 @@
  * OAuth 2.0 integration with Dexcom CGM API for continuous glucose monitoring
  */
 
+/* biome-ignore-all lint/performance/noNamespaceImport: Expo modules are consumed via namespace APIs in this integration layer. */
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
@@ -186,9 +187,7 @@ export const dexcomService = {
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Unknown authentication error";
-      throw new Error(
-        `Failed to complete Dexcom authentication: ${message}`
-      );
+      throw new Error(`Failed to complete Dexcom authentication: ${message}`);
     }
   },
 
@@ -210,7 +209,9 @@ export const dexcomService = {
       const tokensStr = await SecureStore.getItemAsync(
         HEALTH_STORAGE_KEYS.DEXCOM_TOKENS
       );
-      if (!tokensStr) return null;
+      if (!tokensStr) {
+        return null;
+      }
       return JSON.parse(tokensStr);
     } catch {
       return null;
@@ -223,7 +224,9 @@ export const dexcomService = {
   refreshTokenIfNeeded: async (): Promise<string | null> => {
     try {
       const tokens = await dexcomService.getTokens();
-      if (!tokens) return null;
+      if (!tokens) {
+        return null;
+      }
 
       // Check if token is still valid (with 5 minute buffer)
       if (tokens.expiresAt > Date.now() + 5 * 60 * 1000) {
@@ -276,7 +279,9 @@ export const dexcomService = {
   } | null> => {
     try {
       const accessToken = await dexcomService.refreshTokenIfNeeded();
-      if (!accessToken) return null;
+      if (!accessToken) {
+        return null;
+      }
 
       const response = await fetch(
         `${DEXCOM_API_BASE}/v2/users/self/egvs?startDate=${getStartDate()}&endDate=${getEndDate()}`,
@@ -294,7 +299,9 @@ export const dexcomService = {
       const data = await response.json();
       const latestReading = data.egvs?.[0];
 
-      if (!latestReading) return null;
+      if (!latestReading) {
+        return null;
+      }
 
       return {
         value: latestReading.value,
@@ -318,7 +325,9 @@ export const dexcomService = {
   ): Promise<NormalizedMetricPayload[]> => {
     try {
       const accessToken = await dexcomService.refreshTokenIfNeeded();
-      if (!accessToken) return [];
+      if (!accessToken) {
+        return [];
+      }
 
       const results: NormalizedMetricPayload[] = [];
 
@@ -328,7 +337,9 @@ export const dexcomService = {
       }
 
       const metric = getMetricByKey("blood_glucose");
-      if (!metric) return [];
+      if (!metric) {
+        return [];
+      }
 
       const response = await fetch(
         `${DEXCOM_API_BASE}/v2/users/self/egvs?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
@@ -339,7 +350,9 @@ export const dexcomService = {
         }
       );
 
-      if (!response.ok) return [];
+      if (!response.ok) {
+        return [];
+      }
 
       const data = await response.json();
       const egvs = data.egvs || [];

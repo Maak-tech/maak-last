@@ -454,5 +454,7 @@ export const getAllConnectedProviders = async (): Promise<
     providers.map((p) => getProviderConnection(p))
   );
 
-  return connections.filter((c): c is ProviderConnection => c?.connected);
+  return connections.filter(
+    (c): c is ProviderConnection => c?.connected === true
+  );
 };

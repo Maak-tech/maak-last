@@ -3,6 +3,7 @@
  * OAuth 2.0 integration with Samsung Health API
  * Supports comprehensive health data including vitals, activity, sleep, and body composition
  */
+/* biome-ignore-all lint/performance/noNamespaceImport: Expo linking, secure-store, and web-browser namespace APIs are used throughout this provider integration module. */
 
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
@@ -98,6 +99,17 @@ type SamsungHealthResponsePayload = {
   height?: number;
 };
 
+const toIsoDate = (
+  ...candidates: Array<string | number | Date | undefined>
+): string => {
+  for (const candidate of candidates) {
+    if (candidate !== undefined && candidate !== null) {
+      return new Date(candidate).toISOString();
+    }
+  }
+  return new Date().toISOString();
+};
+
 const getDataRows = (data: unknown): SamsungHealthDataItem[] => {
   const payload = data as SamsungHealthResponsePayload;
   return Array.isArray(payload.data) ? payload.data : [];
@@ -121,16 +133,14 @@ const dataTypeParsers: Record<
   // Heart rate data
   heart_rate: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.heart_rate || item.value || item.bpm || 0,
       unit: "bpm",
-      startDate: new Date(
-        item.timestamp || item.start_time || item.date
-      ).toISOString(),
-      endDate: item.end_time
-        ? new Date(item.end_time).toISOString()
-        : undefined,
+      startDate: toIsoDate(item.timestamp || item.start_time || item.date),
+      endDate: item.end_time ? toIsoDate(item.end_time) : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -138,11 +148,13 @@ const dataTypeParsers: Record<
   // Resting heart rate
   resting_heart_rate: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.resting_heart_rate || item.value || 0,
       unit: "bpm",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -150,11 +162,13 @@ const dataTypeParsers: Record<
   // Heart rate variability
   heart_rate_variability: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.hrv || item.sdnn || item.rmssd || item.value || 0,
       unit: "ms",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -162,11 +176,13 @@ const dataTypeParsers: Record<
   // Blood pressure (systolic)
   blood_pressure_systolic: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.systolic || item.systolic_pressure || 0,
       unit: "mmHg",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -174,11 +190,13 @@ const dataTypeParsers: Record<
   // Blood pressure (diastolic)
   blood_pressure_diastolic: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.diastolic || item.diastolic_pressure || 0,
       unit: "mmHg",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -186,11 +204,13 @@ const dataTypeParsers: Record<
   // Blood oxygen (SpO2)
   blood_oxygen: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.spo2 || item.oxygen_saturation || item.value || 0,
       unit: "%",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -198,12 +218,14 @@ const dataTypeParsers: Record<
   // Respiratory rate
   respiratory_rate: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value:
         item.respiratory_rate || item.breaths_per_minute || item.value || 0,
       unit: "breaths/min",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -211,11 +233,13 @@ const dataTypeParsers: Record<
   // Body temperature
   body_temperature: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.temperature || item.body_temperature || item.value || 0,
       unit: "°C",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -223,11 +247,13 @@ const dataTypeParsers: Record<
   // Weight
   weight: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.weight || item.body_weight || item.value || 0,
       unit: "kg",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -241,17 +267,19 @@ const dataTypeParsers: Record<
         {
           value: payload.height,
           unit: "cm",
-          startDate: new Date().toISOString(),
+          startDate: toIsoDate(),
           source: "Samsung Health Profile",
         },
       ];
     }
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.height || item.value || 0,
       unit: "cm",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -259,11 +287,13 @@ const dataTypeParsers: Record<
   // Body mass index
   body_mass_index: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.bmi || item.body_mass_index || item.value || 0,
       unit: "kg/m²",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -271,11 +301,13 @@ const dataTypeParsers: Record<
   // Body fat percentage
   body_fat_percentage: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.body_fat || item.fat_percentage || item.value || 0,
       unit: "%",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -283,16 +315,14 @@ const dataTypeParsers: Record<
   // Steps
   steps: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.steps || item.step_count || item.count || item.value || 0,
       unit: "count",
-      startDate: new Date(
-        item.timestamp || item.start_time || item.date
-      ).toISOString(),
-      endDate: item.end_time
-        ? new Date(item.end_time).toISOString()
-        : undefined,
+      startDate: toIsoDate(item.timestamp || item.start_time || item.date),
+      endDate: item.end_time ? toIsoDate(item.end_time) : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -300,7 +330,9 @@ const dataTypeParsers: Record<
   // Active energy burned
   active_energy: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value:
         item.active_calories ||
@@ -309,7 +341,7 @@ const dataTypeParsers: Record<
         item.value ||
         0,
       unit: "kcal",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -317,12 +349,14 @@ const dataTypeParsers: Record<
   // Distance walking/running
   distance_walking_running: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       // Samsung Health typically returns distance in meters, convert to km
       value: (item.distance || item.total_distance || item.value || 0) / 1000,
       unit: "km",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -330,12 +364,14 @@ const dataTypeParsers: Record<
   // Flights/floors climbed
   flights_climbed: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value:
         item.floors || item.floors_climbed || item.count || item.value || 0,
       unit: "count",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -343,17 +379,19 @@ const dataTypeParsers: Record<
   // Exercise minutes
   exercise_minutes: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       // Convert from milliseconds or seconds to minutes if needed
-      value: item.duration_minutes || item.duration / 60_000 || item.value || 0,
+      value:
+        item.duration_minutes ??
+        (item.duration !== undefined ? item.duration / 60_000 : undefined) ??
+        item.value ??
+        0,
       unit: "min",
-      startDate: new Date(
-        item.timestamp || item.start_time || item.date
-      ).toISOString(),
-      endDate: item.end_time
-        ? new Date(item.end_time).toISOString()
-        : undefined,
+      startDate: toIsoDate(item.timestamp || item.start_time || item.date),
+      endDate: item.end_time ? toIsoDate(item.end_time) : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -361,16 +399,14 @@ const dataTypeParsers: Record<
   // Workouts
   workouts: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.exercise_type || item.workout_type || item.type || "workout",
       unit: "",
-      startDate: new Date(
-        item.timestamp || item.start_time || item.date
-      ).toISOString(),
-      endDate: item.end_time
-        ? new Date(item.end_time).toISOString()
-        : undefined,
+      startDate: toIsoDate(item.timestamp || item.start_time || item.date),
+      endDate: item.end_time ? toIsoDate(item.end_time) : undefined,
       source: item.source || "Samsung Health",
     }));
   },
@@ -378,17 +414,21 @@ const dataTypeParsers: Record<
   // Sleep analysis
   sleep_analysis: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       // Total sleep in hours
       value: item.total_sleep_minutes
         ? item.total_sleep_minutes / 60
-        : item.duration / 3_600_000 || item.value || 0,
+        : ((item.duration !== undefined
+            ? item.duration / 3_600_000
+            : undefined) ??
+          item.value ??
+          0),
       unit: "hours",
-      startDate: new Date(
-        item.start_time || item.bed_time || item.date
-      ).toISOString(),
-      endDate: new Date(item.end_time || item.wake_time).toISOString(),
+      startDate: toIsoDate(item.start_time || item.bed_time || item.date),
+      endDate: toIsoDate(item.end_time || item.wake_time),
       source: item.source || "Samsung Health",
     }));
   },
@@ -396,11 +436,13 @@ const dataTypeParsers: Record<
   // Water intake
   water_intake: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.amount || item.water_ml || item.value || 0,
       unit: "ml",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -408,11 +450,13 @@ const dataTypeParsers: Record<
   // Blood glucose
   blood_glucose: (data) => {
     const rows = getDataRows(data);
-    if (rows.length === 0) return [];
+    if (rows.length === 0) {
+      return [];
+    }
     return rows.map((item) => ({
       value: item.glucose || item.blood_glucose || item.value || 0,
       unit: "mg/dL",
-      startDate: new Date(item.timestamp || item.date).toISOString(),
+      startDate: toIsoDate(item.timestamp || item.date),
       source: item.source || "Samsung Health",
     }));
   },
@@ -546,7 +590,7 @@ export const samsungHealthService = {
       await saveProviderConnection({
         provider: "samsung_health",
         connected: true,
-        connectedAt: new Date().toISOString(),
+        connectedAt: toIsoDate(),
         selectedMetrics: selectedMetrics || [],
       });
     } catch (error: unknown) {
@@ -574,7 +618,9 @@ export const samsungHealthService = {
       const tokensStr = await SecureStore.getItemAsync(
         HEALTH_STORAGE_KEYS.SAMSUNG_HEALTH_TOKENS
       );
-      if (!tokensStr) return null;
+      if (!tokensStr) {
+        return null;
+      }
       return JSON.parse(tokensStr);
     } catch {
       return null;
@@ -587,7 +633,9 @@ export const samsungHealthService = {
   refreshTokenIfNeeded: async (): Promise<string | null> => {
     try {
       const tokens = await samsungHealthService.getTokens();
-      if (!tokens) return null;
+      if (!tokens) {
+        return null;
+      }
 
       // Return existing token if still valid (with 5 min buffer)
       if (tokens.expiresAt > Date.now() + 5 * 60 * 1000) {
@@ -637,13 +685,17 @@ export const samsungHealthService = {
   ): Promise<NormalizedMetricPayload[]> => {
     try {
       const accessToken = await samsungHealthService.refreshTokenIfNeeded();
-      if (!accessToken) return [];
+      if (!accessToken) {
+        return [];
+      }
 
       const results: NormalizedMetricPayload[] = [];
 
       for (const key of metricKeys) {
         const metric = getMetricByKey(key);
-        if (!metric?.samsungHealth?.endpoint) continue;
+        if (!metric?.samsungHealth?.endpoint) {
+          continue;
+        }
 
         try {
           // Build endpoint URL with date parameter
@@ -746,7 +798,9 @@ export const samsungHealthService = {
   revokeAccess: async (): Promise<boolean> => {
     try {
       const tokens = await samsungHealthService.getTokens();
-      if (!tokens) return true;
+      if (!tokens) {
+        return true;
+      }
 
       // Attempt to revoke the token via Samsung's API
       // Note: Samsung Health may or may not support token revocation
@@ -795,7 +849,7 @@ function parseMetricData(metricKey: string, data: unknown): MetricSample[] {
   return rows.map((item) => ({
     value: item.value || item.count || 0,
     unit: "",
-    startDate: new Date(item.timestamp || item.date).toISOString(),
+    startDate: toIsoDate(item.timestamp || item.date),
     source: "Samsung Health",
   }));
 }

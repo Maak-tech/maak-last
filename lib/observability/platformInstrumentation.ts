@@ -124,7 +124,7 @@ export function instrumentAsync<T>(
       `${options.source}_${operationName}`,
       executeOperation,
       options.circuitBreakerFallback
-    );
+    ) as Promise<T>;
   }
 
   return executeOperation();

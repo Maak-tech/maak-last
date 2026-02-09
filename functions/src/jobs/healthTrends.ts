@@ -84,7 +84,7 @@ async function sendTrendAlertToAdmins(
         context: PushNotificationContext
       ) => Promise<unknown>;
     };
-    const indexModule = (await import("../index.js")) as IndexModule;
+    const indexModule = (await import("../index.js")) as unknown as IndexModule;
     if (!indexModule.sendPushNotification) {
       logger.warn("sendPushNotification export not found", {
         fn: "sendTrendAlertToAdmins",

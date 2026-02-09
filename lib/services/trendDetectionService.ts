@@ -2,8 +2,9 @@
  * Trend Detection Service
  * Analyzes health data over time to detect concerning trends
  */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Trend classification intentionally evaluates multiple statistical and threshold branches per vital type. */
 
-export interface TrendAnalysis {
+export type TrendAnalysis = {
   vitalType: string;
   trend: "increasing" | "decreasing" | "stable" | "fluctuating";
   severity: "critical" | "warning" | "normal";
@@ -13,9 +14,9 @@ export interface TrendAnalysis {
   averageValue: number;
   unit: string;
   message: string;
-}
+};
 
-export interface SymptomTrendAnalysis {
+export type SymptomTrendAnalysis = {
   symptomType: string;
   frequency: number; // occurrences per week
   trend: "increasing" | "decreasing" | "stable";
@@ -23,7 +24,7 @@ export interface SymptomTrendAnalysis {
   averageSeverity: number;
   timePeriod: string;
   message: string;
-}
+};
 
 /**
  * Analyze vital sign trends over a time period
@@ -42,8 +43,12 @@ export function analyzeVitalTrend(
   const sortedValues = [...values].sort(
     (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
   );
+  const latestPoint = sortedValues.at(-1);
+  if (!latestPoint) {
+    return null;
+  }
 
-  const currentValue = sortedValues[sortedValues.length - 1].value;
+  const currentValue = latestPoint.value;
   const averageValue =
     sortedValues.reduce((sum, v) => sum + v.value, 0) / sortedValues.length;
 
@@ -266,8 +271,7 @@ export async function createTrendAlert(
   try {
     const { alertService } = await import("./alertService");
 
-    const alertType: "vital_trend" | "symptom_trend" =
-      type === "vital_trend" ? "vital_trend" : "symptom_trend";
+    const alertType = "vitals" as const;
     const severity =
       trendAnalysis.severity === "critical" ? "critical" : "high";
 

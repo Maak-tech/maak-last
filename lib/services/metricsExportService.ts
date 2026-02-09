@@ -133,7 +133,7 @@ const appendCatalogFallbackMetrics = (
   getAvailableMetricsForProvider: (provider: HealthProvider) => Array<{
     key: string;
     displayName: string;
-    unit: string;
+    unit?: string;
   }>
 ): void => {
   if (allMetrics.length > 0) {
@@ -151,7 +151,7 @@ const appendCatalogFallbackMetrics = (
       provider: fallbackProvider,
       metricKey: metric.key,
       displayName: metric.displayName,
-      unit: metric.unit,
+      unit: metric.unit || "",
       samples: [],
     });
   }

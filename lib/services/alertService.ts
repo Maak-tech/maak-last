@@ -106,7 +106,30 @@ const extractFirebaseFunctionsError = (
   return { code, message };
 };
 
+const mapAlertSeverityToObservability = (
+  severity: EmergencyAlert["severity"]
+): "critical" | "error" | "warn" => {
+  if (severity === "critical") {
+    return "critical";
+  }
+  if (severity === "high") {
+    return "error";
+  }
+  return "warn";
+};
+
+const mapAlertTypeToIcon = (type: EmergencyAlert["type"]): string => {
+  if (type === "fall") {
+    return "alert-triangle";
+  }
+  if (type === "medication") {
+    return "pill";
+  }
+  return "heart-pulse";
+};
+
 export const alertService = {
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles direct Firestore write plus Cloud Function fallback with full telemetry/error context. */
   async createAlert(alertData: Omit<EmergencyAlert, "id">): Promise<string> {
     try {
       const cleanedAlertData = removeUndefinedValues(
@@ -126,18 +149,8 @@ export const alertService = {
           title: `Alert: ${alertData.type}`,
           description: alertData.message,
           timestamp: alertData.timestamp,
-          severity:
-            alertData.severity === "critical"
-              ? "critical"
-              : alertData.severity === "high"
-                ? "error"
-                : "warn",
-          icon:
-            alertData.type === "fall"
-              ? "alert-triangle"
-              : alertData.type === "medication"
-                ? "pill"
-                : "heart-pulse",
+          severity: mapAlertSeverityToObservability(alertData.severity),
+          icon: mapAlertTypeToIcon(alertData.type),
           metadata: {
             alertId: docRef.id,
             alertType: alertData.type,
@@ -153,12 +166,7 @@ export const alertService = {
           domain: "alerts",
           source: "alertService",
           message: `Alert created: ${alertData.type}`,
-          severity:
-            alertData.severity === "critical"
-              ? "critical"
-              : alertData.severity === "high"
-                ? "error"
-                : "warn",
+          severity: mapAlertSeverityToObservability(alertData.severity),
           status: "success",
           metadata: {
             alertId: docRef.id,
@@ -237,18 +245,8 @@ export const alertService = {
                   title: `Alert: ${alertData.type}`,
                   description: alertData.message,
                   timestamp: alertData.timestamp,
-                  severity:
-                    alertData.severity === "critical"
-                      ? "critical"
-                      : alertData.severity === "high"
-                        ? "error"
-                        : "warn",
-                  icon:
-                    alertData.type === "fall"
-                      ? "alert-triangle"
-                      : alertData.type === "medication"
-                        ? "pill"
-                        : "heart-pulse",
+                  severity: mapAlertSeverityToObservability(alertData.severity),
+                  icon: mapAlertTypeToIcon(alertData.type),
                   metadata: {
                     alertId,
                     alertType: alertData.type,
@@ -267,12 +265,7 @@ export const alertService = {
                 domain: "alerts",
                 source: "alertService",
                 message: `Alert created via Cloud Function: ${alertData.type}`,
-                severity:
-                  alertData.severity === "critical"
-                    ? "critical"
-                    : alertData.severity === "high"
-                      ? "error"
-                      : "warn",
+                severity: mapAlertSeverityToObservability(alertData.severity),
                 status: "success",
                 metadata: {
                   alertId,
@@ -381,14 +374,14 @@ export const alertService = {
     const querySnapshot = await getDocs(q);
     const alerts: EmergencyAlert[] = [];
 
-    querySnapshot.forEach((itemDoc) => {
+    for (const itemDoc of querySnapshot.docs) {
       const data = itemDoc.data();
       alerts.push({
         id: itemDoc.id,
         ...data,
         timestamp: data.timestamp.toDate(),
       } as EmergencyAlert);
-    });
+    }
 
     return alerts;
   },
@@ -408,18 +401,19 @@ export const alertService = {
     const querySnapshot = await getDocs(q);
     const alerts: EmergencyAlert[] = [];
 
-    querySnapshot.forEach((itemDoc) => {
+    for (const itemDoc of querySnapshot.docs) {
       const data = itemDoc.data();
       alerts.push({
         id: itemDoc.id,
         ...data,
         timestamp: data.timestamp.toDate(),
       } as EmergencyAlert);
-    });
+    }
 
     return alerts;
   },
 
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Multi-path resolution workflow (Cloud Function, fallback writes, escalation, and timeline) with detailed observability. */
   async resolveAlert(alertId: string, resolverId: string): Promise<void> {
     try {
       const alertRef = doc(db, "alerts", alertId);
@@ -802,6 +796,7 @@ export const alertService = {
     });
   },
 
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Fall alerts coordinate timeline, escalation, push, and SMS flows with family/non-family branches. */
   async createFallAlert(userId: string, location?: string): Promise<string> {
     const alertData: Omit<EmergencyAlert, "id"> = {
       userId,
@@ -1001,6 +996,7 @@ export const alertService = {
     }
   },
 
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Includes dual-query fallback path for missing composite indexes and in-memory safety filtering. */
   async getActiveAlerts(userId: string): Promise<EmergencyAlert[]> {
     try {
       const q = query(
@@ -1012,7 +1008,7 @@ export const alertService = {
       const querySnapshot = await getDocs(q);
       const alerts: EmergencyAlert[] = [];
 
-      querySnapshot.forEach((itemDoc) => {
+      for (const itemDoc of querySnapshot.docs) {
         const data = itemDoc.data();
         const alert = {
           id: itemDoc.id,
@@ -1025,7 +1021,7 @@ export const alertService = {
         if (!alert.resolved) {
           alerts.push(alert);
         }
-      });
+      }
 
       // Additional filter to ensure no resolved alerts slip through
       const filteredAlerts = alerts.filter((a) => !a.resolved);
@@ -1038,11 +1034,15 @@ export const alertService = {
       return filteredAlerts;
     } catch (error: unknown) {
       // Silently handle error
+      const errorObj =
+        typeof error === "object" && error !== null
+          ? (error as { message?: string; code?: string })
+          : {};
 
       // If it's an index error, try without the resolved filter
       if (
-        error.message?.includes("index") ||
-        error.code === "failed-precondition"
+        errorObj.message?.includes("index") ||
+        errorObj.code === "failed-precondition"
       ) {
         try {
           const q = query(
@@ -1051,7 +1051,7 @@ export const alertService = {
           );
           const querySnapshot = await getDocs(q);
           const alerts: EmergencyAlert[] = [];
-          querySnapshot.forEach((itemDoc) => {
+          for (const itemDoc of querySnapshot.docs) {
             const data = itemDoc.data();
             const alert = {
               id: itemDoc.id,
@@ -1063,7 +1063,7 @@ export const alertService = {
             if (!alert.resolved) {
               alerts.push(alert);
             }
-          });
+          }
           alerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
           return alerts;
         } catch (_retryError: unknown) {
@@ -1075,4 +1075,3 @@ export const alertService = {
     }
   },
 };
-

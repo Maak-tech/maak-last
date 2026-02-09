@@ -8,15 +8,15 @@
 import { type Functions, httpsCallable } from "firebase/functions";
 import type { PPGResult } from "@/lib/utils/BiometricUtils";
 
-interface PPGAnalysisRequest {
+type PPGAnalysisRequest = {
   signal: number[];
   frameRate: number;
   duration?: number;
   userId?: string;
   metadata?: Record<string, unknown>;
-}
+};
 
-interface PPGAnalysisResponse {
+type PPGAnalysisResponse = {
   success: boolean;
   heartRate?: number;
   heartRateVariability?: number;
@@ -26,7 +26,7 @@ interface PPGAnalysisResponse {
   embeddings?: number[];
   warnings: string[];
   error?: string;
-}
+};
 
 // Helper to get authenticated functions instance
 async function getAuthenticatedFunctions(): Promise<Functions | null> {
@@ -64,11 +64,27 @@ async function getAuthenticatedFunctions(): Promise<Functions | null> {
 let hasLoggedMlUnavailable = false;
 const IS_DEV = process.env.NODE_ENV !== "production";
 
+const getMessageFromUnknownError = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return "ML service unavailable";
+};
+
 export const ppgMLService = {
   /**
    * Analyze PPG signal using ML models (PaPaGei)
    * Falls back to traditional processing if ML service is unavailable
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This method intentionally orchestrates auth, ML invocation, and fallback handling for degraded modes. */
   async analyzePPG(
     signal: number[],
     frameRate: number,
@@ -167,15 +183,7 @@ export const ppgMLService = {
         typeof error.code === "string"
           ? error.code
           : "";
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : typeof error === "object" &&
-              error !== null &&
-              "message" in error &&
-              typeof error.message === "string"
-            ? error.message
-            : "ML service unavailable";
+      const errorMessage = getMessageFromUnknownError(error);
       const isAuthError =
         errorCode === "unauthenticated" ||
         errorMessage.includes("User must be authenticated") ||

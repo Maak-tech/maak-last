@@ -2,11 +2,11 @@ import type { FirebaseApp } from "firebase/app";
 import { type Functions, httpsCallable } from "firebase/functions";
 import { Platform } from "react-native";
 
-export interface FCMTokenResult {
+export type FCMTokenResult = {
   success: boolean;
   token?: string;
   error?: string;
-}
+};
 
 // Helper to get functions with current auth context
 async function getAuthenticatedFunctions(): Promise<Functions> {
@@ -90,6 +90,7 @@ export const fcmService = {
   },
 
   // Save FCM token to user document via Cloud Function
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles authenticated callable path plus explicit Firestore fallback for auth edge cases. */
   async saveFCMToken(token: string, userId?: string): Promise<boolean> {
     // Declare currentUser outside try-catch to be accessible in catch block
     let currentUser: {

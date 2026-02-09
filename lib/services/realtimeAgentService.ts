@@ -46,6 +46,16 @@ type ExpoFileSystemModule = {
   deleteAsync: (uri: string, options: { idempotent: boolean }) => Promise<void>;
 };
 
+const getUnknownErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return "Unknown WebSocket error";
+};
+
 // Dynamic import for expo-av and expo-file-system
 let Audio: ExpoAudioModule | null = null;
 let FileSystem: ExpoFileSystemModule | null = null;
@@ -915,6 +925,7 @@ class RealtimeAgentService {
   /**
    * Connect to the OpenAI Realtime API
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Connection setup intentionally handles auth validation, websocket lifecycle, and recovery in one flow. */
   connect(customInstructions?: string): Promise<void> {
     // Check if already connected, but handle cases where WebSocket might not have readyState
     if (this.ws) {
@@ -923,7 +934,7 @@ class RealtimeAgentService {
           typeof this.ws.readyState !== "undefined" &&
           this.ws.readyState === WebSocket.OPEN
         ) {
-          return;
+          return Promise.resolve();
         }
       } catch (_error) {
         // WebSocket might be in an invalid state, continue to create new connection
@@ -955,10 +966,15 @@ class RealtimeAgentService {
       }
     }
 
+    const apiKey = this.apiKey;
+    if (!apiKey) {
+      throw new Error("API key not available");
+    }
+
     // Validate API key format before attempting connection
-    if (!this.validateApiKeyFormat(this.apiKey!)) {
+    if (!this.validateApiKeyFormat(apiKey)) {
       const errorMessage =
-        `Invalid API key format: ${this.maskApiKey(this.apiKey!)}\n\n` +
+        `Invalid API key format: ${this.maskApiKey(apiKey)}\n\n` +
         "OpenAI API keys should start with 'sk-' or 'sk-proj-'.\n\n" +
         "Please check:\n" +
         "1. Your .env file has the correct key format\n" +
@@ -980,7 +996,7 @@ class RealtimeAgentService {
         try {
           ws = createWebSocketWithHeaders(wsUrl, undefined, {
             headers: {
-              Authorization: `Bearer ${this.apiKey}`,
+              Authorization: `Bearer ${apiKey}`,
               "OpenAI-Beta": "realtime=v1",
             },
           });
@@ -1030,10 +1046,10 @@ class RealtimeAgentService {
           this.handleMessage(event.data);
         };
 
+        /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: WebSocket error handler provides detailed diagnostics for auth/network/firewall failure modes. */
         ws.onerror = (error: unknown) => {
           // Provide more detailed error information
-          const errorMessage =
-            error?.message || error?.toString() || "Unknown WebSocket error";
+          const errorMessage = getUnknownErrorMessage(error);
           const setupGuidance = getWebSocketSetupGuidance();
           const maskedKey = this.maskApiKey(this.apiKey);
 
@@ -1144,6 +1160,7 @@ class RealtimeAgentService {
           }
         };
 
+        /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Close handler differentiates close codes and controls reconnect behavior with user-facing diagnostics. */
         ws.onclose = (event) => {
           clearTimeout(connectionTimeout);
           this.setConnectionState("disconnected");
@@ -1218,7 +1235,7 @@ class RealtimeAgentService {
             event.code !== 1000 &&
             this.reconnectAttempts < this.maxReconnectAttempts
           ) {
-            this.reconnectAttempts++;
+            this.reconnectAttempts += 1;
             setTimeout(
               () => this.connect(customInstructions),
               2000 * this.reconnectAttempts
@@ -1237,6 +1254,7 @@ class RealtimeAgentService {
         };
 
         // Timeout for connection (increased to 15 seconds for slower networks)
+        /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Timeout callback emits actionable network diagnostics and safely tears down partial connections. */
         connectionTimeout = setTimeout(() => {
           if (this.connectionState === "connecting" && !hasResolved) {
             hasResolved = true;
@@ -1314,7 +1332,6 @@ class RealtimeAgentService {
       max_response_output_tokens: 1024,
     };
 
-    this.sessionConfig = sessionConfig;
     this.sendMessage({
       type: "session.update",
       session: sessionConfig,
@@ -1503,10 +1520,13 @@ class RealtimeAgentService {
           break;
 
         case "response.audio.delta":
-          this.eventHandlers.onAudioDelta?.(message.delta);
-          this.audioBuffer.push(message.delta);
+          if (typeof message.delta === "string") {
+            this.eventHandlers.onAudioDelta?.(message.delta);
+            this.audioBuffer.push(message.delta);
+            // Queue audio for playback
+            this.queueAudioChunk(message.delta);
+          }
           // Queue audio for playback
-          this.queueAudioChunk(message.delta);
           break;
 
         case "response.audio.done":
@@ -1517,8 +1537,10 @@ class RealtimeAgentService {
           break;
 
         case "response.audio_transcript.delta":
-          this.currentTranscript.assistant += message.delta;
-          this.eventHandlers.onTranscriptDelta?.(message.delta, "assistant");
+          if (typeof message.delta === "string") {
+            this.currentTranscript.assistant += message.delta;
+            this.eventHandlers.onTranscriptDelta?.(message.delta, "assistant");
+          }
           break;
 
         case "response.audio_transcript.done":
@@ -1530,15 +1552,23 @@ class RealtimeAgentService {
           break;
 
         case "conversation.item.input_audio_transcription.completed":
-          this.eventHandlers.onTranscriptDone?.(message.transcript, "user");
+          if (typeof message.transcript === "string") {
+            this.eventHandlers.onTranscriptDone?.(message.transcript, "user");
+          }
           break;
 
         case "response.function_call_arguments.done":
-          this.eventHandlers.onToolCall?.({
-            name: message.name,
-            arguments: message.arguments,
-            call_id: message.call_id,
-          });
+          if (
+            typeof message.name === "string" &&
+            typeof message.arguments === "string" &&
+            typeof message.call_id === "string"
+          ) {
+            this.eventHandlers.onToolCall?.({
+              name: message.name,
+              arguments: message.arguments,
+              call_id: message.call_id,
+            });
+          }
           break;
 
         case "response.done":
@@ -1635,10 +1665,16 @@ class RealtimeAgentService {
   /**
    * Process the audio queue and play accumulated chunks
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Audio queue playback coordinates chunking, WAV conversion, file IO, and audio mode transitions. */
   private async processAudioQueue(): Promise<void> {
     if (this.isPlayingAudio || this.audioPlaybackQueue.length === 0) {
       return;
     }
+    if (!(FileSystem && Audio)) {
+      return;
+    }
+    const fileSystem = FileSystem;
+    const audio = Audio;
 
     this.isPlayingAudio = true;
 
@@ -1673,7 +1709,7 @@ class RealtimeAgentService {
       const wavData = this.pcm16ToWav(combinedData, 24_000, 1); // 24kHz, mono
 
       // Create a temporary file URI
-      const tempUri = `${FileSystem.cacheDirectory}zeina_audio_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
+      const tempUri = `${fileSystem.cacheDirectory}zeina_audio_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`;
 
       // Convert WAV data to base64 for writing
       // Convert ArrayBufferLike to ArrayBuffer by creating a new ArrayBuffer
@@ -1684,9 +1720,9 @@ class RealtimeAgentService {
       const base64Wav = this.arrayBufferToBase64(arrayBuffer);
 
       // Set audio mode for playback (disable recording mode)
-      if (Audio) {
+      if (audio) {
         try {
-          await Audio.setAudioModeAsync({
+          await audio.setAudioModeAsync({
             allowsRecordingIOS: false,
             playsInSilentModeIOS: true,
             staysActiveInBackground: true,
@@ -1700,13 +1736,13 @@ class RealtimeAgentService {
       // Write the base64 data - expo-file-system will handle the conversion
       // Note: We write as base64 string, but the file will be read as binary by Audio.Sound
       try {
-        await FileSystem.writeAsStringAsync(tempUri, base64Wav, {
-          encoding: FileSystem.EncodingType.Base64,
+        await fileSystem.writeAsStringAsync(tempUri, base64Wav, {
+          encoding: fileSystem.EncodingType.Base64,
         });
       } catch (_error) {
         // Fallback: try writing as data URI if file write fails
         const dataUri = `data:audio/wav;base64,${base64Wav}`;
-        const { sound: fallbackSound } = await Audio.Sound.createAsync(
+        const { sound: fallbackSound } = await audio.Sound.createAsync(
           { uri: dataUri },
           { shouldPlay: true, volume: 1.0 }
         );
@@ -1724,7 +1760,7 @@ class RealtimeAgentService {
       }
 
       // Play the audio
-      const { sound } = await Audio.Sound.createAsync(
+      const { sound } = await audio.Sound.createAsync(
         { uri: tempUri },
         { shouldPlay: true, volume: 1.0 }
       );
@@ -1736,7 +1772,7 @@ class RealtimeAgentService {
             // no-op
           });
           // Clean up temp file
-          FileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {
+          fileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {
             // no-op
           });
           this.isPlayingAudio = false;

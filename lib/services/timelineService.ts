@@ -1,4 +1,6 @@
-export interface TimelineEvent {
+/* biome-ignore-all lint/complexity/noForEach: Timeline construction currently uses forEach-heavy transforms across heterogeneous event sources. */
+/* biome-ignore-all lint/suspicious/useAwait: Week/month helpers intentionally keep async signatures for API consistency with other service methods. */
+export type TimelineEvent = {
   id: string;
   type:
     | "symptom"
@@ -15,7 +17,7 @@ export interface TimelineEvent {
   data: unknown; // Original data object
   color: string;
   icon?: string;
-}
+};
 
 class TimelineService {
   /**
@@ -286,7 +288,7 @@ class TimelineService {
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, []);
       }
-      grouped.get(dateKey)!.push(event);
+      grouped.get(dateKey)?.push(event);
     });
 
     return grouped;
@@ -296,9 +298,15 @@ class TimelineService {
    * Get severity color
    */
   private getSeverityColor(severity: number): string {
-    if (severity >= 4) return "#EF4444"; // Red
-    if (severity >= 3) return "#F59E0B"; // Orange
-    if (severity >= 2) return "#EAB308"; // Yellow
+    if (severity >= 4) {
+      return "#EF4444"; // Red
+    }
+    if (severity >= 3) {
+      return "#F59E0B"; // Orange
+    }
+    if (severity >= 2) {
+      return "#EAB308"; // Yellow
+    }
     return "#10B981"; // Green
   }
 

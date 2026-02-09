@@ -117,7 +117,7 @@ export const checkSymptomBenchmarks = onDocumentCreated(
         },
         context: { auth: { uid: string } }
       ) => Promise<unknown>;
-      const indexModule = (await import("../index.js")) as {
+      const indexModule = (await import("../index.js")) as unknown as {
         sendPushNotification: SendPushNotification;
       };
       const result = await indexModule.sendPushNotification(

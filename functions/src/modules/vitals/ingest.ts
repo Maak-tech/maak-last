@@ -4,6 +4,7 @@
  * No Firestore dependencies - fully testable
  */
 
+import { Timestamp } from "firebase-admin/firestore";
 import type { Vital, VitalType } from "../../db/firestore";
 
 export type VitalInput = {
@@ -379,9 +380,7 @@ export function createVitalReading(
     value: Math.round(normalized.value * 100) / 100, // Round to 2 decimal places
     unit: normalized.unit,
     source: input.source || "manual",
-    timestamp: input.timestamp
-      ? new Date(input.timestamp) // Will be converted to Timestamp by Firestore
-      : new Date(),
+    timestamp: Timestamp.fromDate(input.timestamp ?? new Date()),
   };
 
   // Add blood pressure fields if applicable

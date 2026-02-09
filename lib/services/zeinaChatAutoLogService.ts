@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/performance/useTopLevelRegex: Regex-driven parser intentionally keeps patterns local for readability and maintenance. */
 import { auth } from "@/lib/firebase";
 import { calendarService } from "./calendarService";
 import {
@@ -236,6 +237,44 @@ const parseDateParts = (text: string): Date | null => {
     return date;
   };
 
+  const directRelativeDate = getDirectRelativeDate(lower, now, adjustToWeekday);
+  if (directRelativeDate) {
+    return directRelativeDate;
+  }
+
+  const weekdayMatch = lower.match(
+    new RegExp(`\\b(next|this)?\\s*(${WEEKDAYS.join("|")})\\b`)
+  );
+  if (weekdayMatch) {
+    const modifier = weekdayMatch[1];
+    const weekday = weekdayMatch[2];
+    const targetIndex = WEEKDAYS.indexOf(weekday);
+    const offsetDays = modifier === "next" ? 7 : 0;
+    return adjustToWeekday(targetIndex, offsetDays);
+  }
+
+  const inOffsetDate = getInOffsetDate(lower, now);
+  if (inOffsetDate) {
+    return inOffsetDate;
+  }
+
+  const namedPeriodDate = getNamedPeriodDate(lower, now);
+  if (namedPeriodDate) {
+    return namedPeriodDate;
+  }
+
+  const explicitDate = getExplicitDate(lower, now);
+  if (explicitDate) {
+    return explicitDate;
+  }
+  return null;
+};
+
+const getDirectRelativeDate = (
+  lower: string,
+  now: Date,
+  adjustToWeekday: (targetIndex: number, offsetDays: number) => Date
+): Date | null => {
   if (/\btoday\b/.test(lower)) {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
@@ -251,39 +290,36 @@ const parseDateParts = (text: string): Date | null => {
   if (/\bnext weekend\b/.test(lower)) {
     return adjustToWeekday(6, 7);
   }
+  return null;
+};
 
-  const weekdayMatch = lower.match(
-    new RegExp(`\\b(next|this)?\\s*(${WEEKDAYS.join("|")})\\b`)
-  );
-  if (weekdayMatch) {
-    const modifier = weekdayMatch[1];
-    const weekday = weekdayMatch[2];
-    const targetIndex = WEEKDAYS.indexOf(weekday);
-    const offsetDays = modifier === "next" ? 7 : 0;
-    return adjustToWeekday(targetIndex, offsetDays);
-  }
-
+const getInOffsetDate = (lower: string, now: Date): Date | null => {
   const inMatch = lower.match(
     /\bin\s+(\d+)\s+(day|days|week|weeks|month|months)\b/
   );
-  if (inMatch) {
-    const count = Number.parseInt(inMatch[1], 10);
-    const unit = inMatch[2];
-    const date = new Date(now);
-    if (unit.startsWith("day")) {
-      date.setDate(date.getDate() + count);
-      return date;
-    }
-    if (unit.startsWith("week")) {
-      date.setDate(date.getDate() + count * 7);
-      return date;
-    }
-    if (unit.startsWith("month")) {
-      date.setMonth(date.getMonth() + count);
-      return date;
-    }
+  if (!inMatch) {
+    return null;
   }
 
+  const count = Number.parseInt(inMatch[1], 10);
+  const unit = inMatch[2];
+  const date = new Date(now);
+  if (unit.startsWith("day")) {
+    date.setDate(date.getDate() + count);
+    return date;
+  }
+  if (unit.startsWith("week")) {
+    date.setDate(date.getDate() + count * 7);
+    return date;
+  }
+  if (unit.startsWith("month")) {
+    date.setMonth(date.getMonth() + count);
+    return date;
+  }
+  return null;
+};
+
+const getNamedPeriodDate = (lower: string, now: Date): Date | null => {
   if (/\bnext week\b/.test(lower)) {
     const date = new Date(now);
     date.setDate(date.getDate() + 7);
@@ -299,13 +335,13 @@ const parseDateParts = (text: string): Date | null => {
     date.setFullYear(date.getFullYear() + 1);
     return date;
   }
-  if (/\bthis week\b/.test(lower)) {
+  if (/\bthis week\b/.test(lower) || /\bthis month\b/.test(lower)) {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
-  if (/\bthis month\b/.test(lower)) {
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  }
+  return null;
+};
 
+const getExplicitDate = (lower: string, now: Date): Date | null => {
   const isoMatch = lower.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
   if (isoMatch) {
     const year = Number.parseInt(isoMatch[1], 10);
@@ -432,14 +468,14 @@ const extractEvents = (text: string): ExtractedEvent[] => {
     type = "appointment";
   }
 
-  const title =
-    type === "vaccination"
-      ? "Vaccination"
-      : type === "lab_result"
-        ? "Lab Result"
-        : type === "appointment"
-          ? "Appointment"
-          : "Health Event";
+  let title = "Health Event";
+  if (type === "vaccination") {
+    title = "Vaccination";
+  } else if (type === "lab_result") {
+    title = "Lab Result";
+  } else if (type === "appointment") {
+    title = "Appointment";
+  }
 
   return [
     {

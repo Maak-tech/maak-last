@@ -1,6 +1,7 @@
+/* biome-ignore-all lint/performance/useTopLevelRegex: Parser relies on localized regex patterns for clarity in import logic. */
 import type { MedicationReminder } from "@/types";
 
-export interface CSVMedicationRow {
+export type CSVMedicationRow = {
   name: string;
   dosage: string;
   frequency: string;
@@ -8,9 +9,9 @@ export interface CSVMedicationRow {
   endDate?: string; // Optional, same format
   reminderTimes?: string; // Comma-separated times like "08:00,20:00" or "8:00 AM,8:00 PM"
   notes?: string;
-}
+};
 
-export interface ParsedMedication {
+export type ParsedMedication = {
   name: string;
   dosage: string;
   frequency: string;
@@ -19,20 +20,21 @@ export interface ParsedMedication {
   reminders: MedicationReminder[];
   notes?: string;
   isActive: boolean;
-}
+};
 
-export interface ImportResult {
+export type ImportResult = {
   success: boolean;
   imported: number;
   failed: number;
   errors: Array<{ row: number; medication: string; error: string }>;
   medications: ParsedMedication[];
-}
+};
 
 class BulkMedicationImportService {
   /**
    * Parse CSV content into medication rows
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: CSV header mapping intentionally handles many legacy aliases. */
   parseCSV(csvContent: string): CSVMedicationRow[] {
     const lines = csvContent.split("\n").filter((line) => line.trim());
     if (lines.length === 0) {
@@ -49,53 +51,55 @@ class BulkMedicationImportService {
 
     // Map common header variations
     const nameIndex =
-      headerMap["name"] ??
-      headerMap["medication"] ??
+      headerMap.name ??
+      headerMap.medication ??
       headerMap["medication name"] ??
-      headerMap["drug"] ??
+      headerMap.drug ??
       0;
     const dosageIndex =
-      headerMap["dosage"] ??
-      headerMap["dose"] ??
-      headerMap["strength"] ??
-      headerMap["amount"] ??
+      headerMap.dosage ??
+      headerMap.dose ??
+      headerMap.strength ??
+      headerMap.amount ??
       1;
     const frequencyIndex =
-      headerMap["frequency"] ??
+      headerMap.frequency ??
       headerMap["how often"] ??
       headerMap["times per day"] ??
-      headerMap["schedule"] ??
+      headerMap.schedule ??
       2;
     const startDateIndex =
       headerMap["start date"] ??
-      headerMap["start"] ??
-      headerMap["started"] ??
+      headerMap.start ??
+      headerMap.started ??
       headerMap["date started"] ??
       3;
     const endDateIndex =
       headerMap["end date"] ??
-      headerMap["end"] ??
-      headerMap["ended"] ??
+      headerMap.end ??
+      headerMap.ended ??
       headerMap["date ended"] ??
       -1;
     const reminderIndex =
-      headerMap["reminders"] ??
+      headerMap.reminders ??
       headerMap["reminder times"] ??
-      headerMap["times"] ??
+      headerMap.times ??
       headerMap["schedule times"] ??
       -1;
     const notesIndex =
-      headerMap["notes"] ??
-      headerMap["note"] ??
-      headerMap["comments"] ??
-      headerMap["remarks"] ??
+      headerMap.notes ??
+      headerMap.note ??
+      headerMap.comments ??
+      headerMap.remarks ??
       -1;
 
     // Parse data rows
     const medications: CSVMedicationRow[] = [];
     for (let i = 1; i < lines.length; i++) {
       const values = this.parseCSVLine(lines[i]);
-      if (values.length === 0) continue;
+      if (values.length === 0) {
+        continue;
+      }
 
       const medication: CSVMedicationRow = {
         name: values[nameIndex]?.trim() || "",
@@ -132,7 +136,7 @@ class BulkMedicationImportService {
         if (inQuotes && nextChar === '"') {
           // Escaped quote
           current += '"';
-          i++; // Skip next quote
+          i += 1; // Skip next quote
         } else {
           // Toggle quote state
           inQuotes = !inQuotes;
@@ -155,7 +159,7 @@ class BulkMedicationImportService {
    * Parse date string in various formats
    */
   private parseDate(dateStr: string): Date | null {
-    if (!(dateStr && dateStr.trim())) {
+    if (!dateStr?.trim()) {
       return null;
     }
 
@@ -213,7 +217,7 @@ class BulkMedicationImportService {
     if (timesStr) {
       // Split by comma or semicolon
       const timeStrings = timesStr.split(/[,;]/).map((t) => t.trim());
-      timeStrings.forEach((timeStr) => {
+      for (const timeStr of timeStrings) {
         const time = this.parseTimeString(timeStr);
         if (time) {
           reminders.push({
@@ -222,7 +226,7 @@ class BulkMedicationImportService {
             taken: false,
           });
         }
-      });
+      }
     }
 
     // If no reminders provided, generate based on frequency
@@ -236,8 +240,9 @@ class BulkMedicationImportService {
   /**
    * Parse time string in various formats (24h, 12h, etc.)
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This parser intentionally supports many human-entered time formats. */
   private parseTimeString(timeStr: string): string | null {
-    if (!(timeStr && timeStr.trim())) {
+    if (!timeStr?.trim()) {
       return null;
     }
 
@@ -384,6 +389,7 @@ class BulkMedicationImportService {
   /**
    * Validate and parse medications from CSV rows
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Row validation keeps explicit field-level errors for clear import feedback. */
   parseMedications(csvRows: CSVMedicationRow[], _userId: string): ImportResult {
     const result: ImportResult = {
       success: true,
@@ -393,47 +399,47 @@ class BulkMedicationImportService {
       medications: [],
     };
 
-    csvRows.forEach((row, index) => {
+    for (const [index, row] of csvRows.entries()) {
       try {
         // Validate required fields
-        if (!(row.name && row.name.trim())) {
+        if (!row.name?.trim()) {
           result.errors.push({
             row: index + 2, // +2 because of header and 0-indexing
             medication: row.name || "Unknown",
             error: "Medication name is required",
           });
-          result.failed++;
-          return;
+          result.failed += 1;
+          continue;
         }
 
-        if (!(row.dosage && row.dosage.trim())) {
+        if (!row.dosage?.trim()) {
           result.errors.push({
             row: index + 2,
             medication: row.name,
             error: "Dosage is required",
           });
-          result.failed++;
-          return;
+          result.failed += 1;
+          continue;
         }
 
-        if (!(row.frequency && row.frequency.trim())) {
+        if (!row.frequency?.trim()) {
           result.errors.push({
             row: index + 2,
             medication: row.name,
             error: "Frequency is required",
           });
-          result.failed++;
-          return;
+          result.failed += 1;
+          continue;
         }
 
-        if (!(row.startDate && row.startDate.trim())) {
+        if (!row.startDate?.trim()) {
           result.errors.push({
             row: index + 2,
             medication: row.name,
             error: "Start date is required",
           });
-          result.failed++;
-          return;
+          result.failed += 1;
+          continue;
         }
 
         // Parse dates
@@ -444,12 +450,12 @@ class BulkMedicationImportService {
             medication: row.name,
             error: `Invalid start date format: ${row.startDate}. Use YYYY-MM-DD or MM/DD/YYYY`,
           });
-          result.failed++;
-          return;
+          result.failed += 1;
+          continue;
         }
 
         let endDate: Date | undefined;
-        if (row.endDate && row.endDate.trim()) {
+        if (row.endDate?.trim()) {
           const parsed = this.parseDate(row.endDate);
           if (parsed && !Number.isNaN(parsed.getTime())) {
             endDate = parsed;
@@ -476,7 +482,7 @@ class BulkMedicationImportService {
         };
 
         result.medications.push(medication);
-        result.imported++;
+        result.imported += 1;
       } catch (error) {
         result.errors.push({
           row: index + 2,
@@ -484,9 +490,9 @@ class BulkMedicationImportService {
           error:
             error instanceof Error ? error.message : "Unknown parsing error",
         });
-        result.failed++;
+        result.failed += 1;
       }
-    });
+    }
 
     result.success = result.failed === 0;
     return result;
@@ -505,14 +511,10 @@ Metformin,500mg,Twice daily,2024-01-01,2024-06-01,08:00 20:00,With meals`;
   /**
    * Import medications from CSV content
    */
-  importFromCSV(
-    csvContent: string,
-    userId: string
-  ): Promise<ImportResult> {
+  importFromCSV(csvContent: string, userId: string): Promise<ImportResult> {
     const csvRows = this.parseCSV(csvContent);
-    return this.parseMedications(csvRows, userId);
+    return Promise.resolve(this.parseMedications(csvRows, userId));
   }
 }
 
 export const bulkMedicationImportService = new BulkMedicationImportService();
-

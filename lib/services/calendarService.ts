@@ -25,6 +25,7 @@ class CalendarService {
   /**
    * Add a new calendar event
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Explicit field-by-field normalization prevents undefined/null writes to Firestore. */
   async addEvent(
     userId: string,
     event: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">
@@ -126,13 +127,16 @@ class CalendarService {
 
       return docRef.id;
     } catch (error: unknown) {
-      throw new Error(`Failed to add calendar event: ${getErrorMessage(error)}`);
+      throw new Error(
+        `Failed to add calendar event: ${getErrorMessage(error)}`
+      );
     }
   }
 
   /**
    * Update an existing calendar event
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Explicit partial-update mapping is intentional for Firestore null/undefined behavior. */
   async updateEvent(
     eventId: string,
     updates: Partial<Omit<CalendarEvent, "id" | "userId" | "createdAt">>
@@ -270,7 +274,7 @@ class CalendarService {
       const snapshot = await getDocs(q);
       const events: CalendarEvent[] = [];
 
-      snapshot.forEach((eventDoc) => {
+      for (const eventDoc of snapshot.docs) {
         const data = eventDoc.data();
         events.push({
           id: eventDoc.id,
@@ -281,7 +285,7 @@ class CalendarService {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
         } as CalendarEvent);
-      });
+      }
 
       return events;
     } catch (_error) {
@@ -314,7 +318,7 @@ class CalendarService {
       const snapshot = await getDocs(q);
       const events: CalendarEvent[] = [];
 
-      snapshot.forEach((eventDoc) => {
+      for (const eventDoc of snapshot.docs) {
         const data = eventDoc.data();
         events.push({
           id: eventDoc.id,
@@ -325,7 +329,7 @@ class CalendarService {
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),
         } as CalendarEvent);
-      });
+      }
 
       return events;
     } catch (_error) {
@@ -365,6 +369,7 @@ class CalendarService {
   /**
    * Get events for a date range
    */
+  /* biome-ignore lint/nursery/useMaxParams: API shape is intentionally aligned with sibling methods and callers. */
   async getEventsForDateRange(
     userId: string,
     startDate: Date,
@@ -389,6 +394,7 @@ class CalendarService {
   /**
    * Generate recurring events
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Recurrence generation handles multiple patterns and bounded iteration safety. */
   private async generateRecurringEvents(
     originalEventId: string,
     event: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">,
@@ -447,7 +453,7 @@ class CalendarService {
           return; // Unknown pattern
       }
 
-      count++;
+      count += 1;
     }
 
     // Add recurring events in batch (simplified - in production, use batch writes)
@@ -465,6 +471,7 @@ class CalendarService {
   /**
    * Create event from medication
    */
+  /* biome-ignore lint/nursery/useMaxParams: Keeping explicit parameters simplifies call sites that map medication reminder fields directly. */
   createEventFromMedication(
     userId: string,
     medicationId: string,
@@ -498,6 +505,7 @@ class CalendarService {
   /**
    * Create event from appointment
    */
+  /* biome-ignore lint/nursery/useMaxParams: Signature mirrors appointment domain fields and reduces mapping boilerplate. */
   createAppointmentEvent(
     userId: string,
     title: string,

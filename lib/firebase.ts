@@ -43,7 +43,7 @@ if (Platform.OS !== "web") {
     // but we'll verify it's ready
     try {
       // Try to get the default app - this will initialize it if needed
-      rnFirebaseApp.app();
+      rnFirebaseApp?.app();
     } catch {
       // App might already be initialized or initialization might fail
       // This is okay - React Native Firebase should auto-initialize from native config
@@ -129,11 +129,15 @@ const messagingSenderId =
   platformConfig.messagingSenderId;
 const appId =
   cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_APP_ID) || platformConfig.appId;
-const measurementId =
-  cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID) ||
-  ("measurementId" in platformConfig
+const configuredMeasurementId = cleanEnvVar(
+  process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
+);
+const platformMeasurementId =
+  "measurementId" in platformConfig &&
+  typeof platformConfig.measurementId === "string"
     ? platformConfig.measurementId
-    : undefined); // Only web has measurementId
+    : undefined;
+const measurementId = configuredMeasurementId || platformMeasurementId; // Only web has measurementId
 
 export const getFirebaseConfig = () => ({
   apiKey,

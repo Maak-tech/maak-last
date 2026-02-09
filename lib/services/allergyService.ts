@@ -13,6 +13,21 @@ import { db } from "@/lib/firebase";
 import type { Allergy } from "@/types";
 import { offlineService } from "./offlineService";
 
+const severityToNumber = (
+  severity: Allergy["severity"] | undefined
+): number | undefined => {
+  if (!severity) {
+    return;
+  }
+  const map: Record<Allergy["severity"], number> = {
+    mild: 1,
+    moderate: 2,
+    severe: 3,
+    "severe-life-threatening": 4,
+  };
+  return map[severity];
+};
+
 export const allergyService = {
   // Add new allergy (offline-first)
   async addAllergy(allergyData: Omit<Allergy, "id">): Promise<string> {
@@ -46,7 +61,11 @@ export const allergyService = {
       const operationId = await offlineService.queueOperation({
         type: "create",
         collection: "allergies",
-        data: { ...allergyData, userId: allergyData.userId },
+        data: {
+          ...allergyData,
+          userId: allergyData.userId,
+          severity: severityToNumber(allergyData.severity),
+        },
       });
       // Store locally for immediate UI update
       const tempId = `offline_${operationId}`;
@@ -64,7 +83,11 @@ export const allergyService = {
         const operationId = await offlineService.queueOperation({
           type: "create",
           collection: "allergies",
-          data: { ...allergyData, userId: allergyData.userId },
+          data: {
+            ...allergyData,
+            userId: allergyData.userId,
+            severity: severityToNumber(allergyData.severity),
+          },
         });
         return `offline_${operationId}`;
       }

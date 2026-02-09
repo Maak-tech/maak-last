@@ -143,13 +143,23 @@ export async function getRecentVitalsSummary(
       };
 
       // Special handling for blood pressure
+      const firstReading = readings[0];
       if (
         type === "bloodPressure" &&
-        readings[0].systolic &&
-        readings[0].diastolic
+        firstReading &&
+        firstReading.systolic !== undefined &&
+        firstReading.diastolic !== undefined
       ) {
-        const systolicValues = readings.map((r) => r.systolic);
-        const diastolicValues = readings.map((r) => r.diastolic);
+        const systolicValues = readings
+          .map((r) => r.systolic)
+          .filter((value): value is number => value !== undefined);
+        const diastolicValues = readings
+          .map((r) => r.diastolic)
+          .filter((value): value is number => value !== undefined);
+
+        if (systolicValues.length === 0 || diastolicValues.length === 0) {
+          continue;
+        }
 
         summary[type] = {
           systolic: {

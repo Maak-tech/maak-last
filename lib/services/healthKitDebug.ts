@@ -7,7 +7,8 @@ let loadAttempts: Array<{ timestamp: number; stack: string; source: string }> =
   [];
 
 export const logHealthKitLoadAttempt = (source: string) => {
-  const stack = new Error().stack || "No stack trace";
+  const stack =
+    new Error("HealthKit load attempt trace").stack || "No stack trace";
   loadAttempts.push({
     timestamp: Date.now(),
     stack,

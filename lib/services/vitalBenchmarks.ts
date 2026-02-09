@@ -3,7 +3,7 @@
  * Defines normal ranges and alert thresholds for various vital signs
  */
 
-export interface VitalBenchmark {
+export type VitalBenchmark = {
   type: string;
   unit: string;
   normalRange: {
@@ -20,11 +20,11 @@ export interface VitalBenchmark {
       warning: number; // Warning high threshold
     };
   };
-}
+};
 
-export interface SymptomBenchmark {
+export type SymptomBenchmark = {
   severityThreshold: number; // Alert when severity >= this value (1-5 scale)
-}
+};
 
 /**
  * Standard vital sign benchmarks based on medical guidelines

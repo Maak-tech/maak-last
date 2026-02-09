@@ -104,6 +104,37 @@ const PERMISSIONS_STORAGE_KEY = "@maak_health_permissions";
 const isDevEnvironment = (): boolean =>
   (globalThis as { __DEV__?: boolean }).__DEV__ === true;
 
+type VitalSample = {
+  value: number;
+  timestamp: Date;
+  source?: string;
+  metadata?: Record<string, unknown>;
+};
+
+const getLatestBloodPressure = (
+  vitalsByType: Record<string, VitalSample[]>
+): { systolic: number; diastolic: number } | undefined => {
+  const samples = vitalsByType.bloodPressure;
+  if (!samples || samples.length === 0) {
+    return;
+  }
+
+  const sorted = [...samples].sort(
+    (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+  );
+  const latest = sorted[0];
+  const systolic = Number(latest.metadata?.systolic);
+  const diastolic = Number(latest.metadata?.diastolic);
+  if (!(Number.isNaN(systolic) || Number.isNaN(diastolic))) {
+    return {
+      systolic,
+      diastolic,
+    };
+  }
+
+  return;
+};
+
 export const healthDataService = {
   // Initialize health data access (Expo-compatible)
   async initializeHealthData(): Promise<boolean> {
@@ -170,6 +201,7 @@ export const healthDataService = {
   },
 
   // Check if health permissions are granted
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Permission validation intentionally handles platform/provider-specific authorization and revocation flows in one gatekeeper function. */
   async hasHealthPermissions(): Promise<boolean> {
     try {
       // Check stored connection status (more reliable than AsyncStorage flag)
@@ -345,17 +377,9 @@ export const healthDataService = {
       }
 
       // Group vitals by type
-      const vitalsByType: Record<
-        string,
-        Array<{
-          value: number;
-          timestamp: Date;
-          source?: string;
-          metadata?: Record<string, unknown>;
-        }>
-      > = {};
+      const vitalsByType: Record<string, VitalSample[]> = {};
 
-      snapshot.docs.forEach((doc) => {
+      for (const doc of snapshot.docs) {
         const data = doc.data();
         const vitalType = data.type;
         const timestamp = data.timestamp?.toDate?.() || new Date();
@@ -369,7 +393,7 @@ export const healthDataService = {
           source: data.source,
           metadata: data.metadata,
         });
-      });
+      }
 
       // Metrics that should use latest value (not summed)
       const _latestValueMetrics = [
@@ -473,45 +497,7 @@ export const healthDataService = {
         restingHeartRate: getLatestValue("restingHeartRate"),
         heartRateVariability: getLatestValue("heartRateVariability"),
         walkingHeartRateAverage: getLatestValue("walkingHeartRateAverage"),
-        bloodPressure: (() => {
-          const bp = getLatestValue("bloodPressure");
-          if (bp === undefined) {
-            // Try to get from metadata
-            const samples = vitalsByType.bloodPressure;
-            if (samples && samples.length > 0) {
-              const sorted = [...samples].sort(
-                (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-              );
-              const latest = sorted[0];
-              const systolic = Number(latest.metadata?.systolic);
-              const diastolic = Number(latest.metadata?.diastolic);
-              if (!Number.isNaN(systolic) && !Number.isNaN(diastolic)) {
-                return {
-                  systolic,
-                  diastolic,
-                };
-              }
-            }
-            return;
-          }
-          // If value is a number, we need to check metadata for systolic/diastolic
-          const samples = vitalsByType.bloodPressure;
-          if (samples && samples.length > 0) {
-            const sorted = [...samples].sort(
-              (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-            );
-            const latest = sorted[0];
-            const systolic = Number(latest.metadata?.systolic);
-            const diastolic = Number(latest.metadata?.diastolic);
-            if (!Number.isNaN(systolic) && !Number.isNaN(diastolic)) {
-              return {
-                systolic,
-                diastolic,
-              };
-            }
-          }
-          return;
-        })(),
+        bloodPressure: getLatestBloodPressure(vitalsByType),
 
         // Respiratory - use latest value
         respiratoryRate: getLatestValue("respiratoryRate"),
@@ -633,7 +619,7 @@ export const healthDataService = {
           }
           // Get the most recent sample value (samples are sorted by date)
           const latestSample = metric.samples.at(-1);
-          if (typeof latestSample.value !== "number") {
+          if (!latestSample || typeof latestSample.value !== "number") {
             return;
           }
 
@@ -834,7 +820,7 @@ export const healthDataService = {
           }
           // Get the most recent sample value
           const latestSample = metric.samples.at(-1);
-          if (typeof latestSample.value !== "number") {
+          if (!latestSample || typeof latestSample.value !== "number") {
             return;
           }
           return latestSample.value;
@@ -985,7 +971,7 @@ export const healthDataService = {
           }
           // Get the most recent sample value
           const latestSample = metric.samples.at(-1);
-          if (typeof latestSample.value !== "number") {
+          if (!latestSample || typeof latestSample.value !== "number") {
             return;
           }
           return latestSample.value;

@@ -15,6 +15,8 @@ import {
 import { db } from "@/lib/firebase";
 import type { LabResult, LabResultValue } from "@/types";
 
+const REFERENCE_RANGE_REGEX = /(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/;
+
 class LabResultService {
   /**
    * Add a new lab result
@@ -25,7 +27,7 @@ class LabResultService {
   ): Promise<string> {
     try {
       // Validate required fields
-      if (!(labResult.testName && labResult.testName.trim())) {
+      if (!labResult.testName?.trim()) {
         throw new Error("Test name is required");
       }
       if (!labResult.results || labResult.results.length === 0) {
@@ -36,8 +38,7 @@ class LabResultService {
       const cleanedResults = labResult.results
         .filter(
           (result) =>
-            result.name &&
-            result.name.trim() &&
+            result.name?.trim() &&
             result.value !== undefined &&
             result.value !== null &&
             result.value !== ""
@@ -162,14 +163,14 @@ class LabResultService {
       const snapshot = await getDocs(q);
       const results: LabResult[] = [];
 
-      snapshot.forEach((resultDoc) => {
+      for (const resultDoc of snapshot.docs) {
         const data = resultDoc.data();
         results.push({
           id: resultDoc.id,
           ...data,
           testDate: data.testDate?.toDate() || new Date(),
         } as LabResult);
-      });
+      }
 
       return results;
     } catch (_error) {
@@ -195,14 +196,14 @@ class LabResultService {
       const snapshot = await getDocs(q);
       const results: LabResult[] = [];
 
-      snapshot.forEach((resultDoc) => {
+      for (const resultDoc of snapshot.docs) {
         const data = resultDoc.data();
         results.push({
           id: resultDoc.id,
           ...data,
           testDate: data.testDate?.toDate() || new Date(),
         } as LabResult);
-      });
+      }
 
       return results;
     } catch (_error) {
@@ -230,14 +231,14 @@ class LabResultService {
       const snapshot = await getDocs(q);
       const results: LabResult[] = [];
 
-      snapshot.forEach((resultDoc) => {
+      for (const resultDoc of snapshot.docs) {
         const data = resultDoc.data();
         results.push({
           id: resultDoc.id,
           ...data,
           testDate: data.testDate?.toDate() || new Date(),
         } as LabResult);
-      });
+      }
 
       return results;
     } catch (_error) {
@@ -251,8 +252,8 @@ class LabResultService {
   async getLabResultsByTag(userId: string, tag: string): Promise<LabResult[]> {
     try {
       const allResults = await this.getUserLabResults(userId);
-      return allResults.filter(
-        (result) => result.tags && result.tags.includes(tag.toLowerCase())
+      return allResults.filter((result) =>
+        result.tags?.includes(tag.toLowerCase())
       );
     } catch (_error) {
       return [];
@@ -262,6 +263,7 @@ class LabResultService {
   /**
    * Analyze lab result value against reference range
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This method intentionally combines numeric and text-based status classification rules. */
   analyzeResultValue(
     value: LabResultValue,
     numericValue?: number
@@ -321,7 +323,7 @@ class LabResultService {
   ): { min: number; max: number } | null {
     try {
       // Remove units and extract numbers
-      const match = range.match(/(\d+\.?\d*)\s*-\s*(\d+\.?\d*)/);
+      const match = range.match(REFERENCE_RANGE_REGEX);
       if (match) {
         return {
           min: Number.parseFloat(match[1]),
@@ -397,4 +399,3 @@ class LabResultService {
 }
 
 export const labResultService = new LabResultService();
-

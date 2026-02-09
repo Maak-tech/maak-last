@@ -63,6 +63,17 @@ export type InsightPriority = {
 };
 
 type NarrativeContext = {
+  correlations?: Array<{ type: string; strength: string; description: string }>;
+  symptomPatterns?: Array<{
+    name: string;
+    confidence: number;
+    severity: string;
+  }>;
+  diagnosisSuggestions?: Array<{
+    condition: string;
+    confidence: number;
+    urgency: string;
+  }>;
   riskLevel: string;
   riskScore: number;
   topRiskFactors: string[];
@@ -225,19 +236,19 @@ class AIInsightsService {
         "medicationAlerts",
         medicationInteractionService.generateRealtimeAlerts(userId),
         5000, // Reduced from 8s to 5s
-        []
+        [] as MedicationInteractionAlert[]
       ),
       this.withTimeout(
         "healthSuggestions",
         proactiveHealthSuggestionsService.generateSuggestions(userId, isArabic),
         5000, // Reduced from 8s to 5s
-        []
+        [] as HealthSuggestion[]
       ),
       this.withTimeout(
         "personalizedTips",
         proactiveHealthSuggestionsService.getPersonalizedTips(userId, isArabic),
         4000, // Reduced from 6s to 4s
-        []
+        [] as string[]
       ),
     ]);
 
@@ -391,7 +402,9 @@ class AIInsightsService {
       if (!narrative) {
         return this.generateFallbackNarrative(context);
       }
-      return narrative?.narrative || this.generateFallbackNarrative(context);
+      return typeof narrative.narrative === "string"
+        ? narrative.narrative
+        : this.generateFallbackNarrative(context);
     } catch (_error) {
       // Missing API key or network errors should not spam logs; fallback is fine.
       return this.generateFallbackNarrative({

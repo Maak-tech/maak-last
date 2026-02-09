@@ -184,7 +184,7 @@ export async function processVitalReading(
       const normalizedReading = createVitalReading(vitalInput);
       const vitalDoc = await db.collection("vitals").add({
         ...normalizedReading,
-        timestamp: Timestamp.fromDate(normalizedReading.timestamp),
+        timestamp: normalizedReading.timestamp,
         createdAt: Timestamp.now(),
       });
 

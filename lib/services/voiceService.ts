@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/performance/noNamespaceImport: Expo device and file-system APIs are consumed via namespace imports in this service module. */
 // Note: expo-speech is available in Expo SDK
 // For speech recognition (speech-to-text), we'll use OpenAI Whisper API
 // In production, you might want to use:
@@ -51,7 +52,9 @@ type RecordingInstance = {
 
 type AudioNamespace = {
   Recording: {
-    createAsync: (options?: unknown) => Promise<{ recording: RecordingInstance }>;
+    createAsync: (
+      options?: unknown
+    ) => Promise<{ recording: RecordingInstance }>;
   };
   requestPermissionsAsync: () => Promise<{ status: string }>;
   getPermissionsAsync: () => Promise<{ status: string }>;
@@ -431,12 +434,12 @@ class VoiceService {
 
       // Determine audio format based on file extension or default to m4a (expo-av default)
       const fileExtension = audioUri.split(".").pop()?.toLowerCase() || "m4a";
-      const mimeType =
-        fileExtension === "mp3"
-          ? "audio/mp3"
-          : fileExtension === "wav"
-            ? "audio/wav"
-            : "audio/m4a"; // Default for expo-av recordings
+      let mimeType = "audio/m4a"; // Default for expo-av recordings
+      if (fileExtension === "mp3") {
+        mimeType = "audio/mp3";
+      } else if (fileExtension === "wav") {
+        mimeType = "audio/wav";
+      }
 
       // Convert base64 to blob format for API
       const audioBlob = await fetch(

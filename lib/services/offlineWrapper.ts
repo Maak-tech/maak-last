@@ -24,7 +24,7 @@ export function makeOfflineFirst<T>(
         return await method(...args);
       } catch (error) {
         // If online but fails, queue for retry
-        const data = args[0] || {};
+        const data = (args[0] as Record<string, unknown> | undefined) ?? {};
         await offlineService.queueOperation({
           type: operationType,
           collection: collectionName,
@@ -34,7 +34,7 @@ export function makeOfflineFirst<T>(
       }
     } else {
       // Offline - queue the operation
-      const data = args[0] || {};
+      const data = (args[0] as Record<string, unknown> | undefined) ?? {};
       const operationId = await offlineService.queueOperation({
         type: operationType,
         collection: collectionName,
@@ -56,7 +56,10 @@ export function makeOfflineFirst<T>(
  */
 export function makeOfflineRead<T>(
   method: ServiceMethod<T[]>,
-  collectionName: keyof import("./offlineService").OfflineData
+  collectionName: Exclude<
+    keyof import("./offlineService").OfflineData,
+    "lastSync"
+  >
 ): ServiceMethod<T[]> {
   return async (...args: unknown[]): Promise<T[]> => {
     const isOnline = offlineService.isDeviceOnline();

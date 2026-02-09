@@ -9,7 +9,7 @@ import {
   CryptoEncoding,
   digestStringAsync,
 } from "expo-crypto";
-import { getItemAsync, setItemAsync, deleteItemAsync } from "expo-secure-store";
+import { deleteItemAsync, getItemAsync, setItemAsync } from "expo-secure-store";
 import {
   maybeCompleteAuthSession,
   openAuthSessionAsync,
@@ -43,6 +43,7 @@ const FITBIT_PKCE_VERIFIER_KEY = "health_fitbit_pkce_verifier";
 const BASE64_URL_PLUS_REGEX = /\+/g;
 const BASE64_URL_SLASH_REGEX = /\//g;
 const BASE64_URL_PADDING_REGEX = /=+$/;
+const SECURE_STORE_KEY_REGEX = /^[a-zA-Z0-9._-]+$/;
 
 const base64UrlEncode = (bytes: Uint8Array): string => {
   const binary = String.fromCharCode(...bytes);
@@ -192,8 +193,7 @@ export const fitbitService = {
       }
 
       // Ensure key only contains allowed characters (alphanumeric, underscore, hyphen, period)
-      const keyPattern = /^[a-zA-Z0-9._-]+$/;
-      if (!keyPattern.test(storeKey)) {
+      if (!SECURE_STORE_KEY_REGEX.test(storeKey)) {
         throw new Error(
           `Invalid SecureStore key format: "${storeKey}" contains invalid characters`
         );
@@ -222,7 +222,9 @@ export const fitbitService = {
         throw new Error("Authentication cancelled or failed");
       }
     } catch (error: unknown) {
-      throw new Error(`Fitbit authentication failed: ${getErrorMessage(error)}`);
+      throw new Error(
+        `Fitbit authentication failed: ${getErrorMessage(error)}`
+      );
     }
   },
 
@@ -230,6 +232,7 @@ export const fitbitService = {
    * Handle OAuth redirect callback
    * Handles both web callback URL and deep link redirects
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: OAuth callback handles multiple error paths and user-facing remediation guidance. */
   handleRedirect: async (url: string): Promise<void> => {
     try {
       // Handle both web URLs and deep links (maak://)
@@ -562,7 +565,9 @@ export const fitbitService = {
 
         // Process results and convert to normalized format
         for (const result of metricResults) {
-          if (!result) continue;
+          if (!result) {
+            continue;
+          }
 
           const { metricKey, metric, data, dateStr: resultDateStr } = result;
           const samples = fitbitService.parseFitbitData(
@@ -594,14 +599,17 @@ export const fitbitService = {
 
       return results;
     } catch (error: unknown) {
-      throw new Error(`Failed to fetch Fitbit metrics: ${getErrorMessage(error)}`);
+      throw new Error(
+        `Failed to fetch Fitbit metrics: ${getErrorMessage(error)}`
+      );
     }
   },
 
   /**
    * Parse Fitbit API response into normalized samples
    */
-  parseFitbitData: (
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Fitbit uses multiple endpoint-specific payloads that are normalized in one switch. */
+  parseFitbitData(
     metricKey: string,
     data: unknown,
     dateStr: string
@@ -611,7 +619,7 @@ export const fitbitService = {
     startDate: string;
     endDate?: string;
     source?: string;
-  }> => {
+  }> {
     const samples: Array<{
       value: number | string;
       unit?: string;
@@ -824,35 +832,31 @@ export const fitbitService = {
    * Disconnect Fitbit account
    */
   disconnect: async (): Promise<void> => {
+    // Revoke token if available
     try {
-      // Revoke token if available
-      try {
-        const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
-        if (tokensJson) {
-          const tokens: FitbitTokens = JSON.parse(tokensJson);
-          // Create base64 encoded credentials
-          const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
-          const base64Credentials = btoa(credentials);
+      const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
+      if (tokensJson) {
+        const tokens: FitbitTokens = JSON.parse(tokensJson);
+        // Create base64 encoded credentials
+        const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
+        const base64Credentials = btoa(credentials);
 
-          await fetch(`${FITBIT_TOKEN_URL}/revoke`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Basic ${base64Credentials}`,
-            },
-            body: new URLSearchParams({
-              token: tokens.accessToken,
-            }).toString(),
-          });
-        }
-      } catch (_error) {
-        // Ignore revocation errors
+        await fetch(`${FITBIT_TOKEN_URL}/revoke`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${base64Credentials}`,
+          },
+          body: new URLSearchParams({
+            token: tokens.accessToken,
+          }).toString(),
+        });
       }
-
-      // Remove tokens
-      await deleteItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
-    } catch (error: unknown) {
-      throw error;
+    } catch (_error) {
+      // Ignore revocation errors
     }
+
+    // Remove tokens
+    await deleteItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
   },
 };

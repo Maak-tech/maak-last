@@ -1,6 +1,10 @@
 import type { Medication } from "@/types";
 
-export interface RefillPrediction {
+const FREQUENCY_HOURS_REGEX = /every\s+(\d+)\s*hours?/i;
+const DOSAGE_AMOUNT_REGEX =
+  /(\d+)\s*(tablet|pill|cap|capsule|tab|dose|ml|mg|g)/i;
+
+export type RefillPrediction = {
   medicationId: string;
   medicationName: string;
   dosage: string;
@@ -11,9 +15,9 @@ export interface RefillPrediction {
   urgency: "low" | "medium" | "high" | "critical";
   needsRefill: boolean;
   lastRefillDate?: Date;
-}
+};
 
-export interface RefillSummary {
+export type RefillSummary = {
   totalMedications: number;
   needsRefill: number;
   critical: number;
@@ -21,7 +25,7 @@ export interface RefillSummary {
   medium: number;
   low: number;
   predictions: RefillPrediction[];
-}
+};
 
 class MedicationRefillService {
   /**
@@ -62,9 +66,9 @@ class MedicationRefillService {
       timesPerDay = 3; // Typically with meals = 3 times
     } else if (frequencyLower.includes("every")) {
       // Try to extract number from "every X hours"
-      const hoursMatch = frequencyLower.match(/every\s+(\d+)\s*hours?/i);
+      const hoursMatch = frequencyLower.match(FREQUENCY_HOURS_REGEX);
       if (hoursMatch) {
-        const hours = Number.parseInt(hoursMatch[1]);
+        const hours = Number.parseInt(hoursMatch[1], 10);
         timesPerDay = Math.floor(24 / hours);
       }
     }
@@ -75,11 +79,9 @@ class MedicationRefillService {
 
     // Try to extract number from dosage (e.g., "2 tablets", "1 pill", "500mg")
     const dosageLower = dosage.toLowerCase();
-    const numberMatch = dosageLower.match(
-      /(\d+)\s*(tablet|pill|cap|capsule|tab|dose|ml|mg|g)/i
-    );
+    const numberMatch = dosageLower.match(DOSAGE_AMOUNT_REGEX);
     if (numberMatch) {
-      unitsPerDose = Number.parseInt(numberMatch[1]);
+      unitsPerDose = Number.parseInt(numberMatch[1], 10);
     }
 
     return timesPerDay * unitsPerDose;
@@ -100,7 +102,7 @@ class MedicationRefillService {
     // Try to estimate based on last refill date and usage
     if (medication.lastRefillDate) {
       const daysSinceRefill = Math.floor(
-        (new Date().getTime() - medication.lastRefillDate.getTime()) /
+        (Date.now() - medication.lastRefillDate.getTime()) /
           (1000 * 60 * 60 * 24)
       );
 
@@ -199,37 +201,41 @@ class MedicationRefillService {
     let medium = 0;
     let low = 0;
 
-    medications.forEach((medication) => {
+    for (const medication of medications) {
       const prediction = this.calculateRefillPrediction(medication);
       if (prediction) {
         predictions.push(prediction);
 
         if (prediction.needsRefill) {
-          needsRefill++;
+          needsRefill += 1;
         }
 
         switch (prediction.urgency) {
           case "critical":
-            critical++;
+            critical += 1;
             break;
           case "high":
-            high++;
+            high += 1;
             break;
           case "medium":
-            medium++;
+            medium += 1;
             break;
           case "low":
-            low++;
+            low += 1;
+            break;
+          default:
             break;
         }
       }
-    });
+    }
 
     // Sort by urgency (critical first) and days until refill
     predictions.sort((a, b) => {
       const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
       const urgencyDiff = urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
-      if (urgencyDiff !== 0) return urgencyDiff;
+      if (urgencyDiff !== 0) {
+        return urgencyDiff;
+      }
       return a.daysUntilRefill - b.daysUntilRefill;
     });
 
@@ -256,6 +262,7 @@ class MedicationRefillService {
   /**
    * Format days until refill as human-readable string
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Date-to-humanized-duration formatting intentionally handles multiple user-facing branches. */
   formatDaysUntilRefill(days: number): string {
     if (days < 0) {
       return "Overdue";

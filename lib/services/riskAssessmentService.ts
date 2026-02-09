@@ -11,7 +11,7 @@ import { medicalHistoryService } from "./medicalHistoryService";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 
-export interface RiskFactor {
+export type RiskFactor = {
   id: string;
   name: string;
   category: "genetic" | "lifestyle" | "medical" | "environmental" | "age";
@@ -21,9 +21,9 @@ export interface RiskFactor {
   evidence: string;
   modifiable: boolean;
   recommendations?: string[];
-}
+};
 
-export interface HealthRiskAssessment {
+export type HealthRiskAssessment = {
   id: string;
   userId: string;
   overallRiskScore: number; // 0-100
@@ -34,16 +34,16 @@ export interface HealthRiskAssessment {
   timeline: "immediate" | "short_term" | "long_term";
   assessmentDate: Date;
   nextAssessmentDate: Date;
-}
+};
 
-export interface ConditionRisk {
+export type ConditionRisk = {
   condition: string;
   riskScore: number; // 0-100
   riskLevel: "low" | "moderate" | "high" | "very_high";
   contributingFactors: string[];
   preventiveMeasures: string[];
   screeningRecommendations?: string[];
-}
+};
 
 // Risk assessment rules and weights
 const RISK_FACTORS = {
@@ -273,6 +273,7 @@ class RiskAssessmentService {
   /**
    * Assess individual risk factors
    */
+  /* biome-ignore lint/nursery/useMaxParams: Risk factor assessment intentionally accepts normalized domain datasets gathered from multiple services. */
   private assessRiskFactors(
     user: User,
     medicalHistory: MedicalHistory[],
@@ -338,7 +339,9 @@ class RiskAssessmentService {
   ): ConditionRisk[] {
     const conditionRisks: ConditionRisk[] = [];
 
-    for (const [_category, config] of Object.entries(CONDITION_SPECIFIC_RISKS)) {
+    for (const [_category, config] of Object.entries(
+      CONDITION_SPECIFIC_RISKS
+    )) {
       const relevantFactors = riskFactors.filter((factor) =>
         config.factors.includes(factor.id)
       );
@@ -388,6 +391,7 @@ class RiskAssessmentService {
   /**
    * Generate preventive recommendations
    */
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Recommendation synthesis combines multiple risk sources and localization rules in one pass. */
   private generatePreventiveRecommendations(
     riskFactors: RiskFactor[],
     conditionRisks: ConditionRisk[],
@@ -397,7 +401,11 @@ class RiskAssessmentService {
 
     // Add recommendations from high-impact risk factors
     for (const factor of riskFactors) {
-      if (factor.impact <= 20 || !factor.modifiable || !factor.recommendations) {
+      if (
+        factor.impact <= 20 ||
+        !factor.modifiable ||
+        !factor.recommendations
+      ) {
         continue;
       }
       for (const recommendation of factor.recommendations) {
@@ -470,12 +478,18 @@ class RiskAssessmentService {
       throw new Error(`Unknown risk factor ID: ${id}`);
     }
 
+    let riskLevel: RiskFactor["riskLevel"] = "low";
+    if (config.weight > 30) {
+      riskLevel = "high";
+    } else if (config.weight > 20) {
+      riskLevel = "moderate";
+    }
+
     return {
       id,
       name: this.getRiskFactorName(id),
       category: config.category,
-      riskLevel:
-        config.weight > 30 ? "high" : config.weight > 20 ? "moderate" : "low",
+      riskLevel,
       description: this.getRiskFactorDescription(id),
       impact: config.weight,
       evidence: this.getRiskFactorEvidence(id),

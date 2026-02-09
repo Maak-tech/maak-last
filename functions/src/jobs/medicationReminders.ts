@@ -94,7 +94,7 @@ export const scheduledMedicationReminders = onSchedule(
       // Send reminders
       // Note: This requires sendMedicationReminder to be exported from index.ts
       // We'll need to import it dynamically to avoid circular dependencies
-      const indexModule = (await import("../index.js")) as {
+      const indexModule = (await import("../index.js")) as unknown as {
         sendMedicationReminder: (
           reminder: ReminderPayload,
           context: { auth: { uid: string } }

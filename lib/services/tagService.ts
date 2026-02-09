@@ -1,3 +1,5 @@
+const VALID_TAG_REGEX = /^[a-z0-9\s\-_]+$/i;
+
 class TagService {
   /**
    * Normalize tag (lowercase, trim)
@@ -14,21 +16,21 @@ class TagService {
     return (
       normalized.length > 0 &&
       normalized.length <= 30 &&
-      /^[a-z0-9\s\-_]+$/i.test(normalized)
+      VALID_TAG_REGEX.test(normalized)
     );
   }
 
   /**
    * Get suggested tags based on existing tags
    */
-  async getSuggestedTags(
+  getSuggestedTags(
     _userId: string,
     _currentTags: string[] = [],
     _limit = 10
   ): Promise<string[]> {
     // For now, return empty array since we removed the complex tag aggregation
     // This can be implemented later if needed
-    return [];
+    return Promise.resolve([]);
   }
 }
 

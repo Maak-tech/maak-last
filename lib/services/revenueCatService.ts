@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: RevenueCat initialization path intentionally coordinates platform cache prep, retry handling, and SDK setup in one flow. */
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import Purchases, {
@@ -85,14 +86,14 @@ export const PLAN_LIMITS = {
 export type SubscriptionType = "family";
 export type SubscriptionPeriod = "monthly" | "yearly";
 
-export interface SubscriptionStatus {
+export type SubscriptionStatus = {
   isActive: boolean;
   isFamilyPlan: boolean;
   subscriptionType: SubscriptionType | null;
   subscriptionPeriod: SubscriptionPeriod | null;
   expirationDate: Date | null;
   productIdentifier: string | null;
-}
+};
 
 class RevenueCatService {
   private isInitialized = false;
@@ -112,7 +113,7 @@ class RevenueCatService {
    */
   initialize(): Promise<void> {
     if (this.isInitialized) {
-      return;
+      return Promise.resolve();
     }
 
     // If initialization is already in progress, return the existing promise

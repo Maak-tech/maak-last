@@ -5,7 +5,7 @@ import { Platform } from "react-native";
 import { fcmService } from "./fcmService";
 import { userService } from "./userService";
 
-export interface PushNotificationData {
+export type PushNotificationData = {
   title: string;
   body: string;
   data?: {
@@ -36,7 +36,7 @@ export interface PushNotificationData {
   color?: string;
   tag?: string;
   notificationType?: "fall" | "medication" | "symptom" | "family" | "general";
-}
+};
 
 // Helper to get authenticated functions instance
 async function getAuthenticatedFunctions() {
@@ -205,6 +205,7 @@ export const pushNotificationService = {
   },
 
   // Enhanced fall alert notification with Cloud Function support
+  /* biome-ignore lint/nursery/useMaxParams: Alert dispatch API intentionally accepts explicit fields for existing call sites. */
   async sendFallAlert(
     userId: string,
     alertId: string,
@@ -401,6 +402,7 @@ export const pushNotificationService = {
   },
 
   // Send symptom alert to family admins
+  /* biome-ignore lint/nursery/useMaxParams: Symptom alert API intentionally accepts explicit fields for existing call sites. */
   async sendSymptomAlert(
     userId: string,
     userName: string,

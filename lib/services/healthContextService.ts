@@ -1,3 +1,5 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: This module intentionally centralizes rich context aggregation and prompt composition for the AI assistant workflow. */
+/* biome-ignore-all lint/style/noNestedTernary: Prompt template sections use nested conditional string assembly to preserve concise multilingual rendering logic. */
 import {
   collection,
   doc,
@@ -18,7 +20,7 @@ import {
 
 type MedicationReminder = string | { time?: string };
 
-export interface HealthContext {
+export type HealthContext = {
   profile: {
     name: string;
     age: number;
@@ -107,7 +109,7 @@ export interface HealthContext {
     waterIntake?: number;
     lastUpdated?: Date;
   };
-}
+};
 
 type HealthSummaryResult =
   | {
@@ -218,524 +220,516 @@ class HealthContextService {
     if (!uid) {
       throw new Error("No user ID provided");
     }
+    // Fetch user profile first (needed for familyId)
+    const userDoc = await getDoc(doc(db, "users", uid));
+    const userData = userDoc.data() || {};
 
-    try {
-      // Fetch user profile first (needed for familyId)
-      const userDoc = await getDoc(doc(db, "users", uid));
-      const userData = userDoc.data() || {};
+    // Prepare date for symptoms query
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-      // Prepare date for symptoms query
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    // Parallelize independent queries for better performance
+    const results = await Promise.allSettled([
+      // Medications query
+      getDocs(query(collection(db, "medications"), where("userId", "==", uid))),
+      // Symptoms query
+      getDocs(
+        query(
+          collection(db, "symptoms"),
+          where("userId", "==", uid),
+          where("timestamp", ">=", ninetyDaysAgo),
+          orderBy("timestamp", "desc"),
+          limit(50)
+        )
+      ),
+      // Medical history query
+      getDocs(
+        query(
+          collection(db, "medicalHistory"),
+          where("userId", "==", uid),
+          orderBy("diagnosedDate", "desc")
+        )
+      ),
+      // Alerts query
+      getDocs(
+        query(
+          collection(db, "alerts"),
+          where("userId", "==", uid),
+          orderBy("timestamp", "desc"),
+          limit(20)
+        )
+      ),
+      // Family members query (only if familyId exists)
+      userData.familyId
+        ? getDocs(
+            query(
+              collection(db, "users"),
+              where("familyId", "==", userData.familyId)
+            )
+          )
+        : getDocs(query(collection(db, "users"), limit(0))),
+      // Vitals query - get vitals from vitals collection (get more samples for daily aggregation)
+      // Get more samples to properly calculate daily totals for steps, energy, etc.
+      getDocs(
+        query(
+          collection(db, "vitals"),
+          where("userId", "==", uid),
+          orderBy("timestamp", "desc"),
+          limit(500)
+        )
+      ),
+    ]);
 
-      // Parallelize independent queries for better performance
-      const results = await Promise.allSettled([
-        // Medications query
-        getDocs(
-          query(collection(db, "medications"), where("userId", "==", uid))
-        ),
-        // Symptoms query
+    const [
+      medicationsSnapshot,
+      symptomsSnapshot,
+      historySnapshot,
+      alertsSnapshot,
+      familySnapshot,
+      vitalsSnapshot,
+    ] = results;
+
+    // Process medications
+    let medications: HealthContext["medications"] = [];
+    if (medicationsSnapshot.status === "fulfilled") {
+      const medicationsWithSort = medicationsSnapshot.value.docs.map(
+        (medDoc) => {
+          const data = medDoc.data();
+          return {
+            name: data.name || "Unknown medication",
+            dosage: data.dosage || "",
+            frequency: data.frequency || "",
+            startDate: safeFormatDate(data.startDate?.toDate?.()) || "",
+            endDate: safeFormatDate(data.endDate?.toDate?.()) || "",
+            notes: data.notes || "",
+            isActive: data.isActive !== false,
+            reminders: data.reminders || [],
+            _startDate: data.startDate?.toDate?.() || new Date(0),
+          };
+        }
+      );
+      medicationsWithSort.sort(
+        (a, b) => b._startDate.getTime() - a._startDate.getTime()
+      );
+      medications = medicationsWithSort.map(({ _startDate, ...med }) => med);
+    }
+
+    // Process symptoms
+    let symptoms: HealthContext["symptoms"] = [];
+    if (symptomsSnapshot.status === "fulfilled") {
+      symptoms = symptomsSnapshot.value.docs.map((symptomDoc) => {
+        const data = symptomDoc.data();
+        return {
+          id: symptomDoc.id,
+          name: data.name || data.symptom || "Unknown symptom",
+          severity: data.severity || "moderate",
+          date: safeFormatDate(data.timestamp?.toDate?.()) || data.date || "",
+          bodyPart: data.bodyPart || data.location || "",
+          duration: data.duration || "",
+          notes: data.notes || data.description || "",
+        };
+      });
+    }
+
+    // Process medical history
+    const medicalHistoryData: HealthContext["medicalHistory"]["conditions"] =
+      [];
+    const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] =
+      [];
+    if (historySnapshot.status === "fulfilled") {
+      for (const historyDoc of historySnapshot.value.docs) {
+        const data = historyDoc.data();
+        const entry = {
+          condition: data.condition || data.name || "",
+          diagnosedDate: safeFormatDate(data.diagnosedDate?.toDate?.()) || "",
+          status: data.status || "ongoing",
+          notes: data.notes || "",
+          relationship: data.relationship || "",
+        };
+
+        if (data.isFamily) {
+          familyMedicalHistory.push(entry);
+        } else {
+          medicalHistoryData.push(entry);
+        }
+      }
+    }
+
+    // Process alerts
+    let recentAlerts: HealthContext["recentAlerts"] = [];
+    if (alertsSnapshot.status === "fulfilled") {
+      recentAlerts = alertsSnapshot.value.docs.map((alertDoc) => {
+        const data = alertDoc.data();
+        return {
+          id: alertDoc.id,
+          type: data.type || "general",
+          timestamp: data.timestamp?.toDate() || new Date(),
+          details: data.message || data.details || "",
+          severity: data.severity || "info",
+        };
+      });
+    }
+
+    const familyDocs =
+      familySnapshot.status === "fulfilled"
+        ? familySnapshot.value.docs.filter(
+            (familyMemberDoc) => familyMemberDoc.id !== uid
+          )
+        : [];
+
+    const isArabic = options?.language?.startsWith("ar") ?? false;
+
+    // Process family members (optimize N+1 query problem)
+    const familyMembers: HealthContext["familyMembers"] = [];
+    if (familyDocs.length > 0) {
+      // Batch fetch symptoms for all family members at once
+      const familyMemberIds = familyDocs.map(
+        (familyMemberDoc) => familyMemberDoc.id
+      );
+      const familySymptomsPromises = familyMemberIds.map((memberId) =>
         getDocs(
           query(
             collection(db, "symptoms"),
-            where("userId", "==", uid),
-            where("timestamp", ">=", ninetyDaysAgo),
+            where("userId", "==", memberId),
             orderBy("timestamp", "desc"),
-            limit(50)
+            limit(5)
           )
-        ),
-        // Medical history query
-        getDocs(
-          query(
-            collection(db, "medicalHistory"),
-            where("userId", "==", uid),
-            orderBy("diagnosedDate", "desc")
-          )
-        ),
-        // Alerts query
-        getDocs(
-          query(
-            collection(db, "alerts"),
-            where("userId", "==", uid),
-            orderBy("timestamp", "desc"),
-            limit(20)
-          )
-        ),
-        // Family members query (only if familyId exists)
-        userData.familyId
-          ? getDocs(
-              query(
-                collection(db, "users"),
-                where("familyId", "==", userData.familyId)
+        ).catch(() => getDocs(query(collection(db, "symptoms"), limit(0))))
+      );
+
+      const familySymptomsResults = await Promise.allSettled(
+        familySymptomsPromises
+      );
+
+      for (const [index, familyDoc] of familyDocs.entries()) {
+        const memberData = familyDoc.data();
+        const symptomsResult = familySymptomsResults[index];
+        const memberSymptoms =
+          symptomsResult.status === "fulfilled"
+            ? symptomsResult.value.docs.map(
+                (symptomDoc) =>
+                  symptomDoc.data().name || symptomDoc.data().symptom
               )
-            )
-          : getDocs(query(collection(db, "users"), limit(0))),
-        // Vitals query - get vitals from vitals collection (get more samples for daily aggregation)
-        // Get more samples to properly calculate daily totals for steps, energy, etc.
-        getDocs(
-          query(
-            collection(db, "vitals"),
-            where("userId", "==", uid),
-            orderBy("timestamp", "desc"),
-            limit(500)
-          )
-        ),
-      ]);
+            : [];
 
-      const [
-        medicationsSnapshot,
-        symptomsSnapshot,
-        historySnapshot,
-        alertsSnapshot,
-        familySnapshot,
-        vitalsSnapshot,
-      ] = results;
-
-      // Process medications
-      let medications: HealthContext["medications"] = [];
-      if (medicationsSnapshot.status === "fulfilled") {
-        const medicationsWithSort = medicationsSnapshot.value.docs.map(
-          (medDoc) => {
-            const data = medDoc.data();
-            return {
-              name: data.name || "Unknown medication",
-              dosage: data.dosage || "",
-              frequency: data.frequency || "",
-              startDate: safeFormatDate(data.startDate?.toDate?.()) || "",
-              endDate: safeFormatDate(data.endDate?.toDate?.()) || "",
-              notes: data.notes || "",
-              isActive: data.isActive !== false,
-              reminders: data.reminders || [],
-              _startDate: data.startDate?.toDate?.() || new Date(0),
-            };
-          }
-        );
-        medicationsWithSort.sort(
-          (a, b) => b._startDate.getTime() - a._startDate.getTime()
-        );
-        medications = medicationsWithSort.map(({ _startDate, ...med }) => med);
-      }
-
-      // Process symptoms
-      let symptoms: HealthContext["symptoms"] = [];
-      if (symptomsSnapshot.status === "fulfilled") {
-        symptoms = symptomsSnapshot.value.docs.map((symptomDoc) => {
-          const data = symptomDoc.data();
-          return {
-            id: symptomDoc.id,
-            name: data.name || data.symptom || "Unknown symptom",
-            severity: data.severity || "moderate",
-            date: safeFormatDate(data.timestamp?.toDate?.()) || data.date || "",
-            bodyPart: data.bodyPart || data.location || "",
-            duration: data.duration || "",
-            notes: data.notes || data.description || "",
-          };
+        familyMembers.push({
+          id: familyDoc.id,
+          name: memberData.name || memberData.displayName || "Family Member",
+          relationship:
+            memberData.relationship ||
+            memberData.relation ||
+            memberData.role ||
+            "Family Member",
+          age: memberData.age,
+          conditions: memberData.conditions || [],
+          email: memberData.email,
+          phone: memberData.phone || memberData.emergencyPhone,
+          healthStatus:
+            memberSymptoms.length > 0 ? "Has recent symptoms" : "Good",
+          recentSymptoms: memberSymptoms,
         });
       }
+    }
 
-      // Process medical history
-      const medicalHistoryData: HealthContext["medicalHistory"]["conditions"] =
-        [];
-      const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] =
-        [];
-      if (historySnapshot.status === "fulfilled") {
-        for (const historyDoc of historySnapshot.value.docs) {
-          const data = historyDoc.data();
-          const entry = {
-            condition: data.condition || data.name || "",
-            diagnosedDate: safeFormatDate(data.diagnosedDate?.toDate?.()) || "",
-            status: data.status || "ongoing",
-            notes: data.notes || "",
-            relationship: data.relationship || "",
-          };
-
-          if (data.isFamily) {
-            familyMedicalHistory.push(entry);
-          } else {
-            medicalHistoryData.push(entry);
-          }
-        }
-      }
-
-      // Process alerts
-      let recentAlerts: HealthContext["recentAlerts"] = [];
-      if (alertsSnapshot.status === "fulfilled") {
-        recentAlerts = alertsSnapshot.value.docs.map((alertDoc) => {
-          const data = alertDoc.data();
-          return {
-            id: alertDoc.id,
-            type: data.type || "general",
-            timestamp: data.timestamp?.toDate() || new Date(),
-            details: data.message || data.details || "",
-            severity: data.severity || "info",
-          };
-        });
-      }
-
-      const familyDocs =
-        familySnapshot.status === "fulfilled"
-          ? familySnapshot.value.docs.filter((familyMemberDoc) => familyMemberDoc.id !== uid)
-          : [];
-
-      const isArabic = options?.language?.startsWith("ar") ?? false;
-
-      // Process family members (optimize N+1 query problem)
-      const familyMembers: HealthContext["familyMembers"] = [];
-      if (familyDocs.length > 0) {
-        // Batch fetch symptoms for all family members at once
-        const familyMemberIds = familyDocs.map((familyMemberDoc) => familyMemberDoc.id);
-        const familySymptomsPromises = familyMemberIds.map((memberId) =>
-          getDocs(
-            query(
-              collection(db, "symptoms"),
-              where("userId", "==", memberId),
-              orderBy("timestamp", "desc"),
-              limit(5)
-            )
-          ).catch(() => getDocs(query(collection(db, "symptoms"), limit(0))))
-        );
-
-        const familySymptomsResults = await Promise.allSettled(
-          familySymptomsPromises
-        );
-
-        for (const [index, familyDoc] of familyDocs.entries()) {
+    // Process family insights for admin users only
+    const familyInsights: HealthContext["familyInsights"] = [];
+    if (
+      options?.includeFamilyInsights &&
+      userData.familyId &&
+      userData.role === "admin" &&
+      familyDocs.length > 0
+    ) {
+      const insightsResults = await Promise.allSettled(
+        familyDocs.map(async (familyDoc) => {
           const memberData = familyDoc.data();
-          const symptomsResult = familySymptomsResults[index];
-          const memberSymptoms =
-            symptomsResult.status === "fulfilled"
-              ? symptomsResult.value.docs.map(
-                  (symptomDoc) => symptomDoc.data().name || symptomDoc.data().symptom
-                )
-              : [];
+          const [summary, allInsights] = await Promise.all([
+            healthInsightsService.getWeeklySummary(
+              familyDoc.id,
+              undefined,
+              isArabic
+            ),
+            healthInsightsService.getAllInsights(familyDoc.id, isArabic),
+          ]);
 
-          familyMembers.push({
-            id: familyDoc.id,
+          return {
+            memberId: familyDoc.id,
             name: memberData.name || memberData.displayName || "Family Member",
             relationship:
               memberData.relationship ||
               memberData.relation ||
               memberData.role ||
               "Family Member",
-            age: memberData.age,
-            conditions: memberData.conditions || [],
-            email: memberData.email,
-            phone: memberData.phone || memberData.emergencyPhone,
-            healthStatus:
-              memberSymptoms.length > 0 ? "Has recent symptoms" : "Good",
-            recentSymptoms: memberSymptoms,
-          });
+            summary,
+            insights: allInsights.slice(0, 2),
+          };
+        })
+      );
+
+      for (const result of insightsResults) {
+        if (result.status === "fulfilled") {
+          familyInsights.push(result.value);
         }
       }
-
-      // Process family insights for admin users only
-      const familyInsights: HealthContext["familyInsights"] = [];
-      if (
-        options?.includeFamilyInsights &&
-        userData.familyId &&
-        userData.role === "admin" &&
-        familyDocs.length > 0
-      ) {
-        const insightsResults = await Promise.allSettled(
-          familyDocs.map(async (familyDoc) => {
-            const memberData = familyDoc.data();
-            const [summary, allInsights] = await Promise.all([
-              healthInsightsService.getWeeklySummary(
-                familyDoc.id,
-                undefined,
-                isArabic
-              ),
-              healthInsightsService.getAllInsights(familyDoc.id, isArabic),
-            ]);
-
-            return {
-              memberId: familyDoc.id,
-              name:
-                memberData.name || memberData.displayName || "Family Member",
-              relationship:
-                memberData.relationship ||
-                memberData.relation ||
-                memberData.role ||
-                "Family Member",
-              summary,
-              insights: allInsights.slice(0, 2),
-            };
-          })
-        );
-
-        for (const result of insightsResults) {
-          if (result.status === "fulfilled") {
-            familyInsights.push(result.value);
-          }
-        }
-      }
-
-      // Process vitals from vitals collection
-      const latestVitals: HealthContext["vitalSigns"] = {
-        heartRate: userData.lastHeartRate,
-        bloodPressure: userData.lastBloodPressure,
-        temperature: userData.lastTemperature,
-        oxygenLevel: userData.lastOxygenLevel,
-        glucoseLevel: userData.lastGlucoseLevel,
-        weight: userData.lastWeight,
-        lastUpdated: userData.vitalsLastUpdated?.toDate(),
-      };
-
-      if (
-        vitalsSnapshot.status === "fulfilled" &&
-        vitalsSnapshot.value.docs.length > 0
-      ) {
-        // Get today's date range for aggregating daily totals
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        // Metrics that should use latest value (not summed)
-        const _latestValueMetrics = [
-          "heartRate",
-          "restingHeartRate",
-          "bloodPressure",
-          "respiratoryRate",
-          "bodyTemperature",
-          "oxygenSaturation",
-          "bloodGlucose",
-          "weight",
-          "height",
-        ];
-
-        // Metrics that should be summed for daily totals
-        const _sumMetrics = [
-          "steps",
-          "activeEnergy",
-          "basalEnergy",
-          "distanceWalkingRunning",
-          "sleepHours",
-          "waterIntake",
-        ];
-
-        // Group vitals by type
-        const vitalsByType: Record<
-          string,
-          Array<{
-            value: number;
-            timestamp: Date;
-            metadata?: { systolic?: number; diastolic?: number } | unknown;
-          }>
-        > = {};
-
-        for (const vitalDoc of vitalsSnapshot.value.docs) {
-          const data = vitalDoc.data();
-          const vitalType = data.type;
-          const timestamp = data.timestamp?.toDate?.() || new Date();
-
-          if (!vitalsByType[vitalType]) {
-            vitalsByType[vitalType] = [];
-          }
-          vitalsByType[vitalType].push({
-            value: data.value,
-            timestamp,
-            metadata: data.metadata,
-          });
-        }
-
-        // Helper to get latest value for a metric type
-        const getLatestValue = (type: string) => {
-          const samples = vitalsByType[type];
-          if (!samples || samples.length === 0) {
-            return null;
-          }
-          // Sort by timestamp descending and get the latest
-          const sorted = [...samples].sort(
-            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-          );
-          return sorted[0];
-        };
-
-        // Helper to get sum for today's samples
-        const getTodaySum = (type: string) => {
-          const samples = vitalsByType[type];
-          if (!samples || samples.length === 0) {
-            return null;
-          }
-          // Filter samples from today and sum them
-          const todaySamples = samples.filter(
-            (s) => s.timestamp >= today && s.timestamp < tomorrow
-          );
-          if (todaySamples.length === 0) {
-            return null;
-          }
-          const sum = todaySamples.reduce((acc, s) => acc + s.value, 0);
-          // Return the latest timestamp from today's samples
-          const latestTimestamp = todaySamples.reduce(
-            (latest, s) => (s.timestamp > latest ? s.timestamp : latest),
-            todaySamples[0].timestamp
-          );
-          return { sum, timestamp: latestTimestamp };
-        };
-
-        // Helper to update lastUpdated timestamp
-        const updateTimestamp = (timestamp: Date) => {
-          if (
-            !latestVitals.lastUpdated ||
-            timestamp > latestVitals.lastUpdated
-          ) {
-            latestVitals.lastUpdated = timestamp;
-          }
-        };
-
-        // Process latest value metrics
-        const heartRate = getLatestValue("heartRate");
-        if (heartRate) {
-          latestVitals.heartRate = heartRate.value;
-          updateTimestamp(heartRate.timestamp);
-        }
-
-        const restingHeartRate = getLatestValue("restingHeartRate");
-        if (restingHeartRate) {
-          latestVitals.restingHeartRate = restingHeartRate.value;
-          updateTimestamp(restingHeartRate.timestamp);
-        }
-
-        const walkingHeartRateAverage = getLatestValue(
-          "walkingHeartRateAverage"
-        );
-        if (walkingHeartRateAverage) {
-          latestVitals.walkingHeartRateAverage = walkingHeartRateAverage.value;
-          updateTimestamp(walkingHeartRateAverage.timestamp);
-        }
-
-        const heartRateVariability = getLatestValue("heartRateVariability");
-        if (heartRateVariability) {
-          latestVitals.heartRateVariability = heartRateVariability.value;
-          updateTimestamp(heartRateVariability.timestamp);
-        }
-
-        const bloodPressure = getLatestValue("bloodPressure");
-        if (bloodPressure) {
-          if (
-            typeof bloodPressure.metadata === "object" &&
-            bloodPressure.metadata !== null &&
-            "systolic" in bloodPressure.metadata &&
-            "diastolic" in bloodPressure.metadata
-          ) {
-            const pressureData = bloodPressure.metadata as {
-              systolic: number;
-              diastolic: number;
-            };
-            latestVitals.bloodPressure = `${pressureData.systolic}/${pressureData.diastolic}`;
-          } else {
-            latestVitals.bloodPressure = `${bloodPressure.value}`;
-          }
-          updateTimestamp(bloodPressure.timestamp);
-        }
-
-        const respiratoryRate = getLatestValue("respiratoryRate");
-        if (respiratoryRate) {
-          latestVitals.respiratoryRate = respiratoryRate.value;
-          updateTimestamp(respiratoryRate.timestamp);
-        }
-
-        const bodyTemperature = getLatestValue("bodyTemperature");
-        if (bodyTemperature) {
-          latestVitals.temperature = bodyTemperature.value;
-          updateTimestamp(bodyTemperature.timestamp);
-        }
-
-        const oxygenSaturation = getLatestValue("oxygenSaturation");
-        if (oxygenSaturation) {
-          latestVitals.oxygenLevel = oxygenSaturation.value;
-          updateTimestamp(oxygenSaturation.timestamp);
-        }
-
-        const bloodGlucose = getLatestValue("bloodGlucose");
-        if (bloodGlucose) {
-          latestVitals.glucoseLevel = bloodGlucose.value;
-          updateTimestamp(bloodGlucose.timestamp);
-        }
-
-        const weight = getLatestValue("weight");
-        if (weight) {
-          latestVitals.weight = weight.value;
-          updateTimestamp(weight.timestamp);
-        }
-
-        const height = getLatestValue("height");
-        if (height) {
-          latestVitals.height = height.value;
-          updateTimestamp(height.timestamp);
-        }
-
-        const bodyFatPercentage = getLatestValue("bodyFatPercentage");
-        if (bodyFatPercentage) {
-          latestVitals.bodyFatPercentage = bodyFatPercentage.value;
-          updateTimestamp(bodyFatPercentage.timestamp);
-        }
-
-        // Process sum metrics (daily totals)
-        const stepsSum = getTodaySum("steps");
-        if (stepsSum) {
-          latestVitals.steps = stepsSum.sum;
-          updateTimestamp(stepsSum.timestamp);
-        }
-
-        const sleepHoursSum = getTodaySum("sleepHours");
-        if (sleepHoursSum) {
-          latestVitals.sleepHours = sleepHoursSum.sum;
-          updateTimestamp(sleepHoursSum.timestamp);
-        }
-
-        const activeEnergySum = getTodaySum("activeEnergy");
-        if (activeEnergySum) {
-          latestVitals.activeEnergy = activeEnergySum.sum;
-          updateTimestamp(activeEnergySum.timestamp);
-        }
-
-        const distanceSum = getTodaySum("distanceWalkingRunning");
-        if (distanceSum) {
-          latestVitals.distanceWalkingRunning = distanceSum.sum;
-          updateTimestamp(distanceSum.timestamp);
-        }
-
-        const waterIntakeSum = getTodaySum("waterIntake");
-        if (waterIntakeSum) {
-          latestVitals.waterIntake = waterIntakeSum.sum;
-          updateTimestamp(waterIntakeSum.timestamp);
-        }
-      }
-
-      // Construct comprehensive health context
-      const healthContext: HealthContext = {
-        profile: {
-          name: userData.displayName || userData.name || "User",
-          age: userData.age || 0,
-          gender: userData.gender || "Not specified",
-          bloodType: userData.bloodType || "Unknown",
-          height: userData.height || "Not specified",
-          weight: userData.weight || "Not specified",
-          emergencyContact:
-            userData.emergencyContact || userData.emergencyPhone || "Not set",
-          phone: userData.phone,
-          email: userData.email || auth.currentUser?.email || "",
-        },
-        medicalHistory: {
-          conditions: medicalHistoryData,
-          allergies: userData.allergies || [],
-          surgeries: userData.surgeries || [],
-          familyHistory: familyMedicalHistory,
-        },
-        medications,
-        symptoms,
-        familyMembers,
-        familyInsights,
-        recentAlerts,
-        vitalSigns: latestVitals,
-      };
-
-      return healthContext;
-    } catch (error) {
-      throw error;
     }
+
+    // Process vitals from vitals collection
+    const latestVitals: HealthContext["vitalSigns"] = {
+      heartRate: userData.lastHeartRate,
+      bloodPressure: userData.lastBloodPressure,
+      temperature: userData.lastTemperature,
+      oxygenLevel: userData.lastOxygenLevel,
+      glucoseLevel: userData.lastGlucoseLevel,
+      weight: userData.lastWeight,
+      lastUpdated: userData.vitalsLastUpdated?.toDate(),
+    };
+
+    if (
+      vitalsSnapshot.status === "fulfilled" &&
+      vitalsSnapshot.value.docs.length > 0
+    ) {
+      // Get today's date range for aggregating daily totals
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Metrics that should use latest value (not summed)
+      const _latestValueMetrics = [
+        "heartRate",
+        "restingHeartRate",
+        "bloodPressure",
+        "respiratoryRate",
+        "bodyTemperature",
+        "oxygenSaturation",
+        "bloodGlucose",
+        "weight",
+        "height",
+      ];
+
+      // Metrics that should be summed for daily totals
+      const _sumMetrics = [
+        "steps",
+        "activeEnergy",
+        "basalEnergy",
+        "distanceWalkingRunning",
+        "sleepHours",
+        "waterIntake",
+      ];
+
+      // Group vitals by type
+      const vitalsByType: Record<
+        string,
+        Array<{
+          value: number;
+          timestamp: Date;
+          metadata?: { systolic?: number; diastolic?: number } | unknown;
+        }>
+      > = {};
+
+      for (const vitalDoc of vitalsSnapshot.value.docs) {
+        const data = vitalDoc.data();
+        const vitalType = data.type;
+        const timestamp = data.timestamp?.toDate?.() || new Date();
+
+        if (!vitalsByType[vitalType]) {
+          vitalsByType[vitalType] = [];
+        }
+        vitalsByType[vitalType].push({
+          value: data.value,
+          timestamp,
+          metadata: data.metadata,
+        });
+      }
+
+      // Helper to get latest value for a metric type
+      const getLatestValue = (type: string) => {
+        const samples = vitalsByType[type];
+        if (!samples || samples.length === 0) {
+          return null;
+        }
+        // Sort by timestamp descending and get the latest
+        const sorted = [...samples].sort(
+          (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+        );
+        return sorted[0];
+      };
+
+      // Helper to get sum for today's samples
+      const getTodaySum = (type: string) => {
+        const samples = vitalsByType[type];
+        if (!samples || samples.length === 0) {
+          return null;
+        }
+        // Filter samples from today and sum them
+        const todaySamples = samples.filter(
+          (s) => s.timestamp >= today && s.timestamp < tomorrow
+        );
+        if (todaySamples.length === 0) {
+          return null;
+        }
+        const sum = todaySamples.reduce((acc, s) => acc + s.value, 0);
+        // Return the latest timestamp from today's samples
+        const latestTimestamp = todaySamples.reduce(
+          (latest, s) => (s.timestamp > latest ? s.timestamp : latest),
+          todaySamples[0].timestamp
+        );
+        return { sum, timestamp: latestTimestamp };
+      };
+
+      // Helper to update lastUpdated timestamp
+      const updateTimestamp = (timestamp: Date) => {
+        if (!latestVitals.lastUpdated || timestamp > latestVitals.lastUpdated) {
+          latestVitals.lastUpdated = timestamp;
+        }
+      };
+
+      // Process latest value metrics
+      const heartRate = getLatestValue("heartRate");
+      if (heartRate) {
+        latestVitals.heartRate = heartRate.value;
+        updateTimestamp(heartRate.timestamp);
+      }
+
+      const restingHeartRate = getLatestValue("restingHeartRate");
+      if (restingHeartRate) {
+        latestVitals.restingHeartRate = restingHeartRate.value;
+        updateTimestamp(restingHeartRate.timestamp);
+      }
+
+      const walkingHeartRateAverage = getLatestValue("walkingHeartRateAverage");
+      if (walkingHeartRateAverage) {
+        latestVitals.walkingHeartRateAverage = walkingHeartRateAverage.value;
+        updateTimestamp(walkingHeartRateAverage.timestamp);
+      }
+
+      const heartRateVariability = getLatestValue("heartRateVariability");
+      if (heartRateVariability) {
+        latestVitals.heartRateVariability = heartRateVariability.value;
+        updateTimestamp(heartRateVariability.timestamp);
+      }
+
+      const bloodPressure = getLatestValue("bloodPressure");
+      if (bloodPressure) {
+        if (
+          typeof bloodPressure.metadata === "object" &&
+          bloodPressure.metadata !== null &&
+          "systolic" in bloodPressure.metadata &&
+          "diastolic" in bloodPressure.metadata
+        ) {
+          const pressureData = bloodPressure.metadata as {
+            systolic: number;
+            diastolic: number;
+          };
+          latestVitals.bloodPressure = `${pressureData.systolic}/${pressureData.diastolic}`;
+        } else {
+          latestVitals.bloodPressure = `${bloodPressure.value}`;
+        }
+        updateTimestamp(bloodPressure.timestamp);
+      }
+
+      const respiratoryRate = getLatestValue("respiratoryRate");
+      if (respiratoryRate) {
+        latestVitals.respiratoryRate = respiratoryRate.value;
+        updateTimestamp(respiratoryRate.timestamp);
+      }
+
+      const bodyTemperature = getLatestValue("bodyTemperature");
+      if (bodyTemperature) {
+        latestVitals.temperature = bodyTemperature.value;
+        updateTimestamp(bodyTemperature.timestamp);
+      }
+
+      const oxygenSaturation = getLatestValue("oxygenSaturation");
+      if (oxygenSaturation) {
+        latestVitals.oxygenLevel = oxygenSaturation.value;
+        updateTimestamp(oxygenSaturation.timestamp);
+      }
+
+      const bloodGlucose = getLatestValue("bloodGlucose");
+      if (bloodGlucose) {
+        latestVitals.glucoseLevel = bloodGlucose.value;
+        updateTimestamp(bloodGlucose.timestamp);
+      }
+
+      const weight = getLatestValue("weight");
+      if (weight) {
+        latestVitals.weight = weight.value;
+        updateTimestamp(weight.timestamp);
+      }
+
+      const height = getLatestValue("height");
+      if (height) {
+        latestVitals.height = height.value;
+        updateTimestamp(height.timestamp);
+      }
+
+      const bodyFatPercentage = getLatestValue("bodyFatPercentage");
+      if (bodyFatPercentage) {
+        latestVitals.bodyFatPercentage = bodyFatPercentage.value;
+        updateTimestamp(bodyFatPercentage.timestamp);
+      }
+
+      // Process sum metrics (daily totals)
+      const stepsSum = getTodaySum("steps");
+      if (stepsSum) {
+        latestVitals.steps = stepsSum.sum;
+        updateTimestamp(stepsSum.timestamp);
+      }
+
+      const sleepHoursSum = getTodaySum("sleepHours");
+      if (sleepHoursSum) {
+        latestVitals.sleepHours = sleepHoursSum.sum;
+        updateTimestamp(sleepHoursSum.timestamp);
+      }
+
+      const activeEnergySum = getTodaySum("activeEnergy");
+      if (activeEnergySum) {
+        latestVitals.activeEnergy = activeEnergySum.sum;
+        updateTimestamp(activeEnergySum.timestamp);
+      }
+
+      const distanceSum = getTodaySum("distanceWalkingRunning");
+      if (distanceSum) {
+        latestVitals.distanceWalkingRunning = distanceSum.sum;
+        updateTimestamp(distanceSum.timestamp);
+      }
+
+      const waterIntakeSum = getTodaySum("waterIntake");
+      if (waterIntakeSum) {
+        latestVitals.waterIntake = waterIntakeSum.sum;
+        updateTimestamp(waterIntakeSum.timestamp);
+      }
+    }
+
+    // Construct comprehensive health context
+    const healthContext: HealthContext = {
+      profile: {
+        name: userData.displayName || userData.name || "User",
+        age: userData.age || 0,
+        gender: userData.gender || "Not specified",
+        bloodType: userData.bloodType || "Unknown",
+        height: userData.height || "Not specified",
+        weight: userData.weight || "Not specified",
+        emergencyContact:
+          userData.emergencyContact || userData.emergencyPhone || "Not set",
+        phone: userData.phone,
+        email: userData.email || auth.currentUser?.email || "",
+      },
+      medicalHistory: {
+        conditions: medicalHistoryData,
+        allergies: userData.allergies || [],
+        surgeries: userData.surgeries || [],
+        familyHistory: familyMedicalHistory,
+      },
+      medications,
+      symptoms,
+      familyMembers,
+      familyInsights,
+      recentAlerts,
+      vitalSigns: latestVitals,
+    };
+
+    return healthContext;
   }
 
   generateSystemPrompt(context: HealthContext, language = "en"): string {
@@ -810,7 +804,7 @@ ${
         .map(
           (med) =>
             `• ${med.name}: ${med.dosage}, ${med.frequency}
-  ${isArabic ? "بدء" : "Started"}: ${med.startDate}${med.endDate ? `, ${isArabic ? "ينتهي" : "Ends"}: ${med.endDate}` : ` (${isArabic ? 'مستمر' : 'ongoing'})`}
+  ${isArabic ? "بدء" : "Started"}: ${med.startDate}${med.endDate ? `, ${isArabic ? "ينتهي" : "Ends"}: ${med.endDate}` : ` (${isArabic ? "مستمر" : "ongoing"})`}
   ${med.reminders && med.reminders.length > 0 ? `${isArabic ? "تذكيرات" : "Reminders"}: ${med.reminders.map((r: MedicationReminder) => (typeof r === "string" ? r : r.time || "")).join(", ")}` : ""}
   ${med.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${med.notes}` : ""}`
         )
@@ -1093,10 +1087,7 @@ Remember: You are an AI assistant providing information and support, not a repla
   /**
    * Get recent vital signs
    */
-  async getRecentVitals(
-    vitalType = "all",
-    _days = 7
-  ): Promise<VitalsResult> {
+  async getRecentVitals(vitalType = "all", _days = 7): Promise<VitalsResult> {
     try {
       const context = await this.getUserHealthContext();
       const vitals = context.vitalSigns;
@@ -1234,4 +1225,3 @@ Remember: You are an AI assistant providing information and support, not a repla
 }
 
 export default new HealthContextService();
-

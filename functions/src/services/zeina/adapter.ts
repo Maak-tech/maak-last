@@ -164,14 +164,22 @@ function detectTrend(
   vitals?: VitalsSummary
 ): "increasing" | "decreasing" | "stable" | undefined {
   if (!vitals) return;
+  const hasTrend = (
+    value: unknown,
+    trend: "increasing" | "decreasing"
+  ): boolean =>
+    typeof value === "object" &&
+    value !== null &&
+    "trend" in value &&
+    (value as { trend?: string }).trend === trend;
 
   // Check if any vitals are increasing
-  const hasIncreasing = Object.values(vitals).some(
-    (v) => v && typeof v === "object" && v.trend === "increasing"
+  const hasIncreasing = Object.values(vitals).some((v) =>
+    hasTrend(v, "increasing")
   );
 
-  const hasDecreasing = Object.values(vitals).some(
-    (v) => v && typeof v === "object" && v.trend === "decreasing"
+  const hasDecreasing = Object.values(vitals).some((v) =>
+    hasTrend(v, "decreasing")
   );
 
   if (hasIncreasing) return "increasing";

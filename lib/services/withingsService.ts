@@ -3,13 +3,10 @@
  * OAuth 2.0 integration with Withings API
  * Supports comprehensive health data including body measurements, vitals, and activity
  */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Withings OAuth and metric normalization flows intentionally consolidate many provider-specific branches in one integration module. */
 
 import Constants from "expo-constants";
-import {
-  deleteItemAsync,
-  getItemAsync,
-  setItemAsync,
-} from "expo-secure-store";
+import { deleteItemAsync, getItemAsync, setItemAsync } from "expo-secure-store";
 import {
   maybeCompleteAuthSession,
   openAuthSessionAsync,
@@ -336,7 +333,10 @@ export const withingsService = {
    * Save tokens securely
    */
   saveTokens: async (tokens: WithingsTokens): Promise<void> => {
-    await setItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS, JSON.stringify(tokens));
+    await setItemAsync(
+      HEALTH_STORAGE_KEYS.WITHINGS_TOKENS,
+      JSON.stringify(tokens)
+    );
   },
 
   /**
@@ -345,7 +345,9 @@ export const withingsService = {
   getTokens: async (): Promise<WithingsTokens | null> => {
     try {
       const tokensStr = await getItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS);
-      if (!tokensStr) return null;
+      if (!tokensStr) {
+        return null;
+      }
       return JSON.parse(tokensStr);
     } catch {
       return null;
@@ -358,7 +360,9 @@ export const withingsService = {
   refreshTokenIfNeeded: async (): Promise<string | null> => {
     try {
       const tokens = await withingsService.getTokens();
-      if (!tokens) return null;
+      if (!tokens) {
+        return null;
+      }
 
       // Return existing token if still valid (with 5 min buffer)
       if (tokens.expiresAt > Date.now() + 5 * 60 * 1000) {
@@ -411,7 +415,9 @@ export const withingsService = {
   ): Promise<NormalizedMetricPayload[]> => {
     try {
       const accessToken = await withingsService.refreshTokenIfNeeded();
-      if (!accessToken) return [];
+      if (!accessToken) {
+        return [];
+      }
 
       const results: NormalizedMetricPayload[] = [];
       const samplesByMetric: Record<string, MetricSample[]> = {};
@@ -440,10 +446,14 @@ export const withingsService = {
               WITHINGS_MEASURE_TYPES[
                 measure.type as keyof typeof WITHINGS_MEASURE_TYPES
               ];
-            if (!measureType) continue;
+            if (!measureType) {
+              continue;
+            }
 
             const metricKey = measureType.key;
-            if (!metricKeys.includes(metricKey)) continue;
+            if (!metricKeys.includes(metricKey)) {
+              continue;
+            }
 
             if (!samplesByMetric[metricKey]) {
               samplesByMetric[metricKey] = [];
@@ -502,10 +512,10 @@ export const withingsService = {
 
               // Heart rate from ECG
               if (metricKeys.includes("heart_rate") && item.heart_rate) {
-                if (!samplesByMetric["heart_rate"]) {
-                  samplesByMetric["heart_rate"] = [];
+                if (!samplesByMetric.heart_rate) {
+                  samplesByMetric.heart_rate = [];
                 }
-                samplesByMetric["heart_rate"].push({
+                samplesByMetric.heart_rate.push({
                   value: item.heart_rate,
                   unit: "bpm",
                   startDate: timestamp.toISOString(),
@@ -538,8 +548,8 @@ export const withingsService = {
           const sleepData = await sleepResponse.json();
 
           if (sleepData.status === 0 && sleepData.body?.series) {
-            if (!samplesByMetric["sleep_analysis"]) {
-              samplesByMetric["sleep_analysis"] = [];
+            if (!samplesByMetric.sleep_analysis) {
+              samplesByMetric.sleep_analysis = [];
             }
 
             for (const item of sleepData.body.series) {
@@ -550,7 +560,7 @@ export const withingsService = {
                   (item.data?.remsleepduration || 0)) /
                 3600;
 
-              samplesByMetric["sleep_analysis"].push({
+              samplesByMetric.sleep_analysis.push({
                 value: totalSleep,
                 unit: "hours",
                 startDate:
@@ -597,10 +607,10 @@ export const withingsService = {
               const timestamp = activity.date;
 
               if (metricKeys.includes("steps") && activity.steps) {
-                if (!samplesByMetric["steps"]) {
-                  samplesByMetric["steps"] = [];
+                if (!samplesByMetric.steps) {
+                  samplesByMetric.steps = [];
                 }
-                samplesByMetric["steps"].push({
+                samplesByMetric.steps.push({
                   value: activity.steps,
                   unit: "count",
                   startDate: timestamp,
@@ -609,10 +619,10 @@ export const withingsService = {
               }
 
               if (metricKeys.includes("active_energy") && activity.calories) {
-                if (!samplesByMetric["active_energy"]) {
-                  samplesByMetric["active_energy"] = [];
+                if (!samplesByMetric.active_energy) {
+                  samplesByMetric.active_energy = [];
                 }
-                samplesByMetric["active_energy"].push({
+                samplesByMetric.active_energy.push({
                   value: activity.calories,
                   unit: "kcal",
                   startDate: timestamp,
@@ -624,10 +634,10 @@ export const withingsService = {
                 metricKeys.includes("distance_walking_running") &&
                 activity.distance
               ) {
-                if (!samplesByMetric["distance_walking_running"]) {
-                  samplesByMetric["distance_walking_running"] = [];
+                if (!samplesByMetric.distance_walking_running) {
+                  samplesByMetric.distance_walking_running = [];
                 }
-                samplesByMetric["distance_walking_running"].push({
+                samplesByMetric.distance_walking_running.push({
                   value: activity.distance / 1000, // meters to km
                   unit: "km",
                   startDate: timestamp,
@@ -743,7 +753,9 @@ export const withingsService = {
   revokeAccess: async (): Promise<boolean> => {
     try {
       const tokens = await withingsService.getTokens();
-      if (!tokens) return true;
+      if (!tokens) {
+        return true;
+      }
 
       // Notify Withings to revoke the token
       await fetch(`${WITHINGS_API_BASE}/v2/user`, {

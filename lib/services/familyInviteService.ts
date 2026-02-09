@@ -25,103 +25,94 @@ export const familyInviteService = {
     invitedUserName: string,
     invitedUserRelation: string
   ): Promise<string> {
-    try {
-      // Validate required parameters
-      if (!(familyId && invitedBy && invitedUserName && invitedUserRelation)) {
-        throw new Error(
-          `Missing required parameters: familyId=${!!familyId}, invitedBy=${!!invitedBy}, invitedUserName=${!!invitedUserName}, invitedUserRelation=${!!invitedUserRelation}`
-        );
-      }
+    // Validate required parameters
+    if (!(familyId && invitedBy && invitedUserName && invitedUserRelation)) {
+      throw new Error(
+        `Missing required parameters: familyId=${!!familyId}, invitedBy=${!!invitedBy}, invitedUserName=${!!invitedUserName}, invitedUserRelation=${!!invitedUserRelation}`
+      );
+    }
 
-      // Verify user document exists and has correct familyId before attempting to create invitation
-      const userDocRef = doc(db, "users", invitedBy);
-      const userDoc = await getDoc(userDocRef);
+    // Verify user document exists and has correct familyId before attempting to create invitation
+    const userDocRef = doc(db, "users", invitedBy);
+    const userDoc = await getDoc(userDocRef);
 
-      if (!userDoc.exists()) {
-        throw new Error(
-          "User document does not exist. Please ensure you're logged in correctly."
-        );
-      }
+    if (!userDoc.exists()) {
+      throw new Error(
+        "User document does not exist. Please ensure you're logged in correctly."
+      );
+    }
 
-      const userData = userDoc.data();
-      if (!userData.familyId) {
-        throw new Error(
-          "User document does not have a familyId. Please join or create a family first."
-        );
-      }
+    const userData = userDoc.data();
+    if (!userData.familyId) {
+      throw new Error(
+        "User document does not have a familyId. Please join or create a family first."
+      );
+    }
 
-      if (userData.familyId !== familyId) {
-        throw new Error(
-          `User's familyId (${userData.familyId}) does not match invitation familyId (${familyId}).`
-        );
-      }
+    if (userData.familyId !== familyId) {
+      throw new Error(
+        `User's familyId (${userData.familyId}) does not match invitation familyId (${familyId}).`
+      );
+    }
 
-      const code = this.generateInviteCode();
+    const code = this.generateInviteCode();
 
-      // Check if code already exists (very unlikely but good to check)
-      const existingCode = await this.getInvitationByCode(code);
-      if (existingCode) {
-        // Recursively try again with a new code
-        return this.createInvitationCode(
-          familyId,
-          invitedBy,
-          invitedUserName,
-          invitedUserRelation
-        );
-      }
-
-      const inviteData: Omit<FamilyInvitationCode, "id"> = {
-        code,
+    // Check if code already exists (very unlikely but good to check)
+    const existingCode = await this.getInvitationByCode(code);
+    if (existingCode) {
+      // Recursively try again with a new code
+      return this.createInvitationCode(
         familyId,
         invitedBy,
         invitedUserName,
-        invitedUserRelation,
-        status: "pending",
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-      };
-
-      await addDoc(collection(db, "familyInvitations"), {
-        ...inviteData,
-        createdAt: Timestamp.fromDate(inviteData.createdAt),
-        expiresAt: Timestamp.fromDate(inviteData.expiresAt),
-      });
-
-      return code;
-    } catch (error) {
-      throw error;
+        invitedUserRelation
+      );
     }
+
+    const inviteData: Omit<FamilyInvitationCode, "id"> = {
+      code,
+      familyId,
+      invitedBy,
+      invitedUserName,
+      invitedUserRelation,
+      status: "pending",
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+    };
+
+    await addDoc(collection(db, "familyInvitations"), {
+      ...inviteData,
+      createdAt: Timestamp.fromDate(inviteData.createdAt),
+      expiresAt: Timestamp.fromDate(inviteData.expiresAt),
+    });
+
+    return code;
   },
 
   // Get invitation by code
   async getInvitationByCode(
     code: string
   ): Promise<FamilyInvitationCode | null> {
-    try {
-      const q = query(
-        collection(db, "familyInvitations"),
-        where("code", "==", code)
-      );
-      const querySnapshot = await getDocs(q);
+    const q = query(
+      collection(db, "familyInvitations"),
+      where("code", "==", code)
+    );
+    const querySnapshot = await getDocs(q);
 
-      if (querySnapshot.empty) {
-        return null;
-      }
-
-      const inviteDoc = querySnapshot.docs[0];
-      const data = inviteDoc.data();
-
-      return {
-        id: inviteDoc.id,
-        ...data,
-        createdAt: data.createdAt.toDate(),
-        expiresAt: data.expiresAt.toDate(),
-        usedAt: data.usedAt?.toDate(),
-      } as FamilyInvitationCode;
-    } catch (error) {
-      // Silently handle error getting invitation by code:", error);
-      throw error;
+    if (querySnapshot.empty) {
+      return null;
     }
+
+    const inviteDoc = querySnapshot.docs[0];
+    const data = inviteDoc.data();
+
+    return {
+      id: inviteDoc.id,
+      ...data,
+      createdAt: data.createdAt.toDate(),
+      expiresAt: data.expiresAt.toDate(),
+      usedAt: data.usedAt?.toDate(),
+    } as FamilyInvitationCode;
   },
 
   // Use/claim an invitation code
@@ -133,94 +124,76 @@ export const familyInviteService = {
     familyId?: string;
     message: string;
   }> {
-    try {
-      const invitation = await this.getInvitationByCode(code);
+    const invitation = await this.getInvitationByCode(code);
 
-      if (!invitation) {
-        return { success: false, message: "Invalid invitation code" };
-      }
-
-      if (invitation.status === "used") {
-        return {
-          success: false,
-          message: "This invitation code has already been used",
-        };
-      }
-
-      if (
-        invitation.status === "expired" ||
-        invitation.expiresAt < new Date()
-      ) {
-        return { success: false, message: "This invitation code has expired" };
-      }
-
-      // Mark invitation as used
-      await updateDoc(doc(db, "familyInvitations", invitation.id), {
-        status: "used",
-        usedAt: Timestamp.now(),
-        usedBy: userId,
-      });
-
-      return {
-        success: true,
-        familyId: invitation.familyId,
-        message: "Successfully joined family!",
-      };
-    } catch (error) {
-      // Silently handle error using invitation code:", error);
-      throw error;
+    if (!invitation) {
+      return { success: false, message: "Invalid invitation code" };
     }
+
+    if (invitation.status === "used") {
+      return {
+        success: false,
+        message: "This invitation code has already been used",
+      };
+    }
+
+    if (invitation.status === "expired" || invitation.expiresAt < new Date()) {
+      return { success: false, message: "This invitation code has expired" };
+    }
+
+    // Mark invitation as used
+    await updateDoc(doc(db, "familyInvitations", invitation.id), {
+      status: "used",
+      usedAt: Timestamp.now(),
+      usedBy: userId,
+    });
+
+    return {
+      success: true,
+      familyId: invitation.familyId,
+      message: "Successfully joined family!",
+    };
   },
 
   // Get active invitations for a family
   async getFamilyInvitations(
     familyId: string
   ): Promise<FamilyInvitationCode[]> {
-    try {
-      const q = query(
-        collection(db, "familyInvitations"),
-        where("familyId", "==", familyId),
-        where("status", "==", "pending")
-      );
-      const querySnapshot = await getDocs(q);
-      const invitations: FamilyInvitationCode[] = [];
+    const q = query(
+      collection(db, "familyInvitations"),
+      where("familyId", "==", familyId),
+      where("status", "==", "pending")
+    );
+    const querySnapshot = await getDocs(q);
+    const invitations: FamilyInvitationCode[] = [];
 
-      querySnapshot.forEach((inviteDoc) => {
-        const data = inviteDoc.data();
-        invitations.push({
-          id: inviteDoc.id,
-          ...data,
-          createdAt: data.createdAt.toDate(),
-          expiresAt: data.expiresAt.toDate(),
-          usedAt: data.usedAt?.toDate(),
-        } as FamilyInvitationCode);
-      });
-
-      return invitations;
-    } catch (error) {
-      // Silently handle error getting family invitations:", error);
-      throw error;
+    for (const inviteDoc of querySnapshot.docs) {
+      const data = inviteDoc.data();
+      invitations.push({
+        id: inviteDoc.id,
+        ...data,
+        createdAt: data.createdAt.toDate(),
+        expiresAt: data.expiresAt.toDate(),
+        usedAt: data.usedAt?.toDate(),
+      } as FamilyInvitationCode);
     }
+
+    return invitations;
   },
 
   // Clean up expired invitations
   async cleanupExpiredInvitations(): Promise<void> {
-    try {
-      const q = query(
-        collection(db, "familyInvitations"),
-        where("expiresAt", "<", Timestamp.now())
-      );
-      const querySnapshot = await getDocs(q);
+    const q = query(
+      collection(db, "familyInvitations"),
+      where("expiresAt", "<", Timestamp.now())
+    );
+    const querySnapshot = await getDocs(q);
 
-      const updatePromises = querySnapshot.docs.map((inviteDoc) =>
-        updateDoc(inviteDoc.ref, { status: "expired" })
-      );
+    const updatePromises = querySnapshot.docs.map((inviteDoc) =>
+      updateDoc(inviteDoc.ref, { status: "expired" })
+    );
 
-      await Promise.all(updatePromises);
-    } catch (error) {
-      // Silently handle error cleaning up expired invitations:", error);
-      throw error;
-    }
+    await Promise.all(updatePromises);
   },
 
   // Get family by ID

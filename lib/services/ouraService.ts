@@ -3,6 +3,8 @@
  * OAuth 2.0 integration with Oura Ring API v2
  * Supports comprehensive health data including sleep, activity, HRV, SpO2, and readiness
  */
+/* biome-ignore-all lint/performance/noNamespaceImport: Expo linking, secure-store, and web-browser namespace APIs are used throughout this integration service. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Oura data fetch/normalization currently centralizes many endpoint-specific branches in one flow. */
 
 import Constants from "expo-constants";
 import * as Linking from "expo-linking";
@@ -68,6 +70,9 @@ type OuraApiResponse = {
   data?: OuraDataPoint[];
 };
 
+const asIsoString = (value?: string): string =>
+  value ?? new Date().toISOString();
+
 /**
  * Oura data parsers for different endpoints
  */
@@ -90,7 +95,7 @@ const ouraDataParsers = {
         samples.sleep_analysis.push({
           value: sleep.total_sleep_duration / 3600, // seconds to hours
           unit: "hours",
-          startDate: sleep.bedtime_start || day,
+          startDate: asIsoString(sleep.bedtime_start ?? day),
           endDate: sleep.bedtime_end,
           source: "Oura Ring",
         });
@@ -101,7 +106,7 @@ const ouraDataParsers = {
         samples.resting_heart_rate.push({
           value: sleep.lowest_heart_rate,
           unit: "bpm",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring",
         });
       }
@@ -111,7 +116,7 @@ const ouraDataParsers = {
         samples.heart_rate_variability.push({
           value: sleep.average_hrv,
           unit: "ms",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring",
         });
       }
@@ -121,7 +126,7 @@ const ouraDataParsers = {
         samples.respiratory_rate.push({
           value: sleep.average_breath,
           unit: "breaths/min",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring",
         });
       }
@@ -131,7 +136,7 @@ const ouraDataParsers = {
         samples.body_temperature.push({
           value: 37 + sleep.temperature_deviation, // Baseline ~37°C
           unit: "°C",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring",
         });
       }
@@ -155,7 +160,7 @@ const ouraDataParsers = {
         samples.steps.push({
           value: activity.steps,
           unit: "count",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring",
         });
       }
@@ -164,7 +169,7 @@ const ouraDataParsers = {
         samples.active_energy.push({
           value: activity.active_calories,
           unit: "kcal",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring",
         });
       }
@@ -173,7 +178,7 @@ const ouraDataParsers = {
         samples.distance_walking_running.push({
           value: activity.equivalent_walking_distance / 1000, // meters to km
           unit: "km",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring",
         });
       }
@@ -190,9 +195,9 @@ const ouraDataParsers = {
 
     for (const hr of data) {
       samples.heart_rate.push({
-        value: hr.bpm,
+        value: hr.bpm ?? 0,
         unit: "bpm",
-        startDate: hr.timestamp,
+        startDate: asIsoString(hr.timestamp),
         source: hr.source || "Oura Ring",
       });
     }
@@ -215,7 +220,7 @@ const ouraDataParsers = {
         samples.body_temperature.push({
           value: 37 + readiness.temperature_deviation,
           unit: "°C",
-          startDate: day,
+          startDate: asIsoString(day),
           source: "Oura Ring Readiness",
         });
       }
@@ -244,7 +249,7 @@ const ouraDataParsers = {
         samples.blood_oxygen.push({
           value: spo2.spo2_percentage.average,
           unit: "%",
-          startDate: spo2.day,
+          startDate: asIsoString(spo2.day),
           source: "Oura Ring",
         });
       }
@@ -264,7 +269,7 @@ const ouraDataParsers = {
       samples.workouts.push({
         value: workout.activity || workout.sport || "workout",
         unit: "",
-        startDate: workout.start_datetime,
+        startDate: asIsoString(workout.start_datetime),
         endDate: workout.end_datetime,
         source: "Oura Ring",
       });
@@ -273,7 +278,7 @@ const ouraDataParsers = {
         samples.active_energy.push({
           value: workout.calories,
           unit: "kcal",
-          startDate: workout.start_datetime,
+          startDate: asIsoString(workout.start_datetime),
           endDate: workout.end_datetime,
           source: "Oura Ring Workout",
         });
@@ -437,7 +442,7 @@ export const ouraService = {
         refreshToken: tokens.refresh_token,
         expiresAt: Date.now() + tokens.expires_in * 1000,
         userId,
-        scope: tokens.scope,
+        scope: tokens.scope || "",
       });
 
       await saveProviderConnection({
@@ -449,9 +454,7 @@ export const ouraService = {
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Unknown authentication error";
-      throw new Error(
-        `Failed to complete Oura authentication: ${message}`
-      );
+      throw new Error(`Failed to complete Oura authentication: ${message}`);
     }
   },
 
@@ -473,7 +476,9 @@ export const ouraService = {
       const tokensStr = await SecureStore.getItemAsync(
         HEALTH_STORAGE_KEYS.OURA_TOKENS
       );
-      if (!tokensStr) return null;
+      if (!tokensStr) {
+        return null;
+      }
       return JSON.parse(tokensStr);
     } catch {
       return null;
@@ -486,7 +491,9 @@ export const ouraService = {
   refreshTokenIfNeeded: async (): Promise<string | null> => {
     try {
       const tokens = await ouraService.getTokens();
-      if (!tokens) return null;
+      if (!tokens) {
+        return null;
+      }
 
       // Return existing token if still valid (with 5 min buffer)
       if (tokens.expiresAt > Date.now() + 5 * 60 * 1000) {
@@ -534,12 +541,14 @@ export const ouraService = {
     params: Record<string, string> = {}
   ): Promise<OuraApiResponse> => {
     const accessToken = await ouraService.refreshTokenIfNeeded();
-    if (!accessToken) throw new Error("Not authenticated");
+    if (!accessToken) {
+      throw new Error("Not authenticated");
+    }
 
     const url = new URL(`${OURA_API_BASE}${endpoint}`);
-    Object.entries(params).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
-    });
+    }
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -565,7 +574,9 @@ export const ouraService = {
   ): Promise<NormalizedMetricPayload[]> => {
     try {
       const accessToken = await ouraService.refreshTokenIfNeeded();
-      if (!accessToken) return [];
+      if (!accessToken) {
+        return [];
+      }
 
       const results: NormalizedMetricPayload[] = [];
       const allSamples: Record<string, MetricSample[]> = {};
@@ -628,7 +639,9 @@ export const ouraService = {
 
       for (const metricKey of metricKeys) {
         const config = endpointMetrics[metricKey];
-        if (!config) continue;
+        if (!config) {
+          continue;
+        }
 
         const existing = endpointsToFetch.get(config.endpoint);
         if (existing) {
@@ -650,16 +663,22 @@ export const ouraService = {
           });
 
           const items = data.data || [];
-          if (!Array.isArray(items)) continue;
+          if (!Array.isArray(items)) {
+            continue;
+          }
 
           const parserFn = ouraDataParsers[parser];
-          if (!parserFn) continue;
+          if (!parserFn) {
+            continue;
+          }
 
           const parsed = parserFn(items);
 
           // Merge samples
           for (const [metricKey, samples] of Object.entries(parsed)) {
-            if (!metrics.includes(metricKey)) continue;
+            if (!metrics.includes(metricKey)) {
+              continue;
+            }
             if (!allSamples[metricKey]) {
               allSamples[metricKey] = [];
             }
@@ -672,10 +691,14 @@ export const ouraService = {
 
       // Convert to NormalizedMetricPayload format
       for (const [metricKey, samples] of Object.entries(allSamples)) {
-        if (samples.length === 0) continue;
+        if (samples.length === 0) {
+          continue;
+        }
 
         const metric = getMetricByKey(metricKey);
-        if (!metric) continue;
+        if (!metric) {
+          continue;
+        }
 
         results.push({
           provider: "oura",
@@ -762,7 +785,9 @@ export const ouraService = {
   revokeAccess: async (): Promise<boolean> => {
     try {
       const tokens = await ouraService.getTokens();
-      if (!tokens) return true;
+      if (!tokens) {
+        return true;
+      }
 
       // Oura doesn't have a revoke endpoint, just delete local tokens
       await ouraService.disconnect();

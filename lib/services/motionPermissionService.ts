@@ -9,11 +9,11 @@ import { Alert, Linking, Platform } from "react-native";
 
 const MOTION_PERMISSION_STORAGE_KEY = "motion_permission_granted";
 
-export interface MotionPermissionStatus {
+export type MotionPermissionStatus = {
   available: boolean;
   granted: boolean;
   reason?: string;
-}
+};
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {

@@ -5,16 +5,19 @@ import i18n from "@/lib/i18n";
  * Feature Access Levels
  * Defines what subscription level is required to access a feature
  */
-export enum FeatureAccessLevel {
+export const FeatureAccessLevel = {
   /** Free - Available to all users */
-  FREE = "free",
+  FREE: "free",
   /** Premium Individual - Requires Individual Plan subscription */
-  PREMIUM_INDIVIDUAL = "premium_individual",
+  PREMIUM_INDIVIDUAL: "premium_individual",
   /** Premium Family - Requires Family Plan subscription */
-  PREMIUM_FAMILY = "premium_family",
+  PREMIUM_FAMILY: "premium_family",
   /** Premium Any - Requires either Individual or Family Plan */
-  PREMIUM_ANY = "premium_any",
-}
+  PREMIUM_ANY: "premium_any",
+} as const;
+
+export type FeatureAccessLevel =
+  (typeof FeatureAccessLevel)[keyof typeof FeatureAccessLevel];
 
 /**
  * Feature Definitions
@@ -203,7 +206,7 @@ class FeatureGateService {
    */
   getFeaturesByAccessLevel(
     accessLevel: FeatureAccessLevel
-  ): Array<(typeof FEATURES)[FeatureId]> {
+  ): (typeof FEATURES)[FeatureId][] {
     return Object.values(FEATURES).filter(
       (feature) => feature.accessLevel === accessLevel
     );

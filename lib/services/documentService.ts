@@ -1,27 +1,31 @@
-export interface DocumentSection {
+/* biome-ignore-all lint/performance/useTopLevelRegex: Lightweight markdown parsing keeps regex local for readability. */
+export type DocumentSection = {
   id: string;
   title: string;
   content: string;
   level: number;
-}
+};
 
-export interface ParsedDocument {
+export type ParsedDocument = {
   title: string;
   lastUpdated?: string;
   sections: DocumentSection[];
   fullContent: string;
-}
+};
 
 // Import documents as static text
 import privacyPolicyContent from "../../assets/docs/privacy-policy.js";
 import termsConditionsContent from "../../assets/docs/terms-conditions.js";
 
 class DocumentService {
-  private documentCache: Map<string, ParsedDocument> = new Map();
+  private readonly documentCache: Map<string, ParsedDocument> = new Map();
 
   loadDocument(fileName: string): Promise<ParsedDocument> {
     if (this.documentCache.has(fileName)) {
-      return Promise.resolve(this.documentCache.get(fileName)!);
+      const cached = this.documentCache.get(fileName);
+      if (cached) {
+        return Promise.resolve(cached);
+      }
     }
 
     try {
@@ -49,6 +53,7 @@ class DocumentService {
     }
   }
 
+  /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Parser handles title, metadata, headers, and section accumulation in one pass by design. */
   private parseMarkdown(content: string): ParsedDocument {
     const lines = content.split("\n");
     const sections: DocumentSection[] = [];
@@ -57,8 +62,8 @@ class DocumentService {
     let currentSection: DocumentSection | null = null;
     let sectionCounter = 0;
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+    for (const lineText of lines) {
+      const line = lineText.trim();
 
       // Extract main title (first # heading)
       if (line.startsWith("# ") && !title) {
@@ -78,7 +83,7 @@ class DocumentService {
       // Handle section headers (## or ### or ####)
       if (line.startsWith("#") && line.includes(" ")) {
         // Save previous section if it exists
-        if (currentSection && currentSection.content.trim()) {
+        if (currentSection?.content.trim()) {
           sections.push(currentSection);
         }
 
@@ -87,7 +92,7 @@ class DocumentService {
           const level = headerMatch[1].length - 1; // Subtract 1 because main title is #
           const sectionTitle = headerMatch[2].trim();
 
-          sectionCounter++;
+          sectionCounter += 1;
           currentSection = {
             id: `section-${sectionCounter}`,
             title: sectionTitle,
@@ -100,19 +105,19 @@ class DocumentService {
 
       // Add content to current section
       if (currentSection) {
-        currentSection.content += line + "\n";
+        currentSection.content += `${line}\n`;
       }
     }
 
     // Don't forget the last section
-    if (currentSection && currentSection.content.trim()) {
+    if (currentSection?.content.trim()) {
       sections.push(currentSection);
     }
 
     // Clean up section content
-    sections.forEach((section) => {
+    for (const section of sections) {
       section.content = this.cleanMarkdownContent(section.content.trim());
-    });
+    }
 
     return {
       title: title || "Document",
@@ -150,4 +155,3 @@ class DocumentService {
 
 export const documentService = new DocumentService();
 export default documentService;
-

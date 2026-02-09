@@ -4,7 +4,7 @@ import { moodService } from "./moodService";
 import { symptomService } from "./symptomService";
 import { userService } from "./userService";
 
-export interface SearchResult {
+export type SearchResult = {
   id: string;
   type: "medication" | "symptom" | "mood" | "family" | "note";
   title: string;
@@ -17,9 +17,9 @@ export interface SearchResult {
     route: string;
     params?: unknown;
   };
-}
+};
 
-export interface SearchFilters {
+export type SearchFilters = {
   types?: string[];
   dateRange?: {
     start: Date;
@@ -27,7 +27,7 @@ export interface SearchFilters {
   };
   severity?: number[];
   categories?: string[];
-}
+};
 
 class GlobalSearchService {
   /**
@@ -39,7 +39,9 @@ class GlobalSearchService {
     filters?: SearchFilters,
     limit = 50
   ): Promise<SearchResult[]> {
-    if (!query.trim()) return [];
+    if (!query.trim()) {
+      return [];
+    }
 
     const results: SearchResult[] = [];
 
@@ -88,7 +90,7 @@ class GlobalSearchService {
       const medications = await medicationService.getUserMedications(userId);
       const results: SearchResult[] = [];
 
-      medications.forEach((medication) => {
+      for (const medication of medications) {
         const relevance = this.calculateRelevance(query, [
           medication.name,
           medication.dosage,
@@ -112,7 +114,7 @@ class GlobalSearchService {
             },
           });
         }
-      });
+      }
 
       return results;
     } catch (_error) {
@@ -132,7 +134,7 @@ class GlobalSearchService {
       const symptoms = await symptomService.getUserSymptoms(userId, 365); // Last year
       const results: SearchResult[] = [];
 
-      symptoms.forEach((symptom) => {
+      for (const symptom of symptoms) {
         const relevance = this.calculateRelevance(query, [
           symptom.type,
           symptom.description || "",
@@ -157,7 +159,7 @@ class GlobalSearchService {
             },
           });
         }
-      });
+      }
 
       return results;
     } catch (_error) {
@@ -177,7 +179,7 @@ class GlobalSearchService {
       const moods = await moodService.getUserMoods(userId, 365); // Last year
       const results: SearchResult[] = [];
 
-      moods.forEach((mood) => {
+      for (const mood of moods) {
         const relevance = this.calculateRelevance(query, [
           this.getMoodLabel(mood.intensity),
           mood.mood,
@@ -201,7 +203,7 @@ class GlobalSearchService {
             },
           });
         }
-      });
+      }
 
       return results;
     } catch (_error) {
@@ -220,7 +222,7 @@ class GlobalSearchService {
       const familyMembers = await userService.getFamilyMembers(userId);
       const results: SearchResult[] = [];
 
-      familyMembers.forEach((member) => {
+      for (const member of familyMembers) {
         const relevance = this.calculateRelevance(query, [
           member.firstName || "",
           member.lastName || "",
@@ -245,7 +247,7 @@ class GlobalSearchService {
             },
           });
         }
-      });
+      }
 
       return results;
     } catch (_error) {
@@ -260,7 +262,7 @@ class GlobalSearchService {
     const queryLower = query.toLowerCase();
     let score = 0;
 
-    fields.forEach((field) => {
+    for (const field of fields) {
       const fieldLower = field.toLowerCase();
 
       // Exact match gets highest score
@@ -278,13 +280,13 @@ class GlobalSearchService {
       // Word-level matching
       else {
         const queryWords = queryLower.split(" ");
-        queryWords.forEach((word) => {
+        for (const word of queryWords) {
           if (fieldLower.includes(word)) {
             score += 10;
           }
-        });
+        }
       }
-    });
+    }
 
     return score;
   }
@@ -296,15 +298,18 @@ class GlobalSearchService {
     result: SearchResult,
     filters?: SearchFilters
   ): boolean {
-    if (!filters) return true;
+    if (!filters) {
+      return true;
+    }
 
     // Type filter
     if (
       filters.types &&
       filters.types.length > 0 &&
       !filters.types.includes(result.type)
-    )
+    ) {
       return false;
+    }
 
     // Date range filter
     if (
@@ -331,7 +336,9 @@ class GlobalSearchService {
     severity: number,
     filters?: SearchFilters
   ): boolean {
-    if (!filters?.severity || filters.severity.length === 0) return true;
+    if (!filters?.severity || filters.severity.length === 0) {
+      return true;
+    }
     return filters.severity.includes(severity);
   }
 
@@ -358,22 +365,22 @@ class GlobalSearchService {
 
       // Get recent medications
       const medications = await medicationService.getUserMedications(userId);
-      medications.slice(0, 5).forEach((med) => {
+      for (const med of medications.slice(0, 5)) {
         suggestions.push(med.name);
-      });
+      }
 
       // Get common symptoms
       const symptoms = await symptomService.getUserSymptoms(userId, 30);
       const symptomTypes = [...new Set(symptoms.map((s) => s.type))];
-      symptomTypes.slice(0, 5).forEach((type) => {
+      for (const type of symptomTypes.slice(0, 5)) {
         suggestions.push(type);
-      });
+      }
 
       // Get family member names
       const familyMembers = await userService.getFamilyMembers(userId);
-      familyMembers.slice(0, 3).forEach((member) => {
+      for (const member of familyMembers.slice(0, 3)) {
         suggestions.push(`${member.firstName} ${member.lastName}`);
-      });
+      }
 
       return [...new Set(suggestions)]; // Remove duplicates
     } catch (_error) {

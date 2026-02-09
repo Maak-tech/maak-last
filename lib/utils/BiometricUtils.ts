@@ -596,11 +596,12 @@ function calculateHeartRateOptimized(
   const threshold = min + (max - min) * 0.4; // 40% above minimum
 
   for (let i = 1; i < signal.length - 1; i++) {
+    const lastPeak = peaks.length > 0 ? peaks.at(-1) : undefined;
     if (
       signal[i] > signal[i - 1] &&
       signal[i] > signal[i + 1] &&
       signal[i] > threshold &&
-      (peaks.length === 0 || i - peaks.at(-1) >= minPeakDistance)
+      (lastPeak === undefined || i - lastPeak >= minPeakDistance)
     ) {
       peaks.push(i);
     }
@@ -956,11 +957,13 @@ function calculateRespiratoryRateOptimized(
     const breathingPeaks: number[] = [];
 
     for (let i = 1; i < envelope.length - 1; i++) {
+      const lastBreathingPeak =
+        breathingPeaks.length > 0 ? breathingPeaks.at(-1) : undefined;
       if (
         envelope[i] > envelope[i - 1] &&
         envelope[i] > envelope[i + 1] &&
-        (breathingPeaks.length === 0 ||
-          i - breathingPeaks.at(-1) >= minBreathDistance)
+        (lastBreathingPeak === undefined ||
+          i - lastBreathingPeak >= minBreathDistance)
       ) {
         breathingPeaks.push(i);
       }

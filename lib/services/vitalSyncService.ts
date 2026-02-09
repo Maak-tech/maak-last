@@ -82,6 +82,7 @@ function getVitalUnit(vitalType: string): string {
 /**
  * Save a single vital sample to Firestore
  */
+/* biome-ignore lint/nursery/useMaxParams: Vital sample persistence requires explicit normalized fields to preserve provider-agnostic write semantics. */
 async function saveVitalSample(
   userId: string,
   vitalType: string,
@@ -108,14 +109,14 @@ async function saveVitalSample(
     source,
   };
 
-    if (metadata) {
-      vitalData.metadata = metadata;
-    }
+  if (metadata) {
+    vitalData.metadata = metadata;
+  }
 
   await addDoc(collection(db, "vitals"), vitalData);
 
-    // Evaluate vitals for health events (only for critical vitals)
-    // We'll collect vitals and evaluate them in batches to avoid too many evaluations
+  // Evaluate vitals for health events (only for critical vitals)
+  // We'll collect vitals and evaluate them in batches to avoid too many evaluations
   await evaluateAndCreateHealthEventIfNeeded(
     userId,
     vitalType,
@@ -125,8 +126,8 @@ async function saveVitalSample(
     metadata
   );
 
-    // Check for concerning trends and create alerts (non-blocking)
-    // This will be picked up by the real-time WebSocket service
+  // Check for concerning trends and create alerts (non-blocking)
+  // This will be picked up by the real-time WebSocket service
   import("./trendAlertService")
     .then(({ checkTrendsForNewVital }) => {
       checkTrendsForNewVital(userId, vitalType, unit).catch(() => {
@@ -155,6 +156,8 @@ const VITAL_TYPE_TO_RULES_FORMAT: Record<string, string> = {
  * Evaluate collected vitals using the health rules engine
  * Creates alerts and timeline events when thresholds are breached
  */
+/* biome-ignore lint/nursery/useMaxParams: Health event evaluation receives normalized vital context fields from multiple integration sources. */
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This evaluator intentionally combines rules-engine, alerting, and timeline side effects in one guarded workflow. */
 async function evaluateAndCreateHealthEventIfNeeded(
   userId: string,
   vitalType: string,
@@ -303,13 +306,14 @@ function getSampleMetadata(
   ) {
     return sample.metadata as Record<string, unknown>;
   }
-  return undefined;
+  return;
 }
 
 /**
  * Save vitals from health metrics to Firestore
  * Processes samples from integrations (HealthKit, Fitbit, Google Health Connect)
  */
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Integration sync loops across provider metrics, normalizes samples, and coordinates alert side effects. */
 export async function saveIntegrationVitalsToFirestore(
   userId: string,
   metrics: Array<{

@@ -126,7 +126,7 @@ export async function ingestVital(
     const vitalsCollection = getVitalsCollection();
     const vitalDoc = await vitalsCollection.add({
       ...vitalReading,
-      timestamp: Timestamp.fromDate(vitalReading.timestamp as Date),
+      timestamp: vitalReading.timestamp,
       createdAt: Timestamp.now(),
     });
 
