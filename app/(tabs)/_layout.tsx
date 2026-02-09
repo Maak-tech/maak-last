@@ -11,7 +11,7 @@ export default function TabLayout() {
 
   // User role logic
   const isAdmin = user?.role === "admin";
-  const isRegularUser = !isAdmin;
+  const _isRegularUser = !isAdmin;
 
   return (
     <Tabs

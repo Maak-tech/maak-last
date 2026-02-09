@@ -2,6 +2,8 @@
  * Integration tests for Zeina AI
  * Tests the complete pipeline from input to output
  */
+/* biome-ignore-all lint/correctness/noUndeclaredVariables: Jest globals (describe/it/expect/beforeEach) are provided by test runtime. */
+/* biome-ignore-all lint/performance/useTopLevelRegex: regex literals in expectations are test-only and not hot-path code. */
 
 import {
   type AlertContext,

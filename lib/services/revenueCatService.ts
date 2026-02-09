@@ -10,6 +10,8 @@ import Purchases, {
 import { logger } from "@/lib/utils/logger";
 import { ensureRevenueCatDirectory } from "@/modules/expo-revenuecat-directory";
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
 // RevenueCat API Key - Load from environment variables
 // Use production key in production builds, test key in development
 const getRevenueCatApiKey = (): string => {
@@ -21,7 +23,7 @@ const getRevenueCatApiKey = (): string => {
   if (envKey && typeof envKey === "string" && envKey.trim() !== "") {
     const trimmedKey = envKey.trim();
     // Warn if using test key in production build
-    if (!__DEV__ && trimmedKey.startsWith("test_")) {
+    if (!IS_DEV && trimmedKey.startsWith("test_")) {
       logger.error(
         "CRITICAL: Test RevenueCat API key detected in production build! " +
           "This will cause App Store rejection. Please set REVENUECAT_API_KEY with production key.",
@@ -34,7 +36,7 @@ const getRevenueCatApiKey = (): string => {
 
   // Fallback to test key only in development (__DEV__)
   // In production, this should never be reached if env vars are set correctly
-  if (__DEV__) {
+  if (IS_DEV) {
     logger.warn(
       "RevenueCat API key not found in environment variables. Using test key for development.",
       undefined,
@@ -108,7 +110,7 @@ class RevenueCatService {
    * Should be called once when the app starts
    * Returns the same promise if initialization is already in progress
    */
-  async initialize(): Promise<void> {
+  initialize(): Promise<void> {
     if (this.isInitialized) {
       return;
     }
@@ -176,12 +178,12 @@ class RevenueCatService {
 
         // Validate API key before configuring
         if (!REVENUECAT_API_KEY || REVENUECAT_API_KEY.trim() === "") {
-          const errorMessage = __DEV__
+          const errorMessage = IS_DEV
             ? "RevenueCat API key not configured. Using test key for development."
             : "RevenueCat API key is required for production builds. " +
               "Please set REVENUECAT_API_KEY in your environment variables or EAS secrets.";
 
-          if (__DEV__) {
+          if (IS_DEV) {
             logger.warn(errorMessage, undefined, "RevenueCatService");
             // Use test key in development
             await Purchases.configure({
@@ -262,7 +264,7 @@ class RevenueCatService {
           await this.refreshCustomerInfo();
           return;
         }
-      } catch (checkError: any) {
+      } catch (checkError: unknown) {
         // If we can't get customer info (e.g., first time user, network error, etc.), proceed with login
         // This is not critical, so we continue with the login attempt
         logger.error(
@@ -299,7 +301,7 @@ class RevenueCatService {
     if (this.initializationPromise) {
       try {
         await this.initializationPromise;
-      } catch (error) {
+      } catch (_error) {
         // If initialization failed, we can still attempt logout
         // RevenueCat may have been partially initialized
       }
@@ -324,7 +326,7 @@ class RevenueCatService {
           this.currentCustomerInfo = null;
           return;
         }
-      } catch (checkError) {
+      } catch (_checkError) {
         // If we can't get customer info, proceed with logout attempt
         // The logout call itself will handle the anonymous check
       }
@@ -334,10 +336,11 @@ class RevenueCatService {
       // Clear offerings cache on logout as they may be user-specific
       this.cachedOfferings = null;
       this.offeringsCacheTimestamp = 0;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if error is specifically about anonymous user
       // RevenueCat throws this error when logOut is called on an anonymous user
-      const errorMessage = error?.message || String(error) || "";
+      const errorMessage =
+        error instanceof Error ? error.message : String(error) || "";
       const errorString = errorMessage.toLowerCase();
 
       if (
@@ -438,7 +441,6 @@ class RevenueCatService {
 
     // Create a new fetch promise with timeout
     this.offeringsFetchPromise = (async () => {
-      const fetchStartTime = Date.now();
       try {
         // Create a timeout promise
         const timeoutPromise = new Promise<never>((_, reject) => {

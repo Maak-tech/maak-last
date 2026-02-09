@@ -1,36 +1,125 @@
 import type { Medication, Symptom, VitalSign } from "@/types";
+import { coerceToDate } from "@/utils/dateCoercion";
 
-export interface ChartDataPoint {
+export type ChartDataPoint = {
   x: string | number; // Date or timestamp
   y: number; // Value
   label?: string; // Optional label
-}
+};
 
-export interface TimeSeriesData {
+export type TimeSeriesData = {
   labels: string[];
   datasets: Array<{
     data: number[];
     color?: (opacity: number) => string;
     strokeWidth?: number;
   }>;
-}
+};
 
-export interface CorrelationData {
+export type CorrelationData = {
   xLabel: string;
   yLabel: string;
   dataPoints: Array<{ x: number; y: number; label?: string }>;
   correlation: number; // -1 to 1
   trend: "positive" | "negative" | "none";
-}
+};
 
-export interface TrendPrediction {
+export type TrendPrediction = {
   historical: ChartDataPoint[];
   predicted: ChartDataPoint[];
   confidence: number; // 0-1
   trend: "increasing" | "decreasing" | "stable";
-}
+};
 
 class ChartsService {
+  private isWithinRange(date: Date, startDate: Date, endDate: Date): boolean {
+    return date >= startDate && date <= endDate;
+  }
+
+  private buildSymptomSeverityByDate(
+    symptoms: Symptom[],
+    startDate: Date,
+    endDate: Date
+  ): Map<string, number> {
+    const symptomData = new Map<string, number>();
+
+    for (const symptom of symptoms) {
+      const symptomDate =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
+      if (!this.isWithinRange(symptomDate, startDate, endDate)) {
+        continue;
+      }
+
+      const dateKey = this.formatDateKey(symptom.timestamp);
+      const current = symptomData.get(dateKey) || 0;
+      symptomData.set(dateKey, current + symptom.severity);
+    }
+
+    return symptomData;
+  }
+
+  private buildMedicationTakenByDate(
+    medications: Medication[],
+    startDate: Date,
+    endDate: Date
+  ): Map<string, number> {
+    const medicationData = new Map<string, number>();
+
+    for (const med of medications) {
+      if (!(med.reminders && Array.isArray(med.reminders))) {
+        continue;
+      }
+
+      for (const reminder of med.reminders) {
+        if (!(reminder.taken && reminder.takenAt)) {
+          continue;
+        }
+
+        const takenDate = coerceToDate(reminder.takenAt);
+        if (!(takenDate && this.isWithinRange(takenDate, startDate, endDate))) {
+          continue;
+        }
+
+        const dateKey = this.formatDateKey(takenDate);
+        const current = medicationData.get(dateKey) || 0;
+        medicationData.set(dateKey, current + 1);
+      }
+    }
+
+    return medicationData;
+  }
+
+  private getMedicationDayStats(
+    medications: Medication[],
+    dateKey: string
+  ): { totalReminders: number; takenReminders: number } {
+    let totalReminders = 0;
+    let takenReminders = 0;
+
+    for (const med of medications) {
+      if (!(med.reminders && Array.isArray(med.reminders))) {
+        continue;
+      }
+
+      for (const reminder of med.reminders) {
+        totalReminders += 1;
+
+        if (!(reminder.taken && reminder.takenAt)) {
+          continue;
+        }
+
+        const takenDate = coerceToDate(reminder.takenAt);
+        if (takenDate?.toDateString() === dateKey) {
+          takenReminders += 1;
+        }
+      }
+    }
+
+    return { totalReminders, takenReminders };
+  }
+
   /**
    * Prepare time-series data for symptoms
    */
@@ -42,19 +131,21 @@ class ChartsService {
     // Group symptoms by date
     const dailyData = new Map<string, number[]>();
 
-    symptoms
-      .filter((s) => {
-        const symptomDate =
-          s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp);
-        return symptomDate >= startDate && symptomDate <= endDate;
-      })
-      .forEach((symptom) => {
-        const dateKey = this.formatDateKey(symptom.timestamp);
-        if (!dailyData.has(dateKey)) {
-          dailyData.set(dateKey, []);
-        }
-        dailyData.get(dateKey)!.push(symptom.severity);
-      });
+    for (const symptom of symptoms) {
+      const symptomDate =
+        symptom.timestamp instanceof Date
+          ? symptom.timestamp
+          : new Date(symptom.timestamp);
+      if (symptomDate < startDate || symptomDate > endDate) {
+        continue;
+      }
+
+      const dateKey = this.formatDateKey(symptom.timestamp);
+      if (!dailyData.has(dateKey)) {
+        dailyData.set(dateKey, []);
+      }
+      dailyData.get(dateKey)?.push(symptom.severity);
+    }
 
     // Calculate average severity per day
     const labels: string[] = [];
@@ -99,7 +190,9 @@ class ChartsService {
     startDate.setDate(startDate.getDate() - days);
 
     const filteredVitals = vitals.filter((v) => {
-      if (v.type !== type) return false;
+      if (v.type !== type) {
+        return false;
+      }
       const vitalDate =
         v.timestamp instanceof Date ? v.timestamp : new Date(v.timestamp);
       return vitalDate >= startDate && vitalDate <= endDate;
@@ -108,13 +201,13 @@ class ChartsService {
     // Group by date
     const dailyData = new Map<string, number[]>();
 
-    filteredVitals.forEach((vital) => {
+    for (const vital of filteredVitals) {
       const dateKey = this.formatDateKey(vital.timestamp);
       if (!dailyData.has(dateKey)) {
         dailyData.set(dateKey, []);
       }
-      dailyData.get(dateKey)!.push(vital.value);
-    });
+      dailyData.get(dateKey)?.push(vital.value);
+    }
 
     // Calculate average per day
     const labels: string[] = [];
@@ -162,7 +255,6 @@ class ChartsService {
     medications: Medication[],
     days = 30
   ): TimeSeriesData {
-    const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
@@ -174,25 +266,10 @@ class ChartsService {
       date.setDate(date.getDate() + i);
       const dateKey = date.toDateString();
 
-      let totalReminders = 0;
-      let takenReminders = 0;
-
-      medications.forEach((med) => {
-        if (!(med.reminders && Array.isArray(med.reminders))) return;
-
-        med.reminders.forEach((reminder) => {
-          if (reminder.taken && reminder.takenAt) {
-            const takenDate =
-              reminder.takenAt instanceof Date
-                ? reminder.takenAt
-                : new Date(reminder.takenAt);
-            if (takenDate.toDateString() === dateKey) {
-              takenReminders++;
-            }
-          }
-          totalReminders++;
-        });
-      });
+      const { totalReminders, takenReminders } = this.getMedicationDayStats(
+        medications,
+        dateKey
+      );
 
       const compliance =
         totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
@@ -225,39 +302,16 @@ class ChartsService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Group symptoms by date
-    const symptomData = new Map<string, number>();
-    symptoms
-      .filter((s) => {
-        const symptomDate =
-          s.timestamp instanceof Date ? s.timestamp : new Date(s.timestamp);
-        return symptomDate >= startDate && symptomDate <= endDate;
-      })
-      .forEach((symptom) => {
-        const dateKey = this.formatDateKey(symptom.timestamp);
-        const current = symptomData.get(dateKey) || 0;
-        symptomData.set(dateKey, current + symptom.severity);
-      });
-
-    // Calculate medication compliance by date
-    const medicationData = new Map<string, number>();
-    medications.forEach((med) => {
-      if (!(med.reminders && Array.isArray(med.reminders))) return;
-
-      med.reminders.forEach((reminder) => {
-        if (reminder.taken && reminder.takenAt) {
-          const takenDate =
-            reminder.takenAt instanceof Date
-              ? reminder.takenAt
-              : new Date(reminder.takenAt);
-          if (takenDate >= startDate && takenDate <= endDate) {
-            const dateKey = this.formatDateKey(takenDate);
-            const current = medicationData.get(dateKey) || 0;
-            medicationData.set(dateKey, current + 1);
-          }
-        }
-      });
-    });
+    const symptomData = this.buildSymptomSeverityByDate(
+      symptoms,
+      startDate,
+      endDate
+    );
+    const medicationData = this.buildMedicationTakenByDate(
+      medications,
+      startDate,
+      endDate
+    );
 
     // Create data points
     const dataPoints: Array<{ x: number; y: number; label?: string }> = [];
@@ -266,7 +320,7 @@ class ChartsService {
       ...Array.from(medicationData.keys()),
     ]);
 
-    allDates.forEach((dateKey) => {
+    for (const dateKey of allDates) {
       const symptomValue = symptomData.get(dateKey) || 0;
       const medicationValue = medicationData.get(dateKey) || 0;
       dataPoints.push({
@@ -274,7 +328,7 @@ class ChartsService {
         y: symptomValue,
         label: dateKey,
       });
-    });
+    }
 
     // Calculate correlation coefficient
     const correlation = this.calculateCorrelationCoefficient(
@@ -282,17 +336,19 @@ class ChartsService {
       dataPoints.map((p) => p.y)
     );
 
+    let trend: CorrelationData["trend"] = "none";
+    if (correlation > 0.3) {
+      trend = "negative";
+    } else if (correlation < -0.3) {
+      trend = "positive";
+    }
+
     return {
       xLabel: "Medication Compliance",
       yLabel: "Symptom Severity",
       dataPoints,
       correlation,
-      trend:
-        correlation > 0.3
-          ? "negative"
-          : correlation < -0.3
-            ? "positive"
-            : "none",
+      trend,
     };
   }
 
@@ -360,12 +416,18 @@ class ChartsService {
       Math.min(1, 1 - variance / (mean * mean || 1))
     );
 
+    let trend: TrendPrediction["trend"] = "stable";
+    if (slope > 0.1) {
+      trend = "increasing";
+    } else if (slope < -0.1) {
+      trend = "decreasing";
+    }
+
     return {
       historical: dataPoints,
       predicted,
       confidence,
-      trend:
-        slope > 0.1 ? "increasing" : slope < -0.1 ? "decreasing" : "stable",
+      trend,
     };
   }
 
@@ -390,7 +452,9 @@ class ChartsService {
    * Calculate Pearson correlation coefficient
    */
   private calculateCorrelationCoefficient(x: number[], y: number[]): number {
-    if (x.length !== y.length || x.length === 0) return 0;
+    if (x.length !== y.length || x.length === 0) {
+      return 0;
+    }
 
     const n = x.length;
     const sumX = x.reduce((a, b) => a + b, 0);

@@ -141,7 +141,7 @@ const getLocalizedText = (key: string, isArabic: boolean): string => {
   return texts[key]?.[isArabic ? "ar" : "en"] || texts[key]?.en || key;
 };
 
-export interface PersonalizedBaseline {
+export type PersonalizedBaseline = {
   userId: string;
   vitalType: string;
   mean: number;
@@ -157,9 +157,9 @@ export interface PersonalizedBaseline {
     p75: number;
     p95: number;
   };
-}
+};
 
-export interface HealthScore {
+export type HealthScore = {
   userId: string;
   timestamp: Date;
   overallScore: number;
@@ -171,49 +171,48 @@ export interface HealthScore {
   };
   trend: "improving" | "stable" | "declining";
   riskFactors: string[];
-}
+};
 
-export interface AnomalyDetection {
+export type AnomalyDetection = {
   isAnomaly: boolean;
   zScore: number;
   deviationFromBaseline: number;
   confidence: number;
   message?: string;
-}
+};
 
-export interface VitalCorrelation {
+export type VitalCorrelation = {
   vitalType1: string;
   vitalType2: string;
   correlationCoefficient: number;
   strength: "strong" | "moderate" | "weak" | "none";
   direction: "positive" | "negative" | "none";
   sampleSize: number;
-}
+};
 
-export interface RiskAssessment {
+export type RiskAssessment = {
   userId: string;
   timestamp: Date;
   overallRisk: "low" | "moderate" | "high" | "critical";
   riskScore: number;
   factors: RiskFactor[];
   recommendations: string[];
-}
+};
 
-export interface RiskFactor {
+export type RiskFactor = {
   name: string;
   contribution: number;
   severity: "low" | "moderate" | "high";
   description: string;
-}
+};
 
 const BASELINES_COLLECTION = "patient_baselines";
 const HEALTH_SCORES_COLLECTION = "health_scores";
 const RISK_ASSESSMENTS_COLLECTION = "risk_assessments";
 
 class HealthAnalyticsService {
-  private vitalHistory: Map<string, VitalReading[]> = new Map();
-  private alertCooldowns: Map<string, Date> = new Map();
-  private alertCounts: Map<string, number> = new Map();
+  private readonly alertCooldowns: Map<string, Date> = new Map();
+  private readonly alertCounts: Map<string, number> = new Map();
 
   async getPersonalizedBaseline(
     userId: string,
@@ -264,7 +263,7 @@ class HealthAnalyticsService {
         mean,
         standardDeviation,
         min: values[0],
-        max: values[values.length - 1],
+        max: values.at(-1),
         sampleCount: values.length,
         lastUpdated: new Date(),
         percentiles: {
@@ -303,9 +302,12 @@ class HealthAnalyticsService {
     const upper = Math.ceil(index);
     const weight = index - lower;
 
-    if (upper >= sortedValues.length)
-      return sortedValues[sortedValues.length - 1];
-    if (lower < 0) return sortedValues[0];
+    if (upper >= sortedValues.length) {
+      return sortedValues.at(-1);
+    }
+    if (lower < 0) {
+      return sortedValues[0];
+    }
 
     return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
   }
@@ -435,15 +437,19 @@ class HealthAnalyticsService {
 
     for (const vitalType of vitalTypes) {
       const readings = vitals.get(vitalType);
-      if (!readings || readings.length === 0) continue;
+      if (!readings || readings.length === 0) {
+        continue;
+      }
 
-      const latestReading = readings[readings.length - 1];
+      const latestReading = readings.at(-1);
       const score = this.scoreVitalReading(latestReading);
       totalScore += score;
-      validCount++;
+      validCount += 1;
     }
 
-    if (validCount === 0) return 75;
+    if (validCount === 0) {
+      return 75;
+    }
     return Math.round(totalScore / validCount);
   }
 
@@ -465,7 +471,9 @@ class HealthAnalyticsService {
     };
 
     const range = optimalRanges[reading.type];
-    if (!range) return 75;
+    if (!range) {
+      return 75;
+    }
 
     if (reading.value < range.min || reading.value > range.max) {
       const deviation =
@@ -485,6 +493,7 @@ class HealthAnalyticsService {
     return Math.round(100 - normalizedDistance * 25);
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Risk factors intentionally combine multiple vital families in one scoring pass.
   private identifyRiskFactors(
     vitals: Map<string, VitalReading[]>,
     isArabic = false
@@ -495,43 +504,51 @@ class HealthAnalyticsService {
     if (hrReadings && hrReadings.length > 0) {
       const avgHR =
         hrReadings.reduce((a, b) => a + b.value, 0) / hrReadings.length;
-      if (avgHR > 100)
+      if (avgHR > 100) {
         riskFactors.push(getLocalizedText("elevatedHeartRate", isArabic));
-      if (avgHR < 50)
+      }
+      if (avgHR < 50) {
         riskFactors.push(getLocalizedText("lowHeartRate", isArabic));
+      }
     }
 
     const bpReadings = vitals.get("systolic_bp");
     if (bpReadings && bpReadings.length > 0) {
       const avgBP =
         bpReadings.reduce((a, b) => a + b.value, 0) / bpReadings.length;
-      if (avgBP > 140)
+      if (avgBP > 140) {
         riskFactors.push(getLocalizedText("elevatedBloodPressure", isArabic));
-      if (avgBP < 90)
+      }
+      if (avgBP < 90) {
         riskFactors.push(getLocalizedText("lowBloodPressure", isArabic));
+      }
     }
 
     const o2Readings = vitals.get("blood_oxygen");
     if (o2Readings && o2Readings.length > 0) {
       const avgO2 =
         o2Readings.reduce((a, b) => a + b.value, 0) / o2Readings.length;
-      if (avgO2 < 95)
+      if (avgO2 < 95) {
         riskFactors.push(getLocalizedText("lowOxygenSaturation", isArabic));
+      }
     }
 
     const glucoseReadings = vitals.get("blood_glucose");
     if (glucoseReadings && glucoseReadings.length > 0) {
       const values = glucoseReadings.map((r) => r.value);
       const variance = this.calculateVariance(values);
-      if (variance > 500)
+      if (variance > 500) {
         riskFactors.push(getLocalizedText("highGlucoseVariability", isArabic));
+      }
     }
 
     return riskFactors;
   }
 
   private calculateVariance(values: number[]): number {
-    if (values.length === 0) return 0;
+    if (values.length === 0) {
+      return 0;
+    }
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     return (
       values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length
@@ -563,8 +580,12 @@ class HealthAnalyticsService {
       const avgPastScore = scores.reduce((a, b) => a + b, 0) / scores.length;
       const diff = currentScore - avgPastScore;
 
-      if (diff > 5) return "improving";
-      if (diff < -5) return "declining";
+      if (diff > 5) {
+        return "improving";
+      }
+      if (diff < -5) {
+        return "declining";
+      }
       return "stable";
     } catch (error) {
       logger.error(
@@ -619,15 +640,24 @@ class HealthAnalyticsService {
 
     const absCorr = Math.abs(correlationCoefficient);
     let strength: "strong" | "moderate" | "weak" | "none";
-    if (absCorr >= 0.7) strength = "strong";
-    else if (absCorr >= 0.4) strength = "moderate";
-    else if (absCorr >= 0.2) strength = "weak";
-    else strength = "none";
+    if (absCorr >= 0.7) {
+      strength = "strong";
+    } else if (absCorr >= 0.4) {
+      strength = "moderate";
+    } else if (absCorr >= 0.2) {
+      strength = "weak";
+    } else {
+      strength = "none";
+    }
 
     let direction: "positive" | "negative" | "none";
-    if (correlationCoefficient > 0.1) direction = "positive";
-    else if (correlationCoefficient < -0.1) direction = "negative";
-    else direction = "none";
+    if (correlationCoefficient > 0.1) {
+      direction = "positive";
+    } else if (correlationCoefficient < -0.1) {
+      direction = "negative";
+    } else {
+      direction = "none";
+    }
 
     return {
       vitalType1,
@@ -668,6 +698,7 @@ class HealthAnalyticsService {
     return pairs;
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Risk assessment aggregates anomaly and trend signals across vitals.
   async assessRisk(
     userId: string,
     recentVitals: Map<string, VitalReading[]>,
@@ -678,19 +709,21 @@ class HealthAnalyticsService {
     let totalRiskScore = 0;
 
     for (const [vitalType, readings] of recentVitals) {
-      if (readings.length === 0) continue;
+      if (readings.length === 0) {
+        continue;
+      }
 
       const baseline = baselines.get(vitalType);
-      const latestReading = readings[readings.length - 1];
+      const latestReading = readings.at(-1);
 
       const anomaly = this.detectAnomaly(latestReading, baseline || null);
       if (anomaly.isAnomaly) {
-        const severity =
-          Math.abs(anomaly.zScore) > 4
-            ? "high"
-            : Math.abs(anomaly.zScore) > 3
-              ? "moderate"
-              : "low";
+        let severity: "low" | "moderate" | "high" = "low";
+        if (Math.abs(anomaly.zScore) > 4) {
+          severity = "high";
+        } else if (Math.abs(anomaly.zScore) > 3) {
+          severity = "moderate";
+        }
         const contribution = Math.min(Math.abs(anomaly.zScore) * 10, 30);
 
         const anomalyLabel = isArabic ? "شذوذ" : "anomaly";
@@ -711,15 +744,16 @@ class HealthAnalyticsService {
       const trend = this.calculateShortTermTrend(readings, isArabic);
       if (trend.concernLevel > 0) {
         const trendLabel = isArabic ? "اتجاه" : "trend";
+        let trendSeverity: "low" | "moderate" | "high" = "low";
+        if (trend.concernLevel >= 2) {
+          trendSeverity = "high";
+        } else if (trend.concernLevel >= 1) {
+          trendSeverity = "moderate";
+        }
         factors.push({
           name: `${this.formatVitalName(vitalType, isArabic)} ${trendLabel}`,
           contribution: trend.concernLevel * 10,
-          severity:
-            trend.concernLevel >= 2
-              ? "high"
-              : trend.concernLevel >= 1
-                ? "moderate"
-                : "low",
+          severity: trendSeverity,
           description: trend.description,
         });
         totalRiskScore += trend.concernLevel * 10;
@@ -728,10 +762,15 @@ class HealthAnalyticsService {
 
     const riskScore = Math.min(totalRiskScore, 100);
     let overallRisk: "low" | "moderate" | "high" | "critical";
-    if (riskScore >= 70) overallRisk = "critical";
-    else if (riskScore >= 50) overallRisk = "high";
-    else if (riskScore >= 25) overallRisk = "moderate";
-    else overallRisk = "low";
+    if (riskScore >= 70) {
+      overallRisk = "critical";
+    } else if (riskScore >= 50) {
+      overallRisk = "high";
+    } else if (riskScore >= 25) {
+      overallRisk = "moderate";
+    } else {
+      overallRisk = "low";
+    }
 
     const recommendations = this.generateRiskRecommendations(
       factors,

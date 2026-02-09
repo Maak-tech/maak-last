@@ -13,22 +13,22 @@ import { useAppStateAwareAnimation } from "@/hooks/useAppStateAwareAnimation";
 import { timingIfActive } from "@/lib/utils/animationGuards";
 import type { User as UserType } from "@/types";
 
-export interface FilterOption {
+export type FilterOption = {
   id: string;
   type: "personal" | "family" | "member";
   label: string;
   memberId?: string;
   memberName?: string;
-}
+};
 
-interface FamilyDataFilterProps {
+type FamilyDataFilterProps = {
   familyMembers: UserType[];
   currentUserId: string;
   selectedFilter: FilterOption;
   onFilterChange: (filter: FilterOption) => void;
   isAdmin: boolean;
   hasFamily: boolean;
-}
+};
 
 const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
   familyMembers,
@@ -56,6 +56,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
     []
   );
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Option assembly must branch across role/family/member cases.
   const filterOptions = useMemo((): FilterOption[] => {
     const options: FilterOption[] = [
       {
@@ -72,26 +73,28 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
         label: isRTL ? "بيانات العائلة" : "Family Overview",
       });
 
-      familyMembers
-        .filter((member) => member.id !== currentUserId)
-        .forEach((member) => {
-          const memberName =
-            member.firstName && member.lastName
-              ? `${member.firstName} ${member.lastName}`
-              : member.firstName || "User";
+      for (const member of familyMembers) {
+        if (member.id === currentUserId) {
+          continue;
+        }
 
-          options.push({
-            id: member.id,
-            type: "member",
-            label: memberName,
-            memberId: member.id,
-            memberName,
-          });
+        const memberName =
+          member.firstName && member.lastName
+            ? `${member.firstName} ${member.lastName}`
+            : member.firstName || "User";
+
+        options.push({
+          id: member.id,
+          type: "member",
+          label: memberName,
+          memberId: member.id,
+          memberName,
         });
+      }
     }
 
     return options;
-  }, [familyMembers, currentUserId, hasFamily, isRTL]);
+  }, [familyMembers, currentUserId, hasFamily, isRTL, isAdmin]);
 
   const shouldShowExpansion = filterOptions.length > 15;
 
@@ -252,7 +255,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
         <Text style={[styles.headerTitle, isRTL && styles.headerTitleRTL]}>
           {isRTL ? "عرض البيانات" : "View Data"}
         </Text>
-        {shouldShowExpansion && (
+        {shouldShowExpansion ? (
           <TouchableOpacity
             onPress={toggleExpansion}
             style={styles.expandButton}
@@ -263,7 +266,7 @@ const FamilyDataFilter: React.FC<FamilyDataFilterProps> = ({
               <ChevronDown color="#64748B" size={20} />
             )}
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       <Animated.View

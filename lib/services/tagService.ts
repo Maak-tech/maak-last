@@ -22,9 +22,9 @@ class TagService {
    * Get suggested tags based on existing tags
    */
   async getSuggestedTags(
-    userId: string,
-    currentTags: string[] = [],
-    limit = 10
+    _userId: string,
+    _currentTags: string[] = [],
+    _limit = 10
   ): Promise<string[]> {
     // For now, return empty array since we removed the complex tag aggregation
     // This can be implemented later if needed

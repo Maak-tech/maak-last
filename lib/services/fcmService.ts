@@ -13,9 +13,7 @@ async function getAuthenticatedFunctions(): Promise<Functions> {
   const firebaseModule = await import("@/lib/firebase");
   const auth = firebaseModule.auth;
   const app: FirebaseApp = firebaseModule.app;
-  const { getFunctions, connectFunctionsEmulator } = await import(
-    "firebase/functions"
-  );
+  const { getFunctions } = await import("firebase/functions");
 
   // Get fresh functions instance
   const functionsInstance = getFunctions(app, "us-central1");
@@ -28,7 +26,7 @@ async function getAuthenticatedFunctions(): Promise<Functions> {
       await currentUser.getIdToken(true);
       // Wait a bit to ensure the token is propagated
       await new Promise((resolve) => setTimeout(resolve, 100));
-    } catch (e) {
+    } catch (_e) {
       // Silently handle token refresh error
     }
   }
@@ -94,7 +92,10 @@ export const fcmService = {
   // Save FCM token to user document via Cloud Function
   async saveFCMToken(token: string, userId?: string): Promise<boolean> {
     // Declare currentUser outside try-catch to be accessible in catch block
-    let currentUser = null;
+    let currentUser: {
+      uid: string;
+      getIdToken: (forceRefresh?: boolean) => Promise<string>;
+    } | null = null;
 
     try {
       // Check if user is authenticated
@@ -109,7 +110,7 @@ export const fcmService = {
       if (currentUser) {
         try {
           await currentUser.getIdToken(true); // Force refresh
-        } catch (tokenError) {
+        } catch (_tokenError) {
           // Silently handle token refresh error
         }
       }
@@ -123,10 +124,16 @@ export const fcmService = {
       });
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       // If authentication fails, try direct Firestore write as fallback
-      const errorString = error?.toString() || "";
-      const errorCode = (error as any)?.code || "";
+      const errorString = error instanceof Error ? error.toString() : "";
+      const errorCode =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : "";
       const isAuthError =
         errorString.includes("unauthenticated") ||
         errorCode === "unauthenticated" ||
@@ -148,7 +155,7 @@ export const fcmService = {
           });
 
           return true;
-        } catch (firestoreError) {
+        } catch (_firestoreError) {
           // Silently handle Firestore write error
         }
       }
@@ -163,7 +170,7 @@ export const fcmService = {
     notification: {
       title: string;
       body: string;
-      data?: Record<string, any>;
+      data?: Record<string, unknown>;
       sound?: string;
       priority?: "normal" | "high";
     }
@@ -193,7 +200,7 @@ export const fcmService = {
         return true;
       }
       return false;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -204,7 +211,7 @@ export const fcmService = {
     notification: {
       title: string;
       body: string;
-      data?: Record<string, any>;
+      data?: Record<string, unknown>;
       sound?: string;
       priority?: "normal" | "high";
     }
@@ -237,7 +244,7 @@ export const fcmService = {
       };
 
       return response.success;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -265,7 +272,7 @@ export const fcmService = {
 
       const saved = await this.saveFCMToken(tokenResult.token, userId);
       return saved;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },

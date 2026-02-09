@@ -21,7 +21,7 @@ import type { ZeinaMetrics } from "./types";
  * Metric counters (in-memory, can be exported to monitoring service)
  */
 class MetricCounters {
-  private counters: Map<string, number> = new Map();
+  private readonly counters: Map<string, number> = new Map();
 
   increment(metric: string, value = 1): void {
     const current = this.counters.get(metric) || 0;
@@ -60,6 +60,7 @@ export function trackZeinaCall(traceId: string, alertId: string): void {
 /**
  * Track Zeina analysis completion
  */
+// biome-ignore lint/nursery/useMaxParams: Legacy call shape used across service modules.
 export function trackZeinaComplete(
   traceId: string,
   alertId: string,
@@ -194,6 +195,7 @@ export function resetMetrics(): void {
 /**
  * Create metrics object for storage
  */
+// biome-ignore lint/nursery/useMaxParams: Metrics builder intentionally accepts explicit fields.
 export function createMetricsObject(
   traceId: string,
   durationMs: number,

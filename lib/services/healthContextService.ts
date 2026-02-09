@@ -8,13 +8,15 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { safeFormatDate } from "@/utils/dateFormat";
 import { auth, db } from "../firebase";
 import {
   healthInsightsService,
   type PatternInsight,
   type WeeklySummary,
 } from "./healthInsightsService";
-import { safeFormatDate } from "@/utils/dateFormat";
+
+type MedicationReminder = string | { time?: string };
 
 export interface HealthContext {
   profile: {
@@ -51,7 +53,7 @@ export interface HealthContext {
     endDate?: string;
     notes?: string;
     isActive: boolean;
-    reminders?: string[];
+    reminders?: MedicationReminder[];
   }>;
   symptoms: Array<{
     name: string;
@@ -106,6 +108,106 @@ export interface HealthContext {
     lastUpdated?: Date;
   };
 }
+
+type HealthSummaryResult =
+  | {
+      profile: {
+        name: string;
+        age: number;
+        bloodType: string;
+      };
+      activeMedicationsCount: number;
+      recentSymptomsCount: number;
+      conditionsCount: number;
+      latestVitals: HealthContext["vitalSigns"];
+      alertsCount: number;
+      overallStatus: string;
+    }
+  | { error: string };
+
+type MedicationsResult =
+  | {
+      medications: Array<{
+        name: string;
+        dosage: string;
+        frequency: string;
+        startDate: string;
+        endDate?: string;
+        notes?: string;
+        isActive: boolean;
+        reminders: MedicationReminder[];
+      }>;
+      totalCount: number;
+      activeCount: number;
+    }
+  | { error: string; medications: [] };
+
+type LogSymptomResult =
+  | {
+      success: boolean;
+      message?: string;
+      speakableResponse?: string;
+      data?: unknown;
+    }
+  | {
+      success: false;
+      error: string;
+      speakableResponse: string;
+    };
+
+type VitalsResult =
+  | {
+      vitals: {
+        heartRate: string;
+        bloodPressure: string;
+        temperature: string;
+        oxygenSaturation: string;
+        weight: number | string;
+        glucoseLevel: string;
+      };
+      lastUpdated: string;
+    }
+  | {
+      type: string;
+      value: number | string;
+      unit: string;
+      lastUpdated: string;
+    }
+  | { error: string };
+
+type MedicationInteractionsResult =
+  | {
+      currentMedications: string[];
+      allergies: string[];
+      warnings: string[];
+      recommendations: string[];
+      newMedication?: string;
+    }
+  | { error: string };
+
+type EmergencyContactsResult =
+  | {
+      primaryContact: string;
+      phone?: string;
+      email?: string;
+      familyMembers: Array<{
+        name: string;
+        relationship: string;
+        phone?: string;
+        email?: string;
+      }>;
+    }
+  | {
+      success: true;
+      message: string;
+      contactedMembers: string[];
+    }
+  | {
+      emergency: string;
+      poisonControl: string;
+      note: string;
+    }
+  | { error: string };
 
 class HealthContextService {
   async getUserHealthContext(
@@ -193,14 +295,13 @@ class HealthContextService {
       let medications: HealthContext["medications"] = [];
       if (medicationsSnapshot.status === "fulfilled") {
         const medicationsWithSort = medicationsSnapshot.value.docs.map(
-          (doc) => {
-            const data = doc.data();
+          (medDoc) => {
+            const data = medDoc.data();
             return {
               name: data.name || "Unknown medication",
               dosage: data.dosage || "",
               frequency: data.frequency || "",
-              startDate:
-                safeFormatDate(data.startDate?.toDate?.()) || "",
+              startDate: safeFormatDate(data.startDate?.toDate?.()) || "",
               endDate: safeFormatDate(data.endDate?.toDate?.()) || "",
               notes: data.notes || "",
               isActive: data.isActive !== false,
@@ -218,16 +319,13 @@ class HealthContextService {
       // Process symptoms
       let symptoms: HealthContext["symptoms"] = [];
       if (symptomsSnapshot.status === "fulfilled") {
-        symptoms = symptomsSnapshot.value.docs.map((doc) => {
-          const data = doc.data();
+        symptoms = symptomsSnapshot.value.docs.map((symptomDoc) => {
+          const data = symptomDoc.data();
           return {
-            id: doc.id,
+            id: symptomDoc.id,
             name: data.name || data.symptom || "Unknown symptom",
             severity: data.severity || "moderate",
-            date:
-              safeFormatDate(data.timestamp?.toDate?.()) ||
-              data.date ||
-              "",
+            date: safeFormatDate(data.timestamp?.toDate?.()) || data.date || "",
             bodyPart: data.bodyPart || data.location || "",
             duration: data.duration || "",
             notes: data.notes || data.description || "",
@@ -241,8 +339,8 @@ class HealthContextService {
       const familyMedicalHistory: HealthContext["medicalHistory"]["familyHistory"] =
         [];
       if (historySnapshot.status === "fulfilled") {
-        historySnapshot.value.docs.forEach((doc) => {
-          const data = doc.data();
+        for (const historyDoc of historySnapshot.value.docs) {
+          const data = historyDoc.data();
           const entry = {
             condition: data.condition || data.name || "",
             diagnosedDate: safeFormatDate(data.diagnosedDate?.toDate?.()) || "",
@@ -256,16 +354,16 @@ class HealthContextService {
           } else {
             medicalHistoryData.push(entry);
           }
-        });
+        }
       }
 
       // Process alerts
       let recentAlerts: HealthContext["recentAlerts"] = [];
       if (alertsSnapshot.status === "fulfilled") {
-        recentAlerts = alertsSnapshot.value.docs.map((doc) => {
-          const data = doc.data();
+        recentAlerts = alertsSnapshot.value.docs.map((alertDoc) => {
+          const data = alertDoc.data();
           return {
-            id: doc.id,
+            id: alertDoc.id,
             type: data.type || "general",
             timestamp: data.timestamp?.toDate() || new Date(),
             details: data.message || data.details || "",
@@ -276,7 +374,7 @@ class HealthContextService {
 
       const familyDocs =
         familySnapshot.status === "fulfilled"
-          ? familySnapshot.value.docs.filter((doc) => doc.id !== uid)
+          ? familySnapshot.value.docs.filter((familyMemberDoc) => familyMemberDoc.id !== uid)
           : [];
 
       const isArabic = options?.language?.startsWith("ar") ?? false;
@@ -285,7 +383,7 @@ class HealthContextService {
       const familyMembers: HealthContext["familyMembers"] = [];
       if (familyDocs.length > 0) {
         // Batch fetch symptoms for all family members at once
-        const familyMemberIds = familyDocs.map((doc) => doc.id);
+        const familyMemberIds = familyDocs.map((familyMemberDoc) => familyMemberDoc.id);
         const familySymptomsPromises = familyMemberIds.map((memberId) =>
           getDocs(
             query(
@@ -301,13 +399,13 @@ class HealthContextService {
           familySymptomsPromises
         );
 
-        familyDocs.forEach((familyDoc, index) => {
+        for (const [index, familyDoc] of familyDocs.entries()) {
           const memberData = familyDoc.data();
           const symptomsResult = familySymptomsResults[index];
           const memberSymptoms =
             symptomsResult.status === "fulfilled"
               ? symptomsResult.value.docs.map(
-                  (doc) => doc.data().name || doc.data().symptom
+                  (symptomDoc) => symptomDoc.data().name || symptomDoc.data().symptom
                 )
               : [];
 
@@ -327,7 +425,7 @@ class HealthContextService {
               memberSymptoms.length > 0 ? "Has recent symptoms" : "Good",
             recentSymptoms: memberSymptoms,
           });
-        });
+        }
       }
 
       // Process family insights for admin users only
@@ -365,11 +463,11 @@ class HealthContextService {
           })
         );
 
-        insightsResults.forEach((result) => {
+        for (const result of insightsResults) {
           if (result.status === "fulfilled") {
             familyInsights.push(result.value);
           }
-        });
+        }
       }
 
       // Process vitals from vitals collection
@@ -394,7 +492,7 @@ class HealthContextService {
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         // Metrics that should use latest value (not summed)
-        const latestValueMetrics = [
+        const _latestValueMetrics = [
           "heartRate",
           "restingHeartRate",
           "bloodPressure",
@@ -407,7 +505,7 @@ class HealthContextService {
         ];
 
         // Metrics that should be summed for daily totals
-        const sumMetrics = [
+        const _sumMetrics = [
           "steps",
           "activeEnergy",
           "basalEnergy",
@@ -419,11 +517,15 @@ class HealthContextService {
         // Group vitals by type
         const vitalsByType: Record<
           string,
-          Array<{ value: number; timestamp: Date; metadata?: any }>
+          Array<{
+            value: number;
+            timestamp: Date;
+            metadata?: { systolic?: number; diastolic?: number } | unknown;
+          }>
         > = {};
 
-        vitalsSnapshot.value.docs.forEach((doc) => {
-          const data = doc.data();
+        for (const vitalDoc of vitalsSnapshot.value.docs) {
+          const data = vitalDoc.data();
           const vitalType = data.type;
           const timestamp = data.timestamp?.toDate?.() || new Date();
 
@@ -435,12 +537,14 @@ class HealthContextService {
             timestamp,
             metadata: data.metadata,
           });
-        });
+        }
 
         // Helper to get latest value for a metric type
         const getLatestValue = (type: string) => {
           const samples = vitalsByType[type];
-          if (!samples || samples.length === 0) return null;
+          if (!samples || samples.length === 0) {
+            return null;
+          }
           // Sort by timestamp descending and get the latest
           const sorted = [...samples].sort(
             (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
@@ -451,12 +555,16 @@ class HealthContextService {
         // Helper to get sum for today's samples
         const getTodaySum = (type: string) => {
           const samples = vitalsByType[type];
-          if (!samples || samples.length === 0) return null;
+          if (!samples || samples.length === 0) {
+            return null;
+          }
           // Filter samples from today and sum them
           const todaySamples = samples.filter(
             (s) => s.timestamp >= today && s.timestamp < tomorrow
           );
-          if (todaySamples.length === 0) return null;
+          if (todaySamples.length === 0) {
+            return null;
+          }
           const sum = todaySamples.reduce((acc, s) => acc + s.value, 0);
           // Return the latest timestamp from today's samples
           const latestTimestamp = todaySamples.reduce(
@@ -506,10 +614,16 @@ class HealthContextService {
         const bloodPressure = getLatestValue("bloodPressure");
         if (bloodPressure) {
           if (
-            bloodPressure.metadata?.systolic &&
-            bloodPressure.metadata?.diastolic
+            typeof bloodPressure.metadata === "object" &&
+            bloodPressure.metadata !== null &&
+            "systolic" in bloodPressure.metadata &&
+            "diastolic" in bloodPressure.metadata
           ) {
-            latestVitals.bloodPressure = `${bloodPressure.metadata.systolic}/${bloodPressure.metadata.diastolic}`;
+            const pressureData = bloodPressure.metadata as {
+              systolic: number;
+              diastolic: number;
+            };
+            latestVitals.bloodPressure = `${pressureData.systolic}/${pressureData.diastolic}`;
           } else {
             latestVitals.bloodPressure = `${bloodPressure.value}`;
           }
@@ -696,8 +810,8 @@ ${
         .map(
           (med) =>
             `• ${med.name}: ${med.dosage}, ${med.frequency}
-  ${isArabic ? "بدء" : "Started"}: ${med.startDate}${med.endDate ? `, ${isArabic ? "ينتهي" : "Ends"}: ${med.endDate}` : " (${isArabic ? 'مستمر' : 'ongoing'})"}
-  ${med.reminders && med.reminders.length > 0 ? `${isArabic ? "تذكيرات" : "Reminders"}: ${med.reminders.map((r: any) => (typeof r === "string" ? r : r.time)).join(", ")}` : ""}
+  ${isArabic ? "بدء" : "Started"}: ${med.startDate}${med.endDate ? `, ${isArabic ? "ينتهي" : "Ends"}: ${med.endDate}` : ` (${isArabic ? 'مستمر' : 'ongoing'})`}
+  ${med.reminders && med.reminders.length > 0 ? `${isArabic ? "تذكيرات" : "Reminders"}: ${med.reminders.map((r: MedicationReminder) => (typeof r === "string" ? r : r.time || "")).join(", ")}` : ""}
   ${med.notes ? `${isArabic ? "ملاحظات" : "Notes"}: ${med.notes}` : ""}`
         )
         .join("\n")
@@ -853,7 +967,7 @@ Remember: You are an AI assistant providing information and support, not a repla
    * Get a summary of the user's current health status
    * Used by the voice agent for quick health overview
    */
-  async getHealthSummary(): Promise<any> {
+  async getHealthSummary(): Promise<HealthSummaryResult> {
     try {
       const context = await this.getUserHealthContext();
 
@@ -871,7 +985,7 @@ Remember: You are an AI assistant providing information and support, not a repla
         alertsCount: context.recentAlerts.length,
         overallStatus: this.calculateOverallStatus(context),
       };
-    } catch (error) {
+    } catch (_error) {
       return { error: "Unable to fetch health summary" };
     }
   }
@@ -910,7 +1024,7 @@ Remember: You are an AI assistant providing information and support, not a repla
   /**
    * Get user's medications list
    */
-  async getMedications(activeOnly = true): Promise<any> {
+  async getMedications(activeOnly = true): Promise<MedicationsResult> {
     try {
       const context = await this.getUserHealthContext();
       const allMedications = context.medications || [];
@@ -932,7 +1046,7 @@ Remember: You are an AI assistant providing information and support, not a repla
         totalCount: medications.length,
         activeCount: allMedications.filter((m) => m.isActive).length,
       };
-    } catch (error) {
+    } catch (_error) {
       return { error: "Unable to fetch medications", medications: [] };
     }
   }
@@ -946,7 +1060,7 @@ Remember: You are an AI assistant providing information and support, not a repla
     severity?: number,
     notes?: string,
     isArabic = false
-  ): Promise<any> {
+  ): Promise<LogSymptomResult> {
     try {
       // Use the Zeina Actions Service to log symptoms properly
       const { zeinaActionsService } = await import("./zeinaActionsService");
@@ -965,7 +1079,7 @@ Remember: You are an AI assistant providing information and support, not a repla
         speakableResponse: result.speakableResponse,
         data: result.data,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         success: false,
         error: "Failed to log symptom",
@@ -979,7 +1093,10 @@ Remember: You are an AI assistant providing information and support, not a repla
   /**
    * Get recent vital signs
    */
-  async getRecentVitals(vitalType = "all", days = 7): Promise<any> {
+  async getRecentVitals(
+    vitalType = "all",
+    _days = 7
+  ): Promise<VitalsResult> {
     try {
       const context = await this.getUserHealthContext();
       const vitals = context.vitalSigns;
@@ -1007,7 +1124,10 @@ Remember: You are an AI assistant providing information and support, not a repla
       }
 
       // Return specific vital type
-      const vitalMap: Record<string, any> = {
+      const vitalMap: Record<
+        string,
+        { value: number | string | undefined; unit: string }
+      > = {
         heart_rate: { value: vitals.heartRate, unit: "bpm" },
         blood_pressure: { value: vitals.bloodPressure, unit: "mmHg" },
         temperature: { value: vitals.temperature, unit: "°F" },
@@ -1023,7 +1143,7 @@ Remember: You are an AI assistant providing information and support, not a repla
         unit: vital?.unit || "",
         lastUpdated: vitals.lastUpdated?.toISOString() || "Never",
       };
-    } catch (error) {
+    } catch (_error) {
       return { error: "Unable to fetch vitals" };
     }
   }
@@ -1031,14 +1151,16 @@ Remember: You are an AI assistant providing information and support, not a repla
   /**
    * Check for potential medication interactions
    */
-  async checkMedicationInteractions(newMedication?: string): Promise<any> {
+  async checkMedicationInteractions(
+    newMedication?: string
+  ): Promise<MedicationInteractionsResult> {
     try {
       const context = await this.getUserHealthContext();
       const activeMeds = context.medications.filter((m) => m.isActive);
 
       // In a full implementation, this would use a drug interaction database
       // For now, we provide general guidance
-      const result: any = {
+      const result: Exclude<MedicationInteractionsResult, { error: string }> = {
         currentMedications: activeMeds.map((m) => m.name),
         allergies: context.medicalHistory.allergies,
         warnings: [],
@@ -1061,7 +1183,7 @@ Remember: You are an AI assistant providing information and support, not a repla
       }
 
       return result;
-    } catch (error) {
+    } catch (_error) {
       return { error: "Unable to check medication interactions" };
     }
   }
@@ -1069,7 +1191,7 @@ Remember: You are an AI assistant providing information and support, not a repla
   /**
    * Get emergency contact information
    */
-  async getEmergencyContacts(action: string): Promise<any> {
+  async getEmergencyContacts(action: string): Promise<EmergencyContactsResult> {
     try {
       const context = await this.getUserHealthContext();
 
@@ -1105,10 +1227,11 @@ Remember: You are an AI assistant providing information and support, not a repla
         default:
           return { error: "Unknown action" };
       }
-    } catch (error) {
+    } catch (_error) {
       return { error: "Unable to process emergency contact request" };
     }
   }
 }
 
 export default new HealthContextService();
+

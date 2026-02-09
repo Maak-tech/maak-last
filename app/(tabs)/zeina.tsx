@@ -42,6 +42,7 @@ import { autoLogHealthSignalsFromText } from "../../lib/services/zeinaChatAutoLo
 import ChatMessage from "../components/ChatMessage";
 import CoachMark from "../components/CoachMark";
 
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen orchestrates chat, voice IO, onboarding tips, and settings in one component. */
 export default function ZeinaScreen() {
   const { t } = useTranslation();
   const params = useLocalSearchParams<{ tour?: string }>();
@@ -54,12 +55,12 @@ export default function ZeinaScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
+  const [_selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
   const [tempModel, setTempModel] = useState("gpt-3.5-turbo");
-  const [systemPrompt, setSystemPrompt] = useState<string>("");
+  const [_systemPrompt, setSystemPrompt] = useState<string>("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [autoSpeak, setAutoSpeak] = useState(false);
+  const [autoSpeak, _setAutoSpeak] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recognitionAvailable, setRecognitionAvailable] = useState(false);
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
@@ -67,11 +68,12 @@ export default function ZeinaScreen() {
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
   const [showHowTo, setShowHowTo] = useState(false);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       isMountedRef.current = false;
-    };
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     if (params.tour === "1") {
@@ -79,6 +81,7 @@ export default function ZeinaScreen() {
     }
   }, [params.tour]);
 
+  /* biome-ignore lint/correctness/useExhaustiveDependencies: Initialization side effects are intended to run once on mount. */
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
       initializeChat();
@@ -106,7 +109,7 @@ export default function ZeinaScreen() {
         if (savedVoiceLanguage) {
           setVoiceLanguage(savedVoiceLanguage);
         }
-      } catch (error) {
+      } catch (_error) {
         // Use defaults
       }
     };
@@ -124,7 +127,7 @@ export default function ZeinaScreen() {
       if (isMountedRef.current) {
         setRecognitionAvailable(available);
       }
-    } catch (error) {
+    } catch (_error) {
       if (isMountedRef.current) {
         setRecognitionAvailable(false);
       }
@@ -137,7 +140,7 @@ export default function ZeinaScreen() {
       if (isMountedRef.current) {
         setVoiceEnabled(available);
       }
-    } catch (error) {
+    } catch (_error) {
       if (isMountedRef.current) {
         setVoiceEnabled(false);
       }
@@ -167,7 +170,7 @@ export default function ZeinaScreen() {
       await voiceService.startListening(
         async (result) => {
           setIsListening(false);
-          if (result.text && result.text.trim()) {
+          if (result.text?.trim()) {
             setInputText(result.text);
             // Automatically send the voice input
             await handleSend(result.text);
@@ -183,18 +186,20 @@ export default function ZeinaScreen() {
         },
         voiceLanguage
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t("failedToStartVoiceInput", "Failed to start voice input");
       setIsListening(false);
-      Alert.alert(
-        t("speechError", "Speech Error"),
-        error.message ||
-          t("failedToStartVoiceInput", "Failed to start voice input")
-      );
+      Alert.alert(t("speechError", "Speech Error"), message);
     }
   };
 
   const handleVoiceOutput = async (text: string) => {
-    if (!(voiceEnabled && voiceOutputEnabled)) return;
+    if (!(voiceEnabled && voiceOutputEnabled)) {
+      return;
+    }
 
     try {
       setIsSpeaking(true);
@@ -204,7 +209,7 @@ export default function ZeinaScreen() {
         pitch: 1.0,
         volume: 1.0,
       });
-    } catch (error) {
+    } catch (_error) {
       // Silently fail if TTS is not available
     } finally {
       setIsSpeaking(false);
@@ -225,6 +230,7 @@ export default function ZeinaScreen() {
     setVoiceOutputEnabled(!voiceOutputEnabled);
   };
 
+  /* biome-ignore lint/correctness/useExhaustiveDependencies: Scroll should happen when messages update. */
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -236,15 +242,21 @@ export default function ZeinaScreen() {
       }
       // Initialize OpenAI service (uses env key)
       await openaiService.initialize();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       const model = await openaiService.getModel();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       setSelectedModel(model);
       setTempModel(model);
 
       // Load health context
       const prompt = await healthContextService.getContextualPrompt();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       setSystemPrompt(prompt);
 
       // Add system message
@@ -271,7 +283,7 @@ export default function ZeinaScreen() {
       if (isMountedRef.current) {
         setIsLoading(false);
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
       if (isMountedRef.current) {
         setIsLoading(false);
@@ -289,7 +301,9 @@ export default function ZeinaScreen() {
   const handleSend = async (textOverride?: string | unknown) => {
     const textToSend =
       typeof textOverride === "string" ? textOverride : inputText;
-    if (!textToSend.trim() || isStreaming) return;
+    if (!textToSend.trim() || isStreaming) {
+      return;
+    }
 
     const userMessage: AIMessage = {
       id: Date.now().toString(),
@@ -302,7 +316,9 @@ export default function ZeinaScreen() {
     setInputText("");
     setIsStreaming(true);
 
-    void autoLogHealthSignalsFromText(userMessage.content);
+    autoLogHealthSignalsFromText(userMessage.content).catch(() => {
+      // Non-blocking side effect; chat flow continues even if autolog fails.
+    });
 
     const assistantMessage: AIMessage = {
       id: (Date.now() + 1).toString(),
@@ -385,7 +401,7 @@ export default function ZeinaScreen() {
         JSON.stringify(voiceInputEnabled)
       );
       await AsyncStorage.setItem("voice_language", voiceLanguage);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle storage error
     }
 
@@ -399,6 +415,18 @@ export default function ZeinaScreen() {
 
   const handleNewChat = async () => {
     await initializeChat();
+  };
+
+  const getVoiceOutputIcon = () => {
+    if (isSpeaking) {
+      return <VolumeX color="white" size={20} />;
+    }
+
+    if (voiceOutputEnabled) {
+      return <Volume2 color="white" size={20} />;
+    }
+
+    return <VolumeX color="#666" size={20} />;
   };
 
   return (
@@ -456,8 +484,7 @@ export default function ZeinaScreen() {
                 <ChatMessage
                   content={message.content}
                   isStreaming={
-                    isStreaming &&
-                    message.id === messages[messages.length - 1].id
+                    isStreaming && message.id === messages.at(-1)?.id
                   }
                   key={message.id}
                   role={message.role as "user" | "assistant"}
@@ -468,7 +495,7 @@ export default function ZeinaScreen() {
         </ScrollView>
 
         <View style={styles.inputContainer}>
-          {voiceEnabled && (
+          {Boolean(voiceEnabled) && (
             <TouchableOpacity
               onPress={toggleVoiceOutput}
               style={[
@@ -476,16 +503,10 @@ export default function ZeinaScreen() {
                 voiceOutputEnabled && styles.voiceButtonActive,
               ]}
             >
-              {isSpeaking ? (
-                <VolumeX color="white" size={20} />
-              ) : voiceOutputEnabled ? (
-                <Volume2 color="white" size={20} />
-              ) : (
-                <VolumeX color="#666" size={20} />
-              )}
+              {getVoiceOutputIcon()}
             </TouchableOpacity>
           )}
-          {recognitionAvailable && (
+          {Boolean(recognitionAvailable) && (
             <TouchableOpacity
               onPress={handleVoiceInput}
               style={[
@@ -599,13 +620,13 @@ export default function ZeinaScreen() {
             </Text>
 
             {/* Voice Settings */}
-            {(voiceEnabled || recognitionAvailable) && (
+            {Boolean(voiceEnabled || recognitionAvailable) && (
               <>
                 <Text style={[styles.modalLabel, { marginTop: 20 }]}>
                   {t("voiceSettings", "Voice Settings")}
                 </Text>
 
-                {voiceEnabled && (
+                {Boolean(voiceEnabled) && (
                   <View style={styles.voiceSetting}>
                     <View style={styles.voiceSettingInfo}>
                       <Volume2 color="#007AFF" size={20} />
@@ -638,7 +659,7 @@ export default function ZeinaScreen() {
                   </View>
                 )}
 
-                {recognitionAvailable && (
+                {Boolean(recognitionAvailable) && (
                   <View style={styles.voiceSetting}>
                     <View style={styles.voiceSettingInfo}>
                       <Mic color="#007AFF" size={20} />

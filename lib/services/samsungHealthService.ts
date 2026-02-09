@@ -39,18 +39,90 @@ const REDIRECT_URI = Linking.createURL("samsung-health-callback");
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();
 
+type SamsungHealthDataItem = {
+  timestamp?: string | number;
+  start_time?: string | number;
+  end_time?: string | number;
+  date?: string | number;
+  source?: string;
+  value?: number;
+  count?: number;
+  bpm?: number;
+  heart_rate?: number;
+  resting_heart_rate?: number;
+  hrv?: number;
+  sdnn?: number;
+  rmssd?: number;
+  systolic?: number;
+  systolic_pressure?: number;
+  diastolic?: number;
+  diastolic_pressure?: number;
+  spo2?: number;
+  oxygen_saturation?: number;
+  respiratory_rate?: number;
+  breaths_per_minute?: number;
+  temperature?: number;
+  body_temperature?: number;
+  weight?: number;
+  body_weight?: number;
+  height?: number;
+  bmi?: number;
+  body_mass_index?: number;
+  body_fat?: number;
+  fat_percentage?: number;
+  steps?: number;
+  step_count?: number;
+  active_calories?: number;
+  calories_burned?: number;
+  calories?: number;
+  distance?: number;
+  total_distance?: number;
+  floors?: number;
+  floors_climbed?: number;
+  duration_minutes?: number;
+  duration?: number;
+  exercise_type?: string;
+  workout_type?: string;
+  type?: string;
+  total_sleep_minutes?: number;
+  bed_time?: string | number;
+  wake_time?: string | number;
+  amount?: number;
+  water_ml?: number;
+  glucose?: number;
+  blood_glucose?: number;
+};
+
+type SamsungHealthResponsePayload = {
+  data?: SamsungHealthDataItem[];
+  height?: number;
+};
+
+const getDataRows = (data: unknown): SamsungHealthDataItem[] => {
+  const payload = data as SamsungHealthResponsePayload;
+  return Array.isArray(payload.data) ? payload.data : [];
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
+
 /**
  * Samsung Health data type parsers
  * Maps API responses to normalized MetricSample format
  */
 const dataTypeParsers: Record<
   string,
-  (data: any, metricKey: string) => MetricSample[]
+  (data: unknown, metricKey: string) => MetricSample[]
 > = {
   // Heart rate data
   heart_rate: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.heart_rate || item.value || item.bpm || 0,
       unit: "bpm",
       startDate: new Date(
@@ -65,8 +137,9 @@ const dataTypeParsers: Record<
 
   // Resting heart rate
   resting_heart_rate: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.resting_heart_rate || item.value || 0,
       unit: "bpm",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -76,8 +149,9 @@ const dataTypeParsers: Record<
 
   // Heart rate variability
   heart_rate_variability: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.hrv || item.sdnn || item.rmssd || item.value || 0,
       unit: "ms",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -87,8 +161,9 @@ const dataTypeParsers: Record<
 
   // Blood pressure (systolic)
   blood_pressure_systolic: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.systolic || item.systolic_pressure || 0,
       unit: "mmHg",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -98,8 +173,9 @@ const dataTypeParsers: Record<
 
   // Blood pressure (diastolic)
   blood_pressure_diastolic: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.diastolic || item.diastolic_pressure || 0,
       unit: "mmHg",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -109,8 +185,9 @@ const dataTypeParsers: Record<
 
   // Blood oxygen (SpO2)
   blood_oxygen: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.spo2 || item.oxygen_saturation || item.value || 0,
       unit: "%",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -120,8 +197,9 @@ const dataTypeParsers: Record<
 
   // Respiratory rate
   respiratory_rate: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value:
         item.respiratory_rate || item.breaths_per_minute || item.value || 0,
       unit: "breaths/min",
@@ -132,8 +210,9 @@ const dataTypeParsers: Record<
 
   // Body temperature
   body_temperature: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.temperature || item.body_temperature || item.value || 0,
       unit: "°C",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -143,8 +222,9 @@ const dataTypeParsers: Record<
 
   // Weight
   weight: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.weight || item.body_weight || item.value || 0,
       unit: "kg",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -154,19 +234,21 @@ const dataTypeParsers: Record<
 
   // Height (from user profile)
   height: (data) => {
+    const payload = data as SamsungHealthResponsePayload;
     // Height may come from profile endpoint
-    if (data?.height) {
+    if (payload.height) {
       return [
         {
-          value: data.height,
+          value: payload.height,
           unit: "cm",
           startDate: new Date().toISOString(),
           source: "Samsung Health Profile",
         },
       ];
     }
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.height || item.value || 0,
       unit: "cm",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -176,8 +258,9 @@ const dataTypeParsers: Record<
 
   // Body mass index
   body_mass_index: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.bmi || item.body_mass_index || item.value || 0,
       unit: "kg/m²",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -187,8 +270,9 @@ const dataTypeParsers: Record<
 
   // Body fat percentage
   body_fat_percentage: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.body_fat || item.fat_percentage || item.value || 0,
       unit: "%",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -198,8 +282,9 @@ const dataTypeParsers: Record<
 
   // Steps
   steps: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.steps || item.step_count || item.count || item.value || 0,
       unit: "count",
       startDate: new Date(
@@ -214,8 +299,9 @@ const dataTypeParsers: Record<
 
   // Active energy burned
   active_energy: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value:
         item.active_calories ||
         item.calories_burned ||
@@ -230,8 +316,9 @@ const dataTypeParsers: Record<
 
   // Distance walking/running
   distance_walking_running: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       // Samsung Health typically returns distance in meters, convert to km
       value: (item.distance || item.total_distance || item.value || 0) / 1000,
       unit: "km",
@@ -242,8 +329,9 @@ const dataTypeParsers: Record<
 
   // Flights/floors climbed
   flights_climbed: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value:
         item.floors || item.floors_climbed || item.count || item.value || 0,
       unit: "count",
@@ -254,8 +342,9 @@ const dataTypeParsers: Record<
 
   // Exercise minutes
   exercise_minutes: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       // Convert from milliseconds or seconds to minutes if needed
       value: item.duration_minutes || item.duration / 60_000 || item.value || 0,
       unit: "min",
@@ -271,8 +360,9 @@ const dataTypeParsers: Record<
 
   // Workouts
   workouts: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.exercise_type || item.workout_type || item.type || "workout",
       unit: "",
       startDate: new Date(
@@ -287,8 +377,9 @@ const dataTypeParsers: Record<
 
   // Sleep analysis
   sleep_analysis: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       // Total sleep in hours
       value: item.total_sleep_minutes
         ? item.total_sleep_minutes / 60
@@ -304,8 +395,9 @@ const dataTypeParsers: Record<
 
   // Water intake
   water_intake: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.amount || item.water_ml || item.value || 0,
       unit: "ml",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -315,8 +407,9 @@ const dataTypeParsers: Record<
 
   // Blood glucose
   blood_glucose: (data) => {
-    if (!data?.data) return [];
-    return data.data.map((item: any) => ({
+    const rows = getDataRows(data);
+    if (rows.length === 0) return [];
+    return rows.map((item) => ({
       value: item.glucose || item.blood_glucose || item.value || 0,
       unit: "mg/dL",
       startDate: new Date(item.timestamp || item.date).toISOString(),
@@ -332,27 +425,27 @@ export const samsungHealthService = {
   /**
    * Check if Samsung Health integration is available
    */
-  isAvailable: async (): Promise<ProviderAvailability> => {
+  isAvailable: (): Promise<ProviderAvailability> => {
     try {
       if (
         SAMSUNG_HEALTH_CLIENT_ID === "YOUR_SAMSUNG_CLIENT_ID" ||
         SAMSUNG_HEALTH_CLIENT_SECRET === "YOUR_SAMSUNG_CLIENT_SECRET"
       ) {
-        return {
+        return Promise.resolve({
           available: false,
           reason:
             "Samsung Health credentials not configured. Please set SAMSUNG_HEALTH_CLIENT_ID and SAMSUNG_HEALTH_CLIENT_SECRET in app.json extra config.",
-        };
+        });
       }
 
-      return {
+      return Promise.resolve({
         available: true,
-      };
-    } catch (error: any) {
-      return {
+      });
+    } catch (error: unknown) {
+      return Promise.resolve({
         available: false,
-        reason: error?.message || "Unknown error",
-      };
+        reason: getErrorMessage(error),
+      });
     }
   },
 
@@ -394,8 +487,10 @@ export const samsungHealthService = {
       } else {
         throw new Error("Authentication cancelled or failed");
       }
-    } catch (error: any) {
-      throw new Error(`Samsung Health authentication failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(
+        `Samsung Health authentication failed: ${getErrorMessage(error)}`
+      );
     }
   },
 
@@ -454,9 +549,9 @@ export const samsungHealthService = {
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || [],
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(
-        `Failed to complete Samsung Health authentication: ${error.message}`
+        `Failed to complete Samsung Health authentication: ${getErrorMessage(error)}`
       );
     }
   },
@@ -613,7 +708,7 @@ export const samsungHealthService = {
   /**
    * Fetch all available metrics for a date range
    */
-  fetchAllMetrics: async (
+  fetchAllMetrics: (
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {
@@ -684,7 +779,7 @@ function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
 
-function parseMetricData(metricKey: string, data: any): MetricSample[] {
+function parseMetricData(metricKey: string, data: unknown): MetricSample[] {
   // Use specific parser if available
   const parser = dataTypeParsers[metricKey];
   if (parser) {
@@ -692,11 +787,12 @@ function parseMetricData(metricKey: string, data: any): MetricSample[] {
   }
 
   // Fallback generic parser
-  if (!(data && Array.isArray(data.data)) || data.data.length === 0) {
+  const rows = getDataRows(data);
+  if (rows.length === 0) {
     return [];
   }
 
-  return data.data.map((item: any) => ({
+  return rows.map((item) => ({
     value: item.value || item.count || 0,
     unit: "",
     startDate: new Date(item.timestamp || item.date).toISOString(),

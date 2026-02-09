@@ -7,17 +7,33 @@
 
 import { Platform } from "react-native";
 
+type WebSocketWithOptionsCtor = new (
+  wsUrl: string,
+  wsProtocols?: string | string[],
+  wsOptions?: Record<string, unknown>
+) => WebSocket;
+
+type ReactNativeWebSocketCtor = new (
+  wsUrl: string,
+  wsProtocols?: string | string[],
+  wsOptions?: {
+    headers?: Record<string, string>;
+    origin?: string;
+  }
+) => WebSocket;
+
 // Try to use react-native-websocket for better header support
-let RNWebSocket: any = null;
+let RNWebSocket: ReactNativeWebSocketCtor | null = null;
 try {
-  RNWebSocket = require("react-native-websocket").default;
+  RNWebSocket = require("react-native-websocket")
+    .default as ReactNativeWebSocketCtor;
 } catch {
   // react-native-websocket not available, will use fallback
 }
 
-export interface WebSocketWithHeadersOptions {
+export type WebSocketWithHeadersOptions = {
   headers?: Record<string, string>;
-}
+};
 
 /**
  * Create a WebSocket connection with custom headers
@@ -36,14 +52,12 @@ export function createWebSocketWithHeaders(
   options?: WebSocketWithHeadersOptions
 ): WebSocket {
   const headers = options?.headers || {};
-  const WebSocketCtor = WebSocket as unknown as {
-    new (url: string, protocols?: string | string[], options?: any): WebSocket;
-  };
+  const WebSocketCtor = WebSocket as unknown as WebSocketWithOptionsCtor;
 
   try {
     // Try using react-native-websocket first (better header support)
     if (RNWebSocket && (Platform.OS === "ios" || Platform.OS === "android")) {
-      const wsOptions: any = {
+      const wsOptions: { headers: Record<string, string>; origin: string } = {
         headers,
         origin: "https://api.openai.com", // Required for some WebSocket implementations
       };
@@ -53,7 +67,7 @@ export function createWebSocketWithHeaders(
     }
 
     // Fallback to native WebSocket with headers in options
-    const wsOptions: any = {};
+    const wsOptions: Record<string, unknown> = {};
 
     if (Object.keys(headers).length > 0) {
       wsOptions.headers = headers;
@@ -65,7 +79,7 @@ export function createWebSocketWithHeaders(
         ? new WebSocketCtor(url, protocols, wsOptions)
         : new WebSocket(url, protocols);
     return ws;
-  } catch (error) {
+  } catch {
     // Last resort fallback without headers
     return new WebSocket(url, protocols);
   }

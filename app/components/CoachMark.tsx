@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Overlay measurement and placement logic is intentionally centralized for correctness. */
 import { type RefObject, useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -58,7 +59,9 @@ export default function CoachMark({
     let isActive = true;
     const measureTarget = () => {
       targetRef.current?.measureInWindow((x, y, width, height) => {
-        if (!isActive) return;
+        if (!isActive) {
+          return;
+        }
         setTargetLayout({ x, y, width, height });
       });
     };
@@ -71,11 +74,11 @@ export default function CoachMark({
       cancelAnimationFrame(frame);
       clearTimeout(timeout);
     };
-  }, [screenHeight, screenWidth, targetRef, visible]);
+  }, [targetRef, visible]);
 
   const styles = useMemo(
     () =>
-      createThemedStyles((theme) => ({
+      createThemedStyles((activeTheme) => ({
         overlay: {
           ...StyleSheet.absoluteFillObject,
           justifyContent: "center",
@@ -87,58 +90,63 @@ export default function CoachMark({
         highlight: {
           position: "absolute" as const,
           borderWidth: 2,
-          borderColor: theme.colors.primary.main,
-          borderRadius: theme.borderRadius.lg,
+          borderColor: activeTheme.colors.primary.main,
+          borderRadius: activeTheme.borderRadius.lg,
           backgroundColor: "rgba(255, 255, 255, 0.08)",
         },
         tooltip: {
           position: "absolute" as const,
-          maxWidth: Math.min(screenWidth - theme.spacing.lg * 2, 320),
-          backgroundColor: theme.colors.background.primary,
-          borderRadius: theme.borderRadius.lg,
-          padding: theme.spacing.lg,
-          ...theme.shadows.lg,
+          maxWidth: Math.min(screenWidth - activeTheme.spacing.lg * 2, 320),
+          backgroundColor: activeTheme.colors.background.primary,
+          borderRadius: activeTheme.borderRadius.lg,
+          padding: activeTheme.spacing.lg,
+          ...activeTheme.shadows.lg,
         },
         title: {
           ...getTextStyle(
-            theme,
+            activeTheme,
             "subheading",
             "bold",
-            theme.colors.text.primary
+            activeTheme.colors.text.primary
           ),
-          marginBottom: theme.spacing.xs,
+          marginBottom: activeTheme.spacing.xs,
         },
         body: {
           ...getTextStyle(
-            theme,
+            activeTheme,
             "body",
             "regular",
-            theme.colors.text.secondary
+            activeTheme.colors.text.secondary
           ),
-          marginBottom: theme.spacing.lg,
+          marginBottom: activeTheme.spacing.lg,
         },
         actions: {
           flexDirection: "row" as const,
           justifyContent: "flex-end" as const,
-          gap: theme.spacing.sm,
+          gap: activeTheme.spacing.sm,
         },
         button: {
-          paddingVertical: theme.spacing.sm,
-          paddingHorizontal: theme.spacing.md,
-          borderRadius: theme.borderRadius.md,
+          paddingVertical: activeTheme.spacing.sm,
+          paddingHorizontal: activeTheme.spacing.md,
+          borderRadius: activeTheme.borderRadius.md,
           borderWidth: 1,
-          borderColor: theme.colors.border.light,
-          backgroundColor: theme.colors.background.secondary,
+          borderColor: activeTheme.colors.border.light,
+          backgroundColor: activeTheme.colors.background.secondary,
         },
         buttonPrimary: {
-          borderColor: theme.colors.primary.main,
-          backgroundColor: theme.colors.primary.main,
+          borderColor: activeTheme.colors.primary.main,
+          backgroundColor: activeTheme.colors.primary.main,
         },
         buttonText: {
-          ...getTextStyle(theme, "caption", "bold", theme.colors.text.primary),
+          ...getTextStyle(
+            activeTheme,
+            "caption",
+            "bold",
+            activeTheme.colors.text.primary
+          ),
         },
         buttonTextPrimary: {
-          color: theme.colors.neutral.white,
+          color: activeTheme.colors.neutral.white,
         },
         arrowUp: {
           position: "absolute" as const,
@@ -149,7 +157,7 @@ export default function CoachMark({
           borderBottomWidth: 10,
           borderLeftColor: "transparent",
           borderRightColor: "transparent",
-          borderBottomColor: theme.colors.background.primary,
+          borderBottomColor: activeTheme.colors.background.primary,
         },
         arrowDown: {
           position: "absolute" as const,
@@ -160,7 +168,7 @@ export default function CoachMark({
           borderTopWidth: 10,
           borderLeftColor: "transparent",
           borderRightColor: "transparent",
-          borderTopColor: theme.colors.background.primary,
+          borderTopColor: activeTheme.colors.background.primary,
         },
       }))(theme),
     [screenWidth, theme]
@@ -192,11 +200,17 @@ export default function CoachMark({
     padding,
     screenWidth - tooltipMaxWidth - padding
   );
-  const tooltipTop = targetLayout
-    ? placeBelow
-      ? targetLayout.y + targetLayout.height + arrowSize + 8
-      : Math.max(padding, targetLayout.y - arrowSize - 8 - tooltipHeight)
-    : (screenHeight - tooltipHeight) / 2;
+  let tooltipTop = (screenHeight - tooltipHeight) / 2;
+  if (targetLayout) {
+    if (placeBelow) {
+      tooltipTop = targetLayout.y + targetLayout.height + arrowSize + 8;
+    } else {
+      tooltipTop = Math.max(
+        padding,
+        targetLayout.y - arrowSize - 8 - tooltipHeight
+      );
+    }
+  }
 
   const arrowLeft = clamp(
     targetCenterX - arrowSize,
@@ -222,28 +236,26 @@ export default function CoachMark({
     >
       <View style={styles.overlay as ViewStyle}>
         <Pressable onPress={onClose} style={styles.backdrop as ViewStyle} />
-        {highlightStyle && (
+        {highlightStyle ? (
           <View
             pointerEvents="none"
             style={[styles.highlight, highlightStyle]}
           />
-        )}
-        {targetLayout && (
+        ) : null}
+        {targetLayout ? (
           <View
             pointerEvents="none"
-            style={
-              [
-                placeBelow ? styles.arrowUp : styles.arrowDown,
-                {
-                  left: arrowLeft,
-                  top: placeBelow
-                    ? tooltipTop - arrowSize
-                    : tooltipTop + tooltipHeight,
-                },
-              ]
-            }
+            style={[
+              placeBelow ? styles.arrowUp : styles.arrowDown,
+              {
+                left: arrowLeft,
+                top: placeBelow
+                  ? tooltipTop - arrowSize
+                  : tooltipTop + tooltipHeight,
+              },
+            ]}
           />
-        )}
+        ) : null}
         <View
           onLayout={(event) =>
             setTooltipLayout({
@@ -251,12 +263,7 @@ export default function CoachMark({
               height: event.nativeEvent.layout.height,
             })
           }
-          style={
-            [
-              styles.tooltip,
-              { left: tooltipLeft, top: tooltipTop },
-            ]
-          }
+          style={[styles.tooltip, { left: tooltipLeft, top: tooltipTop }]}
         >
           <Text style={[styles.title, isRTL && { textAlign: "right" }]}>
             {title}
@@ -270,7 +277,7 @@ export default function CoachMark({
             <Pressable onPress={onClose} style={styles.button as ViewStyle}>
               <Text style={styles.buttonText}>{secondaryActionLabel}</Text>
             </Pressable>
-            {primaryActionLabel && onPrimaryAction && (
+            {primaryActionLabel && onPrimaryAction ? (
               <Pressable
                 onPress={() => {
                   onPrimaryAction();
@@ -282,11 +289,10 @@ export default function CoachMark({
                   {primaryActionLabel}
                 </Text>
               </Pressable>
-            )}
+            ) : null}
           </View>
         </View>
       </View>
     </Modal>
   );
 }
-

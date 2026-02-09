@@ -11,18 +11,18 @@ export type WidgetId =
   | "familyMembers"
   | "quickActions";
 
-export interface WidgetConfig {
+export type WidgetConfig = {
   id: WidgetId;
   enabled: boolean;
   order: number;
   size?: "small" | "medium" | "large";
-}
+};
 
-export interface DashboardConfig {
+export type DashboardConfig = {
   userId: string;
   widgets: WidgetConfig[];
   updatedAt: Date;
-}
+};
 
 const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: "healthScore", enabled: true, order: 0 },
@@ -59,7 +59,7 @@ class DashboardWidgetService {
         widgets: DEFAULT_WIDGETS,
         updatedAt: new Date(),
       };
-    } catch (error) {
+    } catch (_error) {
       // Return default config on error
       return {
         userId,
@@ -89,9 +89,10 @@ class DashboardWidgetService {
       };
 
       await setDoc(docRef, firestoreData, { merge: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Provide more detailed error message
-      const errorMessage = error?.message || "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       throw new Error(
         `Failed to save dashboard configuration: ${errorMessage}`
       );

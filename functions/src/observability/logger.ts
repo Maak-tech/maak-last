@@ -3,12 +3,11 @@
  * Format: {level, msg, traceId, uid?, patientId?, alertId?, fn}
  * Never logs PHI: no names, emails, notes, raw vitals arrays
  */
-
 import { getTraceId } from "./correlation";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
-export interface LogContext {
+export type LogContext = {
   traceId?: string;
   uid?: string;
   patientId?: string;
@@ -18,10 +17,10 @@ export interface LogContext {
   vitalId?: string;
   medicationId?: string;
   fn?: string;
-  [key: string]: any; // Allow additional metadata fields
-}
+  [key: string]: unknown; // Allow additional metadata fields
+};
 
-export interface LogEntry {
+export type LogEntry = {
   level: LogLevel;
   msg: string;
   traceId: string;
@@ -38,7 +37,7 @@ export interface LogEntry {
     message: string;
     stack?: string;
   };
-}
+};
 
 class Logger {
   private defaultContext: LogContext = {};
@@ -69,14 +68,30 @@ class Logger {
     const merged = { ...this.defaultContext, ...context };
 
     // Only add defined fields (IDs only, no PHI)
-    if (merged.uid) entry.uid = merged.uid;
-    if (merged.patientId) entry.patientId = merged.patientId;
-    if (merged.caregiverId) entry.caregiverId = merged.caregiverId;
-    if (merged.familyId) entry.familyId = merged.familyId;
-    if (merged.alertId) entry.alertId = merged.alertId;
-    if (merged.vitalId) entry.vitalId = merged.vitalId;
-    if (merged.medicationId) entry.medicationId = merged.medicationId;
-    if (merged.fn) entry.fn = merged.fn;
+    if (merged.uid) {
+      entry.uid = merged.uid;
+    }
+    if (merged.patientId) {
+      entry.patientId = merged.patientId;
+    }
+    if (merged.caregiverId) {
+      entry.caregiverId = merged.caregiverId;
+    }
+    if (merged.familyId) {
+      entry.familyId = merged.familyId;
+    }
+    if (merged.alertId) {
+      entry.alertId = merged.alertId;
+    }
+    if (merged.vitalId) {
+      entry.vitalId = merged.vitalId;
+    }
+    if (merged.medicationId) {
+      entry.medicationId = merged.medicationId;
+    }
+    if (merged.fn) {
+      entry.fn = merged.fn;
+    }
 
     if (error) {
       entry.error = {
@@ -107,6 +122,9 @@ class Logger {
         break;
       case "error":
         console.error(json);
+        break;
+      default:
+        console.info(json);
         break;
     }
   }

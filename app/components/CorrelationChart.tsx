@@ -5,11 +5,11 @@ import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { CorrelationData } from "@/lib/services/chartsService";
 
-interface CorrelationChartProps {
+type CorrelationChartProps = {
   data: CorrelationData;
   title?: string;
   height?: number;
-}
+};
 
 export default function CorrelationChart({
   data,
@@ -17,55 +17,50 @@ export default function CorrelationChart({
   height = 250,
 }: CorrelationChartProps) {
   const { theme } = useTheme();
-  const screenWidth = Dimensions.get("window").width;
-
-  // Convert correlation data to scatter chart format
-  const scatterData = data.dataPoints.map((point) => ({
-    x: point.x,
-    y: point.y,
-  }));
-
-  // Calculate min/max for axes
-  const xValues = scatterData.map((p) => p.x);
-  const yValues = scatterData.map((p) => p.y);
-  const xMin = Math.min(...xValues);
-  const xMax = Math.max(...xValues);
-  const yMin = Math.min(...yValues);
-  const yMax = Math.max(...yValues);
-
-  const chartConfig = {
-    backgroundColor: theme.colors.background.secondary,
-    backgroundGradientFrom: theme.colors.background.secondary,
-    backgroundGradientTo: theme.colors.background.secondary,
-    decimalPlaces: 1,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-  };
+  const viewportWidth = Dimensions.get("window").width;
+  const chartWidth = viewportWidth - 64;
+  const chartHeight = height - 80;
+  const chartPadding = 40;
+  const pointXValues = data.dataPoints.map((point) => point.x);
+  const pointYValues = data.dataPoints.map((point) => point.y);
+  const pointXMin = Math.min(...pointXValues);
+  const pointXMax = Math.max(...pointXValues) || 1;
+  const pointYMin = Math.min(...pointYValues);
+  const pointYMax = Math.max(...pointYValues) || 1;
 
   const getCorrelationLabel = () => {
     const absCorr = Math.abs(data.correlation);
-    if (absCorr > 0.7) return "Strong";
-    if (absCorr > 0.4) return "Moderate";
-    if (absCorr > 0.2) return "Weak";
+    if (absCorr > 0.7) {
+      return "Strong";
+    }
+    if (absCorr > 0.4) {
+      return "Moderate";
+    }
+    if (absCorr > 0.2) {
+      return "Weak";
+    }
     return "None";
   };
 
-  const getCorrelationColor = () => {
-    const absCorr = Math.abs(data.correlation);
-    if (absCorr > 0.4) {
-      return data.correlation > 0
-        ? theme.colors.accent.error
-        : theme.colors.accent.success;
+  const getCorrelationVariant = (): "error" | "success" | "outline" => {
+    if (Math.abs(data.correlation) <= 0.4) {
+      return "outline";
     }
-    return theme.colors.text.secondary;
+    return data.correlation > 0 ? "error" : "success";
   };
+
+  const normalizePointX = (x: number): number =>
+    chartPadding +
+    ((x - pointXMin) / (pointXMax - pointXMin || 1)) *
+      (chartWidth - chartPadding * 2);
+  const normalizePointY = (y: number): number =>
+    chartPadding +
+    (1 - (y - pointYMin) / (pointYMax - pointYMin || 1)) *
+      (chartHeight - chartPadding * 2);
 
   return (
     <View style={{ marginVertical: 16 }}>
-      {title && (
+      {title ? (
         <View
           style={{
             flexDirection: "row",
@@ -81,18 +76,12 @@ export default function CorrelationChart({
           <Badge
             size="small"
             style={undefined}
-            variant={
-              Math.abs(data.correlation) > 0.4
-                ? data.correlation > 0
-                  ? "error"
-                  : "success"
-                : "outline"
-            }
+            variant={getCorrelationVariant()}
           >
             {getCorrelationLabel()} ({data.correlation.toFixed(2)})
           </Badge>
         </View>
-      )}
+      ) : null}
 
       <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
         <Caption numberOfLines={undefined} style={{ textAlign: "center" }}>
@@ -116,10 +105,7 @@ export default function CorrelationChart({
           }}
         >
           {data.dataPoints.length > 0 ? (
-            <Svg
-              height={height - 32}
-              width={Dimensions.get("window").width - 64}
-            >
+            <Svg height={height - 32} width={chartWidth}>
               {/* Calculate scales */}
               <G>
                 {/* Y-axis label */}
@@ -138,79 +124,38 @@ export default function CorrelationChart({
                   fill={theme.colors.text.secondary}
                   fontSize="12"
                   textAnchor="middle"
-                  x={(Dimensions.get("window").width - 64) / 2}
+                  x={chartWidth / 2}
                   y={height - 40}
                 >
                   {data.xLabel}
                 </SvgText>
 
                 {/* Draw scatter points */}
-                {data.dataPoints.map((point, index) => {
-                  const chartWidth = Dimensions.get("window").width - 64;
-                  const chartHeight = height - 80;
-                  const padding = 40;
-
-                  // Normalize coordinates
-                  const xValues = data.dataPoints.map((p) => p.x);
-                  const yValues = data.dataPoints.map((p) => p.y);
-                  const xMin = Math.min(...xValues);
-                  const xMax = Math.max(...xValues) || 1;
-                  const yMin = Math.min(...yValues);
-                  const yMax = Math.max(...yValues) || 1;
-
-                  const normalizedX =
-                    padding +
-                    ((point.x - xMin) / (xMax - xMin || 1)) *
-                      (chartWidth - padding * 2);
-                  const normalizedY =
-                    padding +
-                    (1 - (point.y - yMin) / (yMax - yMin || 1)) *
-                      (chartHeight - padding * 2);
-
-                  return (
-                    <Circle
-                      cx={normalizedX}
-                      cy={normalizedY}
-                      fill={theme.colors.primary.main}
-                      key={index}
-                      opacity={0.6}
-                      r="4"
-                    />
-                  );
-                })}
+                {data.dataPoints.map((point) => (
+                  <Circle
+                    cx={normalizePointX(point.x)}
+                    cy={normalizePointY(point.y)}
+                    fill={theme.colors.primary.main}
+                    key={`point-${point.x}-${point.y}`}
+                    opacity={0.6}
+                    r="4"
+                  />
+                ))}
 
                 {/* Draw trend line if correlation is significant */}
                 {Math.abs(data.correlation) > 0.3 &&
-                  data.dataPoints.length > 1 && (
-                    <Line
-                      opacity={0.5}
-                      stroke={theme.colors.primary.main}
-                      strokeDasharray="5,5"
-                      strokeWidth="2"
-                      x1={40}
-                      x2={Dimensions.get("window").width - 64 - 40}
-                      y1={
-                        40 +
-                        (1 -
-                          (data.dataPoints[0].y -
-                            Math.min(...data.dataPoints.map((p) => p.y))) /
-                            (Math.max(...data.dataPoints.map((p) => p.y)) -
-                              Math.min(...data.dataPoints.map((p) => p.y)) ||
-                              1)) *
-                          (height - 120)
-                      }
-                      y2={
-                        40 +
-                        (1 -
-                          (data.dataPoints[data.dataPoints.length - 1].y -
-                            Math.min(...data.dataPoints.map((p) => p.y))) /
-                            (Math.max(...data.dataPoints.map((p) => p.y)) -
-                              Math.min(...data.dataPoints.map((p) => p.y)) ||
-                              1)) *
-                          (height - 120)
-                      }
-                    />
-                  )}
+                data.dataPoints.length > 1 ? (
+                  <Line
+                    opacity={0.5}
+                    stroke={theme.colors.primary.main}
+                    strokeDasharray="5,5"
+                    strokeWidth="2"
+                    x1={chartPadding}
+                    x2={chartWidth - chartPadding}
+                    y1={normalizePointY(data.dataPoints[0].y)}
+                    y2={normalizePointY(data.dataPoints.at(-1)?.y ?? 0)}
+                  />
+                ) : null}
               </G>
             </Svg>
           ) : (

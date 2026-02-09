@@ -19,47 +19,47 @@ export type NotificationType =
 /**
  * Notification payload
  */
-export interface NotificationPayload {
+export type NotificationPayload = {
   title: string;
   body: string;
   imageUrl?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   priority?: "high" | "normal";
   sound?: string;
   badge?: number;
   clickAction?: string;
   color?: string;
   tag?: string;
-}
+};
 
 /**
  * Push notification result
  */
-export interface PushNotificationResult {
+export type PushNotificationResult = {
   success: boolean;
   successCount: number;
   failureCount: number;
   skippedCount: number;
   message: string;
-}
+};
 
 /**
  * Multicast send result
  */
-export interface MulticastResult {
+export type MulticastResult = {
   successCount: number;
   failureCount: number;
   failedTokens: string[];
-}
+};
 
 /**
  * Internal send options
  */
-export interface SendPushNotificationOptions {
+export type SendPushNotificationOptions = {
   traceId?: string;
   userIds: string[];
   notification: NotificationPayload;
   notificationType: NotificationType;
   requireAuth?: boolean;
   callerUid?: string;
-}
+};

@@ -3,10 +3,23 @@
  * Checks for medication reminders every hour and sends notifications to users
  */
 
-import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "../observability/logger";
+
+type MedicationReminder = {
+  id: string;
+  time: string;
+  taken?: boolean;
+};
+
+type ReminderPayload = {
+  medicationId: string;
+  medicationName: string;
+  dosage: string;
+  userId: string;
+  reminderId: string;
+};
 
 /**
  * Helper function to check if time is within range
@@ -37,7 +50,7 @@ function isTimeWithinRange(
 export const scheduledMedicationReminders = onSchedule(
   "every 1 hours",
   async () => {
-    const db = admin.firestore();
+    const db = getFirestore();
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
@@ -52,14 +65,16 @@ export const scheduledMedicationReminders = onSchedule(
         .where("isActive", "==", true)
         .get();
 
-      const remindersToSend: any[] = [];
+      const remindersToSend: ReminderPayload[] = [];
 
-      medicationsSnapshot.forEach((doc) => {
+      for (const doc of medicationsSnapshot.docs) {
         const medication = doc.data();
-        const reminders = medication.reminders || [];
+        const reminders = Array.isArray(medication.reminders)
+          ? (medication.reminders as MedicationReminder[])
+          : [];
 
         // Check if any reminder matches current time (within 5 minutes)
-        reminders.forEach((reminder: any) => {
+        for (const reminder of reminders) {
           const reminderTime = reminder.time;
           if (
             isTimeWithinRange(currentTime, reminderTime, 5) &&
@@ -73,19 +88,24 @@ export const scheduledMedicationReminders = onSchedule(
               reminderId: reminder.id,
             });
           }
-        });
-      });
+        }
+      }
 
       // Send reminders
       // Note: This requires sendMedicationReminder to be exported from index.ts
       // We'll need to import it dynamically to avoid circular dependencies
-      const indexModule = (await import("../index.js")) as any;
+      const indexModule = (await import("../index.js")) as {
+        sendMedicationReminder: (
+          reminder: ReminderPayload,
+          context: { auth: { uid: string } }
+        ) => Promise<unknown>;
+      };
 
       for (const reminder of remindersToSend) {
         try {
           await indexModule.sendMedicationReminder(reminder, {
             auth: { uid: "system" },
-          } as any);
+          });
 
           // Mark reminder as notified
           await db

@@ -45,6 +45,7 @@ export async function createHealthEvent(
     logger.info(
       "Creating health event",
       {
+        traceId,
         userId: input.userId,
         type: input.type,
         severity: input.severity,
@@ -68,6 +69,7 @@ export async function createHealthEvent(
     logger.info(
       "Health event created successfully",
       {
+        traceId,
         eventId: docRef.id,
         userId: input.userId,
         type: input.type,
@@ -80,7 +82,15 @@ export async function createHealthEvent(
     return docRef.id;
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    logger.error("Failed to create health event", error, "createHealthEvent");
+    logger.error(
+      "Failed to create health event",
+      {
+        error,
+        traceId,
+        durationMs,
+      },
+      "createHealthEvent"
+    );
     throw new Error("Failed to create health event");
   }
 }
@@ -99,6 +109,7 @@ export async function updateHealthEvent(
     logger.info(
       "Updating health event",
       {
+        traceId,
         eventId,
         status: updates.status,
         acknowledgedBy: updates.acknowledgedBy,
@@ -108,7 +119,16 @@ export async function updateHealthEvent(
       "updateHealthEvent"
     );
 
-    const updateData: any = {
+    const updateData: {
+      status: UpdateHealthEventInput["status"];
+      acknowledgedAt?: Timestamp;
+      acknowledgedBy?: string;
+      resolvedAt?: Timestamp;
+      resolvedBy?: string;
+      escalatedAt?: Timestamp;
+      escalatedBy?: string;
+      metadata?: HealthEvent["metadata"];
+    } = {
       status: updates.status,
     };
 
@@ -146,6 +166,7 @@ export async function updateHealthEvent(
     logger.info(
       "Health event updated successfully",
       {
+        traceId,
         eventId,
         status: updates.status,
         durationMs,
@@ -154,7 +175,15 @@ export async function updateHealthEvent(
     );
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    logger.error("Failed to update health event", error, "updateHealthEvent");
+    logger.error(
+      "Failed to update health event",
+      {
+        error,
+        traceId,
+        durationMs,
+      },
+      "updateHealthEvent"
+    );
     throw new Error("Failed to update health event");
   }
 }
@@ -254,6 +283,7 @@ export async function createVitalAlertEvent(
     logger.debug(
       "Skipping vital alert event - severity is normal",
       {
+        traceId,
         userId,
       },
       "createVitalAlertEvent"
@@ -264,6 +294,7 @@ export async function createVitalAlertEvent(
   logger.info(
     "Creating vital alert event",
     {
+      traceId,
       userId,
       evaluationSeverity: evaluation.severity,
       reasonCount: evaluation.reasons.length,
@@ -296,6 +327,7 @@ export async function createVitalAlertEvent(
     logger.info(
       "Vital alert event created",
       {
+        traceId,
         eventId,
         userId,
         severity: eventSeverity,
@@ -307,7 +339,10 @@ export async function createVitalAlertEvent(
   } catch (error) {
     logger.error(
       "Failed to create vital alert event",
-      error,
+      {
+        error,
+        traceId,
+      },
       "createVitalAlertEvent"
     );
     throw error;

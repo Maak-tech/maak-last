@@ -3,7 +3,7 @@
  * Collections: Users, Patients, CareLinks, Alerts, Vitals, Medications, Audit
  */
 
-import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import {
   alertConverter,
   auditLogConverter,
@@ -18,7 +18,7 @@ import {
  * Get Firestore instance
  */
 export function getDb(): FirebaseFirestore.Firestore {
-  return admin.firestore();
+  return getFirestore();
 }
 
 /**

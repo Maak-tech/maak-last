@@ -30,27 +30,35 @@ export interface ChatCompletionChunk {
   }>;
 }
 
+type ExpectedApiError = Error & {
+  isExpectedError?: boolean;
+  isApiKeyError?: boolean;
+};
+
+const markExpectedApiError = (message: string): ExpectedApiError => {
+  const error = new Error(message) as ExpectedApiError;
+  error.isExpectedError = true;
+  error.isApiKeyError = true;
+  return error;
+};
+
 class OpenAIService {
   private apiKey: string | null = null;
   private zeinaApiKey: string | null = null;
   private baseURL = "https://api.openai.com/v1";
   private model = "gpt-3.5-turbo"; // Default to cheaper model
-  private hasLoggedKeyDebug = false;
 
-  private maskKey(key: string | null): string {
-    if (!key || key.length < 12) return "***";
-    return `${key.slice(0, 7)}...${key.slice(-4)}`;
-  }
-
-  async initialize(usePremiumKey = false) {
+  initialize(_usePremiumKey = false): void {
     try {
       // Get API keys from app config (server-side, not user-provided)
       // Both regular and premium users use the same OpenAI API key
       const config = Constants.expoConfig?.extra;
 
       // Treat empty strings as null - normalize API keys
-      const normalizeKey = (key: any): string | null => {
-        if (!key || typeof key !== "string") return null;
+      const normalizeKey = (key: unknown): string | null => {
+        if (!key || typeof key !== "string") {
+          return null;
+        }
         const trimmed = key.trim();
         return trimmed === "" ? null : trimmed;
       };
@@ -63,13 +71,12 @@ class OpenAIService {
       this.zeinaApiKey = zeinaKey || openaiKey;
 
       // API key validation handled in getApiKey method
-    } catch (error) {
-      if (__DEV__) {
-      }
+    } catch (_error) {
+      // Ignore initialization failure; getApiKey handles validation explicitly.
     }
   }
 
-  async getApiKey(usePremiumKey = false): Promise<string | null> {
+  getApiKey(usePremiumKey = false): Promise<string | null> {
     // Use only the provided parameter to ensure context-specific behavior
     // Do not rely on instance state from previous calls
     const shouldUseZeinaKey = usePremiumKey;
@@ -79,7 +86,7 @@ class OpenAIService {
       !(this.apiKey || shouldUseZeinaKey) ||
       (!this.zeinaApiKey && shouldUseZeinaKey)
     ) {
-      await this.initialize(shouldUseZeinaKey);
+      this.initialize(shouldUseZeinaKey);
     }
 
     // Return the requested key type, fail explicitly if not available
@@ -92,7 +99,7 @@ class OpenAIService {
           "Zeina API key not configured. Provide OPENAI_API_KEY or ZEINA_API_KEY at build time and rebuild the app."
         );
       }
-      return this.zeinaApiKey;
+      return Promise.resolve(this.zeinaApiKey);
     }
     if (
       !this.apiKey ||
@@ -102,15 +109,16 @@ class OpenAIService {
         "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
       );
     }
-    return this.apiKey;
+    return Promise.resolve(this.apiKey);
   }
 
-  async getModel(): Promise<string> {
-    return this.model;
+  getModel(): Promise<string> {
+    return Promise.resolve(this.model);
   }
 
-  async setModel(model: string): Promise<void> {
+  setModel(model: string): Promise<void> {
     this.model = model;
+    return Promise.resolve();
   }
 
   async createChatCompletionStream(
@@ -128,12 +136,10 @@ class OpenAIService {
       // Optimized streaming: batch words together for better performance
       const words = response.split(" ");
       const BATCH_SIZE = 3; // Process 3 words at a time
-      let currentText = "";
 
       for (let i = 0; i < words.length; i += BATCH_SIZE) {
         const batch = words.slice(i, i + BATCH_SIZE);
         const batchText = (i > 0 ? " " : "") + batch.join(" ");
-        currentText += batchText;
         onChunk(batchText);
 
         // Reduced delay for better responsiveness while maintaining smooth UX
@@ -154,24 +160,19 @@ class OpenAIService {
     let activeApiKey: string | null = null;
     try {
       activeApiKey = await this.getApiKey(usePremiumKey);
-    } catch (apiKeyError: any) {
+    } catch (apiKeyError: unknown) {
       // If API key is not configured, create a special error that won't be logged as an error
-      const error = new Error(
-        apiKeyError?.message ||
+      const error = markExpectedApiError(
+        (apiKeyError instanceof Error ? apiKeyError.message : undefined) ||
           "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
       );
-      // Mark this as an expected error so observability can handle it appropriately
-      (error as any).isExpectedError = true;
-      (error as any).isApiKeyError = true;
       throw error;
     }
 
     if (!activeApiKey || activeApiKey.trim() === "") {
-      const error = new Error(
+      const error = markExpectedApiError(
         "OpenAI API key not configured. Provide OPENAI_API_KEY at build time and rebuild the app."
       );
-      (error as any).isExpectedError = true;
-      (error as any).isApiKeyError = true;
       throw error;
     }
 
@@ -212,12 +213,9 @@ class OpenAIService {
             );
           }
           if (response.status === 401) {
-            const error = new Error(
+            const error = markExpectedApiError(
               "Invalid or expired OpenAI API key. The API key must be configured at build time via OPENAI_API_KEY or ZEINA_API_KEY environment variable. Please check your .env file and rebuild the app."
             );
-            // Mark as expected error for graceful handling
-            (error as any).isExpectedError = true;
-            (error as any).isApiKeyError = true;
             throw error;
           }
           if (response.status === 404) {
@@ -249,7 +247,7 @@ class OpenAIService {
   async generateHealthInsights(
     prompt: string,
     usePremiumKey = false
-  ): Promise<any> {
+  ): Promise<Record<string, unknown> | null> {
     try {
       // Avoid noisy stack traces when the app hasn't been configured with an API key yet.
       // Let callers fall back gracefully.
@@ -295,22 +293,26 @@ class OpenAIService {
             /```(?:json)?\s*(\{[\s\S]*\})\s*```/
           );
           const jsonString = jsonMatch ? jsonMatch[1] : response.trim();
-          return JSON.parse(jsonString);
-        } catch (parseError) {
+          return JSON.parse(jsonString) as Record<string, unknown>;
+        } catch (_parseError) {
           // If parsing fails, return the raw response wrapped in a narrative property
           return { narrative: response };
         }
-      } catch (apiError: any) {
+      } catch (apiError: unknown) {
         // Handle API key errors gracefully - these are marked as expected errors
         // and won't be logged by the observability system
-        if (apiError?.isApiKeyError || apiError?.isExpectedError) {
+        if (
+          apiError instanceof Error &&
+          ((apiError as ExpectedApiError).isApiKeyError ||
+            (apiError as ExpectedApiError).isExpectedError)
+        ) {
           return null;
         }
 
         // For other errors, rethrow to be caught by outer catch
         throw apiError;
       }
-    } catch (error: any) {
+    } catch (_error) {
       // Keep console noise low; callers already handle fallbacks.
       return null;
     }

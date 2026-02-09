@@ -17,9 +17,13 @@ import { EscalationLevel, RecommendedActionCode } from "./types";
 /**
  * LLM Provider interface (adapter pattern)
  */
-interface LLMProvider {
+type LLMProvider = {
   name: string;
   call(prompt: string, timeout: number): Promise<RawAIResponse | null>;
+};
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
 }
 
 /**
@@ -27,8 +31,8 @@ interface LLMProvider {
  */
 class OpenAIProvider implements LLMProvider {
   name = "openai";
-  private apiKey: string;
-  private model: string;
+  private readonly apiKey: string;
+  private readonly model: string;
 
   constructor(apiKey: string, model = "gpt-4o-mini") {
     this.apiKey = apiKey;
@@ -84,7 +88,7 @@ class OpenAIProvider implements LLMProvider {
       const aiResponse: RawAIResponse = JSON.parse(content);
       return aiResponse;
     } catch (error) {
-      if ((error as any).name === "AbortError") {
+      if (isAbortError(error)) {
         throw new Error("LLM call timeout");
       }
       throw error;
@@ -100,9 +104,9 @@ class OpenAIProvider implements LLMProvider {
 class AnthropicProvider implements LLMProvider {
   name = "anthropic";
 
-  async call(prompt: string, timeout: number): Promise<RawAIResponse | null> {
+  call(_prompt: string, _timeout: number): Promise<RawAIResponse | null> {
     // TODO: Implement Anthropic API integration
-    throw new Error("Anthropic provider not yet implemented");
+    return Promise.reject(new Error("Anthropic provider not yet implemented"));
   }
 }
 
@@ -139,7 +143,7 @@ function getLLMProvider(apiKey?: string): LLMProvider | null {
  * @returns RawAIResponse or null on failure
  */
 export async function callLLM(
-  input: ZeinaInput,
+  _input: ZeinaInput,
   prompt: string,
   traceId: string,
   apiKey?: string
@@ -220,51 +224,9 @@ export function generateDeterministicResponse(
     fn: "zeina.analyze.generateDeterministicResponse",
   });
 
-  // Calculate risk score based on severity and vital level
-  let riskScore = 30; // Default
-
-  if (input.severity === "critical") {
-    riskScore = 75;
-  } else if (input.severity === "warning") {
-    riskScore = 50;
-  } else {
-    riskScore = 25;
-  }
-
-  // Adjust for vital level
-  if (input.vitalLevel === "very_high" || input.vitalLevel === "very_low") {
-    riskScore += 15;
-  } else if (input.vitalLevel === "high" || input.vitalLevel === "low") {
-    riskScore += 5;
-  }
-
-  // Cap at 100
-  riskScore = Math.min(riskScore, 100);
-
-  // Determine action code
-  let actionCode: RecommendedActionCode;
-  if (input.alertType === "fall") {
-    actionCode = RecommendedActionCode.IMMEDIATE_ATTENTION;
-  } else if (input.severity === "critical") {
-    actionCode = RecommendedActionCode.CONTACT_PATIENT;
-  } else if (
-    input.vitalLevel === "very_high" ||
-    input.vitalLevel === "very_low"
-  ) {
-    actionCode = RecommendedActionCode.CHECK_VITALS;
-  } else {
-    actionCode = RecommendedActionCode.MONITOR;
-  }
-
-  // Determine escalation level
-  let escalationLevel: EscalationLevel;
-  if (input.alertType === "fall" || input.severity === "critical") {
-    escalationLevel = EscalationLevel.CAREGIVER;
-  } else if (riskScore >= 70) {
-    escalationLevel = EscalationLevel.CAREGIVER;
-  } else {
-    escalationLevel = EscalationLevel.NONE;
-  }
+  const riskScore = calculateRiskScore(input);
+  const actionCode = determineActionCode(input);
+  const escalationLevel = determineEscalationLevel(input, riskScore);
 
   // Generate summary
   let summary = `${input.alertType} alert`;
@@ -281,4 +243,51 @@ export function generateDeterministicResponse(
     recommendedActionCode: actionCode,
     escalationLevel,
   };
+}
+
+function calculateRiskScore(input: ZeinaInput): number {
+  const severityBase: Record<string, number> = {
+    critical: 75,
+    warning: 50,
+    info: 25,
+  };
+  const vitalAdjustment: Record<string, number> = {
+    very_high: 15,
+    very_low: 15,
+    high: 5,
+    low: 5,
+  };
+
+  const baseScore = severityBase[input.severity] ?? 30;
+  const adjustment = input.vitalLevel
+    ? (vitalAdjustment[input.vitalLevel] ?? 0)
+    : 0;
+
+  return Math.min(baseScore + adjustment, 100);
+}
+
+function determineActionCode(input: ZeinaInput): RecommendedActionCode {
+  if (input.alertType === "fall") {
+    return RecommendedActionCode.IMMEDIATE_ATTENTION;
+  }
+  if (input.severity === "critical") {
+    return RecommendedActionCode.CONTACT_PATIENT;
+  }
+  if (input.vitalLevel === "very_high" || input.vitalLevel === "very_low") {
+    return RecommendedActionCode.CHECK_VITALS;
+  }
+  return RecommendedActionCode.MONITOR;
+}
+
+function determineEscalationLevel(
+  input: ZeinaInput,
+  riskScore: number
+): EscalationLevel {
+  if (input.alertType === "fall" || input.severity === "critical") {
+    return EscalationLevel.CAREGIVER;
+  }
+  if (riskScore >= 70) {
+    return EscalationLevel.CAREGIVER;
+  }
+  return EscalationLevel.NONE;
 }

@@ -3,7 +3,7 @@
  * Removes invalid tokens from BOTH legacy and new formats
  */
 
-import * as admin from "firebase-admin";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
 
 /**
@@ -14,6 +14,7 @@ import { logger } from "../../observability/logger";
  *
  * @param invalidTokens - Array of invalid FCM tokens
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: token cleanup intentionally handles legacy + map formats in one pass.
 export async function cleanupInvalidTokens(
   invalidTokens: string[]
 ): Promise<void> {
@@ -27,7 +28,7 @@ export async function cleanupInvalidTokens(
   });
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const invalidTokenSet = new Set(invalidTokens);
 
     // Firestore 'in' query limit is 10, so process in batches
@@ -47,7 +48,7 @@ export async function cleanupInvalidTokens(
 
       const updateBatch = db.batch();
 
-      usersSnapshot.forEach((doc) => {
+      for (const doc of usersSnapshot.docs) {
         const userData = doc.data();
 
         // Remove from legacy fcmToken if it matches any invalid token
@@ -68,7 +69,7 @@ export async function cleanupInvalidTokens(
               );
               if (validTokens.length === 0) {
                 updateBatch.update(doc.ref, {
-                  fcmToken: admin.firestore.FieldValue.delete(),
+                  fcmToken: FieldValue.delete(),
                 });
               } else {
                 updateBatch.update(doc.ref, {
@@ -78,13 +79,13 @@ export async function cleanupInvalidTokens(
             } else {
               // Single token - delete it
               updateBatch.update(doc.ref, {
-                fcmToken: admin.firestore.FieldValue.delete(),
+                fcmToken: FieldValue.delete(),
               });
             }
-            totalUpdated++;
+            totalUpdated += 1;
           }
         }
-      });
+      }
 
       await updateBatch.commit();
     }
@@ -97,7 +98,7 @@ export async function cleanupInvalidTokens(
     const mapUpdateBatch = db.batch();
     let mapUpdated = 0;
 
-    allUsersSnapshot.forEach((doc) => {
+    for (const doc of allUsersSnapshot.docs) {
       const userData = doc.data();
 
       if (userData.fcmTokens && typeof userData.fcmTokens === "object") {
@@ -105,6 +106,9 @@ export async function cleanupInvalidTokens(
         let hasChanges = false;
 
         for (const deviceId in updatedTokens) {
+          if (!Object.hasOwn(updatedTokens, deviceId)) {
+            continue;
+          }
           const deviceToken = updatedTokens[deviceId];
           const tokenValue =
             typeof deviceToken === "object" ? deviceToken.token : deviceToken;
@@ -119,7 +123,7 @@ export async function cleanupInvalidTokens(
           if (Object.keys(updatedTokens).length === 0) {
             // Remove the entire fcmTokens field if no tokens left
             mapUpdateBatch.update(doc.ref, {
-              fcmTokens: admin.firestore.FieldValue.delete(),
+              fcmTokens: FieldValue.delete(),
             });
           } else {
             // Update with cleaned tokens
@@ -127,10 +131,10 @@ export async function cleanupInvalidTokens(
               fcmTokens: updatedTokens,
             });
           }
-          mapUpdated++;
+          mapUpdated += 1;
         }
       }
-    });
+    }
 
     if (mapUpdated > 0) {
       await mapUpdateBatch.commit();

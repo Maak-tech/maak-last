@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/style/noNestedTernary: preserving existing conditional layout flow while iterating in batches. */
 import { router } from "expo-router";
 import {
   ChevronLeft,
@@ -36,8 +37,9 @@ import type { LabResult } from "@/types";
 import { safeFormatDate } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: screen bundles data loading, filtering, list and modal rendering.
 export default function LabResultsScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
   const isRTL = i18n.language === "ar";
@@ -51,10 +53,11 @@ export default function LabResultsScreen() {
     "all"
   );
 
-  const styles = createThemedStyles((theme) => ({
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: large screen style map.
+  const styles = createThemedStyles((screenTheme) => ({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: screenTheme.colors.background.primary,
     },
     content: {
       flex: 1,
@@ -193,7 +196,9 @@ export default function LabResultsScreen() {
 
   const loadLabResults = useCallback(
     async (isRefresh = false) => {
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
       try {
         if (isRefresh) {
@@ -213,7 +218,7 @@ export default function LabResultsScreen() {
         }
 
         setLabResults(results);
-      } catch (error) {
+      } catch (_error) {
         Alert.alert(
           isRTL ? "خطأ" : "Error",
           isRTL ? "فشل تحميل نتائج المختبر" : "Failed to load lab results"
@@ -254,7 +259,9 @@ export default function LabResultsScreen() {
   };
 
   const getStatusLabel = (status?: LabResult["results"][0]["status"]) => {
-    if (!status) return "";
+    if (!status) {
+      return "";
+    }
     const labels: Record<string, { en: string; ar: string }> = {
       normal: { en: "Normal", ar: "طبيعي" },
       high: { en: "High", ar: "مرتفع" },
@@ -263,6 +270,28 @@ export default function LabResultsScreen() {
       critical: { en: "Critical", ar: "حرج" },
     };
     return isRTL ? labels[status]?.ar || status : labels[status]?.en || status;
+  };
+
+  const getTestTypeBadgeVariant = (type: LabResult["testType"]) => {
+    if (type === "blood") {
+      return "error";
+    }
+    if (type === "urine") {
+      return "info";
+    }
+    return "outline";
+  };
+
+  const getResultBadgeVariant = (
+    status?: LabResult["results"][0]["status"]
+  ) => {
+    if (status === "normal") {
+      return "success";
+    }
+    if (status === "high" || status === "critical") {
+      return "error";
+    }
+    return "warning";
   };
 
   const testTypes = [
@@ -393,6 +422,7 @@ export default function LabResultsScreen() {
           }
           style={styles.content as StyleProp<ViewStyle>}
         >
+          {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: card markup includes multiple health-result render branches. */}
           {labResults.map((result) => (
             <Card
               contentStyle={undefined}
@@ -428,19 +458,13 @@ export default function LabResultsScreen() {
                 <Badge
                   size="small"
                   style={undefined}
-                  variant={
-                    result.testType === "blood"
-                      ? "error"
-                      : result.testType === "urine"
-                        ? "info"
-                        : "outline"
-                  }
+                  variant={getTestTypeBadgeVariant(result.testType)}
                 >
                   {result.testType}
                 </Badge>
               </View>
 
-              {result.facility && (
+              {result.facility ? (
                 <Caption
                   numberOfLines={1}
                   style={[
@@ -451,13 +475,13 @@ export default function LabResultsScreen() {
                   {isRTL ? "المنشأة: " : "Facility: "}
                   {result.facility}
                 </Caption>
-              )}
+              ) : null}
 
-              {result.results && result.results.length > 0 && (
+              {result.results.length > 0 ? (
                 <View style={styles.resultValues as StyleProp<ViewStyle>}>
-                  {result.results.slice(0, 3).map((value, index) => (
+                  {result.results.slice(0, 3).map((value) => (
                     <View
-                      key={index}
+                      key={`${result.id}-${value.name}-${String(value.value)}-${value.unit ?? ""}`}
                       style={styles.resultValueItem as StyleProp<ViewStyle>}
                     >
                       <TypographyText
@@ -479,7 +503,7 @@ export default function LabResultsScreen() {
                         >
                           {value.value}
                         </TypographyText>
-                        {value.unit && (
+                        {value.unit ? (
                           <Caption
                             numberOfLines={1}
                             style={
@@ -488,23 +512,16 @@ export default function LabResultsScreen() {
                           >
                             {value.unit}
                           </Caption>
-                        )}
-                        {value.status && (
+                        ) : null}
+                        {value.status ? (
                           <Badge
                             size="small"
                             style={undefined}
-                            variant={
-                              value.status === "normal"
-                                ? "success"
-                                : value.status === "high" ||
-                                    value.status === "critical"
-                                  ? "error"
-                                  : "warning"
-                            }
+                            variant={getResultBadgeVariant(value.status)}
                           >
                             {getStatusLabel(value.status)}
                           </Badge>
-                        )}
+                        ) : null}
                       </View>
                     </View>
                   ))}
@@ -522,7 +539,7 @@ export default function LabResultsScreen() {
                     </Caption>
                   )}
                 </View>
-              )}
+              ) : null}
 
               <View
                 style={{
@@ -575,7 +592,7 @@ export default function LabResultsScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent as StyleProp<ViewStyle>}>
-            {selectedResult && (
+            {selectedResult ? (
               <>
                 <View style={{ marginBottom: theme.spacing.base }}>
                   <Caption
@@ -588,7 +605,7 @@ export default function LabResultsScreen() {
                     {isRTL ? "التاريخ: " : "Date: "}
                     {formatDate(selectedResult.testDate)}
                   </Caption>
-                  {selectedResult.facility && (
+                  {selectedResult.facility ? (
                     <Caption
                       numberOfLines={1}
                       style={[
@@ -599,8 +616,8 @@ export default function LabResultsScreen() {
                       {isRTL ? "المنشأة: " : "Facility: "}
                       {selectedResult.facility}
                     </Caption>
-                  )}
-                  {selectedResult.orderedBy && (
+                  ) : null}
+                  {selectedResult.orderedBy ? (
                     <Caption
                       numberOfLines={1}
                       style={[
@@ -611,88 +628,78 @@ export default function LabResultsScreen() {
                       {isRTL ? "طلب من: " : "Ordered by: "}
                       {selectedResult.orderedBy}
                     </Caption>
-                  )}
+                  ) : null}
                 </View>
 
-                {selectedResult.results &&
-                  selectedResult.results.length > 0 && (
-                    <View style={styles.resultValues as StyleProp<ViewStyle>}>
-                      {selectedResult.results.map((value, index) => (
-                        <View
-                          key={index}
-                          style={styles.resultValueItem as StyleProp<ViewStyle>}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <TypographyText
+                {selectedResult.results.length > 0 ? (
+                  <View style={styles.resultValues as StyleProp<ViewStyle>}>
+                    {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: modal result items include conditional medical metadata badges and text. */}
+                    {selectedResult.results.map((value) => (
+                      <View
+                        key={`${selectedResult.id}-${value.name}-${String(value.value)}-${value.referenceRange ?? ""}`}
+                        style={styles.resultValueItem as StyleProp<ViewStyle>}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <TypographyText
+                            style={[
+                              styles.resultValueName as StyleProp<TextStyle>,
+                              isRTL && (styles.rtlText as StyleProp<TextStyle>),
+                            ]}
+                            weight="semibold"
+                          >
+                            {value.name}
+                          </TypographyText>
+                          {value.referenceRange ? (
+                            <Caption
+                              numberOfLines={1}
                               style={[
-                                styles.resultValueName as StyleProp<TextStyle>,
+                                styles.resultDate as StyleProp<TextStyle>,
                                 isRTL &&
                                   (styles.rtlText as StyleProp<TextStyle>),
                               ]}
-                              weight="semibold"
                             >
-                              {value.name}
-                            </TypographyText>
-                            {value.referenceRange && (
-                              <Caption
-                                numberOfLines={1}
-                                style={[
-                                  styles.resultDate as StyleProp<TextStyle>,
-                                  isRTL &&
-                                    (styles.rtlText as StyleProp<TextStyle>),
-                                ]}
-                              >
-                                {isRTL ? "النطاق المرجعي: " : "Reference: "}
-                                {value.referenceRange}
-                              </Caption>
-                            )}
-                          </View>
-                          <View
-                            style={
-                              styles.resultValueData as StyleProp<ViewStyle>
-                            }
-                          >
-                            <TypographyText
-                              style={[
-                                styles.resultValueText as StyleProp<TextStyle>,
-                                { color: getStatusColor(value.status) },
-                              ]}
-                            >
-                              {value.value}
-                            </TypographyText>
-                            {value.unit && (
-                              <Caption
-                                numberOfLines={1}
-                                style={
-                                  styles.resultValueUnit as StyleProp<TextStyle>
-                                }
-                              >
-                                {value.unit}
-                              </Caption>
-                            )}
-                            {value.status && (
-                              <Badge
-                                size="small"
-                                style={{}}
-                                variant={
-                                  value.status === "normal"
-                                    ? "success"
-                                    : value.status === "high" ||
-                                        value.status === "critical"
-                                      ? "error"
-                                      : "warning"
-                                }
-                              >
-                                {getStatusLabel(value.status)}
-                              </Badge>
-                            )}
-                          </View>
+                              {isRTL ? "النطاق المرجعي: " : "Reference: "}
+                              {value.referenceRange}
+                            </Caption>
+                          ) : null}
                         </View>
-                      ))}
-                    </View>
-                  )}
+                        <View
+                          style={styles.resultValueData as StyleProp<ViewStyle>}
+                        >
+                          <TypographyText
+                            style={[
+                              styles.resultValueText as StyleProp<TextStyle>,
+                              { color: getStatusColor(value.status) },
+                            ]}
+                          >
+                            {value.value}
+                          </TypographyText>
+                          {value.unit ? (
+                            <Caption
+                              numberOfLines={1}
+                              style={
+                                styles.resultValueUnit as StyleProp<TextStyle>
+                              }
+                            >
+                              {value.unit}
+                            </Caption>
+                          ) : null}
+                          {value.status ? (
+                            <Badge
+                              size="small"
+                              style={{}}
+                              variant={getResultBadgeVariant(value.status)}
+                            >
+                              {getStatusLabel(value.status)}
+                            </Badge>
+                          ) : null}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
 
-                {selectedResult.notes && (
+                {selectedResult.notes ? (
                   <View style={{ marginTop: theme.spacing.base }}>
                     <TypographyText
                       style={[
@@ -713,9 +720,9 @@ export default function LabResultsScreen() {
                       {selectedResult.notes}
                     </Caption>
                   </View>
-                )}
+                ) : null}
               </>
-            )}
+            ) : null}
           </ScrollView>
         </SafeAreaView>
       </Modal>

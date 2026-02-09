@@ -15,7 +15,7 @@ export type HealthEventStatus = "OPEN" | "ACKED" | "ESCALATED" | "RESOLVED";
 
 export type HealthEventSource = "wearable" | "manual" | "clinic" | "system";
 
-export interface HealthEvent {
+export type HealthEvent = {
   id?: string; // Firestore document ID
   userId: string;
   type: HealthEventType;
@@ -41,13 +41,13 @@ export interface HealthEvent {
     [key: string]: number | undefined;
   };
 
-  metadata?: Record<string, any>; // Additional event-specific data
-}
+  metadata?: Record<string, unknown>; // Additional event-specific data
+};
 
 /**
  * Create Health Event input (for creating new events)
  */
-export interface CreateHealthEventInput {
+export type CreateHealthEventInput = {
   userId: string;
   type: HealthEventType;
   severity: HealthEventSeverity;
@@ -61,19 +61,19 @@ export interface CreateHealthEventInput {
     temp?: number;
     [key: string]: number | undefined;
   };
-  metadata?: Record<string, any>;
-}
+  metadata?: Record<string, unknown>;
+};
 
 /**
  * Update Health Event input (for status changes)
  */
-export interface UpdateHealthEventInput {
+export type UpdateHealthEventInput = {
   status: HealthEventStatus;
   acknowledgedBy?: string;
   resolvedBy?: string;
   escalatedBy?: string;
-  metadata?: Record<string, any>;
-}
+  metadata?: Record<string, unknown>;
+};
 
 /**
  * Firestore collection paths

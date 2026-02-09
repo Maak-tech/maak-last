@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,12 +18,27 @@ export default function HealthConnectPermissionsScreen() {
   const [authorizing, setAuthorizing] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(true);
 
-  useEffect(() => {
-    // Check availability and request permissions when this screen loads
-    checkAvailabilityAndRequestPermissions();
-  }, []);
+  const statusTitle = useMemo(() => {
+    if (checkingAvailability) {
+      return "Checking Health Connect availability...";
+    }
+    if (authorizing) {
+      return "Opening Health Connect Permission Screen...";
+    }
+    return "Processing...";
+  }, [authorizing, checkingAvailability]);
 
-  const checkAvailabilityAndRequestPermissions = async () => {
+  const statusDescription = useMemo(() => {
+    if (checkingAvailability) {
+      return "Please wait while we check if Health Connect is installed.";
+    }
+    if (authorizing) {
+      return "The Health Connect permission screen will appear where you can select health data permissions.";
+    }
+    return "";
+  }, [authorizing, checkingAvailability]);
+
+  const checkAvailabilityAndRequestPermissions = useCallback(async () => {
     if (Platform.OS !== "android") {
       Alert.alert(
         "Not Available",
@@ -110,13 +125,11 @@ export default function HealthConnectPermissionsScreen() {
           ]
         );
       }
-    } catch (error: any) {
-      let errorMessage =
-        "Failed to request Health Connect permissions. Please try again.";
-
-      if (error?.message) {
-        errorMessage = error.message;
-      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to request Health Connect permissions. Please try again.";
 
       Alert.alert("Permission Error", errorMessage, [
         {
@@ -128,7 +141,12 @@ export default function HealthConnectPermissionsScreen() {
       setCheckingAvailability(false);
       setAuthorizing(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Check availability and request permissions when this screen loads
+    checkAvailabilityAndRequestPermissions();
+  }, [checkAvailabilityAndRequestPermissions]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -140,9 +158,9 @@ export default function HealthConnectPermissionsScreen() {
           alignItems: "center",
         }}
       >
-        {(checkingAvailability || authorizing) && (
+        {checkingAvailability || authorizing ? (
           <ActivityIndicator color="#000000" size="large" />
-        )}
+        ) : null}
         <Text
           style={{
             fontSize: 18,
@@ -151,11 +169,7 @@ export default function HealthConnectPermissionsScreen() {
             textAlign: "center",
           }}
         >
-          {checkingAvailability
-            ? "Checking Health Connect availability..."
-            : authorizing
-              ? "Opening Health Connect Permission Screen..."
-              : "Processing..."}
+          {statusTitle}
         </Text>
         <Text
           style={{
@@ -165,11 +179,7 @@ export default function HealthConnectPermissionsScreen() {
             textAlign: "center",
           }}
         >
-          {checkingAvailability
-            ? "Please wait while we check if Health Connect is installed."
-            : authorizing
-              ? "The Health Connect permission screen will appear where you can select health data permissions."
-              : ""}
+          {statusDescription}
         </Text>
       </View>
     </SafeAreaView>

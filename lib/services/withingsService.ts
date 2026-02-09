@@ -5,9 +5,15 @@
  */
 
 import Constants from "expo-constants";
-import * as Linking from "expo-linking";
-import * as SecureStore from "expo-secure-store";
-import * as WebBrowser from "expo-web-browser";
+import {
+  deleteItemAsync,
+  getItemAsync,
+  setItemAsync,
+} from "expo-secure-store";
+import {
+  maybeCompleteAuthSession,
+  openAuthSessionAsync,
+} from "expo-web-browser";
 import {
   getAvailableMetricsForProvider,
   getMetricByKey,
@@ -33,11 +39,9 @@ const WITHINGS_TOKEN_URL = "https://wbsapi.withings.net/v2/oauth2";
 const WITHINGS_API_BASE = "https://wbsapi.withings.net";
 // OAuth redirect URI - must match what's registered with Withings (web URL)
 const REDIRECT_URI = "https://maak-5caad.web.app/withings-callback";
-// Deep link for app handling after web callback redirects
-const DEEP_LINK_URI = Linking.createURL("withings-callback");
 
 // Complete OAuth flow
-WebBrowser.maybeCompleteAuthSession();
+maybeCompleteAuthSession();
 
 /**
  * Withings measurement types mapping
@@ -75,30 +79,23 @@ export const withingsService = {
   /**
    * Check if Withings integration is available
    */
-  isAvailable: async (): Promise<ProviderAvailability> => {
-    try {
-      if (
-        WITHINGS_CLIENT_ID === "YOUR_WITHINGS_CLIENT_ID" ||
-        WITHINGS_CLIENT_SECRET === "YOUR_WITHINGS_CLIENT_SECRET" ||
-        !WITHINGS_CLIENT_ID?.trim() ||
-        !WITHINGS_CLIENT_SECRET?.trim()
-      ) {
-        return {
-          available: false,
-          reason:
-            "Withings credentials not configured. Please set WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET in app.json extra config.",
-        };
-      }
-
-      return {
-        available: true,
-      };
-    } catch (error: any) {
-      return {
+  isAvailable: (): Promise<ProviderAvailability> => {
+    if (
+      WITHINGS_CLIENT_ID === "YOUR_WITHINGS_CLIENT_ID" ||
+      WITHINGS_CLIENT_SECRET === "YOUR_WITHINGS_CLIENT_SECRET" ||
+      !WITHINGS_CLIENT_ID?.trim() ||
+      !WITHINGS_CLIENT_SECRET?.trim()
+    ) {
+      return Promise.resolve({
         available: false,
-        reason: error?.message || "Unknown error",
-      };
+        reason:
+          "Withings credentials not configured. Please set WITHINGS_CLIENT_ID and WITHINGS_CLIENT_SECRET in app.json extra config.",
+      });
     }
+
+    return Promise.resolve({
+      available: true,
+    });
   },
 
   /**
@@ -159,10 +156,7 @@ export const withingsService = {
 
       // Use web callback URL for OAuth (registered with Withings)
       // The web page will redirect to deep link after extracting the code
-      const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
-        REDIRECT_URI
-      );
+      const result = await openAuthSessionAsync(authUrl, REDIRECT_URI);
 
       if (result.type === "success" && result.url) {
         // Handle both web callback URL and deep link redirect
@@ -170,8 +164,10 @@ export const withingsService = {
       } else {
         throw new Error("Authentication cancelled or failed");
       }
-    } catch (error: any) {
-      throw new Error(`Withings authentication failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(
+        `Withings authentication failed: ${getErrorMessage(error)}`
+      );
     }
   },
 
@@ -317,7 +313,7 @@ export const withingsService = {
               withingsUserId,
             });
           }
-        } catch (error) {
+        } catch (_firestoreError) {
           // Silently handle Firestore update error - not critical for OAuth flow
         }
       }
@@ -325,13 +321,13 @@ export const withingsService = {
       // Subscribe to Withings notifications for real-time data updates
       try {
         await withingsService.subscribeToNotifications(tokens.access_token);
-      } catch (error) {
+      } catch (_subscriptionError) {
         // Silently handle subscription error - not critical for OAuth flow
         // User can still manually sync data
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(
-        `Failed to complete Withings authentication: ${error.message}`
+        `Failed to complete Withings authentication: ${getErrorMessage(error)}`
       );
     }
   },
@@ -340,10 +336,7 @@ export const withingsService = {
    * Save tokens securely
    */
   saveTokens: async (tokens: WithingsTokens): Promise<void> => {
-    await SecureStore.setItemAsync(
-      HEALTH_STORAGE_KEYS.WITHINGS_TOKENS,
-      JSON.stringify(tokens)
-    );
+    await setItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS, JSON.stringify(tokens));
   },
 
   /**
@@ -351,9 +344,7 @@ export const withingsService = {
    */
   getTokens: async (): Promise<WithingsTokens | null> => {
     try {
-      const tokensStr = await SecureStore.getItemAsync(
-        HEALTH_STORAGE_KEYS.WITHINGS_TOKENS
-      );
+      const tokensStr = await getItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS);
       if (!tokensStr) return null;
       return JSON.parse(tokensStr);
     } catch {
@@ -673,7 +664,7 @@ export const withingsService = {
   /**
    * Fetch all available metrics for a date range
    */
-  fetchAllMetrics: async (
+  fetchAllMetrics: (
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {
@@ -701,42 +692,37 @@ export const withingsService = {
     accessToken: string,
     appli?: number
   ): Promise<void> => {
-    try {
-      // Default to subscribing to all relevant categories
-      // 1: Weight, 2: Temperature, 4: Blood pressure/Heart rate, 16: Activity, 44: Sleep
-      const categories = appli ? [appli] : [1, 2, 4, 16, 44];
-      const callbackUrl =
-        "https://us-central1-maak-5caad.cloudfunctions.net/withingsWebhook";
+    // Default to subscribing to all relevant categories
+    // 1: Weight, 2: Temperature, 4: Blood pressure/Heart rate, 16: Activity, 44: Sleep
+    const categories = appli ? [appli] : [1, 2, 4, 16, 44];
+    const callbackUrl =
+      "https://us-central1-maak-5caad.cloudfunctions.net/withingsWebhook";
 
-      // Subscribe to each category
-      for (const category of categories) {
-        try {
-          const response = await fetch(`${WITHINGS_API_BASE}/notify`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: new URLSearchParams({
-              action: "subscribe",
-              callbackurl: callbackUrl,
-              appli: category.toString(),
-              comment: "Maak Health data sync",
-            }).toString(),
-          });
+    // Subscribe to each category
+    for (const category of categories) {
+      try {
+        const response = await fetch(`${WITHINGS_API_BASE}/notify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: new URLSearchParams({
+            action: "subscribe",
+            callbackurl: callbackUrl,
+            appli: category.toString(),
+            comment: "Maak Health data sync",
+          }).toString(),
+        });
 
-          const responseData = await response.json();
+        const responseData = await response.json();
 
-          if (responseData.status !== 0) {
-            // Subscription failures are not critical
-          }
-        } catch (error) {
-          // Silently handle individual category subscription failures
+        if (responseData.status !== 0) {
+          // Subscription failures are not critical
         }
+      } catch {
+        // Silently handle individual category subscription failures
       }
-    } catch (error) {
-      // Silently handle subscription errors - not critical for OAuth flow
-      throw error;
     }
   },
 
@@ -745,7 +731,7 @@ export const withingsService = {
    */
   disconnect: async (): Promise<void> => {
     try {
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS);
+      await deleteItemAsync(HEALTH_STORAGE_KEYS.WITHINGS_TOKENS);
     } catch {
       // Ignore errors during disconnect
     }
@@ -782,6 +768,14 @@ export const withingsService = {
 // Helper function
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Unknown error";
 }
 
 export default withingsService;

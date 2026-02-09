@@ -3,8 +3,8 @@ require("dotenv").config();
 
 // Restore Google Services files from EAS environment variables during build
 // Skip restoration during config introspection to avoid parsing corrupted files
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 // Check if we're in config introspection mode (EAS Build uses this)
 const isConfigIntrospection =
@@ -14,7 +14,9 @@ const isConfigIntrospection =
 // Helper to validate plist file
 function isValidPlist(filePath) {
   try {
-    if (!fs.existsSync(filePath)) return false;
+    if (!fs.existsSync(filePath)) {
+      return false;
+    }
     const content = fs.readFileSync(filePath, "utf8");
     return (
       content.includes("<?xml") ||
@@ -31,7 +33,7 @@ if (!isConfigIntrospection) {
     try {
       const decoded = Buffer.from(process.env.GOOGLE_SERVICES_JSON, "base64");
       fs.writeFileSync("./google-services.json", decoded);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle restore error
     }
   }
@@ -50,7 +52,7 @@ if (!isConfigIntrospection) {
       ) {
         fs.writeFileSync("./GoogleService-Info.plist", decoded);
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle restore error
     }
   }
@@ -84,7 +86,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.maaktech.maak",
-      buildNumber: "33",
+      buildNumber: "34",
       jsEngine: "hermes",
       ...(fs.existsSync("./GoogleService-Info.plist") &&
       isValidPlist("./GoogleService-Info.plist")
@@ -132,7 +134,7 @@ export default {
         backgroundColor: "#2563EB",
       },
       package: "com.maaktech.maak",
-      versionCode: 3,
+      versionCode: 4,
       jsEngine: "hermes",
       googleServicesFile: "./google-services.json",
       splash: {

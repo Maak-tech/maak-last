@@ -2,8 +2,9 @@
  * Alert Engine Tests
  * Uses Node assert + firebase-functions-test
  */
+/* biome-ignore-all lint/suspicious/noMisplacedAssertion: this file intentionally runs as a script-based assertion suite. */
 
-import * as assert from "assert";
+import assert from "node:assert/strict";
 import {
   type Alert,
   checkVitalBenchmark,
@@ -384,6 +385,6 @@ testEdgeCases();
 // Summary
 // ============================================================================
 
-console.log("\n" + "=".repeat(50));
+console.log(`\n${"=".repeat(50)}`);
 console.log("✅ All tests passed!");
-console.log("=".repeat(50) + "\n");
+console.log(`${"=".repeat(50)}\n`);

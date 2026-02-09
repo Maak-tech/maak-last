@@ -4,7 +4,7 @@
  * Supports BOTH legacy fcmToken and new fcmTokens map
  */
 
-import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
 
 /**
@@ -16,9 +16,10 @@ import { logger } from "../../observability/logger";
  * @param userId - The user ID to get tokens for
  * @returns Array of FCM tokens
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: token extraction supports multiple legacy/current storage shapes.
 export async function getUserTokens(userId: string): Promise<string[]> {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 
@@ -35,6 +36,9 @@ export async function getUserTokens(userId: string): Promise<string[]> {
     // Check new format first: fcmTokens map with device IDs
     if (userData.fcmTokens && typeof userData.fcmTokens === "object") {
       for (const deviceId in userData.fcmTokens) {
+        if (!Object.hasOwn(userData.fcmTokens, deviceId)) {
+          continue;
+        }
         const deviceToken = userData.fcmTokens[deviceId];
         if (
           deviceToken &&

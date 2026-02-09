@@ -35,12 +35,45 @@ const REDIRECT_URI = Linking.createURL("oura-callback");
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();
 
+type OuraDataPoint = {
+  day?: string;
+  total_sleep_duration?: number;
+  bedtime_start?: string;
+  bedtime_end?: string;
+  lowest_heart_rate?: number;
+  average_hrv?: number;
+  average_breath?: number;
+  temperature_deviation?: number;
+  steps?: number;
+  active_calories?: number;
+  equivalent_walking_distance?: number;
+  bpm?: number;
+  timestamp?: string;
+  source?: string;
+  contributors?: {
+    hrv_balance?: number;
+    resting_heart_rate?: number;
+  };
+  spo2_percentage?: {
+    average?: number;
+  };
+  activity?: string;
+  sport?: string;
+  start_datetime?: string;
+  end_datetime?: string;
+  calories?: number;
+};
+
+type OuraApiResponse = {
+  data?: OuraDataPoint[];
+};
+
 /**
  * Oura data parsers for different endpoints
  */
 const ouraDataParsers = {
   // Sleep data parser
-  sleep: (data: any[]): Record<string, MetricSample[]> => {
+  sleep: (data: OuraDataPoint[]): Record<string, MetricSample[]> => {
     const samples: Record<string, MetricSample[]> = {
       sleep_analysis: [],
       resting_heart_rate: [],
@@ -108,7 +141,7 @@ const ouraDataParsers = {
   },
 
   // Daily activity parser
-  daily_activity: (data: any[]): Record<string, MetricSample[]> => {
+  daily_activity: (data: OuraDataPoint[]): Record<string, MetricSample[]> => {
     const samples: Record<string, MetricSample[]> = {
       steps: [],
       active_energy: [],
@@ -150,7 +183,7 @@ const ouraDataParsers = {
   },
 
   // Heart rate data parser
-  heartrate: (data: any[]): Record<string, MetricSample[]> => {
+  heartrate: (data: OuraDataPoint[]): Record<string, MetricSample[]> => {
     const samples: Record<string, MetricSample[]> = {
       heart_rate: [],
     };
@@ -168,7 +201,7 @@ const ouraDataParsers = {
   },
 
   // Daily readiness (includes temp deviation, HRV)
-  daily_readiness: (data: any[]): Record<string, MetricSample[]> => {
+  daily_readiness: (data: OuraDataPoint[]): Record<string, MetricSample[]> => {
     const samples: Record<string, MetricSample[]> = {
       body_temperature: [],
       heart_rate_variability: [],
@@ -201,7 +234,7 @@ const ouraDataParsers = {
   },
 
   // Daily SpO2
-  daily_spo2: (data: any[]): Record<string, MetricSample[]> => {
+  daily_spo2: (data: OuraDataPoint[]): Record<string, MetricSample[]> => {
     const samples: Record<string, MetricSample[]> = {
       blood_oxygen: [],
     };
@@ -221,7 +254,7 @@ const ouraDataParsers = {
   },
 
   // Workouts
-  workout: (data: any[]): Record<string, MetricSample[]> => {
+  workout: (data: OuraDataPoint[]): Record<string, MetricSample[]> => {
     const samples: Record<string, MetricSample[]> = {
       workouts: [],
       active_energy: [],
@@ -258,7 +291,7 @@ export const ouraService = {
   /**
    * Check if Oura integration is available
    */
-  isAvailable: async (): Promise<ProviderAvailability> => {
+  isAvailable: (): ProviderAvailability => {
     try {
       if (
         OURA_CLIENT_ID === "YOUR_OURA_CLIENT_ID" ||
@@ -274,10 +307,10 @@ export const ouraService = {
       return {
         available: true,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         available: false,
-        reason: error?.message || "Unknown error",
+        reason: error instanceof Error ? error.message : "Unknown error",
       };
     }
   },
@@ -332,8 +365,10 @@ export const ouraService = {
       } else {
         throw new Error("Authentication cancelled or failed");
       }
-    } catch (error: any) {
-      throw new Error(`Oura authentication failed: ${error.message}`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unknown authentication error";
+      throw new Error(`Oura authentication failed: ${message}`);
     }
   },
 
@@ -411,9 +446,11 @@ export const ouraService = {
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || [],
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unknown authentication error";
       throw new Error(
-        `Failed to complete Oura authentication: ${error.message}`
+        `Failed to complete Oura authentication: ${message}`
       );
     }
   },
@@ -495,7 +532,7 @@ export const ouraService = {
   makeApiRequest: async (
     endpoint: string,
     params: Record<string, string> = {}
-  ): Promise<any> => {
+  ): Promise<OuraApiResponse> => {
     const accessToken = await ouraService.refreshTokenIfNeeded();
     if (!accessToken) throw new Error("Not authenticated");
 
@@ -515,7 +552,7 @@ export const ouraService = {
       throw new Error(`API request failed: ${response.status}`);
     }
 
-    return response.json();
+    return (await response.json()) as OuraApiResponse;
   },
 
   /**
@@ -612,7 +649,7 @@ export const ouraService = {
             end_date: endDateStr,
           });
 
-          const items = data.data || data;
+          const items = data.data || [];
           if (!Array.isArray(items)) continue;
 
           const parserFn = ouraDataParsers[parser];
@@ -689,7 +726,7 @@ export const ouraService = {
   /**
    * Fetch all available metrics for a date range
    */
-  fetchAllMetrics: async (
+  fetchAllMetrics: (
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {

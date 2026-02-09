@@ -8,23 +8,27 @@
  * Run with: bunx tsx scripts/verify-secrets.ts
  */
 
-import { execSync } from "child_process";
-import * as fs from "fs";
-import * as path from "path";
+import { execSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // Load .env file if it exists
 try {
-  const envPath = path.join(process.cwd(), ".env");
-  if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, "utf8");
+  const envPath = join(process.cwd(), ".env");
+  if (existsSync(envPath)) {
+    const envContent = readFileSync(envPath, "utf8");
     const envLines = envContent.split("\n");
 
     for (const line of envLines) {
       const trimmedLine = line.trim();
-      if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+      if (!trimmedLine || trimmedLine.startsWith("#")) {
+        continue;
+      }
 
       const equalIndex = trimmedLine.indexOf("=");
-      if (equalIndex === -1) continue;
+      if (equalIndex === -1) {
+        continue;
+      }
 
       const key = trimmedLine.substring(0, equalIndex).trim();
       let value = trimmedLine.substring(equalIndex + 1).trim();
@@ -41,7 +45,7 @@ try {
       }
     }
   }
-} catch (error) {
+} catch (_error) {
   // Silently handle .env loading errors
 }
 
@@ -88,8 +92,8 @@ console.log("=".repeat(60));
 
 // Check local .env file
 console.log("\n📁 Local .env File:");
-const envPath = path.join(process.cwd(), ".env");
-if (fs.existsSync(envPath)) {
+const envPath = join(process.cwd(), ".env");
+if (existsSync(envPath)) {
   console.log("   ✅ .env file exists");
 
   const allSecrets = [
@@ -101,7 +105,7 @@ if (fs.existsSync(envPath)) {
   let foundCount = 0;
   for (const secret of allSecrets) {
     if (process.env[secret]) {
-      foundCount++;
+      foundCount += 1;
     }
   }
 
@@ -118,11 +122,12 @@ try {
     stdio: ["pipe", "pipe", "pipe"],
   });
 
-  const easSecrets = JSON.parse(easListOutput);
+  type EASSecret = { name?: string; key?: string };
+  const easSecrets = JSON.parse(easListOutput) as EASSecret[];
   if (easSecrets && easSecrets.length > 0) {
     console.log(`   ✅ Found ${easSecrets.length} EAS secret(s)`);
 
-    const secretNames = easSecrets.map((s: any) => s.name || s.key);
+    const secretNames = easSecrets.map((s) => s.name || s.key || "");
     const allRequired = [
       ...requiredSecrets.firebase,
       ...requiredSecrets.apiKeys,
@@ -139,24 +144,22 @@ try {
 
     // Show available secrets (names only, not values)
     console.log("\n   Available EAS secrets:");
-    secretNames.forEach((name: string) => {
+    for (const name of secretNames) {
       console.log(`      - ${name}`);
-    });
+    }
   } else {
     console.log("   ⚠️  No EAS secrets found");
     console.log("   💡 Run: eas secret:create to set up secrets");
   }
-} catch (error: any) {
-  if (
-    error.message?.includes("not found") ||
-    error.message?.includes("command")
-  ) {
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : "";
+  if (errorMessage.includes("not found") || errorMessage.includes("command")) {
     console.log("   ⚠️  EAS CLI not found or not authenticated");
     console.log("   💡 Install: npm install -g eas-cli");
     console.log("   💡 Login: eas login");
   } else {
     console.log("   ⚠️  Could not check EAS secrets");
-    console.log(`   Error: ${error.message}`);
+    console.log(`   Error: ${errorMessage}`);
   }
 }
 
@@ -181,16 +184,16 @@ const allGitHubSecrets = [
   "FIREBASE_SERVICE_ACCOUNT_KEY",
   "FIREBASE_TOKEN",
 ];
-allGitHubSecrets.forEach((secret) => {
+for (const secret of allGitHubSecrets) {
   console.log(`      - ${secret}`);
-});
+}
 console.log(
   "\n   💡 Tip: You can also set these in the Development environment"
 );
 console.log("      for environment-specific values");
 
 // Summary
-console.log("\n" + "=".repeat(60));
+console.log(`\n${"=".repeat(60)}`);
 console.log("\n📋 Summary:");
 console.log("\n✅ Setup Checklist:");
 console.log("   [ ] All Firebase secrets set in GitHub");

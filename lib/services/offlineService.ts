@@ -1,10 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  Timestamp,
   addDoc,
   collection,
   deleteDoc,
   doc,
+  Timestamp,
   updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -20,15 +20,28 @@ import type {
 
 const OFFLINE_QUEUE_KEY = "@maak_offline_queue";
 const OFFLINE_DATA_KEY = "@maak_offline_data";
-const SYNC_STATUS_KEY = "@maak_sync_status";
+const _SYNC_STATUS_KEY = "@maak_sync_status";
 const NETWORK_CHECK_INTERVAL_MS = 30_000;
 const AUTO_SYNC_INTERVAL_MS = 60_000;
+
+type OfflineOperationData = {
+  id?: string;
+  userId?: string;
+  type?: string;
+  description?: string;
+  severity?: number;
+  timestamp?: Date | Timestamp | string;
+  startDate?: Date | Timestamp | string;
+  endDate?: Date | Timestamp | string;
+  date?: Date | Timestamp | string;
+  [key: string]: unknown;
+};
 
 export interface OfflineOperation {
   id: string;
   type: "create" | "update" | "delete";
   collection: string;
-  data: any;
+  data: OfflineOperationData;
   timestamp: Date;
   retries: number;
 }
@@ -101,7 +114,7 @@ class OfflineService {
         this.syncListeners.forEach((listener) => {
           try {
             listener(this.isOnline);
-          } catch (error) {
+          } catch (_error) {
             // Error in sync listener
           }
         });
@@ -211,7 +224,7 @@ class OfflineService {
       if (!queueJson) return [];
 
       const queue = JSON.parse(queueJson);
-      return queue.map((op: any) => {
+      return queue.map((op: OfflineOperation) => {
         // Restore Date objects from strings
         const restoredOp = {
           ...op,
@@ -248,7 +261,7 @@ class OfflineService {
 
         return restoredOp;
       });
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -257,16 +270,16 @@ class OfflineService {
    * Store data locally for offline access
    */
   async storeOfflineData<T>(
-    collection: keyof OfflineData,
+    dataCollection: keyof OfflineData,
     data: T[]
   ): Promise<void> {
     try {
       const offlineData = await this.getOfflineData();
-      offlineData[collection] = data as any;
+      offlineData[dataCollection] = data as OfflineData[typeof dataCollection];
       offlineData.lastSync = new Date();
 
       await AsyncStorage.setItem(OFFLINE_DATA_KEY, JSON.stringify(offlineData));
-    } catch (error) {
+    } catch (_error) {
       // Handle error silently
     }
   }
@@ -294,7 +307,7 @@ class OfflineService {
         ...data,
         lastSync: data.lastSync ? new Date(data.lastSync) : null,
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         symptoms: [],
         medications: [],
@@ -310,9 +323,9 @@ class OfflineService {
   /**
    * Get data from specific collection (offline-first)
    */
-  async getOfflineCollection<T>(collection: keyof OfflineData): Promise<T[]> {
+  async getOfflineCollection<T>(dataCollection: keyof OfflineData): Promise<T[]> {
     const offlineData = await this.getOfflineData();
-    return (offlineData[collection] || []) as T[];
+    return (offlineData[dataCollection] || []) as T[];
   }
 
   /**
@@ -323,7 +336,7 @@ class OfflineService {
 
     try {
       // Import services dynamically to avoid circular dependencies
-      const services: Record<string, any> = {};
+      const services: Record<string, unknown> = {};
 
       switch (operation.collection) {
         case "symptoms": {
@@ -365,17 +378,19 @@ class OfflineService {
       switch (operation.type) {
         case "create": {
           // Prepare data for Firebase
-          const dataToSave: any = { ...operation.data };
+          const dataToSave: OfflineOperationData = { ...operation.data };
 
           // Helper function to safely convert to Timestamp
-          const toTimestamp = (value: any): Timestamp | any => {
-            if (!value) return value;
+          const toTimestamp = (value: unknown): Timestamp | unknown => {
+            if (!value) {
+              return value;
+            }
             if (value instanceof Date) {
               return Timestamp.fromDate(value);
             }
             if (typeof value === "string") {
               const date = new Date(value);
-              if (!isNaN(date.getTime())) {
+              if (!Number.isNaN(date.getTime())) {
                 return Timestamp.fromDate(date);
               }
             }
@@ -460,7 +475,7 @@ class OfflineService {
                 relatedEntityType: "symptom",
                 actorType: "user",
               });
-            } catch (timelineError) {
+            } catch (_timelineError) {
               // Don't fail sync if timeline update fails
             }
           }
@@ -474,8 +489,8 @@ class OfflineService {
           }
 
           // Prepare data for Firebase
-          const updates: any = { ...operation.data };
-          delete updates.id; // Remove id from updates
+          const updates: OfflineOperationData = { ...operation.data };
+          updates.id = undefined; // Remove id from updates
 
           // Convert Date objects to Timestamps
           if (updates.timestamp && updates.timestamp instanceof Date) {
@@ -536,7 +551,17 @@ class OfflineService {
       return false;
     } catch (error) {
       // Log error for debugging with full details
-      const errorDetails: any = {
+      const errorDetails: {
+        operationId: string;
+        retries: number;
+        operationType: "create" | "update" | "delete";
+        collection: string;
+        errorMessage: string;
+        errorStack?: string;
+        firebaseErrorCode?: unknown;
+        operationDataPreview?: unknown;
+        operationDataError?: string;
+      } = {
         operationId: operation.id,
         retries: operation.retries,
         operationType: operation.type,
@@ -546,8 +571,13 @@ class OfflineService {
       };
 
       // Add Firebase error code if available
-      if (error && typeof error === "object" && "code" in error) {
-        errorDetails.firebaseErrorCode = (error as any).code;
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        typeof (error as { code?: unknown }).code !== "undefined"
+      ) {
+        errorDetails.firebaseErrorCode = (error as { code: unknown }).code;
       }
 
       // Log operation data (safe stringify)
@@ -557,14 +587,14 @@ class OfflineService {
         if (dataPreview.description)
           dataPreview.description = dataPreview.description.substring(0, 50);
         errorDetails.operationDataPreview = dataPreview;
-      } catch (e) {
+      } catch (_e) {
         errorDetails.operationDataError = "Could not serialize operation data";
       }
 
       // Sync operation failed
 
       // Increment retries
-      operation.retries++;
+      operation.retries += 1;
       if (operation.retries < 5) {
         await this.updateOperationInQueue(operation);
       } else {
@@ -625,9 +655,9 @@ class OfflineService {
       for (const operation of queue) {
         const result = await this.syncOperation(operation);
         if (result) {
-          success++;
+          success += 1;
         } else {
-          failed++;
+          failed += 1;
         }
       }
 
@@ -665,7 +695,7 @@ class OfflineService {
   /**
    * Get detailed queue information for debugging
    */
-  async getQueueDetails(): Promise<OfflineOperation[]> {
+  getQueueDetails(): Promise<OfflineOperation[]> {
     return this.getOfflineQueue();
   }
 

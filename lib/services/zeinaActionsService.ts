@@ -26,7 +26,7 @@ export interface ActionResult {
   success: boolean;
   action: string;
   message: string;
-  data?: any;
+  data?: unknown;
   speakableResponse: string; // What Zeina should say to the user
 }
 
@@ -354,7 +354,7 @@ class ZeinaActionsService {
     vitalType: string,
     value: number,
     unit?: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
     isArabic = false
   ): Promise<ActionResult> {
     try {
@@ -373,7 +373,7 @@ class ZeinaActionsService {
       const displayUnit = unit || this.getVitalUnit(vitalType);
 
       // Save vital to Firestore directly
-      const vitalData: any = {
+      const vitalData: Record<string, unknown> = {
         userId,
         type: vitalType,
         value,
@@ -643,7 +643,7 @@ class ZeinaActionsService {
    */
   async markMedicationTaken(
     medicationName: string,
-    reminderId?: string
+    _reminderId?: string
   ): Promise<ActionResult> {
     try {
       const userId = auth.currentUser?.uid;
@@ -683,8 +683,8 @@ class ZeinaActionsService {
 
       for (const reminder of medication.reminders || []) {
         const [hourStr, minuteStr] = reminder.time.split(":");
-        const reminderHour = Number.parseInt(hourStr);
-        const reminderMinute = Number.parseInt(minuteStr);
+        const reminderHour = Number.parseInt(hourStr, 10);
+        const reminderMinute = Number.parseInt(minuteStr, 10);
         const diff = Math.abs(
           reminderHour * 60 +
             reminderMinute -
@@ -1076,7 +1076,7 @@ class ZeinaActionsService {
     if (lowerDate.includes("year")) {
       const match = lowerDate.match(/(\d+)/);
       if (match) {
-        const years = Number.parseInt(match[1]);
+        const years = Number.parseInt(match[1], 10);
         return new Date(
           now.getFullYear() - years,
           now.getMonth(),
@@ -1087,7 +1087,7 @@ class ZeinaActionsService {
     if (lowerDate.includes("month")) {
       const match = lowerDate.match(/(\d+)/);
       if (match) {
-        const months = Number.parseInt(match[1]);
+        const months = Number.parseInt(match[1], 10);
         return new Date(
           now.getFullYear(),
           now.getMonth() - months,
@@ -1104,11 +1104,11 @@ class ZeinaActionsService {
 
     const yearMatch = lowerDate.match(/^(\d{4})$/);
     if (yearMatch) {
-      return new Date(Number.parseInt(yearMatch[1]), 0, 1);
+      return new Date(Number.parseInt(yearMatch[1], 10), 0, 1);
     }
 
     const parsed = new Date(dateStr);
-    return isNaN(parsed.getTime()) ? now : parsed;
+    return Number.isNaN(parsed.getTime()) ? now : parsed;
   }
 
   // =========== Helper Methods ===========

@@ -2,6 +2,10 @@
  * Global Error Handler for React Native
  * Captures JavaScript errors before they cause native crashes
  */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: global error pipeline intentionally prioritizes resiliency over minimal branching. */
+/* biome-ignore-all lint/complexity/noVoid: fire-and-forget telemetry calls intentionally ignore returned promises. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: runtime global/error surfaces are loosely typed in React Native environment hooks. */
+/* biome-ignore-all lint/correctness/noUndeclaredVariables: ErrorUtils is injected by React Native runtime when available. */
 
 import { Platform } from "react-native";
 import { isFirebaseReady } from "@/lib/firebase";

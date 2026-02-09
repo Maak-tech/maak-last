@@ -1,5 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -21,16 +27,17 @@ import { userService } from "@/lib/services/userService";
 import type { User } from "@/types";
 import { safeFormatDate } from "@/utils/dateFormat";
 
-interface HealthInsightsCardProps {
+type HealthInsightsCardProps = {
   onViewDetails?: () => void;
-}
+};
 
-interface FamilyMemberInsights {
+type FamilyMemberInsights = {
   member: User;
   summary: WeeklySummary;
   insights: PatternInsight[];
-}
+};
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This component intentionally aggregates multiple dashboard sections.
 export default function HealthInsightsCard({
   onViewDetails,
 }: HealthInsightsCardProps) {
@@ -53,7 +60,9 @@ export default function HealthInsightsCard({
   const styles = useMemo(() => getStyles(theme, isRTL), [theme, isRTL]);
 
   const loadInsights = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -88,7 +97,9 @@ export default function HealthInsightsCard({
   }, [user, isRTL]);
 
   const loadFamilyInsights = useCallback(async () => {
-    if (!user?.familyId || user?.role !== "admin") return;
+    if (!user?.familyId || user?.role !== "admin") {
+      return;
+    }
 
     try {
       setFamilyLoading(true);
@@ -145,7 +156,7 @@ export default function HealthInsightsCard({
     }
 
     loadFamilyInsights();
-  }, [user?.familyId, user?.role, isRTL, loadFamilyInsights]);
+  }, [user?.familyId, user?.role, loadFamilyInsights]);
 
   const getInsightIcon = (type: PatternInsight["type"]) => {
     switch (type) {
@@ -163,8 +174,12 @@ export default function HealthInsightsCard({
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 80) return theme.colors.accent.success || "#10B981";
-    if (confidence >= 60) return theme.colors.accent.warning || "#F59E0B";
+    if (confidence >= 80) {
+      return theme.colors.accent.success || "#10B981";
+    }
+    if (confidence >= 60) {
+      return theme.colors.accent.warning || "#F59E0B";
+    }
     return theme.colors.text.secondary;
   };
 
@@ -184,114 +199,117 @@ export default function HealthInsightsCard({
       return null;
     }
 
+    let content: ReactNode = (
+      <Caption numberOfLines={2} style={styles.familyEmptyState}>
+        {t("noFamilyInsightsAvailable", "No family insights available yet.")}
+      </Caption>
+    );
+
+    if (familyLoading) {
+      content = (
+        <View style={styles.familyLoading}>
+          <ActivityIndicator color={theme.colors.primary.main} size="small" />
+          <Caption numberOfLines={1} style={styles.loadingText}>
+            {t("loadingFamilyInsights", "Loading family insights...")}
+          </Caption>
+        </View>
+      );
+    } else if (familyInsights.length > 0) {
+      content = familyInsights.map(
+        ({ member, summary, insights: memberInsights }) => (
+          <View key={member.id} style={styles.familyCard}>
+            <View style={styles.familyHeader}>
+              <Text style={styles.familyName}>{getMemberName(member)}</Text>
+              <Badge style={styles.familyBadge} variant="outline">
+                <Text style={styles.familyBadgeText}>
+                  {summary.symptoms.total} {t("symptoms", "symptoms")}
+                </Text>
+              </Badge>
+            </View>
+            <Caption numberOfLines={1} style={styles.familySubtitle}>
+              {`${t("weekSummary", "Week Summary")}: ${formatDate(summary.weekStart)} - ${formatDate(summary.weekEnd)}`}
+            </Caption>
+            <View style={styles.familyStatsRow}>
+              <View style={styles.familyStatItem}>
+                <Text style={styles.familyStatValue}>
+                  {summary.medications.compliance}%
+                </Text>
+                <Caption numberOfLines={1} style={styles.familyStatLabel}>
+                  {t("medicationCompliance", "Compliance")}
+                </Caption>
+              </View>
+              <View style={styles.familyStatItem}>
+                <Text style={styles.familyStatValue}>
+                  {summary.moods.averageIntensity.toFixed(1)}
+                </Text>
+                <Caption numberOfLines={1} style={styles.familyStatLabel}>
+                  {t("familyMood", "Mood")}
+                </Caption>
+              </View>
+              <View style={styles.familyStatItem}>
+                <Text style={styles.familyStatValue}>
+                  {summary.symptoms.averageSeverity.toFixed(1)}
+                </Text>
+                <Caption numberOfLines={1} style={styles.familyStatLabel}>
+                  {t("severity", "Severity")}
+                </Caption>
+              </View>
+            </View>
+            {memberInsights.length > 0 ? (
+              <View style={styles.familyInsightsList}>
+                {memberInsights.map((insight, index) => (
+                  <View key={`${member.id}-insight-${index}`}>
+                    <View style={styles.familyInsightHeader}>
+                      <Ionicons
+                        color={theme.colors.primary.main}
+                        name={getInsightIcon(insight.type)}
+                        size={16}
+                      />
+                      <Text style={styles.familyInsightTitle}>
+                        {insight.title}
+                      </Text>
+                      <Badge
+                        style={[
+                          styles.familyInsightBadge,
+                          {
+                            borderColor: getConfidenceColor(insight.confidence),
+                          },
+                        ]}
+                        variant="outline"
+                      >
+                        <Text
+                          style={[
+                            styles.familyInsightBadgeText,
+                            {
+                              color: getConfidenceColor(insight.confidence),
+                            },
+                          ]}
+                        >
+                          {insight.confidence}%
+                        </Text>
+                      </Badge>
+                    </View>
+                    <Caption
+                      numberOfLines={2}
+                      style={styles.familyInsightDescription}
+                    >
+                      {insight.description}
+                    </Caption>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        )
+      );
+    }
+
     return (
       <View style={styles.familySection}>
         <Text style={styles.sectionTitle}>
           {t("familyInsights", "Family Insights")}
         </Text>
-        {familyLoading ? (
-          <View style={styles.familyLoading}>
-            <ActivityIndicator color={theme.colors.primary.main} size="small" />
-            <Caption numberOfLines={1} style={styles.loadingText}>
-              {t("loadingFamilyInsights", "Loading family insights...")}
-            </Caption>
-          </View>
-        ) : familyInsights.length > 0 ? (
-          familyInsights.map(({ member, summary, insights }) => (
-            <View key={member.id} style={styles.familyCard}>
-              <View style={styles.familyHeader}>
-                <Text style={styles.familyName}>{getMemberName(member)}</Text>
-                <Badge style={styles.familyBadge} variant="outline">
-                  <Text style={styles.familyBadgeText}>
-                    {summary.symptoms.total} {t("symptoms", "symptoms")}
-                  </Text>
-                </Badge>
-              </View>
-              <Caption numberOfLines={1} style={styles.familySubtitle}>
-                {`${t("weekSummary", "Week Summary")}: ${formatDate(summary.weekStart)} - ${formatDate(summary.weekEnd)}`}
-              </Caption>
-              <View style={styles.familyStatsRow}>
-                <View style={styles.familyStatItem}>
-                  <Text style={styles.familyStatValue}>
-                    {summary.medications.compliance}%
-                  </Text>
-                  <Caption numberOfLines={1} style={styles.familyStatLabel}>
-                    {t("medicationCompliance", "Compliance")}
-                  </Caption>
-                </View>
-                <View style={styles.familyStatItem}>
-                  <Text style={styles.familyStatValue}>
-                    {summary.moods.averageIntensity.toFixed(1)}
-                  </Text>
-                  <Caption numberOfLines={1} style={styles.familyStatLabel}>
-                    {t("familyMood", "Mood")}
-                  </Caption>
-                </View>
-                <View style={styles.familyStatItem}>
-                  <Text style={styles.familyStatValue}>
-                    {summary.symptoms.averageSeverity.toFixed(1)}
-                  </Text>
-                  <Caption numberOfLines={1} style={styles.familyStatLabel}>
-                    {t("severity", "Severity")}
-                  </Caption>
-                </View>
-              </View>
-              {insights.length > 0 && (
-                <View style={styles.familyInsightsList}>
-                  {insights.map((insight, index) => (
-                    <View key={`${member.id}-insight-${index}`}>
-                      <View style={styles.familyInsightHeader}>
-                        <Ionicons
-                          color={theme.colors.primary.main}
-                          name={getInsightIcon(insight.type)}
-                          size={16}
-                        />
-                        <Text style={styles.familyInsightTitle}>
-                          {insight.title}
-                        </Text>
-                        <Badge
-                          style={[
-                            styles.familyInsightBadge,
-                            {
-                              borderColor: getConfidenceColor(
-                                insight.confidence
-                              ),
-                            },
-                          ]}
-                          variant="outline"
-                        >
-                          <Text
-                            style={[
-                              styles.familyInsightBadgeText,
-                              {
-                                color: getConfidenceColor(insight.confidence),
-                              },
-                            ]}
-                          >
-                            {insight.confidence}%
-                          </Text>
-                        </Badge>
-                      </View>
-                      <Caption
-                        numberOfLines={2}
-                        style={styles.familyInsightDescription}
-                      >
-                        {insight.description}
-                      </Caption>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          ))
-        ) : (
-          <Caption numberOfLines={2} style={styles.familyEmptyState}>
-            {t(
-              "noFamilyInsightsAvailable",
-              "No family insights available yet."
-            )}
-          </Caption>
-        )}
+        {content}
       </View>
     );
   };
@@ -343,7 +361,7 @@ export default function HealthInsightsCard({
         />
       </TouchableOpacity>
 
-      {expanded && (
+      {expanded ? (
         <View style={styles.content}>
           {/* Quick Stats */}
           <View style={styles.statsRow}>
@@ -444,11 +462,14 @@ export default function HealthInsightsCard({
           </View>
 
           {/* Insights */}
-          {insights.length > 0 && (
+          {insights.length > 0 ? (
             <View style={styles.insightsSection}>
               <Text style={styles.sectionTitle}>{t("keyInsights")}</Text>
-              {insights.map((insight, index) => (
-                <View key={index} style={styles.insightItem}>
+              {insights.map((insight) => (
+                <View
+                  key={`${insight.type}-${insight.title}-${insight.confidence}`}
+                  style={styles.insightItem}
+                >
                   <View style={styles.insightHeader}>
                     <Ionicons
                       color={theme.colors.primary.main}
@@ -484,7 +505,7 @@ export default function HealthInsightsCard({
                       </Text>
                     </Badge>
                   </View>
-                  {insight.recommendation && (
+                  {insight.recommendation ? (
                     <View style={styles.recommendationBox}>
                       <Caption
                         numberOfLines={3}
@@ -493,23 +514,27 @@ export default function HealthInsightsCard({
                         {insight.recommendation}
                       </Caption>
                     </View>
-                  )}
+                  ) : null}
                 </View>
               ))}
             </View>
-          )}
+          ) : null}
 
           {renderFamilyInsights()}
 
           {/* Most Common Symptoms */}
-          {weeklySummary.symptoms.mostCommon.length > 0 && (
+          {weeklySummary.symptoms.mostCommon.length > 0 ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>
                 {t("mostCommonSymptoms", "Most Common Symptoms")}
               </Text>
               <View style={styles.tagsContainer}>
-                {weeklySummary.symptoms.mostCommon.map((symptom, index) => (
-                  <Badge key={index} style={styles.tag} variant="outline">
+                {weeklySummary.symptoms.mostCommon.map((symptom) => (
+                  <Badge
+                    key={`${symptom.type}-${symptom.count}`}
+                    style={styles.tag}
+                    variant="outline"
+                  >
                     <Text style={styles.tagText}>
                       {symptom.type} ({symptom.count})
                     </Text>
@@ -517,9 +542,9 @@ export default function HealthInsightsCard({
                 ))}
               </View>
             </View>
-          )}
+          ) : null}
 
-          {onViewDetails && (
+          {onViewDetails ? (
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={onViewDetails}
@@ -534,13 +559,14 @@ export default function HealthInsightsCard({
                 size={16}
               />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
-      )}
+      ) : null}
     </Card>
   );
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Theme shape is app-defined and broader than a simple React Native style type.
 const getStyles = (theme: any, isRTL: boolean) => ({
   card: {
     marginBottom: theme.spacing.base,

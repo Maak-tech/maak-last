@@ -12,7 +12,7 @@ export interface TimelineEvent {
   title: string;
   description?: string;
   timestamp: Date;
-  data: any; // Original data object
+  data: unknown; // Original data object
   color: string;
   icon?: string;
 }
@@ -247,7 +247,7 @@ class TimelineService {
       events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
       return events;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

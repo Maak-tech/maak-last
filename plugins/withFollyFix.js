@@ -1,6 +1,8 @@
+/* biome-ignore-all lint/performance/useTopLevelRegex: This build-time plugin runs once and regex readability is preferred here. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Podfile patching flow is intentionally centralized. */
 const { withDangerousMod } = require("expo/config-plugins");
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 /**
  * Expo config plugin to fix:
@@ -10,7 +12,7 @@ const path = require("path");
 const withFollyFix = (config) => {
   return withDangerousMod(config, [
     "ios",
-    async (config) => {
+    (modConfig) => {
       // --- Patch @kingstinct/react-native-healthkit podspec to avoid umbrella importing Bridge.h ---
       // CocoaPods generates `ReactNativeHealthkit-umbrella.h` importing all public headers with:
       //   #import "Header.h"
@@ -18,7 +20,7 @@ const withFollyFix = (config) => {
       // frameworks setups, that import fails, breaking the module build. `Bridge.h` is internal
       // (and currently empty), so we exclude it from public headers at the podspec level.
       try {
-        const projectRoot = config.modRequest.projectRoot;
+        const projectRoot = modConfig.modRequest.projectRoot;
         const healthkitPodspecPath = path.join(
           projectRoot,
           "node_modules",
@@ -44,7 +46,7 @@ const withFollyFix = (config) => {
           if (!podspec.includes('public_headers -= Dir["ios/Bridge.h"]')) {
             const patched = podspec.replace(
               /s\.public_header_files\s*=\s*["']ios\/\*\*\/\*\.h["']\s*\n/g,
-              [
+              `${[
                 "  # Patch: exclude Bridge.h from public headers to prevent umbrella import failures",
                 '  # Also set header_mappings_dir so umbrella imports like `#import "ExceptionCatcher.h"` resolve.',
                 '  s.header_mappings_dir = "ios"',
@@ -53,7 +55,7 @@ const withFollyFix = (config) => {
                 "  s.public_header_files = public_headers",
                 '  s.private_header_files = Dir["ios/Bridge.h"]',
                 "",
-              ].join("\n") + "\n"
+              ].join("\n")}\n`
             );
 
             if (patched !== podspec) {
@@ -107,7 +109,7 @@ const withFollyFix = (config) => {
           if (!patched.includes('"nitrogen/generated/shared/**/*.{h,hpp}"')) {
             patched = patched.replace(
               /spec\.private_header_files = current_private_header_files \+ \[\s*\n/m,
-              (m) => m + '    "nitrogen/generated/shared/**/*.{h,hpp}",\n'
+              (m) => `${m}    "nitrogen/generated/shared/**/*.{h,hpp}",\n`
             );
           }
 
@@ -115,17 +117,17 @@ const withFollyFix = (config) => {
             fs.writeFileSync(healthkitNitroAutolinkingPath, patched);
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // Best-effort patch; don't fail the build if node_modules isn't present at this phase.
       }
 
       const podfilePath = path.join(
-        config.modRequest.platformProjectRoot,
+        modConfig.modRequest.platformProjectRoot,
         "Podfile"
       );
 
       if (!fs.existsSync(podfilePath)) {
-        return config;
+        return modConfig;
       }
 
       let podfileContent = fs.readFileSync(podfilePath, "utf-8");
@@ -160,7 +162,7 @@ pod 'FirebaseCoreInternal', :modular_headers => true
       // Check if the folly fix is already applied
       if (podfileContent.includes("FOLLY_HAS_COROUTINES")) {
         fs.writeFileSync(podfilePath, podfileContent);
-        return config;
+        return modConfig;
       }
 
       // Find the post_install hook or create one
@@ -258,7 +260,7 @@ pod 'FirebaseCoreInternal', :modular_headers => true
       }
 
       fs.writeFileSync(podfilePath, podfileContent);
-      return config;
+      return modConfig;
     },
   ]);
 };

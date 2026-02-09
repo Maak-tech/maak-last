@@ -14,13 +14,13 @@ type ThemeMode = "light" | "dark" | "system";
 
 type ThemeType = typeof Theme.light | typeof Theme.dark;
 
-interface ThemeContextType {
+type ThemeContextType = {
   theme: ThemeType;
   themeMode: ThemeMode;
   isDark: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
-}
+};
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
@@ -32,9 +32,9 @@ export const useTheme = (): ThemeContextType => {
   return context;
 };
 
-interface ThemeProviderProps {
+type ThemeProviderProps = {
   children: ReactNode;
-}
+};
 
 const THEME_STORAGE_KEY = "@maak_theme_mode";
 
@@ -66,7 +66,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           setThemeModeState("light");
           await AsyncStorage.setItem(THEME_STORAGE_KEY, "light");
         }
-      } catch (error) {
+      } catch (_error) {
         // Silently handle error, but ensure we have a valid state
         setThemeModeState("light");
       } finally {
@@ -82,7 +82,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     try {
       setThemeModeState(mode);
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
   };

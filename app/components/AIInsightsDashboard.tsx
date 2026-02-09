@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Activity,
   AlertTriangle,
@@ -13,11 +13,10 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
-  Dimensions,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -66,8 +65,6 @@ const getIcon = (name: string, size: number, color: string) => {
 };
 
 import { StyleSheet } from "react-native";
-
-const { width } = Dimensions.get("window");
 
 // Base styles
 const styles = StyleSheet.create({
@@ -180,9 +177,49 @@ const styles = StyleSheet.create({
   },
 });
 
-interface AIInsightsDashboardProps {
-  onInsightPress?: (insight: any) => void;
+type AIInsightsDashboardProps = {
+  onInsightPress?: (insight: unknown) => void;
   compact?: boolean;
+};
+
+type CorrelationResult =
+  AIInsightsDashboardData["correlationAnalysis"]["correlationResults"][number];
+type DiagnosisSuggestion =
+  AIInsightsDashboardData["symptomAnalysis"]["diagnosisSuggestions"][number];
+type SymptomPattern =
+  AIInsightsDashboardData["symptomAnalysis"]["patterns"][number];
+type RiskFactor =
+  AIInsightsDashboardData["riskAssessment"]["riskFactors"][number];
+type MedicationAlert = AIInsightsDashboardData["medicationAlerts"][number];
+type HealthSuggestion = AIInsightsDashboardData["healthSuggestions"][number];
+type ActionPlan = Awaited<
+  ReturnType<typeof aiInsightsService.generateActionPlan>
+>;
+
+function getStableKey(prefix: string, value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") {
+    return `${prefix}-${String(value)}`;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    const candidateKeys = [
+      "id",
+      "title",
+      "name",
+      "condition",
+      "type",
+      "message",
+    ];
+    const record = value as Record<string, unknown>;
+    for (const key of candidateKeys) {
+      const candidate = record[key];
+      if (typeof candidate === "string" || typeof candidate === "number") {
+        return `${prefix}-${String(candidate)}`;
+      }
+    }
+  }
+
+  return `${prefix}-${JSON.stringify(value)}`;
 }
 
 // Cache key and expiration time (5 minutes)
@@ -200,23 +237,23 @@ function AIInsightsDashboard({
     null
   );
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [_refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("overview");
 
   useEffect(() => {
-    loadInsights();
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!insights || insights.insightsSummary) return;
+    if (!insights || insights.insightsSummary) {
+      return;
+    }
 
     const riskLevel = insights.riskAssessment?.riskLevel || "low";
     const nextAssessmentDate =
       insights.riskAssessment?.nextAssessmentDate ?? new Date();
 
     setInsights((previous) => {
-      if (!previous || previous.insightsSummary) return previous;
+      if (!previous || previous.insightsSummary) {
+        return previous;
+      }
 
       return {
         ...previous,
@@ -230,195 +267,209 @@ function AIInsightsDashboard({
     });
   }, [insights]);
 
-  const getCacheKey = (userId: string) => `${CACHE_KEY_PREFIX}${userId}`;
+  const getCacheKey = useCallback(
+    (userId: string) => `${CACHE_KEY_PREFIX}${userId}`,
+    []
+  );
 
-  const loadCachedInsights = async (
-    userId: string
-  ): Promise<AIInsightsDashboardData | null> => {
-    try {
-      const cacheKey = getCacheKey(userId);
-      const cached = await AsyncStorage.getItem(cacheKey);
-      if (!cached) return null;
-
-      const { data, timestamp } = JSON.parse(cached);
-      const now = Date.now();
-
-      // Check if cache is still valid
-      if (now - timestamp < CACHE_EXPIRATION_MS) {
-        return data as AIInsightsDashboardData;
-      }
-
-      // Cache expired, remove it
-      await AsyncStorage.removeItem(cacheKey);
-      return null;
-    } catch (error) {
-      // Silently fail cache read
-      return null;
-    }
-  };
-
-  const saveCachedInsights = async (
-    userId: string,
-    data: AIInsightsDashboardData
-  ) => {
-    try {
-      const cacheKey = getCacheKey(userId);
-      await AsyncStorage.setItem(
-        cacheKey,
-        JSON.stringify({
-          data,
-          timestamp: Date.now(),
-        })
-      );
-    } catch (error) {
-      // Silently fail cache write
-    }
-  };
-
-  const loadInsights = async (forceRefresh = false) => {
-    if (!user?.id) return;
-
-    try {
-      // Try to load from cache first (unless forcing refresh)
-      if (!forceRefresh) {
-        const cachedInsights = await loadCachedInsights(user.id);
-        if (cachedInsights) {
-          setInsights(cachedInsights);
-          setLoading(false);
-          // Refresh in background without blocking
-          setTimeout(() => loadInsights(true), 100);
-          return;
+  const loadCachedInsights = useCallback(
+    async (userId: string): Promise<AIInsightsDashboardData | null> => {
+      try {
+        const cacheKey = getCacheKey(userId);
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (!cached) {
+          return null;
         }
+
+        const { data, timestamp } = JSON.parse(cached);
+        const now = Date.now();
+
+        // Check if cache is still valid
+        if (now - timestamp < CACHE_EXPIRATION_MS) {
+          return data as AIInsightsDashboardData;
+        }
+
+        // Cache expired, remove it
+        await AsyncStorage.removeItem(cacheKey);
+        return null;
+      } catch (_error) {
+        // Silently fail cache read
+        return null;
+      }
+    },
+    [getCacheKey]
+  );
+
+  const saveCachedInsights = useCallback(
+    async (userId: string, data: AIInsightsDashboardData) => {
+      try {
+        const cacheKey = getCacheKey(userId);
+        await AsyncStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (_error) {
+        // Silently fail cache write
+      }
+    },
+    [getCacheKey]
+  );
+
+  const loadInsights = useCallback(
+    async (forceRefresh = false) => {
+      if (!user?.id) {
+        return;
       }
 
-      if (forceRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      // Load dashboard without AI narrative first (faster, avoids OpenAI API delay)
-      // AI narrative will be loaded separately if needed
-      const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
-        user.id,
-        false, // Don't wait for AI narrative - load it separately
-        isRTL // Pass Arabic language flag
-      );
-
-      // Use a longer timeout but don't block - show cached/partial data if available
-      const timeoutPromise = new Promise<AIInsightsDashboardData>(
-        (resolve) =>
-          setTimeout(() => {
-            // Return fallback data instead of rejecting
-            const fallback: AIInsightsDashboardData = {
-              id: `fallback-${user.id}`,
-              userId: user.id,
-              timestamp: new Date(),
-              correlationAnalysis: {
-                id: `fallback-${user.id}`,
-                title: "Health Data Correlation Analysis",
-                description: "Loading analysis...",
-                correlationResults: [],
-                timestamp: new Date(),
-                userId: user.id,
-              },
-              symptomAnalysis: {
-                patterns: [],
-                diagnosisSuggestions: [],
-                riskAssessment: {
-                  overallRisk: "low",
-                  concerns: [],
-                  recommendations: [],
-                },
-                analysisTimestamp: new Date(),
-              },
-              riskAssessment: {
-                id: `fallback-risk-${user.id}`,
-                userId: user.id,
-                overallRiskScore: 0,
-                riskLevel: "low",
-                riskFactors: [],
-                conditionRisks: [],
-                preventiveRecommendations: [],
-                timeline: "long_term",
-                assessmentDate: new Date(),
-                nextAssessmentDate: new Date(),
-              },
-              medicationAlerts: [],
-              healthSuggestions: [],
-              personalizedTips: [],
-              insightsSummary: {
-                totalInsights: 0,
-                highPriorityItems: 0,
-                riskLevel: "low",
-                nextAssessmentDate: new Date(),
-              },
-              aiNarrative: undefined,
-            };
-            resolve(fallback);
-          }, 20_000) // Reduced from 30s to 20s
-      );
-
-      const dashboard = await Promise.race([dashboardPromise, timeoutPromise]);
-
-      setInsights(dashboard);
-      await saveCachedInsights(user.id, dashboard);
-
-      // Load AI narrative asynchronously after dashboard is shown
-      // This way users see results faster even if narrative is slow
-      // Use a separate timeout for narrative (20 seconds should be enough)
-      const narrativeTimeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("AI narrative timeout")), 20_000)
-      );
-
-      Promise.race([
-        aiInsightsService.generateAIInsightsDashboard(user.id, true, isRTL),
-        narrativeTimeoutPromise,
-      ])
-        .then((dashboardWithNarrative) => {
-          if (
-            dashboardWithNarrative &&
-            typeof dashboardWithNarrative === "object" &&
-            "aiNarrative" in dashboardWithNarrative &&
-            dashboardWithNarrative.aiNarrative
-          ) {
-            const updatedDashboard = {
-              ...dashboard,
-              aiNarrative: (dashboardWithNarrative as AIInsightsDashboardData)
-                .aiNarrative,
-            };
-            setInsights(updatedDashboard);
-            // Save cache in background - don't wait for it
-            saveCachedInsights(user.id, updatedDashboard).catch(() => {
-              // Silently fail cache save
-            });
+      try {
+        // Try to load from cache first (unless forcing refresh)
+        if (!forceRefresh) {
+          const cachedInsights = await loadCachedInsights(user.id);
+          if (cachedInsights) {
+            setInsights(cachedInsights);
+            setLoading(false);
+            // Refresh in background without blocking
+            setTimeout(() => loadInsights(true), 100);
+            return;
           }
-        })
-        .catch((err) => {
-          // Silently fail - narrative is optional and can be slow
-        });
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error && err.message.includes("timeout")
-          ? t(
-              "insightsTimeout",
-              "Loading insights is taking longer than expected. Some features may be unavailable."
-            )
-          : t(
-              "failedToLoadInsights",
-              "Failed to load insights. Please try again."
-            );
-      setError(errorMessage);
-      // Don't clear insights if we have cached data
-      if (!insights) {
-        setInsights(null);
+        }
+
+        if (forceRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+        setError(null);
+
+        // Load dashboard without AI narrative first (faster, avoids OpenAI API delay)
+        // AI narrative will be loaded separately if needed
+        const dashboardPromise = aiInsightsService.generateAIInsightsDashboard(
+          user.id,
+          false, // Don't wait for AI narrative - load it separately
+          isRTL // Pass Arabic language flag
+        );
+
+        // Use a longer timeout but don't block - show cached/partial data if available
+        const timeoutPromise = new Promise<AIInsightsDashboardData>(
+          (resolve) =>
+            setTimeout(() => {
+              // Return fallback data instead of rejecting
+              const fallback: AIInsightsDashboardData = {
+                id: `fallback-${user.id}`,
+                userId: user.id,
+                timestamp: new Date(),
+                correlationAnalysis: {
+                  id: `fallback-${user.id}`,
+                  title: "Health Data Correlation Analysis",
+                  description: "Loading analysis...",
+                  correlationResults: [],
+                  timestamp: new Date(),
+                  userId: user.id,
+                },
+                symptomAnalysis: {
+                  patterns: [],
+                  diagnosisSuggestions: [],
+                  riskAssessment: {
+                    overallRisk: "low",
+                    concerns: [],
+                    recommendations: [],
+                  },
+                  analysisTimestamp: new Date(),
+                },
+                riskAssessment: {
+                  id: `fallback-risk-${user.id}`,
+                  userId: user.id,
+                  overallRiskScore: 0,
+                  riskLevel: "low",
+                  riskFactors: [],
+                  conditionRisks: [],
+                  preventiveRecommendations: [],
+                  timeline: "long_term",
+                  assessmentDate: new Date(),
+                  nextAssessmentDate: new Date(),
+                },
+                medicationAlerts: [],
+                healthSuggestions: [],
+                personalizedTips: [],
+                insightsSummary: {
+                  totalInsights: 0,
+                  highPriorityItems: 0,
+                  riskLevel: "low",
+                  nextAssessmentDate: new Date(),
+                },
+                aiNarrative: undefined,
+              };
+              resolve(fallback);
+            }, 20_000) // Reduced from 30s to 20s
+        );
+
+        const dashboard = await Promise.race([
+          dashboardPromise,
+          timeoutPromise,
+        ]);
+
+        setInsights(dashboard);
+        await saveCachedInsights(user.id, dashboard);
+
+        // Load AI narrative asynchronously after dashboard is shown
+        // This way users see results faster even if narrative is slow
+        // Use a separate timeout for narrative (20 seconds should be enough)
+        const narrativeTimeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("AI narrative timeout")), 20_000)
+        );
+
+        Promise.race([
+          aiInsightsService.generateAIInsightsDashboard(user.id, true, isRTL),
+          narrativeTimeoutPromise,
+        ])
+          .then((dashboardWithNarrative) => {
+            if (
+              dashboardWithNarrative &&
+              typeof dashboardWithNarrative === "object" &&
+              "aiNarrative" in dashboardWithNarrative &&
+              dashboardWithNarrative.aiNarrative
+            ) {
+              const updatedDashboard = {
+                ...dashboard,
+                aiNarrative: (dashboardWithNarrative as AIInsightsDashboardData)
+                  .aiNarrative,
+              };
+              setInsights(updatedDashboard);
+              // Save cache in background - don't wait for it
+              saveCachedInsights(user.id, updatedDashboard).catch(() => {
+                // Silently fail cache save
+              });
+            }
+          })
+          .catch((_err) => {
+            // Silently fail - narrative is optional and can be slow
+          });
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error && err.message.includes("timeout")
+            ? t(
+                "insightsTimeout",
+                "Loading insights is taking longer than expected. Some features may be unavailable."
+              )
+            : t(
+                "failedToLoadInsights",
+                "Failed to load insights. Please try again."
+              );
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    },
+    [isRTL, loadCachedInsights, saveCachedInsights, t, user?.id]
+  );
+
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
 
   if (loading && !insights) {
     return (
@@ -576,10 +627,10 @@ function AIInsightsDashboard({
           />
 
           {/* AI Narrative */}
-          {insights.aiNarrative && (
+          {insights.aiNarrative ? (
             <Card
               contentStyle={undefined}
-              onPress={() => {}}
+              onPress={undefined}
               style={styles.mb4}
             >
               <View style={styles.row}>
@@ -592,7 +643,7 @@ function AIInsightsDashboard({
                 {insights.aiNarrative}
               </Text>
             </Card>
-          )}
+          ) : null}
 
           {/* Action Plan */}
           <ActionPlanSection insights={insights} />
@@ -617,7 +668,7 @@ function SummaryCard({
   return (
     <Card
       contentStyle={undefined}
-      onPress={() => {}}
+      onPress={undefined}
       style={[
         styles.summaryCard,
         { borderLeftColor: color, borderLeftWidth: 4 },
@@ -642,7 +693,7 @@ function CategoryContent({
 }: {
   category: string;
   insights: AIInsightsDashboardData;
-  onInsightPress?: (insight: any) => void;
+  onInsightPress?: (insight: unknown) => void;
 }) {
   switch (category) {
     case "overview":
@@ -691,9 +742,9 @@ function OverviewContent({
   onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
-  onInsightPress?: (insight: any) => void;
+  onInsightPress?: (insight: unknown) => void;
 }) {
-  const topInsights = [
+  const topInsights: unknown[] = [
     ...(insights.medicationAlerts || []).slice(0, 2),
     ...(insights.symptomAnalysis?.diagnosisSuggestions || []).slice(0, 2),
     ...(insights.correlationAnalysis?.correlationResults || []).slice(0, 2),
@@ -702,10 +753,10 @@ function OverviewContent({
 
   return (
     <View>
-      {topInsights.map((insight, index) => (
+      {topInsights.map((insight) => (
         <InsightCard
           insight={insight}
-          key={`overview-${index}`}
+          key={getStableKey("overview", insight)}
           onPress={() => onInsightPress?.(insight)}
         />
       ))}
@@ -719,7 +770,7 @@ function CorrelationsContent({
   onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
-  onInsightPress?: (insight: any) => void;
+  onInsightPress?: (insight: unknown) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -728,23 +779,22 @@ function CorrelationsContent({
         {t("insightsHealthDataCorrelationsTitle", "Health Data Correlations")}
       </Text>
       {(insights.correlationAnalysis?.correlationResults || []).map(
-        (correlation: any, index: number) => (
+        (correlation: CorrelationResult) => (
           <CorrelationCard
             correlation={correlation}
-            key={`correlation-${index}`}
+            key={getStableKey("correlation", correlation)}
             onPress={() => onInsightPress?.(correlation)}
           />
         )
       )}
-      {(insights.correlationAnalysis?.correlationResults || []).length ===
-        0 && (
+      {(insights.correlationAnalysis?.correlationResults || []).length === 0 ? (
         <EmptyState
           message={t(
             "insightsNoSignificantCorrelations",
             "No significant correlations found in your recent health data."
           )}
         />
-      )}
+      ) : null}
     </View>
   );
 }
@@ -755,7 +805,7 @@ function PatternsContent({
   onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
-  onInsightPress?: (insight: any) => void;
+  onInsightPress?: (insight: unknown) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -764,32 +814,32 @@ function PatternsContent({
         {t("insightsSymptomPatternsTitle", "Symptom Patterns & Diagnosis")}
       </Text>
       {(insights.symptomAnalysis?.diagnosisSuggestions || []).map(
-        (diagnosis: any, index: number) => (
+        (diagnosis: DiagnosisSuggestion) => (
           <DiagnosisCard
             diagnosis={diagnosis}
-            key={`diagnosis-${index}`}
+            key={getStableKey("diagnosis", diagnosis)}
             onPress={() => onInsightPress?.(diagnosis)}
           />
         )
       )}
       {(insights.symptomAnalysis?.patterns || []).map(
-        (pattern: any, index: number) => (
+        (pattern: SymptomPattern) => (
           <PatternCard
-            key={`pattern-${index}`}
+            key={getStableKey("pattern", pattern)}
             onPress={() => onInsightPress?.(pattern)}
             pattern={pattern}
           />
         )
       )}
       {(insights.symptomAnalysis?.diagnosisSuggestions || []).length === 0 &&
-        (insights.symptomAnalysis?.patterns || []).length === 0 && (
-          <EmptyState
-            message={t(
-              "insightsNoSignificantSymptomPatterns",
-              "No significant symptom patterns detected."
-            )}
-          />
-        )}
+      (insights.symptomAnalysis?.patterns || []).length === 0 ? (
+        <EmptyState
+          message={t(
+            "insightsNoSignificantSymptomPatterns",
+            "No significant symptom patterns detected."
+          )}
+        />
+      ) : null}
     </View>
   );
 }
@@ -800,7 +850,7 @@ function RiskContent({
   onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
-  onInsightPress?: (insight: any) => void;
+  onInsightPress?: (insight: unknown) => void;
 }) {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
@@ -823,7 +873,7 @@ function RiskContent({
         {t("insightsRiskAssessmentTitle", "Health Risk Assessment")}
       </Text>
 
-      <Card contentStyle={undefined} onPress={() => {}} style={styles.mb3}>
+      <Card contentStyle={undefined} onPress={undefined} style={styles.mb3}>
         <View style={styles.row}>
           {getIcon("Shield", 24, getRiskColor(risk.riskLevel))}
           <View style={styles.ml3}>
@@ -846,10 +896,10 @@ function RiskContent({
       <Text style={[styles.subtitle, styles.mb2]}>
         {t("keyRiskFactors", "Key Risk Factors")}
       </Text>
-      {risk.riskFactors.slice(0, 5).map((factor: any, index: number) => (
+      {risk.riskFactors.slice(0, 5).map((factor: RiskFactor) => (
         <RiskFactorCard
           factor={factor}
-          key={`risk-factor-${index}`}
+          key={getStableKey("risk-factor", factor)}
           onPress={() => onInsightPress?.(factor)}
         />
       ))}
@@ -857,9 +907,9 @@ function RiskContent({
       <Text style={[styles.subtitle, styles.mb2, styles.mt4]}>
         {t("recommendations", "Recommendations")}
       </Text>
-      {risk.preventiveRecommendations.map((rec: any, index: number) => (
+      {risk.preventiveRecommendations.map((rec) => (
         <RecommendationCard
-          key={`rec-${index}`}
+          key={getStableKey("recommendation", rec)}
           onPress={() =>
             onInsightPress?.({ type: "recommendation", content: rec })
           }
@@ -876,7 +926,7 @@ function MedicationsContent({
   onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
-  onInsightPress?: (insight: any) => void;
+  onInsightPress?: (insight: unknown) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -884,21 +934,21 @@ function MedicationsContent({
       <Text style={[styles.sectionTitle, styles.mb3]}>
         {t("insightsMedicationInsightsTitle", "Medication Insights")}
       </Text>
-      {insights.medicationAlerts.map((alert: any, index: number) => (
+      {insights.medicationAlerts.map((alert: MedicationAlert) => (
         <MedicationAlertCard
           alert={alert}
-          key={`med-alert-${index}`}
+          key={getStableKey("med-alert", alert)}
           onPress={() => onInsightPress?.(alert)}
         />
       ))}
-      {insights.medicationAlerts.length === 0 && (
+      {insights.medicationAlerts.length === 0 ? (
         <EmptyState
           message={t(
             "insightsNoMedicationConcerns",
             "No medication interaction concerns detected."
           )}
         />
-      )}
+      ) : null}
     </View>
   );
 }
@@ -909,7 +959,7 @@ function SuggestionsContent({
   onInsightPress,
 }: {
   insights: AIInsightsDashboardData;
-  onInsightPress?: (insight: any) => void;
+  onInsightPress?: (insight: unknown) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -920,29 +970,29 @@ function SuggestionsContent({
           "Personalized Recommendations"
         )}
       </Text>
-      {insights.healthSuggestions.map((suggestion: any, index: number) => (
+      {insights.healthSuggestions.map((suggestion: HealthSuggestion) => (
         <SuggestionCard
-          key={`suggestion-${index}`}
+          key={getStableKey("suggestion", suggestion)}
           onPress={() => onInsightPress?.(suggestion)}
           suggestion={suggestion}
         />
       ))}
-      {insights.personalizedTips.map((tip: any, index: number) => (
+      {insights.personalizedTips.map((tip) => (
         <TipCard
-          key={`tip-${index}`}
+          key={getStableKey("tip", tip)}
           onPress={() => onInsightPress?.({ type: "tip", content: tip })}
           tip={tip}
         />
       ))}
       {insights.healthSuggestions.length === 0 &&
-        insights.personalizedTips.length === 0 && (
-          <EmptyState
-            message={t(
-              "insightsNoRecommendationsYet",
-              "No specific recommendations at this time. Keep tracking your health!"
-            )}
-          />
-        )}
+      insights.personalizedTips.length === 0 ? (
+        <EmptyState
+          message={t(
+            "insightsNoRecommendationsYet",
+            "No specific recommendations at this time. Keep tracking your health!"
+          )}
+        />
+      ) : null}
     </View>
   );
 }
@@ -954,12 +1004,14 @@ function ActionPlanSection({
   insights: AIInsightsDashboardData;
 }) {
   const { t, i18n } = useTranslation();
-  const [actionPlan, setActionPlan] = useState<any>(null);
+  const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
   const [loading, setLoading] = useState(false);
   const isRTL = i18n.language === "ar";
 
   const loadActionPlan = async () => {
-    if (!insights.userId) return;
+    if (!insights.userId) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -968,7 +1020,7 @@ function ActionPlanSection({
         isRTL
       );
       setActionPlan(plan);
-    } catch (error) {
+    } catch (_error) {
       // Failed to load action plan
     } finally {
       setLoading(false);
@@ -976,7 +1028,7 @@ function ActionPlanSection({
   };
 
   return (
-    <Card contentStyle={undefined} onPress={() => {}} style={styles.mb4}>
+    <Card contentStyle={undefined} onPress={undefined} style={styles.mb4}>
       <View style={styles.row}>
         {getIcon("Target", 20, "#3B82F6")}
         <Text style={[styles.cardTitle, styles.ml2]}>
@@ -986,71 +1038,77 @@ function ActionPlanSection({
 
       {actionPlan ? (
         <View style={styles.mt3}>
-          {actionPlan.immediate.length > 0 && (
+          {actionPlan.immediate.length > 0 ? (
             <View style={styles.mb3}>
               <Text
                 style={[styles.textSm, styles.fontBold, { color: "#EF4444" }]}
               >
                 {t("immediateActions", "Immediate Actions")}
               </Text>
-              {actionPlan.immediate.map((action: string, index: number) => (
+              {actionPlan.immediate.map((action: string) => (
                 <Text
-                  key={`immediate-${index}`}
+                  key={getStableKey("immediate", action)}
                   style={[styles.text, styles.mt1]}
                 >
                   • {action}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
 
-          {actionPlan.shortTerm.length > 0 && (
+          {actionPlan.shortTerm.length > 0 ? (
             <View style={styles.mb3}>
               <Text
                 style={[styles.textSm, styles.fontBold, { color: "#F59E0B" }]}
               >
                 {t("shortTermGoals", "Short-term Goals")}
               </Text>
-              {actionPlan.shortTerm.map((action: string, index: number) => (
-                <Text key={`short-${index}`} style={[styles.text, styles.mt1]}>
+              {actionPlan.shortTerm.map((action: string) => (
+                <Text
+                  key={getStableKey("short-term", action)}
+                  style={[styles.text, styles.mt1]}
+                >
                   • {action}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
 
-          {actionPlan.longTerm.length > 0 && (
+          {actionPlan.longTerm.length > 0 ? (
             <View style={styles.mb3}>
               <Text
                 style={[styles.textSm, styles.fontBold, { color: "#10B981" }]}
               >
                 {t("longTermGoals", "Long-term Goals")}
               </Text>
-              {actionPlan.longTerm.map((action: string, index: number) => (
-                <Text key={`long-${index}`} style={[styles.text, styles.mt1]}>
+              {actionPlan.longTerm.map((action: string) => (
+                <Text
+                  key={getStableKey("long-term", action)}
+                  style={[styles.text, styles.mt1]}
+                >
                   • {action}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
 
-          {actionPlan.monitoring.length > 0 && (
+          {actionPlan.monitoring.length > 0 ? (
             <View>
               <Text
                 style={[styles.textSm, styles.fontBold, { color: "#6B7280" }]}
               >
                 Ongoing Monitoring
               </Text>
-              {actionPlan.monitoring.map((item: string, index: number) => (
+              {actionPlan.monitoring.map((item: string) => (
                 <Text
-                  key={`monitor-${index}`}
+                  key={getStableKey("monitor", item)}
                   style={[styles.text, styles.mt1]}
                 >
                   • {item}
                 </Text>
               ))}
             </View>
-          )}
+          ) : null}
         </View>
       ) : (
         <Button
@@ -1071,7 +1129,7 @@ function CompactInsightsView({
   isRTL = false,
 }: {
   insights: AIInsightsDashboardData;
-  onPress?: (insight: any) => void;
+  onPress?: (insight: unknown) => void;
   isRTL?: boolean;
 }) {
   // Safely access insightsSummary with fallback
@@ -1082,14 +1140,15 @@ function CompactInsightsView({
     nextAssessmentDate: new Date(),
   };
 
-  const prioritizedInsights =
-    insightsSummary.highPriorityItems > 0
-      ? isRTL
-        ? "هناك عناصر ذات أولوية عالية تحتاج إلى الاهتمام"
-        : "High priority items need attention"
-      : isRTL
-        ? "بياناتك الصحية تبدو جيدة"
-        : "Your health data looks good";
+  let prioritizedInsights = "Your health data looks good";
+  if (isRTL && insightsSummary.highPriorityItems > 0) {
+    prioritizedInsights =
+      "Ù‡Ù†Ø§Ùƒ Ø¹Ù†Ø§ØµØ± Ø°Ø§Øª Ø£ÙˆÙ„ÙˆÙŠØ© Ø¹Ø§Ù„ÙŠØ© ØªØ­ØªØ§Ø¬ Ø¥Ù„Ù‰ Ø§Ù„Ø§Ù‡ØªÙ…Ø§Ù…";
+  } else if (isRTL) {
+    prioritizedInsights = "Ø¨ÙŠØ§Ù†Ø§ØªÙƒ Ø§Ù„ØµØ­ÙŠØ© ØªØ¨Ø¯Ùˆ Ø¬ÙŠØ¯Ø©";
+  } else if (insightsSummary.highPriorityItems > 0) {
+    prioritizedInsights = "High priority items need attention";
+  }
 
   return (
     <Card
@@ -1101,7 +1160,7 @@ function CompactInsightsView({
         {getIcon("Brain", 24, "#3B82F6")}
         <View style={styles.ml3}>
           <Text style={styles.cardTitle}>
-            {isRTL ? "التحليلات الصحية " : "Health Insights"}
+            {isRTL ? "Ø§Ù„ØªØ­Ù„ÙŠÙ„Ø§Øª Ø§Ù„ØµØ­ÙŠØ© " : "Health Insights"}
           </Text>
           <Text style={[styles.text, styles.textMuted]}>
             {prioritizedInsights}
@@ -1112,7 +1171,7 @@ function CompactInsightsView({
             </Badge>
             <Text style={[styles.textSm, styles.textMuted, styles.ml2]}>
               {insightsSummary.totalInsights}{" "}
-              {isRTL ? "التحليل الصحي " : "insights"}
+              {isRTL ? "Ø§Ù„ØªØ­Ù„ÙŠÙ„ Ø§Ù„ØµØ­ÙŠ " : "insights"}
             </Text>
           </View>
         </View>
@@ -1127,16 +1186,27 @@ function InsightCard({
   insight,
   onPress,
 }: {
-  insight: any;
+  insight: unknown;
   onPress?: () => void;
 }) {
+  const typedInsight = insight as
+    | {
+        title?: string;
+        condition?: string;
+        description?: string;
+        reasoning?: string;
+      }
+    | undefined;
+
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <Text style={styles.cardTitle}>
-        {insight.title || insight.condition || "Insight"}
+        {typedInsight?.title || typedInsight?.condition || "Insight"}
       </Text>
       <Text style={[styles.text, styles.mt1]}>
-        {insight.description || insight.reasoning || "Details available"}
+        {typedInsight?.description ||
+          typedInsight?.reasoning ||
+          "Details available"}
       </Text>
     </Card>
   );
@@ -1146,32 +1216,25 @@ function CorrelationCard({
   correlation,
   onPress,
 }: {
-  correlation: any;
+  correlation: CorrelationResult;
   onPress?: () => void;
 }) {
-  const strengthColor =
-    correlation.strength > 0.7
-      ? "#10B981"
-      : correlation.strength > 0.3
-        ? "#F59E0B"
-        : "#6B7280";
-
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
         <Text style={styles.cardTitle}>
-          {correlation.data.factor1} ↔ {correlation.data.factor2}
+          {correlation.data.factor1} â†” {correlation.data.factor2}
         </Text>
         <Badge
           style={{}}
         >{`${(correlation.strength * 100).toFixed(0)}%`}</Badge>
       </View>
       <Text style={[styles.text, styles.mt1]}>{correlation.description}</Text>
-      {correlation.recommendation && (
+      {correlation.recommendation ? (
         <Text style={[styles.textSm, styles.textMuted, styles.mt1]}>
-          💡 {correlation.recommendation}
+          ðŸ’¡ {correlation.recommendation}
         </Text>
-      )}
+      ) : null}
     </Card>
   );
 }
@@ -1180,17 +1243,9 @@ function DiagnosisCard({
   diagnosis,
   onPress,
 }: {
-  diagnosis: any;
+  diagnosis: DiagnosisSuggestion;
   onPress?: () => void;
 }) {
-  const urgencyMap: { [key: string]: string } = {
-    emergency: "#EF4444",
-    high: "#EF4444",
-    medium: "#F59E0B",
-    low: "#10B981",
-  };
-  const urgencyColor = urgencyMap[String(diagnosis.urgency)] || "#6B7280";
-
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
@@ -1201,11 +1256,11 @@ function DiagnosisCard({
       <Text style={[styles.textSm, styles.textMuted, styles.mt2]}>
         {diagnosis.disclaimer}
       </Text>
-      {diagnosis.recommendations && diagnosis.recommendations.length > 0 && (
+      {diagnosis.recommendations && diagnosis.recommendations.length > 0 ? (
         <Text style={[styles.textSm, styles.mt2]}>
-          💡 {diagnosis.recommendations[0]}
+          ðŸ’¡ {diagnosis.recommendations[0]}
         </Text>
-      )}
+      ) : null}
     </Card>
   );
 }
@@ -1214,7 +1269,7 @@ function PatternCard({
   pattern,
   onPress,
 }: {
-  pattern: any;
+  pattern: SymptomPattern;
   onPress?: () => void;
 }) {
   return (
@@ -1232,12 +1287,9 @@ function RiskFactorCard({
   factor,
   onPress,
 }: {
-  factor: any;
+  factor: RiskFactor;
   onPress?: () => void;
 }) {
-  const impactColor =
-    factor.impact > 25 ? "#EF4444" : factor.impact > 15 ? "#F59E0B" : "#10B981";
-
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
@@ -1253,7 +1305,7 @@ function MedicationAlertCard({
   alert,
   onPress,
 }: {
-  alert: any;
+  alert: MedicationAlert;
   onPress?: () => void;
 }) {
   const severityMap: { [key: string]: string } = {
@@ -1270,11 +1322,11 @@ function MedicationAlertCard({
         <Text style={[styles.cardTitle, styles.ml2]}>{alert.title}</Text>
       </View>
       <Text style={[styles.text, styles.mt1]}>{alert.message}</Text>
-      {alert.recommendations && alert.recommendations.length > 0 && (
+      {alert.recommendations && alert.recommendations.length > 0 ? (
         <Text style={[styles.textSm, styles.textMuted, styles.mt1]}>
-          💡 {alert.recommendations[0]}
+          ðŸ’¡ {alert.recommendations[0]}
         </Text>
-      )}
+      ) : null}
     </Card>
   );
 }
@@ -1283,16 +1335,9 @@ function SuggestionCard({
   suggestion,
   onPress,
 }: {
-  suggestion: any;
+  suggestion: HealthSuggestion;
   onPress?: () => void;
 }) {
-  const priorityMap: { [key: string]: string } = {
-    high: "#EF4444",
-    medium: "#F59E0B",
-    low: "#10B981",
-  };
-  const priorityColor = priorityMap[String(suggestion.priority)] || "#6B7280";
-
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
       <View style={styles.row}>
@@ -1300,7 +1345,7 @@ function SuggestionCard({
         <Badge style={{}}>{suggestion.priority}</Badge>
       </View>
       <Text style={[styles.text, styles.mt1]}>{suggestion.description}</Text>
-      {suggestion.action?.label && (
+      {suggestion.action?.label ? (
         <Text
           style={[
             styles.textSm,
@@ -1311,7 +1356,7 @@ function SuggestionCard({
         >
           {suggestion.action.label}
         </Text>
-      )}
+      ) : null}
     </Card>
   );
 }
@@ -1325,7 +1370,7 @@ function RecommendationCard({
 }) {
   return (
     <Card contentStyle={undefined} onPress={onPress} style={styles.mb2}>
-      <Text style={[styles.text, styles.textCenter]}>• {recommendation}</Text>
+      <Text style={[styles.text, styles.textCenter]}>â€¢ {recommendation}</Text>
     </Card>
   );
 }

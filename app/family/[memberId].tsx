@@ -39,7 +39,6 @@ import {
 } from "react-native";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTheme } from "@/contexts/ThemeContext";
 import { db } from "@/lib/firebase";
 import { alertService } from "@/lib/services/alertService";
 import { allergyService } from "@/lib/services/allergyService";
@@ -57,14 +56,88 @@ import type {
   Symptom,
   User,
 } from "@/types";
+import { coerceToDate } from "@/utils/dateCoercion";
 import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+};
+
+const getAlertSeverityColor = (
+  severity: EmergencyAlert["severity"]
+): string => {
+  if (severity === "critical") {
+    return "#EF4444";
+  }
+  if (severity === "high") {
+    return "#F59E0B";
+  }
+  return "#2563EB";
+};
+
+const getHistorySeverityColor = (
+  severity: MedicalHistory["severity"]
+): string => {
+  if (severity === "severe") {
+    return "#EF4444";
+  }
+  if (severity === "moderate") {
+    return "#F59E0B";
+  }
+  return "#10B981";
+};
+
+const getHistorySeverityLabel = (
+  severity: MedicalHistory["severity"],
+  isRTL: boolean
+): string => {
+  if (severity === "severe") {
+    return isRTL ? "شديد" : "Severe";
+  }
+  if (severity === "moderate") {
+    return isRTL ? "متوسط" : "Moderate";
+  }
+  return isRTL ? "خفيف" : "Mild";
+};
+
+const getAllergySeverityColor = (severity: Allergy["severity"]): string => {
+  if (severity === "severe-life-threatening") {
+    return "#7F1D1D";
+  }
+  if (severity === "severe") {
+    return "#DC2626";
+  }
+  if (severity === "moderate") {
+    return "#F59E0B";
+  }
+  return "#10B981";
+};
+
+const getAllergySeverityLabel = (
+  severity: Allergy["severity"],
+  isRTL: boolean
+) => {
+  if (severity === "severe-life-threatening") {
+    return isRTL ? "خطير جداً" : "Life-threatening";
+  }
+  if (severity === "severe") {
+    return isRTL ? "شديد" : "Severe";
+  }
+  if (severity === "moderate") {
+    return isRTL ? "متوسط" : "Moderate";
+  }
+  return isRTL ? "خفيف" : "Mild";
+};
+
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Large screen to be split into sections in a separate refactor. */
 export default function FamilyMemberHealthView() {
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
   const router = useRouter();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
-  const { theme } = useTheme();
   const isRTL = i18n.language === "ar";
 
   const [loading, setLoading] = useState(true);
@@ -79,8 +152,11 @@ export default function FamilyMemberHealthView() {
   const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
 
   const loadMemberHealthData = useCallback(
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Data loading flow will be extracted into dedicated hooks.
     async (isRefresh = false) => {
-      if (!memberId) return;
+      if (!memberId) {
+        return;
+      }
 
       try {
         if (isRefresh) {
@@ -166,7 +242,7 @@ export default function FamilyMemberHealthView() {
         } else {
           setVitals(null);
         }
-      } catch (error) {
+      } catch (_error) {
         // Silently handle error
       } finally {
         setLoading(false);
@@ -194,14 +270,22 @@ export default function FamilyMemberHealthView() {
     });
 
   const getSeverityColor = (severity: number) => {
-    if (severity >= 4) return "#EF4444";
-    if (severity >= 3) return "#F59E0B";
+    if (severity >= 4) {
+      return "#EF4444";
+    }
+    if (severity >= 3) {
+      return "#F59E0B";
+    }
     return "#10B981";
   };
 
   const getSeverityLabel = (severity: number) => {
-    if (severity >= 4) return isRTL ? "شديد" : "Severe";
-    if (severity >= 3) return isRTL ? "متوسط" : "Moderate";
+    if (severity >= 4) {
+      return isRTL ? "شديد" : "Severe";
+    }
+    if (severity >= 3) {
+      return isRTL ? "متوسط" : "Moderate";
+    }
     return isRTL ? "خفيف" : "Mild";
   };
 
@@ -209,7 +293,9 @@ export default function FamilyMemberHealthView() {
     targetUserId: string,
     newRole: "member" | "caregiver"
   ) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      return;
+    }
 
     try {
       await userService.updateUserRole(targetUserId, newRole, user.id);
@@ -223,19 +309,33 @@ export default function FamilyMemberHealthView() {
           ? "تم تحديث دور فردالعائلة بنجاح"
           : "Family member role updated successfully"
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
-        error.message ||
-          (isRTL
+        getErrorMessage(
+          error,
+          isRTL
             ? "فشل في تحديث دور فردالعائلة"
-            : "Failed to update family member role")
+            : "Failed to update family member role"
+        )
       );
     }
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Prompt flow will be replaced with a dedicated composer screen.
   const sendCaregiverAlert = () => {
-    if (!(user?.id && member?.id)) return;
+    if (!(user?.id && member?.id)) {
+      return;
+    }
+
+    const familyId = user.familyId;
+    if (!familyId) {
+      Alert.alert(
+        isRTL ? "خطأ" : "Error",
+        isRTL ? "لا توجد عائلة" : "No family"
+      );
+      return;
+    }
 
     Alert.prompt(
       isRTL ? "إرسال تنبيه لمدير العائلة" : "Send Alert to Admin",
@@ -246,13 +346,16 @@ export default function FamilyMemberHealthView() {
         { text: isRTL ? "إلغاء" : "Cancel", style: "cancel" },
         {
           text: isRTL ? "إرسال" : "Send",
+          /* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Prompt callback will be extracted with prompt UI migration. */
           onPress: async (message?: string) => {
-            if (!message?.trim()) return;
+            if (!message?.trim()) {
+              return;
+            }
 
             try {
               await alertService.createCaregiverAlert(
                 user.id,
-                user.familyId!,
+                familyId,
                 message.trim()
               );
 
@@ -262,13 +365,15 @@ export default function FamilyMemberHealthView() {
                   ? "تم إرسال التنبيه لجميع مديري العائلة"
                   : "Alert sent to all admins"
               );
-            } catch (error: any) {
+            } catch (error: unknown) {
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
-                error.message ||
-                  (isRTL
+                getErrorMessage(
+                  error,
+                  isRTL
                     ? "فشل في إرسال التنبيه الصحي لمدير العائلة"
-                    : "Failed to send alert to admin")
+                    : "Failed to send alert to admin"
+                )
               );
             }
           },
@@ -336,7 +441,9 @@ export default function FamilyMemberHealthView() {
   ];
 
   const getRelationshipLabel = (rel: string) => {
-    if (!rel) return "";
+    if (!rel) {
+      return "";
+    }
     const relation = RELATIONS.find((r) => r.key === rel.toLowerCase());
     if (relation) {
       return isRTL ? relation.labelAr : relation.labelEn;
@@ -345,15 +452,14 @@ export default function FamilyMemberHealthView() {
     return rel;
   };
 
-  const displayRelationship = relationship
-    ? getRelationshipLabel(relationship)
-    : member.role === "admin"
-      ? isRTL
-        ? "مدير العائلة"
-        : "Admin"
-      : isRTL
-        ? "فرد العائلة"
-        : "Member";
+  let displayRelationship = getRelationshipLabel(relationship);
+  if (!displayRelationship) {
+    if (member.role === "admin") {
+      displayRelationship = isRTL ? "مدير العائلة" : "Admin";
+    } else {
+      displayRelationship = isRTL ? "فرد العائلة" : "Member";
+    }
+  }
 
   const recentSymptoms = symptoms
     .filter(
@@ -480,13 +586,7 @@ export default function FamilyMemberHealthView() {
               {alerts.map((alert) => (
                 <View key={alert.id} style={styles.alertItem}>
                   <AlertTriangle
-                    color={
-                      alert.severity === "critical"
-                        ? "#EF4444"
-                        : alert.severity === "high"
-                          ? "#F59E0B"
-                          : "#2563EB"
-                    }
+                    color={getAlertSeverityColor(alert.severity)}
                     size={18}
                   />
                   <View style={styles.alertContent}>
@@ -506,7 +606,7 @@ export default function FamilyMemberHealthView() {
         )}
 
         {/* Vitals Section */}
-        {vitals && (
+        {vitals ? (
           <View style={styles.section}>
             <View
               style={[
@@ -564,7 +664,7 @@ export default function FamilyMemberHealthView() {
                   </Text>
                 </View>
               )}
-              {vitals.bloodPressure && (
+              {vitals.bloodPressure ? (
                 <View style={styles.vitalCard}>
                   <Gauge color="#F59E0B" size={24} />
                   <Text style={[styles.vitalValue, isRTL && styles.rtlText]}>
@@ -575,7 +675,7 @@ export default function FamilyMemberHealthView() {
                     BP
                   </Text>
                 </View>
-              )}
+              ) : null}
               {vitals.respiratoryRate !== undefined && (
                 <View style={styles.vitalCard}>
                   <Wind color="#06B6D4" size={24} />
@@ -713,14 +813,14 @@ export default function FamilyMemberHealthView() {
                 </View>
               )}
             </View>
-            {vitals.timestamp && (
+            {vitals.timestamp ? (
               <Text style={[styles.vitalsTimestamp, isRTL && styles.rtlText]}>
                 {isRTL ? "آخر تحديث: " : "Last updated: "}
                 {formatDate(vitals.timestamp)} {formatTime(vitals.timestamp)}
               </Text>
-            )}
+            ) : null}
           </View>
-        )}
+        ) : null}
 
         {/* Symptoms Section */}
         <View style={styles.section}>
@@ -768,7 +868,7 @@ export default function FamilyMemberHealthView() {
                         </Text>
                       </View>
                     </View>
-                    {symptom.description && (
+                    {Boolean(symptom.description) && (
                       <Text
                         style={[
                           styles.symptomDescription,
@@ -819,9 +919,12 @@ export default function FamilyMemberHealthView() {
                 const today = new Date().toDateString();
                 const remindersToday = medication.reminders.filter(
                   (reminder) => {
-                    if (!reminder.takenAt) return false;
-                    const takenDate = new Date(reminder.takenAt).toDateString();
-                    return takenDate === today;
+                    if (!reminder.takenAt) {
+                      return false;
+                    }
+                    return (
+                      coerceToDate(reminder.takenAt)?.toDateString() === today
+                    );
                   }
                 );
 
@@ -859,7 +962,8 @@ export default function FamilyMemberHealthView() {
                         {medication.reminders.map((reminder) => {
                           const isToday =
                             reminder.takenAt &&
-                            new Date(reminder.takenAt).toDateString() === today;
+                            coerceToDate(reminder.takenAt)?.toDateString() ===
+                              today;
                           return (
                             <View key={reminder.id} style={styles.reminderItem}>
                               <Text
@@ -880,7 +984,7 @@ export default function FamilyMemberHealthView() {
                         })}
                       </View>
                     )}
-                    {medication.notes && (
+                    {Boolean(medication.notes) && (
                       <Text
                         style={[
                           styles.medicationNotes,
@@ -929,37 +1033,24 @@ export default function FamilyMemberHealthView() {
                     >
                       {history.condition}
                     </Text>
-                    {history.severity && (
+                    {Boolean(history.severity) && (
                       <View
                         style={[
                           styles.severityBadge,
                           {
-                            backgroundColor:
-                              history.severity === "severe"
-                                ? "#EF4444"
-                                : history.severity === "moderate"
-                                  ? "#F59E0B"
-                                  : "#10B981",
+                            backgroundColor: getHistorySeverityColor(
+                              history.severity
+                            ),
                           },
                         ]}
                       >
                         <Text style={styles.severityBadgeText}>
-                          {history.severity === "severe"
-                            ? isRTL
-                              ? "شديد"
-                              : "Severe"
-                            : history.severity === "moderate"
-                              ? isRTL
-                                ? "متوسط"
-                                : "Moderate"
-                              : isRTL
-                                ? "خفيف"
-                                : "Mild"}
+                          {getHistorySeverityLabel(history.severity, isRTL)}
                         </Text>
                       </View>
                     )}
                   </View>
-                  {history.diagnosedDate && (
+                  {history.diagnosedDate ? (
                     <View style={styles.historyDate}>
                       <Calendar color="#64748B" size={14} />
                       <Text
@@ -972,8 +1063,8 @@ export default function FamilyMemberHealthView() {
                         {formatDate(history.diagnosedDate)}
                       </Text>
                     </View>
-                  )}
-                  {history.notes && (
+                  ) : null}
+                  {Boolean(history.notes) && (
                     <Text
                       style={[styles.historyNotes, isRTL && styles.rtlText]}
                     >
@@ -1022,37 +1113,18 @@ export default function FamilyMemberHealthView() {
                       style={[
                         styles.severityBadge,
                         {
-                          backgroundColor:
-                            allergy.severity === "severe-life-threatening"
-                              ? "#7F1D1D"
-                              : allergy.severity === "severe"
-                                ? "#DC2626"
-                                : allergy.severity === "moderate"
-                                  ? "#F59E0B"
-                                  : "#10B981",
+                          backgroundColor: getAllergySeverityColor(
+                            allergy.severity
+                          ),
                         },
                       ]}
                     >
                       <Text style={styles.severityBadgeText}>
-                        {allergy.severity === "severe-life-threatening"
-                          ? isRTL
-                            ? "خطير جداً"
-                            : "Life-threatening"
-                          : allergy.severity === "severe"
-                            ? isRTL
-                              ? "شديد"
-                              : "Severe"
-                            : allergy.severity === "moderate"
-                              ? isRTL
-                                ? "متوسط"
-                                : "Moderate"
-                              : isRTL
-                                ? "خفيف"
-                                : "Mild"}
+                        {getAllergySeverityLabel(allergy.severity, isRTL)}
                       </Text>
                     </View>
                   </View>
-                  {allergy.reaction && (
+                  {Boolean(allergy.reaction) && (
                     <Text
                       style={[styles.allergyReaction, isRTL && styles.rtlText]}
                     >
@@ -1060,7 +1132,7 @@ export default function FamilyMemberHealthView() {
                       {allergy.reaction}
                     </Text>
                   )}
-                  {allergy.notes && (
+                  {Boolean(allergy.notes) && (
                     <Text
                       style={[styles.allergyNotes, isRTL && styles.rtlText]}
                     >

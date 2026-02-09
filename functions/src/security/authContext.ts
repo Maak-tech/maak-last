@@ -5,17 +5,28 @@
 import { getUsersCollection } from "../db/collections";
 import type { UserRole } from "../db/firestore";
 
-export interface AuthContext {
+type CallableAuthContext = {
+  auth?: {
+    uid?: string;
+    token?: {
+      email?: string;
+    };
+  };
+};
+
+export type AuthContext = {
   uid: string;
   email?: string;
   role?: UserRole;
   familyId?: string;
-}
+};
 
 /**
  * Extract auth context from Firebase Functions context
  */
-export function extractAuthContext(context: any): AuthContext | null {
+export function extractAuthContext(
+  context: CallableAuthContext
+): AuthContext | null {
   if (!context.auth?.uid) {
     return null;
   }
@@ -49,7 +60,7 @@ export async function enrichAuthContext(
       role: userData.role,
       familyId: userData.familyId,
     };
-  } catch (error) {
+  } catch (_error) {
     // If enrichment fails, return base context
     return authContext;
   }
@@ -58,12 +69,12 @@ export async function enrichAuthContext(
 /**
  * Get full auth context (extract + enrich)
  */
-export async function getAuthContext(
-  context: any
+export function getAuthContext(
+  context: CallableAuthContext
 ): Promise<AuthContext | null> {
   const baseContext = extractAuthContext(context);
   if (!baseContext) {
-    return null;
+    return Promise.resolve(null);
   }
 
   return enrichAuthContext(baseContext);

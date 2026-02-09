@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
+﻿import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -25,8 +25,9 @@ import {
 import { safeFormatDate } from "@/utils/dateFormat";
 import { getTextStyle } from "@/utils/styles";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen aggregates multiple complex health sections.
 export default function HealthSummaryScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
   const params = useLocalSearchParams();
@@ -87,7 +88,7 @@ export default function HealthSummaryScreen() {
     },
     metricCard: {
       flex: 1,
-      minWidth: "45%" as any,
+      minWidth: 160,
       backgroundColor: theme.colors.background.secondary,
       borderRadius: theme.borderRadius.lg,
       padding: theme.spacing.lg,
@@ -189,12 +190,10 @@ export default function HealthSummaryScreen() {
     },
   };
 
-  useEffect(() => {
-    loadSummary();
-  }, [period, user?.id]);
-
-  const loadSummary = async () => {
-    if (!user?.id) return;
+  const loadSummary = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
 
     setLoading(true);
     try {
@@ -213,12 +212,16 @@ export default function HealthSummaryScreen() {
         );
       }
       setSummary(summaryData);
-    } catch (error) {
+    } catch (_error) {
       // Error loading health summary
     } finally {
       setLoading(false);
     }
-  };
+  }, [isRTL, period, user?.id]);
+
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
 
   const getInsightIcon = (type: HealthInsight["type"]) => {
     const iconProps = { size: 20 };
@@ -294,6 +297,36 @@ export default function HealthSummaryScreen() {
     }
   };
 
+  const getCurrentPeriodLabel = (trendPeriod: HealthTrend["period"]) => {
+    if (trendPeriod === "weekly") {
+      return isRTL
+        ? "Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹"
+        : "this week";
+    }
+    return isRTL ? "Ã™â€¡Ã˜Â°Ã˜Â§ Ã˜Â§Ã™â€žÃ˜Â´Ã™â€¡Ã˜Â±" : "this month";
+  };
+
+  const getPreviousPeriodLabel = (trendPeriod: HealthTrend["period"]) => {
+    if (trendPeriod === "weekly") {
+      return isRTL
+        ? "Ã˜Â§Ã™â€žÃ˜Â£Ã˜Â³Ã˜Â¨Ã™Ë†Ã˜Â¹ Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â§Ã˜Â¶Ã™Å "
+        : "last week";
+    }
+    return isRTL
+      ? "Ã˜Â§Ã™â€žÃ˜Â´Ã™â€¡Ã˜Â± Ã˜Â§Ã™â€žÃ™â€¦Ã˜Â§Ã˜Â¶Ã™Å "
+      : "last month";
+  };
+
+  const getTrendChangeStyle = (change: number) => {
+    if (change > 0) {
+      return styles.trendChangeNegative;
+    }
+    if (change < 0) {
+      return styles.trendChangePositive;
+    }
+    return {};
+  };
+
   const formatDateRange = (start: Date, end: Date): string => {
     const options = {
       month: "short",
@@ -312,14 +345,16 @@ export default function HealthSummaryScreen() {
   };
 
   const renderOverview = () => {
-    if (!summary) return null;
+    if (!summary) {
+      return null;
+    }
 
     const { overview } = summary;
 
     return (
       <Card
         contentStyle={{}}
-        onPress={() => {}}
+        onPress={undefined}
         pressable={false}
         style={styles.overviewCard}
         variant="elevated"
@@ -328,21 +363,21 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "نظرة عامة" : "Overview"}
+          {isRTL ? "Ù†Ø¸Ø±Ø© Ø¹Ø§Ù…Ø©" : "Overview"}
         </Heading>
 
         <View style={styles.overviewGrid}>
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>{overview.totalSymptoms}</Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "الأعراض الصحية" : "Symptoms"}
+              {isRTL ? "Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø§Ù„ØµØ­ÙŠØ©" : "Symptoms"}
             </Text>
           </View>
 
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>{overview.averageSeverity}</Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "متوسط الشدة" : "Avg Severity"}
+              {isRTL ? "Ù…ØªÙˆØ³Ø· Ø§Ù„Ø´Ø¯Ø©" : "Avg Severity"}
             </Text>
           </View>
 
@@ -351,14 +386,14 @@ export default function HealthSummaryScreen() {
               {overview.medicationAdherence}%
             </Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "الالتزام بالدواء" : "Med Adherence"}
+              {isRTL ? "Ø§Ù„Ø§Ù„ØªØ²Ø§Ù… Ø¨Ø§Ù„Ø¯ÙˆØ§Ø¡" : "Med Adherence"}
             </Text>
           </View>
 
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>{overview.healthScore}</Text>
             <Text style={styles.metricLabel}>
-              {isRTL ? "نقاط الصحة" : "Health Score"}
+              {isRTL ? "Ù†Ù‚Ø§Ø· Ø§Ù„ØµØ­Ø©" : "Health Score"}
             </Text>
           </View>
         </View>
@@ -367,7 +402,9 @@ export default function HealthSummaryScreen() {
   };
 
   const renderInsights = () => {
-    if (!summary || summary.insights.length === 0) return null;
+    if (!summary || summary.insights.length === 0) {
+      return null;
+    }
 
     return (
       <View style={styles.section}>
@@ -375,14 +412,14 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "التحليلات" : "Insights"}
+          {isRTL ? "Ø§Ù„ØªØ­Ù„ÙŠÙ„Ø§Øª" : "Insights"}
         </Heading>
 
-        {summary.insights.map((insight, index) => (
+        {summary.insights.map((insight) => (
           <Card
             contentStyle={{}}
-            key={index}
-            onPress={() => {}}
+            key={`${insight.type}-${insight.title}-${insight.metric ?? "none"}`}
+            onPress={undefined}
             pressable={false}
             style={styles.insightCard}
             variant="outlined"
@@ -398,13 +435,13 @@ export default function HealthSummaryScreen() {
               {insight.description}
             </Text>
 
-            {insight.metric && (
+            {insight.metric ? (
               <Text style={[styles.insightMetric, isRTL && styles.rtlText]}>
                 {insight.metric}:{" "}
                 {insight.change !== undefined &&
                   `${insight.change > 0 ? "+" : ""}${insight.change.toFixed(1)}`}
               </Text>
-            )}
+            ) : null}
           </Card>
         ))}
       </View>
@@ -412,7 +449,9 @@ export default function HealthSummaryScreen() {
   };
 
   const renderPatterns = () => {
-    if (!summary || summary.patterns.length === 0) return null;
+    if (!summary || summary.patterns.length === 0) {
+      return null;
+    }
 
     return (
       <View style={styles.section}>
@@ -420,14 +459,16 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "الأنماط الصحية المكتشفة" : "Detected Patterns"}
+          {isRTL
+            ? "Ø§Ù„Ø£Ù†Ù…Ø§Ø· Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ù…ÙƒØªØ´ÙØ©"
+            : "Detected Patterns"}
         </Heading>
 
-        {summary.patterns.map((pattern, index) => (
+        {summary.patterns.map((pattern) => (
           <Card
             contentStyle={{}}
-            key={index}
-            onPress={() => {}}
+            key={`${pattern.type}-${pattern.title}-${pattern.confidence}`}
+            onPress={undefined}
             pressable={false}
             style={styles.patternCard}
             variant="outlined"
@@ -446,20 +487,20 @@ export default function HealthSummaryScreen() {
               {pattern.description}
             </Text>
 
-            {pattern.examples.length > 0 && (
+            {pattern.examples.length > 0 ? (
               <View style={styles.patternExamples}>
-                {pattern.examples.map((example, exIndex) => (
+                {pattern.examples.map((example) => (
                   <Text
-                    key={exIndex}
+                    key={`${pattern.title}-${example}`}
                     style={[styles.patternExample, isRTL && styles.rtlText]}
                   >
-                    • {example}
+                    â€¢ {example}
                   </Text>
                 ))}
               </View>
-            )}
+            ) : null}
 
-            {pattern.recommendation && (
+            {pattern.recommendation ? (
               <Text
                 style={[
                   styles.insightDescription,
@@ -467,9 +508,9 @@ export default function HealthSummaryScreen() {
                   { marginTop: theme.spacing.sm },
                 ]}
               >
-                💡 {pattern.recommendation}
+                ðŸ’¡ {pattern.recommendation}
               </Text>
-            )}
+            ) : null}
           </Card>
         ))}
       </View>
@@ -477,7 +518,9 @@ export default function HealthSummaryScreen() {
   };
 
   const renderTrends = () => {
-    if (!summary || summary.trends.length === 0) return null;
+    if (!summary || summary.trends.length === 0) {
+      return null;
+    }
 
     return (
       <View style={styles.section}>
@@ -485,14 +528,14 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "الاتجاهات الصحية" : "Trends"}
+          {isRTL ? "Ø§Ù„Ø§ØªØ¬Ø§Ù‡Ø§Øª Ø§Ù„ØµØ­ÙŠØ©" : "Trends"}
         </Heading>
 
-        {summary.trends.map((trend, index) => (
+        {summary.trends.map((trend) => (
           <Card
             contentStyle={{}}
-            key={index}
-            onPress={() => {}}
+            key={`${trend.metric}-${trend.period}`}
+            onPress={undefined}
             pressable={false}
             style={styles.trendCard}
             variant="outlined"
@@ -505,32 +548,15 @@ export default function HealthSummaryScreen() {
             </View>
 
             <Text style={[styles.insightDescription, isRTL && styles.rtlText]}>
-              {trend.currentValue}{" "}
-              {trend.period === "weekly"
-                ? isRTL
-                  ? "هذا الأسبوع"
-                  : "this week"
-                : isRTL
-                  ? "هذا الشهر"
-                  : "this month"}
+              {trend.currentValue} {getCurrentPeriodLabel(trend.period)}
               {" vs "} {trend.previousValue}{" "}
-              {trend.period === "weekly"
-                ? isRTL
-                  ? "الأسبوع الماضي"
-                  : "last week"
-                : isRTL
-                  ? "الشهر الماضي"
-                  : "last month"}
+              {getPreviousPeriodLabel(trend.period)}
             </Text>
 
             <Text
               style={[
                 styles.trendChange,
-                trend.change > 0
-                  ? styles.trendChangeNegative
-                  : trend.change < 0
-                    ? styles.trendChangePositive
-                    : {},
+                getTrendChangeStyle(trend.change),
                 isRTL && styles.rtlText,
               ]}
             >
@@ -544,7 +570,9 @@ export default function HealthSummaryScreen() {
   };
 
   const renderRecommendations = () => {
-    if (!summary || summary.recommendations.length === 0) return null;
+    if (!summary || summary.recommendations.length === 0) {
+      return null;
+    }
 
     return (
       <View style={styles.section}>
@@ -552,11 +580,11 @@ export default function HealthSummaryScreen() {
           level={4}
           style={[styles.sectionTitle, isRTL && styles.rtlText]}
         >
-          {isRTL ? "التوصيات" : "Recommendations"}
+          {isRTL ? "Ø§Ù„ØªÙˆØµÙŠØ§Øª" : "Recommendations"}
         </Heading>
 
-        {summary.recommendations.map((recommendation, index) => (
-          <View key={index} style={styles.recommendationCard}>
+        {summary.recommendations.map((recommendation) => (
+          <View key={recommendation} style={styles.recommendationCard}>
             <Text style={[styles.recommendationText, isRTL && styles.rtlText]}>
               {recommendation}
             </Text>
@@ -572,7 +600,7 @@ export default function HealthSummaryScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
             {isRTL
-              ? "يجب تسجيل الدخول لعرض ملخص الصحة"
+              ? "ÙŠØ¬Ø¨ ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„Ø¹Ø±Ø¶ Ù…Ù„Ø®Øµ Ø§Ù„ØµØ­Ø©"
               : "Please log in to view health summary"}
           </Text>
         </View>
@@ -595,16 +623,16 @@ export default function HealthSummaryScreen() {
         </TouchableOpacity>
 
         <Heading level={3} style={[isRTL && styles.rtlText]}>
-          {isRTL ? "ملخص الصحة" : "Health Summary"}
+          {isRTL ? "Ù…Ù„Ø®Øµ Ø§Ù„ØµØ­Ø©" : "Health Summary"}
         </Heading>
 
-        {summary && (
+        {summary ? (
           <Caption
             style={[isRTL && styles.rtlText, { marginTop: theme.spacing.xs }]}
           >
             {formatDateRange(summary.startDate, summary.endDate)}
           </Caption>
-        )}
+        ) : null}
 
         <View style={styles.periodSelector}>
           <TouchableOpacity
@@ -620,7 +648,7 @@ export default function HealthSummaryScreen() {
                 period === "weekly" && styles.periodButtonTextActive,
               ]}
             >
-              {isRTL ? "أسبوعي" : "Weekly"}
+              {isRTL ? "Ø£Ø³Ø¨ÙˆØ¹ÙŠ" : "Weekly"}
             </Text>
           </TouchableOpacity>
 
@@ -637,7 +665,7 @@ export default function HealthSummaryScreen() {
                 period === "monthly" && styles.periodButtonTextActive,
               ]}
             >
-              {isRTL ? "شهري" : "Monthly"}
+              {isRTL ? "Ø´Ù‡Ø±ÙŠ" : "Monthly"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -648,7 +676,7 @@ export default function HealthSummaryScreen() {
           <ActivityIndicator color={theme.colors.primary.main} size="large" />
           <Text style={[styles.emptyText, { marginTop: theme.spacing.md }]}>
             {isRTL
-              ? "جاري تحليل بياناتك الصحية..."
+              ? "Ø¬Ø§Ø±ÙŠ ØªØ­Ù„ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§ØªÙƒ Ø§Ù„ØµØ­ÙŠØ©..."
               : "Analyzing your health data..."}
           </Text>
         </View>
@@ -671,7 +699,7 @@ export default function HealthSummaryScreen() {
               />
               <Text style={styles.emptyText}>
                 {isRTL
-                  ? "لا توجد بيانات كافية لإنشاء ملخص. سجل المزيد من الأعراض والأدوية للحصول على التحليلات الصحية المفيدة."
+                  ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¨ÙŠØ§Ù†Ø§Øª ÙƒØ§ÙÙŠØ© Ù„Ø¥Ù†Ø´Ø§Ø¡ Ù…Ù„Ø®Øµ. Ø³Ø¬Ù„ Ø§Ù„Ù…Ø²ÙŠØ¯ Ù…Ù† Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØ§Ù„Ø£Ø¯ÙˆÙŠØ© Ù„Ù„Ø­ØµÙˆÙ„ Ø¹Ù„Ù‰ Ø§Ù„ØªØ­Ù„ÙŠÙ„Ø§Øª Ø§Ù„ØµØ­ÙŠØ© Ø§Ù„Ù…ÙÙŠØ¯Ø©."
                   : "Not enough data to generate insights. Log more symptoms and medications for personalized insights."}
               </Text>
             </View>

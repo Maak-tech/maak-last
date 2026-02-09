@@ -86,10 +86,10 @@ export async function benchmarkAnalysis(iterations = 10): Promise<{
 
     try {
       await runTestAnalysis();
-      successCount++;
+      successCount += 1;
       const duration = Date.now() - startTime;
       durations.push(duration);
-    } catch (error) {
+    } catch (_error) {
       logger.warn("Benchmark iteration failed", {
         iteration: i,
         fn: "zeina.utils.benchmarkAnalysis",
@@ -185,7 +185,7 @@ export async function testPHISanitization(): Promise<{
 export function printMetrics(): void {
   // Metrics printing disabled for production
   // Call getMetrics() to ensure metrics are tracked
-  void getMetrics();
+  getMetrics();
 }
 
 /**

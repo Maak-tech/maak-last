@@ -12,7 +12,7 @@ import type { Medication, Mood, Symptom, VitalSign } from "@/types";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 
-export interface CorrelationResult {
+export type CorrelationResult = {
   type:
     | "symptom_medication"
     | "symptom_mood"
@@ -29,20 +29,20 @@ export interface CorrelationResult {
     factor1: string;
     factor2: string;
     correlationType: string;
-    supportingData?: any;
+    supportingData?: unknown;
   };
-}
+};
 
-export interface CorrelationInsight {
+export type CorrelationInsight = {
   id: string;
   title: string;
   description: string;
   correlationResults: CorrelationResult[];
   timestamp: Date;
   userId: string;
-}
+};
 
-export interface CrossCorrelationMatrix {
+export type CrossCorrelationMatrix = {
   symptoms: string[];
   medications: string[];
   moods: string[];
@@ -54,14 +54,16 @@ export interface CrossCorrelationMatrix {
     pValue: number;
     sampleSize: number;
   }>;
-}
+};
 
 class CorrelationAnalysisService {
   /**
    * Calculate Pearson correlation coefficient
    */
   private calculatePearsonCorrelation(x: number[], y: number[]): number {
-    if (x.length !== y.length || x.length < 2) return 0;
+    if (x.length !== y.length || x.length < 2) {
+      return 0;
+    }
 
     const n = x.length;
     const sumX = x.reduce((a, b) => a + b, 0);
@@ -82,7 +84,9 @@ class CorrelationAnalysisService {
    * Calculate Spearman rank correlation (more robust for ordinal data)
    */
   private calculateSpearmanCorrelation(x: number[], y: number[]): number {
-    if (x.length !== y.length || x.length < 2) return 0;
+    if (x.length !== y.length || x.length < 2) {
+      return 0;
+    }
 
     // Create rank arrays
     const xRanks = this.getRanks(x);
@@ -100,52 +104,21 @@ class CorrelationAnalysisService {
   }
 
   /**
-   * Calculate point-biserial correlation for binary vs continuous data
-   */
-  private calculatePointBiserialCorrelation(
-    binary: number[],
-    continuous: number[]
-  ): number {
-    if (binary.length !== continuous.length || binary.length < 2) return 0;
-
-    const n = binary.length;
-    const n1 = binary.reduce((sum, val) => sum + val, 0); // Number of 1s
-    const n0 = n - n1; // Number of 0s
-
-    if (n1 === 0 || n0 === 0) return 0;
-
-    const mean1 =
-      binary.reduce((sum, val, i) => sum + (val === 1 ? continuous[i] : 0), 0) /
-      n1;
-    const mean0 =
-      binary.reduce((sum, val, i) => sum + (val === 0 ? continuous[i] : 0), 0) /
-      n0;
-    const overallMean = continuous.reduce((sum, val) => sum + val, 0) / n;
-
-    const variance =
-      continuous.reduce((sum, val) => sum + (val - overallMean) ** 2, 0) / n;
-
-    if (variance === 0) return 0;
-
-    return (
-      ((mean1 - mean0) / Math.sqrt(variance)) * Math.sqrt((n1 * n0) / (n * n))
-    );
-  }
-
-  /**
    * Analyze correlations between symptoms and medications
    */
-  private async analyzeSymptomMedicationCorrelations(
+  private analyzeSymptomMedicationCorrelations(
     symptoms: Symptom[],
     medications: Medication[],
     isArabic = false
-  ): Promise<CorrelationResult[]> {
+  ): CorrelationResult[] {
     const results: CorrelationResult[] = [];
 
-    if (symptoms.length === 0 || medications.length === 0) return results;
+    if (symptoms.length === 0 || medications.length === 0) {
+      return results;
+    }
 
     // Group symptoms by date for time-series analysis
-    const symptomsByDate = this.groupSymptomsByDate(symptoms);
+    const _symptomsByDate = this.groupSymptomsByDate(symptoms);
 
     for (const medication of medications) {
       const medStartDate = medication.startDate;
@@ -154,7 +127,9 @@ class CorrelationAnalysisService {
       const symptomsBefore = symptoms.filter((s) => s.timestamp < medStartDate);
       const symptomsAfter = symptoms.filter((s) => s.timestamp >= medStartDate);
 
-      if (symptomsBefore.length < 3 || symptomsAfter.length < 3) continue;
+      if (symptomsBefore.length < 3 || symptomsAfter.length < 3) {
+        continue;
+      }
 
       // Calculate average severity before and after
       const avgSeverityBefore =
@@ -231,19 +206,23 @@ class CorrelationAnalysisService {
   /**
    * Analyze correlations between symptoms and mood
    */
-  private async analyzeSymptomMoodCorrelations(
+  private analyzeSymptomMoodCorrelations(
     symptoms: Symptom[],
     moods: Mood[],
     isArabic = false
-  ): Promise<CorrelationResult[]> {
+  ): CorrelationResult[] {
     const results: CorrelationResult[] = [];
 
-    if (symptoms.length === 0 || moods.length === 0) return results;
+    if (symptoms.length === 0 || moods.length === 0) {
+      return results;
+    }
 
     // Create time-aligned datasets
     const timePoints = this.getCommonTimePoints(symptoms, moods);
 
-    if (timePoints.length < 5) return results;
+    if (timePoints.length < 5) {
+      return results;
+    }
 
     const symptomSeverities: number[] = [];
     const moodIntensities: number[] = [];
@@ -318,26 +297,32 @@ class CorrelationAnalysisService {
   /**
    * Analyze correlations between symptoms and vital signs
    */
-  private async analyzeSymptomVitalCorrelations(
+  private analyzeSymptomVitalCorrelations(
     symptoms: Symptom[],
     vitals: VitalSign[],
     isArabic = false
-  ): Promise<CorrelationResult[]> {
+  ): CorrelationResult[] {
     const results: CorrelationResult[] = [];
 
-    if (symptoms.length === 0 || vitals.length === 0) return results;
+    if (symptoms.length === 0 || vitals.length === 0) {
+      return results;
+    }
 
     // Group vitals by type
     const vitalsByType: Record<string, VitalSign[]> = {};
     vitals.forEach((vital) => {
-      if (!vitalsByType[vital.type]) vitalsByType[vital.type] = [];
+      if (!vitalsByType[vital.type]) {
+        vitalsByType[vital.type] = [];
+      }
       vitalsByType[vital.type].push(vital);
     });
 
     for (const [vitalType, vitalData] of Object.entries(vitalsByType)) {
       const timePoints = this.getCommonTimePoints(symptoms, vitalData);
 
-      if (timePoints.length < 5) continue;
+      if (timePoints.length < 5) {
+        continue;
+      }
 
       const symptomSeverities: number[] = [];
       const vitalValues: number[] = [];
@@ -405,13 +390,13 @@ class CorrelationAnalysisService {
   /**
    * Analyze temporal patterns across all health data
    */
-  private async analyzeTemporalPatterns(
+  private analyzeTemporalPatterns(
     symptoms: Symptom[],
-    medications: Medication[],
+    _medications: Medication[],
     moods: Mood[],
-    vitals: VitalSign[],
-    isArabic = false
-  ): Promise<CorrelationResult[]> {
+    _vitals: VitalSign[],
+    _isArabic = false
+  ): CorrelationResult[] {
     const results: CorrelationResult[] = [];
 
     // Analyze day-of-week patterns
@@ -438,7 +423,9 @@ class CorrelationAnalysisService {
   ): CorrelationResult[] {
     const results: CorrelationResult[] = [];
 
-    if (symptoms.length < 14) return results; // Need at least 2 weeks of data
+    if (symptoms.length < 14) {
+      return results; // Need at least 2 weeks of data
+    }
 
     // Group by day of week
     const symptomSeverityByDay: Record<number, number[]> = {};
@@ -446,20 +433,24 @@ class CorrelationAnalysisService {
 
     symptoms.forEach((symptom) => {
       const day = symptom.timestamp.getDay();
-      if (!symptomSeverityByDay[day]) symptomSeverityByDay[day] = [];
+      if (!symptomSeverityByDay[day]) {
+        symptomSeverityByDay[day] = [];
+      }
       symptomSeverityByDay[day].push(symptom.severity);
     });
 
     moods.forEach((mood) => {
       const day = mood.timestamp.getDay();
-      if (!moodIntensityByDay[day]) moodIntensityByDay[day] = [];
+      if (!moodIntensityByDay[day]) {
+        moodIntensityByDay[day] = [];
+      }
       moodIntensityByDay[day].push(mood.intensity);
     });
 
     // Calculate average severity by day
     const avgSeverityByDay: Record<number, number> = {};
     Object.keys(symptomSeverityByDay).forEach((day) => {
-      const dayNum = Number.parseInt(day);
+      const dayNum = Number.parseInt(day, 10);
       avgSeverityByDay[dayNum] =
         symptomSeverityByDay[dayNum].reduce((a, b) => a + b, 0) /
         symptomSeverityByDay[dayNum].length;
@@ -471,10 +462,10 @@ class CorrelationAnalysisService {
 
     const weekdayAvg = weekdays
       .map((d) => avgSeverityByDay[d])
-      .filter((v) => !isNaN(v));
+      .filter((v) => !Number.isNaN(v));
     const weekendAvg = weekends
       .map((d) => avgSeverityByDay[d])
-      .filter((v) => !isNaN(v));
+      .filter((v) => !Number.isNaN(v));
 
     if (weekdayAvg.length >= 3 && weekendAvg.length >= 2) {
       const weekdayMean =
@@ -521,21 +512,25 @@ class CorrelationAnalysisService {
   private analyzeTimeOfDayPatterns(symptoms: Symptom[]): CorrelationResult[] {
     const results: CorrelationResult[] = [];
 
-    if (symptoms.length < 20) return results;
+    if (symptoms.length < 20) {
+      return results;
+    }
 
     // Group by hour of day
     const severityByHour: Record<number, number[]> = {};
 
     symptoms.forEach((symptom) => {
       const hour = symptom.timestamp.getHours();
-      if (!severityByHour[hour]) severityByHour[hour] = [];
+      if (!severityByHour[hour]) {
+        severityByHour[hour] = [];
+      }
       severityByHour[hour].push(symptom.severity);
     });
 
     // Find peak hours
     const avgSeverityByHour: Record<number, number> = {};
     Object.keys(severityByHour).forEach((hour) => {
-      const hourNum = Number.parseInt(hour);
+      const hourNum = Number.parseInt(hour, 10);
       avgSeverityByHour[hourNum] =
         severityByHour[hourNum].reduce((a, b) => a + b, 0) /
         severityByHour[hourNum].length;
@@ -546,7 +541,7 @@ class CorrelationAnalysisService {
     )[0];
 
     if (peakHour && peakHour[1] > 3.5) {
-      const hour = Number.parseInt(peakHour[0]);
+      const hour = Number.parseInt(peakHour[0], 10);
       const period =
         hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
 
@@ -582,7 +577,9 @@ class CorrelationAnalysisService {
   ): CorrelationResult[] {
     const results: CorrelationResult[] = [];
 
-    if (symptoms.length < 30) return results; // Need substantial data
+    if (symptoms.length < 30) {
+      return results; // Need substantial data
+    }
 
     // Group by month
     const severityByMonth: Record<number, number[]> = {};
@@ -590,13 +587,17 @@ class CorrelationAnalysisService {
 
     symptoms.forEach((symptom) => {
       const month = symptom.timestamp.getMonth();
-      if (!severityByMonth[month]) severityByMonth[month] = [];
+      if (!severityByMonth[month]) {
+        severityByMonth[month] = [];
+      }
       severityByMonth[month].push(symptom.severity);
     });
 
     moods.forEach((mood) => {
       const month = mood.timestamp.getMonth();
-      if (!moodByMonth[month]) moodByMonth[month] = [];
+      if (!moodByMonth[month]) {
+        moodByMonth[month] = [];
+      }
       moodByMonth[month].push(mood.intensity);
     });
 
@@ -813,13 +814,18 @@ class CorrelationAnalysisService {
     const grouped: Record<string, Symptom[]> = {};
     symptoms.forEach((symptom) => {
       const dateKey = symptom.timestamp.toDateString();
-      if (!grouped[dateKey]) grouped[dateKey] = [];
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
       grouped[dateKey].push(symptom);
     });
     return grouped;
   }
 
-  private getCommonTimePoints(data1: any[], data2: any[]): Date[] {
+  private getCommonTimePoints(
+    data1: Array<{ timestamp: Date }>,
+    data2: Array<{ timestamp: Date }>
+  ): Date[] {
     const dates1 = new Set(data1.map((item) => item.timestamp.toDateString()));
     const dates2 = new Set(data2.map((item) => item.timestamp.toDateString()));
 
@@ -850,7 +856,7 @@ class CorrelationAnalysisService {
             timestamp: doc.data().timestamp?.toDate?.() || new Date(),
           }) as Mood
       );
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -878,7 +884,7 @@ class CorrelationAnalysisService {
             timestamp: doc.data().timestamp?.toDate?.() || new Date(),
           }) as VitalSign
       );
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -905,8 +911,9 @@ class CorrelationAnalysisService {
     isArabic = false
   ): string {
     if (isArabic) {
-      if (Math.abs(correlation) < 0.5)
+      if (Math.abs(correlation) < 0.5) {
         return "استمر في مراقبة كل من الأعراض والعلامات الحيوية";
+      }
 
       if (correlation > 0.7) {
         return `راقب ${vitalType} عن كثب عندما تتفاقم الأعراض، حيث قد تكون مرتبطة`;
@@ -918,8 +925,9 @@ class CorrelationAnalysisService {
       return "فكر في مناقشة هذه العلاقة مع مقدم الرعاية الصحية";
     }
 
-    if (Math.abs(correlation) < 0.5)
+    if (Math.abs(correlation) < 0.5) {
       return "Continue monitoring both symptoms and vital signs";
+    }
 
     if (correlation > 0.7) {
       return `Monitor ${vitalType} closely when symptoms worsen, as they may be related`;

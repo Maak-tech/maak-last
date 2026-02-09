@@ -24,15 +24,21 @@ export const getTextStyle = (
   weight: "regular" | "medium" | "semibold" | "bold" = "regular",
   color?: string
 ): TextStyle => {
+  const resolveFontFamily = (): string => {
+    if (weight === "bold") {
+      return theme.typography.fontFamily.bold;
+    }
+    if (weight === "semibold") {
+      return theme.typography.fontFamily.semiBold;
+    }
+    if (weight === "medium") {
+      return theme.typography.fontFamily.medium;
+    }
+    return theme.typography.fontFamily.regular;
+  };
+
   const baseStyles: TextStyle = {
-    fontFamily:
-      weight === "bold"
-        ? theme.typography.fontFamily.bold
-        : weight === "semibold"
-          ? theme.typography.fontFamily.semiBold
-          : weight === "medium"
-            ? theme.typography.fontFamily.medium
-            : theme.typography.fontFamily.regular,
+    fontFamily: resolveFontFamily(),
     color: color || theme.colors.text.primary,
   };
 

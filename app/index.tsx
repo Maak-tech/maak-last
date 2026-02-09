@@ -7,6 +7,7 @@ export default function Index() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const lastNavigationTarget = useRef<string | null>(null);
+  type RouteTarget = Parameters<typeof router.replace>[0];
 
   useEffect(() => {
     if (loading) {
@@ -14,7 +15,7 @@ export default function Index() {
     }
 
     // Determine target route based on user state
-    let targetRoute: string | null = null;
+    let targetRoute: RouteTarget | null = null;
     if (!user) {
       targetRoute = "/(auth)/login";
     } else if (user.onboardingCompleted !== true) {
@@ -33,17 +34,17 @@ export default function Index() {
     lastNavigationTarget.current = targetRoute;
 
     try {
-      router.replace(targetRoute as any);
-    } catch (error) {
+      router.replace(targetRoute);
+    } catch (_error) {
       lastNavigationTarget.current = null;
       // Fallback to login on navigation error
       try {
         router.replace("/(auth)/login");
-      } catch (fallbackError) {
+      } catch (_fallbackError) {
         // Last resort - do nothing and let user see loading screen
       }
     }
-  }, [loading, user?.id, user?.onboardingCompleted]);
+  }, [loading, router, user]);
 
   return (
     <View style={styles.container}>

@@ -3,7 +3,7 @@
  * Handles retrieval of Firebase Cloud Messaging tokens for users
  */
 
-import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
 
 /**
@@ -25,7 +25,7 @@ export async function getUserTokens(
   });
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 

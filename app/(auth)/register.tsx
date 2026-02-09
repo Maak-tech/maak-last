@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import i18nInstance from "@/lib/i18n";
 import type { AvatarType } from "@/types";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Registration screen includes modal avatar picker, optional family code flow, and bilingual UI branches.
 export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const { signUp, loading, user } = useAuth();
@@ -65,6 +66,7 @@ export default function RegisterScreen() {
     return;
   }, [firstName, lastName]);
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Validation and onboarding side effects are intentionally explicit for clarity.
   const handleRegister = async () => {
     setErrors({});
 
@@ -120,10 +122,12 @@ export default function RegisterScreen() {
       await signUp(email, password, firstName, lastName, selectedAvatarType);
       // Don't navigate here - let the useEffect above handle navigation
       // once the auth state has fully updated
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const rawErrorMessage =
+        error instanceof Error ? error.message : undefined;
       setErrors({
         general:
-          error.message ||
+          rawErrorMessage ||
           (isRTL
             ? "فشل التسجيل. يرجى المحاولة مرة أخرى."
             : "Registration failed. Please try again."),
@@ -135,10 +139,10 @@ export default function RegisterScreen() {
     try {
       const newLang = i18n.language === "en" ? "ar" : "en";
       await i18nInstance.changeLanguage(newLang);
-    } catch (error) {
+    } catch {
       // Fallback to using hook's i18n if instance fails
       try {
-        if (i18n && i18n.changeLanguage) {
+        if (i18n?.changeLanguage) {
           await i18n.changeLanguage(i18n.language === "en" ? "ar" : "en");
         }
       } catch {
@@ -154,13 +158,13 @@ export default function RegisterScreen() {
         style={styles.keyboardContainer}
       >
         <ScrollView
+          automaticallyAdjustKeyboardInsets={false}
           bounces={false}
           contentContainerStyle={styles.scrollContainer}
           contentInsetAdjustmentBehavior="never"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets={false}
         >
           <View
             style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}
@@ -196,13 +200,13 @@ export default function RegisterScreen() {
               {t("createAccount")}
             </Text>
 
-            {errors?.general && (
+            {errors.general ? (
               <View style={styles.errorContainer}>
                 <Text style={[styles.errorText, isRTL && styles.rtlText]}>
                   {errors.general}
                 </Text>
               </View>
-            )}
+            ) : null}
 
             {/* Avatar Selection */}
             <View style={styles.avatarContainer}>
@@ -286,11 +290,11 @@ export default function RegisterScreen() {
                 textContentType="none"
                 value={password ?? ""}
               />
-              {errors?.password && (
+              {errors.password ? (
                 <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
                   {errors.password}
                 </Text>
-              )}
+              ) : null}
             </View>
 
             <View style={styles.inputContainer}>
@@ -312,11 +316,11 @@ export default function RegisterScreen() {
                 textContentType="none"
                 value={confirmPassword ?? ""}
               />
-              {errors?.confirmPassword && (
+              {errors.confirmPassword ? (
                 <Text style={[styles.fieldErrorText, isRTL && styles.rtlText]}>
                   {errors.confirmPassword}
                 </Text>
-              )}
+              ) : null}
             </View>
 
             {/* Family Code Section */}
@@ -340,7 +344,7 @@ export default function RegisterScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {showFamilyCode && (
+              {showFamilyCode ? (
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isRTL && styles.labelRTL]}>
                     {t("familyCode", "Family Code")}
@@ -363,7 +367,7 @@ export default function RegisterScreen() {
                       : "Enter the invitation code sent to you by a family member"}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             <TouchableOpacity

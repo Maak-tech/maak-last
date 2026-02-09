@@ -38,23 +38,83 @@ const REDIRECT_URI = Linking.createURL("garmin-callback");
 // Complete OAuth flow
 WebBrowser.maybeCompleteAuthSession();
 
+type GarminHeartRateValue = {
+  heartRate?: number;
+  value?: number;
+  timestampInSeconds?: number;
+};
+
+type GarminDataPoint = {
+  heartRateValues?: GarminHeartRateValue[];
+  startTimeInSeconds?: number;
+  endTimeInSeconds?: number;
+  startTimeLocal?: string;
+  calendarDate?: string | number;
+  heartRate?: number;
+  averageHeartRate?: number;
+  value?: number | string;
+  restingHeartRate?: number;
+  hrvValue?: number;
+  weeklyAvg?: number;
+  lastNightAvg?: number;
+  averageSpO2?: number;
+  spo2Value?: number;
+  avgWakingRespirationValue?: number;
+  avgSleepingRespirationValue?: number;
+  steps?: number;
+  totalSteps?: number;
+  activeKilocalories?: number;
+  activeCalories?: number;
+  bmrKilocalories?: number;
+  restingCalories?: number;
+  totalDistanceMeters?: number;
+  distanceInMeters?: number;
+  floorsAscended?: number;
+  floorsClimbed?: number;
+  sleepTimeSeconds?: number;
+  totalSleepTimeInSeconds?: number;
+  weight?: number;
+  weightInGrams?: number;
+  samplePk?: number;
+  bodyFat?: number;
+  bodyFatPercentage?: number;
+  bmi?: number;
+  valueInML?: number;
+  waterInML?: number;
+  timestampInSeconds?: number;
+  activityType?: string;
+  activityName?: string;
+};
+
+const asDataPoints = (data: unknown): GarminDataPoint[] =>
+  Array.isArray(data) ? (data as GarminDataPoint[]) : [];
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
+
 /**
  * Garmin data type parsers
  */
 const dataTypeParsers: Record<
   string,
-  (data: any, metricKey: string) => MetricSample[]
+  (data: unknown, metricKey: string) => MetricSample[]
 > = {
   // Heart rate data
   heart_rate: (data) => {
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
     const samples: MetricSample[] = [];
 
     // Handle different response formats
     if (Array.isArray(data)) {
-      data.forEach((item: any) => {
+      for (const item of data as GarminDataPoint[]) {
         if (item.heartRateValues) {
-          item.heartRateValues.forEach((hr: any) => {
+          for (const hr of item.heartRateValues) {
             samples.push({
               value: hr.heartRate || hr.value || 0,
               unit: "bpm",
@@ -63,7 +123,7 @@ const dataTypeParsers: Record<
               ).toISOString(),
               source: "Garmin",
             });
-          });
+          }
         } else {
           samples.push({
             value: item.heartRate || item.averageHeartRate || item.value || 0,
@@ -74,17 +134,19 @@ const dataTypeParsers: Record<
             source: "Garmin",
           });
         }
-      });
+      }
     }
     return samples;
   },
 
   // Resting heart rate
   resting_heart_rate: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data
-      .filter((item: any) => item.restingHeartRate)
-      .map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data)
+      .filter((item) => item.restingHeartRate)
+      .map((item) => ({
         value: item.restingHeartRate,
         unit: "bpm",
         startDate: new Date(
@@ -96,8 +158,10 @@ const dataTypeParsers: Record<
 
   // Heart rate variability
   heart_rate_variability: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.hrvValue || item.weeklyAvg || item.lastNightAvg || 0,
       unit: "ms",
       startDate: new Date(
@@ -109,8 +173,10 @@ const dataTypeParsers: Record<
 
   // Blood oxygen (SpO2)
   blood_oxygen: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.averageSpO2 || item.spo2Value || item.value || 0,
       unit: "%",
       startDate: new Date(
@@ -122,8 +188,10 @@ const dataTypeParsers: Record<
 
   // Respiratory rate
   respiratory_rate: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value:
         item.avgWakingRespirationValue ||
         item.avgSleepingRespirationValue ||
@@ -139,8 +207,10 @@ const dataTypeParsers: Record<
 
   // Steps
   steps: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.steps || item.totalSteps || 0,
       unit: "count",
       startDate: new Date(
@@ -152,8 +222,10 @@ const dataTypeParsers: Record<
 
   // Active energy
   active_energy: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.activeKilocalories || item.activeCalories || 0,
       unit: "kcal",
       startDate: new Date(
@@ -165,8 +237,10 @@ const dataTypeParsers: Record<
 
   // Basal energy
   basal_energy: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.bmrKilocalories || item.restingCalories || 0,
       unit: "kcal",
       startDate: new Date(
@@ -178,8 +252,10 @@ const dataTypeParsers: Record<
 
   // Distance
   distance_walking_running: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       // Convert meters to km
       value: (item.totalDistanceMeters || item.distanceInMeters || 0) / 1000,
       unit: "km",
@@ -192,8 +268,10 @@ const dataTypeParsers: Record<
 
   // Floors climbed
   flights_climbed: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.floorsAscended || item.floorsClimbed || 0,
       unit: "count",
       startDate: new Date(
@@ -205,8 +283,10 @@ const dataTypeParsers: Record<
 
   // Sleep
   sleep_analysis: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       // Convert seconds to hours
       value:
         (item.sleepTimeSeconds || item.totalSleepTimeInSeconds || 0) / 3600,
@@ -223,8 +303,10 @@ const dataTypeParsers: Record<
 
   // Weight
   weight: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       // Convert grams to kg
       value: (item.weight || item.weightInGrams || 0) / 1000,
       unit: "kg",
@@ -237,10 +319,12 @@ const dataTypeParsers: Record<
 
   // Body fat percentage
   body_fat_percentage: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data
-      .filter((item: any) => item.bodyFat || item.bodyFatPercentage)
-      .map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data)
+      .filter((item) => item.bodyFat || item.bodyFatPercentage)
+      .map((item) => ({
         value: item.bodyFat || item.bodyFatPercentage || 0,
         unit: "%",
         startDate: new Date(
@@ -252,10 +336,12 @@ const dataTypeParsers: Record<
 
   // BMI
   body_mass_index: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data
-      .filter((item: any) => item.bmi)
-      .map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data)
+      .filter((item) => item.bmi)
+      .map((item) => ({
         value: item.bmi,
         unit: "kg/m²",
         startDate: new Date(
@@ -267,8 +353,10 @@ const dataTypeParsers: Record<
 
   // Water intake
   water_intake: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.valueInML || item.waterInML || 0,
       unit: "ml",
       startDate: new Date(
@@ -280,8 +368,10 @@ const dataTypeParsers: Record<
 
   // Workouts/Activities
   workouts: (data) => {
-    if (!(data && Array.isArray(data))) return [];
-    return data.map((item: any) => ({
+    if (!(data && Array.isArray(data))) {
+      return [];
+    }
+    return asDataPoints(data).map((item) => ({
       value: item.activityType || item.activityName || "workout",
       unit: "",
       startDate: new Date(
@@ -382,27 +472,27 @@ export const garminService = {
   /**
    * Check if Garmin integration is available
    */
-  isAvailable: async (): Promise<ProviderAvailability> => {
+  isAvailable: (): Promise<ProviderAvailability> => {
     try {
       if (
         GARMIN_CLIENT_ID === "YOUR_GARMIN_CLIENT_ID" ||
         GARMIN_CLIENT_SECRET === "YOUR_GARMIN_CLIENT_SECRET"
       ) {
-        return {
+        return Promise.resolve({
           available: false,
           reason:
             "Garmin credentials not configured. Please set GARMIN_CLIENT_ID and GARMIN_CLIENT_SECRET in app.json extra config.",
-        };
+        });
       }
 
-      return {
+      return Promise.resolve({
         available: true,
-      };
-    } catch (error: any) {
-      return {
+      });
+    } catch (error: unknown) {
+      return Promise.resolve({
         available: false,
-        reason: error?.message || "Unknown error",
-      };
+        reason: getErrorMessage(error),
+      });
     }
   },
 
@@ -477,8 +567,8 @@ export const garminService = {
       } else {
         throw new Error("Authentication cancelled or failed");
       }
-    } catch (error: any) {
-      throw new Error(`Garmin authentication failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Garmin authentication failed: ${getErrorMessage(error)}`);
     }
   },
 
@@ -559,9 +649,9 @@ export const garminService = {
         connectedAt: new Date().toISOString(),
         selectedMetrics,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(
-        `Failed to complete Garmin authentication: ${error.message}`
+        `Failed to complete Garmin authentication: ${getErrorMessage(error)}`
       );
     }
   },
@@ -584,7 +674,9 @@ export const garminService = {
       const tokensStr = await SecureStore.getItemAsync(
         HEALTH_STORAGE_KEYS.GARMIN_TOKENS
       );
-      if (!tokensStr) return null;
+      if (!tokensStr) {
+        return null;
+      }
       return JSON.parse(tokensStr);
     } catch {
       return null;
@@ -597,9 +689,11 @@ export const garminService = {
   makeApiRequest: async (
     endpoint: string,
     params: Record<string, string> = {}
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     const tokens = await garminService.getTokens();
-    if (!tokens) throw new Error("Not authenticated");
+    if (!tokens) {
+      throw new Error("Not authenticated");
+    }
 
     const url = new URL(`${GARMIN_API_BASE}${endpoint}`);
     Object.entries(params).forEach(([key, value]) => {
@@ -637,11 +731,13 @@ export const garminService = {
   ): Promise<NormalizedMetricPayload[]> => {
     try {
       const tokens = await garminService.getTokens();
-      if (!tokens) return [];
+      if (!tokens) {
+        return [];
+      }
 
       const results: NormalizedMetricPayload[] = [];
-      const startDateStr = formatDate(startDate);
-      const endDateStr = formatDate(endDate);
+      const _startDateStr = formatDate(startDate);
+      const _endDateStr = formatDate(endDate);
 
       // Group metrics by endpoint to reduce API calls
       const endpointMetrics: Record<string, string[]> = {
@@ -673,7 +769,9 @@ export const garminService = {
         const relevantMetrics = metricKeys.filter((m) =>
           endpointMetricKeys.includes(m)
         );
-        if (relevantMetrics.length === 0) continue;
+        if (relevantMetrics.length === 0) {
+          continue;
+        }
 
         try {
           const data = await garminService.makeApiRequest(endpoint, {
@@ -687,10 +785,14 @@ export const garminService = {
 
           for (const metricKey of relevantMetrics) {
             const metric = getMetricByKey(metricKey);
-            if (!metric) continue;
+            if (!metric) {
+              continue;
+            }
 
             const parser = dataTypeParsers[metricKey];
-            if (!parser) continue;
+            if (!parser) {
+              continue;
+            }
 
             const samples = parser(data, metricKey);
             if (samples.length > 0) {
@@ -717,7 +819,7 @@ export const garminService = {
   /**
    * Fetch all available metrics for a date range
    */
-  fetchAllMetrics: async (
+  fetchAllMetrics: (
     startDate: Date,
     endDate: Date
   ): Promise<NormalizedMetricPayload[]> => {

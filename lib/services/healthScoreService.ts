@@ -1,4 +1,5 @@
 import type { Medication, Symptom } from "@/types";
+import { coerceToDate } from "@/utils/dateCoercion";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 
@@ -16,7 +17,7 @@ import { symptomService } from "./symptomService";
  * - Below 60: Critical attention needed
  */
 
-export interface HealthScoreResult {
+export type HealthScoreResult = {
   score: number;
   breakdown: {
     baseScore: number;
@@ -30,7 +31,7 @@ export interface HealthScoreResult {
     activeMedications: number;
   };
   rating: "excellent" | "good" | "fair" | "poor" | "critical";
-}
+};
 
 /**
  * Symptom severity weights for health score calculation
@@ -66,9 +67,15 @@ const MEDICATION_COMPLIANCE_WEIGHT = 15;
 function getSymptomSeverityCategory(
   severity: number
 ): keyof typeof SYMPTOM_SEVERITY_WEIGHTS {
-  if (severity >= 9) return "critical";
-  if (severity >= 7) return "severe";
-  if (severity >= 4) return "moderate";
+  if (severity >= 9) {
+    return "critical";
+  }
+  if (severity >= 7) {
+    return "severe";
+  }
+  if (severity >= 4) {
+    return "moderate";
+  }
   return "mild";
 }
 
@@ -87,14 +94,14 @@ function calculateSymptomPenalty(symptoms: Symptom[]): {
   let totalWeightedPenalty = 0;
   let totalSeverity = 0;
 
-  symptoms.forEach((symptom) => {
+  for (const symptom of symptoms) {
     const severity = symptom.severity || 5; // Default to moderate if not specified
     const category = getSymptomSeverityCategory(severity);
     const weight = SYMPTOM_SEVERITY_WEIGHTS[category];
 
     totalWeightedPenalty += weight;
     totalSeverity += severity;
-  });
+  }
 
   const avgSeverity = totalSeverity / symptoms.length;
   const penalty = Math.min(totalWeightedPenalty, MAX_SYMPTOM_PENALTY);
@@ -152,21 +159,19 @@ function calculateCompliancePercentage(medications: Medication[]): number {
   let totalReminders = 0;
   let takenReminders = 0;
 
-  medications.forEach((med) => {
+  for (const med of medications) {
     const reminders = Array.isArray(med.reminders) ? med.reminders : [];
     totalReminders += reminders.length;
 
-    reminders.forEach((reminder) => {
+    for (const reminder of reminders) {
       if (reminder.taken && reminder.takenAt) {
-        const takenDate = (reminder.takenAt as any).toDate
-          ? (reminder.takenAt as any).toDate()
-          : new Date(reminder.takenAt);
-        if (takenDate.toDateString() === today) {
-          takenReminders++;
+        const takenDate = coerceToDate(reminder.takenAt);
+        if (takenDate?.toDateString() === today) {
+          takenReminders += 1;
         }
       }
-    });
-  });
+    }
+  }
 
   return totalReminders > 0 ? (takenReminders / totalReminders) * 100 : 100;
 }
@@ -175,10 +180,18 @@ function calculateCompliancePercentage(medications: Medication[]): number {
  * Get health rating based on score
  */
 function getHealthRating(score: number): HealthScoreResult["rating"] {
-  if (score >= 90) return "excellent";
-  if (score >= 80) return "good";
-  if (score >= 70) return "fair";
-  if (score >= 60) return "poor";
+  if (score >= 90) {
+    return "excellent";
+  }
+  if (score >= 80) {
+    return "good";
+  }
+  if (score >= 70) {
+    return "fair";
+  }
+  if (score >= 60) {
+    return "poor";
+  }
   return "critical";
 }
 
@@ -203,12 +216,14 @@ export async function calculateHealthScore(
     cutoffDate.setDate(cutoffDate.getDate() - HEALTH_SCORE_WINDOW_DAYS);
 
     const recentSymptoms = symptoms.filter((symptom) => {
-      if (!symptom.timestamp) return false;
+      if (!symptom.timestamp) {
+        return false;
+      }
       const symptomDate =
         symptom.timestamp instanceof Date
           ? symptom.timestamp
           : new Date(symptom.timestamp);
-      return !isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
+      return !Number.isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
     });
 
     // Get active medications
@@ -250,7 +265,7 @@ export async function calculateHealthScore(
       },
       rating: getHealthRating(score),
     };
-  } catch (error) {
+  } catch (_error) {
     // Return default score in case of error
     return {
       score: 75,
@@ -288,12 +303,14 @@ export function calculateHealthScoreFromData(
     cutoffDate.setDate(cutoffDate.getDate() - HEALTH_SCORE_WINDOW_DAYS);
 
     const recentSymptoms = symptoms.filter((symptom) => {
-      if (!symptom.timestamp) return false;
+      if (!symptom.timestamp) {
+        return false;
+      }
       const symptomDate =
         symptom.timestamp instanceof Date
           ? symptom.timestamp
           : new Date(symptom.timestamp);
-      return !isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
+      return !Number.isNaN(symptomDate.getTime()) && symptomDate >= cutoffDate;
     });
 
     // Get active medications
@@ -335,7 +352,7 @@ export function calculateHealthScoreFromData(
       },
       rating: getHealthRating(score),
     };
-  } catch (error) {
+  } catch (_error) {
     // Return default score in case of error
     return {
       score: 75,

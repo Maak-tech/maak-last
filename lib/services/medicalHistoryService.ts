@@ -7,8 +7,8 @@ import {
   getDocs,
   limit,
   orderBy,
-  query,
   type QueryConstraint,
+  query,
   Timestamp,
   updateDoc,
   where,
@@ -36,10 +36,10 @@ export const medicalHistoryService = {
       const querySnapshot = await getDocs(q);
       const medicalHistory: MedicalHistory[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         medicalHistory.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           diagnosedDate: data.diagnosedDate?.toDate() || null,
         } as MedicalHistory);
@@ -64,10 +64,10 @@ export const medicalHistoryService = {
       const querySnapshot = await getDocs(q);
       const familyHistory: MedicalHistory[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         familyHistory.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           diagnosedDate: data.diagnosedDate?.toDate() || null,
         } as MedicalHistory);
@@ -85,7 +85,7 @@ export const medicalHistoryService = {
     medicalHistoryData: Omit<MedicalHistory, "id" | "userId">
   ): Promise<string> {
     try {
-      const cleanedData: any = {
+      const cleanedData: Record<string, unknown> = {
         userId,
         condition: medicalHistoryData.condition,
         severity: medicalHistoryData.severity,
@@ -141,7 +141,7 @@ export const medicalHistoryService = {
     updates: Partial<Omit<MedicalHistory, "id" | "userId">>
   ): Promise<void> {
     try {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
 
       if (updates.condition !== undefined) {
         updateData.condition = updates.condition;
@@ -243,10 +243,10 @@ export const medicalHistoryService = {
       const querySnapshot = await getDocs(q);
       const medicalHistory: MedicalHistory[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         medicalHistory.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           diagnosedDate: data.diagnosedDate?.toDate() || null,
         } as MedicalHistory);

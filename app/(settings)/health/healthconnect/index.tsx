@@ -18,9 +18,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { configureLayoutAnimationIfActive } from "@/lib/utils/appStateGuards";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: screen copy is intentionally inline for localization parity.
 export default function HealthConnectIntroScreen() {
-  const { t, i18n } = useTranslation();
-  const { theme } = useTheme();
+  const { i18n } = useTranslation();
+  const { theme: appTheme } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const isRTL = i18n.language === "ar";
 
@@ -137,13 +138,23 @@ export default function HealthConnectIntroScreen() {
     rtlText: {
       textAlign: "right" as const,
     },
-  }))(theme);
+  }))(appTheme);
 
   const toggleLearnMore = () => {
     if (Platform.OS === "ios") {
       configureLayoutAnimationIfActive(LayoutAnimation.Presets.easeInEaseOut);
     }
     setExpanded((v) => !v);
+  };
+
+  const getLearnMoreLabel = (
+    isExpanded: boolean,
+    isRtlLanguage: boolean
+  ): string => {
+    if (isExpanded) {
+      return isRtlLanguage ? "إخفاء التفاصيل" : "Hide details";
+    }
+    return isRtlLanguage ? "تعرف على المزيد" : "Learn more";
   };
 
   return (
@@ -154,7 +165,7 @@ export default function HealthConnectIntroScreen() {
       >
         <View style={styles.header as ViewStyle}>
           <View style={styles.iconContainer as ViewStyle}>
-            <Heart color={theme.colors.primary.main} size={40} />
+            <Heart color={appTheme.colors.primary.main} size={40} />
           </View>
           <Text
             style={
@@ -316,17 +327,11 @@ export default function HealthConnectIntroScreen() {
               ] as StyleProp<TextStyle>
             }
           >
-            {expanded
-              ? isRTL
-                ? "إخفاء التفاصيل"
-                : "Hide details"
-              : isRTL
-                ? "تعرف على المزيد"
-                : "Learn more"}
+            {getLearnMoreLabel(expanded, isRTL)}
           </Text>
         </Pressable>
 
-        {expanded && (
+        {expanded ? (
           <Text
             style={
               [
@@ -339,7 +344,7 @@ export default function HealthConnectIntroScreen() {
               ? "يستخدم Health Connect من Google لتخزين البيانات الصحية بشكل آمن على جهازك. يستخدم Maak البيانات التي تختارها لتقديم رؤى الرعاية (مثل الاتجاهات والتنبيهات) ولا نبيع بياناتك الصحية."
               : "Health Connect by Google stores health data securely on your device. Maak uses the data you select to provide caregiving insights (like trends and alerts) and we do not sell your health data."}
           </Text>
-        )}
+        ) : null}
 
         <Pressable
           onPress={() => router.push("/health/healthconnect/permissions")}
@@ -349,7 +354,7 @@ export default function HealthConnectIntroScreen() {
             {isRTL ? "اختر ما تشاركه" : "Choose what to share"}
           </Text>
           <ChevronRight
-            color={theme.colors.neutral.white}
+            color={appTheme.colors.neutral.white}
             size={20}
             style={{ transform: [{ rotate: isRTL ? "180deg" : "0deg" }] }}
           />

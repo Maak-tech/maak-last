@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { ViewStyle, TextStyle } from "react-native";
 
-export interface ButtonProps {
+export type ButtonProps = {
   title: string;
   onPress: () => void;
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
@@ -12,7 +12,7 @@ export interface ButtonProps {
   fullWidth?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
-}
+};
 
 declare const Button: React.FC<ButtonProps>;
 

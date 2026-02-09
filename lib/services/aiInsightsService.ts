@@ -1,11 +1,16 @@
-import type { MedicalHistory, Medication, Symptom } from "@/types";
+import type {
+  MedicalHistory,
+  Medication,
+  MedicationInteractionAlert,
+  Symptom,
+} from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 import {
   type CorrelationInsight,
   correlationAnalysisService,
 } from "./correlationAnalysisService";
 import { medicalHistoryService } from "./medicalHistoryService";
 import { medicationInteractionService } from "./medicationInteractionService";
-import type { MedicationInteractionAlert } from "@/types";
 import { medicationService } from "./medicationService";
 import openaiService from "./openaiService";
 import {
@@ -21,11 +26,10 @@ import {
   symptomPatternRecognitionService,
 } from "./symptomPatternRecognitionService";
 import { symptomService } from "./symptomService";
-import { safeFormatDate } from "@/utils/dateFormat";
 
 const SYMPTOM_FETCH_LIMIT = 50;
 
-export interface AIInsightsDashboard {
+export type AIInsightsDashboard = {
   id: string;
   userId: string;
   timestamp: Date;
@@ -50,17 +54,29 @@ export interface AIInsightsDashboard {
 
   // AI-generated narrative
   aiNarrative?: string;
-}
+};
 
-export interface InsightPriority {
+export type InsightPriority = {
   level: "low" | "medium" | "high" | "critical";
   score: number;
   reasons: string[];
-}
+};
+
+type NarrativeContext = {
+  riskLevel: string;
+  riskScore: number;
+  topRiskFactors: string[];
+  topSuggestions: string[];
+};
+
+type PrioritizedInsight = {
+  type: string;
+  data: unknown;
+};
 
 class AIInsightsService {
-  private async withTimeout<T>(
-    label: string,
+  private withTimeout<T>(
+    _label: string,
     promise: Promise<T>,
     timeoutMs: number,
     fallback: T
@@ -285,6 +301,7 @@ class AIInsightsService {
   /**
    * Generate symptom analysis with pattern recognition
    */
+  // biome-ignore lint/nursery/useMaxParams: Backward-compatible API keeps optional pre-fetched datasets explicit.
   private async generateSymptomAnalysis(
     userId: string,
     symptoms?: Symptom[],
@@ -371,9 +388,11 @@ class AIInsightsService {
       `;
 
       const narrative = await openaiService.generateHealthInsights(prompt);
-      if (!narrative) return this.generateFallbackNarrative(context);
+      if (!narrative) {
+        return this.generateFallbackNarrative(context);
+      }
       return narrative?.narrative || this.generateFallbackNarrative(context);
-    } catch (error) {
+    } catch (_error) {
       // Missing API key or network errors should not spam logs; fallback is fine.
       return this.generateFallbackNarrative({
         correlations: [],
@@ -392,7 +411,7 @@ class AIInsightsService {
   /**
    * Generate fallback narrative when AI fails
    */
-  private generateFallbackNarrative(context: any): string {
+  private generateFallbackNarrative(context: NarrativeContext): string {
     return `Your health data shows ${context.riskLevel} overall risk with a score of ${context.riskScore}/100. ${
       context.topRiskFactors.length > 0
         ? `Key areas to focus on include: ${context.topRiskFactors.join(", ")}. `
@@ -405,6 +424,7 @@ class AIInsightsService {
   /**
    * Calculate insights summary metrics
    */
+  // biome-ignore lint/nursery/useMaxParams: Inputs represent distinct computed sections of the dashboard.
   private calculateInsightsSummary(
     correlationAnalysis: CorrelationInsight,
     symptomAnalysis: PatternAnalysisResult,
@@ -439,21 +459,22 @@ class AIInsightsService {
   /**
    * Get prioritized insights for quick access
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Prioritization merges multiple insight streams into severity buckets.
   async getPrioritizedInsights(userId: string): Promise<{
-    critical: any[];
-    high: any[];
-    medium: any[];
-    low: any[];
+    critical: PrioritizedInsight[];
+    high: PrioritizedInsight[];
+    medium: PrioritizedInsight[];
+    low: PrioritizedInsight[];
   }> {
     const dashboard = await this.generateAIInsightsDashboard(userId, false);
 
-    const critical: any[] = [];
-    const high: any[] = [];
-    const medium: any[] = [];
-    const low: any[] = [];
+    const critical: PrioritizedInsight[] = [];
+    const high: PrioritizedInsight[] = [];
+    const medium: PrioritizedInsight[] = [];
+    const low: PrioritizedInsight[] = [];
 
     // Medication alerts
-    dashboard.medicationAlerts.forEach((alert) => {
+    for (const alert of dashboard.medicationAlerts) {
       if (alert.severity === "major") {
         critical.push({ type: "medication_alert", data: alert });
       } else if (alert.severity === "moderate") {
@@ -461,10 +482,10 @@ class AIInsightsService {
       } else {
         medium.push({ type: "medication_alert", data: alert });
       }
-    });
+    }
 
     // Diagnosis suggestions
-    dashboard.symptomAnalysis.diagnosisSuggestions.forEach((suggestion) => {
+    for (const suggestion of dashboard.symptomAnalysis.diagnosisSuggestions) {
       if (suggestion.urgency === "emergency") {
         critical.push({ type: "diagnosis_suggestion", data: suggestion });
       } else if (suggestion.urgency === "high") {
@@ -474,7 +495,7 @@ class AIInsightsService {
       } else {
         low.push({ type: "diagnosis_suggestion", data: suggestion });
       }
-    });
+    }
 
     // Risk assessment
     if (dashboard.riskAssessment.riskLevel === "very_high") {
@@ -487,7 +508,7 @@ class AIInsightsService {
     }
 
     // Health suggestions
-    dashboard.healthSuggestions.forEach((suggestion) => {
+    for (const suggestion of dashboard.healthSuggestions) {
       if (suggestion.priority === "high") {
         high.push({ type: "health_suggestion", data: suggestion });
       } else if (suggestion.priority === "medium") {
@@ -495,10 +516,11 @@ class AIInsightsService {
       } else {
         low.push({ type: "health_suggestion", data: suggestion });
       }
-    });
+    }
 
     // Correlation insights
-    dashboard.correlationAnalysis.correlationResults.forEach((correlation) => {
+    for (const correlation of dashboard.correlationAnalysis
+      .correlationResults) {
       if (correlation.confidence > 90) {
         high.push({ type: "correlation", data: correlation });
       } else if (correlation.confidence > 70) {
@@ -506,7 +528,7 @@ class AIInsightsService {
       } else {
         low.push({ type: "correlation", data: correlation });
       }
-    });
+    }
 
     return { critical, high, medium, low };
   }
@@ -517,7 +539,7 @@ class AIInsightsService {
   async getInsightsByCategory(
     userId: string,
     category: string
-  ): Promise<any[]> {
+  ): Promise<unknown[]> {
     const dashboard = await this.generateAIInsightsDashboard(userId, false);
 
     switch (category) {
@@ -562,6 +584,7 @@ class AIInsightsService {
     const monitoring: string[] = [];
 
     // Immediate actions from critical insights
+    // biome-ignore lint/complexity/noForEach: Chained filter + forEach keeps the action criteria explicit.
     dashboard.medicationAlerts
       .filter((a) => a.severity === "major")
       .forEach((alert) => {
@@ -572,6 +595,7 @@ class AIInsightsService {
         );
       });
 
+    // biome-ignore lint/complexity/noForEach: Chained filter + forEach keeps the action criteria explicit.
     dashboard.symptomAnalysis.diagnosisSuggestions
       .filter((d) => d.urgency === "emergency" || d.urgency === "high")
       .forEach((suggestion) => {
@@ -583,12 +607,14 @@ class AIInsightsService {
       });
 
     // Short-term actions
+    // biome-ignore lint/complexity/noForEach: Chained filter + forEach keeps the action criteria explicit.
     dashboard.healthSuggestions
       .filter((s) => s.priority === "high")
       .forEach((suggestion) => {
         shortTerm.push(suggestion.title);
       });
 
+    // biome-ignore lint/complexity/noForEach: Slice + forEach keeps the top recommendation extraction explicit.
     dashboard.riskAssessment.preventiveRecommendations
       .slice(0, 3)
       .forEach((rec) => {
@@ -596,6 +622,7 @@ class AIInsightsService {
       });
 
     // Long-term actions
+    // biome-ignore lint/complexity/noForEach: Chained filter + forEach keeps correlation recommendation extraction explicit.
     dashboard.correlationAnalysis.correlationResults
       .filter((c) => c.actionable)
       .forEach((correlation) => {
@@ -641,7 +668,7 @@ class AIInsightsService {
   private async getRecentSymptoms(userId: string): Promise<Symptom[]> {
     try {
       return await symptomService.getUserSymptoms(userId, SYMPTOM_FETCH_LIMIT);
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -649,7 +676,7 @@ class AIInsightsService {
   private async getMedicalHistory(userId: string): Promise<MedicalHistory[]> {
     try {
       return await medicalHistoryService.getUserMedicalHistory(userId);
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -657,15 +684,10 @@ class AIInsightsService {
   private async getMedications(userId: string): Promise<Medication[]> {
     try {
       return await medicationService.getUserMedications(userId);
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
 }
 
 export const aiInsightsService = new AIInsightsService();
-
-
-
-
-

@@ -33,7 +33,7 @@ import { moodService } from "./moodService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import { symptomService } from "./symptomService";
 
-export interface HealthSuggestion {
+export type HealthSuggestion = {
   id: string;
   type:
     | "medication"
@@ -55,7 +55,7 @@ export interface HealthSuggestion {
   category: string;
   timestamp: Date;
   dismissed?: boolean;
-}
+};
 
 // Localization helper for suggestions
 const getLocalizedSuggestionText = (
@@ -741,7 +741,7 @@ class ProactiveHealthSuggestionsService {
       });
 
       return suggestions.slice(0, 15); // Return top 15 suggestions
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -749,7 +749,7 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get recent vitals for trend analysis
    */
-  private async getRecentVitals(userId: string): Promise<any[]> {
+  private async getRecentVitals(userId: string): Promise<unknown[]> {
     try {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -776,7 +776,7 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get suggestions based on user alerts
    */
-  private async getAlertBasedSuggestions(
+  private getAlertBasedSuggestions(
     alerts: EmergencyAlert[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
@@ -876,7 +876,7 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get suggestions based on upcoming calendar events
    */
-  private async getEventBasedSuggestions(
+  private getEventBasedSuggestions(
     events: CalendarEvent[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
@@ -936,30 +936,38 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get suggestions based on vital sign trends
    */
-  private async getVitalTrendSuggestions(
-    vitals: any[],
+  private getVitalTrendSuggestions(
+    vitals: unknown[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
-    if (vitals.length < 3) return suggestions;
+    if (vitals.length < 3) {
+      return suggestions;
+    }
 
     // Group vitals by type
-    const vitalsByType: Record<string, any[]> = {};
+    const vitalsByType: Record<string, unknown[]> = {};
     vitals.forEach((v) => {
       const type = v.type || "unknown";
-      if (!vitalsByType[type]) vitalsByType[type] = [];
+      if (!vitalsByType[type]) {
+        vitalsByType[type] = [];
+      }
       vitalsByType[type].push(v);
     });
 
     // Analyze trends for each vital type
     for (const [type, readings] of Object.entries(vitalsByType)) {
-      if (readings.length < 3) continue;
+      if (readings.length < 3) {
+        continue;
+      }
 
       const values = readings
         .map((r) => r.value)
         .filter((v) => typeof v === "number");
-      if (values.length < 3) continue;
+      if (values.length < 3) {
+        continue;
+      }
 
       const recentAvg = values.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
       const olderAvg = values.slice(-3).reduce((a, b) => a + b, 0) / 3;
@@ -1008,9 +1016,9 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get allergy-aware medication suggestions
    */
-  private async getAllergyAwareSuggestions(
+  private getAllergyAwareSuggestions(
     allergies: Allergy[],
-    medications: Medication[],
+    _medications: Medication[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
@@ -1068,9 +1076,9 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get suggestions based on medical history
    */
-  private async getMedicalHistorySuggestions(
+  private getMedicalHistorySuggestions(
     history: MedicalHistory[],
-    symptoms: Symptom[],
+    _symptoms: Symptom[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
@@ -1212,7 +1220,9 @@ class ProactiveHealthSuggestionsService {
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
-    if (medications.length === 0) return suggestions;
+    if (medications.length === 0) {
+      return suggestions;
+    }
 
     try {
       const scheduleEntries =
@@ -1274,7 +1284,7 @@ class ProactiveHealthSuggestionsService {
           timestamp: new Date(),
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
 
@@ -1284,7 +1294,7 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get medication refill suggestions
    */
-  private async getRefillSuggestions(
+  private getRefillSuggestions(
     medications: Medication[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
@@ -1333,13 +1343,15 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get symptom pattern suggestions
    */
-  private async getSymptomPatternSuggestions(
+  private getSymptomPatternSuggestions(
     symptoms: Symptom[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
-    if (symptoms.length < 3) return suggestions;
+    if (symptoms.length < 3) {
+      return suggestions;
+    }
 
     // Check for frequent symptoms
     const symptomCounts = new Map<string, number>();
@@ -1405,13 +1417,15 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get mood-based suggestions
    */
-  private async getMoodSuggestions(
+  private getMoodSuggestions(
     moods: Mood[],
     isArabic = false
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
 
-    if (moods.length < 3) return suggestions;
+    if (moods.length < 3) {
+      return suggestions;
+    }
 
     // Check for negative mood patterns
     const negativeMoods = moods.filter((m) =>
@@ -1468,7 +1482,7 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get health score suggestions
    */
-  private async getHealthScoreSuggestions(
+  private getHealthScoreSuggestions(
     symptoms: Symptom[],
     medications: Medication[],
     isArabic = false
@@ -1528,8 +1542,8 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get lifestyle suggestions
    */
-  private async getLifestyleSuggestions(
-    healthContext: any,
+  private getLifestyleSuggestions(
+    _healthContext: unknown,
     symptoms: Symptom[],
     moods: Mood[],
     isArabic = false
@@ -1590,8 +1604,8 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get preventive care suggestions
    */
-  private async getPreventiveSuggestions(
-    healthContext: any,
+  private getPreventiveSuggestions(
+    _healthContext: unknown,
     isArabic = false
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
@@ -1651,7 +1665,7 @@ class ProactiveHealthSuggestionsService {
       });
 
       return tips.slice(0, 5); // Return top 5 tips
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -1659,7 +1673,7 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get trend analysis suggestions based on symptom and medication patterns
    */
-  private async getTrendAnalysisSuggestions(
+  private getTrendAnalysisSuggestions(
     symptoms: Symptom[],
     moods: Mood[],
     medications: Medication[],
@@ -1670,9 +1684,7 @@ class ProactiveHealthSuggestionsService {
     try {
       // Analyze symptom trends over time
       const recentSymptoms = symptoms.filter(
-        (s) =>
-          new Date().getTime() - s.timestamp.getTime() <
-          30 * 24 * 60 * 60 * 1000 // Last 30 days
+        (s) => Date.now() - s.timestamp.getTime() < 30 * 24 * 60 * 60 * 1000 // Last 30 days
       );
 
       if (recentSymptoms.length > 5) {
@@ -1716,9 +1728,7 @@ class ProactiveHealthSuggestionsService {
 
       // Analyze mood trends
       const recentMoods = moods.filter(
-        (m) =>
-          new Date().getTime() - m.timestamp.getTime() <
-          14 * 24 * 60 * 60 * 1000 // Last 14 days
+        (m) => Date.now() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000 // Last 14 days
       );
 
       if (recentMoods.length > 3) {
@@ -1776,7 +1786,7 @@ class ProactiveHealthSuggestionsService {
           });
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
 
@@ -1786,9 +1796,9 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get predictive health suggestions based on patterns
    */
-  private async getPredictiveHealthSuggestions(
+  private getPredictiveHealthSuggestions(
     symptoms: Symptom[],
-    healthContext: any,
+    healthContext: unknown,
     isArabic = false
   ): Promise<HealthSuggestion[]> {
     const suggestions: HealthSuggestion[] = [];
@@ -1867,7 +1877,7 @@ class ProactiveHealthSuggestionsService {
           timestamp: new Date(),
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
 
@@ -1877,8 +1887,8 @@ class ProactiveHealthSuggestionsService {
   /**
    * Get personalized wellness suggestions
    */
-  private async getPersonalizedWellnessSuggestions(
-    healthContext: any,
+  private getPersonalizedWellnessSuggestions(
+    healthContext: unknown,
     symptoms: Symptom[],
     moods: Mood[],
     isArabic = false
@@ -1930,7 +1940,7 @@ class ProactiveHealthSuggestionsService {
       if (socialSuggestion) {
         suggestions.push(socialSuggestion);
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
 
@@ -1954,14 +1964,14 @@ class ProactiveHealthSuggestionsService {
         const symptomOccurrences = symptoms.filter(
           (s) => s.type === symptomType
         );
-        const medicationNames = medications.map((m) => m.name);
+        const _medicationNames = medications.map((m) => m.name);
 
         // Look for patterns - this is a simplified version
         if (symptomOccurrences.length > 5) {
           correlations.push(`${symptomType} appears frequently`);
         }
       });
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
 
@@ -1976,12 +1986,13 @@ class ProactiveHealthSuggestionsService {
     symptomType: string;
   } {
     try {
-      if (symptoms.length < 10) return { likelihood: 0, symptomType: "" };
+      if (symptoms.length < 10) {
+        return { likelihood: 0, symptomType: "" };
+      }
 
       // Simple pattern recognition - look for increasing frequency or severity
       const recentSymptoms = symptoms.filter(
-        (s) =>
-          new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000 // Last 7 days
+        (s) => Date.now() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000 // Last 7 days
       );
 
       const symptomTypes = recentSymptoms.reduce(
@@ -2000,7 +2011,7 @@ class ProactiveHealthSuggestionsService {
       const likelihood = mostCommon && mostCommon[1] >= 3 ? 0.8 : 0.2;
 
       return { likelihood, symptomType: mostCommon ? mostCommon[0] : "" };
-    } catch (error) {
+    } catch (_error) {
       return { likelihood: 0, symptomType: "" };
     }
   }
@@ -2010,14 +2021,12 @@ class ProactiveHealthSuggestionsService {
    */
   private predictMedicationNeeds(
     symptoms: Symptom[],
-    healthContext: any
+    _healthContext: unknown
   ): { needsAdjustment: boolean } {
     try {
       // Simple analysis - if symptoms are increasing despite medication, suggest adjustment
       const recentSymptoms = symptoms.filter(
-        (s) =>
-          new Date().getTime() - s.timestamp.getTime() <
-          14 * 24 * 60 * 60 * 1000 // Last 14 days
+        (s) => Date.now() - s.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000 // Last 14 days
       );
 
       const avgSeverity =
@@ -2028,7 +2037,7 @@ class ProactiveHealthSuggestionsService {
       const needsAdjustment = avgSeverity > 3 && recentSymptoms.length > 10;
 
       return { needsAdjustment };
-    } catch (error) {
+    } catch (_error) {
       return { needsAdjustment: false };
     }
   }
@@ -2095,7 +2104,7 @@ class ProactiveHealthSuggestionsService {
         actionLabel: localizedText.actionLabel || "Seasonal Adjustment",
         category: localizedText.category,
       };
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -2104,14 +2113,13 @@ class ProactiveHealthSuggestionsService {
    * Analyze activity needs based on health context and symptoms
    */
   private analyzeActivityNeeds(
-    healthContext: any,
+    _healthContext: unknown,
     symptoms: Symptom[],
     isArabic = false
   ): HealthSuggestion | null {
     try {
       const recentSymptoms = symptoms.filter(
-        (s) =>
-          new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
+        (s) => Date.now() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
       );
 
       const fatigueSymptoms = recentSymptoms.filter(
@@ -2140,7 +2148,7 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -2149,14 +2157,14 @@ class ProactiveHealthSuggestionsService {
    * Analyze sleep patterns
    */
   private analyzeSleepPatterns(
-    healthContext: any,
-    isArabic = false
+    _healthContext: unknown,
+    _isArabic = false
   ): HealthSuggestion | null {
     try {
       // This would analyze actual sleep data if available
       // For now, return a general suggestion if sleep symptoms are present
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -2166,7 +2174,7 @@ class ProactiveHealthSuggestionsService {
    */
   private analyzeNutritionNeeds(
     symptoms: Symptom[],
-    healthContext: any,
+    _healthContext: unknown,
     isArabic = false
   ): HealthSuggestion | null {
     try {
@@ -2197,7 +2205,7 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -2212,8 +2220,7 @@ class ProactiveHealthSuggestionsService {
   ): HealthSuggestion | null {
     try {
       const recentMoods = moods.filter(
-        (m) =>
-          new Date().getTime() - m.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
+        (m) => Date.now() - m.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
       );
 
       const lowMoods = recentMoods.filter((m) => m.intensity < 4).length;
@@ -2243,7 +2250,7 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -2257,9 +2264,7 @@ class ProactiveHealthSuggestionsService {
   ): HealthSuggestion | null {
     try {
       const recentMoods = moods.filter(
-        (m) =>
-          new Date().getTime() - m.timestamp.getTime() <
-          14 * 24 * 60 * 60 * 1000
+        (m) => Date.now() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000
       );
 
       const lonelyMoods = recentMoods.filter(
@@ -2290,7 +2295,7 @@ class ProactiveHealthSuggestionsService {
       }
 
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -2298,3 +2303,5 @@ class ProactiveHealthSuggestionsService {
 
 export const proactiveHealthSuggestionsService =
   new ProactiveHealthSuggestionsService();
+
+

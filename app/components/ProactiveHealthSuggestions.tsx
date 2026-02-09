@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/nursery/noShadow: Local theme callback naming in style factory is kept for consistency in this component. */
 import { router } from "expo-router";
 import {
   Activity,
@@ -36,25 +37,25 @@ import {
 } from "@/lib/services/proactiveHealthSuggestionsService";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-interface ProactiveHealthSuggestionsProps {
+type ProactiveHealthSuggestionsProps = {
   maxSuggestions?: number;
   showDismissed?: boolean;
   onSuggestionTap?: (suggestion: HealthSuggestion) => void;
-}
+};
 
 export default function ProactiveHealthSuggestions({
   maxSuggestions = 5,
-  showDismissed = false,
+  showDismissed: _showDismissed = false,
   onSuggestionTap,
 }: ProactiveHealthSuggestionsProps) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
   const isRTL = i18n.language === "ar";
 
   const [suggestions, setSuggestions] = useState<HealthSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [_refreshing, setRefreshing] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const styles = createThemedStyles((theme) => ({
@@ -138,11 +139,13 @@ export default function ProactiveHealthSuggestions({
         | "justify"
         | "auto",
     },
-  }))(theme) as any;
+  }))(theme);
 
   const loadSuggestions = useCallback(
     async (isRefresh = false) => {
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
       try {
         if (isRefresh) {
@@ -163,7 +166,7 @@ export default function ProactiveHealthSuggestions({
         );
 
         setSuggestions(filteredSuggestions.slice(0, maxSuggestions));
-      } catch (error) {
+      } catch (_error) {
         // Silently handle error
       } finally {
         setLoading(false);
@@ -188,6 +191,7 @@ export default function ProactiveHealthSuggestions({
     "/(tabs)/resources",
   ];
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This handler intentionally centralizes route and action fallbacks for suggestions.
   const handleSuggestionTap = (suggestion: HealthSuggestion) => {
     if (onSuggestionTap) {
       onSuggestionTap(suggestion);
@@ -205,7 +209,9 @@ export default function ProactiveHealthSuggestions({
           [{ text: isRTL ? "حسناً" : "OK" }]
         );
       } else {
-        router.push(suggestion.action.route as any);
+        router.push(
+          suggestion.action.route as Parameters<typeof router.push>[0]
+        );
       }
     } else if (suggestion.action?.action) {
       suggestion.action.action();
@@ -359,7 +365,7 @@ export default function ProactiveHealthSuggestions({
               {suggestion.description}
             </TypographyText>
 
-            {suggestion.action && (
+            {suggestion.action ? (
               <TouchableOpacity
                 onPress={() => handleSuggestionTap(suggestion)}
                 style={styles.suggestionAction}
@@ -375,7 +381,7 @@ export default function ProactiveHealthSuggestions({
                   size={16}
                 />
               </TouchableOpacity>
-            )}
+            ) : null}
           </Card>
         ))}
       </ScrollView>

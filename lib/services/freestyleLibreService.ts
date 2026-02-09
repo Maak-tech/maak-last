@@ -3,7 +3,7 @@
  * Integration with Abbott Freestyle Libre CGM API for continuous glucose monitoring
  */
 
-import * as SecureStore from "expo-secure-store";
+import { deleteItemAsync, getItemAsync } from "expo-secure-store";
 import {
   type FreestyleLibreTokens,
   HEALTH_STORAGE_KEYS,
@@ -13,27 +13,44 @@ import {
 
 // Freestyle Libre API configuration
 // Note: Freestyle Libre uses different authentication - typically through patient account
-const FREESTYLE_LIBRE_BASE_URL = "https://api.libreview.io";
-const FREESTYLE_LIBRE_AUTH_URL = "https://api.libreview.io/oauth";
+const _FREESTYLE_LIBRE_BASE_URL = "https://api.libreview.io";
+const _FREESTYLE_LIBRE_AUTH_URL = "https://api.libreview.io/oauth";
+
+type LibreReading = {
+  value?: number | string;
+  trend?: number | string;
+  timestamp?: string;
+};
+
+type LibrePayload = {
+  glucoseMeasurements?: LibreReading[];
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
 
 /**
  * Check if Freestyle Libre integration is available
  */
 export const freestyleLibreService = {
-  isAvailable: async (): Promise<ProviderAvailability> => {
+  isAvailable: (): Promise<ProviderAvailability> => {
     try {
       // Freestyle Libre integration requires specific setup
       // This would typically require partnership with Abbott
-      return {
+      return Promise.resolve({
         available: false,
         reason:
           "Freestyle Libre integration requires partnership with Abbott. Contact Abbott for API access.",
-      };
-    } catch (error: any) {
-      return {
+      });
+    } catch (error: unknown) {
+      return Promise.resolve({
         available: false,
-        reason: error?.message || "Unknown error",
-      };
+        reason: getErrorMessage(error),
+      });
     }
   },
 
@@ -41,39 +58,25 @@ export const freestyleLibreService = {
    * Start authentication flow for Freestyle Libre
    * Note: This is a placeholder - actual implementation would depend on Abbott's API
    */
-  startAuth: async (selectedMetrics: string[]): Promise<void> => {
-    try {
-      throw new Error(
+  startAuth: (_selectedMetrics: string[]): Promise<void> =>
+    Promise.reject(
+      new Error(
         "Freestyle Libre integration not yet implemented. Requires Abbott partnership."
-      );
-    } catch (error: any) {
-      throw new Error(
-        `Freestyle Libre authentication failed: ${error.message}`
-      );
-    }
-  },
+      )
+    ),
 
   /**
    * Handle authentication redirect
    */
-  handleRedirect: async (url: string): Promise<void> => {
-    try {
-      throw new Error("Freestyle Libre integration not yet implemented.");
-    } catch (error: any) {
-      throw new Error(
-        `Failed to complete Freestyle Libre authentication: ${error.message}`
-      );
-    }
-  },
+  handleRedirect: (_url: string): Promise<void> =>
+    Promise.reject(new Error("Freestyle Libre integration not yet implemented.")),
 
   /**
    * Refresh access token if needed
    */
   refreshTokenIfNeeded: async (): Promise<void> => {
     try {
-      const tokensJson = await SecureStore.getItemAsync(
-        HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS
-      );
+      const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS);
 
       if (!tokensJson) {
         throw new Error("No Freestyle Libre tokens found");
@@ -88,7 +91,7 @@ export const freestyleLibreService = {
 
       // Placeholder refresh logic
       throw new Error("Token refresh not implemented for Freestyle Libre");
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw error;
     }
   },
@@ -99,9 +102,7 @@ export const freestyleLibreService = {
   getAccessToken: async (): Promise<string> => {
     await freestyleLibreService.refreshTokenIfNeeded();
 
-    const tokensJson = await SecureStore.getItemAsync(
-      HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS
-    );
+    const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS);
 
     if (!tokensJson) {
       throw new Error("Not authenticated with Freestyle Libre");
@@ -115,20 +116,14 @@ export const freestyleLibreService = {
    * Fetch health metrics from Freestyle Libre API
    * Note: This is a placeholder implementation
    */
-  fetchMetrics: async (
-    selectedMetrics: string[],
-    startDate: Date,
-    endDate: Date
-  ): Promise<NormalizedMetricPayload[]> => {
-    try {
-      // Placeholder implementation
-      throw new Error("Freestyle Libre API integration not yet implemented");
-    } catch (error: any) {
-      throw new Error(
-        `Failed to fetch Freestyle Libre metrics: ${error.message}`
-      );
-    }
-  },
+  fetchMetrics: (
+    _selectedMetrics: string[],
+    _startDate: Date,
+    _endDate: Date
+  ): Promise<NormalizedMetricPayload[]> =>
+    Promise.reject(
+      new Error("Freestyle Libre API integration not yet implemented")
+    ),
 
   /**
    * Parse Freestyle Libre API response
@@ -136,7 +131,7 @@ export const freestyleLibreService = {
    */
   parseFreestyleLibreData: (
     metricKey: string,
-    data: any
+    data: unknown
   ): Array<{
     value: number | string;
     unit?: string;
@@ -156,14 +151,16 @@ export const freestyleLibreService = {
       // Placeholder parsing logic for Freestyle Libre data structure
       // Actual implementation would depend on Abbott's API response format
 
+      const payload = data as LibrePayload;
+
       switch (metricKey) {
         case "blood_glucose": {
           // Parse glucose readings from Freestyle Libre
           if (
-            data?.glucoseMeasurements &&
-            Array.isArray(data.glucoseMeasurements)
+            payload.glucoseMeasurements &&
+            Array.isArray(payload.glucoseMeasurements)
           ) {
-            data.glucoseMeasurements.forEach((reading: any) => {
+            for (const reading of payload.glucoseMeasurements) {
               if (reading.value !== undefined) {
                 samples.push({
                   value: reading.value,
@@ -172,7 +169,7 @@ export const freestyleLibreService = {
                   source: "Freestyle Libre",
                 });
               }
-            });
+            }
           }
           break;
         }
@@ -180,10 +177,10 @@ export const freestyleLibreService = {
         case "glucose_trend": {
           // Parse trend data if available
           if (
-            data?.glucoseMeasurements &&
-            Array.isArray(data.glucoseMeasurements)
+            payload.glucoseMeasurements &&
+            Array.isArray(payload.glucoseMeasurements)
           ) {
-            data.glucoseMeasurements.forEach((reading: any) => {
+            for (const reading of payload.glucoseMeasurements) {
               if (reading.trend !== undefined) {
                 samples.push({
                   value: reading.trend,
@@ -192,7 +189,7 @@ export const freestyleLibreService = {
                   source: "Freestyle Libre",
                 });
               }
-            });
+            }
           }
           break;
         }
@@ -201,7 +198,7 @@ export const freestyleLibreService = {
           // Unknown metric key - skip
           break;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle parsing error
     }
 
@@ -212,29 +209,17 @@ export const freestyleLibreService = {
    * Get current glucose reading
    * Note: This is a placeholder implementation
    */
-  getCurrentGlucose: async (): Promise<{
+  getCurrentGlucose: (): Promise<{
     value: number;
     unit: string;
     timestamp: string;
     trend?: string;
-  } | null> => {
-    try {
-      throw new Error("Freestyle Libre real-time glucose not yet implemented");
-    } catch (error) {
-      return null;
-    }
-  },
+  } | null> => Promise.resolve(null),
 
   /**
    * Disconnect Freestyle Libre account
    */
   disconnect: async (): Promise<void> => {
-    try {
-      await SecureStore.deleteItemAsync(
-        HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS
-      );
-    } catch (error) {
-      throw error;
-    }
+    await deleteItemAsync(HEALTH_STORAGE_KEYS.FREESTYLE_LIBRE_TOKENS);
   },
 };

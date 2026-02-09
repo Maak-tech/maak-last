@@ -4,8 +4,8 @@
  * and creates alerts that are picked up by the real-time WebSocket service
  */
 
-import type { Timestamp } from "firebase/firestore";
 import {
+  Timestamp,
   collection,
   getDocs,
   limit,
@@ -39,7 +39,7 @@ export async function checkTrendsForNewVital(
       collection(db, "vitals"),
       where("userId", "==", userId),
       where("type", "==", vitalType),
-      where("timestamp", ">=", sevenDaysAgo as any),
+      where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
       orderBy("timestamp", "asc"),
       limit(50) // Get up to 50 readings for trend analysis
     );
@@ -65,7 +65,7 @@ export async function checkTrendsForNewVital(
     if (trendAnalysis && isTrendConcerning(trendAnalysis)) {
       await createTrendAlert(userId, trendAnalysis, "vital_trend");
     }
-  } catch (error) {
+  } catch (_error) {
     // Don't throw - trend checking is non-critical
   }
 }
@@ -87,7 +87,7 @@ export async function checkTrendsForNewSymptom(
       collection(db, "symptoms"),
       where("userId", "==", userId),
       where("type", "==", symptomType),
-      where("timestamp", ">=", sevenDaysAgo as any),
+      where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
       orderBy("timestamp", "asc"),
       limit(50)
     );
@@ -114,7 +114,7 @@ export async function checkTrendsForNewSymptom(
     if (trendAnalysis && isTrendConcerning(trendAnalysis)) {
       await createTrendAlert(userId, trendAnalysis, "symptom_trend");
     }
-  } catch (error) {
+  } catch (_error) {
     // Don't throw - trend checking is non-critical
   }
 }
@@ -132,7 +132,7 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
     const vitalsQuery = query(
       collection(db, "vitals"),
       where("userId", "==", userId),
-      where("timestamp", ">=", sevenDaysAgo as any),
+      where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
       orderBy("timestamp", "asc"),
       limit(200)
     );
@@ -184,7 +184,7 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
     const symptomsQuery = query(
       collection(db, "symptoms"),
       where("userId", "==", userId),
-      where("timestamp", ">=", sevenDaysAgo as any),
+      where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo)),
       orderBy("timestamp", "asc"),
       limit(200)
     );
@@ -222,7 +222,7 @@ export async function checkAllTrendsForUser(userId: string): Promise<void> {
         }
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // Don't throw - trend checking is non-critical
   }
 }

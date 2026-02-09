@@ -28,10 +28,14 @@ import {
 } from "@/lib/health/healthMetricsCatalog";
 import { samsungHealthService } from "@/lib/services/samsungHealthService";
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Permissions screen intentionally combines selection UX, async loading, and localized rendering.
 export default function SamsungHealthPermissionsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme, isDark } = useTheme();
 
   const isRTL = i18n.language === "ar";
@@ -53,6 +57,7 @@ export default function SamsungHealthPermissionsScreen() {
 
   // Load available metrics for Samsung Health
   useEffect(() => {
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Load flow combines availability checks, preselection logic, and localized alerts.
     const loadMetrics = async () => {
       try {
         setLoading(true);
@@ -83,13 +88,15 @@ export default function SamsungHealthPermissionsScreen() {
 
         // Pre-select some common metrics
         const preSelected = new Set<string>();
-        metrics
-          .filter((metric) => metric.samsungHealth?.available)
-          .slice(0, 5) // Pre-select first 5 available metrics
-          .forEach((metric) => preSelected.add(metric.key));
+        const available = metrics.filter(
+          (metric) => metric.samsungHealth?.available
+        );
+        for (const metric of available.slice(0, 5)) {
+          preSelected.add(metric.key);
+        }
 
         setSelectedMetrics(preSelected);
-      } catch (error) {
+      } catch (_error) {
         Alert.alert(
           isRTL ? "خطأ" : "Error",
           isRTL
@@ -117,16 +124,19 @@ export default function SamsungHealthPermissionsScreen() {
   const toggleGroup = (groupKey: MetricGroup) => {
     const groupMetrics = availableMetrics.filter((m) => m.group === groupKey);
     const allSelected = groupMetrics.every((m) => selectedMetrics.has(m.key));
-    const noneSelected = groupMetrics.every((m) => !selectedMetrics.has(m.key));
 
     const newSelected = new Set(selectedMetrics);
 
     if (allSelected) {
       // Deselect all in group
-      groupMetrics.forEach((m) => newSelected.delete(m.key));
+      for (const m of groupMetrics) {
+        newSelected.delete(m.key);
+      }
     } else {
       // Select all in group
-      groupMetrics.forEach((m) => newSelected.add(m.key));
+      for (const m of groupMetrics) {
+        newSelected.add(m.key);
+      }
     }
 
     setSelectedMetrics(newSelected);
@@ -151,6 +161,7 @@ export default function SamsungHealthPermissionsScreen() {
     return selectedCount > 0 && selectedCount < groupMetrics.length;
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Connection flow includes validation, OAuth, and localized success/failure states.
   const handleConnect = async () => {
     if (selectedMetrics.size === 0) {
       Alert.alert(
@@ -177,15 +188,14 @@ export default function SamsungHealthPermissionsScreen() {
         [
           {
             text: isRTL ? "موافق" : "OK",
-            onPress: () =>
-              router.replace("/profile/health-integrations" as any),
+            onPress: () => router.replace("/profile/health-integrations"),
           },
         ]
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert(
         isRTL ? "فشل الربط" : "Connection Failed",
-        error.message ||
+        getErrorMessage(error, "") ||
           (isRTL
             ? "فشل في ربط سامسونج هيلث"
             : "Failed to connect Samsung Health")
@@ -294,7 +304,9 @@ export default function SamsungHealthPermissionsScreen() {
         <View style={styles.metricsSection}>
           {groups.map((groupKey) => {
             const groupMetrics = getMetricsInGroup(groupKey);
-            if (groupMetrics.length === 0) return null;
+            if (groupMetrics.length === 0) {
+              return null;
+            }
 
             const groupFullySelected = isGroupFullySelected(groupKey);
             const groupPartiallySelected = isGroupPartiallySelected(groupKey);
@@ -313,9 +325,9 @@ export default function SamsungHealthPermissionsScreen() {
                         groupPartiallySelected && styles.checkboxPartial,
                       ]}
                     >
-                      {groupFullySelected && (
+                      {groupFullySelected ? (
                         <Check color="#FFFFFF" size={16} />
-                      )}
+                      ) : null}
                       {groupPartiallySelected && !groupFullySelected && (
                         <View style={styles.partialIndicator} />
                       )}
@@ -371,7 +383,7 @@ export default function SamsungHealthPermissionsScreen() {
                         >
                           {metric.displayName}
                         </Text>
-                        {metric.description && (
+                        {metric.description ? (
                           <Text
                             style={[
                               styles.metricDescription,
@@ -381,7 +393,7 @@ export default function SamsungHealthPermissionsScreen() {
                           >
                             {metric.description}
                           </Text>
-                        )}
+                        ) : null}
                       </View>
                     </TouchableOpacity>
                   </View>

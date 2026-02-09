@@ -1,3 +1,8 @@
+/* biome-ignore-all lint/complexity/noForEach: Existing aggregation loops are stable and kept as-is in this patch. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Insight engine refactor is deferred to a separate task. */
+/* biome-ignore-all lint/style/noNestedTernary: Locale-dependent branching remains in current structure. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: Third-party payload typing remains partially dynamic for now. */
+/* biome-ignore-all lint/nursery/useMaxParams: Current method signature is preserved for backward compatibility. */
 import {
   collection,
   getDocs,
@@ -9,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Medication, Mood, Symptom } from "@/types";
+import { coerceToDate } from "@/utils/dateCoercion";
 import { medicationService } from "./medicationService";
 import { symptomService } from "./symptomService";
 import {
@@ -18,7 +24,7 @@ import {
   isTrendConcerning,
 } from "./trendDetectionService";
 
-export interface PatternInsight {
+export type PatternInsight = {
   type: "temporal" | "correlation" | "trend" | "recommendation";
   title: string;
   description: string;
@@ -26,16 +32,16 @@ export interface PatternInsight {
   data?: any;
   actionable?: boolean;
   recommendation?: string;
-}
+};
 
-interface VitalSample {
+type VitalSample = {
   id: string;
   type: string;
   value: number;
   unit?: string;
   timestamp: Date;
   source?: string;
-}
+};
 
 // Localization helper for insights
 const getLocalizedInsightText = (
@@ -322,7 +328,7 @@ const getLocalizedInsightText = (
   );
 };
 
-export interface WeeklySummary {
+export type WeeklySummary = {
   weekStart: Date;
   weekEnd: Date;
   symptoms: {
@@ -342,9 +348,9 @@ export interface WeeklySummary {
     trend: "improving" | "declining" | "stable";
   };
   insights: PatternInsight[];
-}
+};
 
-export interface MonthlySummary {
+export type MonthlySummary = {
   month: number;
   year: number;
   symptoms: {
@@ -362,7 +368,7 @@ export interface MonthlySummary {
   };
   insights: PatternInsight[];
   recommendations: string[];
-}
+};
 
 class HealthInsightsService {
   /**
@@ -435,7 +441,7 @@ class HealthInsightsService {
     // Analyze mood patterns by day
     const avgMoodByDay: Record<number, number> = {};
     Object.keys(moodsByDay).forEach((day) => {
-      const dayNum = Number.parseInt(day);
+      const dayNum = Number.parseInt(day, 10);
       const intensities = moodsByDay[dayNum];
       avgMoodByDay[dayNum] =
         intensities.reduce((sum, i) => sum + i, 0) / intensities.length;
@@ -443,10 +449,10 @@ class HealthInsightsService {
 
     const weekendMoods = weekendDays
       .map((day) => avgMoodByDay[day])
-      .filter((v) => !isNaN(v));
+      .filter((v) => !Number.isNaN(v));
     const weekdayMoods = weekdayDays
       .map((day) => avgMoodByDay[day])
-      .filter((v) => !isNaN(v));
+      .filter((v) => !Number.isNaN(v));
 
     if (weekendMoods.length > 0 && weekdayMoods.length > 0) {
       const weekendAvg =
@@ -502,8 +508,7 @@ class HealthInsightsService {
         );
         const daysAfter = Math.max(
           1,
-          (new Date().getTime() - medStartDate.getTime()) /
-            (1000 * 60 * 60 * 24)
+          (Date.now() - medStartDate.getTime()) / (1000 * 60 * 60 * 24)
         );
 
         const avgBefore = symptomsBefore.length / daysBefore;
@@ -771,7 +776,9 @@ class HealthInsightsService {
     source: string | undefined,
     isArabic: boolean
   ) {
-    if (!source) return null;
+    if (!source) {
+      return null;
+    }
     const normalized = source.toLowerCase();
 
     if (normalized.includes("oura")) {
@@ -815,7 +822,9 @@ class HealthInsightsService {
     const grouped: Record<string, VitalSample[]> = {};
     for (const vital of vitals) {
       const provider = this.getProviderDisplayName(vital.source, isArabic);
-      if (!provider) continue;
+      if (!provider) {
+        continue;
+      }
       if (!grouped[provider]) {
         grouped[provider] = [];
       }
@@ -831,7 +840,9 @@ class HealthInsightsService {
     createAlerts = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
-    if (vitals.length < 4) return insights;
+    if (vitals.length < 4) {
+      return insights;
+    }
 
     const vitalsByType: Record<string, VitalSample[]> = {};
     for (const vital of vitals) {
@@ -842,7 +853,9 @@ class HealthInsightsService {
     }
 
     for (const [type, readings] of Object.entries(vitalsByType)) {
-      if (readings.length < 3) continue; // Need at least 3 for trend analysis
+      if (readings.length < 3) {
+        continue; // Need at least 3 for trend analysis
+      }
 
       // Use proper trend analysis function
       const trendAnalysis = analyzeVitalTrend(
@@ -855,10 +868,14 @@ class HealthInsightsService {
         7 // 7 days
       );
 
-      if (!trendAnalysis) continue;
+      if (!trendAnalysis) {
+        continue;
+      }
 
       // Only show insights for concerning trends
-      if (!isTrendConcerning(trendAnalysis)) continue;
+      if (!isTrendConcerning(trendAnalysis)) {
+        continue;
+      }
 
       const trendLabel = isArabic
         ? trendAnalysis.trend === "increasing"
@@ -933,7 +950,9 @@ class HealthInsightsService {
     isArabic = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
-    if (vitals.length < 3) return insights;
+    if (vitals.length < 3) {
+      return insights;
+    }
 
     const vitalsByType: Record<string, VitalSample[]> = {};
     for (const vital of vitals) {
@@ -945,13 +964,17 @@ class HealthInsightsService {
 
     for (const [type, readings] of Object.entries(vitalsByType)) {
       const thresholds = this.getVitalThresholds(type);
-      if (!thresholds) continue;
+      if (!thresholds) {
+        continue;
+      }
 
       const sorted = [...readings].sort(
         (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
       );
       const values = sorted.slice(0, 3).map((r) => r.value);
-      if (values.length < 3) continue;
+      if (values.length < 3) {
+        continue;
+      }
 
       const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
       const vitalType = this.getVitalDisplayName(type, isArabic);
@@ -1010,7 +1033,9 @@ class HealthInsightsService {
     isArabic = false
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
-    if (vitals.length < 3) return insights;
+    if (vitals.length < 3) {
+      return insights;
+    }
 
     const vitalsByProvider = this.groupVitalsByProvider(vitals, isArabic);
     const glucoseProviders = ["Dexcom", "Freestyle Libre"];
@@ -1035,7 +1060,9 @@ class HealthInsightsService {
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, count);
 
-      if (readings.length < 3) return null;
+      if (readings.length < 3) {
+        return null;
+      }
       const avg =
         readings.reduce((sum, r) => sum + r.value, 0) / readings.length;
       const unit = readings[0]?.unit;
@@ -1052,7 +1079,9 @@ class HealthInsightsService {
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
         .slice(0, count);
 
-      if (readings.length < 5) return null;
+      if (readings.length < 5) {
+        return null;
+      }
       const values = readings.map((r) => r.value);
       const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
       const variance =
@@ -1228,7 +1257,9 @@ class HealthInsightsService {
         : [];
 
       const reminderCount = reminders.length;
-      if (reminderCount === 0) continue;
+      if (reminderCount === 0) {
+        continue;
+      }
 
       const medStart = medication.startDate ?? start;
       const medEnd = medication.endDate ?? end;
@@ -1240,16 +1271,20 @@ class HealthInsightsService {
         (overlapEnd.getTime() - overlapStart.getTime()) / millisPerDay
       );
 
-      if (daysInRange <= 0) continue;
+      if (daysInRange <= 0) {
+        continue;
+      }
 
       expectedDoses += daysInRange * reminderCount;
 
       for (const reminder of reminders) {
-        if (!(reminder.taken && reminder.takenAt)) continue;
-        const takenAt =
-          reminder.takenAt instanceof Date
-            ? reminder.takenAt
-            : new Date(reminder.takenAt);
+        if (!(reminder.taken && reminder.takenAt)) {
+          continue;
+        }
+        const takenAt = coerceToDate(reminder.takenAt);
+        if (!takenAt) {
+          continue;
+        }
 
         if (takenAt >= overlapStart && takenAt < overlapEnd) {
           takenDoses += 1;
@@ -1442,7 +1477,7 @@ class HealthInsightsService {
       });
 
       return moods;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

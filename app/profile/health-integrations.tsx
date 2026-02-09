@@ -3,7 +3,7 @@
  * Provider selection and management
  */
 
-import { useNavigation, useRouter } from "expo-router";
+import { type Href, useNavigation, useRouter } from "expo-router";
 import {
   AlertCircle,
   ArrowLeft,
@@ -31,7 +31,7 @@ import type { ProviderConnection } from "@/lib/health/healthTypes";
 import { fitbitService } from "@/lib/services/fitbitService";
 import { withingsService } from "@/lib/services/withingsService";
 
-interface ProviderOption {
+type ProviderOption = {
   id: HealthProvider;
   name: string;
   description: string;
@@ -40,12 +40,13 @@ interface ProviderOption {
   recommended?: boolean;
   comingSoon?: boolean;
   route: string;
-}
+};
 
 export const options = {
   headerShown: false,
 };
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: this screen coordinates availability, connectivity, and navigation state in one view.
 export default function HealthIntegrationsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -187,7 +188,7 @@ export default function HealthIntegrationsScreen() {
       }
 
       setConnections(connectionsMap);
-    } catch (error) {
+    } catch (_error) {
       // Set to false on error so they show as "Coming Soon" instead of platform error
       setFitbitAvailable(false);
       setWithingsAvailable(false);
@@ -200,6 +201,7 @@ export default function HealthIntegrationsScreen() {
     loadConnections();
   }, [loadConnections]);
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: provider routing logic is intentionally explicit per-provider.
   const handleProviderPress = (provider: ProviderOption) => {
     if (!provider.available) {
       if (provider.comingSoon) {
@@ -221,13 +223,13 @@ export default function HealthIntegrationsScreen() {
       // Navigate to connected screen
       if (provider.id === "health_connect") {
         // Health Connect uses permissions screen for connected state
-        router.push("/(settings)/health/healthconnect/permissions" as any);
+        router.push("/(settings)/health/healthconnect/permissions" as Href);
       } else {
-        router.push(provider.route.replace("-intro", "-connected") as any);
+        router.push(provider.route.replace("-intro", "-connected") as Href);
       }
     } else {
       // Navigate to intro screen
-      router.push(provider.route as any);
+      router.push(provider.route as Href);
     }
   };
 
@@ -305,7 +307,7 @@ export default function HealthIntegrationsScreen() {
           <View
             style={[
               styles.welcomeIcon,
-              { backgroundColor: theme.colors.primary.main + "20" },
+              { backgroundColor: `${theme.colors.primary.main}20` },
             ]}
           >
             <Heart color={theme.colors.primary.main} size={40} />
@@ -344,13 +346,16 @@ export default function HealthIntegrationsScreen() {
             {t("availableProviders")}
           </Text>
 
+          {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: rendering cards keeps UI state colocated with labels/badges. */}
           {providers.map((provider) => {
             const connection = connections.get(provider.id);
-            const isConnected = connection?.connected;
+            const isConnected = connection?.connected === true;
+            const canInteract =
+              provider.available || provider.comingSoon === true;
 
             return (
               <TouchableOpacity
-                disabled={!(provider.available || provider.comingSoon)}
+                disabled={!canInteract}
                 key={provider.id}
                 onPress={() => handleProviderPress(provider)}
                 style={[
@@ -358,8 +363,7 @@ export default function HealthIntegrationsScreen() {
                   {
                     backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
                     borderColor: isDark ? "#334155" : "#E2E8F0",
-                    opacity:
-                      provider.available || provider.comingSoon ? 1 : 0.5,
+                    opacity: canInteract ? 1 : 0.5,
                   },
                 ]}
               >
@@ -384,11 +388,11 @@ export default function HealthIntegrationsScreen() {
                     >
                       {provider.name}
                     </Text>
-                    {provider.recommended && (
+                    {provider.recommended === true ? (
                       <View
                         style={[
                           styles.badge,
-                          { backgroundColor: theme.colors.primary.main + "20" },
+                          { backgroundColor: `${theme.colors.primary.main}20` },
                         ]}
                       >
                         <Text
@@ -401,8 +405,8 @@ export default function HealthIntegrationsScreen() {
                           {t("recommended")}
                         </Text>
                       </View>
-                    )}
-                    {provider.comingSoon && (
+                    ) : null}
+                    {provider.comingSoon === true ? (
                       <View
                         style={[styles.badge, { backgroundColor: "#FF6B3520" }]}
                       >
@@ -416,7 +420,7 @@ export default function HealthIntegrationsScreen() {
                           {isRTL ? "قريباً" : "Coming Soon"}
                         </Text>
                       </View>
-                    )}
+                    ) : null}
                   </View>
 
                   <Text
@@ -429,7 +433,7 @@ export default function HealthIntegrationsScreen() {
                     {provider.description}
                   </Text>
 
-                  {isConnected && (
+                  {isConnected ? (
                     <View style={styles.statusRow}>
                       <Check color={theme.colors.accent.success} size={16} />
                       <Text
@@ -443,7 +447,7 @@ export default function HealthIntegrationsScreen() {
                         {t("metrics")}
                       </Text>
                     </View>
-                  )}
+                  ) : null}
 
                   {!(provider.available || provider.comingSoon) && (
                     <View style={styles.statusRow}>
@@ -464,9 +468,9 @@ export default function HealthIntegrationsScreen() {
                   )}
                 </View>
 
-                {(provider.available || provider.comingSoon) && (
+                {canInteract ? (
                   <ChevronRight color={theme.colors.text.secondary} size={20} />
-                )}
+                ) : null}
               </TouchableOpacity>
             );
           })}

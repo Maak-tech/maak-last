@@ -17,7 +17,7 @@ export type EventStatus =
   | "timeout"
   | "cancelled";
 
-export interface ObservabilityEvent {
+export type ObservabilityEvent = {
   id?: string;
   eventType: string;
   domain: ObservabilityDomain;
@@ -36,27 +36,27 @@ export interface ObservabilityEvent {
     message: string;
     stack?: string;
   };
-}
+};
 
-export interface HealthEvent extends ObservabilityEvent {
+export type HealthEvent = ObservabilityEvent & {
   domain: "health_data";
   vitalType?: string;
   value?: number;
   unit?: string;
   isAbnormal?: boolean;
   thresholdBreached?: string;
-}
+};
 
-export interface AlertEvent extends ObservabilityEvent {
+export type AlertEvent = ObservabilityEvent & {
   domain: "alerts";
   alertId: string;
   alertType: string;
   escalationLevel: number;
   acknowledgedBy?: string;
   resolvedBy?: string;
-}
+};
 
-export interface PlatformMetric {
+export type PlatformMetric = {
   id?: string;
   metricName: string;
   value: number;
@@ -64,27 +64,27 @@ export interface PlatformMetric {
   timestamp: Date;
   domain: ObservabilityDomain;
   tags?: Record<string, string>;
-}
+};
 
-export interface SLODefinition {
+export type SLODefinition = {
   id: string;
   name: string;
   target: number;
   window: "hourly" | "daily" | "weekly" | "monthly";
   metricName: string;
   comparator: "gte" | "lte" | "gt" | "lt";
-}
+};
 
-export interface SLOStatus {
+export type SLOStatus = {
   sloId: string;
   currentValue: number;
   target: number;
   isMet: boolean;
   lastUpdated: Date;
   window: string;
-}
+};
 
-export interface Incident {
+export type Incident = {
   id?: string;
   title: string;
   description: string;
@@ -95,16 +95,16 @@ export interface Incident {
   affectedServices: string[];
   correlatedEventIds: string[];
   timeline: IncidentTimelineEntry[];
-}
+};
 
-export interface IncidentTimelineEntry {
+export type IncidentTimelineEntry = {
   timestamp: Date;
   action: string;
   actor?: string;
   details?: string;
-}
+};
 
-export interface AlertAuditEntry {
+export type AlertAuditEntry = {
   id?: string;
   alertId: string;
   action:
@@ -121,9 +121,9 @@ export interface AlertAuditEntry {
   newState: string;
   notes?: string;
   metadata?: Record<string, unknown>;
-}
+};
 
-export interface HealthThreshold {
+export type HealthThreshold = {
   vitalType: string;
   min?: number;
   max?: number;
@@ -135,28 +135,28 @@ export interface HealthThreshold {
     min?: number;
     max?: number;
   }[];
-}
+};
 
-export interface EscalationPolicy {
+export type EscalationPolicy = {
   id: string;
   name: string;
   alertTypes: string[];
   levels: EscalationLevel[];
-}
+};
 
-export interface EscalationLevel {
+export type EscalationLevel = {
   level: number;
   delayMinutes: number;
   notifyRoles: ("caregiver" | "secondary_contact" | "emergency")[];
   action: "notify" | "call" | "seek_care_guidance";
   message: string;
-}
+};
 
-export interface CircuitBreakerState {
+export type CircuitBreakerState = {
   serviceName: string;
   state: "closed" | "open" | "half_open";
   failureCount: number;
   lastFailure?: Date;
   lastSuccess?: Date;
   nextRetryAt?: Date;
-}
+};

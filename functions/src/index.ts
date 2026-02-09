@@ -1,3 +1,7 @@
+/* biome-ignore-all lint/performance/noNamespaceImport: Firebase admin/functions APIs are consumed through existing namespace-style exports in this module. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: legacy callable contracts are intentionally permissive at this boundary and validated at runtime. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: this file aggregates legacy callable handlers pending modularization. */
+/* biome-ignore-all lint/complexity/noForEach: existing batch update loops are retained for readability in legacy handlers. */
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
@@ -23,7 +27,7 @@ import type { NotificationPayload } from "./services/notifications/types";
 admin.initializeApp();
 
 // Simple HTTP function that works with minimal permissions
-export const testHello = functions.https.onRequest((req, res) => {
+export const testHello = functions.https.onRequest((_req, res) => {
   res.json({
     success: true,
     message: "Cloud Functions are working!",
@@ -932,7 +936,7 @@ export const updateNotificationPreferences = functions.https.onCall(
 
 // Function to generate custom token for biometric authentication
 export const generateBiometricToken = functions.https.onCall(
-  async (data: any, context: any) => {
+  async (data: any, _context: any) => {
     const { userId, authLogId } = data;
 
     if (!userId) {

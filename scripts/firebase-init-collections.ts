@@ -8,10 +8,12 @@
  */
 
 const admin = require("firebase-admin");
-const path = require("path");
+const path = require("node:path");
+
+type FirestoreDb = ReturnType<typeof admin.firestore>;
 
 // Initialize Firebase Admin SDK
-async function initializeFirebaseAdmin() {
+function initializeFirebaseAdmin() {
   try {
     // Check if already initialized
     if (admin.apps.length === 0) {
@@ -41,7 +43,7 @@ async function initializeFirebaseAdmin() {
             credential: admin.credential.cert(serviceAccount),
             projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
           });
-        } catch (error) {
+        } catch (_error) {
           console.error("❌ Service account file not found. Please:");
           console.log(
             "1. Download your service account key from Firebase Console"
@@ -68,7 +70,7 @@ async function initializeFirebaseAdmin() {
 }
 
 // Create sample user document
-async function createUserDocument(db: any, userId: string) {
+async function createUserDocument(db: FirestoreDb, userId: string) {
   console.log("👤 Creating user document...");
 
   const userData = {
@@ -90,7 +92,7 @@ async function createUserDocument(db: any, userId: string) {
 }
 
 // Create sample collections for a user
-async function createSampleCollections(db: any, userId: string) {
+async function createSampleCollections(db: FirestoreDb, userId: string) {
   console.log("📄 Creating sample collections...");
 
   // Create sample symptoms
@@ -221,7 +223,7 @@ async function createSampleCollections(db: any, userId: string) {
 }
 
 // Create family document
-async function createFamilyDocument(db: any, userId: string) {
+async function createFamilyDocument(db: FirestoreDb, userId: string) {
   console.log("👨‍👩‍👧‍👦 Creating family document...");
 
   const familyData = {
@@ -247,7 +249,7 @@ async function initializeCollections() {
   console.log("🚀 Starting Firebase Collections Initialization...\n");
 
   try {
-    const db = await initializeFirebaseAdmin();
+    const db = initializeFirebaseAdmin();
 
     // Generate a sample user ID (in real app, this would be from Firebase Auth)
     const sampleUserId =

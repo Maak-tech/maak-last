@@ -19,9 +19,9 @@ import termsConditionsContent from "../../assets/docs/terms-conditions.js";
 class DocumentService {
   private documentCache: Map<string, ParsedDocument> = new Map();
 
-  async loadDocument(fileName: string): Promise<ParsedDocument> {
+  loadDocument(fileName: string): Promise<ParsedDocument> {
     if (this.documentCache.has(fileName)) {
-      return this.documentCache.get(fileName)!;
+      return Promise.resolve(this.documentCache.get(fileName)!);
     }
 
     try {
@@ -42,10 +42,10 @@ class DocumentService {
       const parsed = this.parseMarkdown(markdownContent);
       this.documentCache.set(fileName, parsed);
 
-      return parsed;
-    } catch (error) {
+      return Promise.resolve(parsed);
+    } catch (_error) {
       // Silently handle error
-      throw new Error(`Failed to load document: ${fileName}`);
+      return Promise.reject(new Error(`Failed to load document: ${fileName}`));
     }
   }
 
@@ -135,11 +135,11 @@ class DocumentService {
     );
   }
 
-  async getPrivacyPolicy(): Promise<ParsedDocument> {
+  getPrivacyPolicy(): Promise<ParsedDocument> {
     return this.loadDocument("privacy-policy.md");
   }
 
-  async getTermsAndConditions(): Promise<ParsedDocument> {
+  getTermsAndConditions(): Promise<ParsedDocument> {
     return this.loadDocument("terms-conditions.md");
   }
 
@@ -150,3 +150,4 @@ class DocumentService {
 
 export const documentService = new DocumentService();
 export default documentService;
+

@@ -5,9 +5,29 @@
  * - Multimodal Fusion (arXiv:2412.05660) - Combining fingerprint + PPG for authentication
  */
 
-// Lazy import to prevent crashes if native module isn't available
-// Using 'any' type to avoid Metro bundler resolution issues at build time
-let LocalAuthentication: any = null;
+type LocalAuthenticationModule = typeof import("expo-local-authentication");
+
+// Lazy import to prevent crashes if native module isn't available.
+let LocalAuthentication: LocalAuthenticationModule | null = null;
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+function isAuthRelatedError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.includes("User must be authenticated") ||
+    error.message.includes("unauthenticated")
+  );
+}
 
 async function getLocalAuthentication() {
   if (!LocalAuthentication) {
@@ -20,14 +40,14 @@ async function getLocalAuthentication() {
   return LocalAuthentication;
 }
 
-export interface BiometricAvailability {
+export type BiometricAvailability = {
   available: boolean;
   supportedTypes: string[];
   isBiometricEnrolled: boolean; // Always present for compatibility
   error?: string;
-}
+};
 
-export interface PPGResult {
+export type PPGResult = {
   success: boolean;
   heartRate?: number;
   heartRateVariability?: number; // HRV in ms
@@ -37,16 +57,16 @@ export interface PPGResult {
   confidence?: number; // 0-1 ML confidence when available
   isEstimate?: boolean; // true when a BPM was produced from low-confidence signal quality
   error?: string;
-}
+};
 
-export interface BiometricResult {
+export type BiometricResult = {
   success: boolean;
   score: number; // 0-1 confidence score
   fingerprintScore?: number;
   ppgScore?: number;
   heartRate?: number;
   error?: string;
-}
+};
 
 /**
  * Check if biometric authentication is available on the device
@@ -102,12 +122,12 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
       supportedTypes: typeNames,
       isBiometricEnrolled: true,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       available: false,
       supportedTypes: [],
       isBiometricEnrolled: false,
-      error: error.message || "Unknown error",
+      error: getErrorMessage(error, "Unknown error"),
     };
   }
 }
@@ -148,11 +168,11 @@ export async function authenticateBiometric(): Promise<{
       score: 0,
       error: result.error || "Authentication failed",
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       score: 0,
-      error: error.message || "Biometric authentication error",
+      error: getErrorMessage(error, "Biometric authentication error"),
     };
   }
 }
@@ -204,12 +224,9 @@ export async function processPPGSignalWithML(
         // ML completely failed for non-auth reasons
       }
       // Fall through to traditional processing
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log warning for non-authentication errors
-      const isAuthError =
-        error?.code === "unauthenticated" ||
-        error?.message?.includes("User must be authenticated") ||
-        error?.message?.includes("unauthenticated");
+      const isAuthError = isAuthRelatedError(error);
 
       if (!isAuthError) {
         // ML service unavailable, using traditional processing
@@ -237,6 +254,7 @@ export async function processPPGSignalWithML(
  * @param frameRate - Frames per second (typically 14 fps)
  * @returns Heart rate in BPM, HRV, respiratory rate, and comprehensive signal quality
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Keep processing pipeline in one place until split into tested sub-stages.
 export function processPPGSignalEnhanced(
   signal: number[],
   frameRate = 14
@@ -252,7 +270,7 @@ export function processPPGSignalEnhanced(
   try {
     // Validate signal values
     const validSignal = signal.filter(
-      (val) => !isNaN(val) && val >= 0 && val <= 255
+      (val) => !Number.isNaN(val) && val >= 0 && val <= 255
     );
     if (validSignal.length < signal.length * 0.8) {
       return {
@@ -297,8 +315,12 @@ export function processPPGSignalEnhanced(
     const clippedRatio = clippedSamples / normalized.length;
 
     // Calculate signal quality (penalize clipped signals)
-    const clippingPenalty =
-      clippedRatio > 0.35 ? 0.5 : clippedRatio > 0.2 ? 0.7 : 1;
+    let clippingPenalty = 1;
+    if (clippedRatio > 0.35) {
+      clippingPenalty = 0.5;
+    } else if (clippedRatio > 0.2) {
+      clippingPenalty = 0.7;
+    }
     const signalQuality = Math.max(
       0,
       Math.min(1, calculateSignalQualityOptimized(filtered) * clippingPenalty)
@@ -311,20 +333,17 @@ export function processPPGSignalEnhanced(
       hasPeak && hasAuto ? Math.abs(heartRatePeak - heartRateAuto) : 0;
     const preferAutocorr =
       clippedRatio > 0.15 || signalQuality < 0.65 || hrDifference >= 10;
-    const blendedEstimate =
-      hasPeak && hasAuto
-        ? 0.65 * heartRateAuto + 0.35 * heartRatePeak
-        : hasAuto
-          ? heartRateAuto
-          : heartRatePeak;
+    let blendedEstimate = heartRatePeak;
+    if (hasPeak && hasAuto) {
+      blendedEstimate = 0.65 * heartRateAuto + 0.35 * heartRatePeak;
+    } else if (hasAuto) {
+      blendedEstimate = heartRateAuto;
+    }
     const fallbackEstimate = Number.isFinite(blendedEstimate)
       ? blendedEstimate
       : 60;
-    const heartRateSelected = preferAutocorr
-      ? fallbackEstimate
-      : hasPeak
-        ? heartRatePeak
-        : fallbackEstimate;
+    const heartRateSelected =
+      preferAutocorr || !hasPeak ? fallbackEstimate : heartRatePeak;
 
     // Quality gating:
     // - We still want to return a BPM when the signal is "good enough"
@@ -334,12 +353,12 @@ export function processPPGSignalEnhanced(
       // Return an estimate instead of blocking the user with "no score".
       // UI can display a "low confidence" warning and optionally avoid saving it.
       // Blend autocorrelation + peak estimates to avoid swinging too high or too low.
-      const estimate =
-        Number.isFinite(heartRateAuto) && Number.isFinite(heartRatePeak)
-          ? 0.6 * heartRateAuto + 0.4 * heartRatePeak
-          : Number.isFinite(heartRateAuto)
-            ? heartRateAuto
-            : heartRatePeak;
+      let estimate = heartRatePeak;
+      if (Number.isFinite(heartRateAuto) && Number.isFinite(heartRatePeak)) {
+        estimate = 0.6 * heartRateAuto + 0.4 * heartRatePeak;
+      } else if (Number.isFinite(heartRateAuto)) {
+        estimate = heartRateAuto;
+      }
       return {
         success: true,
         heartRate: Math.round(Math.max(40, Math.min(200, estimate))),
@@ -361,12 +380,15 @@ export function processPPGSignalEnhanced(
     ) {
       // Still return an estimate (but mark it low confidence) so the user gets a BPM.
       // Prefer autocorrelation estimate to reduce false-high BPM from noisy peaks.
-      const estimate =
-        Number.isFinite(heartRateAuto) && Number.isFinite(heartRateSelected)
-          ? 0.6 * heartRateAuto + 0.4 * heartRateSelected
-          : Number.isFinite(heartRateAuto)
-            ? heartRateAuto
-            : heartRateSelected;
+      let estimate = heartRateSelected;
+      if (
+        Number.isFinite(heartRateAuto) &&
+        Number.isFinite(heartRateSelected)
+      ) {
+        estimate = 0.6 * heartRateAuto + 0.4 * heartRateSelected;
+      } else if (Number.isFinite(heartRateAuto)) {
+        estimate = heartRateAuto;
+      }
       return {
         success: true,
         heartRate: Math.round(Math.max(40, Math.min(200, estimate))),
@@ -401,11 +423,11 @@ export function processPPGSignalEnhanced(
         : undefined,
       signalQuality,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       signalQuality: 0,
-      error: error.message || "PPG processing error",
+      error: getErrorMessage(error, "PPG processing error"),
     };
   }
 }
@@ -416,7 +438,9 @@ export function processPPGSignalEnhanced(
  * Implements cascaded filtering with detrending in 5-second windows
  */
 function applyOptimizedFilter(signal: number[], frameRate: number): number[] {
-  if (signal.length < 10) return signal;
+  if (signal.length < 10) {
+    return signal;
+  }
 
   let filtered = [...signal];
 
@@ -468,10 +492,12 @@ function applyDetrending(signal: number[], frameRate: number): number[] {
 function calculateLinearTrend(
   windowData: number[],
   offset: number,
-  frameRate: number
+  _frameRate: number
 ): number[] {
   const n = windowData.length;
-  if (n < 2) return windowData;
+  if (n < 2) {
+    return windowData;
+  }
 
   // Time indices
   const times = Array.from({ length: n }, (_, i) => offset + i);
@@ -573,15 +599,10 @@ function calculateHeartRateOptimized(
     if (
       signal[i] > signal[i - 1] &&
       signal[i] > signal[i + 1] &&
-      signal[i] > threshold
+      signal[i] > threshold &&
+      (peaks.length === 0 || i - peaks.at(-1) >= minPeakDistance)
     ) {
-      // Check minimum distance from last peak
-      if (
-        peaks.length === 0 ||
-        i - peaks[peaks.length - 1] >= minPeakDistance
-      ) {
-        peaks.push(i);
-      }
+      peaks.push(i);
     }
   }
 
@@ -625,7 +646,9 @@ function calculateHeartRateOptimized(
  */
 function calculateSignalQualityOptimized(signal: number[]): number {
   const n = signal.length;
-  if (n < 30) return 0; // Need minimum samples for quality assessment
+  if (n < 30) {
+    return 0; // Need minimum samples for quality assessment
+  }
 
   // Calculate basic statistics
   const mean = signal.reduce((a, b) => a + b, 0) / n;
@@ -665,8 +688,10 @@ function calculateSignalQualityOptimized(signal: number[]): number {
 /**
  * Calculate Signal-to-Noise Ratio
  */
-function calculateSNR(signal: number[], mean: number, stdDev: number): number {
-  if (stdDev === 0) return 0;
+function calculateSNR(signal: number[], _mean: number, stdDev: number): number {
+  if (stdDev === 0) {
+    return 0;
+  }
 
   // Estimate signal power (variance of detrended signal)
   const signalPower = stdDev ** 2;
@@ -688,7 +713,9 @@ function estimateNoiseLevel(signal: number[]): number {
     noiseSignal.push(signal[i] - 0.9 * signal[i - 1]); // High-pass filter
   }
 
-  if (noiseSignal.length === 0) return 0;
+  if (noiseSignal.length === 0) {
+    return 0;
+  }
 
   const mean = noiseSignal.reduce((a, b) => a + b, 0) / noiseSignal.length;
   const variance =
@@ -709,7 +736,9 @@ function calculatePeriodicityScore(signal: number[]): number {
   // Find peaks in autocorrelation (indicating periodicity)
   const peaks = findPeaks(autocorr, 0.3); // Threshold for significant correlation
 
-  if (peaks.length === 0) return 0;
+  if (peaks.length === 0) {
+    return 0;
+  }
 
   // Calculate average correlation strength
   const avgCorrelation =
@@ -737,7 +766,7 @@ function calculateAutocorrelation(signal: number[], maxLag: number): number[] {
 
     for (let i = lag; i < signal.length; i++) {
       correlation += (signal[i] - mean) * (signal[i - lag] - mean);
-      count++;
+      count += 1;
     }
 
     autocorr.push(count > 0 ? correlation / (count * variance) : 0);
@@ -771,7 +800,9 @@ function findPeaks(array: number[], threshold: number): number[] {
 function calculateStabilityScore(signal: number[]): number {
   // Divide signal into segments and check consistency
   const segmentSize = Math.floor(signal.length / 4);
-  if (segmentSize < 10) return 0.5; // Not enough data
+  if (segmentSize < 10) {
+    return 0.5; // Not enough data
+  }
 
   const segments: number[][] = [];
   for (let i = 0; i < 4; i++) {
@@ -819,7 +850,9 @@ function calculateSpectralConcentration(signal: number[]): number {
   const ppgStart = Math.floor((psd.length * 0.8) / (signal.length / 2));
   const ppgEnd = Math.floor((psd.length * 3.5) / (signal.length / 2));
 
-  if (ppgStart >= psd.length || ppgEnd >= psd.length) return 0;
+  if (ppgStart >= psd.length || ppgEnd >= psd.length) {
+    return 0;
+  }
 
   // Calculate power in PPG range vs total power
   const ppgPower = psd.slice(ppgStart, ppgEnd + 1).reduce((a, b) => a + b, 0);
@@ -861,7 +894,9 @@ function calculateHRVOptimized(
       }
     }
 
-    if (peaks.length < 3) return;
+    if (peaks.length < 3) {
+      return;
+    }
 
     // Calculate R-R intervals in milliseconds
     const rrIntervals: number[] = [];
@@ -873,7 +908,9 @@ function calculateHRVOptimized(
       }
     }
 
-    if (rrIntervals.length < 2) return;
+    if (rrIntervals.length < 2) {
+      return;
+    }
 
     // Calculate RMSSD
     let sumSquaredDiffs = 0;
@@ -909,7 +946,7 @@ function calculateRespiratoryRateOptimized(
 
       for (let j = start; j <= end; j++) {
         sum += signal[j];
-        count++;
+        count += 1;
       }
       envelope.push(sum / count);
     }
@@ -923,13 +960,15 @@ function calculateRespiratoryRateOptimized(
         envelope[i] > envelope[i - 1] &&
         envelope[i] > envelope[i + 1] &&
         (breathingPeaks.length === 0 ||
-          i - breathingPeaks[breathingPeaks.length - 1] >= minBreathDistance)
+          i - breathingPeaks.at(-1) >= minBreathDistance)
       ) {
         breathingPeaks.push(i);
       }
     }
 
-    if (breathingPeaks.length < 2) return;
+    if (breathingPeaks.length < 2) {
+      return;
+    }
 
     // Calculate average breathing interval
     const intervals: number[] = [];
@@ -967,7 +1006,9 @@ function estimateHeartRateFromPeriod(
 
   const mean = signal.reduce((a, b) => a + b, 0) / n;
   const variance = signal.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
-  if (variance <= 0) return 60; // fallback
+  if (variance <= 0) {
+    return 60; // fallback
+  }
 
   let maxCorrelation = Number.NEGATIVE_INFINITY;
   let bestPeriod = frameRate; // Default to 1 second (60 BPM)
@@ -982,7 +1023,7 @@ function estimateHeartRateFromPeriod(
 
     for (let i = 0; i < n - period; i++) {
       correlation += (signal[i] - mean) * (signal[i + period] - mean);
-      count++;
+      count += 1;
     }
 
     const normalized = count > 0 ? correlation / (count * variance) : 0;
@@ -1039,8 +1080,6 @@ export function compareHeartRate(
   tolerance = 10
 ): number {
   const difference = Math.abs(currentHR - enrolledHR);
-  const maxDifference = tolerance * 2; // Allow ±tolerance BPM
-
   if (difference <= tolerance) {
     return 1.0; // Perfect match
   }

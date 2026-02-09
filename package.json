@@ -29,7 +29,7 @@
     "test:ppg": "bunx tsx scripts/test-ppg.ts",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "postinstall": "patch-package"
+    "postinstall": "node -e \"const { execSync } = require('node:child_process'); try { const patchCli = require.resolve('patch-package/dist/index.js'); execSync(`node \\\"${patchCli}\\\"`, { stdio: 'inherit' }); } catch (error) { if (error && error.code === 'MODULE_NOT_FOUND') { console.log('patch-package not installed; skipping postinstall patches.'); process.exit(0); } throw error; }\""
   },
   "dependencies": {
     "@expo-google-fonts/cairo": "^0.2.3",

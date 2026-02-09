@@ -1,3 +1,5 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Large profile screen with multiple modal flows. */
+/* biome-ignore-all lint/style/noNestedTernary: Localization branches are intentionally explicit in this screen. */
 import { useNavigation, useRouter } from "expo-router";
 import {
   ArrowLeft,
@@ -11,7 +13,12 @@ import {
   User,
   X,
 } from "lucide-react-native";
-import { useEffect, useLayoutEffect, useState } from "react";
+import {
+  type ComponentType,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -34,6 +41,50 @@ import { safeFormatDate } from "@/utils/dateFormat";
 export const options = {
   headerShown: false,
 };
+
+type InfoCardProps = {
+  description?: string;
+  icon: ComponentType<{ color?: string; size?: number }>;
+  isRTL: boolean;
+  label: string;
+  value: string;
+};
+
+function InfoCard({
+  description,
+  icon: Icon,
+  isRTL,
+  label,
+  value,
+}: InfoCardProps) {
+  return (
+    <View style={styles.infoCard}>
+      <View style={styles.infoCardHeader}>
+        <View style={styles.infoCardIcon}>
+          <Icon color="#2563EB" size={20} />
+        </View>
+        <View style={styles.infoCardContent}>
+          <Text style={[styles.infoCardLabel, isRTL && { textAlign: "left" }]}>
+            {label}
+          </Text>
+          <Text style={[styles.infoCardValue, isRTL && { textAlign: "left" }]}>
+            {value}
+          </Text>
+          {description ? (
+            <Text
+              style={[
+                styles.infoCardDescription,
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {description}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function PersonalInfoScreen() {
   const { i18n } = useTranslation();
@@ -87,7 +138,9 @@ export default function PersonalInfoScreen() {
       return;
     }
 
-    if (!user?.id) return;
+    if (!user?.id) {
+      return;
+    }
 
     setLoading(true);
     try {
@@ -114,34 +167,6 @@ export default function PersonalInfoScreen() {
       setLoading(false);
     }
   };
-
-  const InfoCard = ({ icon: Icon, label, value, description }: any) => (
-    <View style={styles.infoCard}>
-      <View style={styles.infoCardHeader}>
-        <View style={styles.infoCardIcon}>
-          <Icon color="#2563EB" size={20} />
-        </View>
-        <View style={styles.infoCardContent}>
-          <Text style={[styles.infoCardLabel, isRTL && { textAlign: "left" }]}>
-            {label}
-          </Text>
-          <Text style={[styles.infoCardValue, isRTL && { textAlign: "left" }]}>
-            {value}
-          </Text>
-          {description && (
-            <Text
-              style={[
-                styles.infoCardDescription,
-                isRTL && { textAlign: "left" },
-              ]}
-            >
-              {description}
-            </Text>
-          )}
-        </View>
-      </View>
-    </View>
-  );
 
   const memberSinceDate = new Date(user?.createdAt || new Date());
   const formattedDate = safeFormatDate(
@@ -229,6 +254,7 @@ export default function PersonalInfoScreen() {
                 : "Your name as it appears in the app"
             }
             icon={User}
+            isRTL={isRTL}
             label={isRTL ? "الاسم الكامل" : "Full Name"}
             value={
               user?.firstName && user?.lastName
@@ -242,6 +268,7 @@ export default function PersonalInfoScreen() {
               isRTL ? "للدخول والتواصل" : "For login and communication"
             }
             icon={Mail}
+            isRTL={isRTL}
             label={isRTL ? "البريد الإلكتروني" : "Email Address"}
             value={user?.email || (isRTL ? "غير محدد" : "Not specified")}
           />
@@ -249,6 +276,7 @@ export default function PersonalInfoScreen() {
           <InfoCard
             description={isRTL ? "تاريخ إنشاء الحساب" : "Account creation date"}
             icon={Calendar}
+            isRTL={isRTL}
             label={isRTL ? "تاريخ الانضمام" : "Member Since"}
             value={formattedDate}
           />
@@ -264,6 +292,7 @@ export default function PersonalInfoScreen() {
                   : "Family member"
             }
             icon={Shield}
+            isRTL={isRTL}
             label={isRTL ? "دور المستخدم" : "User Role"}
             value={
               user?.role === "admin"
@@ -286,6 +315,7 @@ export default function PersonalInfoScreen() {
           <InfoCard
             description={isRTL ? "لغة واجهة التطبيق" : "App interface language"}
             icon={MapPin}
+            isRTL={isRTL}
             label={isRTL ? "اللغة المفضلة" : "Preferred Language"}
             value={user?.preferences?.language === "ar" ? "العربية" : "English"}
           />
@@ -295,6 +325,7 @@ export default function PersonalInfoScreen() {
               isRTL ? "للطوارئ والإشعارات" : "For emergencies and notifications"
             }
             icon={Phone}
+            isRTL={isRTL}
             label={isRTL ? "رقم الهاتف" : "Phone Number"}
             value={user?.phoneNumber || (isRTL ? "غير محدد" : "Not specified")}
           />
@@ -514,7 +545,7 @@ export default function PersonalInfoScreen() {
                             : "Avatar saved successfully"
                         );
                       }
-                    } catch (error) {
+                    } catch (_error) {
                       Alert.alert(
                         isRTL ? "خطأ" : "Error",
                         isRTL

@@ -11,11 +11,11 @@ import {
 } from "firebase/firestore";
 import { Platform } from "react-native";
 import { auth, db } from "@/lib/firebase";
-import { appleHealthService } from "./appleHealthService";
 import { safeFormatNumber } from "@/utils/dateFormat";
+import { appleHealthService } from "./appleHealthService";
 
 // iOS HealthKit permissions - legacy format (not used with @kingstinct/react-native-healthkit)
-const HealthKitPermissions = {
+const _HealthKitPermissions = {
   permissions: {
     read: [
       "HeartRate",
@@ -35,7 +35,7 @@ const HealthKitPermissions = {
 };
 
 // Android Health Connect types
-const AndroidHealthPermissions = [
+const _AndroidHealthPermissions = [
   "android.permission.health.READ_HEART_RATE",
   "android.permission.health.READ_STEPS",
   "android.permission.health.READ_SLEEP",
@@ -45,7 +45,7 @@ const AndroidHealthPermissions = [
   "android.permission.activity_recognition",
 ];
 
-export interface VitalSigns {
+export type VitalSigns = {
   heartRate?: number;
   restingHeartRate?: number;
   heartRateVariability?: number;
@@ -73,9 +73,9 @@ export interface VitalSigns {
   waterIntake?: number;
   bloodGlucose?: number;
   timestamp: Date;
-}
+};
 
-export interface HealthDataSummary {
+export type HealthDataSummary = {
   heartRate: {
     current: number;
     average: number;
@@ -97,10 +97,12 @@ export interface HealthDataSummary {
     trend: "up" | "down" | "stable";
   };
   lastSyncTime: Date;
-}
+};
 
 const HEALTH_DATA_STORAGE_KEY = "@maak_health_data";
 const PERMISSIONS_STORAGE_KEY = "@maak_health_permissions";
+const isDevEnvironment = (): boolean =>
+  (globalThis as { __DEV__?: boolean }).__DEV__ === true;
 
 export const healthDataService = {
   // Initialize health data access (Expo-compatible)
@@ -131,7 +133,7 @@ export const healthDataService = {
           const granted = await appleHealthService.authorize();
           await this.savePermissionStatus(granted);
           return granted;
-        } catch (error: any) {
+        } catch {
           await this.savePermissionStatus(false);
           return false;
         }
@@ -153,7 +155,7 @@ export const healthDataService = {
           // For now, just check availability
           await this.savePermissionStatus(true);
           return true;
-        } catch (error: any) {
+        } catch {
           await this.savePermissionStatus(false);
           return false;
         }
@@ -177,13 +179,13 @@ export const healthDataService = {
 
       // Check Fitbit connection first (works on both iOS and Android)
       const fitbitConnection = await getProviderConnection("fitbit");
-      if (fitbitConnection && fitbitConnection.connected) {
+      if (fitbitConnection?.connected) {
         return true;
       }
 
       if (Platform.OS === "ios") {
         const connection = await getProviderConnection("apple_health");
-        if (connection && connection.connected) {
+        if (connection?.connected) {
           // Validate that HealthKit permissions are still actually granted
           // Only validate occasionally to avoid performance issues
           // Check connection age - only validate if connection is older than 1 hour
@@ -225,14 +227,22 @@ export const healthDataService = {
 
               // Query succeeded, permissions are still valid
               return true;
-            } catch (error: any) {
+            } catch (error: unknown) {
               // Check if this is specifically an authorization error
               // HealthKit error code 5 = authorization denied or not determined
-              const errorCode = error?.code;
-              const errorDomain = error?.domain;
-              const errorMessage = String(
-                error?.message || error
-              ).toLowerCase();
+              const errorDetails =
+                typeof error === "object" && error !== null
+                  ? (error as {
+                      code?: unknown;
+                      domain?: unknown;
+                      message?: unknown;
+                    })
+                  : undefined;
+              const errorCode = errorDetails?.code;
+              const errorDomain = errorDetails?.domain;
+              const errorMessage = String(errorDetails?.message ?? error)
+                .toLowerCase()
+                .trim();
 
               const isAuthError =
                 errorCode === 5 ||
@@ -264,7 +274,7 @@ export const healthDataService = {
         }
       } else if (Platform.OS === "android") {
         const connection = await getProviderConnection("health_connect");
-        if (connection && connection.connected) {
+        if (connection?.connected) {
           return true;
         }
       }
@@ -306,7 +316,7 @@ export const healthDataService = {
 
       // Fall back to direct provider queries if Firestore doesn't have data yet
       return await this.getLatestVitalsFromProviders();
-    } catch (error) {
+    } catch (_error) {
       // If Firestore query fails, fall back to direct provider queries
       return await this.getLatestVitalsFromProviders();
     }
@@ -341,7 +351,7 @@ export const healthDataService = {
           value: number;
           timestamp: Date;
           source?: string;
-          metadata?: any;
+          metadata?: Record<string, unknown>;
         }>
       > = {};
 
@@ -362,7 +372,7 @@ export const healthDataService = {
       });
 
       // Metrics that should use latest value (not summed)
-      const latestValueMetrics = [
+      const _latestValueMetrics = [
         "heartRate",
         "restingHeartRate",
         "walkingHeartRateAverage",
@@ -379,7 +389,7 @@ export const healthDataService = {
       ];
 
       // Metrics that should be summed for today's total
-      const sumMetrics = [
+      const _sumMetrics = [
         "steps",
         "activeEnergy",
         "basalEnergy",
@@ -394,7 +404,9 @@ export const healthDataService = {
       // Helper to get latest value for a metric type
       const getLatestValue = (type: string): number | undefined => {
         const samples = vitalsByType[type];
-        if (!samples || samples.length === 0) return;
+        if (!samples || samples.length === 0) {
+          return;
+        }
         // Sort by timestamp descending and get the most recent
         const sorted = [...samples].sort(
           (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
@@ -405,7 +417,9 @@ export const healthDataService = {
       // Helper to get today's sum for a metric type
       const getTodaySum = (type: string): number | undefined => {
         const samples = vitalsByType[type];
-        if (!samples || samples.length === 0) return;
+        if (!samples || samples.length === 0) {
+          return;
+        }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -428,8 +442,10 @@ export const healthDataService = {
 
       // Helper to get sleep hours (sum of all sleep periods)
       const getSleepHours = (): number | undefined => {
-        const samples = vitalsByType["sleepHours"];
-        if (!samples || samples.length === 0) return;
+        const samples = vitalsByType.sleepHours;
+        if (!samples || samples.length === 0) {
+          return;
+        }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -461,32 +477,36 @@ export const healthDataService = {
           const bp = getLatestValue("bloodPressure");
           if (bp === undefined) {
             // Try to get from metadata
-            const samples = vitalsByType["bloodPressure"];
+            const samples = vitalsByType.bloodPressure;
             if (samples && samples.length > 0) {
               const sorted = [...samples].sort(
                 (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
               );
               const latest = sorted[0];
-              if (latest.metadata?.systolic && latest.metadata?.diastolic) {
+              const systolic = Number(latest.metadata?.systolic);
+              const diastolic = Number(latest.metadata?.diastolic);
+              if (!Number.isNaN(systolic) && !Number.isNaN(diastolic)) {
                 return {
-                  systolic: latest.metadata.systolic,
-                  diastolic: latest.metadata.diastolic,
+                  systolic,
+                  diastolic,
                 };
               }
             }
             return;
           }
           // If value is a number, we need to check metadata for systolic/diastolic
-          const samples = vitalsByType["bloodPressure"];
+          const samples = vitalsByType.bloodPressure;
           if (samples && samples.length > 0) {
             const sorted = [...samples].sort(
               (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
             );
             const latest = sorted[0];
-            if (latest.metadata?.systolic && latest.metadata?.diastolic) {
+            const systolic = Number(latest.metadata?.systolic);
+            const diastolic = Number(latest.metadata?.diastolic);
+            if (!Number.isNaN(systolic) && !Number.isNaN(diastolic)) {
               return {
-                systolic: latest.metadata.systolic,
-                diastolic: latest.metadata.diastolic,
+                systolic,
+                diastolic,
               };
             }
           }
@@ -516,7 +536,7 @@ export const healthDataService = {
         standTime: getTodaySum("standTime"),
         workouts: (() => {
           // Count unique workout sessions (could be tracked separately)
-          const samples = vitalsByType["workouts"];
+          const samples = vitalsByType.workouts;
           return samples ? samples.length : undefined;
         })(),
 
@@ -533,7 +553,7 @@ export const healthDataService = {
       };
 
       return vitals;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   },
@@ -545,13 +565,13 @@ export const healthDataService = {
 
       // Check Fitbit first (works on both platforms)
       const fitbitConnection = await getProviderConnection("fitbit");
-      if (fitbitConnection && fitbitConnection.connected) {
+      if (fitbitConnection?.connected) {
         return await this.getFitbitVitals();
       }
 
       // Check Withings (works on both platforms)
       const withingsConnection = await getProviderConnection("withings");
-      if (withingsConnection && withingsConnection.connected) {
+      if (withingsConnection?.connected) {
         // Withings vitals would need to be fetched similarly
         // For now, fall through to platform-specific providers
       }
@@ -577,7 +597,7 @@ export const healthDataService = {
       const availability = await appleHealthService.checkAvailability();
       if (!availability.available) {
         // In production, return null instead of simulated data
-        return __DEV__ ? this.getSimulatedVitals() : null;
+        return isDevEnvironment() ? this.getSimulatedVitals() : null;
       }
 
       // Check if a connection exists (authorization was granted)
@@ -585,10 +605,10 @@ export const healthDataService = {
       // the module-level authorizationRequested flag resets on app restart
       const { getProviderConnection } = await import("../health/healthSync");
       const connection = await getProviderConnection("apple_health");
-      if (!(connection && connection.connected)) {
+      if (!connection?.connected) {
         // In production, return null instead of simulated data
         // User needs to authorize in settings first
-        return __DEV__ ? this.getSimulatedVitals() : null;
+        return isDevEnvironment() ? this.getSimulatedVitals() : null;
       }
 
       // Get health metrics using appleHealthService
@@ -608,10 +628,14 @@ export const healthDataService = {
           convertToKg = false
         ): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           // Get the most recent sample value (samples are sorted by date)
-          const latestSample = metric.samples[metric.samples.length - 1];
-          if (typeof latestSample.value !== "number") return;
+          const latestSample = metric.samples.at(-1);
+          if (typeof latestSample.value !== "number") {
+            return;
+          }
 
           let value = latestSample.value;
 
@@ -625,7 +649,7 @@ export const healthDataService = {
               unit === "lb" ||
               unit === "lbs"
             ) {
-              value = value / 2.204_62; // Convert pounds to kg
+              value /= 2.204_62; // Convert pounds to kg
             }
             // If already in kg, use as-is
           }
@@ -636,7 +660,9 @@ export const healthDataService = {
         // Helper to get sum for metrics like steps (daily total)
         const getSumValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           // Sum all values for metrics like steps
           const sum = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
@@ -649,7 +675,9 @@ export const healthDataService = {
         // Helper to calculate sleep hours from sleep analysis category samples
         const getSleepHours = (): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === "sleep_analysis");
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
 
           // Sleep analysis returns category samples with startDate and endDate
           // Filter for "asleep" samples and calculate total duration
@@ -712,7 +740,9 @@ export const healthDataService = {
           standTime: getSumValue("stand_time"), // Sum stand time for daily total
           workouts: (() => {
             const metric = metrics.find((m) => m.metricKey === "workouts");
-            if (!metric || metric.samples.length === 0) return;
+            if (!metric || metric.samples.length === 0) {
+              return;
+            }
             return metric.samples.length;
           })(),
 
@@ -729,18 +759,18 @@ export const healthDataService = {
         };
 
         return vitals;
-      } catch (error: any) {
+      } catch {
         // In production, return null instead of simulated data
-        return __DEV__ ? this.getSimulatedVitals() : null;
+        return isDevEnvironment() ? this.getSimulatedVitals() : null;
       }
-    } catch (error: any) {
+    } catch {
       // In production, return null instead of simulated data
-      return __DEV__ ? this.getSimulatedVitals() : null;
+      return isDevEnvironment() ? this.getSimulatedVitals() : null;
     }
   },
 
   // Generate simulated vitals for demo/development (dev only)
-  async getSimulatedVitals(): Promise<VitalSigns> {
+  getSimulatedVitals(): VitalSigns {
     // Generate realistic health data for demonstration
     const baseHeartRate = 70;
     const baseSteps = 6000;
@@ -769,9 +799,9 @@ export const healthDataService = {
       const { getProviderConnection } = await import("../health/healthSync");
       const connection = await getProviderConnection("health_connect");
 
-      if (!(connection && connection.connected)) {
+      if (!connection?.connected) {
         // In production, return null instead of simulated data
-        return __DEV__ ? this.getSimulatedVitals() : null;
+        return isDevEnvironment() ? this.getSimulatedVitals() : null;
       }
 
       // Import healthConnectService dynamically
@@ -799,17 +829,23 @@ export const healthDataService = {
         // Helper to get latest value from samples
         const getLatestValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           // Get the most recent sample value
-          const latestSample = metric.samples[metric.samples.length - 1];
-          if (typeof latestSample.value !== "number") return;
+          const latestSample = metric.samples.at(-1);
+          if (typeof latestSample.value !== "number") {
+            return;
+          }
           return latestSample.value;
         };
 
         // Helper to get sum for metrics like steps (daily total)
         const getSumValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           const sum = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
@@ -820,7 +856,9 @@ export const healthDataService = {
         // Helper to get average heart rate
         const getAverageHeartRate = (): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === "heart_rate");
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           const sum = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
@@ -831,7 +869,9 @@ export const healthDataService = {
         // Helper to get sleep hours from sleep analysis
         const getSleepHours = (): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === "sleep_analysis");
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           // Sum all sleep durations (in hours) and convert to hours
           const totalHours = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
@@ -877,7 +917,9 @@ export const healthDataService = {
           exerciseMinutes: getSumValue("exercise_minutes"),
           workouts: (() => {
             const metric = metrics.find((m) => m.metricKey === "workouts");
-            if (!metric || metric.samples.length === 0) return;
+            if (!metric || metric.samples.length === 0) {
+              return;
+            }
             return metric.samples.length;
           })(),
 
@@ -894,10 +936,10 @@ export const healthDataService = {
         };
 
         return vitals;
-      } catch (error: any) {
+      } catch {
         return this.getSimulatedVitals();
       }
-    } catch (error: any) {
+    } catch {
       return this.getSimulatedVitals();
     }
   },
@@ -908,9 +950,9 @@ export const healthDataService = {
       const { getProviderConnection } = await import("../health/healthSync");
       const connection = await getProviderConnection("fitbit");
 
-      if (!(connection && connection.connected)) {
+      if (!connection?.connected) {
         // In production, return null instead of simulated data
-        return __DEV__ ? this.getSimulatedVitals() : null;
+        return isDevEnvironment() ? this.getSimulatedVitals() : null;
       }
 
       // Import fitbitService dynamically
@@ -938,17 +980,23 @@ export const healthDataService = {
         // Helper to get latest value from samples
         const getLatestValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           // Get the most recent sample value
-          const latestSample = metric.samples[metric.samples.length - 1];
-          if (typeof latestSample.value !== "number") return;
+          const latestSample = metric.samples.at(-1);
+          if (typeof latestSample.value !== "number") {
+            return;
+          }
           return latestSample.value;
         };
 
         // Helper to get sum for metrics like steps (daily total)
         const getSumValue = (metricKey: string): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === metricKey);
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           const sum = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
@@ -959,7 +1007,9 @@ export const healthDataService = {
         // Helper to get average heart rate
         const getAverageHeartRate = (): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === "heart_rate");
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           const sum = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
             return acc + value;
@@ -970,7 +1020,9 @@ export const healthDataService = {
         // Helper to get sleep hours from sleep analysis
         const getSleepHours = (): number | undefined => {
           const metric = metrics.find((m) => m.metricKey === "sleep_analysis");
-          if (!metric || metric.samples.length === 0) return;
+          if (!metric || metric.samples.length === 0) {
+            return;
+          }
           // Sum all sleep durations (in minutes) and convert to hours
           const totalMinutes = metric.samples.reduce((acc, sample) => {
             const value = typeof sample.value === "number" ? sample.value : 0;
@@ -1022,13 +1074,13 @@ export const healthDataService = {
         };
 
         return vitals;
-      } catch (error: any) {
+      } catch {
         // In production, return null instead of simulated data
-        return __DEV__ ? this.getSimulatedVitals() : null;
+        return isDevEnvironment() ? this.getSimulatedVitals() : null;
       }
-    } catch (error: any) {
+    } catch {
       // In production, return null instead of simulated data
-      return __DEV__ ? this.getSimulatedVitals() : null;
+      return isDevEnvironment() ? this.getSimulatedVitals() : null;
     }
   },
 
@@ -1036,7 +1088,9 @@ export const healthDataService = {
   async getHealthSummary(): Promise<HealthDataSummary | null> {
     try {
       const vitals = await this.getLatestVitals();
-      if (!vitals) return null;
+      if (!vitals) {
+        return null;
+      }
 
       // For demo purposes, we'll create a summary from current data
       // In production, you'd calculate averages from historical data
@@ -1075,7 +1129,9 @@ export const healthDataService = {
   async syncHealthData(): Promise<void> {
     try {
       const vitals = await this.getLatestVitals();
-      if (!vitals) return;
+      if (!vitals) {
+        return;
+      }
 
       // Store locally
       await AsyncStorage.setItem(
@@ -1091,7 +1147,9 @@ export const healthDataService = {
   async getStoredHealthData(): Promise<VitalSigns | null> {
     try {
       const stored = await AsyncStorage.getItem(HEALTH_DATA_STORAGE_KEY);
-      if (!stored) return null;
+      if (!stored) {
+        return null;
+      }
 
       const parsed = JSON.parse(stored);
       return {

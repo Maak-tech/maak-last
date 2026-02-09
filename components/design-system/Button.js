@@ -67,7 +67,7 @@ const Button = ({
         />
       ) : (
         <View style={styles.content}>
-          {icon && <View style={styles.icon}>{icon}</View>}
+          {icon ? <View style={styles.icon}>{icon}</View> : null}
           <Text style={[...getTextStyle(), textStyle]}>{title}</Text>
         </View>
       )}

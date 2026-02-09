@@ -110,15 +110,15 @@ const getLocalizedVitalName = (type: string, isArabic: boolean): string => {
   return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
-export interface VitalReading {
+export type VitalReading = {
   type: string;
   value: number;
   unit: string;
   timestamp: Date;
   userId: string;
-}
+};
 
-export interface RuleEvaluation {
+export type RuleEvaluation = {
   triggered: boolean;
   severity: EventSeverity;
   thresholdBreached?: string;
@@ -126,7 +126,7 @@ export interface RuleEvaluation {
   recommendedAction?: string;
   isPersonalizedAnomaly?: boolean;
   zScore?: number;
-}
+};
 
 const DEFAULT_THRESHOLDS: HealthThreshold[] = [
   { vitalType: "heart_rate", min: 50, max: 100, unit: "bpm", severity: "warn" },
@@ -261,11 +261,11 @@ const DEFAULT_THRESHOLDS: HealthThreshold[] = [
 
 class HealthRulesEngine {
   private thresholds: HealthThreshold[] = DEFAULT_THRESHOLDS;
-  private recentReadings: Map<string, VitalReading[]> = new Map();
-  private maxReadingsPerUser = 100;
-  private baselineCache: Map<string, PersonalizedBaseline> = new Map();
-  private baselineCacheExpiry: Map<string, number> = new Map();
-  private CACHE_TTL_MS = 5 * 60 * 1000;
+  private readonly recentReadings: Map<string, VitalReading[]> = new Map();
+  private readonly maxReadingsPerUser = 100;
+  private readonly baselineCache: Map<string, PersonalizedBaseline> = new Map();
+  private readonly baselineCacheExpiry: Map<string, number> = new Map();
+  private readonly CACHE_TTL_MS = 5 * 60 * 1000;
 
   setThresholds(thresholds: HealthThreshold[]): void {
     this.thresholds = thresholds;
@@ -275,6 +275,7 @@ class HealthRulesEngine {
     this.thresholds.push(threshold);
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Personalized evaluation combines threshold and anomaly logic in one pass.
   async evaluateVitalWithPersonalization(
     reading: VitalReading,
     isArabic = false
@@ -358,7 +359,11 @@ class HealthRulesEngine {
       this.recentReadings.set(userKey, []);
     }
 
-    const readings = this.recentReadings.get(userKey)!;
+    let readings = this.recentReadings.get(userKey);
+    if (!readings) {
+      readings = [];
+      this.recentReadings.set(userKey, readings);
+    }
     readings.push(reading);
 
     if (readings.length > this.maxReadingsPerUser) {
@@ -471,7 +476,9 @@ class HealthRulesEngine {
   }
 
   private calculateTrend(values: number[]): number {
-    if (values.length < 2) return 0;
+    if (values.length < 2) {
+      return 0;
+    }
 
     const n = values.length;
     let sumX = 0,

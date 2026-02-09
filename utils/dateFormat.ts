@@ -27,7 +27,9 @@ const hasIntlNumberFormat = () =>
   typeof Intl !== "undefined" && typeof Intl.NumberFormat === "function";
 
 const toValidDate = (input: DateInput): Date | null => {
-  if (!input) return null;
+  if (!input) {
+    return null;
+  }
   const date = input instanceof Date ? input : new Date(input);
   return Number.isNaN(date.getTime()) ? null : date;
 };
@@ -38,7 +40,9 @@ export const safeFormatDate = (
   options?: DateTimeFormatOptions
 ): string => {
   const date = toValidDate(input);
-  if (!date) return "";
+  if (!date) {
+    return "";
+  }
 
   try {
     if (hasIntlDateTimeFormat()) {
@@ -63,7 +67,9 @@ export const safeFormatTime = (
   options?: DateTimeFormatOptions
 ): string => {
   const date = toValidDate(input);
-  if (!date) return "";
+  if (!date) {
+    return "";
+  }
 
   try {
     if (hasIntlDateTimeFormat()) {
@@ -88,7 +94,9 @@ export const safeFormatDateTime = (
   options?: DateTimeFormatOptions
 ): string => {
   const date = toValidDate(input);
-  if (!date) return "";
+  if (!date) {
+    return "";
+  }
 
   try {
     if (hasIntlDateTimeFormat()) {
@@ -112,9 +120,13 @@ export const safeFormatNumber = (
   locale?: LocaleInput,
   options?: NumberFormatOptions
 ): string => {
-  if (input === null || input === undefined || input === "") return "";
+  if (input === null || input === undefined || input === "") {
+    return "";
+  }
   const value = typeof input === "number" ? input : Number(input);
-  if (Number.isNaN(value)) return String(input);
+  if (Number.isNaN(value)) {
+    return String(input);
+  }
 
   try {
     if (hasIntlNumberFormat()) {

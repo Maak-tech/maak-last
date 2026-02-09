@@ -3,8 +3,8 @@
  * Generates and manages trace IDs for distributed tracing
  */
 
-import { AsyncLocalStorage } from "async_hooks";
-import { randomUUID } from "crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
 
 // Store trace context per async execution
 const asyncLocalStorage = new AsyncLocalStorage<{ traceId: string }>();
@@ -50,7 +50,7 @@ export function runWithTrace<T>(fn: () => T): T {
 /**
  * Run async function with trace context
  */
-export async function runWithTraceAsync<T>(fn: () => Promise<T>): Promise<T> {
+export function runWithTraceAsync<T>(fn: () => Promise<T>): Promise<T> {
   const traceId = createTraceId();
   return asyncLocalStorage.run({ traceId }, fn);
 }

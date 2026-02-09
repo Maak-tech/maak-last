@@ -1,5 +1,6 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: legacy alert-card UI handlers retained in this pass. */
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -16,9 +17,9 @@ import { logger } from "@/lib/utils/logger";
 import type { EmergencyAlert, User } from "@/types";
 import { safeFormatDate } from "@/utils/dateFormat";
 
-interface AlertsCardProps {
+type AlertsCardProps = {
   refreshTrigger?: number;
-}
+};
 
 export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   const { t, i18n } = useTranslation();
@@ -30,12 +31,10 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
   const isRTL = i18n.language === "ar";
 
-  useEffect(() => {
-    loadAlerts();
-  }, [user, refreshTrigger]);
-
-  const loadAlerts = async () => {
-    if (!user?.familyId) return;
+  const loadAlerts = useCallback(async () => {
+    if (!user?.familyId) {
+      return;
+    }
 
     const startTime = Date.now();
 
@@ -47,6 +46,7 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         {
           userId: user.id,
           familyId: user.familyId,
+          refreshTrigger,
         },
         "AlertsCard"
       );
@@ -96,10 +96,16 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.familyId, user?.id, refreshTrigger]);
+
+  useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
 
   const handleRespond = async (alertId: string) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      return;
+    }
 
     const startTime = Date.now();
 
@@ -139,7 +145,6 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
 
       await loadAlerts();
     } catch (error) {
-      const durationMs = Date.now() - startTime;
       logger.error("Failed to record alert response", error, "AlertsCard");
 
       Alert.alert(
@@ -156,7 +161,9 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
   };
 
   const handleResolve = async (alertId: string) => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      return;
+    }
 
     const startTime = Date.now();
 
@@ -190,12 +197,13 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
         isRTL ? "تم حل التنبيه بنجاح" : "Alert resolved successfully",
         [{ text: isRTL ? "موافق" : "OK" }]
       );
-    } catch (error: any) {
-      const durationMs = Date.now() - startTime;
+    } catch (error: unknown) {
       logger.error("Failed to resolve emergency alert", error, "AlertsCard");
 
       const errorMessage =
-        error?.message || t("failedToResolveAlert", "Failed to resolve alert");
+        error instanceof Error
+          ? error.message
+          : t("failedToResolveAlert", "Failed to resolve alert");
 
       // Check for specific error types
       let displayMessage = errorMessage;
@@ -267,9 +275,15 @@ export default function AlertsCard({ refreshTrigger }: AlertsCardProps) {
     const minutes = Math.floor(diff / 60_000);
     const hours = Math.floor(diff / 3_600_000);
 
-    if (minutes < 1) return isRTL ? "الآن" : "now";
-    if (minutes < 60) return isRTL ? `منذ ${minutes}د` : `${minutes}m ago`;
-    if (hours < 24) return isRTL ? `منذ ${hours}س` : `${hours}h ago`;
+    if (minutes < 1) {
+      return isRTL ? "الآن" : "now";
+    }
+    if (minutes < 60) {
+      return isRTL ? `منذ ${minutes}د` : `${minutes}m ago`;
+    }
+    if (hours < 24) {
+      return isRTL ? `منذ ${hours}س` : `${hours}h ago`;
+    }
     return safeFormatDate(timestamp);
   };
 

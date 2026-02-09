@@ -5,15 +5,15 @@
  * Run with: bunx tsx scripts/validate-production.ts
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-interface ValidationResult {
+type ValidationResult = {
   name: string;
   status: "pass" | "fail" | "warning";
   message: string;
   fix?: string;
-}
+};
 
 const results: ValidationResult[] = [];
 
@@ -28,16 +28,13 @@ function addResult(
 
 // Check if file exists
 function fileExists(filePath: string): boolean {
-  return fs.existsSync(path.join(process.cwd(), filePath));
+  return existsSync(join(process.cwd(), filePath));
 }
 
 // Check if file has content
 function fileHasContent(filePath: string): boolean {
   try {
-    const content = fs.readFileSync(
-      path.join(process.cwd(), filePath),
-      "utf-8"
-    );
+    const content = readFileSync(join(process.cwd(), filePath), "utf-8");
     return content.trim().length > 0;
   } catch {
     return false;
@@ -67,7 +64,7 @@ function checkEnvVars() {
 
   for (const varName of requiredVars) {
     const value = process.env[varName];
-    if (value && value.trim()) {
+    if (value?.trim()) {
       addResult(`Env: ${varName}`, "pass", "Present");
     } else {
       allPresent = false;
@@ -82,7 +79,7 @@ function checkEnvVars() {
 
   for (const varName of optionalVars) {
     const value = process.env[varName];
-    if (value && value.trim()) {
+    if (value?.trim()) {
       addResult(`Env: ${varName}`, "pass", "Present");
     } else {
       addResult(
@@ -154,6 +151,7 @@ function checkFirebaseFiles() {
 }
 
 // Check EAS configuration
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Validation branches intentionally mirror eas.json profile checks for explicit reporting. */
 function checkEASConfig() {
   console.log("\n⚙️  Checking EAS Configuration...\n");
 
@@ -168,7 +166,7 @@ function checkEASConfig() {
   }
 
   try {
-    const easConfig = JSON.parse(fs.readFileSync("eas.json", "utf-8"));
+    const easConfig = JSON.parse(readFileSync("eas.json", "utf-8"));
 
     // Check production profile exists
     if (easConfig.build?.production) {
@@ -277,7 +275,7 @@ function checkAppConfig() {
   }
 
   try {
-    const configContent = fs.readFileSync("app.config.js", "utf-8");
+    const configContent = readFileSync("app.config.js", "utf-8");
 
     // Check for version
     if (configContent.includes("version:")) {
@@ -355,7 +353,7 @@ function checkFirestoreRules() {
   }
 
   try {
-    const rulesContent = fs.readFileSync("firestore.rules", "utf-8");
+    const rulesContent = readFileSync("firestore.rules", "utf-8");
 
     // Check for basic security patterns
     if (rulesContent.includes("request.auth")) {
@@ -409,7 +407,7 @@ function checkPackageJson() {
   }
 
   try {
-    const packageJson = JSON.parse(fs.readFileSync("package.json", "utf-8"));
+    const packageJson = JSON.parse(readFileSync("package.json", "utf-8"));
 
     // Check for build scripts
     if (packageJson.scripts) {
@@ -472,7 +470,7 @@ function checkPackageJson() {
 }
 
 // Main validation function
-async function main() {
+function main() {
   console.log("🚀 Production Readiness Validation\n");
   console.log("=".repeat(60));
 
@@ -485,7 +483,7 @@ async function main() {
   checkPackageJson();
 
   // Print results
-  console.log("\n" + "=".repeat(60));
+  console.log(`\n${"=".repeat(60)}`);
   console.log("\n📊 Validation Results:\n");
 
   const passed = results.filter((r) => r.status === "pass").length;
@@ -493,19 +491,19 @@ async function main() {
   const failed = results.filter((r) => r.status === "fail").length;
 
   for (const result of results) {
-    const icon =
-      result.status === "pass"
-        ? "✅"
-        : result.status === "warning"
-          ? "⚠️"
-          : "❌";
+    let icon = "❌";
+    if (result.status === "pass") {
+      icon = "✅";
+    } else if (result.status === "warning") {
+      icon = "⚠️";
+    }
     console.log(`${icon} ${result.name}: ${result.message}`);
     if (result.fix) {
       console.log(`   💡 Fix: ${result.fix}`);
     }
   }
 
-  console.log("\n" + "=".repeat(60));
+  console.log(`\n${"=".repeat(60)}`);
   console.log("\n📈 Summary:");
   console.log(`   ✅ Passed: ${passed}`);
   console.log(`   ⚠️  Warnings: ${warnings}`);
@@ -527,7 +525,4 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error("❌ Validation error:", error);
-  process.exit(1);
-});
+main();

@@ -1,6 +1,9 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Large screen composed of multiple localized UI states. */
+/* biome-ignore-all lint/correctness/noNestedComponentDefinitions: Local section renderer intentionally captures `isRTL`. */
+/* biome-ignore-all lint/style/noNestedTernary: State rendering is explicit and localized. */
 import { useNavigation, useRouter } from "expo-router";
 import { ArrowLeft, Calendar, Shield } from "lucide-react-native";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -37,12 +40,7 @@ export default function PrivacyPolicyScreen() {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    loadPrivacyPolicy();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadPrivacyPolicy = async () => {
+  const loadPrivacyPolicy = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -58,7 +56,11 @@ export default function PrivacyPolicyScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isRTL]);
+
+  useEffect(() => {
+    loadPrivacyPolicy();
+  }, [loadPrivacyPolicy]);
 
   const SectionCard = ({
     title,
@@ -152,7 +154,7 @@ export default function PrivacyPolicyScreen() {
                   ? "نحن نحترم خصوصيتك ونلتزم بحماية معلوماتك الشخصية والصحية. تشرح هذه السياسة كيفية جمع واستخدام وحماية بياناتك."
                   : "We respect your privacy and are committed to protecting your personal and health information. This policy explains how we collect, use, and protect your data."}
               </Text>
-              {document.lastUpdated && (
+              {document.lastUpdated ? (
                 <View style={styles.lastUpdated}>
                   <Calendar color="#64748B" size={16} />
                   <Text
@@ -166,7 +168,7 @@ export default function PrivacyPolicyScreen() {
                       : `Last Updated: ${document.lastUpdated}`}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             {/* Document Sections */}

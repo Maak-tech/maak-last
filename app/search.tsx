@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { type Href, router } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -28,9 +28,9 @@ import { safeFormatDate } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 export default function GlobalSearchScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
-  const { theme } = useTheme();
+  const { theme: appTheme } = useTheme();
   const isRTL = i18n.language === "ar";
 
   const [query, setQuery] = useState("");
@@ -176,11 +176,52 @@ export default function GlobalSearchScreen() {
     rtlText: {
       textAlign: isRTL ? "right" : "left",
     },
-  }))(theme);
+  }))(appTheme);
+
+  const loadSuggestions = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    try {
+      const userSuggestions = await globalSearchService.getSearchSuggestions(
+        user.id
+      );
+      setSuggestions(userSuggestions);
+    } catch (_error) {
+      // Silently handle error
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     loadSuggestions();
-  }, []);
+  }, [loadSuggestions]);
+
+  const performSearch = useCallback(
+    async (searchQuery: string) => {
+      if (!user?.id) {
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const searchResults = await globalSearchService.search(
+          user.id,
+          searchQuery,
+          filters
+        );
+        setResults(searchResults);
+      } catch (_error) {
+        Alert.alert(
+          isRTL ? "خطأ" : "Error",
+          isRTL ? "فشل في البحث" : "Search failed"
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters, isRTL, user?.id]
+  );
 
   useEffect(() => {
     // Debounced search
@@ -193,45 +234,11 @@ export default function GlobalSearchScreen() {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [query, filters]);
-
-  const loadSuggestions = async () => {
-    if (!user?.id) return;
-
-    try {
-      const userSuggestions = await globalSearchService.getSearchSuggestions(
-        user.id
-      );
-      setSuggestions(userSuggestions);
-    } catch (error) {
-      // Silently handle error
-    }
-  };
-
-  const performSearch = async (searchQuery: string) => {
-    if (!user?.id) return;
-
-    setLoading(true);
-    try {
-      const searchResults = await globalSearchService.search(
-        user.id,
-        searchQuery,
-        filters
-      );
-      setResults(searchResults);
-    } catch (error) {
-      Alert.alert(
-        isRTL ? "خطأ" : "Error",
-        isRTL ? "فشل في البحث" : "Search failed"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [performSearch, query]);
 
   const handleResultPress = (result: SearchResult) => {
     if (result.action?.route) {
-      router.push(result.action.route as any);
+      router.push(result.action.route as Href);
     }
   };
 
@@ -261,7 +268,7 @@ export default function GlobalSearchScreen() {
   };
 
   const getResultIcon = (type: SearchResult["type"]) => {
-    const iconProps = { size: 20, color: theme.colors.primary.main };
+    const iconProps = { size: 20, color: appTheme.colors.primary.main };
     switch (type) {
       case "medication":
         return <Ionicons name="medical" {...iconProps} />;
@@ -283,7 +290,6 @@ export default function GlobalSearchScreen() {
     >
       <Card
         contentStyle={{}}
-        onPress={() => {}}
         pressable={false}
         style={styles.resultCard as ViewStyle}
         variant="elevated"
@@ -294,7 +300,7 @@ export default function GlobalSearchScreen() {
             <Text
               style={[
                 styles.resultTitle as TextStyle,
-                { marginStart: theme.spacing.sm },
+                { marginStart: appTheme.spacing.sm },
               ]}
             >
               {item.title}
@@ -318,24 +324,27 @@ export default function GlobalSearchScreen() {
     </TouchableOpacity>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer as ViewStyle}>
-      <Ionicons
-        color={theme.colors.text.tertiary}
-        name="search-outline"
-        size={48}
-      />
-      <Text style={styles.emptyText as TextStyle}>
-        {query.trim()
-          ? isRTL
-            ? "لا توجد نتائج لهذا البحث"
-            : "No results found for this search"
-          : isRTL
-            ? "ابدأ البحث عن بياناتك الصحية"
-            : "Start searching your health data"}
-      </Text>
-    </View>
-  );
+  const renderEmptyState = () => {
+    let emptyStateMessage = "Start searching your health data";
+    if (query.trim() !== "") {
+      emptyStateMessage = isRTL
+        ? "لا توجد نتائج لهذا البحث"
+        : "No results found for this search";
+    } else if (isRTL) {
+      emptyStateMessage = "ابدأ البحث عن بياناتك الصحية";
+    }
+
+    return (
+      <View style={styles.emptyContainer as ViewStyle}>
+        <Ionicons
+          color={appTheme.colors.text.tertiary}
+          name="search-outline"
+          size={48}
+        />
+        <Text style={styles.emptyText as TextStyle}>{emptyStateMessage}</Text>
+      </View>
+    );
+  };
 
   const renderFilters = () => (
     <View style={styles.filtersContainer as ViewStyle}>
@@ -380,10 +389,10 @@ export default function GlobalSearchScreen() {
       <View style={styles.header as ViewStyle}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={{ marginBottom: theme.spacing.md }}
+          style={{ marginBottom: appTheme.spacing.md }}
         >
           <Ionicons
-            color={theme.colors.text.primary}
+            color={appTheme.colors.text.primary}
             name="arrow-back"
             size={24}
           />
@@ -391,7 +400,7 @@ export default function GlobalSearchScreen() {
 
         <View style={styles.searchContainer as ViewStyle}>
           <Ionicons
-            color={theme.colors.text.secondary}
+            color={appTheme.colors.text.secondary}
             name="search"
             size={20}
             style={styles.searchIcon as TextStyle}
@@ -413,7 +422,7 @@ export default function GlobalSearchScreen() {
               style={styles.clearButton as ViewStyle}
             >
               <Ionicons
-                color={theme.colors.text.secondary}
+                color={appTheme.colors.text.secondary}
                 name="close-circle"
                 size={20}
               />
@@ -426,8 +435,8 @@ export default function GlobalSearchScreen() {
             <Ionicons
               color={
                 showFilters
-                  ? theme.colors.primary.main
-                  : theme.colors.text.secondary
+                  ? appTheme.colors.primary.main
+                  : appTheme.colors.text.secondary
               }
               name="filter"
               size={20}
@@ -436,14 +445,14 @@ export default function GlobalSearchScreen() {
         </View>
       </View>
 
-      {showFilters && renderFilters()}
+      {showFilters ? renderFilters() : null}
 
       {!query.trim() && suggestions.length > 0 && (
         <View style={styles.suggestionsContainer as ViewStyle}>
           <Text
             style={[
               styles.filterLabel as TextStyle,
-              { marginBottom: theme.spacing.sm },
+              { marginBottom: appTheme.spacing.sm },
             ]}
           >
             {isRTL ? "اقتراحات البحث" : "Search Suggestions"}
@@ -467,7 +476,10 @@ export default function GlobalSearchScreen() {
       <View style={styles.resultsContainer as ViewStyle}>
         {loading ? (
           <View style={styles.emptyContainer as ViewStyle}>
-            <ActivityIndicator color={theme.colors.primary.main} size="large" />
+            <ActivityIndicator
+              color={appTheme.colors.primary.main}
+              size="large"
+            />
           </View>
         ) : (
           <FlatList

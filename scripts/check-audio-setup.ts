@@ -52,7 +52,7 @@ console.log();
 // Check 4: expo-file-system
 console.log("4. expo-file-system Module Check:");
 try {
-  const FileSystem = require("expo-file-system");
+  require("expo-file-system");
   console.log("   ✓ expo-file-system is installed");
 } catch (error) {
   console.log("   ✗ expo-file-system NOT found");
@@ -77,7 +77,7 @@ try {
     console.log("   ⚠️  WARNING: No API key found!");
     console.log("   Please set OPENAI_API_KEY in your .env file");
   }
-} catch (error) {
+} catch (_error) {
   console.log("   ✗ Could not check environment variables");
 }
 console.log();

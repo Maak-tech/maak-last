@@ -6,7 +6,7 @@
 import { Platform } from "react-native";
 import i18n from "@/lib/i18n";
 
-export interface FallDetectionDiagnostics {
+export type FallDetectionDiagnostics = {
   platform: string;
   sensorsAvailable: boolean;
   permissionsGranted: boolean | null;
@@ -15,7 +15,7 @@ export interface FallDetectionDiagnostics {
   isInitialized: boolean;
   lastAlert: Date | null;
   recommendations: string[];
-}
+};
 
 /**
  * Get diagnostic information about fall detection
@@ -46,7 +46,7 @@ export const getFallDetectionDiagnostics = async (
       const hasPermission = await motionPermissionService.hasMotionPermission();
       const status = await motionPermissionService.checkMotionAvailability();
       diagnostics.permissionsGranted = hasPermission && status.available;
-    } catch (error) {
+    } catch (_error) {
       diagnostics.permissionsGranted = false;
     }
   }

@@ -89,49 +89,53 @@ async function saveVitalSample(
   unit: string,
   timestamp: Date,
   source: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<void> {
-  try {
-    const vitalData: any = {
-      userId,
-      type: vitalType,
-      value,
-      unit,
-      timestamp: Timestamp.fromDate(timestamp),
-      source,
-    };
+  const vitalData: {
+    userId: string;
+    type: string;
+    value: number;
+    unit: string;
+    timestamp: Timestamp;
+    source: string;
+    metadata?: Record<string, unknown>;
+  } = {
+    userId,
+    type: vitalType,
+    value,
+    unit,
+    timestamp: Timestamp.fromDate(timestamp),
+    source,
+  };
 
     if (metadata) {
       vitalData.metadata = metadata;
     }
 
-    await addDoc(collection(db, "vitals"), vitalData);
+  await addDoc(collection(db, "vitals"), vitalData);
 
     // Evaluate vitals for health events (only for critical vitals)
     // We'll collect vitals and evaluate them in batches to avoid too many evaluations
-    await evaluateAndCreateHealthEventIfNeeded(
-      userId,
-      vitalType,
-      value,
-      timestamp,
-      source,
-      metadata
-    );
+  await evaluateAndCreateHealthEventIfNeeded(
+    userId,
+    vitalType,
+    value,
+    timestamp,
+    source,
+    metadata
+  );
 
     // Check for concerning trends and create alerts (non-blocking)
     // This will be picked up by the real-time WebSocket service
-    import("./trendAlertService")
-      .then(({ checkTrendsForNewVital }) => {
-        checkTrendsForNewVital(userId, vitalType, unit).catch(() => {
-          // Silently handle errors - trend checking is non-critical
-        });
-      })
-      .catch(() => {
-        // Silently handle import errors
+  import("./trendAlertService")
+    .then(({ checkTrendsForNewVital }) => {
+      checkTrendsForNewVital(userId, vitalType, unit).catch(() => {
+        // Silently handle errors - trend checking is non-critical
       });
-  } catch (error) {
-    throw error;
-  }
+    })
+    .catch(() => {
+      // Silently handle import errors
+    });
 }
 
 /**
@@ -157,7 +161,7 @@ async function evaluateAndCreateHealthEventIfNeeded(
   value: number,
   timestamp: Date,
   source: string,
-  metadata?: Record<string, any>
+  _metadata?: Record<string, unknown>
 ): Promise<void> {
   try {
     const rulesVitalType = VITAL_TYPE_TO_RULES_FORMAT[vitalType];
@@ -175,6 +179,17 @@ async function evaluateAndCreateHealthEventIfNeeded(
 
     const evaluation = healthRulesEngine.evaluateVital(reading);
 
+    let timelineSeverity: "critical" | "error" | "warn" | "info" = "info";
+    if (evaluation.triggered) {
+      if (evaluation.severity === "critical") {
+        timelineSeverity = "critical";
+      } else if (evaluation.severity === "error") {
+        timelineSeverity = "error";
+      } else {
+        timelineSeverity = "warn";
+      }
+    }
+
     await healthTimelineService.addEvent({
       userId,
       eventType: evaluation.triggered ? "vital_abnormal" : "vital_recorded",
@@ -185,13 +200,7 @@ async function evaluateAndCreateHealthEventIfNeeded(
         ? evaluation.recommendedAction
         : `${value} ${reading.unit} from ${source}`,
       timestamp,
-      severity: evaluation.triggered
-        ? evaluation.severity === "critical"
-          ? "critical"
-          : evaluation.severity === "error"
-            ? "error"
-            : "warn"
-        : "info",
+      severity: timelineSeverity,
       icon: evaluation.triggered ? "alert-circle" : "heart-pulse",
       metadata: {
         vitalType,
@@ -220,12 +229,12 @@ async function evaluateAndCreateHealthEventIfNeeded(
         }
       );
 
-      const alertType =
+      const alertType: "vital_critical" | "vital_error" =
         evaluation.severity === "critical" ? "vital_critical" : "vital_error";
 
       const alertId = await alertService.createAlert({
         userId,
-        type: alertType as any,
+        type: alertType,
         severity: evaluation.severity === "critical" ? "critical" : "high",
         message:
           evaluation.message ||
@@ -282,6 +291,21 @@ async function evaluateAndCreateHealthEventIfNeeded(
   }
 }
 
+function getSampleMetadata(
+  sample: MetricSample
+): Record<string, unknown> | undefined {
+  if (
+    typeof sample === "object" &&
+    sample !== null &&
+    "metadata" in sample &&
+    typeof sample.metadata === "object" &&
+    sample.metadata !== null
+  ) {
+    return sample.metadata as Record<string, unknown>;
+  }
+  return undefined;
+}
+
 /**
  * Save vitals from health metrics to Firestore
  * Processes samples from integrations (HealthKit, Fitbit, Google Health Connect)
@@ -300,82 +324,83 @@ export async function saveIntegrationVitalsToFirestore(
 
   let savedCount = 0;
 
-  try {
-    for (const metric of metrics) {
-      const vitalType = METRIC_TO_VITAL_TYPE[metric.metricKey];
-      if (!vitalType) {
-        // Skip metrics that don't map to vital types
-        continue;
-      }
-
-      const unit = getVitalUnit(vitalType);
-
-      // Process each sample
-      for (const sample of metric.samples) {
-        try {
-          // Handle different value types
-          let value: number;
-          if (typeof sample.value === "number") {
-            value = sample.value;
-          } else if (typeof sample.value === "string") {
-            value = Number.parseFloat(sample.value);
-            if (isNaN(value)) {
-              continue; // Skip invalid values
-            }
-          } else {
-            continue; // Skip non-numeric values
-          }
-
-          // Handle blood pressure separately (has systolic/diastolic)
-          if (vitalType === "bloodPressure" && (sample as any).metadata) {
-            const metadata = (sample as any).metadata;
-            const systolic = metadata.systolic || value;
-            const diastolic = metadata.diastolic;
-
-            if (diastolic !== undefined) {
-              // Save systolic value with metadata
-              await saveVitalSample(
-                userId,
-                "bloodPressure",
-                systolic,
-                unit,
-                new Date(sample.startDate),
-                provider,
-                {
-                  systolic,
-                  diastolic,
-                  ...metadata,
-                }
-              );
-              savedCount++;
-            }
-          } else {
-            // Regular vital sign
-            const timestamp = sample.startDate
-              ? new Date(sample.startDate)
-              : new Date();
-
-            await saveVitalSample(
-              userId,
-              vitalType,
-              value,
-              unit,
-              timestamp,
-              provider,
-              (sample as any).metadata
-            );
-            savedCount++;
-          }
-        } catch (error) {
-          // Continue with next sample
-        }
-      }
+  for (const metric of metrics) {
+    const vitalType = METRIC_TO_VITAL_TYPE[metric.metricKey];
+    if (!vitalType) {
+      // Skip metrics that don't map to vital types
+      continue;
     }
 
-    return savedCount;
-  } catch (error) {
-    throw error;
+    const unit = getVitalUnit(vitalType);
+
+    // Process each sample
+    for (const sample of metric.samples) {
+      try {
+        // Handle different value types
+        let value: number;
+        if (typeof sample.value === "number") {
+          value = sample.value;
+        } else if (typeof sample.value === "string") {
+          value = Number.parseFloat(sample.value);
+          if (Number.isNaN(value)) {
+            continue; // Skip invalid values
+          }
+        } else {
+          continue; // Skip non-numeric values
+        }
+
+        // Handle blood pressure separately (has systolic/diastolic)
+        const sampleMetadata = getSampleMetadata(sample);
+        if (vitalType === "bloodPressure" && sampleMetadata) {
+          const systolic =
+            typeof sampleMetadata.systolic === "number"
+              ? sampleMetadata.systolic
+              : value;
+          const diastolic =
+            typeof sampleMetadata.diastolic === "number"
+              ? sampleMetadata.diastolic
+              : undefined;
+
+          if (diastolic !== undefined) {
+            // Save systolic value with metadata
+            await saveVitalSample(
+              userId,
+              "bloodPressure",
+              systolic,
+              unit,
+              new Date(sample.startDate),
+              provider,
+              {
+                systolic,
+                diastolic,
+                ...sampleMetadata,
+              }
+            );
+            savedCount += 1;
+          }
+        } else {
+          // Regular vital sign
+          const timestamp = sample.startDate
+            ? new Date(sample.startDate)
+            : new Date();
+
+          await saveVitalSample(
+            userId,
+            vitalType,
+            value,
+            unit,
+            timestamp,
+            provider,
+            sampleMetadata
+          );
+          savedCount += 1;
+        }
+      } catch (_error) {
+        // Continue with next sample
+      }
+    }
   }
+  return savedCount;
 }
 
 /**
@@ -423,7 +448,7 @@ export async function syncDexcomCGMData(userId: string): Promise<void> {
         }
       );
     }
-  } catch (error) {
+  } catch (_error) {
     // Don't throw error - CGM sync failures shouldn't break other operations
   }
 }
@@ -449,7 +474,7 @@ export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
         }
       );
     }
-  } catch (error) {
+  } catch (_error) {
     // Don't throw error - CGM sync failures shouldn't break other operations
   }
 }
@@ -457,7 +482,7 @@ export async function syncFreestyleLibreCGMData(userId: string): Promise<void> {
 /**
  * Get latest glucose reading from all connected CGM devices
  */
-export async function getLatestGlucoseReading(userId: string): Promise<{
+export async function getLatestGlucoseReading(_userId: string): Promise<{
   value: number;
   unit: string;
   timestamp: Date;
@@ -479,7 +504,7 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
           trendArrow: dexcomReading.trendArrow,
         };
       }
-    } catch (error) {
+    } catch (_error) {
       // Dexcom not available or failed
     }
 
@@ -495,12 +520,12 @@ export async function getLatestGlucoseReading(userId: string): Promise<{
           trend: libreReading.trend,
         };
       }
-    } catch (error) {
+    } catch (_error) {
       // Freestyle Libre not available or failed
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

@@ -8,7 +8,7 @@ import {
   Shield,
   TestTube,
 } from "lucide-react-native";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -26,8 +26,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { motionPermissionService } from "@/lib/services/motionPermissionService";
 import { safeFormatDateTime } from "@/utils/dateFormat";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This settings screen intentionally combines status cards, permission state, and localized UI branches.
 export default function FallDetectionSettingsScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const router = useRouter();
   const navigation = useNavigation();
   const { theme, isDark } = useTheme();
@@ -57,16 +58,12 @@ export default function FallDetectionSettingsScreen() {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    checkPermissionStatus();
-  }, []);
-
-  const checkPermissionStatus = async () => {
+  const checkPermissionStatus = useCallback(async () => {
     setCheckingPermissions(true);
     try {
       const status = await motionPermissionService.checkMotionAvailability();
       setPermissionStatus(status);
-    } catch (error) {
+    } catch (_error) {
       setPermissionStatus({
         available: false,
         granted: false,
@@ -75,8 +72,13 @@ export default function FallDetectionSettingsScreen() {
     } finally {
       setCheckingPermissions(false);
     }
-  };
+  }, []);
 
+  useEffect(() => {
+    checkPermissionStatus();
+  }, [checkPermissionStatus]);
+
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Toggle flow includes permission gating and localized alert actions.
   const handleToggle = async (value: boolean) => {
     if (!(value || permissionStatus?.granted)) {
       Alert.alert(
@@ -101,7 +103,7 @@ export default function FallDetectionSettingsScreen() {
     try {
       setLoading(true);
       await toggleFallDetection(value);
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل في تحديث الإعدادات" : "Failed to update settings"
@@ -111,7 +113,7 @@ export default function FallDetectionSettingsScreen() {
     }
   };
 
-  const handleTest = async () => {
+  const handleTest = () => {
     Alert.alert(
       isRTL ? "اختبار كشف السقوط" : "Test Fall Detection",
       isRTL
@@ -128,7 +130,7 @@ export default function FallDetectionSettingsScreen() {
             try {
               setLoading(true);
               await testFallDetection();
-            } catch (error) {
+            } catch (_error) {
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL
@@ -168,6 +170,51 @@ export default function FallDetectionSettingsScreen() {
     );
   }
 
+  let masterBorderColor = "#E5E7EB";
+  let masterIconBackgroundColor = "#E5E7EB";
+  if (isEnabled) {
+    masterBorderColor = permissionStatus?.granted ? "#10B981" : "#F59E0B";
+    masterIconBackgroundColor = permissionStatus?.granted
+      ? "#10B98120"
+      : "#F59E0B20";
+  }
+
+  let masterStatusText = isRTL ? "معطل" : "Disabled";
+  if (isEnabled && isActive) {
+    masterStatusText = isRTL ? "نشط ومستمر" : "Active and monitoring";
+  } else if (isEnabled) {
+    masterStatusText = isRTL ? "مفعل ولكن غير نشط" : "Enabled but not active";
+  }
+
+  let permissionBorderColor = "#EF4444";
+  if (permissionStatus?.granted) {
+    permissionBorderColor = "#10B981";
+  } else if (permissionStatus?.available) {
+    permissionBorderColor = "#F59E0B";
+  }
+
+  let permissionStatusText = isRTL
+    ? "غير متاح على هذا الجهاز"
+    : "Not available on this device";
+  if (permissionStatus?.granted) {
+    permissionStatusText = isRTL
+      ? "مفعل - جاهز للاستخدام"
+      : "Granted - Ready to use";
+  } else if (permissionStatus?.available) {
+    permissionStatusText = isRTL
+      ? "مطلوب - اضغط لإعداد"
+      : "Required - Tap to setup";
+  }
+
+  let monitoringStatusText = isRTL ? "جاري التهيئة..." : "Initializing...";
+  if (isActive) {
+    monitoringStatusText = isRTL
+      ? "تراقب الحركة بنشاط"
+      : "Actively monitoring motion";
+  } else if (isInitialized) {
+    monitoringStatusText = isRTL ? "غير نشط" : "Not active";
+  }
+
   return (
     <SafeAreaView
       style={[
@@ -202,11 +249,7 @@ export default function FallDetectionSettingsScreen() {
               styles.masterToggleCard,
               {
                 backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: isEnabled
-                  ? permissionStatus?.granted
-                    ? "#10B981"
-                    : "#F59E0B"
-                  : "#E5E7EB",
+                borderColor: masterBorderColor,
               },
             ]}
           >
@@ -215,11 +258,7 @@ export default function FallDetectionSettingsScreen() {
                 style={[
                   styles.iconContainer,
                   {
-                    backgroundColor: isEnabled
-                      ? permissionStatus?.granted
-                        ? "#10B98120"
-                        : "#F59E0B20"
-                      : "#E5E7EB",
+                    backgroundColor: masterIconBackgroundColor,
                   },
                 ]}
               >
@@ -246,17 +285,7 @@ export default function FallDetectionSettingsScreen() {
                     isRTL && { textAlign: "left" },
                   ]}
                 >
-                  {isEnabled
-                    ? isActive
-                      ? isRTL
-                        ? "نشط ومستمر"
-                        : "Active and monitoring"
-                      : isRTL
-                        ? "مفعل ولكن غير نشط"
-                        : "Enabled but not active"
-                    : isRTL
-                      ? "معطل"
-                      : "Disabled"}
+                  {masterStatusText}
                 </Text>
               </View>
             </View>
@@ -291,11 +320,7 @@ export default function FallDetectionSettingsScreen() {
               styles.statusCard,
               {
                 backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: permissionStatus?.granted
-                  ? "#10B981"
-                  : permissionStatus?.available
-                    ? "#F59E0B"
-                    : "#EF4444",
+                borderColor: permissionBorderColor,
               },
             ]}
           >
@@ -316,7 +341,7 @@ export default function FallDetectionSettingsScreen() {
                     isRTL && { textAlign: "left" },
                   ]}
                 >
-                  {isRTL ? "إذن الحركة" : "Motion Permission"}
+                  {isRTL ? "Ø¥Ø°Ù† Ø§Ù„Ø­Ø±ÙƒØ©" : "Motion Permission"}
                 </Text>
                 <Text
                   style={[
@@ -325,17 +350,7 @@ export default function FallDetectionSettingsScreen() {
                     isRTL && { textAlign: "left" },
                   ]}
                 >
-                  {permissionStatus?.granted
-                    ? isRTL
-                      ? "مفعل - جاهز للاستخدام"
-                      : "Granted - Ready to use"
-                    : permissionStatus?.available
-                      ? isRTL
-                        ? "مطلوب - اضغط لإعداد"
-                        : "Required - Tap to setup"
-                      : isRTL
-                        ? "غير متاح على هذا الجهاز"
-                        : "Not available on this device"}
+                  {permissionStatusText}
                 </Text>
               </View>
             </View>
@@ -384,24 +399,14 @@ export default function FallDetectionSettingsScreen() {
                     isRTL && { textAlign: "left" },
                   ]}
                 >
-                  {isActive
-                    ? isRTL
-                      ? "تراقب الحركة بنشاط"
-                      : "Actively monitoring motion"
-                    : isInitialized
-                      ? isRTL
-                        ? "غير نشط"
-                        : "Not active"
-                      : isRTL
-                        ? "جاري التهيئة..."
-                        : "Initializing..."}
+                  {monitoringStatusText}
                 </Text>
               </View>
             </View>
           </View>
 
           {/* Last Alert */}
-          {lastAlert && (
+          {lastAlert ? (
             <View
               style={[
                 styles.statusCard,
@@ -442,7 +447,7 @@ export default function FallDetectionSettingsScreen() {
                 </View>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Actions Section */}

@@ -188,10 +188,31 @@ const COMMON_LABS: Array<{
   { en: "Pulmonary Function Test", ar: "فحص وظائف الرئة", testType: "other" },
 ];
 
+type EditableLabResultValue = LabResultValue & { localId: string };
+
+const createResultDraft = (): EditableLabResultValue => ({
+  localId: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  name: "",
+  value: "",
+  unit: "",
+  referenceRange: "",
+});
+
+const hasResultValue = (value: LabResultValue["value"]): boolean =>
+  value === 0 || (typeof value === "string" ? value.trim().length > 0 : true);
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "Unknown error";
+};
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: screen-level form with many inputs and conditional sections.
 export default function AddLabResultScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
-  const { theme } = useTheme();
+  const { theme: currentTheme } = useTheme();
   const isRTL = i18n.language === "ar";
 
   const [testName, setTestName] = useState("");
@@ -200,16 +221,17 @@ export default function AddLabResultScreen() {
   );
   const [showCommonLabsDropdown, setShowCommonLabsDropdown] = useState(false);
   const [testType, setTestType] = useState<LabResult["testType"]>("blood");
-  const [testDate, setTestDate] = useState(new Date());
+  const [testDate] = useState(new Date());
   const [facility, setFacility] = useState("");
   const [orderedBy, setOrderedBy] = useState("");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [results, setResults] = useState<LabResultValue[]>([
-    { name: "", value: "", unit: "", referenceRange: "" },
+  const [results, setResults] = useState<EditableLabResultValue[]>([
+    createResultDraft(),
   ]);
   const [saving, setSaving] = useState(false);
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: style map has many conditional branches.
   const styles = createThemedStyles((theme) => ({
     container: {
       flex: 1,
@@ -237,7 +259,7 @@ export default function AddLabResultScreen() {
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing.base,
       backgroundColor: theme.colors.background.secondary,
-    } as any,
+    },
     textArea: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
       borderWidth: 1,
@@ -247,7 +269,7 @@ export default function AddLabResultScreen() {
       backgroundColor: theme.colors.background.secondary,
       minHeight: 100,
       textAlignVertical: "top",
-    } as any,
+    },
     typeSelector: {
       flexDirection: isRTL ? "row-reverse" : "row",
       gap: theme.spacing.xs,
@@ -299,7 +321,7 @@ export default function AddLabResultScreen() {
       borderRadius: theme.borderRadius.sm,
       padding: theme.spacing.sm,
       backgroundColor: theme.colors.background.primary,
-    } as any,
+    },
     deleteButton: {
       padding: theme.spacing.xs,
     },
@@ -372,7 +394,7 @@ export default function AddLabResultScreen() {
     dropdownItemText: {
       ...getTextStyle(theme, "body", "regular", theme.colors.text.primary),
     },
-  }))(theme) as any;
+  }))(currentTheme);
 
   const testTypes: Array<{ value: LabResult["testType"]; label: string }> = [
     { value: "blood", label: isRTL ? "فحص الدم" : "Blood" },
@@ -401,10 +423,7 @@ export default function AddLabResultScreen() {
   };
 
   const handleAddResult = () => {
-    setResults([
-      ...results,
-      { name: "", value: "", unit: "", referenceRange: "" },
-    ]);
+    setResults((prevResults) => [...prevResults, createResultDraft()]);
   };
 
   const handleRemoveResult = (index: number) => {
@@ -418,11 +437,14 @@ export default function AddLabResultScreen() {
     field: keyof LabResultValue,
     value: string | number
   ) => {
-    const updated = [...results];
-    updated[index] = { ...updated[index], [field]: value };
-    setResults(updated);
+    setResults((prevResults) =>
+      prevResults.map((result, resultIndex) =>
+        resultIndex === index ? { ...result, [field]: value } : result
+      )
+    );
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: save flow handles validation, normalization, and persistence.
   const handleSave = async () => {
     if (!user) {
       Alert.alert(
@@ -440,9 +462,9 @@ export default function AddLabResultScreen() {
       return;
     }
 
-    const validResults = results.filter(
-      (r) => r.name.trim() && (r.value || r.value === 0)
-    );
+    const validResults = results
+      .filter((result) => result.name.trim() && hasResultValue(result.value))
+      .map(({ localId: _localId, ...result }) => result);
 
     if (validResults.length === 0) {
       Alert.alert(
@@ -465,7 +487,7 @@ export default function AddLabResultScreen() {
 
         const status = labResultService.analyzeResultValue(
           result,
-          typeof numericValue === "number" && !isNaN(numericValue)
+          typeof numericValue === "number" && !Number.isNaN(numericValue)
             ? numericValue
             : undefined
         );
@@ -473,7 +495,7 @@ export default function AddLabResultScreen() {
         return {
           ...result,
           value:
-            typeof numericValue === "number" && !isNaN(numericValue)
+            typeof numericValue === "number" && !Number.isNaN(numericValue)
               ? numericValue
               : result.value,
           status,
@@ -504,8 +526,8 @@ export default function AddLabResultScreen() {
           },
         ]
       );
-    } catch (error: any) {
-      const errorMessage = error?.message || "Unknown error";
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error);
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
@@ -527,7 +549,7 @@ export default function AddLabResultScreen() {
           {isRTL ? "إضافة نتيجة مختبر" : "Add Lab Result"}
         </Heading>
         <TouchableOpacity onPress={() => router.back()}>
-          <X color={theme.colors.text.primary} size={24} />
+          <X color={currentTheme.colors.text.primary} size={24} />
         </TouchableOpacity>
       </View>
 
@@ -537,7 +559,7 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
@@ -561,7 +583,7 @@ export default function AddLabResultScreen() {
               placeholder={
                 isRTL ? "مثال: فحص الدم الكامل" : "e.g., Complete Blood Count"
               }
-              placeholderTextColor={theme.colors.text.secondary}
+              placeholderTextColor={currentTheme.colors.text.secondary}
               style={[
                 styles.input,
                 styles.inputWithDropdown,
@@ -573,7 +595,7 @@ export default function AddLabResultScreen() {
               onPress={() => setShowCommonLabsDropdown(true)}
               style={styles.dropdownButton}
             >
-              <ChevronDown color={theme.colors.text.primary} size={20} />
+              <ChevronDown color={currentTheme.colors.text.primary} size={20} />
             </TouchableOpacity>
           </View>
           <Caption numberOfLines={2} style={[styles.rtlText, { marginTop: 4 }]}>
@@ -588,7 +610,7 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
@@ -622,7 +644,7 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
@@ -631,7 +653,7 @@ export default function AddLabResultScreen() {
           <TextInput
             editable={false}
             placeholder={isRTL ? "تاريخ الاختبار" : "Test Date"}
-            placeholderTextColor={theme.colors.text.secondary}
+            placeholderTextColor={currentTheme.colors.text.secondary}
             style={[styles.input, isRTL && styles.rtlText]}
             value={safeFormatDate(testDate)}
           />
@@ -647,7 +669,7 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
@@ -658,7 +680,7 @@ export default function AddLabResultScreen() {
             placeholder={
               isRTL ? "اسم المختبر أو المستشفى" : "Lab or hospital name"
             }
-            placeholderTextColor={theme.colors.text.secondary}
+            placeholderTextColor={currentTheme.colors.text.secondary}
             style={[styles.input, isRTL && styles.rtlText]}
             value={facility}
           />
@@ -669,7 +691,7 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
@@ -678,7 +700,7 @@ export default function AddLabResultScreen() {
           <TextInput
             onChangeText={setOrderedBy}
             placeholder={isRTL ? "اسم الطبيب" : "Doctor name"}
-            placeholderTextColor={theme.colors.text.secondary}
+            placeholderTextColor={currentTheme.colors.text.secondary}
             style={[styles.input, isRTL && styles.rtlText]}
             value={orderedBy}
           />
@@ -689,14 +711,14 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
             {isRTL ? "النتائج" : "Results"} *
           </TypographyText>
           {results.map((result, index) => (
-            <View key={index} style={styles.resultItem}>
+            <View key={result.localId} style={styles.resultItem}>
               <View style={styles.resultItemHeader}>
                 <TypographyText
                   style={[styles.label, { marginBottom: 0 }]}
@@ -709,7 +731,10 @@ export default function AddLabResultScreen() {
                     onPress={() => handleRemoveResult(index)}
                     style={styles.deleteButton}
                   >
-                    <Trash2 color={theme.colors.accent.error} size={20} />
+                    <Trash2
+                      color={currentTheme.colors.accent.error}
+                      size={20}
+                    />
                   </TouchableOpacity>
                 )}
               </View>
@@ -719,7 +744,7 @@ export default function AddLabResultScreen() {
                     handleUpdateResult(index, "name", text)
                   }
                   placeholder={isRTL ? "اسم القيمة" : "Value name"}
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={currentTheme.colors.text.secondary}
                   style={[styles.resultInput, isRTL && styles.rtlText]}
                   value={result.name}
                 />
@@ -729,10 +754,14 @@ export default function AddLabResultScreen() {
                   keyboardType="decimal-pad"
                   onChangeText={(text) => {
                     const num = Number.parseFloat(text);
-                    handleUpdateResult(index, "value", isNaN(num) ? text : num);
+                    handleUpdateResult(
+                      index,
+                      "value",
+                      Number.isNaN(num) ? text : num
+                    );
                   }}
                   placeholder={isRTL ? "القيمة" : "Value"}
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={currentTheme.colors.text.secondary}
                   style={[
                     styles.resultInput,
                     { flex: 2 },
@@ -745,7 +774,7 @@ export default function AddLabResultScreen() {
                     handleUpdateResult(index, "unit", text)
                   }
                   placeholder={isRTL ? "الوحدة" : "Unit"}
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={currentTheme.colors.text.secondary}
                   style={[
                     styles.resultInput,
                     { flex: 1 },
@@ -764,7 +793,7 @@ export default function AddLabResultScreen() {
                       ? "النطاق المرجعي (مثال: 70-100)"
                       : "Reference range (e.g., 70-100)"
                   }
-                  placeholderTextColor={theme.colors.text.secondary}
+                  placeholderTextColor={currentTheme.colors.text.secondary}
                   style={[styles.resultInput, isRTL && styles.rtlText]}
                   value={result.referenceRange}
                 />
@@ -775,8 +804,8 @@ export default function AddLabResultScreen() {
             onPress={handleAddResult}
             style={styles.addResultButton}
           >
-            <Plus color={theme.colors.primary.main} size={20} />
-            <TypographyText style={[{ marginLeft: theme.spacing.xs }]}>
+            <Plus color={currentTheme.colors.primary.main} size={20} />
+            <TypographyText style={[{ marginLeft: currentTheme.spacing.xs }]}>
               {isRTL ? "إضافة نتيجة أخرى" : "Add Another Result"}
             </TypographyText>
           </TouchableOpacity>
@@ -787,7 +816,7 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
@@ -809,7 +838,7 @@ export default function AddLabResultScreen() {
           <TypographyText
             style={[
               styles.label,
-              { marginBottom: theme.spacing.xs },
+              { marginBottom: currentTheme.spacing.xs },
               isRTL && styles.rtlText,
             ]}
           >
@@ -822,7 +851,7 @@ export default function AddLabResultScreen() {
             placeholder={
               isRTL ? "أضف ملاحظات إضافية..." : "Add additional notes..."
             }
-            placeholderTextColor={theme.colors.text.secondary}
+            placeholderTextColor={currentTheme.colors.text.secondary}
             style={[styles.textArea, isRTL && styles.rtlText]}
             value={notes}
           />
@@ -879,13 +908,17 @@ export default function AddLabResultScreen() {
                   numberOfLines={1}
                   style={[styles.rtlText, { marginTop: 4 }]}
                 >
-                  {testTypes.find((t) => t.value === testType)?.label}
+                  {
+                    testTypes.find(
+                      (typeOption) => typeOption.value === testType
+                    )?.label
+                  }
                 </Caption>
               </View>
               <TouchableOpacity
                 onPress={() => setShowCommonLabsDropdown(false)}
               >
-                <X color={theme.colors.text.primary} size={24} />
+                <X color={currentTheme.colors.text.primary} size={24} />
               </TouchableOpacity>
             </View>
             <ScrollView
@@ -917,7 +950,7 @@ export default function AddLabResultScreen() {
                       style={[
                         styles.dropdownItem,
                         isSelected && {
-                          backgroundColor: theme.colors.primary.main + "20",
+                          backgroundColor: `${currentTheme.colors.primary.main}20`,
                         },
                       ]}
                     >
@@ -926,7 +959,7 @@ export default function AddLabResultScreen() {
                           styles.dropdownItemText,
                           isRTL && styles.rtlText,
                           isSelected && {
-                            color: theme.colors.primary.main,
+                            color: currentTheme.colors.primary.main,
                             fontWeight: "600",
                           },
                         ]}

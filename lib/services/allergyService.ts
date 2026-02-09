@@ -73,6 +73,7 @@ export const allergyService = {
   },
 
   // Get user allergies (offline-first)
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This method intentionally combines online query, parsing, offline cache fallback, and sorting.
   async getUserAllergies(userId: string, limitCount = 50): Promise<Allergy[]> {
     const isOnline = offlineService.isDeviceOnline();
 
@@ -87,8 +88,8 @@ export const allergyService = {
         const querySnapshot = await getDocs(q);
         const allergies: Allergy[] = [];
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        for (const snapshotDoc of querySnapshot.docs) {
+          const data = snapshotDoc.data();
           try {
             // Safely convert timestamp
             let timestamp: Date;
@@ -117,20 +118,22 @@ export const allergyService = {
                 discoveredDate = data.discoveredDate;
               } else {
                 const parsed = new Date(data.discoveredDate);
-                discoveredDate = isNaN(parsed.getTime()) ? undefined : parsed;
+                discoveredDate = Number.isNaN(parsed.getTime())
+                  ? undefined
+                  : parsed;
               }
             }
 
             allergies.push({
-              id: doc.id,
+              id: snapshotDoc.id,
               ...data,
               timestamp,
               discoveredDate,
             } as Allergy);
-          } catch (error) {
+          } catch (_error) {
             // Silently handle parsing error
           }
-        });
+        }
 
         // Sort by timestamp descending and limit results
         allergies.sort((a, b) => {
@@ -178,40 +181,32 @@ export const allergyService = {
     allergyId: string,
     updates: Partial<Allergy>
   ): Promise<void> {
-    try {
-      const updateData: any = { ...updates };
-      if (updates.timestamp) {
-        const timestamp =
-          updates.timestamp instanceof Date
-            ? updates.timestamp
-            : new Date(updates.timestamp);
-        updateData.timestamp = Timestamp.fromDate(timestamp);
-      }
-      if (updates.discoveredDate) {
-        const discoveredDate =
-          updates.discoveredDate instanceof Date
-            ? updates.discoveredDate
-            : new Date(updates.discoveredDate);
-        updateData.discoveredDate = Timestamp.fromDate(discoveredDate);
-      }
-      // Remove undefined values
-      Object.keys(updateData).forEach((key) => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
-      });
-      await updateDoc(doc(db, "allergies", allergyId), updateData);
-    } catch (error) {
-      throw error;
+    const updateData: Record<string, unknown> = { ...updates };
+    if (updates.timestamp) {
+      const timestamp =
+        updates.timestamp instanceof Date
+          ? updates.timestamp
+          : new Date(updates.timestamp);
+      updateData.timestamp = Timestamp.fromDate(timestamp);
     }
+    if (updates.discoveredDate) {
+      const discoveredDate =
+        updates.discoveredDate instanceof Date
+          ? updates.discoveredDate
+          : new Date(updates.discoveredDate);
+      updateData.discoveredDate = Timestamp.fromDate(discoveredDate);
+    }
+    // Remove undefined values
+    for (const key of Object.keys(updateData)) {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    }
+    await updateDoc(doc(db, "allergies", allergyId), updateData);
   },
 
   // Delete allergy
   async deleteAllergy(allergyId: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, "allergies", allergyId));
-    } catch (error) {
-      throw error;
-    }
+    await deleteDoc(doc(db, "allergies", allergyId));
   },
 };

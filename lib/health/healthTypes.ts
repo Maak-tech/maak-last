@@ -8,39 +8,39 @@ import type { HealthProvider } from "./healthMetricsCatalog";
 /**
  * Normalized metric sample
  */
-export interface MetricSample {
+export type MetricSample = {
   value: number | string;
   unit?: string;
   startDate: string; // ISO 8601
   endDate?: string; // ISO 8601
   source?: string; // Device or app source
-}
+};
 
 /**
  * Normalized metric payload
  */
-export interface NormalizedMetricPayload {
+export type NormalizedMetricPayload = {
   provider: HealthProvider;
   metricKey: string;
   displayName: string;
   unit?: string;
   samples: MetricSample[];
-}
+};
 
 /**
  * Device information
  */
-export interface DeviceInfo {
+export type DeviceInfo = {
   platform: "ios" | "android";
   model?: string;
   osVersion?: string;
   appVersion?: string;
-}
+};
 
 /**
  * Health sync payload sent to backend
  */
-export interface HealthSyncPayload {
+export type HealthSyncPayload = {
   provider: HealthProvider;
   selectedMetrics: string[];
   range: {
@@ -49,12 +49,12 @@ export interface HealthSyncPayload {
   };
   device: DeviceInfo;
   metrics: NormalizedMetricPayload[];
-}
+};
 
 /**
  * Provider connection status
  */
-export interface ProviderConnection {
+export type ProviderConnection = {
   provider: HealthProvider;
   connected: boolean;
   connectedAt?: string; // ISO 8601
@@ -62,88 +62,88 @@ export interface ProviderConnection {
   selectedMetrics: string[];
   grantedMetrics?: string[]; // Metrics actually granted by user (may differ from selected)
   deniedMetrics?: string[]; // Metrics explicitly denied
-}
+};
 
 /**
  * Fitbit OAuth tokens
  */
-export interface FitbitTokens {
+export type FitbitTokens = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // Unix timestamp
   userId: string;
   scope: string;
-}
+};
 
-export interface SamsungHealthTokens {
+export type SamsungHealthTokens = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // Unix timestamp
   userId: string;
   scope: string;
-}
+};
 
-export interface GarminTokens {
+export type GarminTokens = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // Unix timestamp
   userId: string;
   scope: string;
-}
+};
 
-export interface WithingsTokens {
+export type WithingsTokens = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // Unix timestamp
   userId: string;
   scope: string;
-}
+};
 
-export interface OuraTokens {
+export type OuraTokens = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // Unix timestamp
   userId: string;
   scope: string;
-}
+};
 
-export interface DexcomTokens {
+export type DexcomTokens = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // Unix timestamp
   userId: string;
   scope: string;
-}
+};
 
-export interface FreestyleLibreTokens {
+export type FreestyleLibreTokens = {
   accessToken: string;
   refreshToken: string;
   expiresAt: number; // Unix timestamp
   userId: string;
   scope: string;
-}
+};
 
 /**
  * Health provider availability
  */
-export interface ProviderAvailability {
+export type ProviderAvailability = {
   available: boolean;
   reason?: string; // If not available, why?
   requiresInstall?: boolean; // For Health Connect
   installUrl?: string;
-}
+};
 
 /**
  * Sync result
  */
-export interface SyncResult {
+export type SyncResult = {
   success: boolean;
   provider: HealthProvider;
   syncedAt: string; // ISO 8601
   metricsCount: number;
   samplesCount: number;
   error?: string;
-}
+};
 
 /**
  * Health data storage keys

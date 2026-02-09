@@ -3,8 +3,7 @@
  * Analyzes vital signs and symptom trends daily and alerts admins of concerning patterns
  */
 
-import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { getFamilyAdmins } from "../modules/family/admins";
 import { logger } from "../observability/logger";
@@ -26,7 +25,7 @@ async function sendTrendAlertToAdmins(
   }
 ): Promise<void> {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 
@@ -43,12 +42,12 @@ async function sendTrendAlertToAdmins(
     }
 
     const severityEmoji = analysis.severity === "critical" ? "📈" : "📊";
-    const trendEmoji =
-      analysis.trend === "increasing"
-        ? "📈"
-        : analysis.trend === "decreasing"
-          ? "📉"
-          : "📊";
+    let trendEmoji = "[=]";
+    if (analysis.trend === "increasing") {
+      trendEmoji = "[up]";
+    } else if (analysis.trend === "decreasing") {
+      trendEmoji = "[down]";
+    }
 
     const notification = {
       title: `${severityEmoji} ${trendEmoji} Health Trend Alert`,
@@ -73,14 +72,32 @@ async function sendTrendAlertToAdmins(
 
     // Send to admins
     // Note: This requires sendPushNotification to be exported from index.ts
-    const indexModule = (await import("../index.js")) as any;
+    type PushNotificationPayload = {
+      userIds: string[];
+      notification: typeof notification;
+      notificationType: string;
+    };
+    type PushNotificationContext = { auth: { uid: string } };
+    type IndexModule = {
+      sendPushNotification?: (
+        payload: PushNotificationPayload,
+        context: PushNotificationContext
+      ) => Promise<unknown>;
+    };
+    const indexModule = (await import("../index.js")) as IndexModule;
+    if (!indexModule.sendPushNotification) {
+      logger.warn("sendPushNotification export not found", {
+        fn: "sendTrendAlertToAdmins",
+      });
+      return;
+    }
     const result = await indexModule.sendPushNotification(
       {
         userIds: adminIdsToAlert,
         notification,
         notificationType: "trend",
       },
-      { auth: { uid: "system" } } as any
+      { auth: { uid: "system" } }
     );
 
     // Log the alert
@@ -110,8 +127,9 @@ async function sendTrendAlertToAdmins(
  */
 export const analyzeHealthTrends = onSchedule(
   "0 2 * * *", // Daily at 2 AM
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: this scheduled orchestrator intentionally combines multi-source trend analysis.
   async () => {
-    const db = admin.firestore();
+    const db = getFirestore();
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -127,7 +145,9 @@ export const analyzeHealthTrends = onSchedule(
         const userId = userDoc.id;
         const userData = userDoc.data();
 
-        if (!userData.familyId) continue;
+        if (!userData.familyId) {
+          continue;
+        }
 
         const userName =
           userData.firstName && userData.lastName
@@ -138,11 +158,7 @@ export const analyzeHealthTrends = onSchedule(
         const vitalsSnapshot = await db
           .collection("vitals")
           .where("userId", "==", userId)
-          .where(
-            "timestamp",
-            ">=",
-            admin.firestore.Timestamp.fromDate(sevenDaysAgo)
-          )
+          .where("timestamp", ">=", Timestamp.fromDate(sevenDaysAgo))
           .orderBy("timestamp", "asc")
           .get();
 
@@ -152,7 +168,7 @@ export const analyzeHealthTrends = onSchedule(
           Array<{ value: number; timestamp: Date }>
         > = {};
 
-        vitalsSnapshot.forEach((doc) => {
+        for (const doc of vitalsSnapshot.docs) {
           const vitalData = doc.data();
           const type = vitalData.type;
           const value = vitalData.value;
@@ -164,11 +180,13 @@ export const analyzeHealthTrends = onSchedule(
             }
             vitalsByType[type].push({ value, timestamp });
           }
-        });
+        }
 
         // Analyze trends for each vital type
         for (const [vitalType, values] of Object.entries(vitalsByType)) {
-          if (values.length < 3) continue; // Need at least 3 data points
+          if (values.length < 3) {
+            continue; // Need at least 3 data points
+          }
 
           // Simple trend analysis: compare first half vs second half
           const midpoint = Math.floor(values.length / 2);
@@ -181,12 +199,10 @@ export const analyzeHealthTrends = onSchedule(
             secondHalf.reduce((sum, v) => sum + v.value, 0) / secondHalf.length;
 
           const changePercent = ((secondAvg - firstAvg) / firstAvg) * 100;
-          const trend =
-            Math.abs(changePercent) < 2
-              ? "stable"
-              : changePercent > 0
-                ? "increasing"
-                : "decreasing";
+          let trend: "stable" | "increasing" | "decreasing" = "stable";
+          if (Math.abs(changePercent) >= 2) {
+            trend = changePercent > 0 ? "increasing" : "decreasing";
+          }
 
           // Determine severity
           let severity: "critical" | "warning" | null = null;
@@ -245,11 +261,7 @@ export const analyzeHealthTrends = onSchedule(
         const symptomsSnapshot = await db
           .collection("symptoms")
           .where("userId", "==", userId)
-          .where(
-            "timestamp",
-            ">=",
-            admin.firestore.Timestamp.fromDate(thirtyDaysAgo)
-          )
+          .where("timestamp", ">=", Timestamp.fromDate(thirtyDaysAgo))
           .orderBy("timestamp", "asc")
           .get();
 
@@ -259,7 +271,7 @@ export const analyzeHealthTrends = onSchedule(
           Array<{ severity: number; timestamp: Date }>
         > = {};
 
-        symptomsSnapshot.forEach((doc) => {
+        for (const doc of symptomsSnapshot.docs) {
           const symptomData = doc.data();
           const type = symptomData.type || symptomData.symptomType;
           const severity = symptomData.severity;
@@ -271,11 +283,13 @@ export const analyzeHealthTrends = onSchedule(
             }
             symptomsByType[type].push({ severity, timestamp });
           }
-        });
+        }
 
         // Analyze trends for each symptom type
         for (const [symptomType, symptoms] of Object.entries(symptomsByType)) {
-          if (symptoms.length < 2) continue;
+          if (symptoms.length < 2) {
+            continue;
+          }
 
           const daysSinceFirst =
             (now.getTime() - symptoms[0].timestamp.getTime()) /
@@ -293,12 +307,12 @@ export const analyzeHealthTrends = onSchedule(
           const recentFrequency =
             olderCount > 0 ? (recentCount / olderCount) * frequency : frequency;
 
-          const trend =
-            recentFrequency > frequency * 1.3
-              ? "increasing"
-              : recentFrequency < frequency * 0.7
-                ? "decreasing"
-                : "stable";
+          let trend: "increasing" | "decreasing" | "stable" = "stable";
+          if (recentFrequency > frequency * 1.3) {
+            trend = "increasing";
+          } else if (recentFrequency < frequency * 0.7) {
+            trend = "decreasing";
+          }
 
           let severity: "critical" | "warning" | null = null;
 
@@ -313,11 +327,18 @@ export const analyzeHealthTrends = onSchedule(
           }
 
           if (severity) {
+            let trendSummary = "occurring regularly";
+            if (trend === "increasing") {
+              trendSummary = "becoming more frequent";
+            } else if (trend === "decreasing") {
+              trendSummary = "decreasing in frequency";
+            }
+
             await sendTrendAlertToAdmins(userId, userName, "symptom", {
               type: symptomType,
               trend,
               severity,
-              message: `${symptomType} is ${trend === "increasing" ? "becoming more frequent" : trend === "decreasing" ? "decreasing in frequency" : "occurring regularly"} (${frequency.toFixed(1)}x per week, avg severity ${averageSeverity.toFixed(1)}/5)`,
+              message: `${symptomType} is ${trendSummary} (${frequency.toFixed(1)}x per week, avg severity ${averageSeverity.toFixed(1)}/5)`,
               frequency,
             });
           }

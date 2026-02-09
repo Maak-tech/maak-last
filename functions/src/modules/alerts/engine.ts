@@ -16,27 +16,27 @@ export type VitalType =
 export type AlertSeverity = "critical" | "warning" | null;
 export type AlertDirection = "low" | "high" | null;
 
-export interface VitalBenchmark {
+export type VitalBenchmark = {
   alertThresholds: {
     low: { critical: number; warning: number };
     high: { critical: number; warning: number };
   };
   normalRange: { min: number; max: number };
-}
+};
 
-export interface AlertResult {
+export type AlertResult = {
   isAlert: boolean;
   severity: AlertSeverity;
   direction: AlertDirection;
-}
+};
 
-export interface Alert {
+export type Alert = {
   id: string;
   userId: string;
   vitalType: VitalType;
   timestamp: number;
   severity: AlertSeverity;
-}
+};
 
 // ============================================================================
 // Vital Benchmarks
@@ -201,6 +201,7 @@ export function getSuppressionWindow(severity: AlertSeverity): number {
  * Create alert message for vital reading
  * Pure function - returns formatted message
  */
+// biome-ignore lint/nursery/useMaxParams: call sites pass decomposed vital attributes and this signature is stable across modules.
 export function createAlertMessage(
   vitalType: VitalType,
   value: number,

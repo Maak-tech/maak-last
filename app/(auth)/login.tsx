@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import i18nInstance from "@/lib/i18n";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Screen combines navigation, i18n, keyboard behavior, optional family linking, and form state.
 export default function LoginScreen() {
   const { t, i18n } = useTranslation();
   const { signIn, loading, user } = useAuth();
@@ -48,6 +49,7 @@ export default function LoginScreen() {
     }
   }, [user, loading, router]);
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Auth flow includes validation, optional family-code persistence, and user-facing error handling.
   const handleLogin = async () => {
     setErrors({});
 
@@ -70,7 +72,7 @@ export default function LoginScreen() {
             "pendingFamilyCode",
             familyCode.trim()
           );
-        } catch (error) {
+        } catch {
           Alert.alert(
             t("notice", "Notice"),
             t(
@@ -96,17 +98,19 @@ export default function LoginScreen() {
 
       // Don't navigate here - let the useEffect above handle navigation
       // once the auth state has fully updated
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Silently handle error
+      const rawErrorMessage =
+        error instanceof Error ? error.message : undefined;
       const errorMessage =
-        error.message ||
+        rawErrorMessage ||
         t("loginFailedMessage", "Login failed. Please try again.");
       setErrors({
         general: errorMessage,
       });
       Alert.alert(
         t("loginFailed", "Login Failed"),
-        error.message ||
+        rawErrorMessage ||
           t(
             "pleaseCheckCredentials",
             "Please check your credentials and try again."
@@ -119,10 +123,10 @@ export default function LoginScreen() {
     try {
       const newLang = i18n.language === "en" ? "ar" : "en";
       await i18nInstance.changeLanguage(newLang);
-    } catch (error) {
+    } catch {
       // Fallback to using hook's i18n if instance fails
       try {
-        if (i18n && i18n.changeLanguage) {
+        if (i18n?.changeLanguage) {
           await i18n.changeLanguage(i18n.language === "en" ? "ar" : "en");
         }
       } catch {
@@ -138,13 +142,13 @@ export default function LoginScreen() {
         style={styles.keyboardContainer}
       >
         <ScrollView
+          automaticallyAdjustKeyboardInsets={false}
           bounces={false}
           contentContainerStyle={styles.scrollContainer}
           contentInsetAdjustmentBehavior="never"
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets={false}
         >
           <View
             style={[styles.header, isRTL ? styles.headerRTL : styles.headerLTR]}
@@ -180,13 +184,13 @@ export default function LoginScreen() {
               {t("signIn")}
             </Text>
 
-            {errors.general && (
+            {errors.general ? (
               <View style={styles.errorContainer}>
                 <Text style={[styles.errorText, isRTL && styles.rtlText]}>
                   {errors.general}
                 </Text>
               </View>
-            )}
+            ) : null}
 
             <View style={styles.inputContainer}>
               <Text style={[styles.label, isRTL && styles.labelRTL]}>
@@ -243,7 +247,7 @@ export default function LoginScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {showFamilyCode && (
+              {showFamilyCode ? (
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, isRTL && styles.labelRTL]}>
                     {t("familyCode", "Family Code")}
@@ -267,7 +271,7 @@ export default function LoginScreen() {
                     )}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             <TouchableOpacity

@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Platform, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getAvailableMetricsForProvider } from "@/lib/health/healthMetricsCatalog";
@@ -10,12 +10,8 @@ import type { ProviderConnection } from "@/lib/health/healthTypes";
 export default function AppleHealthPermissionsScreen() {
   const [authorizing, setAuthorizing] = useState(false);
 
-  useEffect(() => {
-    // Automatically trigger iOS permission screen when this screen loads
-    requestIOSPermissions();
-  }, []);
-
-  const requestIOSPermissions = async () => {
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Permission request flow needs explicit user-facing branches.
+  const requestIOSPermissions = useCallback(async () => {
     if (Platform.OS !== "ios") {
       Alert.alert(
         "Not Available",
@@ -33,10 +29,12 @@ export default function AppleHealthPermissionsScreen() {
       );
 
       // Check availability first - wrapped in try-catch to prevent crashes
-      let availability;
+      let availability: Awaited<
+        ReturnType<typeof appleHealthService.checkAvailability>
+      >;
       try {
         availability = await appleHealthService.checkAvailability();
-      } catch (availError: any) {
+      } catch {
         setAuthorizing(false);
         Alert.alert(
           "HealthKit Error",
@@ -104,7 +102,7 @@ export default function AppleHealthPermissionsScreen() {
       } else {
         Alert.alert(
           "Permission Denied",
-          "Please allow access to health data in iOS Settings → Privacy & Security → Health",
+          "Please allow access to health data in iOS Settings -> Privacy & Security -> Health",
           [
             {
               text: "OK",
@@ -113,19 +111,21 @@ export default function AppleHealthPermissionsScreen() {
           ]
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       let errorMessage =
         "Failed to request HealthKit permissions. Please try again.";
+      const errorText =
+        error instanceof Error ? error.message : "Unknown error";
 
       // Check for specific native module errors
       if (
-        error?.message?.includes("RCTModuleMethod") ||
-        error?.message?.includes("folly")
+        errorText.includes("RCTModuleMethod") ||
+        errorText.includes("folly")
       ) {
         errorMessage =
           "HealthKit native module error. Please rebuild the app with: bun run build:ios:dev";
-      } else if (error?.message) {
-        errorMessage = error.message;
+      } else if (errorText !== "Unknown error") {
+        errorMessage = errorText;
       }
 
       Alert.alert("Permission Error", errorMessage, [
@@ -137,7 +137,12 @@ export default function AppleHealthPermissionsScreen() {
     } finally {
       setAuthorizing(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Automatically trigger iOS permission screen when this screen loads
+    requestIOSPermissions();
+  }, [requestIOSPermissions]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -158,7 +163,9 @@ export default function AppleHealthPermissionsScreen() {
             textAlign: "center",
           }}
         >
-          Opening iOS Permission Screen...
+          {authorizing
+            ? "Opening iOS Permission Screen..."
+            : "Preparing iOS Permission Screen..."}
         </Text>
         <Text
           style={{

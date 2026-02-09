@@ -3,7 +3,7 @@
  * Handles retrieval of family member relationships
  */
 
-import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
 
 /**
@@ -28,7 +28,7 @@ export async function getFamilyMemberIds(
   });
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 
@@ -50,11 +50,11 @@ export async function getFamilyMemberIds(
       .get();
 
     const memberIds: string[] = [];
-    familySnapshot.forEach((doc) => {
+    for (const doc of familySnapshot.docs) {
       if (!excludeUserId || doc.id !== userId) {
         memberIds.push(doc.id);
       }
-    });
+    }
 
     logger.debug("Family members retrieved", {
       traceId,

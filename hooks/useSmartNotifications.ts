@@ -5,11 +5,11 @@ import { smartNotificationService } from "@/lib/services/smartNotificationServic
 import type { Medication } from "@/types";
 import { useNotifications } from "./useNotifications";
 
-interface UseSmartNotificationsOptions {
+type UseSmartNotificationsOptions = {
   medications?: Medication[];
   enabled?: boolean;
   checkInterval?: number; // Minutes between checks
-}
+};
 
 export const useSmartNotifications = (
   options: UseSmartNotificationsOptions = {}
@@ -82,12 +82,12 @@ export const useSmartNotifications = (
       );
 
       if (filteredNotifications.length > 0) {
-        const result =
+        const _result =
           await smartNotificationService.scheduleSmartNotifications(
             filteredNotifications
           );
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle errors
     } finally {
       isCheckingRef.current = false;
@@ -156,11 +156,15 @@ export const useDailyNotificationScheduler = (enabled = true) => {
       if (result.scheduled > 0) {
         lastScheduledDate.current = today;
       }
-    } catch (error) {}
+    } catch (_error) {
+      // Intentionally ignored: scheduler retries on next cycle.
+    }
   }, [enabled, user?.id, ensureInitialized]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      return;
+    }
 
     // Schedule initial notifications
     scheduleDailyNotifications();

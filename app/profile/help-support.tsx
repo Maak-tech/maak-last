@@ -1,4 +1,5 @@
 import { useNavigation, useRouter } from "expo-router";
+import type { LucideIcon } from "lucide-react-native";
 import {
   ArrowLeft,
   Book,
@@ -24,12 +25,30 @@ import {
   View,
 } from "react-native";
 
+type ContactCardProps = {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  value: string;
+  method: string;
+  color: string;
+};
+
+type HelpCardProps = {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  color: string;
+  comingSoon?: boolean;
+};
+
 export const options = {
   headerShown: false,
 };
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This support screen intentionally renders multiple localized sections and FAQ/help cards.
 export default function HelpSupportScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -63,6 +82,7 @@ export default function HelpSupportScreen() {
     }
   };
 
+  // biome-ignore lint/correctness/noNestedComponentDefinitions: Local helper renderer uses screen-local RTL and click handlers.
   const ContactCard = ({
     icon: Icon,
     title,
@@ -70,12 +90,12 @@ export default function HelpSupportScreen() {
     value,
     method,
     color,
-  }: any) => (
+  }: ContactCardProps) => (
     <TouchableOpacity
       onPress={() => handleContactMethod(method, value)}
       style={styles.contactCard}
     >
-      <View style={[styles.contactIcon, { backgroundColor: color + "20" }]}>
+      <View style={[styles.contactIcon, { backgroundColor: `${color}20` }]}>
         <Icon color={color} size={24} />
       </View>
       <View style={styles.contactContent}>
@@ -97,6 +117,7 @@ export default function HelpSupportScreen() {
     </TouchableOpacity>
   );
 
+  // biome-ignore lint/correctness/noNestedComponentDefinitions: Local helper renderer uses screen-local RTL.
   const FAQItem = ({
     question,
     answer,
@@ -114,13 +135,14 @@ export default function HelpSupportScreen() {
     </View>
   );
 
+  // biome-ignore lint/correctness/noNestedComponentDefinitions: Local helper renderer uses screen-local RTL and alert behavior.
   const HelpCard = ({
     icon: Icon,
     title,
     description,
     color,
     comingSoon = false,
-  }: any) => (
+  }: HelpCardProps) => (
     <TouchableOpacity
       onPress={() => {
         if (comingSoon) {
@@ -134,7 +156,7 @@ export default function HelpSupportScreen() {
       }}
       style={styles.helpCard}
     >
-      <View style={[styles.helpIcon, { backgroundColor: color + "20" }]}>
+      <View style={[styles.helpIcon, { backgroundColor: `${color}20` }]}>
         <Icon color={color} size={20} />
       </View>
       <Text style={[styles.helpTitle, isRTL && { textAlign: "left" }]}>
@@ -143,13 +165,13 @@ export default function HelpSupportScreen() {
       <Text style={[styles.helpDescription, isRTL && { textAlign: "left" }]}>
         {description}
       </Text>
-      {comingSoon && (
+      {comingSoon ? (
         <View style={styles.comingSoonBadge}>
           <Text style={styles.comingSoonText}>
             {isRTL ? "قريباً" : "Coming Soon"}
           </Text>
         </View>
-      )}
+      ) : null}
     </TouchableOpacity>
   );
 

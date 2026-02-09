@@ -23,7 +23,9 @@ function bucketVitalValue(
   vitalType: string,
   value?: number
 ): "very_low" | "low" | "normal" | "high" | "very_high" | undefined {
-  if (value === undefined) return;
+  if (value === undefined) {
+    return;
+  }
 
   // Define normal ranges and thresholds
   const ranges: Record<
@@ -43,10 +45,18 @@ function bucketVitalValue(
     return "normal";
   }
 
-  if (value < range.veryLow) return "very_low";
-  if (value < range.low) return "low";
-  if (value <= range.high) return "normal";
-  if (value <= range.veryHigh) return "high";
+  if (value < range.veryLow) {
+    return "very_low";
+  }
+  if (value < range.low) {
+    return "low";
+  }
+  if (value <= range.high) {
+    return "normal";
+  }
+  if (value <= range.veryHigh) {
+    return "high";
+  }
   return "very_high";
 }
 
@@ -55,9 +65,15 @@ function bucketVitalValue(
  * Removes exact age while preserving clinically relevant categorization
  */
 function ageToGroup(age?: number): "child" | "adult" | "senior" | undefined {
-  if (age === undefined) return;
-  if (age < 18) return "child";
-  if (age < 65) return "adult";
+  if (age === undefined) {
+    return;
+  }
+  if (age < 18) {
+    return "child";
+  }
+  if (age < 65) {
+    return "adult";
+  }
   return "senior";
 }
 

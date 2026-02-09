@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   type OfflineOperation,
   offlineService,
 } from "@/lib/services/offlineService";
 
-export interface UseOfflineReturn {
+export type UseOfflineReturn = {
   isOnline: boolean;
   queueLength: number;
   lastSync: Date | null;
@@ -12,7 +12,7 @@ export interface UseOfflineReturn {
   queueOperation: (
     operation: Omit<OfflineOperation, "id" | "timestamp" | "retries">
   ) => Promise<string>;
-}
+};
 
 /**
  * Hook to manage offline functionality
@@ -21,6 +21,13 @@ export function useOffline(): UseOfflineReturn {
   const [isOnline, setIsOnline] = useState(true);
   const [queueLength, setQueueLength] = useState(0);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+
+  const checkStatus = useCallback(async () => {
+    const status = await offlineService.getSyncStatus();
+    setQueueLength(status.queueLength);
+    setIsOnline(status.isOnline);
+    setLastSync(status.lastSync);
+  }, []);
 
   useEffect(() => {
     // Check initial status
@@ -43,14 +50,7 @@ export function useOffline(): UseOfflineReturn {
       unsubscribe();
       clearInterval(interval);
     };
-  }, []);
-
-  const checkStatus = async () => {
-    const status = await offlineService.getSyncStatus();
-    setQueueLength(status.queueLength);
-    setIsOnline(status.isOnline);
-    setLastSync(status.lastSync);
-  };
+  }, [checkStatus]);
 
   const syncAll = async () => {
     const result = await offlineService.syncAll();

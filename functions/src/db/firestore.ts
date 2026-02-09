@@ -1,3 +1,5 @@
+/* biome-ignore-all lint/style/useConsistentTypeDefinitions: Shared Firestore schema file intentionally uses interface declarations. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: Some schema fields are intentionally open-ended for metadata payloads. */
 /**
  * Firestore type definitions
  * Core data types for the application

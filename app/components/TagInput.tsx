@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ScrollView,
@@ -14,13 +14,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { tagService } from "@/lib/services/tagService";
 
-interface TagInputProps {
+type TagInputProps = {
   tags: string[];
   onChangeTags: (tags: string[]) => void;
   placeholder?: string;
   maxTags?: number;
   showSuggestions?: boolean;
-}
+};
 
 export default function TagInput({
   tags,
@@ -40,17 +40,10 @@ export default function TagInput({
 
   const styles = getStyles(theme, isRTL);
 
-  useEffect(() => {
-    if (showSuggestions && inputValue.trim().length > 0 && user) {
-      loadSuggestions();
-    } else {
-      setSuggestions([]);
-      setShowSuggestionsList(false);
+  const loadSuggestions = useCallback(async () => {
+    if (!user) {
+      return;
     }
-  }, [inputValue, tags, user, showSuggestions]);
-
-  const loadSuggestions = async () => {
-    if (!user) return;
 
     try {
       const suggested = await tagService.getSuggestedTags(user.id, tags, 5);
@@ -59,15 +52,26 @@ export default function TagInput({
       );
       setSuggestions(filtered);
       setShowSuggestionsList(filtered.length > 0);
-    } catch (error) {
+    } catch (_error) {
       setSuggestions([]);
       setShowSuggestionsList(false);
     }
-  };
+  }, [inputValue, tags, user]);
+
+  useEffect(() => {
+    if (showSuggestions && inputValue.trim().length > 0 && user) {
+      loadSuggestions();
+    } else {
+      setSuggestions([]);
+      setShowSuggestionsList(false);
+    }
+  }, [inputValue, loadSuggestions, showSuggestions, user]);
 
   const handleAddTag = (tag?: string) => {
     const tagToAdd = tag || inputValue.trim();
-    if (!tagToAdd) return;
+    if (!tagToAdd) {
+      return;
+    }
 
     const normalized = tagService.normalizeTag(tagToAdd);
     if (!tagService.isValidTag(normalized)) {
@@ -105,8 +109,8 @@ export default function TagInput({
       {/* Current Tags */}
       {tags.length > 0 && (
         <View style={styles.tagsContainer}>
-          {tags.map((tag, index) => (
-            <Badge key={index} style={styles.tag} variant="outline">
+          {tags.map((tag) => (
+            <Badge key={`tag-${tag}`} style={styles.tag} variant="outline">
               <Text style={styles.tagText}>{tag}</Text>
               <TouchableOpacity
                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
@@ -166,9 +170,9 @@ export default function TagInput({
             showsHorizontalScrollIndicator={false}
             style={styles.suggestionsScroll}
           >
-            {suggestions.map((suggestion, index) => (
+            {suggestions.map((suggestion) => (
               <TouchableOpacity
-                key={index}
+                key={`suggestion-${suggestion}`}
                 onPress={() => handleSuggestionPress(suggestion)}
                 style={styles.suggestionChip}
               >
@@ -189,6 +193,7 @@ export default function TagInput({
   );
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Theme token shape in this app is broader than RN style primitives.
 const getStyles = (theme: any, isRTL: boolean) => ({
   container: {
     marginBottom: theme.spacing.base,

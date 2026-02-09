@@ -12,7 +12,7 @@ import {
   Info,
   Settings,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -27,6 +27,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 import { motionPermissionService } from "@/lib/services/motionPermissionService";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: permission UX combines platform copy, status, and actions in one screen.
 export default function MotionPermissionsScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
@@ -38,16 +39,12 @@ export default function MotionPermissionsScreen() {
     reason?: string;
   } | null>(null);
 
-  useEffect(() => {
-    checkPermissionStatus();
-  }, []);
-
-  const checkPermissionStatus = async () => {
+  const checkPermissionStatus = useCallback(async () => {
     setChecking(true);
     try {
       const status = await motionPermissionService.checkMotionAvailability();
       setPermissionStatus(status);
-    } catch (error) {
+    } catch (_error) {
       setPermissionStatus({
         available: false,
         granted: false,
@@ -56,7 +53,11 @@ export default function MotionPermissionsScreen() {
     } finally {
       setChecking(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkPermissionStatus();
+  }, [checkPermissionStatus]);
 
   const handleRequestPermission = async () => {
     setLoading(true);
@@ -86,12 +87,12 @@ export default function MotionPermissionsScreen() {
           [{ text: "OK" }]
         );
       }
-    } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.message ||
-          "Failed to request motion permission. Please try again."
-      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to request motion permission. Please try again.";
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -121,7 +122,18 @@ export default function MotionPermissionsScreen() {
     );
   }
 
-  const isRTL = false; // Add RTL support if needed
+  let statusBorderColor = "#EF4444";
+  let statusTitle = "Not Available";
+  let statusIcon = <AlertTriangle color="#EF4444" size={32} />;
+  if (permissionStatus?.granted) {
+    statusBorderColor = "#10B981";
+    statusTitle = "Permission Granted";
+    statusIcon = <CheckCircle color="#10B981" size={32} />;
+  } else if (permissionStatus?.available) {
+    statusBorderColor = "#F59E0B";
+    statusTitle = "Permission Required";
+    statusIcon = <AlertTriangle color="#F59E0B" size={32} />;
+  }
 
   return (
     <SafeAreaView
@@ -151,28 +163,18 @@ export default function MotionPermissionsScreen() {
         </View>
 
         {/* Status Card */}
-        {permissionStatus && (
+        {permissionStatus ? (
           <View
             style={[
               styles.statusCard,
               {
                 backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: permissionStatus.granted
-                  ? "#10B981"
-                  : permissionStatus.available
-                    ? "#F59E0B"
-                    : "#EF4444",
+                borderColor: statusBorderColor,
               },
             ]}
           >
             <View style={styles.statusHeader}>
-              {permissionStatus.granted ? (
-                <CheckCircle color="#10B981" size={32} />
-              ) : permissionStatus.available ? (
-                <AlertTriangle color="#F59E0B" size={32} />
-              ) : (
-                <AlertTriangle color="#EF4444" size={32} />
-              )}
+              {statusIcon}
               <View style={styles.statusInfo}>
                 <Text
                   style={[
@@ -180,11 +182,7 @@ export default function MotionPermissionsScreen() {
                     { color: theme.colors.text.primary },
                   ]}
                 >
-                  {permissionStatus.granted
-                    ? "Permission Granted"
-                    : permissionStatus.available
-                      ? "Permission Required"
-                      : "Not Available"}
+                  {statusTitle}
                 </Text>
                 <Text
                   style={[
@@ -200,7 +198,7 @@ export default function MotionPermissionsScreen() {
               </View>
             </View>
           </View>
-        )}
+        ) : null}
 
         {/* Information Cards */}
         <View style={styles.infoSection}>
@@ -289,7 +287,7 @@ export default function MotionPermissionsScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionSection}>
-          {!permissionStatus?.granted && permissionStatus?.available && (
+          {!permissionStatus?.granted && permissionStatus?.available ? (
             <TouchableOpacity
               disabled={loading}
               onPress={handleRequestPermission}
@@ -311,9 +309,9 @@ export default function MotionPermissionsScreen() {
                 </>
               )}
             </TouchableOpacity>
-          )}
+          ) : null}
 
-          {permissionStatus?.granted && (
+          {permissionStatus?.granted ? (
             <View
               style={[
                 styles.successCard,
@@ -328,7 +326,7 @@ export default function MotionPermissionsScreen() {
                 Motion access is enabled. Fall detection is ready to use.
               </Text>
             </View>
-          )}
+          ) : null}
 
           <TouchableOpacity
             onPress={handleOpenSettings}

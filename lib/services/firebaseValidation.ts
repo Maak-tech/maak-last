@@ -2,6 +2,21 @@ import { addDoc, collection, deleteDoc, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { userService } from "./userService";
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return String(error);
+};
+
 export const firebaseValidation = {
   // Check if user is properly authenticated and has permissions
   async validateUserSetup(): Promise<{
@@ -37,7 +52,7 @@ export const firebaseValidation = {
             lastName
           );
         }
-      } catch (error) {
+      } catch (_error) {
         issues.push("Cannot access user document in Firestore");
         recommendations.push(
           "Check Firestore security rules for users collection"
@@ -58,8 +73,10 @@ export const firebaseValidation = {
 
         // Clean up test document
         await deleteDoc(docRef);
-      } catch (error: any) {
-        issues.push(`Cannot write to symptoms collection: ${error.message}`);
+      } catch (error: unknown) {
+        issues.push(
+          `Cannot write to symptoms collection: ${getErrorMessage(error)}`
+        );
         recommendations.push(
           "Check Firestore security rules for symptoms collection"
         );
@@ -84,8 +101,10 @@ export const firebaseValidation = {
 
         // Clean up test document
         await deleteDoc(docRef);
-      } catch (error: any) {
-        issues.push(`Cannot write to medications collection: ${error.message}`);
+      } catch (error: unknown) {
+        issues.push(
+          `Cannot write to medications collection: ${getErrorMessage(error)}`
+        );
         recommendations.push(
           "Check Firestore security rules for medications collection"
         );
@@ -100,8 +119,8 @@ export const firebaseValidation = {
         // Try to read medications
         const medicationsQuery = collection(db, "medications");
         await getDocs(medicationsQuery);
-      } catch (error: any) {
-        issues.push(`Cannot read from collections: ${error.message}`);
+      } catch (error: unknown) {
+        issues.push(`Cannot read from collections: ${getErrorMessage(error)}`);
         recommendations.push(
           "Check Firestore security rules for read permissions"
         );

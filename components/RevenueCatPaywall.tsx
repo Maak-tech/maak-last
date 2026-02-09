@@ -16,10 +16,10 @@ import type {
 import RevenueCatUI from "react-native-purchases-ui";
 import { useRevenueCat } from "@/hooks/useRevenueCat";
 
-interface RevenueCatPaywallProps {
+type RevenueCatPaywallProps = {
   onPurchaseComplete?: () => void;
   onDismiss?: () => void;
-}
+};
 
 /**
  * RevenueCat Paywall Component
@@ -43,7 +43,7 @@ export function RevenueCatPaywall({
   const handleRetry = async () => {
     try {
       await refreshOfferings();
-    } catch (err) {
+    } catch (_err) {
       // Error is already handled by the hook
     }
   };
@@ -82,8 +82,8 @@ export function RevenueCatPaywall({
     <RevenueCatUI.Paywall
       onDismiss={onDismiss}
       onPurchaseCompleted={async ({
-        customerInfo,
-        storeTransaction,
+        customerInfo: _customerInfo,
+        storeTransaction: _storeTransaction,
       }: {
         customerInfo: CustomerInfo;
         storeTransaction: PurchasesStoreTransaction;
@@ -91,7 +91,7 @@ export function RevenueCatPaywall({
         // Refresh customer info to update subscription status immediately
         try {
           await refreshCustomerInfo();
-        } catch (err) {
+        } catch (_err) {
           // Error is already handled by the hook, continue anyway
         }
 
@@ -108,24 +108,28 @@ export function RevenueCatPaywall({
           ]
         );
       }}
-      onPurchaseError={({ error }: { error: PurchasesError }) => {
+      onPurchaseError={({
+        error: purchaseError,
+      }: {
+        error: PurchasesError;
+      }) => {
         // Don't show error for user cancellation
-        if (!error.userCancelled) {
+        if (!purchaseError.userCancelled) {
           Alert.alert(
             t("subscription.purchaseError"),
-            error.message || t("subscription.purchaseErrorMessage")
+            purchaseError.message || t("subscription.purchaseErrorMessage")
           );
         }
       }}
       onRestoreCompleted={async ({
-        customerInfo,
+        customerInfo: _customerInfo,
       }: {
         customerInfo: CustomerInfo;
       }) => {
         // Refresh customer info to update subscription status immediately
         try {
           await refreshCustomerInfo();
-        } catch (err) {
+        } catch (_err) {
           // Error is already handled by the hook, continue anyway
         }
 

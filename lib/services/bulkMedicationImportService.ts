@@ -164,9 +164,9 @@ class BulkMedicationImportService {
     if (isoMatch) {
       const [, year, month, day] = isoMatch;
       return new Date(
-        Number.parseInt(year),
-        Number.parseInt(month) - 1,
-        Number.parseInt(day)
+        Number.parseInt(year, 10),
+        Number.parseInt(month, 10) - 1,
+        Number.parseInt(day, 10)
       );
     }
 
@@ -175,9 +175,9 @@ class BulkMedicationImportService {
     if (usMatch) {
       const [, month, day, year] = usMatch;
       return new Date(
-        Number.parseInt(year),
-        Number.parseInt(month) - 1,
-        Number.parseInt(day)
+        Number.parseInt(year, 10),
+        Number.parseInt(month, 10) - 1,
+        Number.parseInt(day, 10)
       );
     }
 
@@ -186,15 +186,15 @@ class BulkMedicationImportService {
     if (euMatch) {
       const [, day, month, year] = euMatch;
       return new Date(
-        Number.parseInt(year),
-        Number.parseInt(month) - 1,
-        Number.parseInt(day)
+        Number.parseInt(year, 10),
+        Number.parseInt(month, 10) - 1,
+        Number.parseInt(day, 10)
       );
     }
 
     // Try Date.parse as fallback
     const parsed = Date.parse(dateStr);
-    if (!isNaN(parsed)) {
+    if (!Number.isNaN(parsed)) {
       return new Date(parsed);
     }
 
@@ -247,8 +247,8 @@ class BulkMedicationImportService {
     const time24Match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
     if (time24Match) {
       const [, hour, minute] = time24Match;
-      const h = Number.parseInt(hour);
-      const m = Number.parseInt(minute);
+      const h = Number.parseInt(hour, 10);
+      const m = Number.parseInt(minute, 10);
       if (h >= 0 && h < 24 && m >= 0 && m < 60) {
         return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
       }
@@ -258,8 +258,8 @@ class BulkMedicationImportService {
     const time12Match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/i);
     if (time12Match) {
       const [, hour, minute, period] = time12Match;
-      let h = Number.parseInt(hour);
-      const m = Number.parseInt(minute);
+      let h = Number.parseInt(hour, 10);
+      const m = Number.parseInt(minute, 10);
 
       if (period.toUpperCase() === "PM" && h !== 12) {
         h += 12;
@@ -276,7 +276,7 @@ class BulkMedicationImportService {
     const hourMatch = trimmed.match(/^(\d{1,2})\s*(AM|PM|am|pm)?$/i);
     if (hourMatch) {
       const [, hour, period] = hourMatch;
-      let h = Number.parseInt(hour);
+      let h = Number.parseInt(hour, 10);
       if (period) {
         if (period.toUpperCase() === "PM" && h !== 12) {
           h += 12;
@@ -384,7 +384,7 @@ class BulkMedicationImportService {
   /**
    * Validate and parse medications from CSV rows
    */
-  parseMedications(csvRows: CSVMedicationRow[], userId: string): ImportResult {
+  parseMedications(csvRows: CSVMedicationRow[], _userId: string): ImportResult {
     const result: ImportResult = {
       success: true,
       imported: 0,
@@ -438,7 +438,7 @@ class BulkMedicationImportService {
 
         // Parse dates
         const startDate = this.parseDate(row.startDate);
-        if (!startDate || isNaN(startDate.getTime())) {
+        if (!startDate || Number.isNaN(startDate.getTime())) {
           result.errors.push({
             row: index + 2,
             medication: row.name,
@@ -451,7 +451,7 @@ class BulkMedicationImportService {
         let endDate: Date | undefined;
         if (row.endDate && row.endDate.trim()) {
           const parsed = this.parseDate(row.endDate);
-          if (parsed && !isNaN(parsed.getTime())) {
+          if (parsed && !Number.isNaN(parsed.getTime())) {
             endDate = parsed;
           }
           // If end date is invalid, we'll just ignore it and continue
@@ -505,7 +505,7 @@ Metformin,500mg,Twice daily,2024-01-01,2024-06-01,08:00 20:00,With meals`;
   /**
    * Import medications from CSV content
    */
-  async importFromCSV(
+  importFromCSV(
     csvContent: string,
     userId: string
   ): Promise<ImportResult> {
@@ -515,3 +515,4 @@ Metformin,500mg,Twice daily,2024-01-01,2024-06-01,08:00 20:00,With meals`;
 }
 
 export const bulkMedicationImportService = new BulkMedicationImportService();
+

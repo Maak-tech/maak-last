@@ -2,12 +2,12 @@ import { logger } from "@/lib/utils/logger";
 import { observabilityEmitter } from "./eventEmitter";
 import type { CircuitBreakerState } from "./types";
 
-interface CircuitBreakerOptions {
+type CircuitBreakerOptions = {
   failureThreshold: number;
   successThreshold: number;
   timeout: number;
   halfOpenRequests: number;
-}
+};
 
 const DEFAULT_OPTIONS: CircuitBreakerOptions = {
   failureThreshold: 5,
@@ -17,9 +17,9 @@ const DEFAULT_OPTIONS: CircuitBreakerOptions = {
 };
 
 class CircuitBreaker {
-  private states: Map<string, CircuitBreakerState> = new Map();
-  private options: Map<string, CircuitBreakerOptions> = new Map();
-  private halfOpenSuccesses: Map<string, number> = new Map();
+  private readonly states: Map<string, CircuitBreakerState> = new Map();
+  private readonly options: Map<string, CircuitBreakerOptions> = new Map();
+  private readonly halfOpenSuccesses: Map<string, number> = new Map();
 
   configure(
     serviceName: string,
@@ -40,7 +40,13 @@ class CircuitBreaker {
         failureCount: 0,
       });
     }
-    return this.states.get(serviceName)!;
+    return (
+      this.states.get(serviceName) ?? {
+        serviceName,
+        state: "closed",
+        failureCount: 0,
+      }
+    );
   }
 
   isOpen(serviceName: string): boolean {
@@ -102,7 +108,7 @@ class CircuitBreaker {
     const state = this.getState(serviceName);
     const options = this.getOptions(serviceName);
 
-    state.failureCount++;
+    state.failureCount += 1;
     state.lastFailure = new Date();
 
     if (state.state === "half_open") {
@@ -290,13 +296,13 @@ export function withCircuitBreaker<T>(
   fallback?: () => T | Promise<T>
 ) {
   return (
-    _target: any,
+    _target: object,
     _propertyKey: string,
     descriptor: PropertyDescriptor
   ) => {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = function (...args: unknown[]) {
       return circuitBreaker.execute(
         serviceName,
         () => originalMethod.apply(this, args),

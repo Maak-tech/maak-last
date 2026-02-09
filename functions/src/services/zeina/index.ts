@@ -32,6 +32,7 @@ import { formatForAudit, mapToBackendActions } from "./outputMapper";
 import type {
   AlertContext,
   BackendActions,
+  RawAIResponse,
   ZeinaAnalysisRequest,
   ZeinaAnalysisResult,
   ZeinaOutput,
@@ -50,6 +51,7 @@ import type {
  * @param request - Analysis request with traceId and alertContext, optionally openaiApiKey
  * @returns ZeinaAnalysisResult with output or error
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: orchestrator intentionally layers validation, fallback, and telemetry in one flow.
 export async function runZeinaAnalysis(
   request: ZeinaAnalysisRequest & { openaiApiKey?: string }
 ): Promise<ZeinaAnalysisResult> {
@@ -82,13 +84,13 @@ export async function runZeinaAnalysis(
     // Step 3: Call LLM or use deterministic fallback
     const llmStartTime = Date.now();
     const useAI = process.env.ZEINA_ENABLED !== "false"; // Default enabled
-    let rawResponse = null;
+    let rawResponse: RawAIResponse | null = null;
     let analysisType: "ai" | "deterministic" = "deterministic";
 
     if (useAI) {
       try {
         // API key can be passed via request.secrets or fall back to process.env
-        const apiKey = (request as any).openaiApiKey;
+        const apiKey = request.openaiApiKey;
         rawResponse = await callLLM(zeinaInput, prompt, traceId, apiKey);
         const llmDuration = Date.now() - llmStartTime;
 
@@ -206,7 +208,7 @@ function createDeterministicFallback(
  * Execute backend actions from Zeina analysis
  * This should be called by the alert handler after runZeinaAnalysis
  */
-export async function executeZeinaActions(
+export function executeZeinaActions(
   output: ZeinaOutput,
   alertContext: AlertContext,
   traceId: string
@@ -224,14 +226,14 @@ export async function executeZeinaActions(
 
   // Return actions for caller to execute
   // (Actual execution happens in alert handler)
-  return actions;
+  return Promise.resolve(actions);
 }
 
 /**
  * Store Zeina analysis result for audit
  * This should be called after analysis completes
  */
-export async function auditZeinaAnalysis(
+export function auditZeinaAnalysis(
   output: ZeinaOutput,
   alertContext: AlertContext,
   traceId: string
@@ -245,6 +247,7 @@ export async function auditZeinaAnalysis(
 
   // TODO: Implement actual audit log storage
   // Could write to Firestore audit collection, CloudWatch, etc.
+  return Promise.resolve();
 }
 
 // Re-export vitals summary (for backward compatibility)

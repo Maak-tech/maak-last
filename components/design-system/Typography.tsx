@@ -3,26 +3,27 @@ import {
   Text as RNText,
   type TextProps as RNTextProps,
   StyleSheet,
+  type TextStyle,
 } from "react-native";
 import { colors, typography } from "./theme";
 
-export interface CaptionProps extends Omit<RNTextProps, "style"> {
+export type CaptionProps = Omit<RNTextProps, "style"> & {
   children: React.ReactNode;
   color?: string;
   style?: RNTextProps["style"];
   numberOfLines?: number;
-}
+};
 
-export interface HeadingProps extends Omit<RNTextProps, "style"> {
+export type HeadingProps = Omit<RNTextProps, "style"> & {
   level?: 1 | 2 | 3 | 4 | 5 | 6;
   children: React.ReactNode;
   color?: string;
   align?: "left" | "center" | "right";
   weight?: "light" | "regular" | "medium" | "semibold" | "bold";
   style?: RNTextProps["style"];
-}
+};
 
-export interface TextProps extends Omit<RNTextProps, "style"> {
+export type TextProps = Omit<RNTextProps, "style"> & {
   children: React.ReactNode;
   size?: "small" | "medium" | "large";
   color?: string;
@@ -30,15 +31,15 @@ export interface TextProps extends Omit<RNTextProps, "style"> {
   weight?: "light" | "regular" | "medium" | "semibold" | "bold";
   style?: RNTextProps["style"];
   numberOfLines?: number;
-}
+};
 
-export interface LabelProps extends Omit<RNTextProps, "style"> {
+export type LabelProps = Omit<RNTextProps, "style"> & {
   children: React.ReactNode;
   color?: string;
   style?: RNTextProps["style"];
   numberOfLines?: number;
   required?: boolean;
-}
+};
 
 // Heading Component
 export const Heading: React.FC<HeadingProps> = ({
@@ -65,13 +66,13 @@ export const Heading: React.FC<HeadingProps> = ({
     medium: typography.weightMedium,
     semibold: typography.weightSemiBold,
     bold: typography.weightBold,
-  }[weight];
+  }[weight] as TextStyle["fontWeight"];
 
   return (
     <RNText
       style={[
         styles.heading,
-        { fontSize, fontWeight: fontWeight as any, color, textAlign: align },
+        { fontSize, fontWeight, color, textAlign: align },
         style,
       ]}
       {...props}
@@ -103,13 +104,13 @@ export const Text: React.FC<TextProps> = ({
     medium: typography.weightMedium,
     semibold: typography.weightSemiBold,
     bold: typography.weightBold,
-  }[weight];
+  }[weight] as TextStyle["fontWeight"];
 
   return (
     <RNText
       style={[
         styles.text,
-        { fontSize, fontWeight: fontWeight as any, color, textAlign: align },
+        { fontSize, fontWeight, color, textAlign: align },
         style,
       ]}
       {...props}
@@ -145,7 +146,7 @@ export const Label: React.FC<LabelProps> = ({
 }) => (
   <RNText style={[styles.label, style]} {...props}>
     {children}
-    {required && <RNText style={styles.required}> *</RNText>}
+    {required ? <RNText style={styles.required}> *</RNText> : null}
   </RNText>
 );
 
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.bodySmall,
-    fontWeight: typography.weightMedium as any,
+    fontWeight: typography.weightMedium as TextStyle["fontWeight"],
     color: colors.textPrimary,
   },
   required: {

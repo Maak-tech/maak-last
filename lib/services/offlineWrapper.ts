@@ -5,7 +5,7 @@
 
 import { offlineService } from "./offlineService";
 
-type ServiceMethod<T> = (...args: any[]) => Promise<T>;
+type ServiceMethod<T> = (...args: unknown[]) => Promise<T>;
 
 /**
  * Wrap a service method to be offline-first
@@ -15,7 +15,7 @@ export function makeOfflineFirst<T>(
   collectionName: string,
   operationType: "create" | "update" | "delete"
 ): ServiceMethod<T> {
-  return async (...args: any[]): Promise<T> => {
+  return async (...args: unknown[]): Promise<T> => {
     const isOnline = offlineService.isDeviceOnline();
 
     if (isOnline) {
@@ -58,7 +58,7 @@ export function makeOfflineRead<T>(
   method: ServiceMethod<T[]>,
   collectionName: keyof import("./offlineService").OfflineData
 ): ServiceMethod<T[]> {
-  return async (...args: any[]): Promise<T[]> => {
+  return async (...args: unknown[]): Promise<T[]> => {
     const isOnline = offlineService.isDeviceOnline();
 
     if (isOnline) {

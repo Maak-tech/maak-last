@@ -23,7 +23,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-interface Resource {
+type Resource = {
   id: string;
   title: string;
   titleAr: string;
@@ -35,7 +35,7 @@ interface Resource {
   rating?: number;
   url?: string;
   featured?: boolean;
-}
+};
 
 const resources: Resource[] = [
   {
@@ -111,7 +111,7 @@ const resources: Resource[] = [
   },
 ];
 
-const categories = [
+const _categories = [
   { key: "all", labelEn: "All", labelAr: "الكل", icon: Book },
   { key: "general", labelEn: "General", labelAr: "عام", icon: Heart },
   { key: "medication", labelEn: "Medications", labelAr: "الأدوية", icon: Pill },
@@ -121,11 +121,11 @@ const categories = [
 ];
 
 export default function ResourcesScreen() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const router = useRouter();
   const navigation = useNavigation();
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [bookmarkedItems, setBookmarkedItems] = useState<string[]>([]);
+  const [selectedCategory, _setSelectedCategory] = useState("all");
+  const [_bookmarkedItems, setBookmarkedItems] = useState<string[]>([]);
 
   const isRTL = i18n.language === "ar";
 
@@ -136,7 +136,7 @@ export default function ResourcesScreen() {
     });
   }, [navigation]);
 
-  const getTypeIcon = (type: string) => {
+  const _getTypeIcon = (type: string) => {
     switch (type) {
       case "article":
         return FileText;
@@ -156,17 +156,17 @@ export default function ResourcesScreen() {
       ? resources
       : resources.filter((resource) => resource.category === selectedCategory);
 
-  const featuredResources = filteredResources.filter((r) => r.featured);
-  const regularResources = filteredResources.filter((r) => !r.featured);
+  const _featuredResources = filteredResources.filter((r) => r.featured);
+  const _regularResources = filteredResources.filter((r) => !r.featured);
 
-  const handleResourcePress = (resource: Resource) => {
+  const _handleResourcePress = (_resource: Resource) => {
     Alert.alert(
       isRTL ? "قريباً" : "Coming Soon",
       isRTL ? "هذا المحتوى سيتوفر قريباً" : "This content will be available soon"
     );
   };
 
-  const toggleBookmark = (resourceId: string) => {
+  const _toggleBookmark = (resourceId: string) => {
     setBookmarkedItems((prev) =>
       prev.includes(resourceId)
         ? prev.filter((id) => id !== resourceId)

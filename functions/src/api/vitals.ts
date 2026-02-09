@@ -4,7 +4,8 @@
  */
 
 import { Timestamp } from "firebase-admin/firestore";
-import * as functions from "firebase-functions";
+import { https } from "firebase-functions";
+import type { CallableContext } from "firebase-functions/v1/https";
 import { getAuditLogsCollection, getVitalsCollection } from "../db/collections";
 import {
   checkVitalBenchmark,
@@ -21,7 +22,7 @@ import { logger } from "../observability/logger";
 import { getAuthContext } from "../security/authContext";
 import { assertCanWritePatient } from "../security/rbac";
 
-export interface IngestVitalRequest {
+export type IngestVitalRequest = {
   userId: string;
   type: VitalType;
   value: number;
@@ -31,9 +32,9 @@ export interface IngestVitalRequest {
   source?: "manual" | "device" | "healthkit" | "googlefit" | "oura" | "garmin";
   deviceId?: string;
   timestamp?: string; // ISO 8601 format
-}
+};
 
-export interface IngestVitalResponse {
+export type IngestVitalResponse = {
   success: boolean;
   vitalId?: string;
   alert?: {
@@ -42,7 +43,7 @@ export interface IngestVitalResponse {
     message: string;
   };
   errors?: Array<{ field: string; message: string }>;
-}
+};
 
 /**
  * Ingest vital reading
@@ -50,7 +51,7 @@ export interface IngestVitalResponse {
  */
 export async function ingestVital(
   data: IngestVitalRequest,
-  context: any
+  context: CallableContext
 ): Promise<IngestVitalResponse> {
   const traceId = createTraceId();
 
@@ -69,7 +70,7 @@ export async function ingestVital(
         traceId,
         fn: "ingestVital",
       });
-      throw new functions.https.HttpsError(
+      throw new https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
       );
@@ -125,7 +126,7 @@ export async function ingestVital(
     const vitalsCollection = getVitalsCollection();
     const vitalDoc = await vitalsCollection.add({
       ...vitalReading,
-      timestamp: Timestamp.fromDate(vitalReading.timestamp as any),
+      timestamp: Timestamp.fromDate(vitalReading.timestamp as Date),
       createdAt: Timestamp.now(),
     });
 
@@ -227,14 +228,11 @@ export async function ingestVital(
     });
 
     // Re-throw HttpsErrors
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof https.HttpsError) {
       throw error;
     }
 
     // Wrap other errors
-    throw new functions.https.HttpsError(
-      "internal",
-      "Failed to ingest vital reading"
-    );
+    throw new https.HttpsError("internal", "Failed to ingest vital reading");
   }
 }

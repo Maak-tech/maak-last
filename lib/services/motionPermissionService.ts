@@ -15,6 +15,21 @@ export interface MotionPermissionStatus {
   reason?: string;
 }
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return "Failed to check motion sensor availability";
+};
+
 /**
  * Check if motion sensors are available
  */
@@ -66,11 +81,11 @@ export const checkMotionAvailability =
       };
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         available: false,
         granted: false,
-        reason: error.message || "Failed to check motion sensor availability",
+        reason: getErrorMessage(error),
       };
     }
   };
@@ -113,7 +128,7 @@ export const requestMotionPermission = async (): Promise<boolean> => {
     await AsyncStorage.setItem(MOTION_PERMISSION_STORAGE_KEY, "true");
 
     return true;
-  } catch (error: any) {
+  } catch (_error: unknown) {
     return false;
   }
 };
@@ -158,7 +173,7 @@ export const hasMotionPermission = async (): Promise<boolean> => {
     );
     const hasPermission = storedPermission === "true";
     return hasPermission;
-  } catch (error) {
+  } catch (_error) {
     return false;
   }
 };

@@ -23,8 +23,8 @@ async function testFamilyInvitation() {
     console.log("🧪 Starting family invitation test...");
 
     // Step 1: Create a test family with an existing user
-    const inviterUserId = "test-inviter-" + Date.now();
-    const inviteeUserId = "test-invitee-" + Date.now();
+    const inviterUserId = `test-inviter-${Date.now()}`;
+    const inviteeUserId = `test-invitee-${Date.now()}`;
 
     console.log("👤 Creating inviter user:", inviterUserId);
     await db.collection("users").doc(inviterUserId).set({

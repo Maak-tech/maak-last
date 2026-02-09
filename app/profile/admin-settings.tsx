@@ -10,7 +10,7 @@ import {
   Users,
   X,
 } from "lucide-react-native";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -32,6 +32,10 @@ import { userService } from "@/lib/services/userService";
 import type { User as UserType } from "@/types";
 import { safeFormatDate } from "@/utils/dateFormat";
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This admin screen intentionally combines subscription, family-member management, and modal workflows.
 export default function AdminSettingsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -46,7 +50,7 @@ export default function AdminSettingsScreen() {
     restorePurchases,
     isLoading: subscriptionLoading,
   } = useRevenueCat();
-  const { planLimits, maxFamilyMembers, maxTotalMembers } = useSubscription();
+  const { maxFamilyMembers, maxTotalMembers } = useSubscription();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,7 +60,6 @@ export default function AdminSettingsScreen() {
   const [removingMember, setRemovingMember] = useState(false);
 
   const isRTL = i18n.language === "ar";
-  const isAdmin = user?.role === "admin";
 
   // Hide the default header
   useLayoutEffect(() => {
@@ -65,33 +68,38 @@ export default function AdminSettingsScreen() {
     });
   }, [navigation]);
 
+  const loadData = useCallback(
+    async (isRefresh = false) => {
+      if (!user?.id) {
+        return;
+      }
+
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        // Load family members if user has a family
+        if (user.familyId) {
+          const members = await userService.getFamilyMembers(user.familyId);
+          // Filter out the current user from the list
+          setFamilyMembers(members.filter((m) => m.id !== user.id));
+        }
+      } catch (_error) {
+        // Silently handle error
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [user?.familyId, user?.id]
+  );
+
   useEffect(() => {
     loadData();
-  }, [user]);
-
-  const loadData = async (isRefresh = false) => {
-    if (!user?.id) return;
-
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      // Load family members if user has a family
-      if (user.familyId) {
-        const members = await userService.getFamilyMembers(user.familyId);
-        // Filter out the current user from the list
-        setFamilyMembers(members.filter((m) => m.id !== user.id));
-      }
-    } catch (error) {
-      // Silently handle error
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  }, [loadData]);
 
   const handleRefreshSubscription = async () => {
     try {
@@ -101,7 +109,7 @@ export default function AdminSettingsScreen() {
         isRTL ? "نجح" : "Success",
         isRTL ? "تم تحديث حالة الاشتراك" : "Subscription status updated"
       );
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL
@@ -118,7 +126,7 @@ export default function AdminSettingsScreen() {
       setRefreshing(true);
       await restorePurchases();
       Alert.alert(t("restoreSuccess"), t("restoreSuccessMessage"));
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "فشل استعادة المشتريات" : "Failed to restore purchases"
@@ -133,8 +141,10 @@ export default function AdminSettingsScreen() {
     setShowMemberModal(true);
   };
 
-  const handleRemoveMember = async () => {
-    if (!(selectedMember && user?.familyId && user?.id)) return;
+  const handleRemoveMember = () => {
+    if (!(selectedMember && user?.familyId && user?.id)) {
+      return;
+    }
 
     Alert.alert(
       t("confirmRemoval"),
@@ -150,13 +160,17 @@ export default function AdminSettingsScreen() {
           text: isRTL ? "إزالة" : "Remove",
           style: "destructive",
           onPress: async () => {
+            const familyId = user.familyId;
+            if (!familyId) {
+              return;
+            }
             try {
               setRemovingMember(true);
 
               // Use the dedicated removeFamilyMember method
               await userService.removeFamilyMember(
                 selectedMember.id,
-                user.familyId!,
+                familyId,
                 user.id
               );
 
@@ -166,8 +180,8 @@ export default function AdminSettingsScreen() {
               setSelectedMember(null);
 
               Alert.alert(t("success"), t("memberRemoved"));
-            } catch (error: any) {
-              const errorMessage = error?.message || String(error);
+            } catch (error: unknown) {
+              const errorMessage = getErrorMessage(error, String(error));
               Alert.alert(
                 t("error"),
                 isRTL
@@ -184,7 +198,9 @@ export default function AdminSettingsScreen() {
   };
 
   const formatDate = (date: Date | null) => {
-    if (!date) return isRTL ? "غير محدد" : "Not specified";
+    if (!date) {
+      return isRTL ? "غير محدد" : "Not specified";
+    }
     return safeFormatDate(date, isRTL ? "ar-u-ca-gregory" : "en-US", {
       year: "numeric",
       month: "long",
@@ -193,12 +209,16 @@ export default function AdminSettingsScreen() {
   };
 
   const getSubscriptionTypeLabel = () => {
-    if (hasFamilyPlan) return t("familyPlan");
+    if (hasFamilyPlan) {
+      return t("familyPlan");
+    }
     return t("subscriptionInactive");
   };
 
   const getSubscriptionPeriodLabel = () => {
-    if (!subscriptionStatus.subscriptionPeriod) return "";
+    if (!subscriptionStatus.subscriptionPeriod) {
+      return "";
+    }
     return subscriptionStatus.subscriptionPeriod === "yearly"
       ? t("yearly")
       : t("monthly");
@@ -493,7 +513,7 @@ export default function AdminSettingsScreen() {
             <View
               style={[
                 styles.sectionIcon,
-                { backgroundColor: theme.colors.primary.main + "20" },
+                { backgroundColor: `${theme.colors.primary.main}20` },
               ]}
             >
               <CreditCard color={theme.colors.primary.main} size={20} />
@@ -504,8 +524,8 @@ export default function AdminSettingsScreen() {
                 styles.subscriptionBadge,
                 {
                   backgroundColor: hasActiveSubscription
-                    ? theme.colors.accent.success + "20"
-                    : theme.colors.accent.warning + "20",
+                    ? `${theme.colors.accent.success}20`
+                    : `${theme.colors.accent.warning}20`,
                 },
               ]}
             >
@@ -535,7 +555,7 @@ export default function AdminSettingsScreen() {
             <Text style={styles.infoValue}>{getSubscriptionTypeLabel()}</Text>
           </View>
 
-          {hasActiveSubscription && (
+          {hasActiveSubscription ? (
             <>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>{t("billingPeriod")}</Text>
@@ -579,7 +599,7 @@ export default function AdminSettingsScreen() {
                 </View>
               </View>
             </>
-          )}
+          ) : null}
 
           {/* Actions */}
           <TouchableOpacity
@@ -587,7 +607,7 @@ export default function AdminSettingsScreen() {
             onPress={handleRefreshSubscription}
             style={[
               styles.actionButton,
-              { backgroundColor: theme.colors.primary.main + "15" },
+              { backgroundColor: `${theme.colors.primary.main}15` },
             ]}
           >
             {refreshing ? (
@@ -634,7 +654,7 @@ export default function AdminSettingsScreen() {
             <View
               style={[
                 styles.sectionIcon,
-                { backgroundColor: theme.colors.secondary.main + "20" },
+                { backgroundColor: `${theme.colors.secondary.main}20` },
               ]}
             >
               <Users color={theme.colors.secondary.main} size={20} />
@@ -698,12 +718,12 @@ export default function AdminSettingsScreen() {
           )}
 
           {/* Invite more members button */}
-          {hasActiveSubscription && familyMembers.length < maxFamilyMembers && (
+          {hasActiveSubscription && familyMembers.length < maxFamilyMembers ? (
             <TouchableOpacity
               onPress={() => router.push("/(tabs)/family")}
               style={[
                 styles.actionButton,
-                { backgroundColor: theme.colors.secondary.main + "15" },
+                { backgroundColor: `${theme.colors.secondary.main}15` },
               ]}
             >
               <Users color={theme.colors.secondary.main} size={18} />
@@ -716,7 +736,7 @@ export default function AdminSettingsScreen() {
                 {t("inviteFamilyMembers")}
               </Text>
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </ScrollView>
 
@@ -744,7 +764,7 @@ export default function AdminSettingsScreen() {
               </TouchableOpacity>
             </View>
 
-            {selectedMember && (
+            {selectedMember ? (
               <>
                 <View style={styles.modalMemberInfo}>
                   <Avatar
@@ -755,11 +775,11 @@ export default function AdminSettingsScreen() {
                   <Text style={styles.modalMemberName}>
                     {selectedMember.firstName} {selectedMember.lastName}
                   </Text>
-                  {selectedMember.email && (
+                  {selectedMember.email ? (
                     <Text style={styles.modalMemberEmail}>
                       {selectedMember.email}
                     </Text>
-                  )}
+                  ) : null}
                   <Text style={styles.modalMemberRole}>
                     {selectedMember.role === "caregiver"
                       ? t("caregiver")
@@ -790,7 +810,7 @@ export default function AdminSettingsScreen() {
                   </TouchableOpacity>
                 </View>
               </>
-            )}
+            ) : null}
           </View>
         </View>
       </Modal>

@@ -3,8 +3,7 @@
  * Checks symptoms against severity thresholds and alerts admins
  */
 
-import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { getFamilyAdmins } from "../modules/family/admins";
 import { logger } from "../observability/logger";
@@ -14,6 +13,7 @@ import { logger } from "../observability/logger";
  */
 export const checkSymptomBenchmarks = onDocumentCreated(
   "symptoms/{symptomId}",
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Trigger flow combines guard checks, dedupe, and notify steps.
   async (event) => {
     const symptomData = event.data?.data();
     if (!symptomData) {
@@ -32,10 +32,10 @@ export const checkSymptomBenchmarks = onDocumentCreated(
     }
 
     try {
-      const db = admin.firestore();
+      const db = getFirestore();
       const symptomType = symptomData.type || "symptom";
       const cooldownMinutes = 5;
-      const cutoffTime = admin.firestore.Timestamp.fromMillis(
+      const cutoffTime = Timestamp.fromMillis(
         Date.now() - cooldownMinutes * 60 * 1000
       );
       const recentAlertSnapshot = await db
@@ -96,14 +96,37 @@ export const checkSymptomBenchmarks = onDocumentCreated(
 
       // Send to admins
       // Note: This requires sendPushNotification to be exported from index.ts
-      const indexModule = (await import("../index.js")) as any;
+      type SendPushNotification = (
+        data: {
+          userIds: string[];
+          notification: {
+            title: string;
+            body: string;
+            priority: "high" | "normal";
+            data: {
+              type: string;
+              symptomType: string;
+              severity: string;
+              userId: string;
+              userName: string;
+            };
+            clickAction: string;
+            color: string;
+          };
+          notificationType: string;
+        },
+        context: { auth: { uid: string } }
+      ) => Promise<unknown>;
+      const indexModule = (await import("../index.js")) as {
+        sendPushNotification: SendPushNotification;
+      };
       const result = await indexModule.sendPushNotification(
         {
           userIds: adminIdsToAlert,
           notification,
           notificationType: "symptom",
         },
-        { auth: { uid: "system" } } as any
+        { auth: { uid: "system" } }
       );
 
       // Log the alert

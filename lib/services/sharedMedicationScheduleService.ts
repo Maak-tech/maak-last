@@ -1,30 +1,59 @@
 import { doc, Timestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Medication, User } from "@/types";
+import { coerceToDate } from "@/utils/dateCoercion";
 import { medicationService } from "./medicationService";
 import { userService } from "./userService";
 
-export interface MedicationScheduleEntry {
+export type MedicationScheduleEntry = {
   medication: Medication;
   member: User;
   nextDose?: Date;
   lastTaken?: Date;
   complianceRate?: number; // Percentage of doses taken on time
   missedDoses?: number;
-}
+};
 
-export interface SharedScheduleDay {
+export type SharedScheduleDay = {
   date: Date;
   entries: MedicationScheduleEntry[];
-}
+};
 
 class SharedMedicationScheduleService {
+  private isMedicationScheduledForDate(
+    medication: Medication,
+    targetDate: Date
+  ): boolean {
+    if (
+      !(medication.isActive && medication.reminders) ||
+      medication.reminders.length === 0
+    ) {
+      return false;
+    }
+
+    const startDate = new Date(medication.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    if (startDate.getTime() > targetDate.getTime()) {
+      return false;
+    }
+
+    if (medication.endDate) {
+      const endDate = new Date(medication.endDate);
+      endDate.setHours(0, 0, 0, 0);
+      if (endDate.getTime() < targetDate.getTime()) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   /**
    * Get all medication schedules for family members
    */
   async getFamilyMedicationSchedules(
     familyId: string,
-    userId?: string // Current user ID (to check permissions)
+    _userId?: string // Current user ID (to check permissions)
   ): Promise<MedicationScheduleEntry[]> {
     try {
       // Get all family members
@@ -60,14 +89,20 @@ class SharedMedicationScheduleService {
 
       // Sort by next dose time
       scheduleEntries.sort((a, b) => {
-        if (!(a.nextDose || b.nextDose)) return 0;
-        if (!a.nextDose) return 1;
-        if (!b.nextDose) return -1;
+        if (!(a.nextDose || b.nextDose)) {
+          return 0;
+        }
+        if (!a.nextDose) {
+          return 1;
+        }
+        if (!b.nextDose) {
+          return -1;
+        }
         return a.nextDose.getTime() - b.nextDose.getTime();
       });
 
       return scheduleEntries;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -103,7 +138,7 @@ class SharedMedicationScheduleService {
           missedDoses,
         };
       });
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -117,99 +152,109 @@ class SharedMedicationScheduleService {
     caregiverId: string,
     familyId: string
   ): Promise<void> {
-    try {
-      // Verify caregiver has permission (is admin or same family)
-      const caregiver = await userService.getUser(caregiverId);
-      const member = await userService.getUser(memberId);
+    // Verify caregiver has permission (is admin or same family)
+    const caregiver = await userService.getUser(caregiverId);
+    const member = await userService.getUser(memberId);
 
-      if (!(caregiver && member)) {
-        throw new Error("User not found");
+    if (!(caregiver && member)) {
+      throw new Error("User not found");
+    }
+
+    // Check if caregiver is admin or same family
+    if (
+      caregiver.familyId !== familyId ||
+      member.familyId !== familyId ||
+      (caregiver.role !== "admin" &&
+        caregiver.role !== "caregiver" &&
+        caregiverId !== memberId)
+    ) {
+      throw new Error("Permission denied");
+    }
+
+    // Get medication
+    const medication = await medicationService.getMedication(medicationId);
+    if (!medication || medication.userId !== memberId) {
+      throw new Error("Medication not found");
+    }
+
+    // Update medication with taken timestamp
+    const now = Timestamp.now();
+    const reminders = medication.reminders || [];
+
+    // Helper function to convert Date to Timestamp for Firestore
+    const convertToTimestamp = (value: unknown): Timestamp | undefined => {
+      if (!value) {
+        return;
       }
-
-      // Check if caregiver is admin or same family
+      if (value instanceof Timestamp) {
+        return value;
+      }
+      if (value instanceof Date) {
+        return Timestamp.fromDate(value);
+      }
+      // If it's a Firestore Timestamp-like object with toDate method
       if (
-        caregiver.familyId !== familyId ||
-        member.familyId !== familyId ||
-        (caregiver.role !== "admin" &&
-          caregiver.role !== "caregiver" &&
-          caregiverId !== memberId)
+        typeof value === "object" &&
+        value &&
+        "toDate" in value &&
+        typeof value.toDate === "function"
       ) {
-        throw new Error("Permission denied");
+        return Timestamp.fromDate(value.toDate());
       }
-
-      // Get medication
-      const medication = await medicationService.getMedication(medicationId);
-      if (!medication || medication.userId !== memberId) {
-        throw new Error("Medication not found");
-      }
-
-      // Update medication with taken timestamp
-      const now = Timestamp.now();
-      const reminders = medication.reminders || [];
-
-      // Helper function to convert Date to Timestamp for Firestore
-      const convertToTimestamp = (value: Date | any): Timestamp | undefined => {
-        if (!value) return;
-        if (value instanceof Timestamp) return value;
-        if (value instanceof Date) return Timestamp.fromDate(value);
-        // If it's a Firestore Timestamp-like object with toDate method
-        if (value.toDate && typeof value.toDate === "function") {
-          return Timestamp.fromDate(value.toDate());
-        }
+      if (typeof value === "string" || typeof value === "number") {
         return Timestamp.fromDate(new Date(value));
-      };
+      }
+      return;
+    };
 
-      // Find the next untaken reminder and mark it as taken
-      let foundUntakenReminder = false;
-      const updatedReminders = reminders.map((reminder) => {
-        // Convert existing takenAt Date to Timestamp if it exists
-        const takenAtTimestamp = reminder.takenAt
-          ? convertToTimestamp(reminder.takenAt)
-          : undefined;
+    // Find the next untaken reminder and mark it as taken
+    let foundUntakenReminder = false;
+    const updatedReminders = reminders.map((reminder) => {
+      // Convert existing takenAt Date to Timestamp if it exists
+      const takenAtTimestamp = reminder.takenAt
+        ? convertToTimestamp(reminder.takenAt)
+        : undefined;
 
-        // Check if reminder is already taken
-        const isTaken = reminder.taken || !!reminder.takenAt;
+      // Check if reminder is already taken
+      const isTaken = reminder.taken || !!reminder.takenAt;
 
-        // Only mark the first untaken reminder we encounter
-        if (!(foundUntakenReminder || isTaken)) {
-          foundUntakenReminder = true;
-          return {
-            id: reminder.id,
-            time: reminder.time,
-            taken: true,
-            takenAt: now,
-            takenBy: caregiverId !== memberId ? caregiverId : undefined, // Track if taken by caregiver
-          };
-        }
-        // Return reminder with converted takenAt Timestamp (preserve existing takenBy if present)
+      // Only mark the first untaken reminder we encounter
+      if (!(foundUntakenReminder || isTaken)) {
+        foundUntakenReminder = true;
         return {
           id: reminder.id,
           time: reminder.time,
-          taken: reminder.taken,
-          takenAt: takenAtTimestamp,
-          ...(reminder.takenBy && { takenBy: reminder.takenBy }),
-        };
-      });
-
-      // If no reminders exist or all are already taken, create a new one
-      if (reminders.length === 0 || !foundUntakenReminder) {
-        updatedReminders.push({
-          id: Date.now().toString(),
-          time: medication.reminders?.[0]?.time || "09:00",
           taken: true,
           takenAt: now,
-          takenBy: caregiverId !== memberId ? caregiverId : undefined,
-        });
+          takenBy: caregiverId !== memberId ? caregiverId : undefined, // Track if taken by caregiver
+        };
       }
+      // Return reminder with converted takenAt Timestamp (preserve existing takenBy if present)
+      return {
+        id: reminder.id,
+        time: reminder.time,
+        taken: reminder.taken,
+        takenAt: takenAtTimestamp,
+        ...(reminder.takenBy && { takenBy: reminder.takenBy }),
+      };
+    });
 
-      // Use updateDoc directly to ensure Timestamp objects are properly handled
-      // This bypasses updateMedication which might not handle nested Timestamps correctly
-      await updateDoc(doc(db, "medications", medicationId), {
-        reminders: updatedReminders,
+    // If no reminders exist or all are already taken, create a new one
+    if (reminders.length === 0 || !foundUntakenReminder) {
+      updatedReminders.push({
+        id: Date.now().toString(),
+        time: medication.reminders?.[0]?.time || "09:00",
+        taken: true,
+        takenAt: now,
+        takenBy: caregiverId !== memberId ? caregiverId : undefined,
       });
-    } catch (error) {
-      throw error;
     }
+
+    // Use updateDoc directly to ensure Timestamp objects are properly handled
+    // This bypasses updateMedication which might not handle nested Timestamps correctly
+    await updateDoc(doc(db, "medications", medicationId), {
+      reminders: updatedReminders,
+    });
   }
 
   /**
@@ -224,45 +269,9 @@ class SharedMedicationScheduleService {
     // Filter entries that have reminders scheduled for today
     // A medication should appear in today's schedule if it has any reminders
     // scheduled for today, regardless of whether they've been taken or not
-    const todayEntries = entries.filter((entry) => {
-      const medication = entry.medication;
-
-      // Check if medication is active and has reminders
-      if (
-        !(medication.isActive && medication.reminders) ||
-        medication.reminders.length === 0
-      ) {
-        return false;
-      }
-
-      // Check if medication has started (startDate is today or earlier)
-      const startDate =
-        medication.startDate instanceof Date
-          ? medication.startDate
-          : new Date(medication.startDate);
-      const startDateOnly = new Date(startDate);
-      startDateOnly.setHours(0, 0, 0, 0);
-      if (startDateOnly.getTime() > today.getTime()) {
-        return false;
-      }
-
-      // Check if medication has ended (endDate is before today)
-      if (medication.endDate) {
-        const endDate =
-          medication.endDate instanceof Date
-            ? medication.endDate
-            : new Date(medication.endDate);
-        const endDateOnly = new Date(endDate);
-        endDateOnly.setHours(0, 0, 0, 0);
-        if (endDateOnly.getTime() < today.getTime()) {
-          return false;
-        }
-      }
-
-      // If medication has reminders, it should appear in today's schedule
-      // The reminders are scheduled daily based on their time values
-      return true;
-    });
+    const todayEntries = entries.filter((entry) =>
+      this.isMedicationScheduledForDate(entry.medication, today)
+    );
 
     return {
       date: today,
@@ -286,7 +295,9 @@ class SharedMedicationScheduleService {
       date.setHours(0, 0, 0, 0);
 
       const dayEntries = entries.filter((entry) => {
-        if (!entry.nextDose) return false;
+        if (!entry.nextDose) {
+          return false;
+        }
         const entryDate = new Date(entry.nextDose);
         entryDate.setHours(0, 0, 0, 0);
         return entryDate.getTime() === date.getTime();
@@ -351,22 +362,17 @@ class SharedMedicationScheduleService {
    * Get last taken timestamp
    */
   private getLastTaken(medication: Medication): Date | undefined {
-    if (!medication.reminders) return;
+    if (!medication.reminders) {
+      return;
+    }
 
     const takenReminders = medication.reminders
       .filter((r) => r.takenAt)
-      .map((r) => r.takenAt!)
-      .sort((a, b) => {
-        const dateA = a instanceof Date ? a : new Date(a);
-        const dateB = b instanceof Date ? b : new Date(b);
-        return dateB.getTime() - dateA.getTime();
-      });
+      .map((r) => coerceToDate(r.takenAt))
+      .filter((d): d is Date => !!d)
+      .sort((a, b) => b.getTime() - a.getTime());
 
-    return takenReminders.length > 0
-      ? takenReminders[0] instanceof Date
-        ? takenReminders[0]
-        : new Date(takenReminders[0])
-      : undefined;
+    return takenReminders.length > 0 ? takenReminders[0] : undefined;
   }
 
   /**
@@ -391,13 +397,14 @@ class SharedMedicationScheduleService {
     );
 
     // Count taken doses
-    const takenDoses = medication.reminders.filter(
-      (r) =>
-        (r.takenAt && new Date(r.takenAt) >= thirtyDaysAgo) ||
-        (r.taken && r.takenAt)
-    ).length;
+    const takenDoses = medication.reminders.filter((r) => {
+      const takenAt = coerceToDate(r.takenAt);
+      return (!!takenAt && takenAt >= thirtyDaysAgo) || (r.taken && !!takenAt);
+    }).length;
 
-    if (totalExpectedDoses === 0) return 100;
+    if (totalExpectedDoses === 0) {
+      return 100;
+    }
 
     return Math.round((takenDoses / totalExpectedDoses) * 100);
   }
@@ -416,11 +423,10 @@ class SharedMedicationScheduleService {
     const frequency = this.parseFrequency(medication.frequency);
     const expectedDoses = 7 * frequency.dosesPerDay;
 
-    const takenDoses = medication.reminders.filter(
-      (r) =>
-        (r.takenAt && new Date(r.takenAt) >= sevenDaysAgo) ||
-        (r.taken && r.takenAt)
-    ).length;
+    const takenDoses = medication.reminders.filter((r) => {
+      const takenAt = coerceToDate(r.takenAt);
+      return (!!takenAt && takenAt >= sevenDaysAgo) || (r.taken && !!takenAt);
+    }).length;
 
     return Math.max(0, expectedDoses - takenDoses);
   }
@@ -459,7 +465,9 @@ class SharedMedicationScheduleService {
       const caregiver = await userService.getUser(caregiverId);
       const member = await userService.getUser(memberId);
 
-      if (!(caregiver && member)) return false;
+      if (!(caregiver && member)) {
+        return false;
+      }
 
       // Can manage if:
       // 1. Managing own medications
@@ -470,7 +478,7 @@ class SharedMedicationScheduleService {
           caregiver.familyId === member.familyId &&
           !!member.familyId)
       );
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

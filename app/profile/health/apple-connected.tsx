@@ -14,7 +14,7 @@ import {
   Settings,
   X,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -40,6 +40,10 @@ import {
 } from "@/lib/health/healthSync";
 import type { ProviderConnection, SyncResult } from "@/lib/health/healthTypes";
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This screen combines localized UI, sync state handling, and provider management flows.
 export default function AppleHealthConnectedScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -60,12 +64,7 @@ export default function AppleHealthConnectedScreen() {
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
 
-  useEffect(() => {
-    loadConnection();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadConnection = async () => {
+  const loadConnection = useCallback(async () => {
     try {
       setLoading(true);
       const conn = await getProviderConnection("apple_health");
@@ -79,7 +78,11 @@ export default function AppleHealthConnectedScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadConnection();
+  }, [loadConnection]);
 
   const handleSyncNow = async () => {
     setSyncing(true);
@@ -96,8 +99,11 @@ export default function AppleHealthConnectedScreen() {
       } else {
         Alert.alert("Sync Failed", result.error || "Unknown error occurred");
       }
-    } catch (error: any) {
-      Alert.alert("Sync Error", error.message || "Failed to sync health data");
+    } catch (error: unknown) {
+      Alert.alert(
+        "Sync Error",
+        getErrorMessage(error, "Failed to sync health data")
+      );
     } finally {
       setSyncing(false);
     }
@@ -115,9 +121,12 @@ export default function AppleHealthConnectedScreen() {
           onPress: async () => {
             try {
               await disconnectProvider("apple_health");
-              router.replace("/profile/health-integrations" as any);
-            } catch (error: any) {
-              Alert.alert("Error", error.message || "Failed to disconnect");
+              router.replace("/profile/health-integrations");
+            } catch (error: unknown) {
+              Alert.alert(
+                "Error",
+                getErrorMessage(error, "Failed to disconnect")
+              );
             }
           },
         },
@@ -145,7 +154,7 @@ export default function AppleHealthConnectedScreen() {
     );
   }
 
-  if (!(connection && connection.connected)) {
+  if (!connection?.connected) {
     return (
       <SafeAreaView
         style={[
@@ -161,7 +170,7 @@ export default function AppleHealthConnectedScreen() {
             Not Connected
           </Text>
           <TouchableOpacity
-            onPress={() => router.replace("/profile/health/apple-intro" as any)}
+            onPress={() => router.replace("/profile/health/apple-intro")}
             style={[
               styles.primaryButton,
               { backgroundColor: theme.colors.primary.main },
@@ -188,6 +197,14 @@ export default function AppleHealthConnectedScreen() {
   const deniedMetrics = rawDeniedMetrics.includes("all")
     ? getAvailableMetricsForProvider("apple_health").map((m) => m.key)
     : rawDeniedMetrics;
+  let connectedAtText = isRTL
+    ? "تاريخ الاتصال غير متاح"
+    : "Connection date unavailable";
+  if (connection.connectedAt) {
+    connectedAtText = isRTL
+      ? `متصل في ${format(new Date(connection.connectedAt), "d MMM yyyy")}`
+      : `Connected on ${format(new Date(connection.connectedAt), "MMM d, yyyy")}`;
+  }
 
   return (
     <SafeAreaView
@@ -222,7 +239,7 @@ export default function AppleHealthConnectedScreen() {
           <View
             style={[
               styles.iconContainer,
-              { backgroundColor: theme.colors.accent.success + "20" },
+              { backgroundColor: `${theme.colors.accent.success}20` },
             ]}
           >
             <Check color={theme.colors.accent.success} size={32} />
@@ -243,9 +260,7 @@ export default function AppleHealthConnectedScreen() {
               isRTL && { textAlign: "left" },
             ]}
           >
-            {isRTL
-              ? `متصل في ${format(new Date(connection.connectedAt!), "d MMM yyyy")}`
-              : `Connected on ${format(new Date(connection.connectedAt!), "MMM d, yyyy")}`}
+            {connectedAtText}
           </Text>
         </View>
 
@@ -303,7 +318,7 @@ export default function AppleHealthConnectedScreen() {
               </TouchableOpacity>
             </View>
 
-            {syncResult && (
+            {syncResult ? (
               <View style={styles.syncResult}>
                 <Text
                   style={[
@@ -320,7 +335,7 @@ export default function AppleHealthConnectedScreen() {
                     : `✗ Sync failed: ${syncResult.error}`}
                 </Text>
               </View>
-            )}
+            ) : null}
           </View>
         </View>
 
@@ -439,7 +454,7 @@ export default function AppleHealthConnectedScreen() {
               styles.dangerButton,
               {
                 backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                borderColor: theme.colors.accent.error + "40",
+                borderColor: `${theme.colors.accent.error}40`,
               },
             ]}
           >

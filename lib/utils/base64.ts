@@ -3,17 +3,18 @@
  *
  * We implement small, dependency-free encode/decode for Uint8Array.
  */
+/* biome-ignore-all lint/suspicious/noBitwiseOperators: Bitwise operations are required for base64 encode/decode math. */
 
 const BASE64_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 function getAtob(): ((b64: string) => string) | null {
-  const fn = (globalThis as any)?.atob;
+  const fn = (globalThis as typeof globalThis & { atob?: unknown }).atob;
   return typeof fn === "function" ? fn : null;
 }
 
 function getBtoa(): ((bin: string) => string) | null {
-  const fn = (globalThis as any)?.btoa;
+  const fn = (globalThis as typeof globalThis & { btoa?: unknown }).btoa;
   return typeof fn === "function" ? fn : null;
 }
 
@@ -31,7 +32,9 @@ export function base64ToUint8Array(base64: string): Uint8Array {
 
   // Remove whitespace and padding
   const clean = base64.replace(/\s+/g, "").replace(/=+$/g, "");
-  if (clean.length === 0) return new Uint8Array(0);
+  if (clean.length === 0) {
+    return new Uint8Array(0);
+  }
 
   // Build reverse lookup table
   const rev = new Int16Array(256).fill(-1);
@@ -49,12 +52,15 @@ export function base64ToUint8Array(base64: string): Uint8Array {
   for (let i = 0; i < clean.length; i++) {
     const c = clean.charCodeAt(i);
     const v = rev[c];
-    if (v === -1) continue; // ignore non-base64 chars
+    if (v === -1) {
+      continue; // ignore non-base64 chars
+    }
     buffer = (buffer << 6) | v;
     bits += 6;
     if (bits >= 8) {
       bits -= 8;
-      out[outIndex++] = (buffer >> bits) & 0xff;
+      out[outIndex] = (buffer >> bits) & 0xff;
+      outIndex += 1;
     }
   }
 

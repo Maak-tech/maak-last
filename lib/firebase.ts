@@ -1,5 +1,5 @@
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
-import { getAnalytics } from "firebase/analytics";
+import { type Analytics, getAnalytics } from "firebase/analytics";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   type Auth,
@@ -15,16 +15,28 @@ import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { Platform } from "react-native";
 
+type RNFirebaseAppModule = {
+  app: () => unknown;
+};
+
+const hasErrorCode = (error: unknown, code: string): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  (error as { code?: string }).code === code;
+
 // Initialize React Native Firebase early for native platforms
 // This ensures the default Firebase app is initialized from native config files
 // before any Firebase operations are attempted
-let rnFirebaseApp: any = null;
+let rnFirebaseApp: RNFirebaseAppModule | null = null;
 if (Platform.OS !== "web") {
   try {
     // Import React Native Firebase app module - this auto-initializes Firebase
     // from GoogleService-Info.plist (iOS) and google-services.json (Android)
-    const rnFirebase = require("@react-native-firebase/app");
-    rnFirebaseApp = rnFirebase.default;
+    const rnFirebase = require("@react-native-firebase/app") as {
+      default?: RNFirebaseAppModule;
+    };
+    rnFirebaseApp = rnFirebase.default ?? null;
 
     // Ensure React Native Firebase app is initialized
     // React Native Firebase should auto-initialize from native config files
@@ -36,7 +48,7 @@ if (Platform.OS !== "web") {
       // App might already be initialized or initialization might fail
       // This is okay - React Native Firebase should auto-initialize from native config
     }
-  } catch (error) {
+  } catch (_error) {
     // React Native Firebase not available (e.g., in Expo Go or web)
     // This is expected and will be handled gracefully
   }
@@ -92,7 +104,9 @@ const platformConfig = getPlatformConfig();
 
 // Helper function to clean environment variables (remove quotes if present)
 const cleanEnvVar = (value: string | undefined): string | undefined => {
-  if (!value) return;
+  if (!value) {
+    return;
+  }
   // Remove surrounding quotes if present
   return value.replace(/^["']|["']$/g, "").trim();
 };
@@ -117,7 +131,9 @@ const appId =
   cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_APP_ID) || platformConfig.appId;
 const measurementId =
   cleanEnvVar(process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID) ||
-  (platformConfig as any).measurementId; // Only web has measurementId
+  ("measurementId" in platformConfig
+    ? platformConfig.measurementId
+    : undefined); // Only web has measurementId
 
 export const getFirebaseConfig = () => ({
   apiKey,
@@ -152,7 +168,7 @@ const missingVars = Object.entries(requiredEnvVars)
   .map(([key]) => key);
 
 if (missingVars.length > 0) {
-  const errorMessage = `Missing required Firebase environment variables: ${missingVars.join(", ")}. Please ensure your .env file contains all required EXPO_PUBLIC_FIREBASE_* variables.`;
+  const _errorMessage = `Missing required Firebase environment variables: ${missingVars.join(", ")}. Please ensure your .env file contains all required EXPO_PUBLIC_FIREBASE_* variables.`;
   // Silently handle missing vars - Firebase operations will fail gracefully
 }
 
@@ -166,11 +182,11 @@ try {
     if (Platform.OS !== "web" && rnFirebaseApp) {
       try {
         // Try to get the app from React Native Firebase
-        const rnApp = rnFirebaseApp.app();
+        const _rnApp = rnFirebaseApp.app();
         // React Native Firebase uses a different app instance
         // We still need to initialize the web SDK app for compatibility
         // But we'll check if RN Firebase initialized first
-      } catch (rnError) {
+      } catch (_rnError) {
         // React Native Firebase app not available, proceed with web SDK initialization
       }
     }
@@ -189,7 +205,7 @@ try {
     // App already exists, get the default app
     app = getApp();
   }
-} catch (error: any) {
+} catch (_error) {
   // If initialization fails, try to get existing app as fallback
   try {
     app = getApp();
@@ -207,7 +223,9 @@ try {
 
 // Ensure we always have a Firebase app instance, even if configuration is degraded.
 const getSafeApp = (): ReturnType<typeof initializeApp> => {
-  if (app) return app;
+  if (app) {
+    return app;
+  }
 
   const existingApps = getApps();
   if (existingApps.length > 0) {
@@ -241,9 +259,9 @@ try {
       auth = initializeAuth(safeApp, {
         persistence: browserLocalPersistence,
       });
-    } catch (error: any) {
+    } catch (error) {
       // If auth is already initialized (e.g., during hot reload), use getAuth instead
-      if (error.code === "auth/already-initialized") {
+      if (hasErrorCode(error, "auth/already-initialized")) {
         auth = getAuth(safeApp);
         // Set persistence explicitly for existing auth instance
         setPersistence(auth, browserLocalPersistence).catch(() => {
@@ -263,16 +281,16 @@ try {
       auth = initializeAuth(safeApp, {
         persistence: getReactNativePersistence(ReactNativeAsyncStorage),
       });
-    } catch (error: any) {
+    } catch (error) {
       // If auth is already initialized (e.g., during hot reload), use getAuth instead
-      if (error.code === "auth/already-initialized") {
+      if (hasErrorCode(error, "auth/already-initialized")) {
         auth = getAuth(safeApp);
       } else {
         auth = getAuth(safeApp);
       }
     }
   }
-} catch (error) {
+} catch (_error) {
   // Final fallback: use getAuth
   auth = getAuth(safeApp);
 }
@@ -284,7 +302,7 @@ export const storage = getStorage(initializedApp);
 export const functions = getFunctions(initializedApp, "us-central1");
 
 // Initialize Analytics only for web platform (not supported in React Native)
-let analytics;
+let analytics: Analytics | undefined;
 if (Platform.OS === "web" && typeof window !== "undefined") {
   try {
     analytics = getAnalytics(initializedApp);

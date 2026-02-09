@@ -1,3 +1,6 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Interaction warning UI intentionally handles multiple safety states and detailed modal rendering in one component. */
+/* biome-ignore-all lint/nursery/noShadow: Themed style callback naming follows existing project pattern in this file. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: Legacy themed style helper returns broad types; narrowed incrementally elsewhere. */
 import { AlertTriangle, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,18 +29,18 @@ import {
 import type { Medication } from "@/types";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-interface MedicationInteractionWarningProps {
+type MedicationInteractionWarningProps = {
   medications: Medication[];
   newMedicationName?: string;
   onDismiss?: () => void;
-}
+};
 
 export default function MedicationInteractionWarning({
   medications,
   newMedicationName,
   onDismiss,
 }: MedicationInteractionWarningProps) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme } = useTheme();
   const isRTL = i18n.language === "ar";
 
@@ -59,7 +62,7 @@ export default function MedicationInteractionWarning({
           padding: theme.spacing.base,
         } as ViewStyle,
         warningCard: {
-          backgroundColor: theme.colors.accent.error + "10",
+          backgroundColor: `${theme.colors.accent.error}10`,
           borderColor: theme.colors.accent.error,
           borderWidth: 2,
           borderRadius: theme.borderRadius.md,
@@ -237,7 +240,7 @@ export default function MedicationInteractionWarning({
       if (foundInteractions.some((i) => i.severity === "major")) {
         setShowModal(true);
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     } finally {
       setLoading(false);
@@ -257,7 +260,7 @@ export default function MedicationInteractionWarning({
     }
 
     const timeout = setTimeout(() => {
-      void checkInteractions();
+      checkInteractions().catch(() => undefined);
     }, 400);
 
     return () => clearTimeout(timeout);
@@ -345,7 +348,7 @@ export default function MedicationInteractionWarning({
             ? `تم اكتشاف ${interactions.length} ${interactions.length === 1 ? "تفاعل" : "تفاعلات"} دوائية`
             : `${interactions.length} drug interaction${interactions.length === 1 ? "" : "s"} detected`}
         </TypographyText>
-        {hasMajorInteractions && (
+        {hasMajorInteractions ? (
           <TypographyText
             style={[
               styles.warningText,
@@ -357,7 +360,7 @@ export default function MedicationInteractionWarning({
               ? `⚠️ ${majorInteractions.length} ${majorInteractions.length === 1 ? "تفاعل خطير" : "تفاعلات خطيرة"}`
               : `⚠️ ${majorInteractions.length} major interaction${majorInteractions.length === 1 ? "" : "s"}`}
           </TypographyText>
-        )}
+        ) : null}
         <TouchableOpacity
           onPress={() => setShowModal(true)}
           style={styles.viewDetailsButton}
@@ -396,10 +399,10 @@ export default function MedicationInteractionWarning({
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.modalContent}>
-            {interactions.map((interaction, index) => (
+            {interactions.map((interaction) => (
               <Card
                 contentStyle={undefined}
-                key={index}
+                key={`${interaction.medications.join("|")}-${interaction.severity}-${interaction.description}`}
                 pressable={false}
                 style={[
                   styles.interactionCard,
@@ -429,10 +432,9 @@ export default function MedicationInteractionWarning({
                         medicationInteractionService.getSeverityColor(
                           interaction.severity
                         ),
-                      backgroundColor:
-                        medicationInteractionService.getSeverityColor(
-                          interaction.severity
-                        ) + "20",
+                      backgroundColor: `${medicationInteractionService.getSeverityColor(
+                        interaction.severity
+                      )}20`,
                     }}
                     variant="outline"
                   >
@@ -469,9 +471,9 @@ export default function MedicationInteractionWarning({
                     >
                       {isRTL ? "الآثار المحتملة" : "Potential Effects"}:
                     </Heading>
-                    {interaction.effects.map((effect, effectIndex) => (
+                    {interaction.effects.map((effect) => (
                       <Text
-                        key={effectIndex}
+                        key={`${interaction.medications.join("|")}-effect-${effect}`}
                         style={[styles.effectItem, isRTL && styles.rtlText]}
                       >
                         • {effect}
@@ -488,9 +490,9 @@ export default function MedicationInteractionWarning({
                     >
                       {isRTL ? "التوصيات" : "Recommendations"}:
                     </Heading>
-                    {interaction.recommendations.map((rec, recIndex) => (
+                    {interaction.recommendations.map((rec) => (
                       <Text
-                        key={recIndex}
+                        key={`${interaction.medications.join("|")}-rec-${rec}`}
                         style={[
                           styles.recommendationItem,
                           isRTL && styles.rtlText,

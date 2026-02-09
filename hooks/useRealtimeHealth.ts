@@ -12,7 +12,7 @@ import {
 } from "@/lib/services/realtimeHealthService";
 import type { EmergencyAlert } from "@/types";
 
-export interface UseRealtimeHealthOptions {
+export type UseRealtimeHealthOptions = {
   userId?: string;
   familyId?: string;
   familyMemberIds?: string[];
@@ -28,13 +28,13 @@ export interface UseRealtimeHealthOptions {
   }) => void;
   onError?: (error: Error) => void;
   enabled?: boolean;
-}
+};
 
-export interface UseRealtimeHealthReturn {
+export type UseRealtimeHealthReturn = {
   isConnected: boolean;
   subscribe: () => void;
   unsubscribe: () => void;
-}
+};
 
 /**
  * Hook to subscribe to real-time health updates
@@ -116,7 +116,7 @@ export function useRealtimeHealth(
     enabled,
     userId,
     familyId,
-    familyMemberIds.join(","),
+    familyMemberIds,
     onTrendAlert,
     onFamilyMemberUpdate,
     onAlertCreated,
@@ -126,7 +126,9 @@ export function useRealtimeHealth(
   ]);
 
   const unsubscribe = useCallback(() => {
-    unsubscribeRefs.current.forEach((unsub) => unsub());
+    for (const unsub of unsubscribeRefs.current) {
+      unsub();
+    }
     unsubscribeRefs.current = [];
     isConnectedRef.current = false;
   }, []);

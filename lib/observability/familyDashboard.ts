@@ -15,7 +15,7 @@ import {
   healthTimelineService,
 } from "./healthTimeline";
 
-export interface FamilyMemberSummary {
+export type FamilyMemberSummary = {
   userId: string;
   displayName: string;
   lastActivity: Date | null;
@@ -25,9 +25,9 @@ export interface FamilyMemberSummary {
   activeAlerts: number;
   recentEvents: HealthTimelineEvent[];
   lastVitals: Record<string, { value: number; unit: string; timestamp: Date }>;
-}
+};
 
-export interface FamilyHealthDashboard {
+export type FamilyHealthDashboard = {
   familyId: string;
   generatedAt: Date;
   members: FamilyMemberSummary[];
@@ -40,7 +40,7 @@ export interface FamilyHealthDashboard {
     membersImproving: number;
     membersDeclining: number;
   };
-}
+};
 
 const HEALTH_SCORES_COLLECTION = "health_scores";
 const RISK_ASSESSMENTS_COLLECTION = "risk_assessments";
@@ -73,16 +73,20 @@ class FamilyDashboardService {
       totalCriticalAlerts += criticalCount;
 
       if (summary.riskLevel === "critical" || summary.riskLevel === "high") {
-        membersAtRisk++;
+        membersAtRisk += 1;
       }
 
       if (summary.healthScore !== null) {
         totalHealthScore += summary.healthScore;
-        validScoreCount++;
+        validScoreCount += 1;
       }
 
-      if (summary.healthTrend === "improving") membersImproving++;
-      if (summary.healthTrend === "declining") membersDeclining++;
+      if (summary.healthTrend === "improving") {
+        membersImproving += 1;
+      }
+      if (summary.healthTrend === "declining") {
+        membersDeclining += 1;
+      }
     }
 
     const recentFamilyEvents = await healthTimelineService.getEventsForFamily(
@@ -154,7 +158,9 @@ class FamilyDashboardService {
       );
 
       const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
+      if (snapshot.empty) {
+        return null;
+      }
 
       const data = snapshot.docs[0].data();
       return {
@@ -183,7 +189,9 @@ class FamilyDashboardService {
       );
 
       const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
+      if (snapshot.empty) {
+        return null;
+      }
 
       const data = snapshot.docs[0].data();
       return {
@@ -268,7 +276,7 @@ class FamilyDashboardService {
         const vitalEvent = events.find(
           (e) => e.metadata?.vitalType === vitalType
         );
-        if (vitalEvent && vitalEvent.metadata) {
+        if (vitalEvent?.metadata) {
           lastVitals[vitalType] = {
             value: vitalEvent.metadata.value as number,
             unit: vitalEvent.metadata.unit as string,
@@ -311,20 +319,14 @@ class FamilyDashboardService {
         if (!dailyCounts[dateKey]) {
           dailyCounts[dateKey] = { count: 0, severities: [] };
         }
-        dailyCounts[dateKey].count++;
+        dailyCounts[dateKey].count += 1;
         dailyCounts[dateKey].severities.push(event.severity);
       }
 
       return Object.entries(dailyCounts).map(([date, data]) => ({
         date: new Date(date),
         count: data.count,
-        severity: data.severities.includes("critical")
-          ? "critical"
-          : data.severities.includes("error")
-            ? "error"
-            : data.severities.includes("warn")
-              ? "warn"
-              : "info",
+        severity: this.getSeverityFromEvents(data.severities),
       }));
     } catch (error) {
       logger.error(
@@ -365,6 +367,21 @@ class FamilyDashboardService {
       );
       return [];
     }
+  }
+
+  private getSeverityFromEvents(
+    severities: string[]
+  ): "critical" | "error" | "warn" | "info" {
+    if (severities.includes("critical")) {
+      return "critical";
+    }
+    if (severities.includes("error")) {
+      return "error";
+    }
+    if (severities.includes("warn")) {
+      return "warn";
+    }
+    return "info";
   }
 }
 

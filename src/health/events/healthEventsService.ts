@@ -34,7 +34,7 @@ export async function getUserHealthEvents(
   userId: string,
   limitCount = 50
 ): Promise<HealthEvent[]> {
-  const traceId = createTraceId();
+  const _traceId = createTraceId();
   const startTime = Date.now();
 
   try {
@@ -54,7 +54,7 @@ export async function getUserHealthEvents(
     const querySnapshot = await getDocs(eventsQuery);
     const events: HealthEvent[] = [];
 
-    querySnapshot.forEach((doc) => {
+    for (const doc of querySnapshot.docs) {
       const data = doc.data();
       events.push({
         id: doc.id,
@@ -64,7 +64,7 @@ export async function getUserHealthEvents(
         resolvedAt: data.resolvedAt?.toDate(),
         escalatedAt: data.escalatedAt?.toDate(),
       } as HealthEvent);
-    });
+    }
 
     const durationMs = Date.now() - startTime;
     logger.info(
@@ -79,7 +79,6 @@ export async function getUserHealthEvents(
 
     return events;
   } catch (error) {
-    const durationMs = Date.now() - startTime;
     logger.error(
       "Failed to get user health events",
       error,
@@ -96,7 +95,7 @@ export async function getUserHealthEvents(
 export async function getActiveHealthEvents(
   userId: string
 ): Promise<HealthEvent[]> {
-  const traceId = createTraceId();
+  const _traceId = createTraceId();
 
   try {
     logger.debug(
@@ -141,7 +140,7 @@ export async function getHealthEventsByStatus(
   userId: string,
   status: HealthEvent["status"]
 ): Promise<HealthEvent[]> {
-  const traceId = createTraceId();
+  const _traceId = createTraceId();
 
   try {
     logger.debug(
@@ -182,7 +181,7 @@ export async function getFamilyHealthEvents(
   userIds: string[],
   limitCount = 100
 ): Promise<HealthEvent[]> {
-  const traceId = createTraceId();
+  const _traceId = createTraceId();
   const startTime = Date.now();
 
   try {
@@ -225,7 +224,7 @@ export async function getFamilyHealthEvents(
 
       const querySnapshot = await getDocs(eventsQuery);
 
-      querySnapshot.forEach((doc) => {
+      for (const doc of querySnapshot.docs) {
         const data = doc.data();
         allEvents.push({
           id: doc.id,
@@ -235,7 +234,7 @@ export async function getFamilyHealthEvents(
           resolvedAt: data.resolvedAt?.toDate(),
           escalatedAt: data.escalatedAt?.toDate(),
         } as HealthEvent);
-      });
+      }
     }
 
     // Sort all events by creation date (most recent first)
@@ -258,7 +257,6 @@ export async function getFamilyHealthEvents(
 
     return finalEvents;
   } catch (error) {
-    const durationMs = Date.now() - startTime;
     logger.error(
       "Failed to get family health events",
       error,

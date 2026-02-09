@@ -24,10 +24,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Intro screen intentionally contains multiple localized sections and explanatory cards.
 export default function FitbitIntroScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme, isDark } = useTheme();
 
   const isRTL = i18n.language === "ar";
@@ -108,7 +109,7 @@ export default function FitbitIntroScreen() {
             <View
               style={[
                 styles.benefitIcon,
-                { backgroundColor: theme.colors.primary.main + "20" },
+                { backgroundColor: `${theme.colors.primary.main}20` },
               ]}
             >
               <Heart color={theme.colors.primary.main} size={24} />
@@ -141,7 +142,7 @@ export default function FitbitIntroScreen() {
             <View
               style={[
                 styles.benefitIcon,
-                { backgroundColor: theme.colors.primary.main + "20" },
+                { backgroundColor: `${theme.colors.primary.main}20` },
               ]}
             >
               <Heart color={theme.colors.primary.main} size={24} />
@@ -174,7 +175,7 @@ export default function FitbitIntroScreen() {
             <View
               style={[
                 styles.benefitIcon,
-                { backgroundColor: theme.colors.primary.main + "20" },
+                { backgroundColor: `${theme.colors.primary.main}20` },
               ]}
             >
               <Heart color={theme.colors.primary.main} size={24} />
@@ -207,7 +208,7 @@ export default function FitbitIntroScreen() {
             <View
               style={[
                 styles.benefitIcon,
-                { backgroundColor: theme.colors.primary.main + "20" },
+                { backgroundColor: `${theme.colors.primary.main}20` },
               ]}
             >
               <Heart color={theme.colors.primary.main} size={24} />
@@ -254,7 +255,7 @@ export default function FitbitIntroScreen() {
               styles.privacyCard,
               {
                 backgroundColor: isDark ? "#1E293B" : "#F8FAFC",
-                borderColor: theme.colors.primary.main + "40",
+                borderColor: `${theme.colors.primary.main}40`,
                 borderWidth: 2,
               },
             ]}
@@ -263,7 +264,7 @@ export default function FitbitIntroScreen() {
               <View
                 style={[
                   styles.privacyIcon,
-                  { backgroundColor: theme.colors.primary.main + "20" },
+                  { backgroundColor: `${theme.colors.primary.main}20` },
                 ]}
               >
                 <Lock color={theme.colors.primary.main} size={20} />
@@ -296,7 +297,7 @@ export default function FitbitIntroScreen() {
               <View
                 style={[
                   styles.privacyIcon,
-                  { backgroundColor: theme.colors.primary.main + "20" },
+                  { backgroundColor: `${theme.colors.primary.main}20` },
                 ]}
               >
                 <Shield color={theme.colors.primary.main} size={20} />
@@ -329,7 +330,7 @@ export default function FitbitIntroScreen() {
               <View
                 style={[
                   styles.privacyIcon,
-                  { backgroundColor: theme.colors.primary.main + "20" },
+                  { backgroundColor: `${theme.colors.primary.main}20` },
                 ]}
               >
                 <Settings color={theme.colors.primary.main} size={20} />

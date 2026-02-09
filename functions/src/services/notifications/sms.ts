@@ -1,4 +1,5 @@
-import * as admin from "firebase-admin";
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: emergency-contact normalization and SMS dispatch handle multiple legacy payload shapes. */
+import { getFirestore } from "firebase-admin/firestore";
 import twilio from "twilio";
 import { logger } from "../../observability/logger";
 
@@ -11,7 +12,9 @@ type EmergencyContact = {
 const normalizeEmergencyContacts = (
   rawContacts: unknown
 ): EmergencyContact[] => {
-  if (!Array.isArray(rawContacts)) return [];
+  if (!Array.isArray(rawContacts)) {
+    return [];
+  }
 
   const contacts: EmergencyContact[] = [];
 
@@ -28,15 +31,15 @@ const normalizeEmergencyContacts = (
     if (contact && typeof contact === "object") {
       const name =
         typeof (contact as { name?: string }).name === "string"
-          ? (contact as { name?: string }).name!.trim()
+          ? (contact as { name?: string }).name?.trim() || ""
           : "";
       const phone =
         typeof (contact as { phone?: string }).phone === "string"
-          ? (contact as { phone?: string }).phone!.trim()
+          ? (contact as { phone?: string }).phone?.trim() || ""
           : "";
       const id =
         typeof (contact as { id?: string }).id === "string"
-          ? (contact as { id?: string }).id!.trim()
+          ? (contact as { id?: string }).id?.trim() || ""
           : "";
 
       if (name && phone) {
@@ -94,7 +97,7 @@ export const sendEmergencySmsToContacts = async ({
     return { success: false, sent: 0, failed: 0 };
   }
 
-  const userDoc = await admin.firestore().collection("users").doc(userId).get();
+  const userDoc = await getFirestore().collection("users").doc(userId).get();
   if (!userDoc.exists) {
     logger.warn("User not found for SMS send", {
       fn: "sendEmergencySmsToContacts",

@@ -5,15 +5,15 @@
  * using PaPaGei, REBAR, and ResNet1D models.
  */
 
-interface PPGAnalysisRequest {
+type PPGAnalysisRequest = {
   signal: number[];
   frameRate: number;
   duration?: number;
   userId?: string;
-  metadata?: Record<string, any>;
-}
+  metadata?: Record<string, unknown>;
+};
 
-interface PPGAnalysisResponse {
+type PPGAnalysisResponse = {
   success: boolean;
   heartRate?: number;
   heartRateVariability?: number;
@@ -23,16 +23,16 @@ interface PPGAnalysisResponse {
   embeddings?: number[];
   warnings: string[];
   error?: string;
-}
+};
 
-interface PPGMLServiceConfig {
+type PPGMLServiceConfig = {
   baseUrl: string;
   timeout?: number;
   apiKey?: string;
-}
+};
 
 class PPGMLService {
-  private config: PPGMLServiceConfig;
+  private readonly config: PPGMLServiceConfig;
 
   constructor(config: PPGMLServiceConfig) {
     this.config = {
@@ -67,13 +67,17 @@ class PPGMLService {
 
       const data = await response.json();
       return data as PPGAnalysisResponse;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to connect to ML service";
       // Return fallback response
       return {
         success: false,
         signalQuality: 0,
         warnings: [],
-        error: error.message || "Failed to connect to ML service",
+        error: message,
       };
     }
   }
@@ -88,32 +92,28 @@ class PPGMLService {
   ): Promise<number[] | number[][]> {
     const url = `${this.config.baseUrl}/api/ppg/embeddings`;
 
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(this.config.apiKey && {
-            Authorization: `Bearer ${this.config.apiKey}`,
-          }),
-        },
-        body: JSON.stringify({
-          signal,
-          frameRate,
-          returnSegments,
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(this.config.apiKey && {
+          Authorization: `Bearer ${this.config.apiKey}`,
         }),
-        signal: AbortSignal.timeout(this.config.timeout || 10_000),
-      });
+      },
+      body: JSON.stringify({
+        signal,
+        frameRate,
+        returnSegments,
+      }),
+      signal: AbortSignal.timeout(this.config.timeout || 10_000),
+    });
 
-      if (!response.ok) {
-        throw new Error(`ML service error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.embeddings;
-    } catch (error: any) {
-      throw error;
+    if (!response.ok) {
+      throw new Error(`ML service error: ${response.status}`);
     }
+
+    const data = await response.json();
+    return data.embeddings;
   }
 
   /**
@@ -175,12 +175,14 @@ export async function analyzePPGWithML(
     });
 
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "ML analysis failed";
     return {
       success: false,
       signalQuality: 0,
       warnings: [],
-      error: error.message || "ML analysis failed",
+      error: message,
     };
   }
 }

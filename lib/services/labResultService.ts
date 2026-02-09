@@ -77,9 +77,9 @@ class LabResultService {
       const docRef = await addDoc(collection(db, "labResults"), cleanedData);
 
       return docRef.id;
-    } catch (error: any) {
-      const errorMessage = error?.message || "Unknown error";
-      const errorCode = error?.code || "unknown";
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       throw new Error(`Failed to add lab result: ${errorMessage}`);
     }
   }
@@ -93,7 +93,7 @@ class LabResultService {
   ): Promise<void> {
     try {
       const docRef = doc(db, "labResults", labResultId);
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         ...updates,
         updatedAt: Timestamp.now(),
       };
@@ -103,7 +103,7 @@ class LabResultService {
       }
 
       await updateDoc(docRef, updateData);
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to update lab result");
     }
   }
@@ -114,7 +114,7 @@ class LabResultService {
   async deleteLabResult(labResultId: string): Promise<void> {
     try {
       await deleteDoc(doc(db, "labResults", labResultId));
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to delete lab result");
     }
   }
@@ -136,7 +136,7 @@ class LabResultService {
         ...data,
         testDate: data.testDate?.toDate() || new Date(),
       } as LabResult;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -162,17 +162,17 @@ class LabResultService {
       const snapshot = await getDocs(q);
       const results: LabResult[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      snapshot.forEach((resultDoc) => {
+        const data = resultDoc.data();
         results.push({
-          id: doc.id,
+          id: resultDoc.id,
           ...data,
           testDate: data.testDate?.toDate() || new Date(),
         } as LabResult);
       });
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -195,17 +195,17 @@ class LabResultService {
       const snapshot = await getDocs(q);
       const results: LabResult[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      snapshot.forEach((resultDoc) => {
+        const data = resultDoc.data();
         results.push({
-          id: doc.id,
+          id: resultDoc.id,
           ...data,
           testDate: data.testDate?.toDate() || new Date(),
         } as LabResult);
       });
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -230,17 +230,17 @@ class LabResultService {
       const snapshot = await getDocs(q);
       const results: LabResult[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      snapshot.forEach((resultDoc) => {
+        const data = resultDoc.data();
         results.push({
-          id: doc.id,
+          id: resultDoc.id,
           ...data,
           testDate: data.testDate?.toDate() || new Date(),
         } as LabResult);
       });
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -254,7 +254,7 @@ class LabResultService {
       return allResults.filter(
         (result) => result.tags && result.tags.includes(tag.toLowerCase())
       );
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -329,7 +329,7 @@ class LabResultService {
         };
       }
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -397,3 +397,4 @@ class LabResultService {
 }
 
 export const labResultService = new LabResultService();
+

@@ -3,7 +3,7 @@
  * Metric selection before requesting Fitbit OAuth
  */
 
-import { useNavigation, useRouter } from "expo-router";
+import { type Href, useNavigation, useRouter } from "expo-router";
 import {
   ArrowLeft,
   Check,
@@ -11,7 +11,7 @@ import {
   Heart,
   Info,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -32,6 +32,7 @@ import {
 } from "@/lib/health/healthMetricsCatalog";
 import { fitbitService } from "@/lib/services/fitbitService";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: onboarding selection and permission flow are intentionally colocated.
 export default function FitbitPermissionsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -58,32 +59,32 @@ export default function FitbitPermissionsScreen() {
     string | undefined
   >();
 
-  useEffect(() => {
-    loadAvailableMetrics();
-    checkFitbitAvailability();
-  }, []);
-
-  const checkFitbitAvailability = async () => {
+  const checkFitbitAvailability = useCallback(async () => {
     try {
       const availability = await fitbitService.isAvailable();
       setFitbitAvailable(availability.available);
       setAvailabilityReason(availability.reason);
-    } catch (error) {
+    } catch (_error) {
       setFitbitAvailable(false);
       setAvailabilityReason(
         "Failed to check Fitbit availability. Please try again."
       );
     }
-  };
+  }, []);
 
-  const loadAvailableMetrics = () => {
+  const loadAvailableMetrics = useCallback(() => {
     const metrics = getAvailableMetricsForProvider("fitbit");
     setAvailableMetrics(metrics);
     // Expand first group by default
     if (metrics.length > 0) {
       setExpandedGroups(new Set([metrics[0].group]));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadAvailableMetrics();
+    checkFitbitAvailability();
+  }, [checkFitbitAvailability, loadAvailableMetrics]);
 
   const toggleMetric = (metricKey: string) => {
     const newSelected = new Set(selectedMetrics);
@@ -114,6 +115,7 @@ export default function FitbitPermissionsScreen() {
     setSelectedMetrics(new Set());
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: this function intentionally keeps validation, OAuth startup, and user-facing error mapping together.
   const handleContinue = async () => {
     if (selectedMetrics.size === 0) {
       Alert.alert(
@@ -149,13 +151,13 @@ export default function FitbitPermissionsScreen() {
       // If we get here, the OAuth flow completed successfully
       // The connection is saved in fitbitService.handleRedirect()
       // Navigate to connected screen
-      router.replace("/profile/health/fitbit-connected" as any);
-    } catch (error: any) {
+      router.replace("/profile/health/fitbit-connected" as Href);
+    } catch (error: unknown) {
       let errorMessage = isRTL
         ? "فشل طلب إذن Fitbit. يرجى المحاولة مرة أخرى."
         : "Failed to request Fitbit permissions. Please try again.";
 
-      if (error?.message) {
+      if (error instanceof Error && error.message) {
         errorMessage = error.message;
       }
 
@@ -207,6 +209,12 @@ export default function FitbitPermissionsScreen() {
 
   const groups = getAllGroups();
   const allSelected = selectedMetrics.size === availableMetrics.length;
+  let selectAllBackgroundColor = "#F8FAFC";
+  if (allSelected) {
+    selectAllBackgroundColor = `${theme.colors.primary.main}20`;
+  } else if (isDark) {
+    selectAllBackgroundColor = "#1E293B";
+  }
 
   return (
     <SafeAreaView
@@ -266,11 +274,7 @@ export default function FitbitPermissionsScreen() {
             style={[
               styles.selectAllButton,
               {
-                backgroundColor: allSelected
-                  ? theme.colors.primary.main + "20"
-                  : isDark
-                    ? "#1E293B"
-                    : "#F8FAFC",
+                backgroundColor: selectAllBackgroundColor,
               },
             ]}
           >
@@ -296,16 +300,14 @@ export default function FitbitPermissionsScreen() {
             const groupMetrics = availableMetrics.filter(
               (m) => m.group === group
             );
-            if (groupMetrics.length === 0) return null;
+            if (groupMetrics.length === 0) {
+              return null;
+            }
 
             const isExpanded = expandedGroups.has(group);
             const groupSelected = groupMetrics.every((m) =>
               selectedMetrics.has(m.key)
             );
-            const someSelected = groupMetrics.some((m) =>
-              selectedMetrics.has(m.key)
-            );
-
             return (
               <View
                 key={group}
@@ -326,13 +328,13 @@ export default function FitbitPermissionsScreen() {
                     <Switch
                       onValueChange={(value) => {
                         const newSelected = new Set(selectedMetrics);
-                        groupMetrics.forEach((m) => {
+                        for (const m of groupMetrics) {
                           if (value) {
                             newSelected.add(m.key);
                           } else {
                             newSelected.delete(m.key);
                           }
-                        });
+                        }
                         setSelectedMetrics(newSelected);
                       }}
                       thumbColor="#FFFFFF"
@@ -370,8 +372,9 @@ export default function FitbitPermissionsScreen() {
                 </TouchableOpacity>
 
                 {/* Group Metrics */}
-                {isExpanded && (
+                {isExpanded ? (
                   <View style={styles.metricsList}>
+                    {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: item rendering combines selection, translated labels, and unit metadata. */}
                     {groupMetrics.map((metric) => {
                       const isSelected = selectedMetrics.has(metric.key);
                       return (
@@ -381,7 +384,7 @@ export default function FitbitPermissionsScreen() {
                           style={[
                             styles.metricItem,
                             isSelected && {
-                              backgroundColor: theme.colors.primary.main + "10",
+                              backgroundColor: `${theme.colors.primary.main}10`,
                             },
                           ]}
                         >
@@ -418,7 +421,7 @@ export default function FitbitPermissionsScreen() {
                                 {t(`healthMetrics.${metric.key}`) ||
                                   metric.displayName}
                               </Text>
-                              {metric.unit && (
+                              {metric.unit ? (
                                 <Text
                                   style={[
                                     styles.metricUnit,
@@ -427,14 +430,14 @@ export default function FitbitPermissionsScreen() {
                                 >
                                   {metric.unit}
                                 </Text>
-                              )}
+                              ) : null}
                             </View>
                           </View>
                         </TouchableOpacity>
                       );
                     })}
                   </View>
-                )}
+                ) : null}
               </View>
             );
           })}

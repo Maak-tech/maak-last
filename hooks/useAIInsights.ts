@@ -8,7 +8,6 @@ import {
   correlationAnalysisService,
 } from "@/lib/services/correlationAnalysisService";
 import { medicationInteractionService } from "@/lib/services/medicationInteractionService";
-import type { MedicationInteractionAlert } from "@/types";
 import {
   type HealthSuggestion,
   proactiveHealthSuggestionsService,
@@ -21,14 +20,22 @@ import {
   type PatternAnalysisResult,
   symptomPatternRecognitionService,
 } from "@/lib/services/symptomPatternRecognitionService";
+import type { MedicationInteractionAlert } from "@/types";
 
-interface UseAIInsightsOptions {
+type PrioritizedInsights = Awaited<
+  ReturnType<typeof aiInsightsService.getPrioritizedInsights>
+>;
+type ActionPlan = Awaited<
+  ReturnType<typeof aiInsightsService.generateActionPlan>
+>;
+
+type UseAIInsightsOptions = {
   autoLoad?: boolean;
   includeNarrative?: boolean;
   cacheTimeout?: number; // minutes
-}
+};
 
-interface UseAIInsightsReturn {
+type UseAIInsightsReturn = {
   // Main dashboard
   dashboard: AIInsightsDashboardData | null;
   loading: boolean;
@@ -50,10 +57,10 @@ interface UseAIInsightsReturn {
   loadHealthSuggestions: () => Promise<void>;
 
   // Utilities
-  getPrioritizedInsights: () => Promise<any>;
-  getActionPlan: () => Promise<any>;
+  getPrioritizedInsights: () => Promise<PrioritizedInsights>;
+  getActionPlan: () => Promise<ActionPlan>;
   dismissInsight: (insightId: string) => Promise<void>;
-}
+};
 
 export function useAIInsights(
   userId: string | undefined,
@@ -99,7 +106,9 @@ export function useAIInsights(
   }, [dashboard]);
 
   const isCacheValid = useCallback(() => {
-    if (!lastLoadTimeRef.current) return false;
+    if (!lastLoadTimeRef.current) {
+      return false;
+    }
     const now = new Date();
     const diffMinutes =
       (now.getTime() - lastLoadTimeRef.current.getTime()) / (1000 * 60);
@@ -109,7 +118,9 @@ export function useAIInsights(
   // Load full dashboard
   const loadDashboard = useCallback(
     async (force = false) => {
-      if (!userId) return;
+      if (!userId) {
+        return;
+      }
 
       if (!force && isCacheValid() && dashboardRef.current) {
         return; // Use cached data
@@ -145,19 +156,23 @@ export function useAIInsights(
 
   // Load individual insights
   const loadCorrelations = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
     try {
       const result =
         await correlationAnalysisService.generateCorrelationAnalysis(userId);
       setCorrelations(result);
-    } catch (err) {
+    } catch (_err) {
       // Error handled silently
     }
   }, [userId]);
 
   const loadSymptomAnalysis = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
     try {
       const symptoms =
@@ -166,42 +181,48 @@ export function useAIInsights(
           []
         );
       setSymptomAnalysis(symptoms);
-    } catch (err) {
+    } catch (_err) {
       // Error handled silently
     }
   }, [userId]);
 
   const loadRiskAssessment = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
     try {
       const result = await riskAssessmentService.generateRiskAssessment(userId);
       setRiskAssessment(result);
-    } catch (err) {
+    } catch (_err) {
       // Error handled silently
     }
   }, [userId]);
 
   const loadMedicationAlerts = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
     try {
       const alerts =
         await medicationInteractionService.generateRealtimeAlerts(userId);
       setMedicationAlerts(alerts);
-    } catch (err) {
+    } catch (_err) {
       // Error handled silently
     }
   }, [userId]);
 
   const loadHealthSuggestions = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      return;
+    }
 
     try {
       const suggestions =
         await proactiveHealthSuggestionsService.generateSuggestions(userId);
       setHealthSuggestions(suggestions);
-    } catch (err) {
+    } catch (_err) {
       // Error handled silently
     }
   }, [userId]);
@@ -212,20 +233,33 @@ export function useAIInsights(
   }, [loadDashboard]);
 
   // Get prioritized insights
-  const getPrioritizedInsights = useCallback(async () => {
-    if (!userId) return { critical: [], high: [], medium: [], low: [] };
+  const getPrioritizedInsights = useCallback(() => {
+    if (!userId) {
+      return Promise.resolve({
+        critical: [],
+        high: [],
+        medium: [],
+        low: [],
+      } satisfies PrioritizedInsights);
+    }
     return aiInsightsService.getPrioritizedInsights(userId);
   }, [userId]);
 
   // Get action plan
-  const getActionPlan = useCallback(async () => {
-    if (!userId)
-      return { immediate: [], shortTerm: [], longTerm: [], monitoring: [] };
+  const getActionPlan = useCallback(() => {
+    if (!userId) {
+      return Promise.resolve({
+        immediate: [],
+        shortTerm: [],
+        longTerm: [],
+        monitoring: [],
+      } satisfies ActionPlan);
+    }
     return aiInsightsService.generateActionPlan(userId);
   }, [userId]);
 
   // Dismiss insight (placeholder for future implementation)
-  const dismissInsight = useCallback(async (insightId: string) => {
+  const dismissInsight = useCallback(async (_insightId: string) => {
     // This would implement dismissal logic with local storage or backend
     // For now, just a placeholder - could be implemented to hide insights from UI
   }, []);
@@ -264,8 +298,3 @@ export function useAIInsights(
     dismissInsight,
   };
 }
-
-
-
-
-

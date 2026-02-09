@@ -273,15 +273,15 @@ class RiskAssessmentService {
   /**
    * Assess individual risk factors
    */
-  private async assessRiskFactors(
+  private assessRiskFactors(
     user: User,
     medicalHistory: MedicalHistory[],
     symptoms: Symptom[],
     vitals: VitalSign[],
     medications: Medication[],
     moods: Mood[],
-    isArabic = false
-  ): Promise<RiskFactor[]> {
+    _isArabic = false
+  ): RiskFactor[] {
     const riskFactors: RiskFactor[] = [];
 
     // Age-based risks
@@ -301,7 +301,7 @@ class RiskAssessmentService {
     }
 
     // Family history risks
-    const familyHistory = await this.getFamilyMedicalHistory(user);
+    const familyHistory = this.getFamilyMedicalHistory(user);
     const familyRisks = this.assessFamilyHistoryRisks(familyHistory);
     riskFactors.push(...familyRisks);
 
@@ -334,11 +334,11 @@ class RiskAssessmentService {
    */
   private calculateConditionRisks(
     riskFactors: RiskFactor[],
-    isArabic = false
+    _isArabic = false
   ): ConditionRisk[] {
     const conditionRisks: ConditionRisk[] = [];
 
-    Object.entries(CONDITION_SPECIFIC_RISKS).forEach(([category, config]) => {
+    for (const [_category, config] of Object.entries(CONDITION_SPECIFIC_RISKS)) {
       const relevantFactors = riskFactors.filter((factor) =>
         config.factors.includes(factor.id)
       );
@@ -358,7 +358,7 @@ class RiskAssessmentService {
           screeningRecommendations: config.screening,
         });
       }
-    });
+    }
 
     return conditionRisks.sort((a, b) => b.riskScore - a.riskScore);
   }
@@ -367,7 +367,9 @@ class RiskAssessmentService {
    * Calculate overall risk score
    */
   private calculateOverallRiskScore(riskFactors: RiskFactor[]): number {
-    if (riskFactors.length === 0) return 0;
+    if (riskFactors.length === 0) {
+      return 0;
+    }
 
     // Weighted average of all risk factors
     const totalWeight = riskFactors.reduce(
@@ -394,27 +396,30 @@ class RiskAssessmentService {
     const recommendations: Set<string> = new Set();
 
     // Add recommendations from high-impact risk factors
-    riskFactors
-      .filter((factor) => factor.impact > 20 && factor.modifiable)
-      .forEach((factor) => {
-        if (factor.recommendations) {
-          factor.recommendations.forEach((rec) => recommendations.add(rec));
-        }
-      });
+    for (const factor of riskFactors) {
+      if (factor.impact <= 20 || !factor.modifiable || !factor.recommendations) {
+        continue;
+      }
+      for (const recommendation of factor.recommendations) {
+        recommendations.add(recommendation);
+      }
+    }
 
     // Add condition-specific recommendations
-    conditionRisks
-      .filter((risk) => risk.riskScore > 30)
-      .forEach((risk) => {
-        risk.preventiveMeasures.forEach((measure) =>
-          recommendations.add(measure)
-        );
-        if (risk.screeningRecommendations) {
-          risk.screeningRecommendations.forEach((screening) =>
-            recommendations.add(screening)
-          );
-        }
-      });
+    for (const risk of conditionRisks) {
+      if (risk.riskScore <= 30) {
+        continue;
+      }
+      for (const measure of risk.preventiveMeasures) {
+        recommendations.add(measure);
+      }
+      if (!risk.screeningRecommendations) {
+        continue;
+      }
+      for (const screening of risk.screeningRecommendations) {
+        recommendations.add(screening);
+      }
+    }
 
     // Add general recommendations based on risk level
     const highRiskFactors = riskFactors.filter(
@@ -447,7 +452,7 @@ class RiskAssessmentService {
       monthDiff < 0 ||
       (monthDiff === 0 && today.getDate() < birthDate.getDate())
     ) {
-      age--;
+      age -= 1;
     }
     return age;
   }
@@ -555,7 +560,7 @@ class RiskAssessmentService {
     return recommendations[id];
   }
 
-  private async getFamilyMedicalHistory(user: User): Promise<MedicalHistory[]> {
+  private getFamilyMedicalHistory(_user: User): MedicalHistory[] {
     // This would need to be implemented to get family member medical history
     // For now, return empty array
     return [];
@@ -633,7 +638,7 @@ class RiskAssessmentService {
   }
 
   private assessLifestyleRisks(
-    user: User,
+    _user: User,
     symptoms: Symptom[],
     medications: Medication[]
   ): RiskFactor[] {
@@ -649,8 +654,7 @@ class RiskAssessmentService {
 
     // Check for sedentary indicators
     const recentSymptoms = symptoms.filter(
-      (s) =>
-        new Date().getTime() - s.timestamp.getTime() < 30 * 24 * 60 * 60 * 1000
+      (s) => Date.now() - s.timestamp.getTime() < 30 * 24 * 60 * 60 * 1000
     );
     if (recentSymptoms.length < 5) {
       // Low symptom reporting might indicate sedentary lifestyle
@@ -663,7 +667,7 @@ class RiskAssessmentService {
   private assessCurrentHealthRisks(
     symptoms: Symptom[],
     vitals: VitalSign[],
-    medications: Medication[],
+    _medications: Medication[],
     moods: Mood[]
   ): RiskFactor[] {
     const risks: RiskFactor[] = [];
@@ -685,8 +689,7 @@ class RiskAssessmentService {
 
     // Check for frequent symptoms
     const recentSymptoms = symptoms.filter(
-      (s) =>
-        new Date().getTime() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
+      (s) => Date.now() - s.timestamp.getTime() < 7 * 24 * 60 * 60 * 1000
     );
     if (recentSymptoms.length > 10) {
       risks.push(
@@ -699,8 +702,7 @@ class RiskAssessmentService {
 
     // Check for low mood
     const recentMoods = moods.filter(
-      (m) =>
-        new Date().getTime() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000
+      (m) => Date.now() - m.timestamp.getTime() < 14 * 24 * 60 * 60 * 1000
     );
     const lowMoods = recentMoods.filter((m) => m.intensity < 3);
     if (lowMoods.length > recentMoods.length * 0.6) {
@@ -713,9 +715,15 @@ class RiskAssessmentService {
   private scoreToRiskLevel(
     score: number
   ): "low" | "moderate" | "high" | "very_high" {
-    if (score >= 75) return "very_high";
-    if (score >= 50) return "high";
-    if (score >= 25) return "moderate";
+    if (score >= 75) {
+      return "very_high";
+    }
+    if (score >= 50) {
+      return "high";
+    }
+    if (score >= 25) {
+      return "moderate";
+    }
     return "low";
   }
 
@@ -754,7 +762,7 @@ class RiskAssessmentService {
   }
 
   // Data access methods (simplified - would need proper implementation)
-  private async getUserProfile(userId: string): Promise<User> {
+  private getUserProfile(userId: string): User {
     // This should fetch user profile from database
     // For now, return a mock user
     return {
@@ -773,12 +781,12 @@ class RiskAssessmentService {
     };
   }
 
-  private async getRecentVitals(userId: string): Promise<VitalSign[]> {
+  private getRecentVitals(_userId: string): VitalSign[] {
     // This should fetch recent vitals from database
     return [];
   }
 
-  private async getRecentMoods(userId: string): Promise<Mood[]> {
+  private getRecentMoods(_userId: string): Mood[] {
     // This should fetch recent moods from database
     return [];
   }

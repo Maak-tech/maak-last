@@ -27,10 +27,11 @@ import {
 } from "@/lib/health/healthMetricsCatalog";
 import { withingsService } from "@/lib/services/withingsService";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: this screen keeps metric grouping and connection flow in one place for UX clarity.
 export default function WithingsPermissionsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme, isDark } = useTheme();
 
   const isRTL = i18n.language === "ar";
@@ -50,6 +51,7 @@ export default function WithingsPermissionsScreen() {
   const [groups, setGroups] = useState<MetricGroup[]>([]);
 
   useEffect(() => {
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: async availability + defaults setup is explicit and sequential.
     const loadMetrics = async () => {
       try {
         setLoading(true);
@@ -71,13 +73,14 @@ export default function WithingsPermissionsScreen() {
         setGroups(allGroups);
 
         const preSelected = new Set<string>();
-        metrics
-          .filter((metric) => metric.withings?.available)
-          .slice(0, 5)
-          .forEach((metric) => preSelected.add(metric.key));
+        for (const metric of metrics
+          .filter((currentMetric) => currentMetric.withings?.available)
+          .slice(0, 5)) {
+          preSelected.add(metric.key);
+        }
 
         setSelectedMetrics(preSelected);
-      } catch (error) {
+      } catch (_error) {
         Alert.alert(
           isRTL ? "خطأ" : "Error",
           isRTL
@@ -109,9 +112,13 @@ export default function WithingsPermissionsScreen() {
     const newSelected = new Set(selectedMetrics);
 
     if (allSelected) {
-      groupMetrics.forEach((m) => newSelected.delete(m.key));
+      for (const metric of groupMetrics) {
+        newSelected.delete(metric.key);
+      }
     } else {
-      groupMetrics.forEach((m) => newSelected.add(m.key));
+      for (const metric of groupMetrics) {
+        newSelected.add(metric.key);
+      }
     }
 
     setSelectedMetrics(newSelected);
@@ -136,6 +143,7 @@ export default function WithingsPermissionsScreen() {
     return selectedCount > 0 && selectedCount < groupMetrics.length;
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: explicit validation and localized success/error handling are intentional.
   const handleConnect = async () => {
     if (selectedMetrics.size === 0) {
       Alert.alert(
@@ -163,12 +171,15 @@ export default function WithingsPermissionsScreen() {
           },
         ]
       );
-    } catch (error: any) {
-      Alert.alert(
-        isRTL ? "فشل الربط" : "Connection Failed",
-        error.message ||
-          (isRTL ? "فشل في ربط Withings" : "Failed to connect Withings")
-      );
+    } catch (error: unknown) {
+      let errorMessage = "Failed to connect Withings";
+      if (isRTL) {
+        errorMessage = "فشل في ربط Withings";
+      }
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message;
+      }
+      Alert.alert(isRTL ? "فشل الربط" : "Connection Failed", errorMessage);
     } finally {
       setConnecting(false);
     }
@@ -270,7 +281,9 @@ export default function WithingsPermissionsScreen() {
         <View style={styles.metricsSection}>
           {groups.map((groupKey) => {
             const groupMetrics = getMetricsInGroup(groupKey);
-            if (groupMetrics.length === 0) return null;
+            if (groupMetrics.length === 0) {
+              return null;
+            }
 
             const groupFullySelected = isGroupFullySelected(groupKey);
             const groupPartiallySelected = isGroupPartiallySelected(groupKey);
@@ -289,12 +302,12 @@ export default function WithingsPermissionsScreen() {
                         groupPartiallySelected && styles.checkboxPartial,
                       ]}
                     >
-                      {groupFullySelected && (
+                      {groupFullySelected ? (
                         <Check color="#FFFFFF" size={16} />
-                      )}
-                      {groupPartiallySelected && !groupFullySelected && (
+                      ) : null}
+                      {groupPartiallySelected && !groupFullySelected ? (
                         <View style={styles.partialIndicator} />
-                      )}
+                      ) : null}
                     </View>
                     <Text
                       style={[
@@ -347,7 +360,7 @@ export default function WithingsPermissionsScreen() {
                         >
                           {metric.displayName}
                         </Text>
-                        {metric.description && (
+                        {metric.description ? (
                           <Text
                             style={[
                               styles.metricDescription,
@@ -357,7 +370,7 @@ export default function WithingsPermissionsScreen() {
                           >
                             {metric.description}
                           </Text>
-                        )}
+                        ) : null}
                       </View>
                     </TouchableOpacity>
                   </View>

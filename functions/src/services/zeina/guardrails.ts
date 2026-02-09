@@ -13,6 +13,8 @@
  * - recommendedActionCode (enum)
  * - escalationLevel (none | caregiver | emergency)
  */
+/* biome-ignore-all lint/style/useBlockStatements: concise guard checks are intentionally used for validation readability. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: safety validator intentionally contains explicit layered checks. */
 
 import { logger } from "../../observability/logger";
 import type {
@@ -280,7 +282,7 @@ export function sanitizeToZeinaOutput(
   // Sanitize summary (truncate if too long)
   let summary = response.summary || "Alert requires review";
   if (summary.length > 200) {
-    summary = summary.substring(0, 197) + "...";
+    summary = `${summary.substring(0, 197)}...`;
   }
 
   return {

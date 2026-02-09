@@ -3,8 +3,8 @@
  * Run with: node scripts/check-audio-setup.js
  */
 
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 
 console.log("=".repeat(60));
 console.log("ZEINA VOICE AGENT - AUDIO SETUP DIAGNOSTIC");
@@ -35,7 +35,7 @@ try {
   console.log(
     `   ${allPresent ? "✓" : "✗"} All required packages ${allPresent ? "found" : "MISSING"}`
   );
-} catch (error) {
+} catch (_error) {
   console.log("   ✗ Could not read package.json");
 }
 console.log();
@@ -48,13 +48,13 @@ const modulesToCheck = [
   "expo-file-system",
   "expo-constants",
 ];
-modulesToCheck.forEach((mod) => {
+for (const mod of modulesToCheck) {
   const modPath = path.join(process.cwd(), "node_modules", mod);
   const exists = fs.existsSync(modPath);
   console.log(
     `   ${exists ? "✓" : "✗"} ${mod} ${exists ? "installed" : "NOT INSTALLED"}`
   );
-});
+}
 console.log();
 
 // Check 3: .env file
@@ -86,13 +86,13 @@ const filesToCheck = [
   "app/(tabs)/zeina.tsx",
   "lib/services/realtimeAgentService.ts",
 ];
-filesToCheck.forEach((file) => {
+for (const file of filesToCheck) {
   const filePath = path.join(process.cwd(), file);
   const exists = fs.existsSync(filePath);
   console.log(
     `   ${exists ? "✓" : "✗"} ${file} ${exists ? "exists" : "MISSING"}`
   );
-});
+}
 console.log();
 
 console.log("=".repeat(60));

@@ -1,10 +1,10 @@
+import { auth } from "@/lib/firebase";
+import { calendarService } from "./calendarService";
 import {
   BODY_PART_MAP,
   SYMPTOM_TYPE_MAP,
   zeinaActionsService,
 } from "./zeinaActionsService";
-import { auth } from "@/lib/firebase";
-import { calendarService } from "./calendarService";
 
 type ExtractedVital = {
   type:
@@ -73,20 +73,36 @@ const toNumber = (value: string): number | null => {
 };
 
 const parseSeverity = (text: string): number | undefined => {
-  if (/\b(very severe|extreme|excruciating|unbearable)\b/.test(text)) return 5;
-  if (/\b(severe|intense|strong)\b/.test(text)) return 4;
-  if (/\b(moderate|medium)\b/.test(text)) return 3;
-  if (/\b(mild|slight|light)\b/.test(text)) return 2;
-  if (/\b(tiny|barely|minor)\b/.test(text)) return 1;
+  if (/\b(very severe|extreme|excruciating|unbearable)\b/.test(text)) {
+    return 5;
+  }
+  if (/\b(severe|intense|strong)\b/.test(text)) {
+    return 4;
+  }
+  if (/\b(moderate|medium)\b/.test(text)) {
+    return 3;
+  }
+  if (/\b(mild|slight|light)\b/.test(text)) {
+    return 2;
+  }
+  if (/\b(tiny|barely|minor)\b/.test(text)) {
+    return 1;
+  }
   return;
 };
 
 const parseConditionSeverity = (
   text: string
 ): "active" | "resolved" | "managed" | "in_remission" | undefined => {
-  if (/\b(resolved|cleared)\b/.test(text)) return "resolved";
-  if (/\b(in remission|remission)\b/.test(text)) return "in_remission";
-  if (/\b(managed|under control|stable)\b/.test(text)) return "managed";
+  if (/\b(resolved|cleared)\b/.test(text)) {
+    return "resolved";
+  }
+  if (/\b(in remission|remission)\b/.test(text)) {
+    return "in_remission";
+  }
+  if (/\b(managed|under control|stable)\b/.test(text)) {
+    return "managed";
+  }
   return;
 };
 
@@ -96,9 +112,15 @@ const parseAllergySeverity = (
   if (/\b(life[- ]?threatening|anaphylaxis)\b/.test(text)) {
     return "life-threatening";
   }
-  if (/\b(severe)\b/.test(text)) return "severe";
-  if (/\b(moderate|medium)\b/.test(text)) return "moderate";
-  if (/\b(mild|light)\b/.test(text)) return "mild";
+  if (/\b(severe)\b/.test(text)) {
+    return "severe";
+  }
+  if (/\b(moderate|medium)\b/.test(text)) {
+    return "moderate";
+  }
+  if (/\b(mild|light)\b/.test(text)) {
+    return "mild";
+  }
   return;
 };
 
@@ -339,8 +361,12 @@ const parseTimeParts = (
     let hours = Number.parseInt(ampmMatch[1], 10);
     const minutes = ampmMatch[2] ? Number.parseInt(ampmMatch[2], 10) : 0;
     const meridiem = ampmMatch[3];
-    if (meridiem === "pm" && hours < 12) hours += 12;
-    if (meridiem === "am" && hours === 12) hours = 0;
+    if (meridiem === "pm" && hours < 12) {
+      hours += 12;
+    }
+    if (meridiem === "am" && hours === 12) {
+      hours = 0;
+    }
     return { hours, minutes };
   }
 
@@ -427,14 +453,20 @@ const extractEvents = (text: string): ExtractedEvent[] => {
 
 const extractBloodPressure = (text: string): ExtractedVital | null => {
   const hasContext = /\b(blood pressure|bp|b\.p\.)\b/.test(text);
-  if (!hasContext) return null;
+  if (!hasContext) {
+    return null;
+  }
 
   const match = text.match(/(\d{2,3})\s*(?:\/|over)\s*(\d{2,3})/);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   const systolic = toNumber(match[1]);
   const diastolic = toNumber(match[2]);
-  if (!(systolic && diastolic)) return null;
+  if (!(systolic && diastolic)) {
+    return null;
+  }
 
   return {
     type: "bloodPressure",
@@ -451,14 +483,18 @@ const extractHeartRate = (text: string): ExtractedVital | null => {
   const bpmMatch = text.match(/(\d{2,3})\s*(?:bpm|beats per minute)\b/);
   if (bpmMatch) {
     const value = toNumber(bpmMatch[1]);
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     return { type: "heartRate", value, unit: "bpm" };
   }
 
   const hrMatch = text.match(/\b(heart rate|pulse)\b[^0-9]{0,10}(\d{2,3})/);
   if (hrMatch) {
     const value = toNumber(hrMatch[2]);
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     return { type: "heartRate", value, unit: "bpm" };
   }
 
@@ -471,7 +507,9 @@ const extractTemperature = (text: string): ExtractedVital | null => {
   );
   if (tempMatch) {
     const value = toNumber(tempMatch[1]);
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     const unitRaw = tempMatch[2].toLowerCase();
     const unit = unitRaw.includes("c") ? "°C" : "°F";
     return { type: "temperature", value, unit };
@@ -482,7 +520,9 @@ const extractTemperature = (text: string): ExtractedVital | null => {
   );
   if (contextMatch) {
     const value = toNumber(contextMatch[2]);
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     const unit = value <= 45 ? "°C" : "°F";
     return { type: "temperature", value, unit };
   }
@@ -492,22 +532,30 @@ const extractTemperature = (text: string): ExtractedVital | null => {
 
 const extractOxygen = (text: string): ExtractedVital | null => {
   const hasContext = /\b(oxygen|spo2|o2|saturation|sat|sats)\b/.test(text);
-  if (!hasContext) return null;
+  if (!hasContext) {
+    return null;
+  }
 
   const match = text.match(/(\d{2,3})\s*%/);
   const value = match ? toNumber(match[1]) : null;
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
 
   return { type: "oxygenSaturation", value, unit: "%" };
 };
 
 const extractBloodGlucose = (text: string): ExtractedVital | null => {
   const hasContext = /\b(blood sugar|glucose)\b/.test(text);
-  if (!hasContext) return null;
+  if (!hasContext) {
+    return null;
+  }
 
   const match = text.match(/\b(\d{2,3})\b/);
   const value = match ? toNumber(match[1]) : null;
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
 
   const unit = /\b(mg\/?dl|mg\/dl)\b/.test(text) ? "mg/dL" : "mg/dL";
   return { type: "bloodGlucose", value, unit };
@@ -519,7 +567,9 @@ const extractWeight = (text: string): ExtractedVital | null => {
   );
   if (match) {
     const value = toNumber(match[1]);
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     const unitRaw = match[2].toLowerCase();
     const unit = unitRaw.startsWith("k") ? "kg" : "lbs";
     return { type: "weight", value, unit };
@@ -530,7 +580,9 @@ const extractWeight = (text: string): ExtractedVital | null => {
   );
   if (contextMatch) {
     const value = toNumber(contextMatch[2]);
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     return { type: "weight", value, unit: "lbs" };
   }
 
@@ -540,7 +592,9 @@ const extractWeight = (text: string): ExtractedVital | null => {
 const extractSteps = (text: string): ExtractedVital | null => {
   const match = text.match(/\b(\d{3,6})\s*steps\b/);
   const value = match ? toNumber(match[1]) : null;
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
 
   return { type: "steps", value, unit: "steps" };
 };

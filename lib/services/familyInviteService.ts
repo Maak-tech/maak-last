@@ -34,8 +34,7 @@ export const familyInviteService = {
       }
 
       // Verify user document exists and has correct familyId before attempting to create invitation
-      const { getDoc, doc: firestoreDoc } = await import("firebase/firestore");
-      const userDocRef = firestoreDoc(db, "users", invitedBy);
+      const userDocRef = doc(db, "users", invitedBy);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
@@ -82,7 +81,7 @@ export const familyInviteService = {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
       };
 
-      const docRef = await addDoc(collection(db, "familyInvitations"), {
+      await addDoc(collection(db, "familyInvitations"), {
         ...inviteData,
         createdAt: Timestamp.fromDate(inviteData.createdAt),
         expiresAt: Timestamp.fromDate(inviteData.expiresAt),
@@ -109,11 +108,11 @@ export const familyInviteService = {
         return null;
       }
 
-      const doc = querySnapshot.docs[0];
-      const data = doc.data();
+      const inviteDoc = querySnapshot.docs[0];
+      const data = inviteDoc.data();
 
       return {
-        id: doc.id,
+        id: inviteDoc.id,
         ...data,
         createdAt: data.createdAt.toDate(),
         expiresAt: data.expiresAt.toDate(),
@@ -186,10 +185,10 @@ export const familyInviteService = {
       const querySnapshot = await getDocs(q);
       const invitations: FamilyInvitationCode[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((inviteDoc) => {
+        const data = inviteDoc.data();
         invitations.push({
-          id: doc.id,
+          id: inviteDoc.id,
           ...data,
           createdAt: data.createdAt.toDate(),
           expiresAt: data.expiresAt.toDate(),
@@ -213,8 +212,8 @@ export const familyInviteService = {
       );
       const querySnapshot = await getDocs(q);
 
-      const updatePromises = querySnapshot.docs.map((doc) =>
-        updateDoc(doc.ref, { status: "expired" })
+      const updatePromises = querySnapshot.docs.map((inviteDoc) =>
+        updateDoc(inviteDoc.ref, { status: "expired" })
       );
 
       await Promise.all(updatePromises);
@@ -242,7 +241,7 @@ export const familyInviteService = {
         status: data.status || "active", // Default to active for backward compatibility
         createdAt: data.createdAt?.toDate() || new Date(),
       };
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error getting family:", error);
       return null;
     }

@@ -9,11 +9,11 @@
 
 import type { Frame } from "react-native-vision-camera";
 
-export interface PPGFrameData {
+export type PPGFrameData = {
   redAverage: number;
   timestamp: number;
   frameIndex: number;
-}
+};
 
 /**
  * Process a camera frame to extract PPG signal
@@ -69,7 +69,6 @@ export function processPPGFrame(
           // Get pixel at (x, y)
           // For RGB format: [R, G, B, R, G, B, ...]
           // We need to extract the red channel
-          const pixelIndex = (y * width + x) * 3; // Assuming RGB format
 
           // Extract red channel value (0-255)
           // This will be implemented using frame.toArrayBuffer() or similar
@@ -77,7 +76,7 @@ export function processPPGFrame(
           const redValue = extractRedChannel(frame, x, y);
 
           redSum += redValue;
-          sampleCount++;
+          sampleCount += 1;
         }
       }
     }
@@ -90,7 +89,7 @@ export function processPPGFrame(
       timestamp,
       frameIndex,
     };
-  } catch (error) {
+  } catch (_error) {
     // If frame processing fails, return a default value
     // This prevents crashes but the signal quality will be poor
     return {
@@ -110,7 +109,7 @@ export function processPPGFrame(
  * @param y - Y coordinate
  * @returns Red channel value (0-255)
  */
-function extractRedChannel(frame: Frame, x: number, y: number): number {
+function extractRedChannel(_frame: Frame, _x: number, _y: number): number {
   "worklet";
 
   // This is a placeholder implementation

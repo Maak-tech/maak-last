@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/style/noExportedImports: i18n instance is configured in-module before export. */
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { I18nManager, Platform } from "react-native";

@@ -305,7 +305,7 @@ class MedicationInteractionService {
 
       const allMedications = [...activeMedications, newMedication];
       return this.checkInteractions(allMedications);
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -369,7 +369,7 @@ class MedicationInteractionService {
       );
 
       return alerts;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

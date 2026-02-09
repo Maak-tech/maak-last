@@ -3,7 +3,7 @@
 // These files are gitignored but required for builds
 // EAS Build may append --platform ios/android, so we filter it out
 
-const fs = require("fs");
+const fs = require("node:fs");
 
 // Filter out --platform flag and its value from command line arguments
 // EAS Build appends these, but our script doesn't need them

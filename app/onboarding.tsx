@@ -1,8 +1,7 @@
-import { useRouter } from "expo-router";
+﻿import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Dimensions,
   Image,
   type ImageStyle,
   SafeAreaView,
@@ -17,8 +16,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-const { width: screenWidth } = Dimensions.get("window");
-
 // Different onboarding steps based on user role
 const getOnboardingSteps = (userRole: string) => {
   const isAdmin = userRole === "admin";
@@ -30,36 +27,37 @@ const getOnboardingSteps = (userRole: string) => {
         key: "welcome",
         image: require("@/assets/images/welcome.png"),
         titleEn: "Welcome to Maak",
-        titleAr: "مرحباً بك في معك",
+        titleAr: "Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ù…Ø¹Ùƒ",
         descEn:
           "Your family health companion. Keep track of your loved ones health and stay connected.",
-        descAr: "رفيقك الصحي للعائلة. تابع صحة أحبائك وابقَ على تواصل معهم.",
+        descAr:
+          "Ø±ÙÙŠÙ‚Ùƒ Ø§Ù„ØµØ­ÙŠ Ù„Ù„Ø¹Ø§Ø¦Ù„Ø©. ØªØ§Ø¨Ø¹ ØµØ­Ø© Ø£Ø­Ø¨Ø§Ø¦Ùƒ ÙˆØ§Ø¨Ù‚ÙŽ Ø¹Ù„Ù‰ ØªÙˆØ§ØµÙ„ Ù…Ø¹Ù‡Ù….",
         onelinerEn: '"Health starts at home"',
-        onelinerAr: '"خليهم دايمًا معك"',
+        onelinerAr: '"Ø®Ù„ÙŠÙ‡Ù… Ø¯Ø§ÙŠÙ…Ù‹Ø§ Ù…Ø¹Ùƒ"',
       },
       {
         key: "track",
         image: require("@/assets/images/track-health..png"),
         titleEn: "Track Health Together",
-        titleAr: "تتبع الصحة معاً",
+        titleAr: "ØªØªØ¨Ø¹ Ø§Ù„ØµØ­Ø© Ù…Ø¹Ø§Ù‹",
         descEn:
           "Monitor symptoms, medications, and vital signs for your entire family in one place.",
         descAr:
-          "راقب الأعراض والأدوية والعلامات الحيوية لعائلتك بأكملها في مكان واحد.",
+          "Ø±Ø§Ù‚Ø¨ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØ§Ù„Ø£Ø¯ÙˆÙŠØ© ÙˆØ§Ù„Ø¹Ù„Ø§Ù…Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ© Ù„Ø¹Ø§Ø¦Ù„ØªÙƒ Ø¨Ø£ÙƒÙ…Ù„Ù‡Ø§ ÙÙŠ Ù…ÙƒØ§Ù† ÙˆØ§Ø­Ø¯.",
         onelinerEn: '"Health starts at home"',
-        onelinerAr: '"خليهم دايمًا معك"',
+        onelinerAr: '"Ø®Ù„ÙŠÙ‡Ù… Ø¯Ø§ÙŠÙ…Ù‹Ø§ Ù…Ø¹Ùƒ"',
       },
       {
         key: "family",
         image: require("@/assets/images/manage-family.png"),
         titleEn: "Manage Your Family",
-        titleAr: "إدارة عائلتك",
+        titleAr: "Ø¥Ø¯Ø§Ø±Ø© Ø¹Ø§Ø¦Ù„ØªÙƒ",
         descEn:
           "Invite family members, share health data, and provide care for each other.",
         descAr:
-          "ادع أفراد العائلة، وشارك البيانات الصحية، واعتنوا ببعضكم البعض.",
+          "Ø§Ø¯Ø¹ Ø£ÙØ±Ø§Ø¯ Ø§Ù„Ø¹Ø§Ø¦Ù„Ø©ØŒ ÙˆØ´Ø§Ø±Ùƒ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØµØ­ÙŠØ©ØŒ ÙˆØ§Ø¹ØªÙ†ÙˆØ§ Ø¨Ø¨Ø¹Ø¶ÙƒÙ… Ø§Ù„Ø¨Ø¹Ø¶.",
         onelinerEn: '"Health starts at home"',
-        onelinerAr: '"خليهم دايمًا معك"',
+        onelinerAr: '"Ø®Ù„ÙŠÙ‡Ù… Ø¯Ø§ÙŠÙ…Ù‹Ø§ Ù…Ø¹Ùƒ"',
       },
     ];
   }
@@ -69,51 +67,55 @@ const getOnboardingSteps = (userRole: string) => {
       key: "welcome",
       image: require("@/assets/images/welcome.png"),
       titleEn: "Welcome to Maak",
-      titleAr: "مرحباً بك في معك",
+      titleAr: "Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ù…Ø¹Ùƒ",
       descEn:
         "Your personal health companion. Track symptoms, medications, and get health insights.",
-      descAr: "رفيقك الصحي الشخصي. تابع الأعراض والأدوية واحصل على رؤى صحية.",
+      descAr:
+        "Ø±ÙÙŠÙ‚Ùƒ Ø§Ù„ØµØ­ÙŠ Ø§Ù„Ø´Ø®ØµÙŠ. ØªØ§Ø¨Ø¹ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ ÙˆØ§Ù„Ø£Ø¯ÙˆÙŠØ© ÙˆØ§Ø­ØµÙ„ Ø¹Ù„Ù‰ Ø±Ø¤Ù‰ ØµØ­ÙŠØ©.",
       onelinerEn: '"Health starts at home"',
-      onelinerAr: '"الصحة تبدأ من المنزل"',
+      onelinerAr: '"Ø§Ù„ØµØ­Ø© ØªØ¨Ø¯Ø£ Ù…Ù† Ø§Ù„Ù…Ù†Ø²Ù„"',
     },
     {
       key: "track",
       image: require("@/assets/images/track-health..png"),
       titleEn: "Track Your Health",
-      titleAr: "تابع صحتك",
+      titleAr: "ØªØ§Ø¨Ø¹ ØµØ­ØªÙƒ",
       descEn:
         "Easily log symptoms, manage medications, and monitor your vital signs.",
-      descAr: "سجل الأعراض بسهولة، أدر الأدوية، وراقب العلامات الحيوية.",
+      descAr:
+        "Ø³Ø¬Ù„ Ø§Ù„Ø£Ø¹Ø±Ø§Ø¶ Ø¨Ø³Ù‡ÙˆÙ„Ø©ØŒ Ø£Ø¯Ø± Ø§Ù„Ø£Ø¯ÙˆÙŠØ©ØŒ ÙˆØ±Ø§Ù‚Ø¨ Ø§Ù„Ø¹Ù„Ø§Ù…Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ©.",
       onelinerEn: '"Stay on top of your health"',
-      onelinerAr: '"ابقَ على اطلاع بصحتك"',
+      onelinerAr: '"Ø§Ø¨Ù‚ÙŽ Ø¹Ù„Ù‰ Ø§Ø·Ù„Ø§Ø¹ Ø¨ØµØ­ØªÙƒ"',
     },
     {
       key: "zeina",
       image: require("@/assets/images/welcome.png"), // Using welcome image as placeholder
       titleEn: "Meet Zeina",
-      titleAr: "تعرف على زينة",
+      titleAr: "ØªØ¹Ø±Ù Ø¹Ù„Ù‰ Ø²ÙŠÙ†Ø©",
       descEn:
         "Your AI health assistant is here to help answer questions and provide guidance.",
       descAr:
-        "مساعدك الصحي الذكي هنا للمساعدة في الإجابة على الأسئلة وتقديم الإرشادات.",
+        "Ù…Ø³Ø§Ø¹Ø¯Ùƒ Ø§Ù„ØµØ­ÙŠ Ø§Ù„Ø°ÙƒÙŠ Ù‡Ù†Ø§ Ù„Ù„Ù…Ø³Ø§Ø¹Ø¯Ø© ÙÙŠ Ø§Ù„Ø¥Ø¬Ø§Ø¨Ø© Ø¹Ù„Ù‰ Ø§Ù„Ø£Ø³Ø¦Ù„Ø© ÙˆØªÙ‚Ø¯ÙŠÙ… Ø§Ù„Ø¥Ø±Ø´Ø§Ø¯Ø§Øª.",
       onelinerEn: '"Your health companion"',
-      onelinerAr: '"رفيقك الصحي"',
+      onelinerAr: '"Ø±ÙÙŠÙ‚Ùƒ Ø§Ù„ØµØ­ÙŠ"',
     },
   ];
 };
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Multi-step onboarding UI intentionally keeps logic co-located.
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const [currentStep, setCurrentStep] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
+  type RouteTarget = Parameters<typeof router.replace>[0];
 
   const isRTL = i18n.language === "ar";
-  const isAdmin = user?.role === "admin";
   const onboardingSteps = getOnboardingSteps(user?.role || "user");
 
+  // biome-ignore lint/nursery/noShadow: Local themed-style callback parameter is intentional and scoped.
   const styles = createThemedStyles((theme) => ({
     container: {
       flex: 1,
@@ -244,7 +246,9 @@ export default function OnboardingScreen() {
   }))(theme);
 
   const handleComplete = async () => {
-    if (isCompleting) return;
+    if (isCompleting) {
+      return;
+    }
 
     setIsCompleting(true);
     try {
@@ -255,9 +259,13 @@ export default function OnboardingScreen() {
       await updateUser({ onboardingCompleted: true });
       // Small delay to ensure state is updated
       setTimeout(() => {
-        router.replace({ pathname: "/(tabs)", params: { tour: "1" } } as any);
+        const route: RouteTarget = {
+          pathname: "/(tabs)",
+          params: { tour: "1" },
+        };
+        router.replace(route);
       }, 300);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
       setIsCompleting(false);
     }
@@ -282,6 +290,17 @@ export default function OnboardingScreen() {
   };
 
   const currentStepData = onboardingSteps[currentStep];
+  const isLastStep = currentStep === onboardingSteps.length - 1;
+  let primaryButtonLabel = isRTL ? "Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â§Ã™â€žÃ™Å " : "Next";
+  if (isLastStep && isCompleting) {
+    primaryButtonLabel = isRTL
+      ? "Ã˜Â¬Ã˜Â§Ã˜Â±Ã™Å  Ã˜Â§Ã™â€žÃ˜ÂªÃ˜Â­Ã™â€¦Ã™Å Ã™â€ž..."
+      : "Loading...";
+  } else if (isLastStep) {
+    primaryButtonLabel = isRTL
+      ? "Ã˜Â§Ã˜Â¨Ã˜Â¯Ã˜Â£ Ã˜Â§Ã™â€žÃ˜Â¢Ã™â€ "
+      : "Get Started";
+  }
 
   return (
     <SafeAreaView style={styles.container as ViewStyle}>
@@ -293,16 +312,16 @@ export default function OnboardingScreen() {
               [styles.skipText, isRTL && styles.rtlText] as StyleProp<TextStyle>
             }
           >
-            {isRTL ? "تخطي" : "Skip"}
+            {isRTL ? "ØªØ®Ø·ÙŠ" : "Skip"}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Progress Indicator */}
       <View style={styles.progressContainer as ViewStyle}>
-        {onboardingSteps.map((_, index) => (
+        {onboardingSteps.map((step, index) => (
           <View
-            key={index}
+            key={step.key}
             style={
               [
                 styles.progressDot,
@@ -373,7 +392,7 @@ export default function OnboardingScreen() {
                   ] as StyleProp<TextStyle>
                 }
               >
-                {isRTL ? "السابق" : "Back"}
+                {isRTL ? "Ø§Ù„Ø³Ø§Ø¨Ù‚" : "Back"}
               </Text>
             </TouchableOpacity>
           )}
@@ -391,17 +410,7 @@ export default function OnboardingScreen() {
                 ] as StyleProp<TextStyle>
               }
             >
-              {currentStep === onboardingSteps.length - 1
-                ? isCompleting
-                  ? isRTL
-                    ? "جاري التحميل..."
-                    : "Loading..."
-                  : isRTL
-                    ? "ابدأ الآن"
-                    : "Get Started"
-                : isRTL
-                  ? "التالي"
-                  : "Next"}
+              {primaryButtonLabel}
             </Text>
           </TouchableOpacity>
         </View>

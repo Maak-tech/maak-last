@@ -1,10 +1,15 @@
-/**
+﻿/**
  * Health Connect Service (Android)
  * Google Health Connect integration using expo-health-connect module
  */
 
 import { Platform } from "react-native";
-import * as HealthConnect from "../../modules/expo-health-connect";
+import {
+  type HealthRecord,
+  isAvailable,
+  readRecords,
+  requestPermissions,
+} from "../../modules/expo-health-connect";
 import {
   getAvailableMetricsForProvider,
   getHealthConnectPermissionsForMetrics,
@@ -20,19 +25,41 @@ import type {
 // Track if authorization has been requested
 let authorizationRequested = false;
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return "Unknown error";
+};
+
+const resolveMetricsToFetch = (
+  selectedMetricKeys: string[]
+): HealthMetric[] => {
+  if (selectedMetricKeys.includes("all")) {
+    return getAvailableMetricsForProvider("health_connect");
+  }
+
+  return selectedMetricKeys
+    .map((key) => getMetricByKey(key))
+    .filter(
+      (metric): metric is HealthMetric =>
+        metric !== undefined && metric.healthConnect?.available === true
+    );
+};
+
 /**
  * Check if Health Connect is available on this device
  */
 const checkAvailability = async (): Promise<ProviderAvailability> => {
-  try {
-    if (Platform.OS !== "android") {
-      return {
-        available: false,
-        reason: "Android only",
-      };
-    }
+  if (Platform.OS !== "android") {
+    return {
+      available: false,
+      reason: "Android only",
+    };
+  }
 
-    const availability = await HealthConnect.isAvailable();
+  try {
+    const availability = await isAvailable();
 
     if (!availability.available) {
       return {
@@ -48,10 +75,10 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
     return {
       available: true,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       available: false,
-      reason: error?.message || "Unknown error",
+      reason: getErrorMessage(error),
       requiresInstall: true,
       installUrl:
         "https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata",
@@ -63,105 +90,69 @@ const checkAvailability = async (): Promise<ProviderAvailability> => {
  * Request authorization for Health Connect data types
  */
 const authorize = async (selectedMetricKeys?: string[]): Promise<boolean> => {
-  try {
-    // Check availability first
-    const availability = await checkAvailability();
-    if (!availability.available) {
-      throw new Error(availability.reason || "Health Connect not available");
-    }
-
-    // Determine which permissions to request
-    let permissions: string[];
-    if (selectedMetricKeys && selectedMetricKeys.length > 0) {
-      // Check if "all" is requested
-      if (selectedMetricKeys.includes("all")) {
-        // Request all Health Connect permissions
-        permissions = getHealthConnectPermissionsForMetrics(
-          getAvailableMetricsForProvider("health_connect").map((m) => m.key)
-        );
-      } else {
-        // Map selected metric keys to Health Connect permissions
-        permissions = getHealthConnectPermissionsForMetrics(selectedMetricKeys);
-      }
-    } else {
-      // Request all Health Connect permissions
-      permissions = getHealthConnectPermissionsForMetrics(
-        getAvailableMetricsForProvider("health_connect").map((m) => m.key)
-      );
-    }
-
-    if (permissions.length === 0) {
-      throw new Error("No Health Connect permissions to request");
-    }
-
-    // Request authorization
-    const result = await HealthConnect.requestPermissions(permissions);
-
-    authorizationRequested = true;
-
-    // Return true if at least one permission was granted
-    return result.granted.length > 0;
-  } catch (error: any) {
-    throw error;
+  const availability = await checkAvailability();
+  if (!availability.available) {
+    throw new Error(availability.reason || "Health Connect not available");
   }
-};
 
-/**
- * Map Health Connect record type to metric key
- */
-const recordTypeToMetricKey = (recordType: string): string | null => {
-  const metricMap: Record<string, string> = {
-    HeartRateRecord: "heart_rate",
-    RestingHeartRateRecord: "resting_heart_rate",
-    HeartRateVariabilityRmssdRecord: "heart_rate_variability",
-    BloodPressureRecord: "blood_pressure", // Special handling needed
-    RespiratoryRateRecord: "respiratory_rate",
-    OxygenSaturationRecord: "blood_oxygen",
-    BodyTemperatureRecord: "body_temperature",
-    WeightRecord: "weight",
-    HeightRecord: "height",
-    BodyMassIndexRecord: "body_mass_index",
-    BodyFatRecord: "body_fat_percentage",
-    StepsRecord: "steps",
-    ActiveCaloriesBurnedRecord: "active_energy",
-    BasalMetabolicRateRecord: "basal_energy",
-    DistanceRecord: "distance_walking_running",
-    FloorsClimbedRecord: "flights_climbed",
-    ExerciseSessionRecord: "exercise_minutes", // Also used for workouts
-    SleepSessionRecord: "sleep_analysis",
-    HydrationRecord: "water_intake",
-    BloodGlucoseRecord: "blood_glucose",
-  };
-  return metricMap[recordType] || null;
+  // Determine which permissions to request
+  let permissions: string[];
+  if (selectedMetricKeys && selectedMetricKeys.length > 0) {
+    if (selectedMetricKeys.includes("all")) {
+      permissions = getHealthConnectPermissionsForMetrics(
+        getAvailableMetricsForProvider("health_connect").map(
+          (metric) => metric.key
+        )
+      );
+    } else {
+      permissions = getHealthConnectPermissionsForMetrics(selectedMetricKeys);
+    }
+  } else {
+    permissions = getHealthConnectPermissionsForMetrics(
+      getAvailableMetricsForProvider("health_connect").map(
+        (metric) => metric.key
+      )
+    );
+  }
+
+  if (permissions.length === 0) {
+    throw new Error("No Health Connect permissions to request");
+  }
+
+  // Request authorization
+  const result = await requestPermissions(permissions);
+
+  authorizationRequested = true;
+
+  // Return true if at least one permission was granted
+  return result.granted.length > 0;
 };
 
 /**
  * Parse Health Connect record value based on record type
  */
 const parseRecordValue = (
-  record: HealthConnect.HealthRecord,
+  record: HealthRecord,
   recordType: string
 ): { value: number | string; unit: string } => {
-  // Handle special cases
   if (recordType === "BloodPressureRecord") {
-    // Blood pressure is stored as "systolic/diastolic"
-    const parts = String(record.value).split("/");
-    if (parts.length === 2) {
+    // Keep "systolic/diastolic" as-is so both values can be extracted later.
+    const rawValue = String(record.value);
+    if (rawValue.includes("/")) {
       return {
-        value: Number.parseFloat(parts[0]) || 0,
+        value: rawValue,
         unit: record.unit || "mmHg",
       };
     }
   }
 
-  // Handle numeric values
   const numValue =
     typeof record.value === "number"
       ? record.value
       : Number.parseFloat(String(record.value));
 
   return {
-    value: isNaN(numValue) ? String(record.value) : numValue,
+    value: Number.isNaN(numValue) ? String(record.value) : numValue,
     unit: record.unit || "",
   };
 };
@@ -174,26 +165,103 @@ const fetchMetricSamples = async (
   startDate: Date,
   endDate: Date
 ): Promise<MetricSample[]> => {
-  try {
-    const records = await HealthConnect.readRecords(
-      recordType,
-      startDate.toISOString(),
-      endDate.toISOString()
-    );
+  const records = await readRecords(
+    recordType,
+    startDate.toISOString(),
+    endDate.toISOString()
+  );
 
-    return records.map((record) => {
-      const parsed = parseRecordValue(record, recordType);
-      return {
-        value: parsed.value,
-        unit: parsed.unit,
-        startDate: record.startDate,
-        endDate: record.endDate,
-        source: record.source,
-      };
-    });
-  } catch (error: any) {
-    throw error;
+  return records.map((record) => {
+    const parsed = parseRecordValue(record, recordType);
+    return {
+      value: parsed.value,
+      unit: parsed.unit,
+      startDate: record.startDate,
+      endDate: record.endDate,
+      source: record.source,
+    };
+  });
+};
+
+const extractBloodPressureValue = (
+  metricKey: HealthMetric["key"],
+  sample: MetricSample
+): MetricSample | null => {
+  const valueStr = String(sample.value);
+  const parts = valueStr.split("/");
+  if (parts.length !== 2) {
+    return null;
   }
+
+  const systolic = Number.parseFloat(parts[0]);
+  const diastolic = Number.parseFloat(parts[1]);
+  const parsedValue =
+    metricKey === "blood_pressure_systolic" ? systolic : diastolic;
+
+  if (!Number.isFinite(parsedValue)) {
+    return null;
+  }
+
+  return {
+    value: parsedValue,
+    unit: sample.unit || "mmHg",
+    startDate: sample.startDate,
+    endDate: sample.endDate,
+    source: sample.source,
+  };
+};
+
+const fetchMetricPayload = async (
+  metric: HealthMetric,
+  startDate: Date,
+  endDate: Date
+): Promise<NormalizedMetricPayload | null> => {
+  if (!metric.healthConnect?.recordType) {
+    return null;
+  }
+
+  if (
+    metric.key === "blood_pressure_systolic" ||
+    metric.key === "blood_pressure_diastolic"
+  ) {
+    const samples = await fetchMetricSamples(
+      "BloodPressureRecord",
+      startDate,
+      endDate
+    );
+    const bloodPressureSamples = samples
+      .map((sample) => extractBloodPressureValue(metric.key, sample))
+      .filter((sample): sample is MetricSample => sample !== null);
+
+    if (bloodPressureSamples.length === 0) {
+      return null;
+    }
+
+    return {
+      metricKey: metric.key,
+      displayName: metric.displayName,
+      unit: metric.unit,
+      samples: bloodPressureSamples,
+      provider: "health_connect",
+    };
+  }
+
+  const samples = await fetchMetricSamples(
+    metric.healthConnect.recordType,
+    startDate,
+    endDate
+  );
+  if (samples.length === 0) {
+    return null;
+  }
+
+  return {
+    metricKey: metric.key,
+    displayName: metric.displayName,
+    unit: metric.unit,
+    samples,
+    provider: "health_connect",
+  };
 };
 
 /**
@@ -204,108 +272,26 @@ const fetchMetrics = async (
   startDate: Date,
   endDate: Date
 ): Promise<NormalizedMetricPayload[]> => {
-  try {
-    // Check if Health Connect is available
-    const availability = await checkAvailability();
-    if (!availability.available) {
-      throw new Error(availability.reason || "Health Connect not available");
-    }
-
-    const results: NormalizedMetricPayload[] = [];
-
-    // Determine which metrics to fetch
-    let metricsToFetch: HealthMetric[];
-    if (selectedMetricKeys.includes("all")) {
-      // Fetch all available metrics
-      metricsToFetch = getAvailableMetricsForProvider("health_connect");
-    } else {
-      // Fetch only selected metrics
-      metricsToFetch = selectedMetricKeys
-        .map((key) => getMetricByKey(key))
-        .filter(
-          (metric): metric is HealthMetric =>
-            metric !== undefined && metric.healthConnect?.available === true
-        );
-    }
-
-    // Fetch samples for each metric
-    for (const metric of metricsToFetch) {
-      try {
-        if (!metric.healthConnect?.recordType) {
-          continue;
-        }
-
-        const recordType = metric.healthConnect.recordType;
-
-        // Special handling for blood pressure (systolic and diastolic)
-        if (
-          metric.key === "blood_pressure_systolic" ||
-          metric.key === "blood_pressure_diastolic"
-        ) {
-          // Fetch BloodPressureRecord and extract systolic/diastolic
-          const samples = await fetchMetricSamples(
-            "BloodPressureRecord",
-            startDate,
-            endDate
-          );
-
-          // Parse blood pressure values
-          const bpSamples: MetricSample[] = samples.map((sample) => {
-            const valueStr = String(sample.value);
-            const parts = valueStr.split("/");
-            if (parts.length === 2) {
-              const systolic = Number.parseFloat(parts[0]);
-              const diastolic = Number.parseFloat(parts[1]);
-              return {
-                value:
-                  metric.key === "blood_pressure_systolic"
-                    ? systolic
-                    : diastolic,
-                unit: sample.unit || "mmHg",
-                startDate: sample.startDate,
-                endDate: sample.endDate,
-                source: sample.source,
-              };
-            }
-            return sample;
-          });
-
-          if (bpSamples.length > 0) {
-            results.push({
-              metricKey: metric.key,
-              displayName: metric.displayName,
-              unit: metric.unit,
-              samples: bpSamples,
-              provider: "health_connect",
-            });
-          }
-        } else {
-          // Regular metric fetching
-          const samples = await fetchMetricSamples(
-            recordType,
-            startDate,
-            endDate
-          );
-
-          if (samples.length > 0) {
-            results.push({
-              metricKey: metric.key,
-              displayName: metric.displayName,
-              unit: metric.unit,
-              samples,
-              provider: "health_connect",
-            });
-          }
-        }
-      } catch (error: any) {
-        // Continue with other metrics even if one fails
-      }
-    }
-
-    return results;
-  } catch (error: any) {
-    throw error;
+  const availability = await checkAvailability();
+  if (!availability.available) {
+    throw new Error(availability.reason || "Health Connect not available");
   }
+
+  const metricsToFetch = resolveMetricsToFetch(selectedMetricKeys);
+  const results: NormalizedMetricPayload[] = [];
+
+  for (const metric of metricsToFetch) {
+    try {
+      const payload = await fetchMetricPayload(metric, startDate, endDate);
+      if (payload) {
+        results.push(payload);
+      }
+    } catch {
+      // Continue with other metrics even if one fails.
+    }
+  }
+
+  return results;
 };
 
 /**

@@ -27,10 +27,14 @@ import {
 } from "@/lib/health/healthMetricsCatalog";
 import { ouraService } from "@/lib/services/ouraService";
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Permissions screen intentionally combines selection UX, async loading, and localized rendering.
 export default function OuraPermissionsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme, isDark } = useTheme();
 
   const isRTL = i18n.language === "ar";
@@ -50,6 +54,7 @@ export default function OuraPermissionsScreen() {
   const [groups, setGroups] = useState<MetricGroup[]>([]);
 
   useEffect(() => {
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Load flow combines availability checks, preselection logic, and localized alerts.
     const loadMetrics = async () => {
       try {
         setLoading(true);
@@ -71,13 +76,13 @@ export default function OuraPermissionsScreen() {
         setGroups(allGroups);
 
         const preSelected = new Set<string>();
-        metrics
-          .filter((metric) => metric.oura?.available)
-          .slice(0, 5)
-          .forEach((metric) => preSelected.add(metric.key));
+        const available = metrics.filter((metric) => metric.oura?.available);
+        for (const metric of available.slice(0, 5)) {
+          preSelected.add(metric.key);
+        }
 
         setSelectedMetrics(preSelected);
-      } catch (error) {
+      } catch (_error) {
         Alert.alert(
           isRTL ? "خطأ" : "Error",
           isRTL
@@ -109,9 +114,13 @@ export default function OuraPermissionsScreen() {
     const newSelected = new Set(selectedMetrics);
 
     if (allSelected) {
-      groupMetrics.forEach((m) => newSelected.delete(m.key));
+      for (const m of groupMetrics) {
+        newSelected.delete(m.key);
+      }
     } else {
-      groupMetrics.forEach((m) => newSelected.add(m.key));
+      for (const m of groupMetrics) {
+        newSelected.add(m.key);
+      }
     }
 
     setSelectedMetrics(newSelected);
@@ -136,6 +145,7 @@ export default function OuraPermissionsScreen() {
     return selectedCount > 0 && selectedCount < groupMetrics.length;
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Connection flow includes validation, OAuth, and localized success/failure states.
   const handleConnect = async () => {
     if (selectedMetrics.size === 0) {
       Alert.alert(
@@ -163,10 +173,10 @@ export default function OuraPermissionsScreen() {
           },
         ]
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert(
         isRTL ? "فشل الربط" : "Connection Failed",
-        error.message ||
+        getErrorMessage(error, "") ||
           (isRTL ? "فشل في ربط خاتم أورا" : "Failed to connect Oura Ring")
       );
     } finally {
@@ -270,7 +280,9 @@ export default function OuraPermissionsScreen() {
         <View style={styles.metricsSection}>
           {groups.map((groupKey) => {
             const groupMetrics = getMetricsInGroup(groupKey);
-            if (groupMetrics.length === 0) return null;
+            if (groupMetrics.length === 0) {
+              return null;
+            }
 
             const groupFullySelected = isGroupFullySelected(groupKey);
             const groupPartiallySelected = isGroupPartiallySelected(groupKey);
@@ -289,9 +301,9 @@ export default function OuraPermissionsScreen() {
                         groupPartiallySelected && styles.checkboxPartial,
                       ]}
                     >
-                      {groupFullySelected && (
+                      {groupFullySelected ? (
                         <Check color="#FFFFFF" size={16} />
-                      )}
+                      ) : null}
                       {groupPartiallySelected && !groupFullySelected && (
                         <View style={styles.partialIndicator} />
                       )}
@@ -347,7 +359,7 @@ export default function OuraPermissionsScreen() {
                         >
                           {metric.displayName}
                         </Text>
-                        {metric.description && (
+                        {metric.description ? (
                           <Text
                             style={[
                               styles.metricDescription,
@@ -357,7 +369,7 @@ export default function OuraPermissionsScreen() {
                           >
                             {metric.description}
                           </Text>
-                        )}
+                        ) : null}
                       </View>
                     </TouchableOpacity>
                   </View>

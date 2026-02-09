@@ -22,7 +22,9 @@ export default function OfflineIndicator() {
   const isRTL = i18n.language === "ar";
 
   const checkStatus = useCallback(async () => {
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current) {
+      return;
+    }
     const status = await offlineService.getSyncStatus();
     if (isMountedRef.current) {
       setQueueLength(status.queueLength);
@@ -33,7 +35,9 @@ export default function OfflineIndicator() {
   // Memoize the network status change handler to ensure stable reference
   const handleNetworkStatusChange = useCallback(
     (online: boolean) => {
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       setIsOnline(online);
       if (online) {
         checkStatus();

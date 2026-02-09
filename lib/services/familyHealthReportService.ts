@@ -7,6 +7,7 @@ import type {
   Symptom,
   User,
 } from "@/types";
+import { safeFormatDate } from "@/utils/dateFormat";
 import { allergyService } from "./allergyService";
 import { healthScoreService } from "./healthScoreService";
 import { labResultService } from "./labResultService";
@@ -16,7 +17,6 @@ import { moodService } from "./moodService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import { symptomService } from "./symptomService";
 import { userService } from "./userService";
-import { safeFormatDate } from "@/utils/dateFormat";
 
 export interface ReportPrivacySettings {
   includeSymptoms: boolean;
@@ -119,7 +119,7 @@ class FamilyHealthReportService {
         members: memberReports,
         summary,
       };
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to generate family health report");
     }
   }
@@ -273,7 +273,7 @@ class FamilyHealthReportService {
    */
   private calculateFamilySummary(
     memberReports: FamilyMemberReport[],
-    settings: ReportPrivacySettings
+    _settings: ReportPrivacySettings
   ): FamilyHealthReport["summary"] {
     const totalMembers = memberReports.length;
     const averageHealthScore =
@@ -377,10 +377,10 @@ class FamilyHealthReportService {
   /**
    * Export report as JSON
    */
-  async exportReportAsJSON(report: FamilyHealthReport): Promise<string> {
+  exportReportAsJSON(report: FamilyHealthReport): string {
     try {
       // Custom replacer function to handle Date objects and other non-serializable values
-      const replacer = (key: string, value: any): any => {
+      const replacer = (_key: string, value: unknown): unknown => {
         // Handle Date objects
         if (value instanceof Date) {
           return value.toISOString();
@@ -421,7 +421,7 @@ class FamilyHealthReportService {
    */
   formatReportAsHTML(report: FamilyHealthReport, isRTL = false): string {
     // Helper function to safely format dates
-    const formatDate = (date: Date | string | any): string => {
+    const formatDate = (date: Date | string | unknown): string => {
       try {
         let dateObj: Date;
         if (date instanceof Date) {
@@ -452,7 +452,7 @@ class FamilyHealthReportService {
     };
 
     const direction = isRTL ? "rtl" : "ltr";
-    const textAlign = isRTL ? "right" : "left";
+    const _textAlign = isRTL ? "right" : "left";
 
     let html = `
       <!DOCTYPE html>
@@ -714,7 +714,7 @@ class FamilyHealthReportService {
     const lines: string[] = [];
 
     // Helper function to safely format dates
-    const formatDate = (date: Date | string | any): string => {
+    const formatDate = (date: Date | string | unknown): string => {
       try {
         let dateObj: Date;
         if (date instanceof Date) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
   CustomerInfo,
   PurchasesOffering,
@@ -9,7 +9,7 @@ import {
   type SubscriptionStatus,
 } from "@/lib/services/revenueCatService";
 
-export interface UseRevenueCatReturn {
+export type UseRevenueCatReturn = {
   isLoading: boolean;
   error: Error | null;
   customerInfo: CustomerInfo | null;
@@ -23,7 +23,7 @@ export interface UseRevenueCatReturn {
     packageToPurchase: PurchasesPackage
   ) => Promise<CustomerInfo>;
   restorePurchases: () => Promise<CustomerInfo>;
-}
+};
 
 /**
  * Hook to manage RevenueCat subscriptions
@@ -43,7 +43,7 @@ export function useRevenueCat(): UseRevenueCatReturn {
       productIdentifier: null,
     });
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -64,16 +64,17 @@ export function useRevenueCat(): UseRevenueCatReturn {
       const status = await revenueCatService.getSubscriptionStatus();
       setSubscriptionStatus(status);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("Unknown error");
-      setError(error);
+      const caughtError =
+        err instanceof Error ? err : new Error("Unknown error");
+      setError(caughtError);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const refreshCustomerInfo = async () => {
     try {
@@ -85,9 +86,10 @@ export function useRevenueCat(): UseRevenueCatReturn {
       const status = await revenueCatService.getSubscriptionStatus();
       setSubscriptionStatus(status);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("Unknown error");
-      setError(error);
-      throw error;
+      const caughtError =
+        err instanceof Error ? err : new Error("Unknown error");
+      setError(caughtError);
+      throw caughtError;
     }
   };
 
@@ -98,9 +100,10 @@ export function useRevenueCat(): UseRevenueCatReturn {
       const offeringsData = await revenueCatService.getOfferings(true);
       setOfferings(offeringsData);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("Unknown error");
-      setError(error);
-      throw error;
+      const caughtError =
+        err instanceof Error ? err : new Error("Unknown error");
+      setError(caughtError);
+      throw caughtError;
     }
   };
 
@@ -119,9 +122,10 @@ export function useRevenueCat(): UseRevenueCatReturn {
 
       return customerInfoData;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("Unknown error");
-      setError(error);
-      throw error;
+      const caughtError =
+        err instanceof Error ? err : new Error("Unknown error");
+      setError(caughtError);
+      throw caughtError;
     }
   };
 
@@ -137,9 +141,10 @@ export function useRevenueCat(): UseRevenueCatReturn {
 
       return customerInfoData;
     } catch (err) {
-      const error = err instanceof Error ? err : new Error("Unknown error");
-      setError(error);
-      throw error;
+      const caughtError =
+        err instanceof Error ? err : new Error("Unknown error");
+      setError(caughtError);
+      throw caughtError;
     }
   };
 

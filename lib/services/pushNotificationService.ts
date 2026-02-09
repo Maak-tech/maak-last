@@ -16,6 +16,7 @@ export interface PushNotificationData {
       | "medication_alert"
       | "emergency_alert"
       | "caregiver_alert"
+      | "family_update"
       | "vital_alert"
       | "escalation_alert";
     alertId?: string;
@@ -49,7 +50,7 @@ async function getAuthenticatedFunctions() {
     // Force token refresh to ensure we have a valid token
     try {
       await currentUser.getIdToken(true);
-    } catch (e) {
+    } catch (_e) {
       // Silently handle token refresh error
     }
   }
@@ -98,7 +99,7 @@ export const pushNotificationService = {
         },
         trigger: null, // Send immediately
       });
-    } catch (error) {
+    } catch (_error) {
       // Silently handle notification error
     }
   },
@@ -147,7 +148,7 @@ export const pushNotificationService = {
       );
 
       await Promise.all(notificationPromises);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle notification error
     }
   },
@@ -198,7 +199,7 @@ export const pushNotificationService = {
       );
 
       await Promise.all(notificationPromises);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle notification error
     }
   },
@@ -230,7 +231,7 @@ export const pushNotificationService = {
           .filter((m) => m.id !== userId)
           .map((m) => m.id);
 
-        const result = await sendPushFunc({
+        await sendPushFunc({
           userIds: memberIds,
           notification: {
             title: "🚨 Emergency: Fall Detected",
@@ -253,7 +254,7 @@ export const pushNotificationService = {
 
         return;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fallback to direct notification
     }
 
@@ -323,7 +324,7 @@ export const pushNotificationService = {
         });
         return;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fallback to direct notification
     }
 
@@ -408,7 +409,9 @@ export const pushNotificationService = {
     familyId?: string
   ): Promise<void> {
     // Only send for high severity symptoms
-    if (severity < 4 || !familyId) return;
+    if (severity < 4 || !familyId) {
+      return;
+    }
 
     try {
       // Try Cloud Function first (which now sends to admins)
@@ -422,10 +425,6 @@ export const pushNotificationService = {
           "sendSymptomAlert"
         );
 
-        // Get current user for senderId
-        const { auth } = await import("@/lib/firebase");
-        const currentUser = auth.currentUser;
-
         await sendSymptomAlertFunc({
           userId,
           userName,
@@ -434,7 +433,7 @@ export const pushNotificationService = {
         });
         return;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fallback to direct notification
     }
 
@@ -465,7 +464,7 @@ export const pushNotificationService = {
     title: string;
     body: string;
     actorUserId?: string; // user that triggered the update (to exclude from recipients if they are admin)
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
   }): Promise<void> {
     try {
       const isFCMAvailable = await fcmService.isFCMAvailable();
@@ -517,7 +516,7 @@ export const pushNotificationService = {
       data: {
         type: "caregiver_alert",
         ...options.data,
-      } as any,
+      },
       priority: "normal",
       sound: "default",
       notificationType: "family",
@@ -575,7 +574,7 @@ export const pushNotificationService = {
           deviceName: deviceInfo?.deviceName || `${Platform.OS} Device`,
         },
       });
-    } catch (error) {
+    } catch (_error) {
       // Silently handle token save error
       // Fallback to direct save
       await fcmService.saveFCMToken(token);

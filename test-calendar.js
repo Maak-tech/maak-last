@@ -1,18 +1,5 @@
 // Simple test script to check calendar functionality
-const { initializeApp } = require("firebase/app");
-const { getAuth, signInWithEmailAndPassword } = require("firebase/auth");
-const { getFirestore } = require("firebase/firestore");
-
-// Firebase config (you'll need to replace this with your actual config)
-const firebaseConfig = {
-  // Add your Firebase config here
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-async function testCalendarAdd() {
+function testCalendarAdd() {
   try {
     console.log("Testing calendar event addition...");
 

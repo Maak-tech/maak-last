@@ -6,6 +6,10 @@ import { Caption, Heading, Text } from "./Typography";
 import { colors, spacing } from "./theme";
 
 const MaakWelcomeScreen = () => {
+  const noop = () => {
+    // Intentionally no-op for static design preview interactions.
+  };
+
   return (
     <Container gradient gradientColors={[colors.primary, colors.primaryDark]}>
       <View style={styles.header}>
@@ -92,13 +96,13 @@ const MaakWelcomeScreen = () => {
       <View style={styles.buttonContainer}>
         <Button
           fullWidth
-          onPress={() => {}}
+          onPress={noop}
           style={styles.primaryButton}
           title="Get Started"
         />
         <Button
           fullWidth
-          onPress={() => {}}
+          onPress={noop}
           style={styles.outlineButton}
           title="Sign In"
           variant="outline"

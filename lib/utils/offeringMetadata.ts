@@ -10,12 +10,12 @@ import type { PurchasesOffering } from "react-native-purchases";
  * Supports both direct string values and localized objects
  */
 export function getLocalizedMetadataString(
-  metadata: Record<string, any> | undefined,
+  metadata: Record<string, unknown> | undefined,
   key: string,
   language = "en",
   fallback = ""
 ): string {
-  if (!(metadata && metadata[key])) {
+  if (!metadata?.[key]) {
     return fallback;
   }
 
@@ -53,11 +53,11 @@ export function getLocalizedMetadataString(
  * Get a string value from metadata (non-localized)
  */
 export function getMetadataString(
-  metadata: Record<string, any> | undefined,
+  metadata: Record<string, unknown> | undefined,
   key: string,
   fallback = ""
 ): string {
-  if (!(metadata && metadata[key])) {
+  if (!metadata?.[key]) {
     return fallback;
   }
 
@@ -69,7 +69,7 @@ export function getMetadataString(
  * Get a boolean value from metadata
  */
 export function getMetadataBoolean(
-  metadata: Record<string, any> | undefined,
+  metadata: Record<string, unknown> | undefined,
   key: string,
   fallback = false
 ): boolean {
@@ -85,7 +85,7 @@ export function getMetadataBoolean(
  * Get a number value from metadata
  */
 export function getMetadataNumber(
-  metadata: Record<string, any> | undefined,
+  metadata: Record<string, unknown> | undefined,
   key: string,
   fallback = 0
 ): number {
@@ -101,11 +101,11 @@ export function getMetadataNumber(
  * Get an array value from metadata
  */
 export function getMetadataArray<T>(
-  metadata: Record<string, any> | undefined,
+  metadata: Record<string, unknown> | undefined,
   key: string,
   fallback: T[] = []
 ): T[] {
-  if (!(metadata && metadata[key])) {
+  if (!metadata?.[key]) {
     return fallback;
   }
 
@@ -117,11 +117,11 @@ export function getMetadataArray<T>(
  * Get an object value from metadata
  */
 export function getMetadataObject<T>(
-  metadata: Record<string, any> | undefined,
+  metadata: Record<string, unknown> | undefined,
   key: string,
   fallback: T | null = null
 ): T | null {
-  if (!(metadata && metadata[key])) {
+  if (!metadata?.[key]) {
     return fallback;
   }
 
@@ -135,8 +135,8 @@ export function getMetadataObject<T>(
  * Extract all metadata from an offering with type-safe helpers
  */
 export class OfferingMetadata {
-  private metadata: Record<string, any>;
-  private language: string;
+  private readonly metadata: Record<string, unknown>;
+  private readonly language: string;
 
   constructor(offering: PurchasesOffering | null | undefined, language = "en") {
     this.metadata = offering?.metadata || {};
@@ -193,7 +193,7 @@ export class OfferingMetadata {
   /**
    * Get the raw metadata object
    */
-  getRaw(): Record<string, any> {
+  getRaw(): Record<string, unknown> {
     return this.metadata;
   }
 }

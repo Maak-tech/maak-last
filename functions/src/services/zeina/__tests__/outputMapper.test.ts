@@ -2,6 +2,7 @@
  * Unit tests for Zeina output mapper
  * Tests deterministic mapping from AI output to backend actions
  */
+/* biome-ignore-all lint/correctness/noUndeclaredVariables: Jest globals (describe/it/expect) are provided by test runtime. */
 
 import { formatForAudit, mapToBackendActions } from "../outputMapper";
 import {

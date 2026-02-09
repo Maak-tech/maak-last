@@ -18,7 +18,7 @@ import {
 import { paywallGuard } from "@/lib/utils/paywallGuard";
 import { RevenueCatPaywall } from "./RevenueCatPaywall";
 
-interface FeatureGateProps {
+type FeatureGateProps = {
   /** Feature ID to check access for */
   featureId: FeatureId;
   /** Children to render if user has access */
@@ -29,7 +29,7 @@ interface FeatureGateProps {
   showUpgradePrompt?: boolean;
   /** Custom message to show when access is denied */
   customMessage?: string;
-}
+};
 
 /**
  * FeatureGate Component
@@ -42,8 +42,7 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
   showUpgradePrompt = true,
   customMessage,
 }) => {
-  const { hasAccess, needsUpgrade, feature, isLoading } =
-    useFeatureGate(featureId);
+  const { hasAccess, feature, isLoading } = useFeatureGate(featureId);
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
   const { refreshCustomerInfo } = useRevenueCat();
@@ -65,7 +64,16 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
     return <>{children}</>;
   }
 
+  const getFeatureDisplayName = () => {
+    if (feature) {
+      return featureGateService.getFeatureDisplayName(featureId, isRTL);
+    }
+
+    return isRTL ? "هذه الميزة" : "This feature";
+  };
+
   // User doesn't have access
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Paywall flow includes guarded modal and fallback alert handling.
   const handleUpgradePress = () => {
     // Prevent showing paywall if one is already showing globally
     if (!paywallGuard.tryShowPaywall()) {
@@ -75,11 +83,7 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
     if (showUpgradePrompt) {
       setShowPaywall(true);
     } else {
-      const featureDisplayName = feature
-        ? featureGateService.getFeatureDisplayName(featureId, isRTL)
-        : isRTL
-          ? "هذه الميزة"
-          : "This feature";
+      const featureDisplayName = getFeatureDisplayName();
       Alert.alert(
         isRTL ? "ميزة مميزة" : "Premium Feature",
         customMessage ||
@@ -150,7 +154,7 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
         visible={showPaywall}
       >
         <RevenueCatPaywall
-          onDismiss={async () => {
+          onDismiss={() => {
             paywallGuard.hidePaywall();
             setShowPaywall(false);
           }}
@@ -158,7 +162,7 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
             // Refresh subscription status after purchase
             try {
               await refreshCustomerInfo();
-            } catch (err) {
+            } catch (_err) {
               // Error is already handled by the hook
             }
             paywallGuard.hidePaywall();
@@ -180,12 +184,15 @@ export function useFeatureAccess(featureId: FeatureId) {
   const { i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
 
+  const getFeatureDisplayName = () => {
+    if (feature) {
+      return featureGateService.getFeatureDisplayName(featureId, isRTL);
+    }
+    return isRTL ? "هذه الميزة" : "This feature";
+  };
+
   const showUpgradeAlert = (customMessage?: string) => {
-    const featureDisplayName = feature
-      ? featureGateService.getFeatureDisplayName(featureId, isRTL)
-      : isRTL
-        ? "هذه الميزة"
-        : "This feature";
+    const featureDisplayName = getFeatureDisplayName();
     Alert.alert(
       isRTL ? "ميزة مميزة" : "Premium Feature",
       customMessage ||

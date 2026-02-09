@@ -5,7 +5,7 @@ import { Caption, Heading, Text } from "@/components/design-system/Typography";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { TimeSeriesData } from "@/lib/services/chartsService";
 
-interface HealthChartProps {
+type HealthChartProps = {
   data: TimeSeriesData;
   title: string;
   yAxisLabel?: string;
@@ -13,7 +13,7 @@ interface HealthChartProps {
   height?: number;
   showLegend?: boolean;
   showGrid?: boolean;
-}
+};
 
 export default function HealthChart({
   data,
@@ -62,19 +62,13 @@ export default function HealthChart({
     })),
   };
 
-  // Calculate max value for better scaling
-  const maxValue = Math.max(
-    ...chartData.datasets.flatMap((dataset) => dataset.data),
-    1
-  );
-
   return (
     <View style={{ marginVertical: 16 }}>
-      {title && (
+      {title ? (
         <Heading level={6} style={{ marginBottom: 8, paddingHorizontal: 16 }}>
           {title}
         </Heading>
-      )}
+      ) : null}
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 16 }}
         horizontal
@@ -141,9 +135,9 @@ export default function HealthChart({
               >
                 {chartData.labels[selectedIndex]}
               </Text>
-              {chartData.datasets.map((dataset, idx) => (
+              {chartData.datasets.map((dataset) => (
                 <Text
-                  key={idx}
+                  key={`${dataset.strokeWidth ?? 2}-${dataset.data.join(",")}`}
                   style={{
                     fontSize: 11,
                     color: theme.colors.text.secondary,
@@ -171,7 +165,7 @@ export default function HealthChart({
         >
           {chartData.datasets.map((dataset, index) => (
             <View
-              key={index}
+              key={`legend-${dataset.strokeWidth ?? 2}-${dataset.data.join(",")}`}
               style={{
                 flexDirection: "row",
                 alignItems: "center",

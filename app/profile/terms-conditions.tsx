@@ -1,3 +1,6 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Large screen composed of multiple localized UI states. */
+/* biome-ignore-all lint/correctness/noNestedComponentDefinitions: Local section renderer intentionally captures `isRTL`. */
+/* biome-ignore-all lint/style/noNestedTernary: State rendering is explicit and localized. */
 import { useNavigation, useRouter } from "expo-router";
 import {
   AlertTriangle,
@@ -7,7 +10,7 @@ import {
   Info,
   Shield,
 } from "lucide-react-native";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -44,12 +47,7 @@ export default function TermsConditionsScreen() {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    loadTermsAndConditions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadTermsAndConditions = async () => {
+  const loadTermsAndConditions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -65,7 +63,11 @@ export default function TermsConditionsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isRTL]);
+
+  useEffect(() => {
+    loadTermsAndConditions();
+  }, [loadTermsAndConditions]);
 
   const getSectionIcon = (title: string) => {
     if (
@@ -157,7 +159,7 @@ export default function TermsConditionsScreen() {
             ]}
           >
             <View
-              style={[styles.sectionIcon, { backgroundColor: color + "20" }]}
+              style={[styles.sectionIcon, { backgroundColor: `${color}20` }]}
             >
               <Icon color={color} size={20} />
             </View>
@@ -248,7 +250,7 @@ export default function TermsConditionsScreen() {
                   ? "يرجى قراءة هذه الشروط والأحكام بعناية قبل استخدام تطبيق معك. باستخدامك للتطبيق، فإنك توافق على الالتزام بهذه الشروط."
                   : "Please read these terms and conditions carefully before using the Maak app. By using the app, you agree to be bound by these terms."}
               </Text>
-              {document.lastUpdated && (
+              {document.lastUpdated ? (
                 <View style={styles.lastUpdated}>
                   <Calendar color="#64748B" size={16} />
                   <Text
@@ -262,7 +264,7 @@ export default function TermsConditionsScreen() {
                       : `Last Updated: ${document.lastUpdated}`}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
 
             {/* Document Sections */}

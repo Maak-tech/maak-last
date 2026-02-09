@@ -24,7 +24,7 @@ export type HealthProvider =
   | "dexcom"
   | "freestyle_libre";
 
-export interface HealthMetric {
+export type HealthMetric = {
   key: string;
   displayName: string;
   group: MetricGroup;
@@ -73,7 +73,7 @@ export interface HealthMetric {
     available: boolean;
     scope: string; // Freestyle Libre OAuth scope
   };
-}
+};
 
 /**
  * Complete catalog of health metrics
@@ -946,12 +946,12 @@ export const getAllGroups = (): MetricGroup[] => [
  */
 export const getFitbitScopesForMetrics = (metricKeys: string[]): string[] => {
   const scopes = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.fitbit?.scope) {
       scopes.add(metric.fitbit.scope);
     }
-  });
+  }
   return Array.from(scopes);
 };
 
@@ -962,12 +962,12 @@ export const getSamsungHealthScopesForMetrics = (
   metricKeys: string[]
 ): string[] => {
   const scopes = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.samsungHealth?.scope) {
       scopes.add(metric.samsungHealth.scope);
     }
-  });
+  }
   return Array.from(scopes);
 };
 
@@ -976,12 +976,12 @@ export const getSamsungHealthScopesForMetrics = (
  */
 export const getGarminScopesForMetrics = (metricKeys: string[]): string[] => {
   const scopes = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.garmin?.scope) {
       scopes.add(metric.garmin.scope);
     }
-  });
+  }
   return Array.from(scopes);
 };
 
@@ -990,12 +990,12 @@ export const getGarminScopesForMetrics = (metricKeys: string[]): string[] => {
  */
 export const getWithingsScopesForMetrics = (metricKeys: string[]): string[] => {
   const scopes = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.withings?.scope) {
       scopes.add(metric.withings.scope);
     }
-  });
+  }
   return Array.from(scopes);
 };
 
@@ -1004,12 +1004,12 @@ export const getWithingsScopesForMetrics = (metricKeys: string[]): string[] => {
  */
 export const getOuraScopesForMetrics = (metricKeys: string[]): string[] => {
   const scopes = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.oura?.scope) {
       scopes.add(metric.oura.scope);
     }
-  });
+  }
   return Array.from(scopes);
 };
 
@@ -1018,12 +1018,12 @@ export const getOuraScopesForMetrics = (metricKeys: string[]): string[] => {
  */
 export const getDexcomScopesForMetrics = (metricKeys: string[]): string[] => {
   const scopes = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.dexcom?.scope) {
       scopes.add(metric.dexcom.scope);
     }
-  });
+  }
   return Array.from(scopes);
 };
 
@@ -1034,12 +1034,12 @@ export const getFreestyleLibreScopesForMetrics = (
   metricKeys: string[]
 ): string[] => {
   const scopes = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.freestyleLibre?.scope) {
       scopes.add(metric.freestyleLibre.scope);
     }
-  });
+  }
   return Array.from(scopes);
 };
 
@@ -1050,11 +1050,11 @@ export const getHealthConnectPermissionsForMetrics = (
   metricKeys: string[]
 ): string[] => {
   const permissions = new Set<string>();
-  metricKeys.forEach((key) => {
+  for (const key of metricKeys) {
     const metric = getMetricByKey(key);
     if (metric?.healthConnect?.permission) {
       permissions.add(metric.healthConnect.permission);
     }
-  });
+  }
   return Array.from(permissions);
 };

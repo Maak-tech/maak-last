@@ -13,7 +13,7 @@ import {
   Volume2,
 } from "lucide-react-native";
 import type React from "react";
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -31,7 +31,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { pushNotificationService } from "@/lib/services/pushNotificationService";
 import { userService } from "@/lib/services/userService";
 
-interface NotificationSettings {
+type NotificationSettings = {
   enabled: boolean;
   fallAlerts: boolean;
   wellnessCheckins: boolean;
@@ -43,8 +43,9 @@ interface NotificationSettings {
   quietHoursEnd: string;
   sound: boolean;
   vibration: boolean;
-}
+};
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: settings screen intentionally keeps related notification flows together.
 export default function NotificationSettingsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -80,12 +81,10 @@ export default function NotificationSettingsScreen() {
     });
   }, [navigation]);
 
-  useEffect(() => {
-    loadSettings();
-  }, [user]);
-
-  const loadSettings = async () => {
-    if (!user) return;
+  const loadSettings = useCallback(async () => {
+    if (!user) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -93,20 +92,26 @@ export default function NotificationSettingsScreen() {
       if (userData?.preferences?.notifications) {
         const notificationPrefs = userData.preferences
           .notifications as unknown as NotificationSettings;
-        setSettings({
-          ...settings,
+        setSettings((previousSettings) => ({
+          ...previousSettings,
           ...notificationPrefs,
-        });
+        }));
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleSaveSettings = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
       setSaving(true);
@@ -125,7 +130,7 @@ export default function NotificationSettingsScreen() {
       await userService.updateUser(user.id, {
         preferences: {
           ...user.preferences,
-          notifications: settings as any,
+          notifications: settings as unknown as never,
         },
       });
 
@@ -137,7 +142,7 @@ export default function NotificationSettingsScreen() {
         ),
         [{ text: t("ok", "OK") }]
       );
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
       Alert.alert(
         t("error", "Error"),
@@ -148,6 +153,7 @@ export default function NotificationSettingsScreen() {
     }
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: cancellation branches intentionally mirror product behavior per setting.
   const toggleSetting = async (key: keyof NotificationSettings) => {
     const newValue = !settings[key];
     setSettings((prev) => ({
@@ -159,7 +165,7 @@ export default function NotificationSettingsScreen() {
     if (key === "medicationReminders" && newValue === false) {
       try {
         await cancelAllMedicationNotifications();
-      } catch (error) {
+      } catch (_error) {
         // Silently handle error - user can manually clear if needed
       }
     }
@@ -168,7 +174,7 @@ export default function NotificationSettingsScreen() {
     if (key === "enabled" && newValue === false) {
       try {
         await cancelAllMedicationNotifications();
-      } catch (error) {
+      } catch (_error) {
         // Silently handle error
       }
     }
@@ -185,7 +191,10 @@ export default function NotificationSettingsScreen() {
           const allScheduled =
             await Notifications.getAllScheduledNotificationsAsync();
 
-          for (const notification of allScheduled as any[]) {
+          for (const notification of allScheduled as Array<{
+            identifier: string;
+            content?: { data?: { type?: unknown } };
+          }>) {
             const data = notification?.content?.data;
             const dataType = typeof data?.type === "string" ? data.type : "";
             const isCheckin =
@@ -210,13 +219,19 @@ export default function NotificationSettingsScreen() {
     }
   };
 
-  const renderToggleItem = (
-    icon: React.ReactNode,
-    title: string,
-    subtitle: string,
-    settingKey: keyof NotificationSettings,
-    color = "#2563EB"
-  ) => (
+  const renderToggleItem = ({
+    icon,
+    title,
+    subtitle,
+    settingKey,
+    color = "#2563EB",
+  }: {
+    icon: React.ReactNode;
+    title: string;
+    subtitle: string;
+    settingKey: keyof NotificationSettings;
+    color?: string;
+  }) => (
     <View style={styles.settingItem}>
       <View style={styles.settingLeft}>
         <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
@@ -334,54 +349,60 @@ export default function NotificationSettingsScreen() {
             {t("notificationTypes", "Notification Types")}
           </Text>
 
-          {renderToggleItem(
-            <AlertTriangle color="#EF4444" size={20} />,
-            t("fallAlerts", "Fall Alerts"),
-            t(
+          {renderToggleItem({
+            icon: <AlertTriangle color="#EF4444" size={20} />,
+            title: t("fallAlerts", "Fall Alerts"),
+            subtitle: t(
               "immediateNotificationsWhenFallDetected",
               "Immediate notifications when a fall is detected"
             ),
-            "fallAlerts",
-            "#EF4444"
-          )}
+            settingKey: "fallAlerts",
+            color: "#EF4444",
+          })}
 
-          {renderToggleItem(
-            <Bell color="#2563EB" size={20} />,
-            t("wellnessCheckins", "Wellness Check-ins"),
-            t("lightDailyCheckins", "Light daily check-ins to track wellbeing"),
-            "wellnessCheckins",
-            "#2563EB"
-          )}
+          {renderToggleItem({
+            icon: <Bell color="#2563EB" size={20} />,
+            title: t("wellnessCheckins", "Wellness Check-ins"),
+            subtitle: t(
+              "lightDailyCheckins",
+              "Light daily check-ins to track wellbeing"
+            ),
+            settingKey: "wellnessCheckins",
+            color: "#2563EB",
+          })}
 
-          {renderToggleItem(
-            <Pill color="#10B981" size={20} />,
-            t("medicationReminders", "Medication Reminders"),
-            t("remindersAtMedicationTimes", "Reminders at medication times"),
-            "medicationReminders",
-            "#10B981"
-          )}
+          {renderToggleItem({
+            icon: <Pill color="#10B981" size={20} />,
+            title: t("medicationReminders", "Medication Reminders"),
+            subtitle: t(
+              "remindersAtMedicationTimes",
+              "Reminders at medication times"
+            ),
+            settingKey: "medicationReminders",
+            color: "#10B981",
+          })}
 
-          {renderToggleItem(
-            <Heart color="#F59E0B" size={20} />,
-            t("symptomAlerts", "Symptom Alerts"),
-            t(
+          {renderToggleItem({
+            icon: <Heart color="#F59E0B" size={20} />,
+            title: t("symptomAlerts", "Symptom Alerts"),
+            subtitle: t(
               "notificationsForSevereSymptoms",
               "Notifications for severe symptoms"
             ),
-            "symptomAlerts",
-            "#F59E0B"
-          )}
+            settingKey: "symptomAlerts",
+            color: "#F59E0B",
+          })}
 
-          {renderToggleItem(
-            <Users color="#8B5CF6" size={20} />,
-            t("familyUpdates", "Family Updates"),
-            t(
+          {renderToggleItem({
+            icon: <Users color="#8B5CF6" size={20} />,
+            title: t("familyUpdates", "Family Updates"),
+            subtitle: t(
               "notificationsAboutFamilyActivities",
               "Notifications about family member activities"
             ),
-            "familyUpdates",
-            "#8B5CF6"
-          )}
+            settingKey: "familyUpdates",
+            color: "#8B5CF6",
+          })}
         </View>
 
         {/* Alert Preferences */}
@@ -390,22 +411,25 @@ export default function NotificationSettingsScreen() {
             {t("alertPreferences", "Alert Preferences")}
           </Text>
 
-          {renderToggleItem(
-            <Volume2 color="#2563EB" size={20} />,
-            t("sound", "Sound"),
-            t("playSoundWithNotifications", "Play sound with notifications"),
-            "sound"
-          )}
+          {renderToggleItem({
+            icon: <Volume2 color="#2563EB" size={20} />,
+            title: t("sound", "Sound"),
+            subtitle: t(
+              "playSoundWithNotifications",
+              "Play sound with notifications"
+            ),
+            settingKey: "sound",
+          })}
 
-          {renderToggleItem(
-            <Smartphone color="#2563EB" size={20} />,
-            t("vibration", "Vibration"),
-            t(
+          {renderToggleItem({
+            icon: <Smartphone color="#2563EB" size={20} />,
+            title: t("vibration", "Vibration"),
+            subtitle: t(
               "vibrateDeviceWithNotifications",
               "Vibrate device with notifications"
             ),
-            "vibration"
-          )}
+            settingKey: "vibration",
+          })}
         </View>
 
         {/* Quiet Hours */}
@@ -414,18 +438,18 @@ export default function NotificationSettingsScreen() {
             {t("quietHours", "Quiet Hours")}
           </Text>
 
-          {renderToggleItem(
-            <Clock color="#6B7280" size={20} />,
-            t("enableQuietHours", "Enable Quiet Hours"),
-            t(
+          {renderToggleItem({
+            icon: <Clock color="#6B7280" size={20} />,
+            title: t("enableQuietHours", "Enable Quiet Hours"),
+            subtitle: t(
               "pauseNonUrgentNotifications",
               "Pause non-urgent notifications during specific hours"
             ),
-            "quietHoursEnabled",
-            "#6B7280"
-          )}
+            settingKey: "quietHoursEnabled",
+            color: "#6B7280",
+          })}
 
-          {settings.quietHoursEnabled && (
+          {settings.quietHoursEnabled ? (
             <View style={styles.quietHoursSettings}>
               <View style={styles.timeRow}>
                 <Text
@@ -450,7 +474,7 @@ export default function NotificationSettingsScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
 
         {/* Clear Notifications */}
@@ -460,7 +484,7 @@ export default function NotificationSettingsScreen() {
           </Text>
 
           <TouchableOpacity
-            onPress={async () => {
+            onPress={() => {
               Alert.alert(
                 t("clearNotifications", "Clear Notifications"),
                 t(
@@ -496,7 +520,7 @@ export default function NotificationSettingsScreen() {
                               ),
                           [{ text: t("ok", "OK") }]
                         );
-                      } catch (error) {
+                      } catch (_error) {
                         Alert.alert(
                           t("error", "Error"),
                           t(
@@ -520,11 +544,13 @@ export default function NotificationSettingsScreen() {
             </Text>
           </TouchableOpacity>
 
-          {isAdmin && user?.familyId && (
+          {isAdmin && user?.familyId ? (
             <TouchableOpacity
               onPress={async () => {
                 try {
-                  if (!user.familyId) return;
+                  if (!user.familyId) {
+                    return;
+                  }
                   await pushNotificationService.sendFamilyUpdateToAdmins({
                     familyId: user.familyId,
                     actorUserId: user.id,
@@ -567,7 +593,7 @@ export default function NotificationSettingsScreen() {
                   : "Send Family Update (Admin Test)"}
               </Text>
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         {/* Info Card */}

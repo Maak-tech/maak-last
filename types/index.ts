@@ -6,13 +6,13 @@ export type AvatarType =
   | "grandma"
   | "grandpa";
 
-export interface EmergencyContact {
+export type EmergencyContact = {
   id: string;
   name: string;
   phone: string;
-}
+};
 
-export interface User {
+export type User = {
   id: string;
   email?: string;
   phoneNumber?: string;
@@ -31,9 +31,9 @@ export interface User {
     notifications: boolean;
     emergencyContacts: EmergencyContact[];
   };
-}
+};
 
-export interface Symptom {
+export type Symptom = {
   id: string;
   userId: string;
   type: string;
@@ -43,7 +43,7 @@ export interface Symptom {
   location?: string;
   triggers?: string[];
   tags?: string[]; // User-defined tags for organization
-}
+};
 
 export type MoodType =
   // Positive emotions
@@ -79,7 +79,7 @@ export type MoodType =
   | "tired"
   | "stressed";
 
-export interface Mood {
+export type Mood = {
   id: string;
   userId: string;
   mood: MoodType;
@@ -87,9 +87,9 @@ export interface Mood {
   notes?: string;
   timestamp: Date;
   activities?: string[];
-}
+};
 
-export interface Medication {
+export type Medication = {
   id: string;
   userId: string;
   name: string;
@@ -106,17 +106,17 @@ export interface Medication {
   lastRefillDate?: Date; // Date when medication was last refilled
   refillReminderDays?: number; // Days before running out to send reminder (default: 7)
   tags?: string[]; // User-defined tags for organization
-}
+};
 
-export interface MedicationReminder {
+export type MedicationReminder = {
   id: string;
   time: string;
   taken: boolean;
-  takenAt?: Date | any; // Can be Date or Firestore Timestamp
+  takenAt?: Date | unknown; // Can be Date or Firestore Timestamp
   takenBy?: string;
-}
+};
 
-export interface MedicalHistory {
+export type MedicalHistory = {
   id: string;
   userId: string;
   condition: string;
@@ -128,9 +128,9 @@ export interface MedicalHistory {
   familyMemberId?: string; // ID of the family member this record belongs to
   familyMemberName?: string; // Name of the family member for display
   tags?: string[]; // User-defined tags for organization
-}
+};
 
-export interface Allergy {
+export type Allergy = {
   id: string;
   userId: string;
   name: string;
@@ -139,9 +139,9 @@ export interface Allergy {
   notes?: string;
   discoveredDate?: Date;
   timestamp: Date;
-}
+};
 
-export interface FamilyMember {
+export type FamilyMember = {
   id: string;
   name: string;
   relation: string;
@@ -150,9 +150,9 @@ export interface FamilyMember {
   inviteStatus: "pending" | "accepted" | "none";
   lastActive?: Date;
   healthScore?: number;
-}
+};
 
-export interface LabResult {
+export type LabResult = {
   id: string;
   userId: string;
   testName: string;
@@ -164,18 +164,18 @@ export interface LabResult {
   notes?: string;
   attachments?: string[]; // URLs to PDFs or images
   tags?: string[];
-}
+};
 
-export interface LabResultValue {
+export type LabResultValue = {
   name: string; // e.g., "Glucose", "Cholesterol", "Hemoglobin"
   value: number | string; // Can be numeric or text (e.g., "Negative", "Positive")
   unit?: string; // e.g., "mg/dL", "mmol/L", "%"
   referenceRange?: string; // e.g., "70-100 mg/dL"
   status?: "normal" | "high" | "low" | "abnormal" | "critical";
   flagged?: boolean; // Whether this result was flagged by the lab
-}
+};
 
-export interface VitalSign {
+export type VitalSign = {
   id: string;
   userId: string;
   type: "heartRate" | "bloodPressure" | "temperature" | "weight" | "bloodSugar";
@@ -183,9 +183,9 @@ export interface VitalSign {
   unit: string;
   timestamp: Date;
   source: "manual" | "device" | "clinic";
-}
+};
 
-export interface EmergencyAlert {
+export type EmergencyAlert = {
   id: string;
   userId: string;
   type:
@@ -203,9 +203,9 @@ export interface EmergencyAlert {
   resolvedAt?: Date;
   resolvedBy?: string;
   metadata?: Record<string, unknown>;
-}
+};
 
-export interface MedicationInteractionAlert {
+export type MedicationInteractionAlert = {
   id: string;
   userId: string;
   type: "medication_interaction" | "new_medication_interaction";
@@ -218,9 +218,9 @@ export interface MedicationInteractionAlert {
   timestamp: Date;
   acknowledged: boolean;
   actionable: boolean;
-}
+};
 
-export interface FamilyInvitationCode {
+export type FamilyInvitationCode = {
   id: string;
   code: string;
   familyId: string;
@@ -232,16 +232,16 @@ export interface FamilyInvitationCode {
   expiresAt: Date;
   usedAt?: Date;
   usedBy?: string; // userId who used the code
-}
+};
 
-export interface Family {
+export type Family = {
   id: string;
   name: string;
   createdBy: string;
   members: string[]; // array of user IDs
   status: "active" | "inactive";
   createdAt: Date;
-}
+};
 
 export type CalendarEventType =
   | "appointment"
@@ -260,7 +260,7 @@ export type RecurrencePattern =
   | "yearly"
   | "custom";
 
-export interface CalendarEvent {
+export type CalendarEvent = {
   id: string;
   userId: string;
   familyId?: string; // If set, event is shared with family
@@ -285,4 +285,4 @@ export interface CalendarEvent {
   tags?: string[];
   createdAt: Date;
   updatedAt: Date;
-}
+};

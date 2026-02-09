@@ -56,6 +56,34 @@ const normalizeEmergencyContacts = (
   return contacts;
 };
 
+const getErrorCode = (error: unknown): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
+    return error.code;
+  }
+
+  return "";
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Unknown error";
+};
+
 export const userService = {
   // Get user by ID
   async getUser(userId: string): Promise<User | null> {
@@ -95,20 +123,20 @@ export const userService = {
         createdAt: Timestamp.fromDate(userData.createdAt),
       };
       await setDoc(doc(db, "users", userId), userDocData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Provide more specific error messages
-      if (error?.code === "permission-denied") {
+      if (getErrorCode(error) === "permission-denied") {
         throw new Error(
           "Permission denied. Please check your Firestore security rules."
         );
       }
-      if (error?.code === "unavailable") {
+      if (getErrorCode(error) === "unavailable") {
         throw new Error(
           "Firestore is unavailable. Please check your internet connection."
         );
       }
-      if (error?.message) {
-        throw new Error(`Failed to create user: ${error.message}`);
+      if (getErrorMessage(error)) {
+        throw new Error(`Failed to create user: ${getErrorMessage(error)}`);
       }
       throw error;
     }
@@ -129,11 +157,13 @@ export const userService = {
         const updates: Partial<User> = {};
 
         // Migrate old name field if needed
+        const legacyName = (existingUser as { name?: unknown }).name;
         if (
           !(existingUser.firstName || existingUser.lastName) &&
-          (existingUser as any).name
+          typeof legacyName === "string" &&
+          legacyName
         ) {
-          const nameParts = ((existingUser as any).name as string).split(" ");
+          const nameParts = legacyName.split(" ");
           const migratedFirstName = nameParts[0] || "User";
           const migratedLastName = nameParts.slice(1).join(" ") || "";
           updates.firstName = migratedFirstName;
@@ -231,7 +261,7 @@ export const userService = {
   // Update user
   async updateUser(userId: string, updates: Partial<User>): Promise<void> {
     try {
-      const updateData: any = { ...updates };
+      const updateData: Record<string, unknown> = { ...updates };
       if (updates.createdAt) {
         updateData.createdAt = Timestamp.fromDate(updates.createdAt);
       }
@@ -262,14 +292,14 @@ export const userService = {
       const querySnapshot = await getDocs(q);
       const members: User[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         const preferences = data.preferences || {};
         const normalizedContacts = normalizeEmergencyContacts(
           preferences.emergencyContacts
         );
         members.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
           preferences: {
@@ -359,7 +389,7 @@ export const userService = {
           });
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Don't throw error here - joining new family is more important
     }
   },
@@ -396,7 +426,7 @@ export const userService = {
     try {
       const user = await this.getUser(userId);
       return user?.role === "admin";
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -406,7 +436,7 @@ export const userService = {
     try {
       const user = await this.getUser(userId);
       return user?.role === "admin" || user?.role === "caregiver";
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -459,10 +489,10 @@ export const userService = {
       const querySnapshot = await getDocs(q);
       const caregivers: User[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         caregivers.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           createdAt: data.createdAt?.toDate() || new Date(),
         } as User);
@@ -501,9 +531,9 @@ export const userService = {
             members: updatedMembers,
           });
         }
-      } catch (familyError: any) {
+      } catch (familyError: unknown) {
         throw new Error(
-          `Failed to update family: ${familyError?.code || familyError?.message}`
+          `Failed to update family: ${getErrorCode(familyError) || getErrorMessage(familyError)}`
         );
       }
 
@@ -514,15 +544,15 @@ export const userService = {
           familyId: null,
           role: "admin", // They become admin of their own (empty) account
         });
-      } catch (userError: any) {
+      } catch (userError: unknown) {
         // If permission denied, provide more context
-        if (userError?.code === "permission-denied") {
+        if (getErrorCode(userError) === "permission-denied") {
           throw new Error(
             "Permission denied: Admin cannot update family member. Check Firestore rules."
           );
         }
         throw new Error(
-          `Failed to update user: ${userError?.code || userError?.message}`
+          `Failed to update user: ${getErrorCode(userError) || getErrorMessage(userError)}`
         );
       }
     } catch (error) {

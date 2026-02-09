@@ -1,11 +1,19 @@
 import { User } from "lucide-react-native";
 import type React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { AvatarType } from "@/types";
 import { getTextStyle } from "@/utils/styles";
 
-interface AvatarProps {
+type AvatarProps = {
   source?: string | { uri: string };
   name?: string;
   avatarType?: AvatarType;
@@ -13,8 +21,8 @@ interface AvatarProps {
   onPress?: () => void;
   showBadge?: boolean;
   badgeColor?: string;
-  style?: any;
-}
+  style?: StyleProp<ViewStyle>;
+};
 
 export const Avatar: React.FC<AvatarProps> = ({
   source,
@@ -39,8 +47,15 @@ export const Avatar: React.FC<AvatarProps> = ({
   const currentSize = sizes[size];
 
   // Extract width/height from style prop if provided, otherwise use size-based dimensions
-  const styleWidth = (style as any)?.width;
-  const styleHeight = (style as any)?.height;
+  const flattenedStyle = StyleSheet.flatten(style);
+  const styleWidth =
+    typeof flattenedStyle?.width === "number"
+      ? flattenedStyle.width
+      : undefined;
+  const styleHeight =
+    typeof flattenedStyle?.height === "number"
+      ? flattenedStyle.height
+      : undefined;
   const effectiveWidth = styleWidth ?? currentSize.width;
   const effectiveHeight = styleHeight ?? currentSize.height;
   const effectiveBorderRadius = Math.min(effectiveWidth, effectiveHeight) / 2;
@@ -63,10 +78,12 @@ export const Avatar: React.FC<AvatarProps> = ({
     return avatarEmojis[type];
   };
 
-  const getInitials = (name?: string): string => {
-    if (!name) return "?";
+  const getInitials = (fullName?: string): string => {
+    if (!fullName) {
+      return "?";
+    }
     // Get the first letter of the name (handles both single and multiple words)
-    const firstLetter = name.trim()[0]?.toUpperCase() || "?";
+    const firstLetter = fullName.trim()[0]?.toUpperCase() || "?";
     return firstLetter;
   };
 
@@ -133,7 +150,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   const avatar = (
     <View style={[avatarStyle, style]}>
       {renderContent()}
-      {showBadge && (
+      {showBadge ? (
         <View
           style={[
             styles.badge,
@@ -147,7 +164,7 @@ export const Avatar: React.FC<AvatarProps> = ({
             },
           ]}
         />
-      )}
+      ) : null}
     </View>
   );
 

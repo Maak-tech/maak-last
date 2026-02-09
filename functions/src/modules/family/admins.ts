@@ -3,7 +3,7 @@
  * Functions for retrieving and managing family administrators
  */
 
-import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
 
 /**
@@ -24,7 +24,7 @@ export async function getFamilyAdmins(
   });
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const usersSnapshot = await db
       .collection("users")
       .where("familyId", "==", familyId)

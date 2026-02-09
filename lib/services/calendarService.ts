@@ -14,6 +14,13 @@ import {
 import { db } from "@/lib/firebase";
 import type { CalendarEvent } from "@/types";
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Unknown error";
+};
+
 class CalendarService {
   /**
    * Add a new calendar event
@@ -24,7 +31,7 @@ class CalendarService {
   ): Promise<string> {
     try {
       // Filter out undefined values - Firestore doesn't accept undefined
-      const cleanedEvent: any = {
+      const cleanedEvent: Record<string, unknown> = {
         userId,
         title: event.title,
         type: event.type,
@@ -114,13 +121,12 @@ class CalendarService {
 
       // Generate recurring events if needed
       if (event.recurrencePattern && event.recurrencePattern !== "none") {
-        await this.generateRecurringEvents(docRef.id, event);
+        await this.generateRecurringEvents(docRef.id, event, userId);
       }
 
       return docRef.id;
-    } catch (error: any) {
-      const errorMessage = error?.message || "Unknown error";
-      throw new Error(`Failed to add calendar event: ${errorMessage}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to add calendar event: ${getErrorMessage(error)}`);
     }
   }
 
@@ -133,7 +139,7 @@ class CalendarService {
   ): Promise<void> {
     try {
       const docRef = doc(db, "calendarEvents", eventId);
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updatedAt: Timestamp.now(),
       };
 
@@ -195,9 +201,10 @@ class CalendarService {
       }
 
       await updateDoc(docRef, updateData);
-    } catch (error: any) {
-      const errorMessage = error?.message || "Unknown error";
-      throw new Error(`Failed to update calendar event: ${errorMessage}`);
+    } catch (error: unknown) {
+      throw new Error(
+        `Failed to update calendar event: ${getErrorMessage(error)}`
+      );
     }
   }
 
@@ -207,7 +214,7 @@ class CalendarService {
   async deleteEvent(eventId: string): Promise<void> {
     try {
       await deleteDoc(doc(db, "calendarEvents", eventId));
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to delete calendar event");
     }
   }
@@ -233,7 +240,7 @@ class CalendarService {
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
       } as CalendarEvent;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -263,10 +270,10 @@ class CalendarService {
       const snapshot = await getDocs(q);
       const events: CalendarEvent[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      snapshot.forEach((eventDoc) => {
+        const data = eventDoc.data();
         events.push({
-          id: doc.id,
+          id: eventDoc.id,
           ...data,
           startDate: data.startDate?.toDate() || new Date(),
           endDate: data.endDate?.toDate(),
@@ -277,7 +284,7 @@ class CalendarService {
       });
 
       return events;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -307,10 +314,10 @@ class CalendarService {
       const snapshot = await getDocs(q);
       const events: CalendarEvent[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
+      snapshot.forEach((eventDoc) => {
+        const data = eventDoc.data();
         events.push({
-          id: doc.id,
+          id: eventDoc.id,
           ...data,
           startDate: data.startDate?.toDate() || new Date(),
           endDate: data.endDate?.toDate(),
@@ -321,7 +328,7 @@ class CalendarService {
       });
 
       return events;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -384,15 +391,17 @@ class CalendarService {
    */
   private async generateRecurringEvents(
     originalEventId: string,
-    event: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">
+    event: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">,
+    userId: string
   ): Promise<void> {
     if (!event.recurrencePattern || event.recurrencePattern === "none") {
       return;
     }
 
-    const events: Array<
-      Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">
-    > = [];
+    const events: Omit<
+      CalendarEvent,
+      "id" | "userId" | "createdAt" | "updatedAt"
+    >[] = [];
     const startDate = new Date(event.startDate);
     const endDate = event.recurrenceEndDate || new Date();
     endDate.setFullYear(endDate.getFullYear() + 1); // Default to 1 year ahead
@@ -444,14 +453,11 @@ class CalendarService {
     // Add recurring events in batch (simplified - in production, use batch writes)
     // Note: This is a simplified implementation. In production, consider using Firestore batch writes
     // or a cloud function to generate recurring events more efficiently
-    const userId = (event as any).userId;
-    if (userId) {
-      for (const recurringEvent of events) {
-        try {
-          await this.addEvent(userId, recurringEvent);
-        } catch (error) {
-          // Continue with other events even if one fails
-        }
+    for (const recurringEvent of events) {
+      try {
+        await this.addEvent(userId, recurringEvent);
+      } catch (_error) {
+        // Continue with other events even if one fails
       }
     }
   }
@@ -459,7 +465,7 @@ class CalendarService {
   /**
    * Create event from medication
    */
-  async createEventFromMedication(
+  createEventFromMedication(
     userId: string,
     medicationId: string,
     medicationName: string,
@@ -492,7 +498,7 @@ class CalendarService {
   /**
    * Create event from appointment
    */
-  async createAppointmentEvent(
+  createAppointmentEvent(
     userId: string,
     title: string,
     startDate: Date,
@@ -525,7 +531,7 @@ class CalendarService {
   /**
    * Get upcoming events
    */
-  async getUpcomingEvents(
+  getUpcomingEvents(
     userId: string,
     days = 7,
     includeFamily = false,

@@ -25,6 +25,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This screen renders multiple localized sections with platform-specific branching.
 export default function AppleHealthIntroScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -216,7 +217,7 @@ export default function AppleHealthIntroScreen() {
               styles.privacyCard,
               {
                 backgroundColor: isDark ? "#1E293B" : "#F8FAFC",
-                borderColor: theme.colors.primary.main + "40",
+                borderColor: `${theme.colors.primary.main}40`,
                 borderWidth: 2,
               },
             ]}
@@ -225,7 +226,7 @@ export default function AppleHealthIntroScreen() {
               <View
                 style={[
                   styles.privacyIcon,
-                  { backgroundColor: theme.colors.primary.main + "20" },
+                  { backgroundColor: `${theme.colors.primary.main}20` },
                 ]}
               >
                 <Lock color={theme.colors.primary.main} size={20} />
@@ -256,7 +257,7 @@ export default function AppleHealthIntroScreen() {
               <View
                 style={[
                   styles.privacyIcon,
-                  { backgroundColor: theme.colors.primary.main + "20" },
+                  { backgroundColor: `${theme.colors.primary.main}20` },
                 ]}
               >
                 <Shield color={theme.colors.primary.main} size={20} />
@@ -287,7 +288,7 @@ export default function AppleHealthIntroScreen() {
               <View
                 style={[
                   styles.privacyIcon,
-                  { backgroundColor: theme.colors.primary.main + "20" },
+                  { backgroundColor: `${theme.colors.primary.main}20` },
                 ]}
               >
                 <Settings color={theme.colors.primary.main} size={20} />
@@ -344,9 +345,7 @@ export default function AppleHealthIntroScreen() {
         {/* CTA */}
         <View style={styles.ctaSection}>
           <TouchableOpacity
-            onPress={() =>
-              router.push("/profile/health/apple-permissions" as any)
-            }
+            onPress={() => router.push("/profile/health/apple-permissions")}
             style={[
               styles.primaryButton,
               { backgroundColor: theme.colors.primary.main },

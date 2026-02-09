@@ -1,14 +1,16 @@
-import * as Haptics from "expo-haptics";
+import { ImpactFeedbackStyle, impactAsync } from "expo-haptics";
 import { Check } from "lucide-react-native";
 import type React from "react";
 import { useEffect } from "react";
 import {
   Animated,
   Platform,
+  type StyleProp,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  type ViewStyle,
 } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -18,14 +20,14 @@ import {
 import { timingIfActive } from "@/lib/utils/animationGuards";
 import { getTextStyle } from "@/utils/styles";
 
-interface AnimatedCheckButtonProps {
+type AnimatedCheckButtonProps = {
   isChecked: boolean;
   onPress: () => void;
   label?: string;
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
-  style?: any;
-}
+  style?: StyleProp<ViewStyle>;
+};
 
 export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
   isChecked,
@@ -49,21 +51,24 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
   const currentSize = sizes[size];
 
   useEffect(() => {
-    if (!isAppActive) return;
+    if (!isAppActive) {
+      return;
+    }
     timingIfActive(checkOpacity, {
       toValue: isChecked ? 1 : 0.3,
       duration: 200,
       useNativeDriver: Platform.OS !== "web",
     }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isChecked, isAppActive]);
+  }, [isChecked, isAppActive, checkOpacity]);
 
   const handlePress = () => {
-    if (disabled || !isAppActive) return;
+    if (disabled || !isAppActive) {
+      return;
+    }
 
     // Haptic feedback (only on native platforms)
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      impactAsync(ImpactFeedbackStyle.Medium);
     }
 
     // Scale animation
@@ -121,7 +126,7 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
           </Animated.View>
         </TouchableOpacity>
       </Animated.View>
-      {label && (
+      {label ? (
         <Text
           style={[
             getTextStyle(
@@ -136,7 +141,7 @@ export const AnimatedCheckButton: React.FC<AnimatedCheckButtonProps> = ({
         >
           {label}
         </Text>
-      )}
+      ) : null}
     </View>
   );
 };

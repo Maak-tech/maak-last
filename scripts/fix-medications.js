@@ -80,7 +80,7 @@ async function fixMedications() {
           reminders: [], // Set to empty array if not a proper array
         });
 
-        fixedCount++;
+        fixedCount += 1;
         console.log(`✅ Fixed ${data.name}`);
       }
     }

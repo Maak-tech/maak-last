@@ -1,3 +1,5 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Search screen combines debounced querying, filters, and result states in one coordinator component. */
+/* biome-ignore-all lint/style/noNestedTernary: Conditional render branches are kept inline for readability of UI states. */
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -27,10 +29,10 @@ import { Card } from "@/components/design-system";
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import { Caption, Text } from "@/components/design-system/Typography";
 
-interface GlobalSearchProps {
+type GlobalSearchProps = {
   visible: boolean;
   onClose: () => void;
-}
+};
 
 const TYPE_LABELS: Partial<
   Record<SearchResultType, { en: string; ar: string; icon: string }>
@@ -43,7 +45,7 @@ const TYPE_LABELS: Partial<
 };
 
 export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
   const router = useRouter();
@@ -59,8 +61,6 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
     "family",
     "note",
   ]);
-  const [showFilters, setShowFilters] = useState(false);
-
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -97,7 +97,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
           50
         );
         setResults(searchResults);
-      } catch (error) {
+      } catch (_error) {
         setResults([]);
       } finally {
         setIsSearching(false);
@@ -145,13 +145,17 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
       case "note":
         router.push("/(tabs)/profile");
         break;
+      default:
+        break;
     }
     onClose();
   };
 
   const toggleTypeFilter = (type: SearchResultType) => {
     setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+      prev.includes(type)
+        ? prev.filter((selectedType) => selectedType !== type)
+        : [...prev, type]
     );
   };
 
@@ -250,7 +254,9 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
             ).map((type) => {
               const isSelected = selectedTypes.includes(type);
               const label = TYPE_LABELS[type];
-              if (!label) return null;
+              if (!label) {
+                return null;
+              }
               return (
                 <TouchableOpacity
                   key={type}
@@ -323,7 +329,9 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
               keyExtractor={(item) => `${item.type}-${item.id}`}
               renderItem={({ item }) => {
                 const typeLabel = TYPE_LABELS[item.type];
-                if (!typeLabel) return null;
+                if (!typeLabel) {
+                  return null;
+                }
                 return (
                   <TouchableOpacity
                     activeOpacity={0.7}
@@ -374,6 +382,7 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
   );
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Theme tokens vary across legacy style objects in this screen.
 const getStyles = (theme: any, isRTL: boolean) => ({
   container: {
     flex: 1,

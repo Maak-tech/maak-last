@@ -3,9 +3,35 @@
  * Handles persisting Zeina analysis results to Firestore
  */
 
-import * as admin from "firebase-admin";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
+
 // Types handled inline for flexibility with legacy format
+
+type LegacyAnalysisResult = {
+  riskScore: number;
+  summary?: string;
+  riskLevel?: string;
+  recommendedActions?: unknown[];
+  recommendedActionCode?: string;
+  analysisMetadata?: {
+    version?: string;
+  };
+  version?: string;
+};
+
+function deriveRiskLevel(analysisResult: LegacyAnalysisResult): string {
+  if (analysisResult.riskLevel) {
+    return analysisResult.riskLevel;
+  }
+  if (analysisResult.riskScore > 75) {
+    return "high";
+  }
+  if (analysisResult.riskScore > 50) {
+    return "moderate";
+  }
+  return "low";
+}
 
 /**
  * Enrich alert document with Zeina analysis
@@ -18,7 +44,7 @@ import { logger } from "../../observability/logger";
  */
 export async function enrichAlertWithAnalysis(
   alertId: string,
-  analysisResult: any, // Accept any to support both old and new format
+  analysisResult: LegacyAnalysisResult, // Supports both old and new format
   traceId?: string
 ): Promise<void> {
   logger.info("Enriching alert with Zeina analysis", {
@@ -29,16 +55,10 @@ export async function enrichAlertWithAnalysis(
   });
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
 
     // Extract values safely to support both ZeinaOutput and legacy format
-    const riskLevel =
-      analysisResult.riskLevel ||
-      (analysisResult.riskScore > 75
-        ? "high"
-        : analysisResult.riskScore > 50
-          ? "moderate"
-          : "low");
+    const riskLevel = deriveRiskLevel(analysisResult);
     const recommendedActions =
       analysisResult.recommendedActions ||
       (analysisResult.recommendedActionCode
@@ -59,11 +79,11 @@ export async function enrichAlertWithAnalysis(
           riskLevel,
           summary: analysisResult.summary,
           recommendedActions,
-          analyzedAt: admin.firestore.FieldValue.serverTimestamp(),
+          analyzedAt: FieldValue.serverTimestamp(),
           version,
         },
         // Update main alert timestamp
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
     logger.info("Alert enriched successfully", {

@@ -1,5 +1,5 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Card rendering intentionally branches by urgency buckets and UI states. */
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TouchableOpacity, View } from "react-native";
@@ -13,18 +13,17 @@ import {
   type RefillSummary,
 } from "@/lib/services/medicationRefillService";
 
-interface MedicationRefillCardProps {
+type MedicationRefillCardProps = {
   refillSummary: RefillSummary;
   onViewAll?: () => void;
-}
+};
 
 export default function MedicationRefillCard({
   refillSummary,
   onViewAll,
 }: MedicationRefillCardProps) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme } = useTheme();
-  const router = useRouter();
   const isRTL = i18n.language === "ar";
   const [expanded, setExpanded] = useState(false);
 
@@ -122,7 +121,7 @@ export default function MedicationRefillCard({
         </View>
       </TouchableOpacity>
 
-      {expanded && (
+      {expanded ? (
         <View style={styles.content}>
           {criticalRefills.length > 0 && (
             <View style={styles.section}>
@@ -226,7 +225,7 @@ export default function MedicationRefillCard({
             </View>
           )}
 
-          {onViewAll && (
+          {onViewAll ? (
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={onViewAll}
@@ -241,14 +240,16 @@ export default function MedicationRefillCard({
                 size={16}
               />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
-      )}
+      ) : null}
     </Card>
   );
 }
 
-const getStyles = (theme: any, isRTL: boolean) => ({
+type ThemeType = ReturnType<typeof useTheme>["theme"];
+
+const getStyles = (theme: ThemeType, isRTL: boolean) => ({
   card: {
     marginBottom: theme.spacing.base,
   },
@@ -299,8 +300,8 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     marginBottom: theme.spacing.base,
   },
   sectionTitle: {
-    ...theme.typography.subheading,
-    fontWeight: "600",
+    fontSize: theme.typography.fontSize.base,
+    fontFamily: theme.typography.fontFamily.semiBold,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.sm,
   },
@@ -325,8 +326,8 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     flex: 1,
   },
   medicationName: {
-    ...theme.typography.body,
-    fontWeight: "600",
+    fontSize: theme.typography.fontSize.base,
+    fontFamily: theme.typography.fontFamily.semiBold,
     color: theme.colors.text.primary,
     marginBottom: 2,
   },
@@ -345,9 +346,8 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     paddingVertical: 2,
   },
   daysText: {
-    ...theme.typography.caption,
-    fontWeight: "600",
-    fontSize: 12,
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   viewAllButton: {
     flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
@@ -358,8 +358,8 @@ const getStyles = (theme: any, isRTL: boolean) => ({
     gap: theme.spacing.xs,
   },
   viewAllText: {
-    ...theme.typography.body,
+    fontSize: theme.typography.fontSize.base,
+    fontFamily: theme.typography.fontFamily.semiBold,
     color: theme.colors.primary.main,
-    fontWeight: "600",
   },
 });

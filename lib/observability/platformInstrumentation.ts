@@ -1,14 +1,52 @@
 import { circuitBreaker } from "./circuitBreaker";
 import { observabilityEmitter } from "./eventEmitter";
 
-export interface InstrumentationOptions {
+type ErrorDetails = {
+  code?: string;
+  message: string;
+  stack?: string;
+};
+
+function getErrorDetails(error: unknown): ErrorDetails {
+  if (error instanceof Error) {
+    const code =
+      typeof (error as { code?: unknown }).code === "string"
+        ? (error as { code?: string }).code
+        : undefined;
+
+    return {
+      code,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+
+  return {
+    message: String(error),
+  };
+}
+
+function isExpectedError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const withFlags = error as {
+    isExpectedError?: unknown;
+    isApiKeyError?: unknown;
+  };
+
+  return withFlags.isExpectedError === true || withFlags.isApiKeyError === true;
+}
+
+export type InstrumentationOptions = {
   source: string;
   trackLatency?: boolean;
   useCircuitBreaker?: boolean;
-  circuitBreakerFallback?: () => any;
-}
+  circuitBreakerFallback?: () => Promise<unknown> | unknown;
+};
 
-export async function instrumentAsync<T>(
+export function instrumentAsync<T>(
   operationName: string,
   operation: () => Promise<T>,
   options: InstrumentationOptions
@@ -44,8 +82,9 @@ export async function instrumentAsync<T>(
       );
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const durationMs = Date.now() - startTime;
+      const details = getErrorDetails(error);
 
       if (options.trackLatency !== false) {
         await observabilityEmitter.recordMetric(
@@ -59,24 +98,19 @@ export async function instrumentAsync<T>(
 
       // Suppress error logging for expected errors (e.g., missing API keys)
       // These are handled gracefully by callers and don't need to be logged as errors
-      const isExpectedError =
-        error?.isExpectedError === true || error?.isApiKeyError === true;
+      const expectedError = isExpectedError(error);
 
-      if (!isExpectedError) {
+      if (!expectedError) {
         await observabilityEmitter.emitPlatformEvent(
           `${operationName}_failed`,
-          `${operationName} failed: ${error.message}`,
+          `${operationName} failed: ${details.message}`,
           {
             source: options.source,
             severity: "error",
             status: "failure",
             durationMs,
             correlationId,
-            error: {
-              code: error.code,
-              message: error.message,
-              stack: error.stack,
-            },
+            error: details,
           }
         );
       }
@@ -98,7 +132,7 @@ export async function instrumentAsync<T>(
 
 export function createServiceInstrumenter(serviceName: string) {
   return {
-    async track<T>(
+    track<T>(
       operationName: string,
       operation: () => Promise<T>,
       options: Partial<InstrumentationOptions> = {}
@@ -109,7 +143,7 @@ export function createServiceInstrumenter(serviceName: string) {
       });
     },
 
-    async trackWithCircuitBreaker<T>(
+    trackWithCircuitBreaker<T>(
       operationName: string,
       operation: () => Promise<T>,
       fallback?: () => T | Promise<T>
@@ -142,18 +176,15 @@ export function createServiceInstrumenter(serviceName: string) {
       error: Error,
       metadata?: Record<string, unknown>
     ): void {
+      const details = getErrorDetails(error);
       observabilityEmitter.emitPlatformEvent(
         `${operationName}_failure`,
-        `${operationName} failed: ${error.message}`,
+        `${operationName} failed: ${details.message}`,
         {
           source: serviceName,
           severity: "error",
           status: "failure",
-          error: {
-            code: (error as any).code,
-            message: error.message,
-            stack: error.stack,
-          },
+          error: details,
           metadata,
         }
       );

@@ -5,9 +5,9 @@
  * Run with: bunx tsx scripts/check-zeina-config.ts
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { config } from "dotenv";
-import { existsSync } from "fs";
-import { join } from "path";
 
 // Load environment variables
 config();
@@ -91,7 +91,7 @@ try {
 }
 
 // Summary
-console.log("\n" + "=".repeat(50));
+console.log(`\n${"=".repeat(50)}`);
 console.log("📋 Summary:");
 
 const hasEnv = envExists;
@@ -125,4 +125,4 @@ if (hasEnv && hasApiKey) {
 
 console.log("\n📖 For detailed setup instructions, see:");
 console.log("   docs/ZEINA_SETUP.md");
-console.log("=".repeat(50) + "\n");
+console.log(`${"=".repeat(50)}\n`);

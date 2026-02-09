@@ -2,6 +2,8 @@
  * Unit tests for Zeina guardrails
  * Tests validation and safety constraints
  */
+/* biome-ignore-all lint/correctness/noUndeclaredVariables: Jest globals (describe/it/expect) are provided by test runtime. */
+/* biome-ignore-all lint/performance/useTopLevelRegex: regex literals in assertions are test-only and not hot-path code. */
 
 import {
   applySafetyConstraints,

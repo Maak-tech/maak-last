@@ -1,3 +1,6 @@
+/* biome-ignore-all lint/suspicious/useAwait: Public API keeps async signatures for compatibility with existing callers. */
+/* biome-ignore-all lint/nursery/useMaxParams: Legacy event-recording helpers keep explicit positional params. */
+/* biome-ignore-all lint/style/noNestedTernary: Legacy event title/type mapping remains compact in this module. */
 import {
   addDoc,
   collection,
@@ -31,7 +34,7 @@ export type TimelineEventType =
   | "allergy_added"
   | "medical_history_added";
 
-export interface HealthTimelineEvent {
+export type HealthTimelineEvent = {
   id?: string;
   userId: string;
   familyId?: string;
@@ -46,7 +49,7 @@ export interface HealthTimelineEvent {
   relatedEntityType?: string;
   actorId?: string;
   actorType?: "user" | "system" | "caregiver" | "ai";
-}
+};
 
 const TIMELINE_COLLECTION = "health_timeline";
 
@@ -130,15 +133,13 @@ class HealthTimelineService {
       })) as HealthTimelineEvent[];
 
       if (options.startDate) {
-        events = events.filter((e) => e.timestamp >= options.startDate!);
+        events = events.filter((e) => e.timestamp >= options.startDate);
       }
       if (options.endDate) {
-        events = events.filter((e) => e.timestamp <= options.endDate!);
+        events = events.filter((e) => e.timestamp <= options.endDate);
       }
       if (options.eventTypes && options.eventTypes.length > 0) {
-        events = events.filter((e) =>
-          options.eventTypes!.includes(e.eventType)
-        );
+        events = events.filter((e) => options.eventTypes.includes(e.eventType));
       }
 
       return events;
@@ -161,7 +162,9 @@ class HealthTimelineService {
     } = {}
   ): Promise<HealthTimelineEvent[]> {
     try {
-      if (userIds.length === 0) return [];
+      if (userIds.length === 0) {
+        return [];
+      }
 
       const batchSize = 10;
       const allEvents: HealthTimelineEvent[] = [];
@@ -188,12 +191,12 @@ class HealthTimelineService {
       let filteredEvents = allEvents;
       if (options.startDate) {
         filteredEvents = filteredEvents.filter(
-          (e) => e.timestamp >= options.startDate!
+          (e) => e.timestamp >= options.startDate
         );
       }
       if (options.endDate) {
         filteredEvents = filteredEvents.filter(
-          (e) => e.timestamp <= options.endDate!
+          (e) => e.timestamp <= options.endDate
         );
       }
 

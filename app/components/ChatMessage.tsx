@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { safeFormatTime } from "@/utils/dateFormat";
 
-interface ChatMessageProps {
+type ChatMessageProps = {
   role: "user" | "assistant";
   content: string;
   isStreaming?: boolean;
   timestamp?: Date;
   onSpeak?: (text: string) => void;
   isSpeaking?: boolean;
-}
+};
 
 export default function ChatMessage({
   role,
@@ -93,14 +93,14 @@ export default function ChatMessage({
             <Text style={styles.cursor}>▊</Text>
           )}
         </Text>
-        {timestamp && (
+        {timestamp ? (
           <Text style={styles.timestamp}>
             {safeFormatTime(timestamp, [], {
               hour: "2-digit",
               minute: "2-digit",
             })}
           </Text>
-        )}
+        ) : null}
       </View>
     </View>
   );

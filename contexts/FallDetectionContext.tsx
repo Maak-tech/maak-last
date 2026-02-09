@@ -16,7 +16,7 @@ import { alertService } from "@/lib/services/alertService";
 import { logFallDetectionDiagnostics } from "@/lib/utils/fallDetectionDiagnostics";
 import { useAuth } from "./AuthContext";
 
-interface FallDetectionContextType {
+type FallDetectionContextType = {
   isEnabled: boolean;
   isActive: boolean;
   isInitialized: boolean;
@@ -29,7 +29,7 @@ interface FallDetectionContextType {
     alertId: string;
     timestamp: Date;
   } | null;
-}
+};
 
 const FallDetectionContext = createContext<
   FallDetectionContextType | undefined
@@ -49,8 +49,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth();
-  const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === "ar";
+  const { t } = useTranslation();
   const [isEnabled, setIsEnabled] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastAlert, setLastAlert] = useState<{
@@ -60,7 +59,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Handle fall detection events
   const handleFallDetected = useCallback(
-    async (alertId: string) => {
+    (alertId: string) => {
       // Update last alert
       setLastAlert({
         alertId,
@@ -70,40 +69,42 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       // Show alert to user
       const isLocalAlert =
         alertId === "demo-alert" || alertId === "error-alert";
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: User-facing error mapping is intentionally explicit.
+      const handleResolveAlert = async () => {
+        try {
+          if (user?.id && !isLocalAlert) {
+            await alertService.resolveAlert(alertId, user.id);
+            Alert.alert(t("alertResolved"), t("alertResolvedSuccessfully"), [
+              { text: t("ok") },
+            ]);
+          }
+        } catch (error: unknown) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          let displayMessage = t("failedToResolveAlert");
+
+          if (
+            errorMessage.includes("permission-denied") ||
+            errorMessage.includes("permission")
+          ) {
+            displayMessage = t("noPermissionToResolveAlert");
+          } else if (
+            errorMessage.includes("does not exist") ||
+            errorMessage.includes("not found")
+          ) {
+            displayMessage = t("alertNotFound");
+          } else {
+            displayMessage = `${t("failedToResolveAlert")}: ${errorMessage}`;
+          }
+
+          Alert.alert(t("error"), displayMessage, [{ text: t("ok") }]);
+        }
+      };
+
       Alert.alert(t("fallDetected"), t("fallDetectedMessage"), [
         {
           text: t("imOk"),
-          onPress: async () => {
-            try {
-              if (user?.id && !isLocalAlert) {
-                await alertService.resolveAlert(alertId, user.id);
-                Alert.alert(
-                  t("alertResolved"),
-                  t("alertResolvedSuccessfully"),
-                  [{ text: t("ok") }]
-                );
-              }
-            } catch (error: any) {
-              const errorMessage = error?.message || "Unknown error";
-              let displayMessage = t("failedToResolveAlert");
-
-              if (
-                errorMessage.includes("permission-denied") ||
-                errorMessage.includes("permission")
-              ) {
-                displayMessage = t("noPermissionToResolveAlert");
-              } else if (
-                errorMessage.includes("does not exist") ||
-                errorMessage.includes("not found")
-              ) {
-                displayMessage = t("alertNotFound");
-              } else {
-                displayMessage = `${t("failedToResolveAlert")}: ${errorMessage}`;
-              }
-
-              Alert.alert(t("error"), displayMessage, [{ text: t("ok") }]);
-            }
-          },
+          onPress: handleResolveAlert,
         },
         {
           text: t("needHelp"),
@@ -148,7 +149,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsEnabled(isEnabledValue);
         }
         setIsInitialized(true);
-      } catch (error) {
+      } catch (_error) {
         setIsInitialized(true);
       }
     };
@@ -178,7 +179,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           stopFallDetection();
         }
-      } catch (error) {
+      } catch (_error) {
         // Silently handle error
       }
     },
@@ -186,6 +187,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Test fall detection
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Test flow handles auth fallback and permission fallback paths.
   const testFallDetection = useCallback(async () => {
     try {
       if (!user?.id) {
@@ -196,13 +198,13 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
       const authUserId = auth.currentUser?.uid;
       if (!authUserId || authUserId !== user.id) {
         // Fall back to local-only alert if Firestore auth is missing/mismatched
-        await handleFallDetected("demo-alert");
+        handleFallDetected("demo-alert");
         return;
       }
 
       try {
         const alertId = await alertService.createFallAlert(user.id);
-        await handleFallDetected(alertId);
+        handleFallDetected(alertId);
         return;
       } catch (error) {
         const errorCode =
@@ -210,7 +212,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
             ? String((error as { code?: unknown }).code)
             : undefined;
         if (errorCode === "permission-denied") {
-          await handleFallDetected("demo-alert");
+          handleFallDetected("demo-alert");
           return;
         }
         throw error;
@@ -218,7 +220,8 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      if (__DEV__) {
+      const isDev = process.env.NODE_ENV !== "production";
+      if (isDev) {
         Alert.alert(
           t("error"),
           `${t("failedToTestFallDetection")}: ${errorMessage}`

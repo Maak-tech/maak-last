@@ -3,7 +3,7 @@
  * Wraps Firebase Cloud Messaging multicast send
  */
 
-import * as admin from "firebase-admin";
+import { getMessaging } from "firebase-admin/messaging";
 import { logger } from "../../observability/logger";
 import type {
   MulticastResult,
@@ -80,7 +80,7 @@ export async function sendMulticast({
     };
 
     // Send via FCM
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const response = await getMessaging().sendEachForMulticast(message);
 
     // Collect failed tokens
     const failedTokens: string[] = [];

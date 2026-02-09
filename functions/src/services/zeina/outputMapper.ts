@@ -110,7 +110,6 @@ function mapEscalationToRecipients(
       return ["caregiver", "family", "emergency"];
     case EscalationLevel.CAREGIVER:
       return ["caregiver", "family"];
-    case EscalationLevel.NONE:
     default:
       return [];
   }
@@ -144,6 +143,8 @@ function mapActionCodeToAutoActions(
       break;
     case RecommendedActionCode.CONSIDER_EMERGENCY:
       actions.push("log_high_risk_event");
+      break;
+    default:
       break;
   }
 
@@ -214,7 +215,7 @@ export function formatForAudit(
   output: ZeinaOutput,
   traceId: string,
   alertId: string
-): Record<string, any> {
+): Record<string, unknown> {
   return {
     alertId,
     traceId,

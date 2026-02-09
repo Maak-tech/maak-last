@@ -27,10 +27,11 @@ import {
 } from "@/lib/health/healthMetricsCatalog";
 import { garminService } from "@/lib/services/garminService";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: this screen keeps metric grouping and connection flow in one place for UX clarity.
 export default function GarminPermissionsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme, isDark } = useTheme();
 
   const isRTL = i18n.language === "ar";
@@ -52,6 +53,7 @@ export default function GarminPermissionsScreen() {
 
   // Load available metrics for Garmin
   useEffect(() => {
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: async availability + defaults setup is explicit and sequential.
     const loadMetrics = async () => {
       try {
         setLoading(true);
@@ -82,13 +84,14 @@ export default function GarminPermissionsScreen() {
 
         // Pre-select some common metrics
         const preSelected = new Set<string>();
-        metrics
-          .filter((metric) => metric.garmin?.available)
-          .slice(0, 5) // Pre-select first 5 available metrics
-          .forEach((metric) => preSelected.add(metric.key));
+        for (const metric of metrics
+          .filter((currentMetric) => currentMetric.garmin?.available)
+          .slice(0, 5)) {
+          preSelected.add(metric.key);
+        }
 
         setSelectedMetrics(preSelected);
-      } catch (error) {
+      } catch (_error) {
         Alert.alert(
           isRTL ? "خطأ" : "Error",
           isRTL
@@ -116,16 +119,18 @@ export default function GarminPermissionsScreen() {
   const toggleGroup = (groupKey: MetricGroup) => {
     const groupMetrics = availableMetrics.filter((m) => m.group === groupKey);
     const allSelected = groupMetrics.every((m) => selectedMetrics.has(m.key));
-    const noneSelected = groupMetrics.every((m) => !selectedMetrics.has(m.key));
-
     const newSelected = new Set(selectedMetrics);
 
     if (allSelected) {
       // Deselect all in group
-      groupMetrics.forEach((m) => newSelected.delete(m.key));
+      for (const metric of groupMetrics) {
+        newSelected.delete(metric.key);
+      }
     } else {
       // Select all in group
-      groupMetrics.forEach((m) => newSelected.add(m.key));
+      for (const metric of groupMetrics) {
+        newSelected.add(metric.key);
+      }
     }
 
     setSelectedMetrics(newSelected);
@@ -150,6 +155,7 @@ export default function GarminPermissionsScreen() {
     return selectedCount > 0 && selectedCount < groupMetrics.length;
   };
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: explicit validation and localized success/error handling are intentional.
   const handleConnect = async () => {
     if (selectedMetrics.size === 0) {
       Alert.alert(
@@ -180,14 +186,15 @@ export default function GarminPermissionsScreen() {
           },
         ]
       );
-    } catch (error: any) {
-      Alert.alert(
-        isRTL ? "فشل الربط" : "Connection Failed",
-        error.message ||
-          (isRTL
-            ? "فشل في ربط جارمين كونكت"
-            : "Failed to connect Garmin Connect")
-      );
+    } catch (error: unknown) {
+      let errorMessage = "Failed to connect Garmin Connect";
+      if (isRTL) {
+        errorMessage = "فشل في ربط جارمين كونكت";
+      }
+      if (error instanceof Error && error.message) {
+        errorMessage = error.message;
+      }
+      Alert.alert(isRTL ? "فشل الربط" : "Connection Failed", errorMessage);
     } finally {
       setConnecting(false);
     }
@@ -292,7 +299,9 @@ export default function GarminPermissionsScreen() {
         <View style={styles.metricsSection}>
           {groups.map((groupKey) => {
             const groupMetrics = getMetricsInGroup(groupKey);
-            if (groupMetrics.length === 0) return null;
+            if (groupMetrics.length === 0) {
+              return null;
+            }
 
             const groupFullySelected = isGroupFullySelected(groupKey);
             const groupPartiallySelected = isGroupPartiallySelected(groupKey);
@@ -311,12 +320,12 @@ export default function GarminPermissionsScreen() {
                         groupPartiallySelected && styles.checkboxPartial,
                       ]}
                     >
-                      {groupFullySelected && (
+                      {groupFullySelected ? (
                         <Check color="#FFFFFF" size={16} />
-                      )}
-                      {groupPartiallySelected && !groupFullySelected && (
+                      ) : null}
+                      {groupPartiallySelected && !groupFullySelected ? (
                         <View style={styles.partialIndicator} />
-                      )}
+                      ) : null}
                     </View>
                     <Text
                       style={[
@@ -369,7 +378,7 @@ export default function GarminPermissionsScreen() {
                         >
                           {metric.displayName}
                         </Text>
-                        {metric.description && (
+                        {metric.description ? (
                           <Text
                             style={[
                               styles.metricDescription,
@@ -379,7 +388,7 @@ export default function GarminPermissionsScreen() {
                           >
                             {metric.description}
                           </Text>
-                        )}
+                        ) : null}
                       </View>
                     </TouchableOpacity>
                   </View>

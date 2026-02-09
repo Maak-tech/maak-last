@@ -1,6 +1,6 @@
 import { Animated, StyleSheet, Text, TextInput, View } from "react-native";
-import { timingIfActive } from "../../lib/utils/animationGuards";
 import { useAppStateAwareAnimation } from "../../hooks/useAppStateAwareAnimation";
+import { timingIfActive } from "../../lib/utils/animationGuards";
 import { borderRadius, colors, spacing, typography } from "./theme";
 
 const Input = ({
@@ -43,9 +43,9 @@ const Input = ({
 
   return (
     <View style={[styles.container, style]}>
-      {label && (
+      {label ? (
         <Text style={[styles.label, error && styles.labelError]}>{label}</Text>
-      )}
+      ) : null}
 
       <Animated.View
         style={[
@@ -55,7 +55,7 @@ const Input = ({
           multiline && styles.multilineContainer,
         ]}
       >
-        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
 
         <TextInput
           editable={!disabled}
@@ -76,14 +76,14 @@ const Input = ({
           {...props}
         />
 
-        {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
+        {rightIcon ? <View style={styles.rightIcon}>{rightIcon}</View> : null}
       </Animated.View>
 
-      {(error || helperText) && (
+      {error || helperText ? (
         <Text style={[styles.helperText, error && styles.errorText]}>
           {error || helperText}
         </Text>
-      )}
+      ) : null}
     </View>
   );
 };

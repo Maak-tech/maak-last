@@ -24,22 +24,22 @@ export default function HealthInsightsScreen() {
   const isRTL = i18n.language === "ar";
   const [refreshing, setRefreshing] = useState(false);
 
-  const styles = createThemedStyles((theme) => ({
+  const styles = createThemedStyles((tokens) => ({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: tokens.colors.background.primary,
     },
     header: {
       flexDirection: (isRTL ? "row-reverse" : "row") as "row" | "row-reverse",
       alignItems: "center" as const,
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.md,
+      paddingHorizontal: tokens.spacing.base,
+      paddingVertical: tokens.spacing.md,
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border.light,
+      borderBottomColor: tokens.colors.border.light,
     },
     backButton: {
-      marginRight: isRTL ? 0 : theme.spacing.md,
-      marginLeft: isRTL ? theme.spacing.md : 0,
+      marginRight: isRTL ? 0 : tokens.spacing.md,
+      marginLeft: isRTL ? tokens.spacing.md : 0,
     },
     headerTitle: {
       flex: 1,
@@ -48,12 +48,12 @@ export default function HealthInsightsScreen() {
       flex: 1,
     },
     contentInner: {
-      paddingHorizontal: theme.spacing.base,
-      paddingVertical: theme.spacing.base,
+      paddingHorizontal: tokens.spacing.base,
+      paddingVertical: tokens.spacing.base,
     },
   }))(theme);
 
-  const onRefresh = useCallback(async () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     // Refresh will be handled by the components themselves
     setTimeout(() => setRefreshing(false), 1000);
@@ -94,7 +94,7 @@ export default function HealthInsightsScreen() {
         <HealthInsightsCard />
         <AIInsightsDashboard
           compact={false}
-          onInsightPress={(insight) => {
+          onInsightPress={() => {
             // Navigate to analytics tab for detailed view
             router.push("/(tabs)/analytics");
           }}

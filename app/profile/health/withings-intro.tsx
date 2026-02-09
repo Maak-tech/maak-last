@@ -24,10 +24,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/contexts/ThemeContext";
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Intro screen contains multiple localized sections and explanatory cards.
 export default function WithingsIntroScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { theme, isDark } = useTheme();
 
   const isRTL = i18n.language === "ar";

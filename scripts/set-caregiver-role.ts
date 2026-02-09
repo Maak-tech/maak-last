@@ -1,5 +1,9 @@
-import type { User } from "../types";
 import { userService } from "../lib/services/userService";
+import type { User } from "../types";
+
+type TimestampLike = {
+  toDate: () => Date;
+};
 
 const getAllUsers = async (): Promise<User[]> => {
   const { collection, getDocs } = await import("firebase/firestore");
@@ -8,18 +12,23 @@ const getAllUsers = async (): Promise<User[]> => {
   const querySnapshot = await getDocs(collection(db, "users"));
   const users: User[] = [];
 
-  querySnapshot.forEach((doc) => {
+  for (const doc of querySnapshot.docs) {
     const data = doc.data() as Omit<User, "id">;
-    const createdAtRaw = (data as { createdAt?: any }).createdAt;
+    const createdAtRaw = (data as { createdAt?: unknown }).createdAt;
+    const createdAt =
+      createdAtRaw &&
+      typeof createdAtRaw === "object" &&
+      "toDate" in createdAtRaw &&
+      typeof (createdAtRaw as TimestampLike).toDate === "function"
+        ? (createdAtRaw as TimestampLike).toDate()
+        : (createdAtRaw as Date) || new Date();
+
     users.push({
       id: doc.id,
       ...data,
-      createdAt:
-        createdAtRaw && typeof createdAtRaw.toDate === "function"
-          ? createdAtRaw.toDate()
-          : (createdAtRaw as Date) || new Date(),
+      createdAt,
     });
-  });
+  }
 
   return users;
 };

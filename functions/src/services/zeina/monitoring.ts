@@ -12,7 +12,7 @@ import { getMetrics } from "./observability";
 /**
  * Health status
  */
-export interface HealthStatus {
+export type HealthStatus = {
   healthy: boolean;
   version: string;
   timestamp: Date;
@@ -24,14 +24,14 @@ export interface HealthStatus {
   metrics?: Record<string, number>;
   warnings?: string[];
   errors?: string[];
-}
+};
 
 /**
  * Perform health check
  * Tests basic functionality without making actual LLM calls
  * @param apiKey - Optional API key to check (for use with secrets)
  */
-export async function healthCheck(apiKey?: string): Promise<HealthStatus> {
+export function healthCheck(apiKey?: string): HealthStatus {
   const warnings: string[] = [];
   const errors: string[] = [];
   const checks = {
@@ -52,7 +52,7 @@ export async function healthCheck(apiKey?: string): Promise<HealthStatus> {
       errors.push("OpenAI API key appears invalid");
       checks.configuration = false;
     }
-  } catch (error) {
+  } catch (_error) {
     errors.push("Failed to check API configuration");
     checks.configuration = false;
   }
@@ -64,7 +64,7 @@ export async function healthCheck(apiKey?: string): Promise<HealthStatus> {
       errors.push("Metrics system not responding correctly");
       checks.metrics = false;
     }
-  } catch (error) {
+  } catch (_error) {
     errors.push("Failed to retrieve metrics");
     checks.metrics = false;
   }
@@ -90,7 +90,7 @@ export async function healthCheck(apiKey?: string): Promise<HealthStatus> {
   // Include metrics in health check
   try {
     status.metrics = getMetrics();
-  } catch (error) {
+  } catch (_error) {
     // Metrics not critical for health check
   }
 
@@ -107,7 +107,7 @@ export async function healthCheck(apiKey?: string): Promise<HealthStatus> {
 /**
  * Get service statistics
  */
-export interface ServiceStats {
+export type ServiceStats = {
   totalCalls: number;
   successRate: number;
   failureRate: number;
@@ -115,7 +115,7 @@ export interface ServiceStats {
   aiRate: number;
   deterministicRate: number;
   averageDuration?: number;
-}
+};
 
 /**
  * Calculate service statistics from metrics
@@ -151,7 +151,7 @@ export function getServiceStats(): ServiceStats {
 /**
  * Detect anomalies in service metrics
  */
-export interface AnomalyDetection {
+export type AnomalyDetection = {
   hasAnomalies: boolean;
   anomalies: Array<{
     type:
@@ -164,7 +164,7 @@ export interface AnomalyDetection {
     value: number;
     threshold: number;
   }>;
-}
+};
 
 /**
  * Detect anomalies in service behavior
@@ -231,13 +231,13 @@ export function detectAnomalies(): AnomalyDetection {
 /**
  * Generate monitoring report
  */
-export interface MonitoringReport {
+export type MonitoringReport = {
   timestamp: Date;
   health: HealthStatus;
   stats: ServiceStats;
   anomalies: AnomalyDetection;
   recommendations: string[];
-}
+};
 
 /**
  * Generate comprehensive monitoring report

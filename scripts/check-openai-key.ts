@@ -8,6 +8,13 @@
 require("dotenv").config();
 
 const openaiKey = process.env.OPENAI_API_KEY || process.env.ZEINA_API_KEY;
+type OpenAIModel = {
+  id: string;
+};
+
+type ModelsResponse = {
+  data?: OpenAIModel[];
+};
 
 console.log("🔍 Checking OpenAI API Key Configuration for Zeina...\n");
 
@@ -85,9 +92,9 @@ async function testApiKey() {
       console.log("   Your API key can access basic OpenAI endpoints");
 
       // Check if Realtime model is available
-      const data = await response.json();
+      const data = (await response.json()) as ModelsResponse;
       const realtimeModel = data.data?.find(
-        (model: any) => model.id === "gpt-4o-realtime-preview-2024-12-17"
+        (model) => model.id === "gpt-4o-realtime-preview-2024-12-17"
       );
 
       if (realtimeModel) {
@@ -110,9 +117,11 @@ async function testApiKey() {
       console.log(`❌ API returned status ${response.status}`);
       console.log("   Check your internet connection and API key");
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.log("❌ Could not connect to OpenAI API");
-    console.log(`   Error: ${error}`);
+    console.log(
+      `   Error: ${error instanceof Error ? error.message : String(error)}`
+    );
     console.log("   Check your internet connection");
   }
 }

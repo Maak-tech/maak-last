@@ -4,13 +4,32 @@
 // - @react-native-voice/voice for speech-to-text
 // - Or integrate with cloud services like Google Cloud Speech-to-Text, Azure Speech, or OpenAI Whisper
 
+type SpeechNamespace = {
+  speak: (
+    text: string,
+    options?: {
+      language?: string;
+      voice?: string;
+      pitch?: number;
+      rate?: number;
+      volume?: number;
+      onStart?: () => void;
+      onDone?: () => void;
+      onStopped?: () => void;
+      onError?: (error: unknown) => void;
+    }
+  ) => void;
+  stop: () => void;
+  getAvailableVoicesAsync?: () => Promise<unknown>;
+};
+
 // Since expo-speech might not be installed, we'll create a wrapper that handles both cases
-let Speech: any = null;
+let Speech: SpeechNamespace | null = null;
 
 try {
   // Try to import expo-speech if available
   Speech = require("expo-speech");
-} catch (error) {
+} catch (_error) {
   // expo-speech not available, will use fallback
 }
 
@@ -23,26 +42,26 @@ import openaiService from "./openaiService";
 // Type declaration for Audio namespace
 type RecordingInstance = {
   stopAndUnloadAsync: () => Promise<void>;
-  getStatusAsync: () => Promise<any>;
-  setOnRecordingStatusUpdate: (callback: (status: any) => void) => void;
-  prepareToRecordAsync: (options?: any) => Promise<void>;
+  getStatusAsync: () => Promise<Record<string, unknown>>;
+  setOnRecordingStatusUpdate: (callback: (status: unknown) => void) => void;
+  prepareToRecordAsync: (options?: unknown) => Promise<void>;
   startAsync: () => Promise<void>;
   getURI: () => string | null;
 };
 
 type AudioNamespace = {
   Recording: {
-    createAsync: (options?: any) => Promise<{ recording: RecordingInstance }>;
+    createAsync: (options?: unknown) => Promise<{ recording: RecordingInstance }>;
   };
   requestPermissionsAsync: () => Promise<{ status: string }>;
   getPermissionsAsync: () => Promise<{ status: string }>;
-  setAudioModeAsync: (options: any) => Promise<void>;
+  setAudioModeAsync: (options: Record<string, unknown>) => Promise<void>;
   INTERRUPTION_MODE_IOS_DO_NOT_MIX: number;
   INTERRUPTION_MODE_ANDROID_DO_NOT_MIX: number;
   RecordingOptionsPresets: {
-    HIGH_QUALITY: any;
+    HIGH_QUALITY: unknown;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 let Audio: AudioNamespace | null = null;
@@ -55,17 +74,17 @@ try {
   } else {
     // expo-av not available on web platform
   }
-} catch (error) {
+} catch (_error) {
   // expo-av not available: ${error}
 }
 
-export interface VoiceConfig {
+export type VoiceConfig = {
   language: string;
   pitch?: number;
   rate?: number;
   volume?: number;
   voiceId?: string;
-}
+};
 
 type AvailableVoice = {
   identifier: string;
@@ -74,14 +93,13 @@ type AvailableVoice = {
   quality?: string;
 };
 
-export interface SpeechRecognitionResult {
+export type SpeechRecognitionResult = {
   text: string;
   confidence?: number;
-}
+};
 
 class VoiceService {
   private isSpeaking = false;
-  private currentSpeechId: string | null = null;
   private isListening = false;
   private recognitionCallbacks: Array<
     (result: SpeechRecognitionResult) => void
@@ -91,9 +109,13 @@ class VoiceService {
 
   async getAvailableVoices(): Promise<AvailableVoice[]> {
     try {
-      if (!Speech?.getAvailableVoicesAsync) return [];
+      if (!Speech?.getAvailableVoicesAsync) {
+        return [];
+      }
       const voices = await Speech.getAvailableVoicesAsync();
-      if (!Array.isArray(voices)) return [];
+      if (!Array.isArray(voices)) {
+        return [];
+      }
       return voices as AvailableVoice[];
     } catch {
       return [];
@@ -102,14 +124,18 @@ class VoiceService {
 
   async getPreferredVoiceId(language: string): Promise<string | undefined> {
     const voices = await this.getAvailableVoices();
-    if (voices.length === 0) return;
+    if (voices.length === 0) {
+      return;
+    }
 
     const langPrefix = language.split("-")[0];
     const candidates = voices.filter(
       (v) =>
         v.language?.startsWith(language) || v.language?.startsWith(langPrefix)
     );
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) {
+      return;
+    }
 
     const femaleHints = [
       "female",
@@ -127,11 +153,21 @@ class VoiceService {
       const name = (v.name || "").toLowerCase();
       const quality = (v.quality || "").toLowerCase();
       let s = 0;
-      if (quality.includes("enhanced")) s += 20;
-      if (quality.includes("premium")) s += 15;
-      if (quality.includes("default")) s += 5;
-      if (femaleHints.some((h) => name.includes(h))) s += 10;
-      if (name.includes("male")) s -= 10;
+      if (quality.includes("enhanced")) {
+        s += 20;
+      }
+      if (quality.includes("premium")) {
+        s += 15;
+      }
+      if (quality.includes("default")) {
+        s += 5;
+      }
+      if (femaleHints.some((h) => name.includes(h))) {
+        s += 10;
+      }
+      if (name.includes("male")) {
+        s -= 10;
+      }
       return s;
     };
 
@@ -169,7 +205,6 @@ class VoiceService {
 
       return new Promise((resolve, reject) => {
         this.isSpeaking = true;
-        this.currentSpeechId = Date.now().toString();
 
         Speech.speak(text, {
           language: defaultConfig.language,
@@ -182,22 +217,19 @@ class VoiceService {
           },
           onDone: () => {
             this.isSpeaking = false;
-            this.currentSpeechId = null;
             resolve();
           },
           onStopped: () => {
             this.isSpeaking = false;
-            this.currentSpeechId = null;
             resolve();
           },
-          onError: (error: any) => {
+          onError: (error: unknown) => {
             this.isSpeaking = false;
-            this.currentSpeechId = null;
             reject(error);
           },
         });
       });
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to speak text");
     }
   }
@@ -205,16 +237,16 @@ class VoiceService {
   /**
    * Stop current speech
    */
-  async stop(): Promise<void> {
+  stop(): Promise<void> {
     try {
       if (this.isSpeaking && Speech) {
         Speech.stop();
         this.isSpeaking = false;
-        this.currentSpeechId = null;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
+    return Promise.resolve();
   }
 
   /**
@@ -248,17 +280,17 @@ class VoiceService {
   /**
    * Check if speech synthesis is available
    */
-  async isAvailable(): Promise<boolean> {
+  isAvailable(): Promise<boolean> {
     try {
       // Speech is available on web and native platforms
-      return (
+      const available =
         Speech !== null &&
         (Platform.OS === "ios" ||
           Platform.OS === "android" ||
-          Platform.OS === "web")
-      );
-    } catch (error) {
-      return false;
+          Platform.OS === "web");
+      return Promise.resolve(available);
+    } catch (_error) {
+      return Promise.resolve(false);
     }
   }
 
@@ -338,14 +370,18 @@ class VoiceService {
       const result = await this.transcribeAudio(uri, language.split("-")[0]);
 
       // Call success callbacks
-      this.recognitionCallbacks.forEach((callback) => callback(result));
+      for (const callback of this.recognitionCallbacks) {
+        callback(result);
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       const errorObj = new Error(errorMessage);
 
       // Call error callbacks
-      this.recognitionErrorCallbacks.forEach((callback) => callback(errorObj));
+      for (const callback of this.recognitionErrorCallbacks) {
+        callback(errorObj);
+      }
     } finally {
       this.isListening = false;
       this.recognitionCallbacks = [];
@@ -362,7 +398,7 @@ class VoiceService {
         await this.recording.stopAndUnloadAsync();
         this.recording = null;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle cleanup errors
     } finally {
       this.isListening = false;
@@ -409,7 +445,7 @@ class VoiceService {
 
       // Create form data
       const formData = new FormData();
-      formData.append("file", audioBlob as any, `audio.${fileExtension}`);
+      formData.append("file", audioBlob, `audio.${fileExtension}`);
       formData.append("model", "whisper-1");
       if (language) {
         formData.append("language", language);
@@ -423,7 +459,7 @@ class VoiceService {
           headers: {
             Authorization: `Bearer ${apiKey}`,
           },
-          body: formData as any,
+          body: formData,
         }
       );
 
@@ -452,10 +488,12 @@ class VoiceService {
    */
   async requestMicrophonePermissions(): Promise<boolean> {
     try {
-      if (!Audio) return false;
+      if (!Audio) {
+        return false;
+      }
       const permission = await Audio.requestPermissionsAsync();
       return permission.status === "granted";
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
@@ -465,10 +503,12 @@ class VoiceService {
    */
   async hasMicrophonePermissions(): Promise<boolean> {
     try {
-      if (!Audio) return false;
+      if (!Audio) {
+        return false;
+      }
       const permission = await Audio.getPermissionsAsync();
       return permission.status === "granted";
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

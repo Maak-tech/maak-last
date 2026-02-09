@@ -8,13 +8,13 @@ import { useTheme } from "@/contexts/ThemeContext";
 import type { TrendPrediction } from "@/lib/services/chartsService";
 import { safeFormatDate } from "@/utils/dateFormat";
 
-interface TrendPredictionChartProps {
+type TrendPredictionChartProps = {
   prediction: TrendPrediction;
   title: string;
   yAxisLabel?: string;
   yAxisSuffix?: string;
   height?: number;
-}
+};
 
 export default function TrendPredictionChart({
   prediction,
@@ -97,6 +97,13 @@ export default function TrendPredictionChart({
     }
   };
 
+  let trendBadgeVariant: "error" | "success" | "outline" = "outline";
+  if (prediction.trend === "increasing") {
+    trendBadgeVariant = "error";
+  } else if (prediction.trend === "decreasing") {
+    trendBadgeVariant = "success";
+  }
+
   return (
     <View style={{ marginVertical: 16 }}>
       <View
@@ -113,17 +120,7 @@ export default function TrendPredictionChart({
         </Heading>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {getTrendIcon()}
-          <Badge
-            size="small"
-            style={{}}
-            variant={
-              prediction.trend === "increasing"
-                ? "error"
-                : prediction.trend === "decreasing"
-                  ? "success"
-                  : "outline"
-            }
-          >
+          <Badge size="small" style={{}} variant={trendBadgeVariant}>
             {getTrendLabel()}
           </Badge>
         </View>

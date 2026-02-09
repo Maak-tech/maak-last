@@ -3,8 +3,7 @@
  * Orchestrates the complete flow from vital reading to notifications
  */
 
-import * as admin from "firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { createTraceId } from "../../observability/correlation";
 import { logger } from "../../observability/logger";
 import { sendToMany } from "../../services/notifications";
@@ -32,7 +31,7 @@ import {
 /**
  * Vital reading for processing
  */
-export interface VitalReading {
+export type VitalReading = {
   userId: string;
   type: VitalType;
   value: number;
@@ -43,29 +42,29 @@ export interface VitalReading {
   deviceId?: string;
   timestamp?: Date;
   vitalId?: string; // If already persisted
-}
+};
 
 /**
  * Pipeline processing options
  */
-export interface ProcessVitalOptions {
+export type ProcessVitalOptions = {
   traceId?: string;
   reading: VitalReading;
   skipPersistence?: boolean; // If reading is already in Firestore
   skipNotifications?: boolean; // For testing or specific use cases
   openaiApiKey?: string; // OpenAI API key for Zeina analysis
-}
+};
 
 /**
  * Pipeline processing result
  */
-export interface ProcessVitalResult {
+export type ProcessVitalResult = {
   success: boolean;
   vitalId: string;
   alertId?: string;
   notificationsSent?: number;
   error?: string;
-}
+};
 
 /**
  * Write audit record
@@ -74,10 +73,10 @@ async function writeAuditRecord(
   traceId: string,
   eventType: string,
   patientId: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ): Promise<void> {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     await db.collection("audit").add({
       traceId,
       eventType,
@@ -119,6 +118,7 @@ async function writeAuditRecord(
  * @param options - Processing options
  * @returns Processing result
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: orchestration intentionally spans validation, persistence, enrichment, and notification flows.
 export async function processVitalReading(
   options: ProcessVitalOptions
 ): Promise<ProcessVitalResult> {
@@ -134,7 +134,7 @@ export async function processVitalReading(
 
   try {
     let vitalId = reading.vitalId;
-    const db = admin.firestore();
+    const db = getFirestore();
 
     // Step 1: Validate and normalize (if not already persisted)
     if (!skipPersistence) {
@@ -184,7 +184,7 @@ export async function processVitalReading(
       const normalizedReading = createVitalReading(vitalInput);
       const vitalDoc = await db.collection("vitals").add({
         ...normalizedReading,
-        timestamp: Timestamp.fromDate(normalizedReading.timestamp as any),
+        timestamp: Timestamp.fromDate(normalizedReading.timestamp),
         createdAt: Timestamp.now(),
       });
 

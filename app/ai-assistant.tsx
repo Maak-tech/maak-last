@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: This screen coordinates chat, voice, persistence, and settings flows in one component. */
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -19,6 +20,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { safeFormatDate } from "@/utils/dateFormat";
 import { auth, db } from "../lib/firebase";
 import healthContextService from "../lib/services/healthContextService";
 import openaiService, {
@@ -27,19 +29,10 @@ import openaiService, {
 } from "../lib/services/openaiService";
 import { voiceService } from "../lib/services/voiceService";
 import ChatMessage from "./components/ChatMessage";
-import { safeFormatDate } from "@/utils/dateFormat";
-
-interface ChatSession {
-  id: string;
-  messages: AIMessage[];
-  createdAt: Date;
-  updatedAt: Date;
-  title: string;
-}
 
 export default function AIAssistant() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ openSettings?: string }>();
+  const _params = useLocalSearchParams<{ openSettings?: string }>();
   const { t } = useTranslation();
   const scrollViewRef = useRef<ScrollView>(null);
   const isMountedRef = useRef(true);
@@ -49,18 +42,19 @@ export default function AIAssistant() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
+  const [_selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
   const [tempModel, setTempModel] = useState("gpt-3.5-turbo");
-  const [systemPrompt, setSystemPrompt] = useState<string>("");
+  const [_systemPrompt, setSystemPrompt] = useState<string>("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
-  const [autoSpeak, setAutoSpeak] = useState(false);
+  const [autoSpeak, _setAutoSpeak] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recognitionAvailable, setRecognitionAvailable] = useState(false);
   const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
   const [voiceOutputEnabled, setVoiceOutputEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en-US");
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Initialization flow runs once on mount.
   useEffect(() => {
     initializeChat();
     checkVoiceAvailability();
@@ -86,7 +80,7 @@ export default function AIAssistant() {
         if (savedVoiceLanguage) {
           setVoiceLanguage(savedVoiceLanguage);
         }
-      } catch (error) {
+      } catch (_error) {
         // Use defaults
       }
     };
@@ -98,7 +92,7 @@ export default function AIAssistant() {
     try {
       const available = await voiceService.isRecognitionAvailable();
       setRecognitionAvailable(available);
-    } catch (error) {
+    } catch (_error) {
       setRecognitionAvailable(false);
     }
   };
@@ -107,7 +101,7 @@ export default function AIAssistant() {
     try {
       const available = await voiceService.isAvailable();
       setVoiceEnabled(available);
-    } catch (error) {
+    } catch (_error) {
       setVoiceEnabled(false);
     }
   };
@@ -135,7 +129,7 @@ export default function AIAssistant() {
       await voiceService.startListening(
         async (result) => {
           setIsListening(false);
-          if (result.text && result.text.trim()) {
+          if (result.text?.trim()) {
             setInputText(result.text);
             // Automatically send the voice input
             await handleSend(result.text);
@@ -151,18 +145,20 @@ export default function AIAssistant() {
         },
         voiceLanguage
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : t("failedToStartVoiceInput", "Failed to start voice input");
       setIsListening(false);
-      Alert.alert(
-        t("speechError", "Speech Error"),
-        error.message ||
-          t("failedToStartVoiceInput", "Failed to start voice input")
-      );
+      Alert.alert(t("speechError", "Speech Error"), errorMessage);
     }
   };
 
   const handleVoiceOutput = async (text: string) => {
-    if (!(voiceEnabled && voiceOutputEnabled)) return;
+    if (!(voiceEnabled && voiceOutputEnabled)) {
+      return;
+    }
 
     try {
       setIsSpeaking(true);
@@ -172,7 +168,7 @@ export default function AIAssistant() {
         pitch: 1.0,
         volume: 1.0,
       });
-    } catch (error) {
+    } catch (_error) {
       // Silently fail if TTS is not available
     } finally {
       setIsSpeaking(false);
@@ -193,12 +189,14 @@ export default function AIAssistant() {
     setVoiceOutputEnabled(!voiceOutputEnabled);
   };
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       isMountedRef.current = false;
-    };
-  }, []);
+    },
+    []
+  );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Scrolling should track messages only.
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -207,17 +205,25 @@ export default function AIAssistant() {
     try {
       // Initialize OpenAI service (uses env key)
       await openaiService.initialize();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       const model = await openaiService.getModel();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       setSelectedModel(model);
       setTempModel(model);
 
       // Load health context
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       setIsLoading(true);
       const prompt = await healthContextService.getContextualPrompt();
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       setSystemPrompt(prompt);
 
       // Add system message
@@ -244,9 +250,11 @@ export default function AIAssistant() {
       // Create new chat session
       await createNewSession([systemMessage, welcomeMessage]);
 
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current) {
+        return;
+      }
       setIsLoading(false);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
       if (isMountedRef.current) {
         setIsLoading(false);
@@ -255,7 +263,9 @@ export default function AIAssistant() {
   };
 
   const createNewSession = async (initialMessages: AIMessage[]) => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) {
+      return;
+    }
 
     try {
       // Generate a title based on the conversation topic
@@ -291,14 +301,16 @@ export default function AIAssistant() {
 
       setCurrentSessionId(docRef.id);
       return docRef.id;
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
       return null;
     }
   };
 
   const saveMessageToSession = async (message: AIMessage) => {
-    if (!(auth.currentUser && currentSessionId)) return;
+    if (!(auth.currentUser && currentSessionId)) {
+      return;
+    }
 
     try {
       const sessionRef = doc(
@@ -310,7 +322,15 @@ export default function AIAssistant() {
       );
       const currentMessages = messages.filter((m) => m.role !== "system");
 
-      const updates: any = {
+      const updates: {
+        messages: Array<{
+          role: AIMessage["role"];
+          content: string;
+          timestamp: Date;
+        }>;
+        updatedAt: Date;
+        title?: string;
+      } = {
         messages: [...currentMessages, message].map((m) => ({
           role: m.role,
           content: m.content,
@@ -329,7 +349,7 @@ export default function AIAssistant() {
       }
 
       await updateDoc(sessionRef, updates);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error
     }
   };
@@ -344,7 +364,9 @@ export default function AIAssistant() {
   const handleSend = async (textOverride?: string | unknown) => {
     const textToSend =
       typeof textOverride === "string" ? textOverride : inputText;
-    if (!textToSend.trim() || isStreaming) return;
+    if (!textToSend.trim() || isStreaming) {
+      return;
+    }
 
     const userMessage: AIMessage = {
       id: Date.now().toString(),
@@ -446,7 +468,7 @@ export default function AIAssistant() {
         JSON.stringify(voiceInputEnabled)
       );
       await AsyncStorage.setItem("voice_language", voiceLanguage);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle storage error
     }
 
@@ -515,8 +537,7 @@ export default function AIAssistant() {
                 <ChatMessage
                   content={message.content}
                   isStreaming={
-                    isStreaming &&
-                    message.id === messages[messages.length - 1].id
+                    isStreaming && message.id === messages.at(-1)?.id
                   }
                   key={message.id}
                   role={message.role as "user" | "assistant"}
@@ -527,7 +548,7 @@ export default function AIAssistant() {
         </ScrollView>
 
         <View style={styles.inputContainer}>
-          {voiceEnabled && (
+          {voiceEnabled ? (
             <TouchableOpacity
               onPress={toggleVoiceOutput}
               style={[
@@ -535,16 +556,16 @@ export default function AIAssistant() {
                 voiceOutputEnabled && styles.voiceButtonActive,
               ]}
             >
-              {isSpeaking ? (
-                <VolumeX color="white" size={20} />
-              ) : voiceOutputEnabled ? (
+              {isSpeaking ? <VolumeX color="white" size={20} /> : null}
+              {!isSpeaking && voiceOutputEnabled ? (
                 <Volume2 color="white" size={20} />
-              ) : (
+              ) : null}
+              {isSpeaking || voiceOutputEnabled ? null : (
                 <VolumeX color="#666" size={20} />
               )}
             </TouchableOpacity>
-          )}
-          {recognitionAvailable && (
+          ) : null}
+          {recognitionAvailable ? (
             <TouchableOpacity
               onPress={handleVoiceInput}
               style={[
@@ -558,7 +579,7 @@ export default function AIAssistant() {
                 <Mic color="#666" size={20} />
               )}
             </TouchableOpacity>
-          )}
+          ) : null}
           <TextInput
             editable={!isStreaming}
             multiline
@@ -641,13 +662,13 @@ export default function AIAssistant() {
             </Text>
 
             {/* Voice Settings */}
-            {(voiceEnabled || recognitionAvailable) && (
+            {voiceEnabled || recognitionAvailable ? (
               <>
                 <Text style={[styles.modalLabel, { marginTop: 20 }]}>
                   {t("voiceSettings", "Voice Settings")}
                 </Text>
 
-                {voiceEnabled && (
+                {voiceEnabled ? (
                   <View style={styles.voiceSetting}>
                     <View style={styles.voiceSettingInfo}>
                       <Volume2 color="#007AFF" size={20} />
@@ -678,9 +699,9 @@ export default function AIAssistant() {
                       />
                     </TouchableOpacity>
                   </View>
-                )}
+                ) : null}
 
-                {recognitionAvailable && (
+                {recognitionAvailable ? (
                   <View style={styles.voiceSetting}>
                     <View style={styles.voiceSettingInfo}>
                       <Mic color="#007AFF" size={20} />
@@ -711,7 +732,7 @@ export default function AIAssistant() {
                       />
                     </TouchableOpacity>
                   </View>
-                )}
+                ) : null}
 
                 <View style={styles.voiceSetting}>
                   <View style={styles.voiceSettingInfo}>
@@ -746,7 +767,7 @@ export default function AIAssistant() {
                   </TouchableOpacity>
                 </View>
               </>
-            )}
+            ) : null}
 
             <TouchableOpacity
               onPress={handleSaveSettings}

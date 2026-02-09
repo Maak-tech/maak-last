@@ -9,8 +9,8 @@
 
 // Load .env file if it exists
 try {
-  const fs = require("fs");
-  const path = require("path");
+  const fs = require("node:fs");
+  const path = require("node:path");
   const envPath = path.join(process.cwd(), ".env");
 
   if (fs.existsSync(envPath)) {
@@ -20,10 +20,14 @@ try {
     for (const line of envLines) {
       const trimmedLine = line.trim();
       // Skip comments and empty lines
-      if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+      if (!trimmedLine || trimmedLine.startsWith("#")) {
+        continue;
+      }
 
       const equalIndex = trimmedLine.indexOf("=");
-      if (equalIndex === -1) continue;
+      if (equalIndex === -1) {
+        continue;
+      }
 
       const key = trimmedLine.substring(0, equalIndex).trim();
       let value = trimmedLine.substring(equalIndex + 1).trim();
@@ -42,7 +46,7 @@ try {
       }
     }
   }
-} catch (error) {
+} catch (_error) {
   // Silently handle .env loading errors
 }
 
@@ -124,7 +128,7 @@ for (const varName of optionalVars) {
 }
 
 // Summary
-console.log("\n" + "=".repeat(50));
+console.log(`\n${"=".repeat(50)}`);
 if (allValid && hasQuotes.length === 0) {
   console.log("✅ All required environment variables are present and valid!");
 } else if (allValid && hasQuotes.length > 0) {

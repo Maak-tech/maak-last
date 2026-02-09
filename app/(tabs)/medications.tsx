@@ -1,3 +1,7 @@
+/* biome-ignore-all lint/style/noNestedTernary: preserving existing UI conditional copy paths in this batch. */
+/* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: large legacy screen to be split in future refactor batches. */
+/* biome-ignore-all lint/performance/useTopLevelRegex: regex extraction will be lifted in a later dedicated performance pass. */
+/* biome-ignore-all lint/complexity/noForEach: collection refactor deferred to a focused cleanup pass. */
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft,
@@ -328,11 +332,13 @@ export default function MedicationsScreen() {
 
   // Load user allergies
   const loadUserAllergies = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     try {
       const allergies = await allergyService.getUserAllergies(user.id);
       setUserAllergies(allergies);
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error - allergies check is not critical
     }
   }, [user]);
@@ -341,189 +347,201 @@ export default function MedicationsScreen() {
     loadUserAllergies();
   }, [loadUserAllergies]);
 
-  const loadMedications = async (isRefresh = false) => {
-    if (!user) return;
-
-    const startTime = Date.now();
-    let dataLoaded = false;
-
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+  const loadMedications = useCallback(
+    async (isRefresh = false) => {
+      if (!user) {
+        return;
       }
 
-      logger.debug(
-        "Loading medications",
-        {
-          userId: user.id,
-          filterType: selectedFilter.type,
-          isAdmin,
-          hasFamily: Boolean(user.familyId),
-        },
-        "MedicationsScreen"
-      );
+      const startTime = Date.now();
+      let dataLoaded = false;
 
-      // Always load family members first if user has family
-      let members: UserType[] = [];
-      if (user.familyId) {
-        members = await userService.getFamilyMembers(user.familyId);
-        setFamilyMembers(members);
-      }
-
-      let loadedMedications: Medication[] = [];
-
-      // Load data based on selected filter
-      // Use Promise.allSettled to handle partial failures gracefully
-      if (selectedFilter.type === "family" && user.familyId && isAdmin) {
-        // Load family medications (admin only)
-        const [medicationsResult, refillResult] = await Promise.allSettled([
-          medicationService.getFamilyTodaysMedications(user.id, user.familyId),
-          medicationService.getFamilyMedications(user.id, user.familyId),
-        ]);
-
-        if (medicationsResult.status === "fulfilled") {
-          loadedMedications = medicationsResult.value;
-          setMedications(loadedMedications);
-          dataLoaded = true;
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
         } else {
-          logger.error(
-            "Failed to load family medications",
-            medicationsResult.reason,
-            "MedicationsScreen"
-          );
-          setMedications([]);
+          setLoading(true);
         }
 
-        if (refillResult.status === "fulfilled") {
-          const summary = medicationRefillService.getRefillPredictions(
-            refillResult.value
-          );
-          setRefillSummary(summary);
-        } else {
-          logger.error(
-            "Failed to load family medications for refill",
-            refillResult.reason,
-            "MedicationsScreen"
-          );
-          setRefillSummary(medicationRefillService.getRefillPredictions([]));
-        }
-      } else if (
-        selectedFilter.type === "member" &&
-        selectedFilter.memberId &&
-        isAdmin
-      ) {
-        // Load specific member medications (admin only)
-        const medicationsResult = await medicationService
-          .getMemberMedications(selectedFilter.memberId)
-          .catch((error) => {
-            logger.error(
-              "Failed to load member medications",
-              error,
-              "MedicationsScreen"
-            );
-            return [] as Medication[];
-          });
-
-        loadedMedications = medicationsResult;
-        setMedications(loadedMedications);
-        dataLoaded = true;
-
-        // Use the same medications for refill calculation
-        const summary =
-          medicationRefillService.getRefillPredictions(loadedMedications);
-        setRefillSummary(summary);
-      } else {
-        // Load personal medications (default)
-        const medicationsResult = await medicationService
-          .getUserMedications(user.id)
-          .catch((error) => {
-            logger.error(
-              "Failed to load user medications",
-              error,
-              "MedicationsScreen"
-            );
-            return [] as Medication[];
-          });
-
-        loadedMedications = medicationsResult;
-        setMedications(loadedMedications);
-        dataLoaded = true;
-
-        // Use the same medications for refill calculation
-        const summary =
-          medicationRefillService.getRefillPredictions(loadedMedications);
-        setRefillSummary(summary);
-      }
-
-      const durationMs = Date.now() - startTime;
-      logger.info(
-        "Medications loaded",
-        {
-          userId: user.id,
-          filterType: selectedFilter.type,
-          medicationCount: loadedMedications.length,
-          durationMs,
-        },
-        "MedicationsScreen"
-      );
-    } catch (error) {
-      const durationMs = Date.now() - startTime;
-
-      // Check if it's a Firestore index error
-      const isIndexError =
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "failed-precondition";
-
-      if (isIndexError) {
-        logger.warn(
-          "Firestore index not ready for medications query",
+        logger.debug(
+          "Loading medications",
           {
             userId: user.id,
             filterType: selectedFilter.type,
-            durationMs,
+            isAdmin,
+            hasFamily: Boolean(user.familyId),
           },
           "MedicationsScreen"
         );
 
-        // Only show alert if no data was loaded (fallback should have handled it)
-        if (!dataLoaded) {
-          Alert.alert(
-            isRTL ? "خطأ" : "Error",
-            isRTL
-              ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
-              : "Database index not ready. Please try again in a moment."
+        // Always load family members first if user has family
+        let members: UserType[] = [];
+        if (user.familyId) {
+          members = await userService.getFamilyMembers(user.familyId);
+          setFamilyMembers(members);
+        }
+
+        let loadedMedications: Medication[] = [];
+
+        // Load data based on selected filter
+        // Use Promise.allSettled to handle partial failures gracefully
+        if (selectedFilter.type === "family" && user.familyId && isAdmin) {
+          // Load family medications (admin only)
+          const [medicationsResult, refillResult] = await Promise.allSettled([
+            medicationService.getFamilyTodaysMedications(
+              user.id,
+              user.familyId
+            ),
+            medicationService.getFamilyMedications(user.id, user.familyId),
+          ]);
+
+          if (medicationsResult.status === "fulfilled") {
+            loadedMedications = medicationsResult.value;
+            setMedications(loadedMedications);
+            dataLoaded = true;
+          } else {
+            logger.error(
+              "Failed to load family medications",
+              medicationsResult.reason,
+              "MedicationsScreen"
+            );
+            setMedications([]);
+          }
+
+          if (refillResult.status === "fulfilled") {
+            const summary = medicationRefillService.getRefillPredictions(
+              refillResult.value
+            );
+            setRefillSummary(summary);
+          } else {
+            logger.error(
+              "Failed to load family medications for refill",
+              refillResult.reason,
+              "MedicationsScreen"
+            );
+            setRefillSummary(medicationRefillService.getRefillPredictions([]));
+          }
+        } else if (
+          selectedFilter.type === "member" &&
+          selectedFilter.memberId &&
+          isAdmin
+        ) {
+          // Load specific member medications (admin only)
+          const medicationsResult = await medicationService
+            .getMemberMedications(selectedFilter.memberId)
+            .catch((error) => {
+              logger.error(
+                "Failed to load member medications",
+                error,
+                "MedicationsScreen"
+              );
+              return [] as Medication[];
+            });
+
+          loadedMedications = medicationsResult;
+          setMedications(loadedMedications);
+          dataLoaded = true;
+
+          // Use the same medications for refill calculation
+          const summary =
+            medicationRefillService.getRefillPredictions(loadedMedications);
+          setRefillSummary(summary);
+        } else {
+          // Load personal medications (default)
+          const medicationsResult = await medicationService
+            .getUserMedications(user.id)
+            .catch((error) => {
+              logger.error(
+                "Failed to load user medications",
+                error,
+                "MedicationsScreen"
+              );
+              return [] as Medication[];
+            });
+
+          loadedMedications = medicationsResult;
+          setMedications(loadedMedications);
+          dataLoaded = true;
+
+          // Use the same medications for refill calculation
+          const summary =
+            medicationRefillService.getRefillPredictions(loadedMedications);
+          setRefillSummary(summary);
+        }
+
+        const durationMs = Date.now() - startTime;
+        logger.info(
+          "Medications loaded",
+          {
+            userId: user.id,
+            filterType: selectedFilter.type,
+            medicationCount: loadedMedications.length,
+            durationMs,
+          },
+          "MedicationsScreen"
+        );
+      } catch (error) {
+        const durationMs = Date.now() - startTime;
+
+        // Check if it's a Firestore index error
+        const isIndexError =
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "failed-precondition";
+
+        if (isIndexError) {
+          logger.warn(
+            "Firestore index not ready for medications query",
+            {
+              userId: user.id,
+              filterType: selectedFilter.type,
+              durationMs,
+            },
+            "MedicationsScreen"
           );
-        }
-      } else {
-        logger.error("Failed to load medications", error, "MedicationsScreen");
 
-        // Only show alert if no data was loaded
-        if (!dataLoaded) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : isRTL
-                ? "حدث خطأ في تحميل البيانات"
-                : "Error loading data";
+          // Only show alert if no data was loaded (fallback should have handled it)
+          if (!dataLoaded) {
+            Alert.alert(
+              isRTL ? "خطأ" : "Error",
+              isRTL
+                ? "فهرس قاعدة البيانات غير جاهز. يرجى المحاولة مرة أخرى بعد قليل."
+                : "Database index not ready. Please try again in a moment."
+            );
+          }
+        } else {
+          logger.error(
+            "Failed to load medications",
+            error,
+            "MedicationsScreen"
+          );
 
-          Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
+          // Only show alert if no data was loaded
+          if (!dataLoaded) {
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : isRTL
+                  ? "حدث خطأ في تحميل البيانات"
+                  : "Error loading data";
+
+            Alert.alert(isRTL ? "خطأ" : "Error", errorMessage);
+          }
         }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+    },
+    [user, selectedFilter, isAdmin, isRTL]
+  );
 
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
       loadMedications();
-    }, [user, selectedFilter])
+    }, [loadMedications])
   );
 
   // Cleanup timeout on unmount
@@ -545,7 +563,9 @@ export default function MedicationsScreen() {
     medicationName: string,
     allergies: Allergy[]
   ): Allergy[] => {
-    if (!medicationName || allergies.length === 0) return [];
+    if (!medicationName || allergies.length === 0) {
+      return [];
+    }
 
     const medicationLower = medicationName.toLowerCase().trim();
     const conflicts: Allergy[] = [];
@@ -613,7 +633,9 @@ export default function MedicationsScreen() {
   };
 
   const handleAddMedication = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     if (
       !(newMedication.name && newMedication.dosage && newMedication.frequency)
@@ -643,7 +665,7 @@ export default function MedicationsScreen() {
 
     // Validate reminder times format (HH:MM)
     const invalidReminders = newMedication.reminders.filter(
-      (r) => !(r.time && r.time.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/))
+      (r) => !r.time?.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
     );
 
     if (invalidReminders.length > 0) {
@@ -758,7 +780,9 @@ export default function MedicationsScreen() {
   };
 
   const proceedWithMedicationSave = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -818,7 +842,7 @@ export default function MedicationsScreen() {
 
           const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
-            if (reminder.time && reminder.time.trim()) {
+            if (reminder.time?.trim()) {
               const result = await scheduleRecurringMedicationReminder(
                 newMedication.name,
                 newMedication.dosage,
@@ -918,7 +942,7 @@ export default function MedicationsScreen() {
         ) {
           const schedulingResults: { success: boolean; error?: string }[] = [];
           for (const reminder of newMedication.reminders) {
-            if (reminder.time && reminder.time.trim()) {
+            if (reminder.time?.trim()) {
               const result = await scheduleRecurringMedicationReminder(
                 newMedication.name,
                 newMedication.dosage,
@@ -995,7 +1019,7 @@ export default function MedicationsScreen() {
             ? "Medication updated successfully"
             : "Medication added successfully"
       );
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في حفظ الدواء" : "Error saving medication"
@@ -1121,7 +1145,7 @@ export default function MedicationsScreen() {
                   ? "تم حذف الدواء بنجاح"
                   : "Medication deleted successfully"
               );
-            } catch (error) {
+            } catch (_error) {
               Alert.alert(
                 isRTL ? "خطأ" : "Error",
                 isRTL ? "حدث خطأ في حذف الدواء" : "Error deleting medication"
@@ -1144,7 +1168,7 @@ export default function MedicationsScreen() {
 
       // Reload medications from Firebase to ensure data is in sync
       await loadMedications();
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         isRTL ? "خطأ" : "Error",
         isRTL ? "حدث خطأ في تحديث الدواء" : "Error updating medication"
@@ -1153,20 +1177,22 @@ export default function MedicationsScreen() {
   };
 
   const getTodayStats = () => {
-    const totalMeds = medications.length;
-    const takenMeds = medications.filter(
+    const currentTotalMeds = medications.length;
+    const currentTakenMeds = medications.filter(
       (med) =>
         Array.isArray(med.reminders) &&
         med.reminders.some((reminder) => reminder.taken)
     ).length;
-    return { totalMeds, takenMeds };
+    return { totalMeds: currentTotalMeds, takenMeds: currentTakenMeds };
   };
 
   const getNextDoseText = (medication: Medication) => {
     const reminders = Array.isArray(medication.reminders)
       ? medication.reminders
       : [];
-    if (reminders.length === 0) return "No reminders set";
+    if (reminders.length === 0) {
+      return "No reminders set";
+    }
 
     const now = new Date();
     const todayReminders = reminders.filter(
@@ -1419,9 +1445,9 @@ export default function MedicationsScreen() {
                       </Caption>
                       {medication.tags && medication.tags.length > 0 && (
                         <View style={styles.medicationTags}>
-                          {medication.tags.slice(0, 3).map((tag, index) => (
+                          {medication.tags.slice(0, 3).map((tag, _index) => (
                             <Badge
-                              key={index}
+                              key={`${medication.id}-${tag}`}
                               size="small"
                               style={styles.medicationTag}
                               variant="outline"
@@ -1821,7 +1847,10 @@ export default function MedicationsScreen() {
                   const periodValue: "AM" | "PM" = reminder.period || "AM";
 
                   return (
-                    <View key={index} style={styles.reminderItem}>
+                    <View
+                      key={`${reminder.time}-${reminder.period}-${index}`}
+                      style={styles.reminderItem}
+                    >
                       <TextInput
                         keyboardType="number-pad"
                         maxLength={5}
@@ -1836,7 +1865,7 @@ export default function MedicationsScreen() {
                             formatted = digitsOnly.substring(0, 1);
                             if (digitsOnly.length > 1) {
                               // Add second digit and colon
-                              formatted = digitsOnly.substring(0, 2) + ":";
+                              formatted = `${digitsOnly.substring(0, 2)}:`;
                               if (digitsOnly.length > 2) {
                                 // Add minutes
                                 formatted =
@@ -1969,10 +1998,10 @@ export default function MedicationsScreen() {
                     label={isRTL ? "الكمية" : "Quantity"}
                     leftIcon={undefined}
                     onChangeText={(text: string) => {
-                      const num = text ? Number.parseInt(text) : undefined;
+                      const num = text ? Number.parseInt(text, 10) : undefined;
                       setNewMedication({
                         ...newMedication,
-                        quantity: num && !isNaN(num) ? num : undefined,
+                        quantity: num && !Number.isNaN(num) ? num : undefined,
                       });
                     }}
                     placeholder={isRTL ? "30" : "30"}
@@ -2025,10 +2054,10 @@ export default function MedicationsScreen() {
                 label={`${isRTL ? "تنبيه قبل" : "Remind me"} (${isRTL ? "أيام" : "days"})`}
                 leftIcon={undefined}
                 onChangeText={(text: string) => {
-                  const num = text ? Number.parseInt(text) : 7;
+                  const num = text ? Number.parseInt(text, 10) : 7;
                   setNewMedication({
                     ...newMedication,
-                    refillReminderDays: num && !isNaN(num) ? num : 7,
+                    refillReminderDays: num && !Number.isNaN(num) ? num : 7,
                   });
                 }}
                 placeholder="7"

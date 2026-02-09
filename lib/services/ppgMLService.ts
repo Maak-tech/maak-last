@@ -13,7 +13,7 @@ interface PPGAnalysisRequest {
   frameRate: number;
   duration?: number;
   userId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface PPGAnalysisResponse {
@@ -53,7 +53,7 @@ async function getAuthenticatedFunctions(): Promise<Functions | null> {
   try {
     await currentUser.getIdToken(true);
     await new Promise((resolve) => setTimeout(resolve, 100));
-  } catch (e) {
+  } catch (_e) {
     // Token refresh failed, return null to indicate auth issue
     return null;
   }
@@ -62,6 +62,7 @@ async function getAuthenticatedFunctions(): Promise<Functions | null> {
 }
 
 let hasLoggedMlUnavailable = false;
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 export const ppgMLService = {
   /**
@@ -157,14 +158,30 @@ export const ppgMLService = {
         signalQuality: data.signalQuality || 0,
         error: data.error || "ML analysis failed",
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Only log warning for non-authentication errors
+      const errorCode =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : "";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" &&
+              error !== null &&
+              "message" in error &&
+              typeof error.message === "string"
+            ? error.message
+            : "ML service unavailable";
       const isAuthError =
-        error?.code === "unauthenticated" ||
-        error?.message?.includes("User must be authenticated") ||
-        error?.message?.includes("unauthenticated");
+        errorCode === "unauthenticated" ||
+        errorMessage.includes("User must be authenticated") ||
+        errorMessage.includes("unauthenticated");
 
-      if (__DEV__ && !isAuthError && !hasLoggedMlUnavailable) {
+      if (IS_DEV && !isAuthError && !hasLoggedMlUnavailable) {
         hasLoggedMlUnavailable = true;
       }
 
@@ -172,7 +189,7 @@ export const ppgMLService = {
       return {
         success: false,
         signalQuality: 0,
-        error: error.message || "ML service unavailable",
+        error: errorMessage,
       };
     }
   },
@@ -186,7 +203,7 @@ export const ppgMLService = {
       if (!functions) {
         return false;
       }
-      const analyzePPG = httpsCallable(functions, "analyzePPGWithML");
+      httpsCallable(functions, "analyzePPGWithML");
 
       // Try a minimal test call (will fail gracefully if service unavailable)
       // We don't actually call it, just check if function exists

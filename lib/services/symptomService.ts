@@ -120,27 +120,22 @@ export const symptomService = {
     symptomData: Omit<Symptom, "id">,
     targetUserId: string
   ): Promise<string> {
-    try {
-      // Override the userId to the target user
-      const dataWithTargetUser = {
-        ...symptomData,
-        userId: targetUserId,
-      };
+    // Override the userId to the target user
+    const dataWithTargetUser = {
+      ...symptomData,
+      userId: targetUserId,
+    };
 
-      // Filter out undefined values to prevent Firebase errors
-      const cleanedData = Object.fromEntries(
-        Object.entries({
-          ...dataWithTargetUser,
-          timestamp: Timestamp.fromDate(dataWithTargetUser.timestamp),
-        }).filter(([_, value]) => value !== undefined)
-      );
+    // Filter out undefined values to prevent Firebase errors
+    const cleanedData = Object.fromEntries(
+      Object.entries({
+        ...dataWithTargetUser,
+        timestamp: Timestamp.fromDate(dataWithTargetUser.timestamp),
+      }).filter(([_, value]) => value !== undefined)
+    );
 
-      const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
-      return docRef.id;
-    } catch (error) {
-      // Silently handle error adding symptom for user:", error);
-      throw error;
-    }
+    const docRef = await addDoc(collection(db, "symptoms"), cleanedData);
+    return docRef.id;
   },
 
   // Get user symptoms (offline-first)
@@ -159,10 +154,10 @@ export const symptomService = {
         const querySnapshot = await getDocs(q);
         const symptoms: Symptom[] = [];
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        querySnapshot.forEach((itemDoc) => {
+          const data = itemDoc.data();
           symptoms.push({
-            id: doc.id,
+            id: itemDoc.id,
             ...data,
             timestamp: data.timestamp.toDate(),
           } as Symptom);
@@ -183,7 +178,7 @@ export const symptomService = {
           if (!(s.timestamp instanceof Date)) {
             s.timestamp = new Date(s.timestamp);
           }
-          return !isNaN(s.timestamp.getTime());
+          return !Number.isNaN(s.timestamp.getTime());
         })
         .sort((a, b) => {
           const aTime =
@@ -210,7 +205,7 @@ export const symptomService = {
             if (!(s.timestamp instanceof Date)) {
               s.timestamp = new Date(s.timestamp);
             }
-            return !isNaN(s.timestamp.getTime());
+            return !Number.isNaN(s.timestamp.getTime());
           })
           .sort((a, b) => {
             const aTime =
@@ -240,7 +235,7 @@ export const symptomService = {
         user?.familyId === familyId &&
         (user?.role === "admin" || user?.role === "caregiver")
       );
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -268,7 +263,7 @@ export const symptomService = {
         where("familyId", "==", familyId)
       );
       const familyMembersSnapshot = await getDocs(familyMembersQuery);
-      const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+      const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
 
       if (memberIds.length === 0) {
         return [];
@@ -301,19 +296,26 @@ export const symptomService = {
       const querySnapshot = await getDocs(symptomsQuery);
       const symptoms: Symptom[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         symptoms.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           timestamp: data.timestamp.toDate(),
         } as Symptom);
       });
 
       return symptoms;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if it's an index error
-      if (error?.code === "failed-precondition") {
+      const code =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : "";
+      if (code === "failed-precondition") {
         // Fallback: fetch symptoms for each member separately
         try {
           const familyMembersQuery = query(
@@ -321,7 +323,7 @@ export const symptomService = {
             where("familyId", "==", familyId)
           );
           const familyMembersSnapshot = await getDocs(familyMembersQuery);
-          const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+          const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
 
           if (memberIds.length === 0) {
             return [];
@@ -384,12 +386,11 @@ export const symptomService = {
         where("familyId", "==", familyId)
       );
       const familyMembersSnapshot = await getDocs(familyMembersQuery);
-      const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+      const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
       const membersMap = new Map();
-      familyMembersSnapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        membersMap.set(
-          doc.id,
+      familyMembersSnapshot.docs.forEach((itemDoc) => {
+        const data = itemDoc.data();
+        membersMap.set(itemDoc.id,
           data.name ||
             `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
             "Unknown"
@@ -448,9 +449,9 @@ export const symptomService = {
             type,
             count: data.count,
             affectedMembers: data.users.size,
-            users: Array.from(data.users).map((userId) => ({
-              userId,
-              userName: membersMap.get(userId) || "Unknown",
+            users: Array.from(data.users).map((memberUserId) => ({
+              userId: memberUserId,
+            userName: membersMap.get(memberUserId) || "Unknown",
             })),
           }))
           .sort((a, b) => b.count - a.count)
@@ -472,10 +473,10 @@ export const symptomService = {
 
       const querySnapshot = await getDocs(symptomsQuery);
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         symptoms.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           timestamp: data.timestamp.toDate(),
         } as Symptom);
@@ -509,9 +510,9 @@ export const symptomService = {
           type,
           count: data.count,
           affectedMembers: data.users.size,
-          users: Array.from(data.users).map((userId) => ({
-            userId,
-            userName: membersMap.get(userId) || "Unknown",
+          users: Array.from(data.users).map((memberUserId) => ({
+            userId: memberUserId,
+            userName: membersMap.get(memberUserId) || "Unknown",
           })),
         }))
         .sort((a, b) => b.count - a.count)
@@ -522,9 +523,16 @@ export const symptomService = {
         avgSeverity: Math.round(avgSeverity * 10) / 10,
         commonSymptoms,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if it's an index error and use fallback
-      if (error?.code === "failed-precondition") {
+      const code =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : "";
+      if (code === "failed-precondition") {
         try {
           // Fallback: fetch stats for each member separately
           const familyMembersQuery = query(
@@ -532,12 +540,11 @@ export const symptomService = {
             where("familyId", "==", familyId)
           );
           const familyMembersSnapshot = await getDocs(familyMembersQuery);
-          const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+          const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
           const membersMap = new Map();
-          familyMembersSnapshot.docs.forEach((doc) => {
-            const data = doc.data();
-            membersMap.set(
-              doc.id,
+          familyMembersSnapshot.docs.forEach((itemDoc) => {
+            const data = itemDoc.data();
+            membersMap.set(itemDoc.id,
               data.name ||
                 `${data.firstName || ""} ${data.lastName || ""}`.trim() ||
                 "Unknown"
@@ -591,9 +598,9 @@ export const symptomService = {
               type,
               count: data.count,
               affectedMembers: data.users.size,
-              users: Array.from(data.users).map((userId) => ({
-                userId,
-                userName: membersMap.get(userId) || "Unknown",
+              users: Array.from(data.users).map((memberUserId) => ({
+                userId: memberUserId,
+            userName: membersMap.get(memberUserId) || "Unknown",
               })),
             }))
             .sort((a, b) => b.count - a.count)
@@ -604,7 +611,7 @@ export const symptomService = {
             avgSeverity: Math.round(avgSeverity * 10) / 10,
             commonSymptoms,
           };
-        } catch (fallbackError) {
+        } catch (_fallbackError) {
           // Return empty stats if fallback also fails
           return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
         }
@@ -619,26 +626,16 @@ export const symptomService = {
     symptomId: string,
     updates: Partial<Symptom>
   ): Promise<void> {
-    try {
-      const updateData: any = { ...updates };
-      if (updates.timestamp) {
-        updateData.timestamp = Timestamp.fromDate(updates.timestamp);
-      }
-      await updateDoc(doc(db, "symptoms", symptomId), updateData);
-    } catch (error) {
-      // Silently handle error updating symptom:", error);
-      throw error;
+    const updateData: Record<string, unknown> = { ...updates };
+    if (updates.timestamp) {
+      updateData.timestamp = Timestamp.fromDate(updates.timestamp);
     }
+    await updateDoc(doc(db, "symptoms", symptomId), updateData);
   },
 
   // Delete symptom
   async deleteSymptom(symptomId: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, "symptoms", symptomId));
-    } catch (error) {
-      // Silently handle error deleting symptom:", error);
-      throw error;
-    }
+    await deleteDoc(doc(db, "symptoms", symptomId));
   },
 
   // Get symptom statistics
@@ -663,10 +660,10 @@ export const symptomService = {
       const querySnapshot = await getDocs(q);
       const symptoms: Symptom[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         symptoms.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           timestamp: data.timestamp.toDate(),
         } as Symptom);
@@ -694,9 +691,16 @@ export const symptomService = {
         avgSeverity: Math.round(avgSeverity * 10) / 10,
         commonSymptoms,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if it's an index error and use fallback
-      if (error?.code === "failed-precondition") {
+      const code =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof error.code === "string"
+          ? error.code
+          : "";
+      if (code === "failed-precondition") {
         try {
           // Fallback: fetch all user symptoms and filter by date in memory
           // This uses the existing index that works (userId + orderBy timestamp)
@@ -731,7 +735,7 @@ export const symptomService = {
             avgSeverity: Math.round(avgSeverity * 10) / 10,
             commonSymptoms,
           };
-        } catch (fallbackError) {
+        } catch (_fallbackError) {
           // If fallback also fails, return empty stats
           return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
         }
@@ -745,31 +749,26 @@ export const symptomService = {
     memberId: string,
     limitCount = 50
   ): Promise<Symptom[]> {
-    try {
-      const q = query(
-        collection(db, "symptoms"),
-        where("userId", "==", memberId),
-        orderBy("timestamp", "desc"),
-        limit(limitCount)
-      );
+    const q = query(
+      collection(db, "symptoms"),
+      where("userId", "==", memberId),
+      orderBy("timestamp", "desc"),
+      limit(limitCount)
+    );
 
-      const querySnapshot = await getDocs(q);
-      const symptoms: Symptom[] = [];
+    const querySnapshot = await getDocs(q);
+    const symptoms: Symptom[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        symptoms.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Symptom);
-      });
+    querySnapshot.forEach((itemDoc) => {
+      const data = itemDoc.data();
+      symptoms.push({
+        id: itemDoc.id,
+        ...data,
+        timestamp: data.timestamp.toDate(),
+      } as Symptom);
+    });
 
-      return symptoms;
-    } catch (error) {
-      // Silently handle error getting member symptoms:", error);
-      throw error;
-    }
+    return symptoms;
   },
 
   // Get symptom stats for a specific family member (for admins)
@@ -794,10 +793,10 @@ export const symptomService = {
       const querySnapshot = await getDocs(q);
       const symptoms: Symptom[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         symptoms.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           timestamp: data.timestamp.toDate(),
         } as Symptom);
@@ -828,9 +827,11 @@ export const symptomService = {
         avgSeverity: Math.round(avgSeverity * 10) / 10,
         commonSymptoms,
       };
-    } catch (error) {
+    } catch (_error) {
       // Silently handle error getting member symptom stats:", error);
       return { totalSymptoms: 0, avgSeverity: 0, commonSymptoms: [] };
     }
   },
 };
+
+

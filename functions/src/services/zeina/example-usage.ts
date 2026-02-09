@@ -4,6 +4,11 @@
  * This example shows how to use Zeina analysis in the vital alerts trigger.
  * The same pattern can be applied to symptom alerts, fall alerts, etc.
  */
+/* biome-ignore-all lint/nursery/useMaxParams: example signatures are intentionally verbose for readability. */
+/* biome-ignore-all lint/suspicious/noExplicitAny: example file demonstrates integration points with broad input shapes. */
+/* biome-ignore-all lint/suspicious/useAwait: async wrappers are intentionally preserved in sample flow. */
+/* biome-ignore-all lint/correctness/noUnusedFunctionParameters: sample helpers keep explicit parameter lists for documentation clarity. */
+/* biome-ignore-all lint/style/useDefaultSwitchClause: switch branches are intentionally explicit for documented recipient targets. */
 
 import { createTraceId } from "../../observability/correlation";
 import { logger } from "../../observability/logger";

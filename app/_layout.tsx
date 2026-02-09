@@ -1,3 +1,4 @@
+/* biome-ignore-all lint/performance/noNamespaceImport: Expo SDK modules in this file intentionally use namespace imports. */
 // TextImpl patch removed due to Bun compatibility issues
 // Reanimated setup handles TextImpl patching through TypeScript
 
@@ -34,7 +35,7 @@ if (Platform.OS !== "web") {
   try {
     // Import React Native Firebase app module - this initializes Firebase from native config
     require("@react-native-firebase/app");
-  } catch (error) {
+  } catch (_error) {
     // React Native Firebase not available (e.g., in Expo Go or web)
     // This is expected and will be handled gracefully in AuthContext
   }
@@ -42,10 +43,10 @@ if (Platform.OS !== "web") {
 
 import { I18nextProvider } from "react-i18next";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
 import { observabilityEmitter } from "@/lib/observability";
@@ -94,7 +95,9 @@ export default function RootLayout() {
 
   // Initialize RevenueCat SDK
   useEffect(() => {
-    if (!isAppActive) return;
+    if (!isAppActive) {
+      return;
+    }
 
     const initializeRevenueCat = async () => {
       try {
@@ -111,7 +114,9 @@ export default function RootLayout() {
   // HealthKit module check removed for production
 
   useEffect(() => {
-    if (!isAppActive) return;
+    if (!isAppActive) {
+      return;
+    }
 
     // Request notification permissions on app start
     const requestPermissions = async () => {
@@ -134,7 +139,7 @@ export default function RootLayout() {
             },
           });
         }
-      } catch (error) {
+      } catch (_error) {
         // Silently handle error
       }
     };
@@ -155,8 +160,12 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (hasBeenActive || isAppActive) return;
-    if (backgroundLaunchLoggedRef.current) return;
+    if (hasBeenActive || isAppActive) {
+      return;
+    }
+    if (backgroundLaunchLoggedRef.current) {
+      return;
+    }
     backgroundLaunchLoggedRef.current = true;
     if (!isFirebaseReady()) {
       logger.info(

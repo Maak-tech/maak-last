@@ -3,8 +3,7 @@
  * Handles vital alert creation, Zeina enrichment, and notification to family admins
  */
 
-import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { createTraceId } from "../../observability/correlation";
 import { logger } from "../../observability/logger";
 import { sendPushNotificationInternal } from "../../services/notifications";
@@ -38,6 +37,7 @@ import {
  * @param severity - Alert severity (critical or warning)
  * @param direction - Direction of threshold breach (low or high)
  */
+// biome-ignore lint/nursery/useMaxParams: kept for compatibility with existing direct-call sites.
 export async function sendVitalAlertToAdmins(
   userId: string,
   userName: string,
@@ -57,7 +57,7 @@ export async function sendVitalAlertToAdmins(
       fn: "sendVitalAlertToAdmins",
     });
 
-    const db = admin.firestore();
+    const db = getFirestore();
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 

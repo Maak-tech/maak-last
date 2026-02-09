@@ -35,7 +35,7 @@ const DEXCOM_API_BASE = "https://api.dexcom.com";
 const DEXCOM_REDIRECT_URI_HTTPS =
   Constants.expoConfig?.extra?.dexcomRedirectUri ||
   "https://maak-5caad.web.app/dexcom-callback";
-const REDIRECT_URI_DEEP_LINK = Linking.createURL("dexcom-callback");
+const _REDIRECT_URI_DEEP_LINK = Linking.createURL("dexcom-callback");
 // Use HTTPS redirect URI for Dexcom registration (required by Dexcom)
 const REDIRECT_URI = DEXCOM_REDIRECT_URI_HTTPS;
 
@@ -49,7 +49,7 @@ export const dexcomService = {
   /**
    * Check if Dexcom integration is available
    */
-  isAvailable: async (): Promise<ProviderAvailability> => {
+  isAvailable: (): ProviderAvailability => {
     try {
       if (
         DEXCOM_CLIENT_ID === "YOUR_DEXCOM_CLIENT_ID" ||
@@ -65,10 +65,10 @@ export const dexcomService = {
       return {
         available: true,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         available: false,
-        reason: error?.message || "Unknown error",
+        reason: error instanceof Error ? error.message : "Unknown error",
       };
     }
   },
@@ -99,8 +99,10 @@ export const dexcomService = {
       } else {
         throw new Error("Authentication cancelled or failed");
       }
-    } catch (error: any) {
-      throw new Error(`Dexcom authentication failed: ${error.message}`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unknown authentication error";
+      throw new Error(`Dexcom authentication failed: ${message}`);
     }
   },
 
@@ -181,9 +183,11 @@ export const dexcomService = {
         connectedAt: new Date().toISOString(),
         selectedMetrics: selectedMetrics || ["blood_glucose"],
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unknown authentication error";
       throw new Error(
-        `Failed to complete Dexcom authentication: ${error.message}`
+        `Failed to complete Dexcom authentication: ${message}`
       );
     }
   },
@@ -255,7 +259,7 @@ export const dexcomService = {
       });
 
       return newTokens.access_token;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   },
@@ -299,7 +303,7 @@ export const dexcomService = {
         trend: latestReading.trend,
         trendArrow: getTrendArrow(latestReading.trend),
       };
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   },
@@ -341,7 +345,7 @@ export const dexcomService = {
       const egvs = data.egvs || [];
 
       if (egvs.length > 0) {
-        const samples = egvs.map((reading: any) => ({
+        const samples = egvs.map((reading: DexcomEgv) => ({
           value: reading.value,
           unit: "mg/dL",
           startDate: reading.displayTime,
@@ -358,7 +362,7 @@ export const dexcomService = {
       }
 
       return results;
-    } catch (error: any) {
+    } catch (_error: unknown) {
       return [];
     }
   },
@@ -380,7 +384,9 @@ export const dexcomService = {
       await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.DEXCOM_TOKENS);
       // Connection data is stored in AsyncStorage via saveProviderConnection
       // and will be cleared by disconnectProvider in healthSync.ts
-    } catch (error) {}
+    } catch (_error) {
+      // Best effort cleanup; ignore if secure storage is unavailable.
+    }
   },
 };
 
@@ -409,5 +415,10 @@ function getTrendArrow(trend: string): string {
   };
   return arrows[trend] || "?";
 }
+
+type DexcomEgv = {
+  value: number;
+  displayTime: string;
+};
 
 export default dexcomService;

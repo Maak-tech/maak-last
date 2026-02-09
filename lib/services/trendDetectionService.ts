@@ -266,13 +266,14 @@ export async function createTrendAlert(
   try {
     const { alertService } = await import("./alertService");
 
-    const alertType = type === "vital_trend" ? "vital_trend" : "symptom_trend";
+    const alertType: "vital_trend" | "symptom_trend" =
+      type === "vital_trend" ? "vital_trend" : "symptom_trend";
     const severity =
       trendAnalysis.severity === "critical" ? "critical" : "high";
 
     const alertId = await alertService.createAlert({
       userId,
-      type: alertType as any,
+      type: alertType,
       severity,
       message: trendAnalysis.message,
       timestamp: new Date(),
@@ -285,7 +286,7 @@ export async function createTrendAlert(
     });
 
     return alertId;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

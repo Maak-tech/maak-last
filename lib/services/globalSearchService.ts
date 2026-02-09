@@ -1,8 +1,8 @@
+import { safeFormatDate } from "@/utils/dateFormat";
 import { medicationService } from "./medicationService";
 import { moodService } from "./moodService";
 import { symptomService } from "./symptomService";
 import { userService } from "./userService";
-import { safeFormatDate } from "@/utils/dateFormat";
 
 export interface SearchResult {
   id: string;
@@ -15,7 +15,7 @@ export interface SearchResult {
   action?: {
     label: string;
     route: string;
-    params?: any;
+    params?: unknown;
   };
 }
 
@@ -71,7 +71,7 @@ class GlobalSearchService {
         .slice(0, limit);
 
       return filteredResults;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -82,7 +82,7 @@ class GlobalSearchService {
   private async searchMedications(
     userId: string,
     query: string,
-    filters?: SearchFilters
+    _filters?: SearchFilters
   ): Promise<SearchResult[]> {
     try {
       const medications = await medicationService.getUserMedications(userId);
@@ -115,7 +115,7 @@ class GlobalSearchService {
       });
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -160,7 +160,7 @@ class GlobalSearchService {
       });
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -171,7 +171,7 @@ class GlobalSearchService {
   private async searchMoods(
     userId: string,
     query: string,
-    filters?: SearchFilters
+    _filters?: SearchFilters
   ): Promise<SearchResult[]> {
     try {
       const moods = await moodService.getUserMoods(userId, 365); // Last year
@@ -204,7 +204,7 @@ class GlobalSearchService {
       });
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -248,7 +248,7 @@ class GlobalSearchService {
       });
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -376,7 +376,7 @@ class GlobalSearchService {
       });
 
       return [...new Set(suggestions)]; // Remove duplicates
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }
@@ -384,11 +384,11 @@ class GlobalSearchService {
   /**
    * Get search analytics for user behavior insights
    */
-  async getSearchAnalytics(userId: string): Promise<{
+  getSearchAnalytics(_userId: string): {
     popularSearches: string[];
     searchFrequency: Record<string, number>;
     noResultsQueries: string[];
-  }> {
+  } {
     // This would track search analytics in a real implementation
     // For now, return empty analytics
     return {

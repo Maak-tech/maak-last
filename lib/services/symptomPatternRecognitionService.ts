@@ -394,11 +394,11 @@ class SymptomPatternRecognitionService {
    * Analyze symptom patterns and provide diagnosis suggestions
    */
   async analyzeSymptomPatterns(
-    userId: string,
+    _userId: string,
     recentSymptoms: Symptom[],
     medicalHistory?: MedicalHistory[],
     medications?: Medication[],
-    isArabic = false
+    _isArabic = false
   ): Promise<PatternAnalysisResult> {
     // Identify symptom patterns
     const patterns = this.identifySymptomPatterns(recentSymptoms);
@@ -470,7 +470,7 @@ class SymptomPatternRecognitionService {
     symptoms: Symptom[],
     medicalHistory: MedicalHistory[],
     medications: Medication[],
-    patterns: SymptomPattern[]
+    _patterns: SymptomPattern[]
   ): Promise<DiagnosisSuggestion[]> {
     const suggestions: DiagnosisSuggestion[] = [];
     const symptomTypes = symptoms.map((s) => s.type.toLowerCase());
@@ -563,8 +563,8 @@ class SymptomPatternRecognitionService {
    * Generate reasoning for diagnosis suggestions
    */
   private generateDiagnosisReasoning(
-    rule: any,
-    userSymptoms: string[],
+    rule: (typeof DIAGNOSIS_RULES)[number],
+    _userSymptoms: string[],
     optionalMatches: string[],
     medicalHistory: MedicalHistory[]
   ): string {
@@ -628,19 +628,34 @@ class SymptomPatternRecognitionService {
       if (!aiResponse) return [];
 
       if (aiResponse && aiResponse.suggestions) {
-        return aiResponse.suggestions.map((suggestion: any) => ({
+        return aiResponse.suggestions.map((suggestion: unknown) => {
+          const parsedSuggestion =
+            typeof suggestion === "object" && suggestion !== null
+              ? (suggestion as {
+                  condition?: string;
+                  confidence?: number;
+                  reasoning?: string;
+                  recommendations?: string[];
+                  urgency?: "low" | "medium" | "high" | "emergency";
+                })
+              : {};
+
+          return {
           id: `ai-diagnosis-${Date.now()}-${Math.random()}`,
-          condition: suggestion.condition,
-          confidence: Math.min(60, suggestion.confidence || 50), // Cap AI suggestions lower
-          reasoning: suggestion.reasoning,
+          condition: parsedSuggestion.condition || "Unknown condition",
+          confidence: Math.min(60, parsedSuggestion.confidence || 50), // Cap AI suggestions lower
+          reasoning:
+            parsedSuggestion.reasoning ||
+            "Pattern detected from symptom profile.",
           symptoms: symptoms.map((s) => s.type),
-          recommendations: suggestion.recommendations || [],
-          urgency: suggestion.urgency || "low",
+          recommendations: parsedSuggestion.recommendations || [],
+          urgency: parsedSuggestion.urgency || "low",
           disclaimer:
             "AI-generated suggestion. This is not a medical diagnosis. Please consult with a healthcare professional.",
-        }));
+          };
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       // Missing API key or network errors should not spam logs; fallback is fine.
     }
 
@@ -806,7 +821,7 @@ class SymptomPatternRecognitionService {
       });
 
       return [...new Set(recommendations)]; // Remove duplicates
-    } catch (error) {
+    } catch (_error) {
       return [];
     }
   }

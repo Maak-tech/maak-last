@@ -3,13 +3,13 @@
  * Aggregates and summarizes recent vital readings for analysis
  */
 
-import * as admin from "firebase-admin";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
 
 /**
  * Vital summary for recent readings
  */
-export interface VitalsSummary {
+export type VitalsSummary = {
   heartRate?: {
     current: number;
     avg: number;
@@ -40,8 +40,8 @@ export interface VitalsSummary {
     avg: number;
     trend: "stable" | "increasing" | "decreasing";
   };
-  [key: string]: any;
-}
+  [key: string]: unknown;
+};
 
 /**
  * Get recent vitals summary for a patient
@@ -52,6 +52,7 @@ export interface VitalsSummary {
  * @param traceId - Optional trace ID for logging
  * @returns Vitals summary with trends and averages
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: summary aggregation handles multiple vital-specific branches in one pass.
 export async function getRecentVitalsSummary(
   patientId: string,
   hours = 24,
@@ -65,13 +66,13 @@ export async function getRecentVitalsSummary(
   });
 
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
     const vitalsSnapshot = await db
       .collection("vitals")
       .where("userId", "==", patientId)
-      .where("timestamp", ">", admin.firestore.Timestamp.fromDate(cutoffTime))
+      .where("timestamp", ">", Timestamp.fromDate(cutoffTime))
       .orderBy("timestamp", "desc")
       .limit(100)
       .get();
@@ -79,18 +80,42 @@ export async function getRecentVitalsSummary(
     const summary: VitalsSummary = {};
 
     // Group by vital type
-    const vitalsByType: Record<string, any[]> = {};
-    vitalsSnapshot.docs.forEach((doc) => {
+    type VitalRecord = {
+      type: string;
+      value: number;
+      systolic?: number;
+      diastolic?: number;
+    };
+    const vitalsByType: Record<string, VitalRecord[]> = {};
+    for (const doc of vitalsSnapshot.docs) {
       const data = doc.data();
-      if (!vitalsByType[data.type]) {
-        vitalsByType[data.type] = [];
+      const type = data.type as string | undefined;
+      const value = data.value as number | undefined;
+      if (!(type && typeof value === "number")) {
+        continue;
       }
-      vitalsByType[data.type].push(data);
-    });
+      if (!vitalsByType[type]) {
+        vitalsByType[type] = [];
+      }
+      vitalsByType[type].push({
+        type,
+        value,
+        systolic:
+          typeof data.systolic === "number"
+            ? (data.systolic as number)
+            : undefined,
+        diastolic:
+          typeof data.diastolic === "number"
+            ? (data.diastolic as number)
+            : undefined,
+      });
+    }
 
     // Calculate summaries for each type
     for (const [type, readings] of Object.entries(vitalsByType)) {
-      if (readings.length === 0) continue;
+      if (readings.length === 0) {
+        continue;
+      }
 
       const values = readings.map((r) => r.value);
       const current = values[0];

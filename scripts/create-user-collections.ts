@@ -8,10 +8,9 @@
  */
 
 const { initializeApp } = require("firebase/app");
-const { getAuth, connectAuthEmulator } = require("firebase/auth");
+const { getAuth } = require("firebase/auth");
 const {
   getFirestore,
-  connectFirestoreEmulator,
   collection,
   addDoc,
   doc,
@@ -37,7 +36,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+getAuth(app);
 const db = getFirestore(app);
 
 async function createSampleData(userId: string) {

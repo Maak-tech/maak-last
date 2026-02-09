@@ -6,7 +6,7 @@
 
 import type { Vital, VitalType } from "../../db/firestore";
 
-export interface VitalInput {
+export type VitalInput = {
   userId: string;
   type: VitalType;
   value: number;
@@ -16,17 +16,17 @@ export interface VitalInput {
   source?: "manual" | "device" | "healthkit" | "googlefit" | "oura" | "garmin";
   deviceId?: string;
   timestamp?: Date;
-}
+};
 
-export interface ValidationError {
+export type ValidationError = {
   field: string;
   message: string;
-}
+};
 
-export interface ValidationResult {
+export type ValidationResult = {
   isValid: boolean;
   errors: ValidationError[];
-}
+};
 
 // ============================================================================
 // Validation Rules
@@ -113,7 +113,7 @@ export function validateValueRange(
 ): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  if (typeof value !== "number" || isNaN(value)) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
     return [{ field: "value", message: "Value must be a valid number" }];
   }
 
@@ -135,6 +135,7 @@ export function validateValueRange(
 /**
  * Validate blood pressure specific fields
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: blood pressure validation intentionally applies multiple safety checks.
 export function validateBloodPressure(input: VitalInput): ValidationError[] {
   const errors: ValidationError[] = [];
 
@@ -224,7 +225,9 @@ export function validateVitalInput(
   }
 
   // Type validation
-  allErrors.push(...validateVitalType(input.type!));
+  if (input.type) {
+    allErrors.push(...validateVitalType(input.type));
+  }
 
   // Value range
   if (input.type && input.value !== undefined) {
@@ -377,8 +380,8 @@ export function createVitalReading(
     unit: normalized.unit,
     source: input.source || "manual",
     timestamp: input.timestamp
-      ? (new Date(input.timestamp) as any) // Will be converted to Timestamp by Firestore
-      : (new Date() as any),
+      ? new Date(input.timestamp) // Will be converted to Timestamp by Firestore
+      : new Date(),
   };
 
   // Add blood pressure fields if applicable

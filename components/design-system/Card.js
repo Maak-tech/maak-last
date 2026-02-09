@@ -16,11 +16,11 @@ import { borderRadius, colors, shadows, spacing } from "./theme";
 /** @param {CardProps} props */
 const Card = ({
   children,
-  onPress = undefined,
+  onPress,
   variant = "elevated", // elevated, outlined, filled
-  style = undefined,
+  style,
   pressable = true,
-  contentStyle = undefined,
+  contentStyle,
 }) => {
   const scaleAnim = useAppStateAwareAnimation(1);
 

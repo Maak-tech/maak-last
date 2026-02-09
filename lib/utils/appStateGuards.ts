@@ -10,6 +10,8 @@ export const isAppActive = (): boolean => AppState.currentState === "active";
 export const configureLayoutAnimationIfActive = (
   preset: LayoutAnimationPreset
 ): void => {
-  if (!isAppActive()) return;
+  if (!isAppActive()) {
+    return;
+  }
   LayoutAnimation.configureNext(preset);
 };

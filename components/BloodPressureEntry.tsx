@@ -25,11 +25,11 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { auth, db } from "@/lib/firebase";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
-interface BloodPressureEntryProps {
+type BloodPressureEntryProps = {
   visible: boolean;
   onClose: () => void;
   onSave?: () => void;
-}
+};
 
 export default function BloodPressureEntry({
   visible,
@@ -45,31 +45,36 @@ export default function BloodPressureEntry({
 
   const isRTL = i18n.language === "ar";
 
-  const styles = createThemedStyles((theme) => ({
+  const styles = createThemedStyles((themeTokens) => ({
     modal: {
       flex: 1,
-      backgroundColor: theme.colors.background.primary,
+      backgroundColor: themeTokens.colors.background.primary,
     },
     container: {
       flex: 1,
-      padding: theme.spacing.lg,
+      padding: themeTokens.spacing.lg,
     },
     header: {
       flexDirection: "row" as const,
       alignItems: "center" as const,
       justifyContent: "space-between" as const,
-      marginBottom: theme.spacing.xl,
-      paddingTop: theme.spacing.lg,
+      marginBottom: themeTokens.spacing.xl,
+      paddingTop: themeTokens.spacing.lg,
     },
     title: {
-      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
+      ...getTextStyle(
+        themeTokens,
+        "heading",
+        "bold",
+        themeTokens.colors.text.primary
+      ),
       fontSize: 28,
     },
     closeButton: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: theme.colors.background.secondary,
+      backgroundColor: themeTokens.colors.background.secondary,
       justifyContent: "center" as const,
       alignItems: "center" as const,
     },
@@ -77,75 +82,100 @@ export default function BloodPressureEntry({
       flex: 1,
     },
     formGroup: {
-      marginBottom: theme.spacing.xl,
+      marginBottom: themeTokens.spacing.xl,
     },
     label: {
       ...getTextStyle(
-        theme,
+        themeTokens,
         "subheading",
         "semibold",
-        theme.colors.text.primary
+        themeTokens.colors.text.primary
       ),
-      marginBottom: theme.spacing.sm,
+      marginBottom: themeTokens.spacing.sm,
     },
     inputContainer: {
       flexDirection: "row" as const,
-      gap: theme.spacing.md,
+      gap: themeTokens.spacing.md,
     },
     inputWrapper: {
       flex: 1,
     },
     input: {
-      backgroundColor: theme.colors.background.secondary,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
-      ...getTextStyle(theme, "heading", "bold", theme.colors.text.primary),
+      backgroundColor: themeTokens.colors.background.secondary,
+      borderRadius: themeTokens.borderRadius.md,
+      padding: themeTokens.spacing.md,
+      ...getTextStyle(
+        themeTokens,
+        "heading",
+        "bold",
+        themeTokens.colors.text.primary
+      ),
       fontSize: 24,
       textAlign: "center" as const,
       borderWidth: 2,
-      borderColor: theme.colors.border.light,
+      borderColor: themeTokens.colors.border.light,
     },
     inputFocused: {
-      borderColor: theme.colors.primary.main,
+      borderColor: themeTokens.colors.primary.main,
     },
     inputLabel: {
-      ...getTextStyle(theme, "caption", "medium", theme.colors.text.secondary),
+      ...getTextStyle(
+        themeTokens,
+        "caption",
+        "medium",
+        themeTokens.colors.text.secondary
+      ),
       textAlign: "center" as const,
-      marginTop: theme.spacing.xs,
+      marginTop: themeTokens.spacing.xs,
     },
     infoCard: {
-      backgroundColor: theme.colors.secondary[50],
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
-      marginBottom: theme.spacing.lg,
+      backgroundColor: themeTokens.colors.secondary[50],
+      borderRadius: themeTokens.borderRadius.md,
+      padding: themeTokens.spacing.md,
+      marginBottom: themeTokens.spacing.lg,
       borderLeftWidth: 4,
-      borderLeftColor: theme.colors.secondary.main,
+      borderLeftColor: themeTokens.colors.secondary.main,
       borderRightWidth: 0,
       borderRightColor: "transparent",
     },
     infoText: {
-      ...getTextStyle(theme, "caption", "regular", theme.colors.text.secondary),
+      ...getTextStyle(
+        themeTokens,
+        "caption",
+        "regular",
+        themeTokens.colors.text.secondary
+      ),
       lineHeight: 20,
     },
     button: {
-      backgroundColor: theme.colors.primary.main,
-      borderRadius: theme.borderRadius.lg,
-      padding: theme.spacing.md,
+      backgroundColor: themeTokens.colors.primary.main,
+      borderRadius: themeTokens.borderRadius.lg,
+      padding: themeTokens.spacing.md,
       alignItems: "center" as const,
       justifyContent: "center" as const,
       flexDirection: "row" as const,
-      gap: theme.spacing.sm,
-      ...theme.shadows.md,
+      gap: themeTokens.spacing.sm,
+      ...themeTokens.shadows.md,
     },
     buttonDisabled: {
       opacity: 0.5,
     },
     buttonText: {
-      ...getTextStyle(theme, "button", "bold", theme.colors.neutral.white),
+      ...getTextStyle(
+        themeTokens,
+        "button",
+        "bold",
+        themeTokens.colors.neutral.white
+      ),
     },
     errorText: {
-      ...getTextStyle(theme, "body", "medium", theme.colors.accent.error),
-      marginTop: theme.spacing.sm,
+      ...getTextStyle(
+        themeTokens,
+        "body",
+        "medium",
+        themeTokens.colors.accent.error
+      ),
+      marginTop: themeTokens.spacing.sm,
       textAlign: "center" as const,
     },
   }))(theme);
@@ -159,7 +189,7 @@ export default function BloodPressureEntry({
       return false;
     }
 
-    if (isNaN(sys) || isNaN(dia)) {
+    if (Number.isNaN(sys) || Number.isNaN(dia)) {
       Alert.alert(t("invalidInput"), t("pleaseEnterValidNumbers"));
       return false;
     }
@@ -227,8 +257,9 @@ export default function BloodPressureEntry({
 
       onSave?.();
       onClose();
-    } catch (error: any) {
-      Alert.alert(t("error"), error?.message || t("failedToSaveBloodPressure"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
+      Alert.alert(t("error"), message || t("failedToSaveBloodPressure"));
     } finally {
       setSaving(false);
     }

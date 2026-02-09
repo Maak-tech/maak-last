@@ -4,9 +4,16 @@
  */
 
 import Constants from "expo-constants";
-import * as Linking from "expo-linking";
-import * as SecureStore from "expo-secure-store";
-import * as WebBrowser from "expo-web-browser";
+import {
+  CryptoDigestAlgorithm,
+  CryptoEncoding,
+  digestStringAsync,
+} from "expo-crypto";
+import { getItemAsync, setItemAsync, deleteItemAsync } from "expo-secure-store";
+import {
+  maybeCompleteAuthSession,
+  openAuthSessionAsync,
+} from "expo-web-browser";
 import {
   getAvailableMetricsForProvider,
   getFitbitScopesForMetrics,
@@ -32,16 +39,17 @@ const FITBIT_TOKEN_URL = "https://api.fitbit.com/oauth2/token";
 const FITBIT_API_BASE = "https://api.fitbit.com/1";
 // OAuth redirect URI - must match what's registered with Fitbit (web URL)
 const REDIRECT_URI = "https://maak-5caad.web.app/fitbit-callback";
-// Deep link for app handling after web callback redirects
-const DEEP_LINK_URI = Linking.createURL("fitbit-callback");
 const FITBIT_PKCE_VERIFIER_KEY = "health_fitbit_pkce_verifier";
+const BASE64_URL_PLUS_REGEX = /\+/g;
+const BASE64_URL_SLASH_REGEX = /\//g;
+const BASE64_URL_PADDING_REGEX = /=+$/;
 
 const base64UrlEncode = (bytes: Uint8Array): string => {
   const binary = String.fromCharCode(...bytes);
   return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+    .replace(BASE64_URL_PLUS_REGEX, "-")
+    .replace(BASE64_URL_SLASH_REGEX, "_")
+    .replace(BASE64_URL_PADDING_REGEX, "");
 };
 
 const randomBytes = (length: number): Uint8Array => {
@@ -52,125 +60,62 @@ const randomBytes = (length: number): Uint8Array => {
   return bytes;
 };
 
-const sha256 = (input: string): Uint8Array => {
-  const utf8 = new TextEncoder().encode(input);
-  const words: number[] = [];
-  for (let i = 0; i < utf8.length; i += 1) {
-    words[i >> 2] |= utf8[i] << (24 - (i % 4) * 8);
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
   }
-  words[utf8.length >> 2] |= 0x80 << (24 - (utf8.length % 4) * 8);
-  words[(((utf8.length + 8) >> 6) << 4) + 15] = utf8.length * 8;
-
-  const K = [
-    0x42_8a_2f_98, 0x71_37_44_91, 0xb5_c0_fb_cf, 0xe9_b5_db_a5, 0x39_56_c2_5b,
-    0x59_f1_11_f1, 0x92_3f_82_a4, 0xab_1c_5e_d5, 0xd8_07_aa_98, 0x12_83_5b_01,
-    0x24_31_85_be, 0x55_0c_7d_c3, 0x72_be_5d_74, 0x80_de_b1_fe, 0x9b_dc_06_a7,
-    0xc1_9b_f1_74, 0xe4_9b_69_c1, 0xef_be_47_86, 0x0f_c1_9d_c6, 0x24_0c_a1_cc,
-    0x2d_e9_2c_6f, 0x4a_74_84_aa, 0x5c_b0_a9_dc, 0x76_f9_88_da, 0x98_3e_51_52,
-    0xa8_31_c6_6d, 0xb0_03_27_c8, 0xbf_59_7f_c7, 0xc6_e0_0b_f3, 0xd5_a7_91_47,
-    0x06_ca_63_51, 0x14_29_29_67, 0x27_b7_0a_85, 0x2e_1b_21_38, 0x4d_2c_6d_fc,
-    0x53_38_0d_13, 0x65_0a_73_54, 0x76_6a_0a_bb, 0x81_c2_c9_2e, 0x92_72_2c_85,
-    0xa2_bf_e8_a1, 0xa8_1a_66_4b, 0xc2_4b_8b_70, 0xc7_6c_51_a3, 0xd1_92_e8_19,
-    0xd6_99_06_24, 0xf4_0e_35_85, 0x10_6a_a0_70, 0x19_a4_c1_16, 0x1e_37_6c_08,
-    0x27_48_77_4c, 0x34_b0_bc_b5, 0x39_1c_0c_b3, 0x4e_d8_aa_4a, 0x5b_9c_ca_4f,
-    0x68_2e_6f_f3, 0x74_8f_82_ee, 0x78_a5_63_6f, 0x84_c8_78_14, 0x8c_c7_02_08,
-    0x90_be_ff_fa, 0xa4_50_6c_eb, 0xbe_f9_a3_f7, 0xc6_71_78_f2,
-  ];
-
-  let h0 = 0x6a_09_e6_67;
-  let h1 = 0xbb_67_ae_85;
-  let h2 = 0x3c_6e_f3_72;
-  let h3 = 0xa5_4f_f5_3a;
-  let h4 = 0x51_0e_52_7f;
-  let h5 = 0x9b_05_68_8c;
-  let h6 = 0x1f_83_d9_ab;
-  let h7 = 0x5b_e0_cd_19;
-
-  const w = new Array<number>(64);
-  for (let i = 0; i < words.length; i += 16) {
-    for (let t = 0; t < 16; t += 1) {
-      w[t] = words[i + t] || 0;
-    }
-    for (let t = 16; t < 64; t += 1) {
-      const s0 =
-        ((w[t - 15] >>> 7) | (w[t - 15] << 25)) ^
-        ((w[t - 15] >>> 18) | (w[t - 15] << 14)) ^
-        (w[t - 15] >>> 3);
-      const s1 =
-        ((w[t - 2] >>> 17) | (w[t - 2] << 15)) ^
-        ((w[t - 2] >>> 19) | (w[t - 2] << 13)) ^
-        (w[t - 2] >>> 10);
-      w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
-    }
-
-    let a = h0;
-    let b = h1;
-    let c = h2;
-    let d = h3;
-    let e = h4;
-    let f = h5;
-    let g = h6;
-    let h = h7;
-
-    for (let t = 0; t < 64; t += 1) {
-      const S1 =
-        ((e >>> 6) | (e << 26)) ^
-        ((e >>> 11) | (e << 21)) ^
-        ((e >>> 25) | (e << 7));
-      const ch = (e & f) ^ (~e & g);
-      const temp1 = (h + S1 + ch + K[t] + w[t]) | 0;
-      const S0 =
-        ((a >>> 2) | (a << 30)) ^
-        ((a >>> 13) | (a << 19)) ^
-        ((a >>> 22) | (a << 10));
-      const maj = (a & b) ^ (a & c) ^ (b & c);
-      const temp2 = (S0 + maj) | 0;
-
-      h = g;
-      g = f;
-      f = e;
-      e = (d + temp1) | 0;
-      d = c;
-      c = b;
-      b = a;
-      a = (temp1 + temp2) | 0;
-    }
-
-    h0 = (h0 + a) | 0;
-    h1 = (h1 + b) | 0;
-    h2 = (h2 + c) | 0;
-    h3 = (h3 + d) | 0;
-    h4 = (h4 + e) | 0;
-    h5 = (h5 + f) | 0;
-    h6 = (h6 + g) | 0;
-    h7 = (h7 + h) | 0;
-  }
-
-  const hash = new Uint8Array(32);
-  const hashWords = [h0, h1, h2, h3, h4, h5, h6, h7];
-  for (let i = 0; i < hashWords.length; i += 1) {
-    hash[i * 4] = (hashWords[i] >>> 24) & 0xff;
-    hash[i * 4 + 1] = (hashWords[i] >>> 16) & 0xff;
-    hash[i * 4 + 2] = (hashWords[i] >>> 8) & 0xff;
-    hash[i * 4 + 3] = hashWords[i] & 0xff;
-  }
-  return hash;
+  return String(error);
 };
 
-const createPkcePair = (): { verifier: string; challenge: string } => {
+type FitbitApiEntry = {
+  value?: number;
+  dateTime?: string;
+  weight?: number;
+  fat?: number;
+  date?: string;
+  duration?: number;
+  startTime?: string;
+  endTime?: string;
+};
+
+type FitbitApiResponse = {
+  "activities-heart"?: Array<{ value?: { restingHeartRate?: number } }>;
+  "activities-steps"?: Array<{ value?: string }>;
+  "activities-calories"?: Array<{ value?: string }>;
+  "activities-distance"?: Array<{ value?: string }>;
+  "activities-floors"?: Array<{ value?: string }>;
+  value?: FitbitApiEntry[];
+  weight?: FitbitApiEntry[];
+  fat?: FitbitApiEntry[];
+  sleep?: FitbitApiEntry[];
+  summary?: { water?: number };
+};
+
+const createPkcePair = async (): Promise<{
+  verifier: string;
+  challenge: string;
+}> => {
   const verifier = base64UrlEncode(randomBytes(32));
-  const challenge = base64UrlEncode(sha256(verifier));
+  const hashBase64 = await digestStringAsync(
+    CryptoDigestAlgorithm.SHA256,
+    verifier,
+    { encoding: CryptoEncoding.BASE64 }
+  );
+  const challenge = hashBase64
+    .replace(BASE64_URL_PLUS_REGEX, "-")
+    .replace(BASE64_URL_SLASH_REGEX, "_")
+    .replace(BASE64_URL_PADDING_REGEX, "");
   return { verifier, challenge };
 };
 
 // Complete OAuth flow
-WebBrowser.maybeCompleteAuthSession();
+maybeCompleteAuthSession();
 
 /**
  * Check if Fitbit integration is available
  */
 export const fitbitService = {
-  isAvailable: async (): Promise<ProviderAvailability> => {
+  isAvailable: (): Promise<ProviderAvailability> => {
     try {
       // Check if credentials are configured
       if (
@@ -179,21 +124,21 @@ export const fitbitService = {
         !FITBIT_CLIENT_ID?.trim() ||
         !FITBIT_CLIENT_SECRET?.trim()
       ) {
-        return {
+        return Promise.resolve({
           available: false,
           reason:
             "Fitbit credentials not configured. Please set FITBIT_CLIENT_ID and FITBIT_CLIENT_SECRET in app.json extra config.",
-        };
+        });
       }
 
-      return {
+      return Promise.resolve({
         available: true,
-      };
-    } catch (error: any) {
-      return {
+      });
+    } catch (error: unknown) {
+      return Promise.resolve({
         available: false,
-        reason: error?.message || "Unknown error",
-      };
+        reason: getErrorMessage(error),
+      });
     }
   },
 
@@ -234,7 +179,7 @@ export const fitbitService = {
       }
 
       // Generate PKCE verifier + challenge (Fitbit requires 43-128 chars)
-      const { verifier, challenge } = createPkcePair();
+      const { verifier, challenge } = await createPkcePair();
 
       // Validate key and verifier before storing
       const storeKey = FITBIT_PKCE_VERIFIER_KEY;
@@ -254,7 +199,7 @@ export const fitbitService = {
         );
       }
 
-      await SecureStore.setItemAsync(storeKey, verifier);
+      await setItemAsync(storeKey, verifier);
 
       // Build authorization URL with proper encoding
       const redirectUriEncoded = encodeURIComponent(REDIRECT_URI);
@@ -269,18 +214,15 @@ export const fitbitService = {
 
       // Use web callback URL for OAuth (registered with Fitbit)
       // The web page will redirect to deep link after extracting the code
-      const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
-        REDIRECT_URI
-      );
+      const result = await openAuthSessionAsync(authUrl, REDIRECT_URI);
 
       if (result.type === "success" && result.url) {
         await fitbitService.handleRedirect(result.url);
       } else {
         throw new Error("Authentication cancelled or failed");
       }
-    } catch (error: any) {
-      throw new Error(`Fitbit authentication failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Fitbit authentication failed: ${getErrorMessage(error)}`);
     }
   },
 
@@ -356,7 +298,7 @@ export const fitbitService = {
         throw new Error("Invalid SecureStore key: key cannot be empty");
       }
 
-      const verifier = await SecureStore.getItemAsync(FITBIT_PKCE_VERIFIER_KEY);
+      const verifier = await getItemAsync(FITBIT_PKCE_VERIFIER_KEY);
       if (!verifier) {
         throw new Error("Missing PKCE verifier. Please retry Fitbit sign-in.");
       }
@@ -378,7 +320,11 @@ export const fitbitService = {
 
       if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
-        let errorData;
+        let errorData:
+          | {
+              errors?: Array<{ message?: string; errorType?: string }>;
+            }
+          | undefined;
         try {
           errorData = JSON.parse(errorText);
         } catch {
@@ -422,7 +368,7 @@ export const fitbitService = {
         FITBIT_PKCE_VERIFIER_KEY &&
         FITBIT_PKCE_VERIFIER_KEY.trim().length > 0
       ) {
-        await SecureStore.deleteItemAsync(FITBIT_PKCE_VERIFIER_KEY);
+        await deleteItemAsync(FITBIT_PKCE_VERIFIER_KEY);
       }
 
       // Get user profile to get user ID
@@ -451,7 +397,7 @@ export const fitbitService = {
         scope: tokenData.scope || "",
       };
 
-      await SecureStore.setItemAsync(
+      await setItemAsync(
         HEALTH_STORAGE_KEYS.FITBIT_TOKENS,
         JSON.stringify(tokens)
       );
@@ -484,13 +430,13 @@ export const fitbitService = {
               fitbitUserId: userId,
             });
           }
-        } catch (error) {
+        } catch (_error) {
           // Silently handle Firestore update error - not critical for OAuth flow
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(
-        `Failed to complete Fitbit authentication: ${error.message}`
+        `Failed to complete Fitbit authentication: ${getErrorMessage(error)}`
       );
     }
   },
@@ -499,60 +445,54 @@ export const fitbitService = {
    * Refresh access token if needed
    */
   refreshTokenIfNeeded: async (): Promise<void> => {
-    try {
-      const tokensJson = await SecureStore.getItemAsync(
-        HEALTH_STORAGE_KEYS.FITBIT_TOKENS
-      );
+    const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
 
-      if (!tokensJson) {
-        throw new Error("No Fitbit tokens found");
-      }
-
-      const tokens: FitbitTokens = JSON.parse(tokensJson);
-
-      // Check if token needs refresh (refresh 5 minutes before expiry)
-      if (Date.now() < tokens.expiresAt - 5 * 60 * 1000) {
-        return; // Token still valid
-      }
-
-      // Refresh token
-      // Create base64 encoded credentials
-      const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
-      const base64Credentials = btoa(credentials);
-
-      const refreshResponse = await fetch(FITBIT_TOKEN_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${base64Credentials}`,
-        },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: tokens.refreshToken,
-        }).toString(),
-      });
-
-      if (!refreshResponse.ok) {
-        throw new Error("Token refresh failed");
-      }
-
-      const refreshData = await refreshResponse.json();
-
-      // Update tokens
-      const updatedTokens: FitbitTokens = {
-        ...tokens,
-        accessToken: refreshData.access_token,
-        refreshToken: refreshData.refresh_token || tokens.refreshToken,
-        expiresAt: Date.now() + refreshData.expires_in * 1000,
-      };
-
-      await SecureStore.setItemAsync(
-        HEALTH_STORAGE_KEYS.FITBIT_TOKENS,
-        JSON.stringify(updatedTokens)
-      );
-    } catch (error: any) {
-      throw error;
+    if (!tokensJson) {
+      throw new Error("No Fitbit tokens found");
     }
+
+    const tokens: FitbitTokens = JSON.parse(tokensJson);
+
+    // Check if token needs refresh (refresh 5 minutes before expiry)
+    if (Date.now() < tokens.expiresAt - 5 * 60 * 1000) {
+      return; // Token still valid
+    }
+
+    // Refresh token
+    // Create base64 encoded credentials
+    const credentials = `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`;
+    const base64Credentials = btoa(credentials);
+
+    const refreshResponse = await fetch(FITBIT_TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${base64Credentials}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tokens.refreshToken,
+      }).toString(),
+    });
+
+    if (!refreshResponse.ok) {
+      throw new Error("Token refresh failed");
+    }
+
+    const refreshData = await refreshResponse.json();
+
+    // Update tokens
+    const updatedTokens: FitbitTokens = {
+      ...tokens,
+      accessToken: refreshData.access_token,
+      refreshToken: refreshData.refresh_token || tokens.refreshToken,
+      expiresAt: Date.now() + refreshData.expires_in * 1000,
+    };
+
+    await setItemAsync(
+      HEALTH_STORAGE_KEYS.FITBIT_TOKENS,
+      JSON.stringify(updatedTokens)
+    );
   },
 
   /**
@@ -561,9 +501,7 @@ export const fitbitService = {
   getAccessToken: async (): Promise<string> => {
     await fitbitService.refreshTokenIfNeeded();
 
-    const tokensJson = await SecureStore.getItemAsync(
-      HEALTH_STORAGE_KEYS.FITBIT_TOKENS
-    );
+    const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
 
     if (!tokensJson) {
       throw new Error("Not authenticated with Fitbit");
@@ -615,7 +553,7 @@ export const fitbitService = {
 
             const data = await response.json();
             return { metricKey, metric, data, dateStr };
-          } catch (error) {
+          } catch (_error) {
             return null;
           }
         });
@@ -626,11 +564,11 @@ export const fitbitService = {
         for (const result of metricResults) {
           if (!result) continue;
 
-          const { metricKey, metric, data, dateStr } = result;
+          const { metricKey, metric, data, dateStr: resultDateStr } = result;
           const samples = fitbitService.parseFitbitData(
             metricKey,
             data,
-            dateStr
+            resultDateStr
           );
 
           if (samples.length > 0) {
@@ -655,8 +593,8 @@ export const fitbitService = {
       }
 
       return results;
-    } catch (error: any) {
-      throw new Error(`Failed to fetch Fitbit metrics: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to fetch Fitbit metrics: ${getErrorMessage(error)}`);
     }
   },
 
@@ -665,7 +603,7 @@ export const fitbitService = {
    */
   parseFitbitData: (
     metricKey: string,
-    data: any,
+    data: unknown,
     dateStr: string
   ): Array<{
     value: number | string;
@@ -683,11 +621,12 @@ export const fitbitService = {
     }> = [];
 
     try {
+      const payload = data as FitbitApiResponse;
       switch (metricKey) {
         case "heart_rate": {
           // Fitbit heart rate endpoint returns intraday data
           const dataset =
-            data?.["activities-heart"]?.[0]?.value?.restingHeartRate;
+            payload["activities-heart"]?.[0]?.value?.restingHeartRate;
           if (dataset !== undefined) {
             samples.push({
               value: dataset,
@@ -700,7 +639,7 @@ export const fitbitService = {
         }
 
         case "resting_heart_rate": {
-          const rhr = data?.["activities-heart"]?.[0]?.value?.restingHeartRate;
+          const rhr = payload["activities-heart"]?.[0]?.value?.restingHeartRate;
           if (rhr !== undefined) {
             samples.push({
               value: rhr,
@@ -713,7 +652,7 @@ export const fitbitService = {
         }
 
         case "steps": {
-          const steps = data?.["activities-steps"]?.[0]?.value;
+          const steps = payload["activities-steps"]?.[0]?.value;
           if (steps !== undefined) {
             samples.push({
               value: Number.parseInt(steps, 10),
@@ -727,7 +666,7 @@ export const fitbitService = {
         }
 
         case "active_energy": {
-          const calories = data?.["activities-calories"]?.[0]?.value;
+          const calories = payload["activities-calories"]?.[0]?.value;
           if (calories !== undefined) {
             samples.push({
               value: Number.parseInt(calories, 10),
@@ -741,7 +680,7 @@ export const fitbitService = {
         }
 
         case "distance_walking_running": {
-          const distance = data?.["activities-distance"]?.[0]?.value;
+          const distance = payload["activities-distance"]?.[0]?.value;
           if (distance !== undefined) {
             // Convert from km to meters, then to km (Fitbit returns km as string)
             const km = Number.parseFloat(distance);
@@ -757,7 +696,7 @@ export const fitbitService = {
         }
 
         case "flights_climbed": {
-          const floors = data?.["activities-floors"]?.[0]?.value;
+          const floors = payload["activities-floors"]?.[0]?.value;
           if (floors !== undefined) {
             samples.push({
               value: Number.parseInt(floors, 10),
@@ -771,9 +710,9 @@ export const fitbitService = {
         }
 
         case "blood_oxygen": {
-          const spo2 = data?.value;
+          const spo2 = payload.value;
           if (spo2 !== undefined && Array.isArray(spo2)) {
-            spo2.forEach((entry: any) => {
+            for (const entry of spo2) {
               if (entry.value !== undefined) {
                 samples.push({
                   value: entry.value,
@@ -782,15 +721,15 @@ export const fitbitService = {
                   source: "Fitbit",
                 });
               }
-            });
+            }
           }
           break;
         }
 
         case "body_temperature": {
-          const temp = data?.value;
+          const temp = payload.value;
           if (temp !== undefined && Array.isArray(temp)) {
-            temp.forEach((entry: any) => {
+            for (const entry of temp) {
               if (entry.value !== undefined) {
                 samples.push({
                   value: entry.value,
@@ -799,15 +738,15 @@ export const fitbitService = {
                   source: "Fitbit",
                 });
               }
-            });
+            }
           }
           break;
         }
 
         case "weight": {
-          const weight = data?.weight;
+          const weight = payload.weight;
           if (weight !== undefined && Array.isArray(weight)) {
-            weight.forEach((entry: any) => {
+            for (const entry of weight) {
               if (entry.weight !== undefined) {
                 samples.push({
                   value: entry.weight,
@@ -816,15 +755,15 @@ export const fitbitService = {
                   source: "Fitbit",
                 });
               }
-            });
+            }
           }
           break;
         }
 
         case "body_fat_percentage": {
-          const fat = data?.fat;
+          const fat = payload.fat;
           if (fat !== undefined && Array.isArray(fat)) {
-            fat.forEach((entry: any) => {
+            for (const entry of fat) {
               if (entry.fat !== undefined) {
                 samples.push({
                   value: entry.fat,
@@ -833,15 +772,15 @@ export const fitbitService = {
                   source: "Fitbit",
                 });
               }
-            });
+            }
           }
           break;
         }
 
         case "sleep_analysis": {
-          const sleep = data?.sleep;
+          const sleep = payload.sleep;
           if (sleep !== undefined && Array.isArray(sleep)) {
-            sleep.forEach((entry: any) => {
+            for (const entry of sleep) {
               if (entry.duration !== undefined) {
                 samples.push({
                   value: entry.duration / 60_000, // Convert ms to minutes
@@ -851,13 +790,13 @@ export const fitbitService = {
                   source: "Fitbit",
                 });
               }
-            });
+            }
           }
           break;
         }
 
         case "water_intake": {
-          const water = data?.summary?.water;
+          const water = payload.summary?.water;
           if (water !== undefined) {
             samples.push({
               value: water,
@@ -874,7 +813,7 @@ export const fitbitService = {
           // Unknown metric key - skip
           break;
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently handle parsing error
     }
 
@@ -888,9 +827,7 @@ export const fitbitService = {
     try {
       // Revoke token if available
       try {
-        const tokensJson = await SecureStore.getItemAsync(
-          HEALTH_STORAGE_KEYS.FITBIT_TOKENS
-        );
+        const tokensJson = await getItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
         if (tokensJson) {
           const tokens: FitbitTokens = JSON.parse(tokensJson);
           // Create base64 encoded credentials
@@ -908,13 +845,13 @@ export const fitbitService = {
             }).toString(),
           });
         }
-      } catch (error) {
+      } catch (_error) {
         // Ignore revocation errors
       }
 
       // Remove tokens
-      await SecureStore.deleteItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
-    } catch (error) {
+      await deleteItemAsync(HEALTH_STORAGE_KEYS.FITBIT_TOKENS);
+    } catch (error: unknown) {
       throw error;
     }
   },

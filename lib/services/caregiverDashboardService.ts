@@ -1,4 +1,5 @@
 import type { EmergencyAlert, User } from "@/types";
+import { safeFormatTime } from "@/utils/dateFormat";
 import { alertService } from "./alertService";
 import { emergencySmsService } from "./emergencySmsService";
 import { healthScoreService } from "./healthScoreService";
@@ -6,9 +7,8 @@ import { medicationService } from "./medicationService";
 import { sharedMedicationScheduleService } from "./sharedMedicationScheduleService";
 import { symptomService } from "./symptomService";
 import { userService } from "./userService";
-import { safeFormatTime } from "@/utils/dateFormat";
 
-export interface CaregiverDashboardData {
+export type CaregiverDashboardData = {
   member: User;
   healthScore: number;
   recentAlerts: EmergencyAlert[];
@@ -33,15 +33,15 @@ export interface CaregiverDashboardData {
   }>;
   needsAttention: boolean;
   attentionReasons: string[];
-}
+};
 
-export interface CaregiverOverview {
+export type CaregiverOverview = {
   totalMembers: number;
   membersNeedingAttention: number;
   totalActiveAlerts: number;
   averageHealthScore: number;
   members: CaregiverDashboardData[];
-}
+};
 
 class CaregiverDashboardService {
   /**
@@ -89,7 +89,7 @@ class CaregiverDashboardService {
         averageHealthScore: Math.round(averageHealthScore * 10) / 10,
         members: memberData,
       };
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to get caregiver overview");
     }
   }
@@ -189,7 +189,7 @@ class CaregiverDashboardService {
         needsAttention,
         attentionReasons,
       };
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to get member dashboard data");
     }
   }
@@ -209,7 +209,7 @@ class CaregiverDashboardService {
   }> {
     try {
       const user = await userService.getUser(userId);
-      if (!(user && user.familyId)) {
+      if (!user?.familyId) {
         throw new Error("User not found or not in family");
       }
 
@@ -249,7 +249,7 @@ class CaregiverDashboardService {
         hasAlerts,
         emergencyContacts: user.preferences?.emergencyContacts || [],
       };
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to get elderly user dashboard");
     }
   }
@@ -264,19 +264,15 @@ class CaregiverDashboardService {
   ): Promise<void> {
     try {
       const user = await userService.getUser(userId);
-      if (!(user && user.familyId)) {
+      if (!user?.familyId) {
         throw new Error("User not found or not in family");
       }
 
       // Create alert
+      const mappedType = type === "fall" ? "fall" : "emergency";
       const alertId = await alertService.createAlert({
         userId,
-        type:
-          type === "medical"
-            ? "emergency"
-            : type === "other"
-              ? "emergency"
-              : type,
+        type: mappedType,
         severity: "critical",
         message,
         timestamp: new Date(),
@@ -314,7 +310,7 @@ class CaregiverDashboardService {
         alertType: "sos",
         message: `Emergency SOS from ${user.firstName} ${user.lastName}: ${message}`,
       });
-    } catch (error) {
+    } catch (_error) {
       throw new Error("Failed to send emergency alert");
     }
   }

@@ -20,9 +20,35 @@ import {
 } from "@/lib/polyfills/websocketWithHeaders";
 import { base64ToUint8Array, uint8ArrayToBase64 } from "@/lib/utils/base64";
 
+type PlaybackStatus = { didJustFinish?: boolean };
+type PlaybackSound = {
+  setOnPlaybackStatusUpdate: (cb: (status: PlaybackStatus) => void) => void;
+  unloadAsync: () => Promise<void>;
+  stopAsync: () => Promise<void>;
+};
+type ExpoAudioModule = {
+  setAudioModeAsync: (config: Record<string, unknown>) => Promise<void>;
+  Sound: {
+    createAsync: (
+      source: { uri: string },
+      options: { shouldPlay: boolean; volume: number }
+    ) => Promise<{ sound: PlaybackSound }>;
+  };
+};
+type ExpoFileSystemModule = {
+  cacheDirectory: string;
+  EncodingType: { Base64: string };
+  writeAsStringAsync: (
+    uri: string,
+    contents: string,
+    options: { encoding: string }
+  ) => Promise<void>;
+  deleteAsync: (uri: string, options: { idempotent: boolean }) => Promise<void>;
+};
+
 // Dynamic import for expo-av and expo-file-system
-let Audio: any = null;
-let FileSystem: any = null;
+let Audio: ExpoAudioModule | null = null;
+let FileSystem: ExpoFileSystemModule | null = null;
 
 try {
   if (Platform.OS === "ios" || Platform.OS === "android") {
@@ -35,17 +61,17 @@ try {
       FileSystem = require("expo-file-system");
     }
   }
-} catch (error) {
+} catch (_error) {
   // expo-av or expo-file-system not available
 }
 
 // Types for the Realtime API
-export interface RealtimeMessage {
+export type RealtimeMessage = {
   type: string;
-  [key: string]: any;
-}
+  [key: string]: unknown;
+};
 
-export interface RealtimeSessionConfig {
+export type RealtimeSessionConfig = {
   modalities: ("text" | "audio")[];
   instructions: string;
   voice:
@@ -76,22 +102,22 @@ export interface RealtimeSessionConfig {
     | { type: "function"; name: string };
   temperature: number;
   max_response_output_tokens: number | "inf";
-}
+};
 
-export interface RealtimeTool {
+export type RealtimeTool = {
   type: "function";
   name: string;
   description: string;
   parameters: {
     type: "object";
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     required?: string[];
   };
-}
+};
 
-export interface RealtimeEventHandlers {
-  onSessionCreated?: (session: any) => void;
-  onSessionUpdated?: (session: any) => void;
+export type RealtimeEventHandlers = {
+  onSessionCreated?: (session: unknown) => void;
+  onSessionUpdated?: (session: unknown) => void;
   onAudioDelta?: (delta: string) => void;
   onAudioDone?: () => void;
   onTranscriptDelta?: (delta: string, role: "user" | "assistant") => void;
@@ -101,16 +127,16 @@ export interface RealtimeEventHandlers {
     arguments: string;
     call_id: string;
   }) => void;
-  onResponseDone?: (response: any) => void;
-  onError?: (error: any) => void;
+  onResponseDone?: (response: unknown) => void;
+  onError?: (error: unknown) => void;
   onConnectionStateChange?: (state: ConnectionState) => void;
   onSpeechStarted?: () => void;
   onSpeechStopped?: () => void;
   onInputAudioBufferCommitted?: () => void;
   onInputAudioBufferCleared?: () => void;
-  onConversationItemCreated?: (item: any) => void;
-  onRateLimitsUpdated?: (rateLimits: any) => void;
-}
+  onConversationItemCreated?: (item: unknown) => void;
+  onRateLimitsUpdated?: (rateLimits: unknown) => void;
+};
 
 export type ConnectionState =
   | "disconnected"
@@ -801,15 +827,14 @@ class RealtimeAgentService {
   private ws: WebSocket | null = null;
   private connectionState: ConnectionState = "disconnected";
   private eventHandlers: RealtimeEventHandlers = {};
-  private sessionConfig: Partial<RealtimeSessionConfig> = {};
   private apiKey: string | null = null;
-  private pendingToolCalls: Map<string, any> = new Map();
+  private readonly pendingToolCalls: Map<string, unknown> = new Map();
   private audioBuffer: string[] = [];
   private isProcessingAudio = false;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 3;
-  private currentTranscript = { user: "", assistant: "" };
-  private currentSound: any = null;
+  private readonly maxReconnectAttempts = 3;
+  private readonly currentTranscript = { user: "", assistant: "" };
+  private currentSound: PlaybackSound | null = null;
   private audioQueue: string[] = [];
   private audioPlaybackQueue: Array<{ data: Uint8Array; timestamp: number }> =
     [];
@@ -827,7 +852,9 @@ class RealtimeAgentService {
    * Validate API key format
    */
   private validateApiKeyFormat(key: string): boolean {
-    if (!key || typeof key !== "string") return false;
+    if (!key || typeof key !== "string") {
+      return false;
+    }
     const trimmed = key.trim();
     // OpenAI API keys typically start with sk- or sk-proj-
     return (
@@ -840,11 +867,13 @@ class RealtimeAgentService {
    * Mask API key for logging (show first 7 and last 4 characters)
    */
   private maskApiKey(key: string | null): string {
-    if (!key || key.length < 12) return "***";
+    if (!key || key.length < 12) {
+      return "***";
+    }
     return `${key.substring(0, 7)}...${key.substring(key.length - 4)}`;
   }
 
-  private async loadApiKey() {
+  private loadApiKey() {
     try {
       // Prefer app-config keys (shared key for premium users).
       const config = Constants.expoConfig?.extra;
@@ -864,7 +893,7 @@ class RealtimeAgentService {
 
       // If app config key missing/invalid
       this.apiKey = null;
-    } catch (error) {
+    } catch (_error) {
       this.apiKey = null;
     }
   }
@@ -886,7 +915,7 @@ class RealtimeAgentService {
   /**
    * Connect to the OpenAI Realtime API
    */
-  async connect(customInstructions?: string): Promise<void> {
+  connect(customInstructions?: string): Promise<void> {
     // Check if already connected, but handle cases where WebSocket might not have readyState
     if (this.ws) {
       try {
@@ -896,14 +925,14 @@ class RealtimeAgentService {
         ) {
           return;
         }
-      } catch (error) {
+      } catch (_error) {
         // WebSocket might be in an invalid state, continue to create new connection
         this.ws = null;
       }
     }
 
     if (!this.apiKey) {
-      await this.loadApiKey();
+      this.loadApiKey();
       if (!this.apiKey) {
         const config = Constants.expoConfig?.extra;
         const hasZeinaKey = !!config?.zeinaApiKey;
@@ -1001,7 +1030,7 @@ class RealtimeAgentService {
           this.handleMessage(event.data);
         };
 
-        ws.onerror = (error: any) => {
+        ws.onerror = (error: unknown) => {
           // Provide more detailed error information
           const errorMessage =
             error?.message || error?.toString() || "Unknown WebSocket error";
@@ -1215,7 +1244,7 @@ class RealtimeAgentService {
             if (ws && typeof ws.close === "function") {
               try {
                 ws.close();
-              } catch (error) {
+              } catch (_error) {
                 // Ignore close errors during timeout
               }
             }
@@ -1313,7 +1342,7 @@ class RealtimeAgentService {
       if (typeof this.ws.send === "function") {
         this.ws.send(JSON.stringify(message));
       }
-    } catch (error) {
+    } catch (_error) {
       // WebSocket might be in an invalid state
     }
   }
@@ -1353,7 +1382,7 @@ class RealtimeAgentService {
         type: "input_audio_buffer.append",
         audio: pcmData,
       });
-    } catch (error) {
+    } catch (_error) {
       // Fallback: send as-is
       this.sendMessage({
         type: "input_audio_buffer.append",
@@ -1382,9 +1411,11 @@ class RealtimeAgentService {
   /**
    * Request a model response, with a small cooldown to avoid duplicates
    */
-  private requestResponseIfNeeded(source: "speech_stopped" | "manual_commit") {
+  private requestResponseIfNeeded(_source: "speech_stopped" | "manual_commit") {
     const now = Date.now();
-    if (now - this.lastResponseCreateAt < this.responseCreateCooldownMs) return;
+    if (now - this.lastResponseCreateAt < this.responseCreateCooldownMs) {
+      return;
+    }
     this.lastResponseCreateAt = now;
     this.sendMessage({ type: "response.create" });
   }
@@ -1393,10 +1424,12 @@ class RealtimeAgentService {
    * Commit the input audio buffer, with a small cooldown to avoid duplicates
    */
   private commitAudioBufferIfNeeded(
-    source: "speech_stopped" | "manual_commit"
+    _source: "speech_stopped" | "manual_commit"
   ) {
     const now = Date.now();
-    if (now - this.lastAudioCommitAt < this.audioCommitCooldownMs) return;
+    if (now - this.lastAudioCommitAt < this.audioCommitCooldownMs) {
+      return;
+    }
     this.lastAudioCommitAt = now;
     this.sendMessage({ type: "input_audio_buffer.commit" });
   }
@@ -1547,14 +1580,18 @@ class RealtimeAgentService {
         default:
         // Silently ignore unhandled message types
       }
-    } catch (error) {}
+    } catch (_error) {
+      // no-op
+    }
   }
 
   /**
    * Process accumulated audio buffer
    */
   private processAudioBuffer() {
-    if (this.audioBuffer.length === 0 || this.isProcessingAudio) return;
+    if (this.audioBuffer.length === 0 || this.isProcessingAudio) {
+      return;
+    }
 
     this.isProcessingAudio = true;
     // The audio buffer contains base64 PCM16 audio chunks
@@ -1590,7 +1627,9 @@ class RealtimeAgentService {
       if (!this.isPlayingAudio) {
         this.processAudioQueue();
       }
-    } catch (error) {}
+    } catch (_error) {
+      // no-op
+    }
   }
 
   /**
@@ -1664,21 +1703,23 @@ class RealtimeAgentService {
         await FileSystem.writeAsStringAsync(tempUri, base64Wav, {
           encoding: FileSystem.EncodingType.Base64,
         });
-      } catch (error) {
+      } catch (_error) {
         // Fallback: try writing as data URI if file write fails
         const dataUri = `data:audio/wav;base64,${base64Wav}`;
-        const { sound } = await Audio.Sound.createAsync(
+        const { sound: fallbackSound } = await Audio.Sound.createAsync(
           { uri: dataUri },
           { shouldPlay: true, volume: 1.0 }
         );
-        sound.setOnPlaybackStatusUpdate((status: any) => {
+        fallbackSound.setOnPlaybackStatusUpdate((status: PlaybackStatus) => {
           if (status.didJustFinish) {
-            sound.unloadAsync().catch(() => {});
+            fallbackSound.unloadAsync().catch(() => {
+              // no-op
+            });
             this.isPlayingAudio = false;
             this.processAudioQueue();
           }
         });
-        this.currentSound = sound;
+        this.currentSound = fallbackSound;
         return;
       }
 
@@ -1689,11 +1730,15 @@ class RealtimeAgentService {
       );
 
       // Clean up after playback and continue processing queue
-      sound.setOnPlaybackStatusUpdate((status: any) => {
+      sound.setOnPlaybackStatusUpdate((status: PlaybackStatus) => {
         if (status.didJustFinish) {
-          sound.unloadAsync().catch(() => {});
+          sound.unloadAsync().catch(() => {
+            // no-op
+          });
           // Clean up temp file
-          FileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {});
+          FileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {
+            // no-op
+          });
           this.isPlayingAudio = false;
           // Process next chunk in queue
           this.processAudioQueue();
@@ -1702,7 +1747,7 @@ class RealtimeAgentService {
 
       // Store reference to stop if needed
       this.currentSound = sound;
-    } catch (error) {
+    } catch (_error) {
       this.isPlayingAudio = false;
       // Try to continue processing
       if (this.audioPlaybackQueue.length > 0) {
@@ -1766,7 +1811,9 @@ class RealtimeAgentService {
    */
   private extractWavDataChunk(wavBytes: Uint8Array): Uint8Array {
     try {
-      if (wavBytes.length < 44) return wavBytes;
+      if (wavBytes.length < 44) {
+        return wavBytes;
+      }
 
       // WAV layout: RIFF(0..3) size(4..7) WAVE(8..11), then chunks.
       // Each chunk: 4-byte id, 4-byte little-endian size, then data.
@@ -1776,11 +1823,12 @@ class RealtimeAgentService {
         const id1 = wavBytes[offset + 1];
         const id2 = wavBytes[offset + 2];
         const id3 = wavBytes[offset + 3];
-        const size =
-          wavBytes[offset + 4] |
-          (wavBytes[offset + 5] << 8) |
-          (wavBytes[offset + 6] << 16) |
-          (wavBytes[offset + 7] << 24);
+        const view = new DataView(
+          wavBytes.buffer,
+          wavBytes.byteOffset,
+          wavBytes.byteLength
+        );
+        const size = view.getUint32(offset + 4, true);
 
         const dataStart = offset + 8;
         const dataEnd = dataStart + Math.max(0, size);
@@ -1823,7 +1871,9 @@ class RealtimeAgentService {
         await this.currentSound.stopAsync();
         await this.currentSound.unloadAsync();
         this.currentSound = null;
-      } catch (error) {}
+      } catch (_error) {
+        // no-op
+      }
     }
   }
 
@@ -1853,7 +1903,7 @@ class RealtimeAgentService {
           ) {
             this.ws.close(1000, "Client disconnect");
           }
-        } catch (error) {
+        } catch (_error) {
           // Ignore close errors - connection may already be closed
         }
       }
@@ -1880,7 +1930,7 @@ class RealtimeAgentService {
         typeof this.ws.readyState !== "undefined" &&
         this.ws.readyState === WebSocket.OPEN
       );
-    } catch (error) {
+    } catch (_error) {
       // WebSocket might be in an invalid state
       return false;
     }

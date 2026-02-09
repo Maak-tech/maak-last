@@ -9,6 +9,8 @@
 
 import {
   collection,
+  type DocumentChange,
+  type DocumentData,
   limit,
   onSnapshot,
   orderBy,
@@ -23,7 +25,7 @@ import type {
   TrendAnalysis,
 } from "./trendDetectionService";
 
-export interface TrendAlert {
+export type TrendAlert = {
   id: string;
   userId: string;
   type: "vital_trend" | "symptom_trend";
@@ -31,9 +33,9 @@ export interface TrendAlert {
   trendAnalysis: TrendAnalysis | SymptomTrendAnalysis;
   timestamp: Date;
   acknowledged?: boolean;
-}
+};
 
-export interface FamilyMemberUpdate {
+export type FamilyMemberUpdate = {
   memberId: string;
   updateType:
     | "vital_added"
@@ -42,11 +44,11 @@ export interface FamilyMemberUpdate {
     | "alert_resolved"
     | "medication_taken"
     | "status_change";
-  data: any;
+  data: unknown;
   timestamp: Date;
-}
+};
 
-export interface RealtimeHealthEventHandlers {
+export type RealtimeHealthEventHandlers = {
   onTrendAlert?: (alert: TrendAlert) => void;
   onFamilyMemberUpdate?: (update: FamilyMemberUpdate) => void;
   onAlertCreated?: (alert: EmergencyAlert) => void;
@@ -58,13 +60,15 @@ export interface RealtimeHealthEventHandlers {
     timestamp: Date;
   }) => void;
   onError?: (error: Error) => void;
-}
+};
 
 class RealtimeHealthService {
-  private trendAlertSubscriptions: Map<string, Unsubscribe> = new Map();
-  private familyUpdateSubscriptions: Map<string, Unsubscribe> = new Map();
-  private alertSubscriptions: Map<string, Unsubscribe> = new Map();
-  private vitalSubscriptions: Map<string, Unsubscribe> = new Map();
+  private readonly trendAlertSubscriptions: Map<string, Unsubscribe> =
+    new Map();
+  private readonly familyUpdateSubscriptions: Map<string, Unsubscribe> =
+    new Map();
+  private readonly alertSubscriptions: Map<string, Unsubscribe> = new Map();
+  private readonly vitalSubscriptions: Map<string, Unsubscribe> = new Map();
   private eventHandlers: RealtimeHealthEventHandlers = {};
 
   /**
@@ -72,6 +76,145 @@ class RealtimeHealthService {
    */
   setEventHandlers(handlers: RealtimeHealthEventHandlers): void {
     this.eventHandlers = { ...this.eventHandlers, ...handlers };
+  }
+
+  private handleTrendAlertChange(
+    change: DocumentChange<DocumentData>,
+    onAlert?: (alert: TrendAlert) => void
+  ): void {
+    if (!(change.type === "added" || change.type === "modified")) {
+      return;
+    }
+
+    const data = change.doc.data();
+    const alertType = data.type as string;
+
+    const isTrendRelated =
+      alertType.includes("trend") ||
+      alertType.includes("vital") ||
+      (data.metadata?.trendAnalysis && data.severity !== "normal");
+    if (!isTrendRelated) {
+      return;
+    }
+
+    const alert: TrendAlert = {
+      id: change.doc.id,
+      userId: data.userId,
+      type: alertType.includes("vital") ? "vital_trend" : "symptom_trend",
+      severity: data.severity === "critical" ? "critical" : "warning",
+      trendAnalysis: data.metadata?.trendAnalysis || {
+        vitalType: alertType,
+        trend: "increasing",
+        severity: data.severity,
+        changePercent: 0,
+        timePeriod: "7 days",
+        currentValue: 0,
+        averageValue: 0,
+        unit: "",
+        message: data.message,
+      },
+      timestamp: data.timestamp?.toDate() || new Date(),
+      acknowledged: data.acknowledged,
+    };
+
+    onAlert?.(alert);
+    this.eventHandlers.onTrendAlert?.(alert);
+  }
+
+  private emitFamilyUpdate(
+    update: FamilyMemberUpdate,
+    onUpdate?: (familyUpdate: FamilyMemberUpdate) => void
+  ): void {
+    onUpdate?.(update);
+    this.eventHandlers.onFamilyMemberUpdate?.(update);
+  }
+
+  private handleFamilyAlertAdded(
+    change: DocumentChange<DocumentData>,
+    onUpdate?: (update: FamilyMemberUpdate) => void
+  ): void {
+    const data = change.doc.data();
+    const update: FamilyMemberUpdate = {
+      memberId: data.userId,
+      updateType: "alert_created",
+      data: {
+        alertId: change.doc.id,
+        type: data.type,
+        severity: data.severity,
+        message: data.message,
+      },
+      timestamp: data.timestamp?.toDate() || new Date(),
+    };
+
+    this.emitFamilyUpdate(update, onUpdate);
+    this.eventHandlers.onAlertCreated?.({
+      id: change.doc.id,
+      ...data,
+      timestamp: data.timestamp?.toDate() || new Date(),
+    } as EmergencyAlert);
+  }
+
+  private handleFamilyAlertModified(
+    change: DocumentChange<DocumentData>,
+    onUpdate?: (update: FamilyMemberUpdate) => void
+  ): void {
+    const data = change.doc.data();
+    if (!data.resolved) {
+      return;
+    }
+
+    const update: FamilyMemberUpdate = {
+      memberId: data.userId,
+      updateType: "alert_resolved",
+      data: {
+        alertId: change.doc.id,
+        resolvedBy: data.resolvedBy,
+      },
+      timestamp: data.resolvedAt?.toDate() || new Date(),
+    };
+
+    this.emitFamilyUpdate(update, onUpdate);
+    this.eventHandlers.onAlertResolved?.(change.doc.id, data.resolvedBy || "");
+  }
+
+  private handleFamilyAlertChange(
+    change: DocumentChange<DocumentData>,
+    onUpdate?: (update: FamilyMemberUpdate) => void
+  ): void {
+    if (change.type === "added") {
+      this.handleFamilyAlertAdded(change, onUpdate);
+      return;
+    }
+    if (change.type === "modified") {
+      this.handleFamilyAlertModified(change, onUpdate);
+    }
+  }
+
+  private handleUserAlertChange(
+    change: DocumentChange<DocumentData>,
+    onAlertCreated?: (alert: EmergencyAlert) => void,
+    onAlertResolved?: (alertId: string, resolverId: string) => void
+  ): void {
+    const data = change.doc.data();
+    const alert = {
+      id: change.doc.id,
+      ...data,
+      timestamp: data.timestamp?.toDate() || new Date(),
+    } as EmergencyAlert;
+
+    if (change.type === "added") {
+      onAlertCreated?.(alert);
+      this.eventHandlers.onAlertCreated?.(alert);
+      return;
+    }
+
+    if (change.type === "modified" && data.resolved) {
+      onAlertResolved?.(change.doc.id, data.resolvedBy || "");
+      this.eventHandlers.onAlertResolved?.(
+        change.doc.id,
+        data.resolvedBy || ""
+      );
+    }
   }
 
   /**
@@ -102,47 +245,9 @@ class RealtimeHealthService {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === "added" || change.type === "modified") {
-            const data = change.doc.data();
-            const alertType = data.type as string;
-
-            // Check if this is a trend-related alert
-            if (
-              alertType.includes("trend") ||
-              alertType.includes("vital") ||
-              (data.metadata?.trendAnalysis && data.severity !== "normal")
-            ) {
-              const alert: TrendAlert = {
-                id: change.doc.id,
-                userId: data.userId,
-                type: alertType.includes("vital")
-                  ? "vital_trend"
-                  : "symptom_trend",
-                severity: data.severity === "critical" ? "critical" : "warning",
-                trendAnalysis: data.metadata?.trendAnalysis || {
-                  vitalType: alertType,
-                  trend: "increasing",
-                  severity: data.severity,
-                  changePercent: 0,
-                  timePeriod: "7 days",
-                  currentValue: 0,
-                  averageValue: 0,
-                  unit: "",
-                  message: data.message,
-                },
-                timestamp: data.timestamp?.toDate() || new Date(),
-                acknowledged: data.acknowledged,
-              };
-
-              // Call handler
-              if (onAlert) {
-                onAlert(alert);
-              }
-              this.eventHandlers.onTrendAlert?.(alert);
-            }
-          }
-        });
+        for (const change of snapshot.docChanges()) {
+          this.handleTrendAlertChange(change, onAlert);
+        }
       },
       (error) => {
         this.eventHandlers.onError?.(error as Error);
@@ -180,7 +285,7 @@ class RealtimeHealthService {
         chunks.push(memberIds.slice(i, i + 10));
       }
 
-      chunks.forEach((chunk) => {
+      for (const chunk of chunks) {
         const alertsQuery = query(
           collection(db, "alerts"),
           where("userId", "in", chunk),
@@ -192,54 +297,9 @@ class RealtimeHealthService {
         const unsubscribe = onSnapshot(
           alertsQuery,
           (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-              if (change.type === "added") {
-                const data = change.doc.data();
-                const update: FamilyMemberUpdate = {
-                  memberId: data.userId,
-                  updateType: "alert_created",
-                  data: {
-                    alertId: change.doc.id,
-                    type: data.type,
-                    severity: data.severity,
-                    message: data.message,
-                  },
-                  timestamp: data.timestamp?.toDate() || new Date(),
-                };
-
-                if (onUpdate) {
-                  onUpdate(update);
-                }
-                this.eventHandlers.onFamilyMemberUpdate?.(update);
-                this.eventHandlers.onAlertCreated?.({
-                  id: change.doc.id,
-                  ...data,
-                  timestamp: data.timestamp?.toDate() || new Date(),
-                } as EmergencyAlert);
-              } else if (change.type === "modified") {
-                const data = change.doc.data();
-                if (data.resolved) {
-                  const update: FamilyMemberUpdate = {
-                    memberId: data.userId,
-                    updateType: "alert_resolved",
-                    data: {
-                      alertId: change.doc.id,
-                      resolvedBy: data.resolvedBy,
-                    },
-                    timestamp: data.resolvedAt?.toDate() || new Date(),
-                  };
-
-                  if (onUpdate) {
-                    onUpdate(update);
-                  }
-                  this.eventHandlers.onFamilyMemberUpdate?.(update);
-                  this.eventHandlers.onAlertResolved?.(
-                    change.doc.id,
-                    data.resolvedBy || ""
-                  );
-                }
-              }
-            });
+            for (const change of snapshot.docChanges()) {
+              this.handleFamilyAlertChange(change, onUpdate);
+            }
           },
           (error) => {
             this.eventHandlers.onError?.(error as Error);
@@ -247,7 +307,7 @@ class RealtimeHealthService {
         );
 
         unsubscribes.push(unsubscribe);
-      });
+      }
     }
 
     // Subscribe to recent vitals for all family members (last 24 hours)
@@ -256,7 +316,7 @@ class RealtimeHealthService {
       vitalsChunks.push(memberIds.slice(i, i + 10));
     }
 
-    vitalsChunks.forEach((chunk) => {
+    for (const chunk of vitalsChunks) {
       const vitalsQuery = query(
         collection(db, "vitals"),
         where("userId", "in", chunk),
@@ -267,7 +327,7 @@ class RealtimeHealthService {
       const unsubscribe = onSnapshot(
         vitalsQuery,
         (snapshot) => {
-          snapshot.docChanges().forEach((change) => {
+          for (const change of snapshot.docChanges()) {
             if (change.type === "added") {
               const data = change.doc.data();
               const update: FamilyMemberUpdate = {
@@ -294,7 +354,7 @@ class RealtimeHealthService {
                 timestamp: data.timestamp?.toDate() || new Date(),
               });
             }
-          });
+          }
         },
         (error) => {
           this.eventHandlers.onError?.(error as Error);
@@ -302,11 +362,13 @@ class RealtimeHealthService {
       );
 
       unsubscribes.push(unsubscribe);
-    });
+    }
 
     // Create a combined unsubscribe function
     const combinedUnsubscribe = () => {
-      unsubscribes.forEach((unsub) => unsub());
+      for (const unsubscribe of unsubscribes) {
+        unsubscribe();
+      }
     };
 
     this.familyUpdateSubscriptions.set(key, combinedUnsubscribe);
@@ -338,29 +400,9 @@ class RealtimeHealthService {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          const data = change.doc.data();
-          const alert = {
-            id: change.doc.id,
-            ...data,
-            timestamp: data.timestamp?.toDate() || new Date(),
-          } as EmergencyAlert;
-
-          if (change.type === "added") {
-            if (onAlertCreated) {
-              onAlertCreated(alert);
-            }
-            this.eventHandlers.onAlertCreated?.(alert);
-          } else if (change.type === "modified" && data.resolved) {
-            if (onAlertResolved) {
-              onAlertResolved(change.doc.id, data.resolvedBy || "");
-            }
-            this.eventHandlers.onAlertResolved?.(
-              change.doc.id,
-              data.resolvedBy || ""
-            );
-          }
-        });
+        for (const change of snapshot.docChanges()) {
+          this.handleUserAlertChange(change, onAlertCreated, onAlertResolved);
+        }
       },
       (error) => {
         this.eventHandlers.onError?.(error as Error);
@@ -400,7 +442,7 @@ class RealtimeHealthService {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
+        for (const change of snapshot.docChanges()) {
           if (change.type === "added") {
             const data = change.doc.data();
             const vital = {
@@ -415,7 +457,7 @@ class RealtimeHealthService {
             }
             this.eventHandlers.onVitalAdded?.(vital);
           }
-        });
+        }
       },
       (error) => {
         this.eventHandlers.onError?.(error as Error);
@@ -478,10 +520,18 @@ class RealtimeHealthService {
    * Unsubscribe from all subscriptions
    */
   unsubscribeAll(): void {
-    this.trendAlertSubscriptions.forEach((unsub) => unsub());
-    this.familyUpdateSubscriptions.forEach((unsub) => unsub());
-    this.alertSubscriptions.forEach((unsub) => unsub());
-    this.vitalSubscriptions.forEach((unsub) => unsub());
+    for (const unsubscribe of this.trendAlertSubscriptions.values()) {
+      unsubscribe();
+    }
+    for (const unsubscribe of this.familyUpdateSubscriptions.values()) {
+      unsubscribe();
+    }
+    for (const unsubscribe of this.alertSubscriptions.values()) {
+      unsubscribe();
+    }
+    for (const unsubscribe of this.vitalSubscriptions.values()) {
+      unsubscribe();
+    }
 
     this.trendAlertSubscriptions.clear();
     this.familyUpdateSubscriptions.clear();

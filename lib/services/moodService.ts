@@ -16,6 +16,18 @@ import type { Mood } from "@/types";
 import { offlineService } from "./offlineService";
 import { userService } from "./userService";
 
+const getErrorCode = (error: unknown): string => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string"
+  ) {
+    return error.code;
+  }
+  return "";
+};
+
 export const moodService = {
   // Add new mood (offline-first)
   async addMood(moodData: Omit<Mood, "id">): Promise<string> {
@@ -91,40 +103,36 @@ export const moodService = {
     moodData: Omit<Mood, "id">,
     targetUserId: string
   ): Promise<string> {
-    try {
-      // Validate required fields
-      if (!targetUserId) {
-        throw new Error("Target user ID is required");
-      }
-      if (!moodData.mood) {
-        throw new Error("Mood is required");
-      }
-      if (!moodData.intensity) {
-        throw new Error("Intensity is required");
-      }
-      if (!moodData.timestamp) {
-        throw new Error("Timestamp is required");
-      }
-
-      // Override the userId to the target user
-      const dataWithTargetUser = {
-        ...moodData,
-        userId: targetUserId,
-      };
-
-      // Filter out undefined values to prevent Firebase errors
-      const cleanedData = Object.fromEntries(
-        Object.entries({
-          ...dataWithTargetUser,
-          timestamp: Timestamp.fromDate(dataWithTargetUser.timestamp),
-        }).filter(([_, value]) => value !== undefined)
-      );
-
-      const docRef = await addDoc(collection(db, "moods"), cleanedData);
-      return docRef.id;
-    } catch (error) {
-      throw error;
+    // Validate required fields
+    if (!targetUserId) {
+      throw new Error("Target user ID is required");
     }
+    if (!moodData.mood) {
+      throw new Error("Mood is required");
+    }
+    if (!moodData.intensity) {
+      throw new Error("Intensity is required");
+    }
+    if (!moodData.timestamp) {
+      throw new Error("Timestamp is required");
+    }
+
+    // Override the userId to the target user
+    const dataWithTargetUser = {
+      ...moodData,
+      userId: targetUserId,
+    };
+
+    // Filter out undefined values to prevent Firebase errors
+    const cleanedData = Object.fromEntries(
+      Object.entries({
+        ...dataWithTargetUser,
+        timestamp: Timestamp.fromDate(dataWithTargetUser.timestamp),
+      }).filter(([_, value]) => value !== undefined)
+    );
+
+    const docRef = await addDoc(collection(db, "moods"), cleanedData);
+    return docRef.id;
   },
 
   // Get user moods (offline-first)
@@ -143,10 +151,10 @@ export const moodService = {
         const querySnapshot = await getDocs(q);
         const moods: Mood[] = [];
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        querySnapshot.forEach((itemDoc) => {
+          const data = itemDoc.data();
           moods.push({
-            id: doc.id,
+            id: itemDoc.id,
             ...data,
             timestamp: data.timestamp.toDate(),
           } as Mood);
@@ -188,7 +196,7 @@ export const moodService = {
         user?.familyId === familyId &&
         (user?.role === "admin" || user?.role === "caregiver")
       );
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   },
@@ -199,64 +207,60 @@ export const moodService = {
     familyId: string,
     limitCount = 50
   ): Promise<Mood[]> {
-    try {
-      // Check permissions
-      const hasPermission = await this.checkFamilyAccessPermission(
-        userId,
-        familyId
+    // Check permissions
+    const hasPermission = await this.checkFamilyAccessPermission(
+      userId,
+      familyId
+    );
+    if (!hasPermission) {
+      throw new Error(
+        "Access denied: Only admins and caregivers can access family medical data"
       );
-      if (!hasPermission) {
-        throw new Error(
-          "Access denied: Only admins and caregivers can access family medical data"
-        );
-      }
-      // First get all family members
-      const familyMembersQuery = query(
-        collection(db, "users"),
-        where("familyId", "==", familyId)
-      );
-      const familyMembersSnapshot = await getDocs(familyMembersQuery);
-      const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
-
-      if (memberIds.length === 0) {
-        return [];
-      }
-
-      // Firestore 'in' operator has a limit of 10 items, so we need to chunk
-      const chunkSize = 10;
-      const chunks: string[][] = [];
-      for (let i = 0; i < memberIds.length; i += chunkSize) {
-        chunks.push(memberIds.slice(i, i + chunkSize));
-      }
-
-      // Get moods for all family members (query each chunk)
-      // Note: We don't limit individual chunks since we need to combine and sort all results
-      const allMoods: Mood[] = [];
-      for (const chunk of chunks) {
-        const moodsQuery = query(
-          collection(db, "moods"),
-          where("userId", "in", chunk),
-          orderBy("timestamp", "desc")
-        );
-
-        const querySnapshot = await getDocs(moodsQuery);
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          allMoods.push({
-            id: doc.id,
-            ...data,
-            timestamp: data.timestamp.toDate(),
-          } as Mood);
-        });
-      }
-
-      // Sort by timestamp descending and limit results
-      return allMoods
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-        .slice(0, limitCount);
-    } catch (error) {
-      throw error;
     }
+    // First get all family members
+    const familyMembersQuery = query(
+      collection(db, "users"),
+      where("familyId", "==", familyId)
+    );
+    const familyMembersSnapshot = await getDocs(familyMembersQuery);
+    const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
+
+    if (memberIds.length === 0) {
+      return [];
+    }
+
+    // Firestore 'in' operator has a limit of 10 items, so we need to chunk
+    const chunkSize = 10;
+    const chunks: string[][] = [];
+    for (let i = 0; i < memberIds.length; i += chunkSize) {
+      chunks.push(memberIds.slice(i, i + chunkSize));
+    }
+
+    // Get moods for all family members (query each chunk)
+    // Note: We don't limit individual chunks since we need to combine and sort all results
+    const allMoods: Mood[] = [];
+    for (const chunk of chunks) {
+      const moodsQuery = query(
+        collection(db, "moods"),
+        where("userId", "in", chunk),
+        orderBy("timestamp", "desc")
+      );
+
+      const querySnapshot = await getDocs(moodsQuery);
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
+        allMoods.push({
+          id: itemDoc.id,
+          ...data,
+          timestamp: data.timestamp.toDate(),
+        } as Mood);
+      });
+    }
+
+    // Sort by timestamp descending and limit results
+    return allMoods
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, limitCount);
   },
 
   // Get mood stats for all family members (for admins and caregivers)
@@ -298,15 +302,15 @@ export const moodService = {
         where("familyId", "==", familyId)
       );
       const familyMembersSnapshot = await getDocs(familyMembersQuery);
-      const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+      const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
       const membersMap = new Map<string, string>();
-      familyMembersSnapshot.docs.forEach((doc) => {
-        const userData = doc.data();
+      familyMembersSnapshot.docs.forEach((itemDoc) => {
+        const userData = itemDoc.data();
         const userName =
           userData.firstName && userData.lastName
             ? `${userData.firstName} ${userData.lastName}`
             : userData.firstName || userData.lastName || "Unknown";
-        membersMap.set(doc.id, userName);
+        membersMap.set(itemDoc.id, userName);
       });
 
       if (memberIds.length === 0) {
@@ -331,17 +335,17 @@ export const moodService = {
           );
 
           const querySnapshot = await getDocs(moodsQuery);
-          querySnapshot.forEach((doc) => {
-            const data = doc.data();
+          querySnapshot.forEach((itemDoc) => {
+            const data = itemDoc.data();
             moods.push({
-              id: doc.id,
+              id: itemDoc.id,
               ...data,
               timestamp: data.timestamp.toDate(),
             } as Mood);
           });
-        } catch (chunkError: any) {
+        } catch (chunkError: unknown) {
           // If chunk query fails (e.g., index error), fallback to individual member queries
-          if (chunkError?.code === "failed-precondition") {
+          if (getErrorCode(chunkError) === "failed-precondition") {
             // Fetch moods for each member separately
             const moodPromises = chunk.map((memberId) =>
               this.getUserMoods(memberId, 1000).catch(() => [] as Mood[])
@@ -392,9 +396,9 @@ export const moodService = {
           mood,
           count: data.count,
           affectedMembers: data.users.size,
-          users: Array.from(data.users).map((userId) => ({
-            userId,
-            userName: membersMap.get(userId) || "Unknown",
+          users: Array.from(data.users).map((memberUserId) => ({
+            userId: memberUserId,
+            userName: membersMap.get(memberUserId) || "Unknown",
           })),
         }))
         .sort((a, b) => b.count - a.count);
@@ -404,9 +408,9 @@ export const moodService = {
         avgIntensity: Math.round(avgIntensity * 10) / 10,
         moodDistribution,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if it's an index error and use fallback
-      if (error?.code === "failed-precondition") {
+      if (getErrorCode(error) === "failed-precondition") {
         try {
           // Fallback: fetch stats for each member separately and combine
           const familyMembersQuery = query(
@@ -414,15 +418,15 @@ export const moodService = {
             where("familyId", "==", familyId)
           );
           const familyMembersSnapshot = await getDocs(familyMembersQuery);
-          const memberIds = familyMembersSnapshot.docs.map((doc) => doc.id);
+          const memberIds = familyMembersSnapshot.docs.map((itemDoc) => itemDoc.id);
           const membersMap = new Map<string, string>();
-          familyMembersSnapshot.docs.forEach((doc) => {
-            const userData = doc.data();
+          familyMembersSnapshot.docs.forEach((itemDoc) => {
+            const userData = itemDoc.data();
             const userName =
               userData.firstName && userData.lastName
                 ? `${userData.firstName} ${userData.lastName}`
                 : userData.firstName || userData.lastName || "Unknown";
-            membersMap.set(doc.id, userName);
+            membersMap.set(itemDoc.id, userName);
           });
 
           if (memberIds.length === 0) {
@@ -471,9 +475,9 @@ export const moodService = {
               mood,
               count: data.count,
               affectedMembers: data.users.size,
-              users: Array.from(data.users).map((userId) => ({
-                userId,
-                userName: membersMap.get(userId) || "Unknown",
+              users: Array.from(data.users).map((memberUserId) => ({
+                userId: memberUserId,
+                userName: membersMap.get(memberUserId) || "Unknown",
               })),
             }))
             .sort((a, b) => b.count - a.count);
@@ -483,7 +487,7 @@ export const moodService = {
             avgIntensity: Math.round(avgIntensity * 10) / 10,
             moodDistribution,
           };
-        } catch (fallbackError) {
+        } catch (_fallbackError) {
           // Return default values if fallback also fails
           return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
         }
@@ -495,24 +499,16 @@ export const moodService = {
 
   // Update mood
   async updateMood(moodId: string, updates: Partial<Mood>): Promise<void> {
-    try {
-      const updateData: any = { ...updates };
-      if (updates.timestamp) {
-        updateData.timestamp = Timestamp.fromDate(updates.timestamp);
-      }
-      await updateDoc(doc(db, "moods", moodId), updateData);
-    } catch (error) {
-      throw error;
+    const updateData: Record<string, unknown> = { ...updates };
+    if (updates.timestamp) {
+      updateData.timestamp = Timestamp.fromDate(updates.timestamp);
     }
+    await updateDoc(doc(db, "moods", moodId), updateData);
   },
 
   // Delete mood
   async deleteMood(moodId: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, "moods", moodId));
-    } catch (error) {
-      throw error;
-    }
+    await deleteDoc(doc(db, "moods", moodId));
   },
 
   // Get mood statistics
@@ -537,10 +533,10 @@ export const moodService = {
       const querySnapshot = await getDocs(q);
       const moods: Mood[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         moods.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           timestamp: data.timestamp.toDate(),
         } as Mood);
@@ -567,9 +563,9 @@ export const moodService = {
         avgIntensity: Math.round(avgIntensity * 10) / 10,
         moodDistribution,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if it's an index error and use fallback
-      if (error?.code === "failed-precondition") {
+      if (getErrorCode(error) === "failed-precondition") {
         try {
           // Fallback: fetch all user moods and filter by date in memory
           // This uses the existing index that works (userId + orderBy timestamp)
@@ -603,7 +599,7 @@ export const moodService = {
             avgIntensity: Math.round(avgIntensity * 10) / 10,
             moodDistribution,
           };
-        } catch (fallbackError) {
+        } catch (_fallbackError) {
           // If fallback also fails, return empty stats
           return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
         }
@@ -614,30 +610,26 @@ export const moodService = {
 
   // Get moods for a specific family member (for admins)
   async getMemberMoods(memberId: string, limitCount = 50): Promise<Mood[]> {
-    try {
-      const q = query(
-        collection(db, "moods"),
-        where("userId", "==", memberId),
-        orderBy("timestamp", "desc"),
-        limit(limitCount)
-      );
+    const q = query(
+      collection(db, "moods"),
+      where("userId", "==", memberId),
+      orderBy("timestamp", "desc"),
+      limit(limitCount)
+    );
 
-      const querySnapshot = await getDocs(q);
-      const moods: Mood[] = [];
+    const querySnapshot = await getDocs(q);
+    const moods: Mood[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        moods.push({
-          id: doc.id,
-          ...data,
-          timestamp: data.timestamp.toDate(),
-        } as Mood);
-      });
+    querySnapshot.forEach((itemDoc) => {
+      const data = itemDoc.data();
+      moods.push({
+        id: itemDoc.id,
+        ...data,
+        timestamp: data.timestamp.toDate(),
+      } as Mood);
+    });
 
-      return moods;
-    } catch (error) {
-      throw error;
-    }
+    return moods;
   },
 
   // Get mood stats for a specific family member (for admins)
@@ -662,10 +654,10 @@ export const moodService = {
       const querySnapshot = await getDocs(q);
       const moods: Mood[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((itemDoc) => {
+        const data = itemDoc.data();
         moods.push({
-          id: doc.id,
+          id: itemDoc.id,
           ...data,
           timestamp: data.timestamp.toDate(),
         } as Mood);
@@ -695,13 +687,13 @@ export const moodService = {
         avgIntensity: Math.round(avgIntensity * 10) / 10,
         moodDistribution,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if it's an index error and use fallback
-      if (error?.code === "failed-precondition") {
+      if (getErrorCode(error) === "failed-precondition") {
         try {
           // Fallback: use getMoodStats which has its own fallback
           return await this.getMoodStats(memberId, days);
-        } catch (fallbackError) {
+        } catch (_fallbackError) {
           // Return default values if fallback also fails
           return { totalMoods: 0, avgIntensity: 0, moodDistribution: [] };
         }
@@ -711,3 +703,4 @@ export const moodService = {
     }
   },
 };
+

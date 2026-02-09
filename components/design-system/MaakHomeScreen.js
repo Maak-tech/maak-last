@@ -10,6 +10,9 @@ import { borderRadius, colors, spacing } from "./theme";
 
 const MaakHomeScreen = () => {
   const [activeTab, setActiveTab] = useState("community");
+  const noop = () => {
+    // Intentionally no-op for static design preview interactions.
+  };
 
   return (
     <SafeAreaView edges={["top"]} style={styles.container}>
@@ -92,7 +95,7 @@ const MaakHomeScreen = () => {
             </Text>
           </View>
 
-          <Card onPress={() => {}} style={styles.projectCard}>
+          <Card onPress={noop} style={styles.projectCard}>
             <View style={styles.projectHeader}>
               <Avatar name="Project Alpha" size="md" />
               <View style={styles.projectInfo}>
@@ -127,7 +130,7 @@ const MaakHomeScreen = () => {
             </View>
           </Card>
 
-          <Card onPress={() => {}} style={styles.projectCard}>
+          <Card onPress={noop} style={styles.projectCard}>
             <View style={styles.projectHeader}>
               <Avatar name="Design Sprint" size="md" />
               <View style={styles.projectInfo}>
@@ -183,7 +186,7 @@ const MaakHomeScreen = () => {
               <Caption>Community Center • 6:00 PM</Caption>
             </View>
             <Button
-              onPress={() => {}}
+              onPress={noop}
               size="small"
               style={styles.rsvpButton}
               title="RSVP"
@@ -203,7 +206,7 @@ const MaakHomeScreen = () => {
               <Caption>Online • 2:00 PM</Caption>
             </View>
             <Button
-              onPress={() => {}}
+              onPress={noop}
               size="small"
               style={styles.rsvpButton}
               title="Join"
@@ -219,7 +222,7 @@ const MaakHomeScreen = () => {
       <FAB
         backgroundColor={colors.secondary}
         icon={<Text style={styles.fabIcon}>+</Text>}
-        onPress={() => {}}
+        onPress={noop}
       />
     </SafeAreaView>
   );

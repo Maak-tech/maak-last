@@ -3,17 +3,17 @@
  * Simple rule-based system for detecting abnormal vitals
  */
 
-export interface VitalThresholds {
+export type VitalThresholds = {
   min?: number;
   max?: number;
   unit: string;
   attentionThreshold?: number; // Deviation that triggers attention
   urgentThreshold?: number; // Deviation that triggers urgent alert
-}
+};
 
-export interface VitalThresholdsMap {
+export type VitalThresholdsMap = {
   [key: string]: VitalThresholds;
-}
+};
 
 /**
  * Threshold definitions for different vital signs
@@ -85,7 +85,9 @@ export function getVitalThresholds(
  */
 export function isInNormalRange(vitalType: string, value: number): boolean {
   const thresholds = getVitalThresholds(vitalType);
-  if (!thresholds) return true; // If no thresholds defined, assume normal
+  if (!thresholds) {
+    return true; // If no thresholds defined, assume normal
+  }
 
   return (
     value >= (thresholds.min || Number.NEGATIVE_INFINITY) &&
@@ -101,7 +103,9 @@ export function calculateSeverity(
   value: number
 ): { severity: "normal" | "attention" | "urgent"; deviation: number } {
   const thresholds = getVitalThresholds(vitalType);
-  if (!thresholds) return { severity: "normal", deviation: 0 };
+  if (!thresholds) {
+    return { severity: "normal", deviation: 0 };
+  }
 
   // Check if within normal range
   if (isInNormalRange(vitalType, value)) {

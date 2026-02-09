@@ -5,25 +5,25 @@
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-interface LogEntry {
+type LogEntry = {
   level: LogLevel;
   message: string;
   data?: unknown;
   timestamp: Date;
   source?: string;
-}
+};
 
 class Logger {
   private logs: LogEntry[] = [];
-  private maxLogs = 100; // Keep last 100 logs in memory
+  private readonly maxLogs = 100; // Keep last 100 logs in memory
   private enabled: boolean;
   private logLevel: LogLevel;
 
   constructor() {
     // Enable logging in development, disable in production
-    this.enabled = __DEV__;
+    this.enabled = process.env.NODE_ENV !== "production";
     // Set log level based on environment
-    this.logLevel = __DEV__ ? "debug" : "error";
+    this.logLevel = process.env.NODE_ENV !== "production" ? "debug" : "error";
   }
 
   /**
@@ -83,7 +83,7 @@ class Logger {
     }
 
     // Output to console in development
-    if (__DEV__) {
+    if (process.env.NODE_ENV !== "production") {
       const prefix = source ? `[${source}]` : "";
       const timestamp = entry.timestamp.toISOString();
 
@@ -99,6 +99,9 @@ class Logger {
           break;
         case "error":
           console.error(`${timestamp} ${prefix} ${message}`, data || "");
+          break;
+        default:
+          console.info(`${timestamp} ${prefix} ${message}`, data || "");
           break;
       }
     }

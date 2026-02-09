@@ -3,7 +3,7 @@
  * Handles checking user notification preferences
  */
 
-import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import { logger } from "../../observability/logger";
 
 /**
@@ -18,7 +18,7 @@ export async function shouldSendNotification(
   notificationType: string
 ): Promise<boolean> {
   try {
-    const db = admin.firestore();
+    const db = getFirestore();
     const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
 

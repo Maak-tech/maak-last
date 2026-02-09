@@ -58,7 +58,7 @@
     if (code) {
       // Redirect to app using deep link scheme
       const appScheme = "maak://dexcom-callback";
-      const redirectUrl = `${appScheme}?code=${encodeURIComponent(code)}${state ? "&state=" + encodeURIComponent(state) : ""}`;
+      const redirectUrl = `${appScheme}?code=${encodeURIComponent(code)}${state ? `&state=${encodeURIComponent(state)}` : ""}`;
 
       // Try to open the app
       window.location.href = redirectUrl;

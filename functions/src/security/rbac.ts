@@ -4,17 +4,18 @@
  * Permission checks for patient data and alerts
  */
 
+/* biome-ignore-all lint/performance/noNamespaceImport: firebase-functions v1 https.HttpsError is consumed through namespace API here. */
 import * as functions from "firebase-functions";
 import { getCareLinksCollection, getUsersCollection } from "../db/collections";
 import type { UserRole } from "../db/firestore";
 import type { AuthContext } from "./authContext";
 
-export interface RBACContext {
+export type RBACContext = {
   actor: AuthContext;
   targetUserId?: string;
   patientId?: string;
   familyId?: string;
-}
+};
 
 // ============================================================================
 // Role Checks
@@ -107,6 +108,7 @@ export async function canReadPatient(ctx: RBACContext): Promise<boolean> {
  * - Caregivers with write permissions can write patient data
  * - Admins can write family members' data
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: permission checks intentionally combine role and relationship branches.
 export async function canWritePatient(ctx: RBACContext): Promise<boolean> {
   const { actor, targetUserId, patientId } = ctx;
 
@@ -164,6 +166,7 @@ export async function canWritePatient(ctx: RBACContext): Promise<boolean> {
  * - Caregivers with alert permissions can acknowledge
  * - Admins can acknowledge family alerts
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: permission checks intentionally combine role and relationship branches.
 export async function canAcknowledgeAlert(ctx: RBACContext): Promise<boolean> {
   const { actor, targetUserId, patientId } = ctx;
 

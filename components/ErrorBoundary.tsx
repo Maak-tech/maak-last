@@ -7,17 +7,17 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { logger } from "@/lib/utils/logger";
 
-interface Props {
+type Props = {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
-}
+};
 
-interface State {
+type State = {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
-}
+};
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -84,6 +84,8 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   render() {
+    const isDev = process.env.NODE_ENV !== "production";
+
     if (this.state.hasError) {
       // Use custom fallback if provided
       if (this.props.fallback) {
@@ -99,12 +101,12 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.state.error?.message ||
                 "An unexpected error occurred. Please try again."}
             </Text>
-            {__DEV__ && this.state.error?.stack && (
+            {isDev && this.state.error?.stack ? (
               <View style={styles.stackContainer}>
                 <Text style={styles.stackTitle}>Stack Trace:</Text>
                 <Text style={styles.stack}>{this.state.error.stack}</Text>
               </View>
-            )}
+            ) : null}
             <TouchableOpacity onPress={this.handleReset} style={styles.button}>
               <Text style={styles.buttonText}>Try Again</Text>
             </TouchableOpacity>

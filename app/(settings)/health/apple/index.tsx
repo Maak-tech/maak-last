@@ -18,9 +18,18 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { configureLayoutAnimationIfActive } from "@/lib/utils/appStateGuards";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
+const getLearnMoreLabel = (expanded: boolean, isRTL: boolean): string => {
+  if (expanded) {
+    return isRTL ? "إخفاء التفاصيل" : "Hide details";
+  }
+
+  return isRTL ? "تعرف على المزيد" : "Learn more";
+};
+
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Intro screen copy and bilingual rendering remain intentionally inline for readability. */
 export default function AppleHealthIntroScreen() {
-  const { t, i18n } = useTranslation();
-  const { theme } = useTheme();
+  const { i18n } = useTranslation();
+  const { theme: currentTheme } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const isRTL = i18n.language === "ar";
 
@@ -137,7 +146,7 @@ export default function AppleHealthIntroScreen() {
     rtlText: {
       textAlign: "right" as const,
     },
-  }))(theme);
+  }))(currentTheme);
 
   const toggleLearnMore = () => {
     if (Platform.OS === "ios") {
@@ -154,7 +163,7 @@ export default function AppleHealthIntroScreen() {
       >
         <View style={styles.header as ViewStyle}>
           <View style={styles.iconContainer as ViewStyle}>
-            <Heart color={theme.colors.primary.main} size={40} />
+            <Heart color={currentTheme.colors.primary.main} size={40} />
           </View>
           <Text
             style={
@@ -316,17 +325,11 @@ export default function AppleHealthIntroScreen() {
               ] as StyleProp<TextStyle>
             }
           >
-            {expanded
-              ? isRTL
-                ? "إخفاء التفاصيل"
-                : "Hide details"
-              : isRTL
-                ? "تعرف على المزيد"
-                : "Learn more"}
+            {getLearnMoreLabel(expanded, isRTL)}
           </Text>
         </Pressable>
 
-        {expanded && (
+        {Boolean(expanded) && (
           <Text
             style={
               [
@@ -349,7 +352,7 @@ export default function AppleHealthIntroScreen() {
             {isRTL ? "اختر ما تشاركه" : "Choose what to share"}
           </Text>
           <ChevronRight
-            color={theme.colors.neutral.white}
+            color={currentTheme.colors.neutral.white}
             size={20}
             style={{ transform: [{ rotate: isRTL ? "180deg" : "0deg" }] }}
           />

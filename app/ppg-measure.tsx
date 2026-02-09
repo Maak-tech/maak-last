@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { Heart } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { type ComponentType, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -13,10 +13,16 @@ import { useAuth } from "@/contexts/AuthContext";
 
 // This screen is isolated - TextImpl errors only affect this route
 export default function PPGMeasureScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user } = useAuth();
-  const isRTL = i18n.language === "ar";
-  const [PPGComponent, setPPGComponent] = useState<any>(null);
+  type PPGComponentProps = {
+    onClose: () => void;
+    onMeasurementComplete: () => void;
+    userId: string;
+    visible: boolean;
+  };
+  const [PPGComponent, setPPGComponent] =
+    useState<ComponentType<PPGComponentProps> | null>(null);
   const [loading, setLoading] = useState(true);
   const [useRealCamera, setUseRealCamera] = useState(true);
 
@@ -36,7 +42,7 @@ export default function PPGMeasureScreen() {
         const visionCameraModule = require("@/components/PPGVitalMonitorVisionCamera");
         setPPGComponent(() => visionCameraModule.default);
         setUseRealCamera(true);
-      } catch (error) {
+      } catch (_error) {
         // VisionCamera failed to load - NO FALLBACK ALLOWED
         // Simulated data is scientifically invalid and completely disabled
         // Show error to user - this is the ONLY acceptable outcome
@@ -101,7 +107,7 @@ export default function PPGMeasureScreen() {
   return (
     <View style={{ flex: 1 }}>
       {/* Real Camera PPG Info Banner */}
-      {useRealCamera && (
+      {useRealCamera ? (
         <View style={styles.realCameraBanner}>
           <View style={styles.bannerIconContainer}>
             <Heart color="#10B981" size={20} />
@@ -118,7 +124,7 @@ export default function PPGMeasureScreen() {
             </Text>
           </View>
         </View>
-      )}
+      ) : null}
 
       {/* No fallback banner - if VisionCamera fails, show error screen only */}
 

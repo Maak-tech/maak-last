@@ -8,10 +8,10 @@ import ExpoRevenuecatDirectoryModule from "./ExpoRevenuecatDirectoryModule";
  *
  * On Android and other platforms, this is a no-op and returns false
  */
-export async function ensureRevenueCatDirectory(): Promise<boolean> {
+export function ensureRevenueCatDirectory(): Promise<boolean> {
   // Only run on iOS - Android doesn't have this issue
   if (Platform.OS !== "ios") {
-    return false;
+    return Promise.resolve(false);
   }
 
   // Check if native module is available
@@ -21,7 +21,7 @@ export async function ensureRevenueCatDirectory(): Promise<boolean> {
         "This may cause RevenueCat cache errors. " +
         "Make sure the module is properly linked."
     );
-    return false;
+    return Promise.resolve(false);
   }
 
   try {

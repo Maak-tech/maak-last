@@ -49,7 +49,7 @@ export function getSecretValue(
 ): string | undefined {
   try {
     return secret.value();
-  } catch (error) {
+  } catch (_error) {
     // If secret is not available (e.g., in local development), fall back to env
     return envFallback || process.env[secret.name] || undefined;
   }

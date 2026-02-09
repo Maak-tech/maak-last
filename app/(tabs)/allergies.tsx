@@ -62,6 +62,41 @@ const SEVERITY_OPTIONS_KEYS = [
   },
 ];
 
+type DateLike =
+  | Date
+  | string
+  | number
+  | { toDate?: () => Date }
+  | null
+  | undefined;
+
+const coerceDate = (value: DateLike): Date | null => {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof value.toDate === "function"
+  ) {
+    const converted = value.toDate();
+    return Number.isNaN(converted.getTime()) ? null : converted;
+  }
+
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Legacy screen combines admin/family flows, modal editing, and localized rendering. */
 export default function AllergiesScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -90,7 +125,9 @@ export default function AllergiesScreen() {
 
   const loadAllergies = useCallback(
     async (isRefresh = false) => {
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
       try {
         if (isRefresh) {
@@ -110,7 +147,7 @@ export default function AllergiesScreen() {
           50
         );
         setAllergies(userAllergies);
-      } catch (error) {
+      } catch (_error) {
         Alert.alert(t("error"), t("errorLoadingData"));
       } finally {
         setLoading(false);
@@ -161,7 +198,9 @@ export default function AllergiesScreen() {
   };
 
   const handleAddAllergy = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     const allergyName = selectedAllergy || customAllergy;
     if (!allergyName.trim()) {
@@ -199,7 +238,7 @@ export default function AllergiesScreen() {
       setShowAddModal(false);
       resetForm();
       loadAllergies();
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t("error"), t("errorSavingData"));
     } finally {
       setLoading(false);
@@ -245,39 +284,16 @@ export default function AllergiesScreen() {
     setReaction(allergy.reaction || "");
     setNotes(allergy.notes || "");
     setSelectedTargetUser(allergy.userId);
-    // Safely convert discoveredDate to Date object
-    let discoveredDate: Date;
-    if (allergy.discoveredDate) {
-      if (allergy.discoveredDate instanceof Date) {
-        discoveredDate = allergy.discoveredDate;
-      } else {
-        // Handle potential Firestore Timestamp or other date formats
-        const dateValue = allergy.discoveredDate as any;
-        if (dateValue?.toDate && typeof dateValue.toDate === "function") {
-          discoveredDate = dateValue.toDate();
-        } else {
-          discoveredDate = new Date(dateValue);
-        }
-      }
-    } else {
-      const timestampValue = allergy.timestamp as any;
-      if (timestampValue instanceof Date) {
-        discoveredDate = timestampValue;
-      } else if (
-        timestampValue?.toDate &&
-        typeof timestampValue.toDate === "function"
-      ) {
-        discoveredDate = timestampValue.toDate();
-      } else {
-        discoveredDate = new Date(timestampValue);
-      }
-    }
-    setDiscoveredDate(discoveredDate);
+    const parsedDiscoveredDate =
+      coerceDate(allergy.discoveredDate as DateLike) ??
+      coerceDate(allergy.timestamp as DateLike) ??
+      new Date();
+    setDiscoveredDate(parsedDiscoveredDate);
     setShowActionsMenu(null);
     setShowAddModal(true);
   };
 
-  const handleDeleteAllergy = async (allergyId: string) => {
+  const handleDeleteAllergy = (allergyId: string) => {
     Alert.alert(t("confirmDelete"), t("confirmDeleteAllergy"), [
       {
         text: t("cancel"),
@@ -290,7 +306,7 @@ export default function AllergiesScreen() {
           try {
             await allergyService.deleteAllergy(allergyId);
             loadAllergies();
-          } catch (error) {
+          } catch (_error) {
             Alert.alert(t("error"), t("errorDeletingData"));
           }
         },
@@ -310,31 +326,21 @@ export default function AllergiesScreen() {
     setSelectedTargetUser("");
   };
 
-  const formatDate = (date: Date | undefined | any) => {
-    if (!date) return "";
-    try {
-      // Handle Firestore Timestamp objects
-      let dateObj: Date;
-      if (date?.toDate && typeof date.toDate === "function") {
-        dateObj = date.toDate();
-      } else if (date instanceof Date) {
-        dateObj = date;
-      } else {
-        dateObj = new Date(date);
-      }
-      if (isNaN(dateObj.getTime())) return "";
-      return safeFormatDate(dateObj, undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch (error) {
+  const formatDate = (date: DateLike) => {
+    const dateObj = coerceDate(date);
+    if (!dateObj) {
       return "";
     }
+
+    return safeFormatDate(dateObj, undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
+  const getSeverityColor = (severityValue: string) => {
+    switch (severityValue) {
       case "mild":
         return theme.colors.accent.success;
       case "moderate":
@@ -346,6 +352,161 @@ export default function AllergiesScreen() {
       default:
         return theme.colors.text.secondary;
     }
+  };
+
+  const getSeverityVariant = (
+    severityValue: string
+  ): "success" | "warning" | "error" => {
+    switch (severityValue) {
+      case "mild":
+        return "success";
+      case "moderate":
+        return "warning";
+      default:
+        return "error";
+    }
+  };
+
+  const getMemberDisplayName = (member: UserType): string => {
+    if (member.id === user?.id) {
+      return isRTL ? "أنت" : "You";
+    }
+
+    if (member.firstName && member.lastName) {
+      return `${member.firstName} ${member.lastName}`;
+    }
+
+    return member.firstName || "User";
+  };
+
+  const getSubmitButtonTitle = (): string => {
+    if (editingAllergy) {
+      return isRTL ? "حفظ التغييرات" : "Save Changes";
+    }
+
+    return isRTL ? "إضافة" : "Add";
+  };
+
+  const getSeverityLabel = (severityValue: string): string => {
+    const matchedOption = SEVERITY_OPTIONS_KEYS.find(
+      (opt) => opt.value === severityValue
+    );
+
+    return matchedOption ? t(matchedOption.labelKey) : severityValue;
+  };
+
+  const renderAllergiesContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.centerContainer}>
+          <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
+            {t("loading")}
+          </Text>
+        </View>
+      );
+    }
+
+    if (allergies.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
+            {t("noAllergiesRecorded")}
+          </Text>
+        </View>
+      );
+    }
+
+    return allergies.map((allergy) => (
+      <Card
+        contentStyle={undefined}
+        key={allergy.id}
+        pressable={false}
+        style={styles.allergyCard}
+        variant="elevated"
+      >
+        <View style={styles.allergyHeader}>
+          <View style={styles.allergyInfo}>
+            <Text
+              size="large"
+              style={[styles.allergyName, isRTL && styles.rtlText]}
+              weight="semibold"
+            >
+              {getTranslatedAllergyName(allergy.name)}
+            </Text>
+            <View style={styles.allergyMeta}>
+              <Caption
+                numberOfLines={undefined}
+                style={[styles.allergyDate, isRTL && styles.rtlText]}
+              >
+                {formatDate(allergy.discoveredDate || allergy.timestamp)}
+              </Caption>
+              <Badge
+                size="small"
+                style={[
+                  styles.severityBadge,
+                  {
+                    backgroundColor: getSeverityColor(allergy.severity),
+                  },
+                ]}
+                variant={getSeverityVariant(allergy.severity)}
+              >
+                {getSeverityLabel(allergy.severity)}
+              </Badge>
+            </View>
+          </View>
+          <View style={styles.allergyActions}>
+            <TouchableOpacity
+              onPress={() =>
+                setShowActionsMenu(
+                  showActionsMenu === allergy.id ? null : allergy.id
+                )
+              }
+              style={styles.actionsButton}
+            >
+              <MoreVertical color={theme.colors.text.secondary} size={16} />
+            </TouchableOpacity>
+            {showActionsMenu === allergy.id && (
+              <View style={styles.actionsMenu}>
+                <TouchableOpacity
+                  onPress={() => handleEditAllergy(allergy)}
+                  style={styles.actionItem}
+                >
+                  <Edit color={theme.colors.text.primary} size={16} />
+                  <Text style={styles.actionText}>{t("edit")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDeleteAllergy(allergy.id)}
+                  style={styles.actionItem}
+                >
+                  <Trash2 color={theme.colors.accent.error} size={16} />
+                  <Text style={styles.actionTextDanger}>{t("delete")}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+        {Boolean(allergy.reaction || allergy.notes) && (
+          <View style={styles.allergyDetails}>
+            {Boolean(allergy.reaction) && (
+              <Text style={[styles.allergyDetailText, isRTL && styles.rtlText]}>
+                <Text style={{}} weight="semibold">
+                  {t("reaction")}:{" "}
+                </Text>
+                {allergy.reaction}
+              </Text>
+            )}
+            {Boolean(allergy.notes) && (
+              <Text style={[styles.allergyDetailText, isRTL && styles.rtlText]}>
+                <Text style={{}} weight="semibold">
+                  {t("notes")}:{" "}
+                </Text>
+                {allergy.notes}
+              </Text>
+            )}
+          </View>
+        )}
+      </Card>
+    ));
   };
 
   const styles = StyleSheet.create({
@@ -785,142 +946,7 @@ export default function AllergiesScreen() {
             {t("myAllergies")}
           </Heading>
 
-          {loading ? (
-            <View style={styles.centerContainer}>
-              <Text style={[styles.loadingText, isRTL && styles.rtlText]}>
-                {t("loading")}
-              </Text>
-            </View>
-          ) : allergies.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, isRTL && styles.rtlText]}>
-                {t("noAllergiesRecorded")}
-              </Text>
-            </View>
-          ) : (
-            allergies.map((allergy) => (
-              <Card
-                contentStyle={undefined}
-                key={allergy.id}
-                pressable={false}
-                style={styles.allergyCard}
-                variant="elevated"
-              >
-                <View style={styles.allergyHeader}>
-                  <View style={styles.allergyInfo}>
-                    <Text
-                      size="large"
-                      style={[styles.allergyName, isRTL && styles.rtlText]}
-                      weight="semibold"
-                    >
-                      {getTranslatedAllergyName(allergy.name)}
-                    </Text>
-                    <View style={styles.allergyMeta}>
-                      <Caption
-                        numberOfLines={undefined}
-                        style={[styles.allergyDate, isRTL && styles.rtlText]}
-                      >
-                        {formatDate(
-                          allergy.discoveredDate || allergy.timestamp
-                        )}
-                      </Caption>
-                      <Badge
-                        size="small"
-                        style={[
-                          styles.severityBadge,
-                          {
-                            backgroundColor: getSeverityColor(allergy.severity),
-                          },
-                        ]}
-                        variant={
-                          allergy.severity === "mild"
-                            ? "success"
-                            : allergy.severity === "moderate"
-                              ? "warning"
-                              : "error"
-                        }
-                      >
-                        {SEVERITY_OPTIONS_KEYS.find(
-                          (opt) => opt.value === allergy.severity
-                        )
-                          ? t(
-                              SEVERITY_OPTIONS_KEYS.find(
-                                (opt) => opt.value === allergy.severity
-                              )!.labelKey
-                            )
-                          : allergy.severity}
-                      </Badge>
-                    </View>
-                  </View>
-                  <View style={styles.allergyActions}>
-                    <TouchableOpacity
-                      onPress={() =>
-                        setShowActionsMenu(
-                          showActionsMenu === allergy.id ? null : allergy.id
-                        )
-                      }
-                      style={styles.actionsButton}
-                    >
-                      <MoreVertical
-                        color={theme.colors.text.secondary}
-                        size={16}
-                      />
-                    </TouchableOpacity>
-                    {showActionsMenu === allergy.id && (
-                      <View style={styles.actionsMenu}>
-                        <TouchableOpacity
-                          onPress={() => handleEditAllergy(allergy)}
-                          style={styles.actionItem}
-                        >
-                          <Edit color={theme.colors.text.primary} size={16} />
-                          <Text style={styles.actionText}>{t("edit")}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteAllergy(allergy.id)}
-                          style={styles.actionItem}
-                        >
-                          <Trash2 color={theme.colors.accent.error} size={16} />
-                          <Text style={styles.actionTextDanger}>
-                            {t("delete")}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                {(allergy.reaction || allergy.notes) && (
-                  <View style={styles.allergyDetails}>
-                    {allergy.reaction && (
-                      <Text
-                        style={[
-                          styles.allergyDetailText,
-                          isRTL && styles.rtlText,
-                        ]}
-                      >
-                        <Text style={{}} weight="semibold">
-                          {t("reaction")}:{" "}
-                        </Text>
-                        {allergy.reaction}
-                      </Text>
-                    )}
-                    {allergy.notes && (
-                      <Text
-                        style={[
-                          styles.allergyDetailText,
-                          isRTL && styles.rtlText,
-                        ]}
-                      >
-                        <Text style={{}} weight="semibold">
-                          {t("notes")}:{" "}
-                        </Text>
-                        {allergy.notes}
-                      </Text>
-                    )}
-                  </View>
-                )}
-              </Card>
-            ))
-          )}
+          {renderAllergiesContent()}
         </View>
       </ScrollView>
 
@@ -980,13 +1006,7 @@ export default function AllergiesScreen() {
                             isRTL && styles.rtlText,
                           ]}
                         >
-                          {member.id === user.id
-                            ? isRTL
-                              ? "أنت"
-                              : "You"
-                            : member.firstName && member.lastName
-                              ? `${member.firstName} ${member.lastName}`
-                              : member.firstName || "User"}
+                          {getMemberDisplayName(member)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -1035,7 +1055,9 @@ export default function AllergiesScreen() {
                   leftIcon={undefined}
                   onChangeText={(text: string) => {
                     setCustomAllergy(text);
-                    if (text) setSelectedAllergy("");
+                    if (text) {
+                      setSelectedAllergy("");
+                    }
                   }}
                   placeholder={t("orEnterCustomAllergy")}
                   rightIcon={undefined}
@@ -1115,15 +1137,7 @@ export default function AllergiesScreen() {
                 textStyle={{
                   color: theme.colors.neutral.white,
                 }}
-                title={
-                  editingAllergy
-                    ? isRTL
-                      ? "حفظ التغييرات"
-                      : "Save Changes"
-                    : isRTL
-                      ? "إضافة"
-                      : "Add"
-                }
+                title={getSubmitButtonTitle()}
               />
             </ScrollView>
           </View>
