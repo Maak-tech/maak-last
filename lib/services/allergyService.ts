@@ -28,6 +28,34 @@ const severityToNumber = (
   return map[severity];
 };
 
+/** Normalize severity from Firestore (may be stored as number after offline sync) to Allergy string type. */
+const severityFromStore = (value: unknown): Allergy["severity"] | undefined => {
+  if (value === undefined || value === null) {
+    return;
+  }
+  if (typeof value === "string") {
+    const valid: Allergy["severity"][] = [
+      "mild",
+      "moderate",
+      "severe",
+      "severe-life-threatening",
+    ];
+    return valid.includes(value as Allergy["severity"])
+      ? (value as Allergy["severity"])
+      : undefined;
+  }
+  if (typeof value === "number") {
+    const map: Record<number, Allergy["severity"]> = {
+      1: "mild",
+      2: "moderate",
+      3: "severe",
+      4: "severe-life-threatening",
+    };
+    return map[value];
+  }
+  return;
+};
+
 export const allergyService = {
   // Add new allergy (offline-first)
   async addAllergy(allergyData: Omit<Allergy, "id">): Promise<string> {
@@ -147,9 +175,11 @@ export const allergyService = {
               }
             }
 
+            const severity = severityFromStore(data.severity);
             allergies.push({
               id: snapshotDoc.id,
               ...data,
+              severity: severity ?? ("mild" as Allergy["severity"]),
               timestamp,
               discoveredDate,
             } as Allergy);

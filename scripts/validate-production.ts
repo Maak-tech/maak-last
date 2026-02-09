@@ -41,6 +41,20 @@ function fileHasContent(filePath: string): boolean {
   }
 }
 
+function hasFirebaseConfigFallback(): boolean {
+  try {
+    const firebaseModulePath = join(process.cwd(), "lib", "firebase.ts");
+    const content = readFileSync(firebaseModulePath, "utf-8");
+    return (
+      content.includes("const firebaseConfig =") &&
+      content.includes("projectId") &&
+      content.includes("apiKey")
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Check environment variables
 function checkEnvVars() {
   console.log("\n📋 Checking Environment Variables...\n");
@@ -61,11 +75,21 @@ function checkEnvVars() {
   ];
 
   let allPresent = true;
+  const hasFallbackConfig = hasFirebaseConfigFallback();
+  const hasAndroidConfigFile = fileExists("google-services.json");
+  const hasIosConfigFile = fileExists("GoogleService-Info.plist");
 
   for (const varName of requiredVars) {
     const value = process.env[varName];
     if (value?.trim()) {
       addResult(`Env: ${varName}`, "pass", "Present");
+    } else if (hasFallbackConfig || hasAndroidConfigFile || hasIosConfigFile) {
+      addResult(
+        `Env: ${varName}`,
+        "warning",
+        "Missing (fallback config detected)",
+        "Recommended: set this in .env or EAS secrets for explicit production config"
+      );
     } else {
       allPresent = false;
       addResult(
