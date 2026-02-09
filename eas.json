@@ -31,13 +31,11 @@
     "production": {
       "ios": {
         "resourceClass": "m-medium",
-        "buildConfiguration": "Release",
-        "autoIncrement": true
+        "buildConfiguration": "Release"
       },
       "android": {
         "resourceClass": "medium",
-        "buildType": "app-bundle",
-        "autoIncrement": true
+        "buildType": "app-bundle"
       }
     }
   },
