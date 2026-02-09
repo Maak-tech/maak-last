@@ -145,5 +145,6 @@
         "react-native-reanimated"
       ]
     }
-  }
+  },
+  "packageManager": "npm@10.9.3"
 }
