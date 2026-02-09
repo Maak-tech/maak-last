@@ -1,5 +1,5 @@
 // Load environment variables from .env file
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 
 // Restore Google Services files from EAS environment variables during build
 // Skip restoration during config introspection to avoid parsing corrupted files

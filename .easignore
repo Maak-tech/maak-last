@@ -1,6 +1,8 @@
-# Exclude bun.lock to force EAS Build to use npm
+# Exclude Bun lockfiles to force EAS Build to use npm
 bun.lock
 bun.lockb
+**/bun.lock
+**/bun.lockb
 
 # Exclude other unnecessary files
 node_modules/
