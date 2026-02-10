@@ -38,27 +38,20 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
 import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
+import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
+
+const ENABLE_NOTIFICATIONS_BOOTSTRAP =
+  process.env.EXPO_PUBLIC_ENABLE_NOTIFICATIONS_BOOTSTRAP === "true";
+
+// Install global JS error hooks as early as possible.
+initializeErrorHandlers();
 
 // Keep splash screen visible while fonts load
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Avoid crashing on platforms where this isn't supported
 });
-
-// Configure how notifications should be displayed when app is in foreground
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true, // Show notification banner at top
-      shouldShowList: true, // Show in notification list
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
-} catch {
-  // Silently handle environments where notifications aren't available
-}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -74,6 +67,7 @@ export default function RootLayout() {
     AppState.currentState === "active"
   );
   const backgroundLaunchLoggedRef = useRef(false);
+  const notificationHandlerConfiguredRef = useRef(false);
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && hasBeenActive) {
@@ -81,16 +75,12 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError, hasBeenActive]);
 
-  // Initialize RevenueCat SDK
+  // Initialize Crashlytics as early as possible in app lifecycle.
   useEffect(() => {
-    if (!isAppActive) {
-      return;
-    }
-
     initializeCrashlytics().catch(() => {
       // Crashlytics is best-effort and should not block app startup
     });
-  }, [isAppActive]);
+  }, []);
 
   useEffect(() => {
     if (!isAppActive) {
@@ -112,7 +102,32 @@ export default function RootLayout() {
   // HealthKit module check removed for production
 
   useEffect(() => {
-    if (!isAppActive) {
+    if (!(isAppActive && ENABLE_NOTIFICATIONS_BOOTSTRAP)) {
+      return;
+    }
+
+    if (notificationHandlerConfiguredRef.current) {
+      return;
+    }
+
+    notificationHandlerConfiguredRef.current = true;
+
+    try {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+    } catch {
+      // Keep startup resilient when notification modules are not fully ready.
+    }
+  }, [isAppActive]);
+
+  useEffect(() => {
+    if (!(isAppActive && ENABLE_NOTIFICATIONS_BOOTSTRAP)) {
       return;
     }
 

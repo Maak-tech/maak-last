@@ -144,12 +144,22 @@ class Logger {
 
     if (error instanceof Error) {
       errorMessage = `${message}: ${error.message}`;
-      errorData = {
+      // Avoid spreading unknown/native error objects to prevent Hermes copyDataProperties crashes.
+      const normalized: Record<string, unknown> = {
         name: error.name,
         message: error.message,
         stack: error.stack,
-        ...(error as unknown as Record<string, unknown>),
       };
+
+      if ("code" in error) {
+        normalized.code = (error as { code?: unknown }).code;
+      }
+
+      if ("cause" in error) {
+        normalized.cause = (error as { cause?: unknown }).cause;
+      }
+
+      errorData = normalized;
     } else if (typeof error === "object" && error !== null) {
       errorData = error;
     }

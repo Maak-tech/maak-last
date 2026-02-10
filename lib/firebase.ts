@@ -76,7 +76,7 @@ const firebaseConfig = {
     projectId: "maak-5caad",
     storageBucket: "maak-5caad.firebasestorage.app",
     messagingSenderId: "827176918437",
-    appId: "1:827176918437:ios:d950be8afe2055279b1c4c",
+    appId: "1:827176918437:ios:497086de1a7b018e9b1c4c",
   },
   // Android config (from google-services.json)
   android: {
