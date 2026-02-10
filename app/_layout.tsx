@@ -5,18 +5,6 @@
 // Polyfill to prevent PushNotificationIOS errors
 import "@/lib/polyfills/pushNotificationIOS";
 
-// CRITICAL: Initialize error handlers AFTER TextImpl patch
-// This ensures we wrap the TextImpl handler and catch all errors
-import "@/lib/utils/errorHandler";
-import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
-
-// Initialize error handlers immediately (wraps TextImpl handler)
-try {
-  initializeErrorHandlers();
-} catch {
-  // Silently handle environments where global error handlers aren't available
-}
-
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
 
@@ -49,7 +37,6 @@ import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
-import { observabilityEmitter } from "@/lib/observability";
 import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
@@ -171,10 +158,7 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (hasBeenActive || isAppActive) {
-      return;
-    }
-    if (backgroundLaunchLoggedRef.current) {
+    if (hasBeenActive || isAppActive || backgroundLaunchLoggedRef.current) {
       return;
     }
     backgroundLaunchLoggedRef.current = true;
@@ -184,20 +168,7 @@ export default function RootLayout() {
         { appState: AppState.currentState },
         "RootLayout"
       );
-      return;
     }
-    observabilityEmitter.emitPlatformEvent(
-      "app_background_launch",
-      "App launched in background; UI mount skipped",
-      {
-        source: "root_layout",
-        severity: "warn",
-        status: "cancelled",
-        metadata: {
-          appState: AppState.currentState,
-        },
-      }
-    );
   }, [hasBeenActive, isAppActive]);
 
   if (!(fontsLoaded || fontError)) {
