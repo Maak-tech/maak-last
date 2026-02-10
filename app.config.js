@@ -86,7 +86,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.maaktech.maak",
-      buildNumber: "36",
+      buildNumber: "37",
       jsEngine: "hermes",
       ...(fs.existsSync("./GoogleService-Info.plist") &&
       isValidPlist("./GoogleService-Info.plist")
