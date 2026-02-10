@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "start": "node scripts/start-web.js",
     "dev": "expo start --dev-client",
     "dev:tunnel": "expo start --dev-client --tunnel",
     "dev:clear": "expo start --dev-client --clear",
