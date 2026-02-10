@@ -184,8 +184,6 @@ export default {
     plugins: [
       "expo-router",
       "expo-font",
-      "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics",
       [
         "expo-av",
         {
