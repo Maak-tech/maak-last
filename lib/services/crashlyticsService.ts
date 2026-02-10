@@ -1,9 +1,17 @@
 import { Platform } from "react-native";
 
-// Safety gate: keep Crashlytics disabled unless explicitly enabled via env.
-// This prevents startup regressions from native module initialization issues.
-const CRASHLYTICS_ENABLED =
-  process.env.EXPO_PUBLIC_ENABLE_CRASHLYTICS === "true";
+// Crashlytics defaults to enabled in production builds unless explicitly disabled.
+// Set EXPO_PUBLIC_ENABLE_CRASHLYTICS=false to force-disable.
+function isCrashlyticsEnabled(): boolean {
+  const envToggle = process.env.EXPO_PUBLIC_ENABLE_CRASHLYTICS;
+  if (envToggle === "true") {
+    return true;
+  }
+  if (envToggle === "false") {
+    return false;
+  }
+  return process.env.NODE_ENV === "production";
+}
 
 type CrashlyticsLike = {
   setCrashlyticsCollectionEnabled: (enabled: boolean) => Promise<void> | void;
@@ -12,7 +20,7 @@ type CrashlyticsLike = {
 };
 
 function getCrashlytics(): CrashlyticsLike | null {
-  if (Platform.OS === "web" || !CRASHLYTICS_ENABLED) {
+  if (Platform.OS === "web" || !isCrashlyticsEnabled()) {
     return null;
   }
 
