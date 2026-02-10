@@ -12,7 +12,6 @@ config.resolver.unstable_enablePackageExports = false;
 config.transformer.unstable_allowRequireContext = true;
 
 // Replace PushNotificationIOS with our polyfill to prevent NativeEventEmitter errors
-// Also replace reanimated's Text component to fix React 19 / RN 0.81+ compatibility
 const originalResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Intercept PushNotificationIOS module from any import path and replace with polyfill
@@ -28,20 +27,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   ) {
     return {
       filePath: path.resolve(__dirname, "lib/polyfills/pushNotificationIOS.js"),
-      type: "sourceFile",
-    };
-  }
-
-  // Intercept reanimated's Text component to fix React 19 / RN 0.81+ compatibility
-  // This prevents the "function component TextImpl" error
-  if (
-    typeof moduleName === "string" &&
-    (moduleName === "react-native-reanimated/src/component/Text" ||
-      moduleName.endsWith("/react-native-reanimated/src/component/Text") ||
-      moduleName.endsWith("/react-native-reanimated/src/component/Text.ts"))
-  ) {
-    return {
-      filePath: path.resolve(__dirname, "lib/polyfills/reanimatedText.js"),
       type: "sourceFile",
     };
   }

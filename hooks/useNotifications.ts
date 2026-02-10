@@ -101,9 +101,13 @@ export const useNotifications = () => {
           Notifications,
           Device
         );
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Registration timeout")), 5000)
-        );
+        let registrationTimeout: ReturnType<typeof setTimeout> | null = null;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          registrationTimeout = setTimeout(
+            () => reject(new Error("Registration timeout")),
+            5000
+          );
+        });
 
         try {
           await Promise.race([registrationPromise, timeoutPromise]);
@@ -114,6 +118,10 @@ export const useNotifications = () => {
             "useNotifications"
           );
           // Continue with initialization even if registration fails
+        } finally {
+          if (registrationTimeout) {
+            clearTimeout(registrationTimeout);
+          }
         }
 
         // Add listeners with error handling

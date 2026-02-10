@@ -50,6 +50,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
 import { observabilityEmitter } from "@/lib/observability";
+import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
 
@@ -94,6 +95,16 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError, hasBeenActive]);
 
   // Initialize RevenueCat SDK
+  useEffect(() => {
+    if (!isAppActive) {
+      return;
+    }
+
+    initializeCrashlytics().catch(() => {
+      // Crashlytics is best-effort and should not block app startup
+    });
+  }, [isAppActive]);
+
   useEffect(() => {
     if (!isAppActive) {
       return;

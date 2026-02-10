@@ -443,9 +443,11 @@ class RevenueCatService {
     // Create a new fetch promise with timeout
     this.offeringsFetchPromise = (async () => {
       try {
-        // Create a timeout promise
+        // Create a timeout promise and clear it when race settles to avoid
+        // unhandled rejection from the losing timeout branch.
+        let offeringsTimeout: ReturnType<typeof setTimeout> | null = null;
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(
+          offeringsTimeout = setTimeout(
             () => reject(new Error("Offerings fetch timeout")),
             this.OFFERINGS_TIMEOUT
           );
@@ -455,7 +457,11 @@ class RevenueCatService {
         const offerings = await Promise.race([
           Purchases.getOfferings(),
           timeoutPromise,
-        ]);
+        ]).finally(() => {
+          if (offeringsTimeout) {
+            clearTimeout(offeringsTimeout);
+          }
+        });
 
         // Try to get the specific offering by ID, fall back to current offering
         const currentOfferings =

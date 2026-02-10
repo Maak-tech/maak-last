@@ -10,6 +10,7 @@
 import { Platform } from "react-native";
 import { isFirebaseReady } from "@/lib/firebase";
 import { observabilityEmitter } from "@/lib/observability";
+import { recordCrashlyticsError } from "@/lib/services/crashlyticsService";
 import { logger } from "./logger";
 
 // Store original handlers
@@ -56,6 +57,7 @@ function handleGlobalError(error: Error, isFatal = false) {
     };
 
     logger.error("Global Error Handler", errorDetails, "ErrorHandler");
+    recordCrashlyticsError(error, isFatal ? "js_fatal_error" : "js_error");
 
     // Log to console for debugging
     console.error("=== GLOBAL ERROR HANDLER ===");
@@ -130,6 +132,7 @@ function handleUnhandledRejection(event: PromiseRejectionEvent | any) {
     };
 
     logger.error("Unhandled Promise Rejection", errorDetails, "ErrorHandler");
+    recordCrashlyticsError(error, "js_unhandled_rejection");
 
     console.error("=== UNHANDLED PROMISE REJECTION ===");
     console.error("Error:", error);
