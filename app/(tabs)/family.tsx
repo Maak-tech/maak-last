@@ -316,8 +316,13 @@ export default function FamilyScreen() {
   >(null);
   const loadingEventsRef = useRef(false);
   const familyMembersRef = useRef<User[]>([]);
+  const memberMetricsRef = useRef<FamilyMemberMetrics[]>([]);
   const loadingRef = useRef(false);
   const refreshingRef = useRef(false);
+  const loadingCaregiverDashboardRef = useRef(false);
+  const loadingElderlyDashboardRef = useRef(false);
+  const refreshingElderlyDashboardRef = useRef(false);
+  const focusLoadInFlightRef = useRef(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
     type: "personal",
@@ -395,6 +400,22 @@ export default function FamilyScreen() {
     refreshingRef.current = refreshing;
   }, [refreshing]);
 
+  useEffect(() => {
+    memberMetricsRef.current = memberMetrics;
+  }, [memberMetrics]);
+
+  useEffect(() => {
+    loadingCaregiverDashboardRef.current = loadingCaregiverDashboard;
+  }, [loadingCaregiverDashboard]);
+
+  useEffect(() => {
+    loadingElderlyDashboardRef.current = loadingElderlyDashboard;
+  }, [loadingElderlyDashboard]);
+
+  useEffect(() => {
+    refreshingElderlyDashboardRef.current = refreshingElderlyDashboard;
+  }, [refreshingElderlyDashboard]);
+
   const loadFamilyMembers = useCallback(
     async (isRefresh = false) => {
       // Prevent concurrent loads
@@ -447,18 +468,23 @@ export default function FamilyScreen() {
         }
 
         // Add timeout to prevent infinite loading
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(
+        let familyMembersTimeout: ReturnType<typeof setTimeout> | null = null;
+        const timeoutPromise = new Promise((_, reject) => {
+          familyMembersTimeout = setTimeout(
             () => reject(new Error("Family members loading timeout")),
             15_000
-          )
-        );
+          );
+        });
 
         const membersPromise = userService.getFamilyMembers(user.familyId);
         const members = (await Promise.race([
           membersPromise,
           timeoutPromise,
-        ])) as User[];
+        ]).finally(() => {
+          if (familyMembersTimeout) {
+            clearTimeout(familyMembersTimeout);
+          }
+        })) as User[];
 
         setFamilyMembers(members);
         familyMembersRef.current = members;
@@ -993,7 +1019,7 @@ export default function FamilyScreen() {
   // Load caregiver dashboard data
   const loadCaregiverDashboard = useCallback(async () => {
     // Prevent concurrent loads
-    if (loadingCaregiverDashboard) {
+    if (loadingCaregiverDashboardRef.current) {
       return;
     }
 
@@ -1019,7 +1045,7 @@ export default function FamilyScreen() {
     } finally {
       setLoadingCaregiverDashboard(false);
     }
-  }, [loadingCaregiverDashboard, user?.id, user?.familyId, user?.role]);
+  }, [user?.id, user?.familyId, user?.role]);
 
   // Load medication schedule data
   const loadMedicationSchedule = useCallback(
@@ -1034,12 +1060,14 @@ export default function FamilyScreen() {
         }
 
         // Add timeout to prevent infinite loading
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(
+        let medicationScheduleTimeout: ReturnType<typeof setTimeout> | null =
+          null;
+        const timeoutPromise = new Promise((_, reject) => {
+          medicationScheduleTimeout = setTimeout(
             () => reject(new Error("Medication schedule loading timeout")),
             15_000
-          )
-        );
+          );
+        });
 
         const dataPromise = Promise.all([
           sharedMedicationScheduleService.getFamilyMedicationSchedules(
@@ -1053,7 +1081,11 @@ export default function FamilyScreen() {
         const [entries, today, upcoming] = (await Promise.race([
           dataPromise,
           timeoutPromise,
-        ])) as [
+        ]).finally(() => {
+          if (medicationScheduleTimeout) {
+            clearTimeout(medicationScheduleTimeout);
+          }
+        })) as [
           MedicationScheduleEntry[],
           SharedScheduleDay | null,
           SharedScheduleDay[],
@@ -1774,8 +1806,8 @@ export default function FamilyScreen() {
   const loadElderlyDashboard = useCallback(
     async (isRefresh = false) => {
       // Prevent concurrent loads
-      if (!isRefresh && loadingElderlyDashboard) return;
-      if (isRefresh && refreshingElderlyDashboard) return;
+      if (!isRefresh && loadingElderlyDashboardRef.current) return;
+      if (isRefresh && refreshingElderlyDashboardRef.current) return;
 
       if (!user?.id) return;
 
@@ -1800,7 +1832,7 @@ export default function FamilyScreen() {
         setRefreshingElderlyDashboard(false);
       }
     },
-    [user?.id, isRTL, loadingElderlyDashboard, refreshingElderlyDashboard]
+    [user?.id, isRTL]
   );
 
   // Set default view mode to dashboard for admins when user loads (only once)
@@ -1842,18 +1874,16 @@ export default function FamilyScreen() {
       // Only load if we have a user
       if (!user?.id) return;
 
-      // If we already have family members loaded, just refresh metrics and other data
-      // Otherwise, let the useEffect handle the initial load
-      if (familyMembers.length === 0 && loading) {
-        // Initial load is happening via useEffect, don't interfere
-        return;
-      }
-
       // Load all data efficiently - show UI immediately, load heavy data in background
       const loadData = async () => {
+        if (focusLoadInFlightRef.current) {
+          return;
+        }
+        focusLoadInFlightRef.current = true;
+
         try {
           // Step 1: Load family members first and show immediately (if not already loaded)
-          let members: typeof familyMembers = familyMembers;
+          let members: typeof familyMembers = familyMembersRef.current;
           if (user?.familyId && members.length === 0) {
             members = await userService.getFamilyMembers(user.familyId);
             // Update state immediately so UI can render
@@ -1865,8 +1895,8 @@ export default function FamilyScreen() {
           // Skip if metrics are already loaded for the same number of members
           const needsMetricsLoad =
             members.length > 0 &&
-            (memberMetrics.length === 0 ||
-              memberMetrics.length !== members.length);
+            (memberMetricsRef.current.length === 0 ||
+              memberMetricsRef.current.length !== members.length);
 
           if (needsMetricsLoad) {
             loadMemberMetrics(members).catch(() => {
@@ -1897,6 +1927,8 @@ export default function FamilyScreen() {
         } catch (_error) {
           // Error handling is done in individual load functions
           // This catch prevents unhandled promise rejection
+        } finally {
+          focusLoadInFlightRef.current = false;
         }
       };
 
@@ -1910,20 +1942,17 @@ export default function FamilyScreen() {
       return () => {
         cancelled = true;
         task.cancel?.();
+        focusLoadInFlightRef.current = false;
       };
     }, [
       user?.id,
       user?.familyId,
       viewMode,
       isAdmin,
-      loading,
-      familyMembers.length,
-      memberMetrics.length,
       loadMemberMetrics,
       loadCaregiverDashboard,
       loadElderlyDashboard,
       loadEvents,
-      familyMembers,
       loadMedicationSchedule,
     ])
   );

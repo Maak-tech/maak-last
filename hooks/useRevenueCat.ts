@@ -51,18 +51,27 @@ export function useRevenueCat(): UseRevenueCatReturn {
       // Initialize RevenueCat (will wait if initialization is in progress)
       await revenueCatService.initialize();
 
-      // Load customer info and offerings in parallel
-      const [customerInfoData, offeringsData] = await Promise.all([
-        revenueCatService.getCustomerInfo(),
-        revenueCatService.getOfferings(),
-      ]);
+      // Load customer info and offerings in parallel, but tolerate offerings issues.
+      const [customerInfoResult, offeringsResult, statusResult] =
+        await Promise.allSettled([
+          revenueCatService.getCustomerInfo(),
+          revenueCatService.getOfferings(),
+          revenueCatService.getSubscriptionStatus(),
+        ]);
 
-      setCustomerInfo(customerInfoData);
-      setOfferings(offeringsData);
+      if (customerInfoResult.status === "fulfilled") {
+        setCustomerInfo(customerInfoResult.value);
+      } else {
+        throw customerInfoResult.reason;
+      }
 
-      // Get subscription status
-      const status = await revenueCatService.getSubscriptionStatus();
-      setSubscriptionStatus(status);
+      if (offeringsResult.status === "fulfilled") {
+        setOfferings(offeringsResult.value);
+      }
+
+      if (statusResult.status === "fulfilled") {
+        setSubscriptionStatus(statusResult.value);
+      }
     } catch (err) {
       const caughtError =
         err instanceof Error ? err : new Error("Unknown error");

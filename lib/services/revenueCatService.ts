@@ -496,6 +496,23 @@ class RevenueCatService {
           return this.cachedOfferings;
         }
 
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        // Treat empty/offering-config issues as non-fatal to avoid spamming hard errors.
+        if (
+          errorMessage.includes("None of the products registered") ||
+          errorMessage.includes("why-are-offerings-empty") ||
+          errorMessage.includes("There is an issue with your configuration")
+        ) {
+          logger.warn(
+            "RevenueCat offerings unavailable due to dashboard/App Store configuration",
+            { errorMessage },
+            "RevenueCatService"
+          );
+          return null;
+        }
+
         logger.error("Failed to get offerings", error, "RevenueCatService");
         throw error;
       } finally {
