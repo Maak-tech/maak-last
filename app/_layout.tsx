@@ -8,7 +8,6 @@ import "@/lib/polyfills/pushNotificationIOS";
 // Initialize reanimated compatibility early to prevent createAnimatedComponent errors
 import "@/lib/utils/reanimatedSetup";
 
-import { useFonts } from "expo-font";
 import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -54,12 +53,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({
-    "Geist-Regular": require("@/assets/fonts/Geist-Regular.ttf"),
-    "Geist-Medium": require("@/assets/fonts/Geist-Medium.ttf"),
-    "Geist-SemiBold": require("@/assets/fonts/Geist-SemiBold.ttf"),
-    "Geist-Bold": require("@/assets/fonts/Geist-Bold.ttf"),
-  });
   const [isAppActive, setIsAppActive] = useState(
     AppState.currentState === "active"
   );
@@ -70,10 +63,10 @@ export default function RootLayout() {
   const notificationHandlerConfiguredRef = useRef(false);
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && hasBeenActive) {
+    if (hasBeenActive) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, hasBeenActive]);
+  }, [hasBeenActive]);
 
   // Initialize Crashlytics as early as possible in app lifecycle.
   useEffect(() => {
@@ -186,9 +179,6 @@ export default function RootLayout() {
     }
   }, [hasBeenActive, isAppActive]);
 
-  if (!(fontsLoaded || fontError)) {
-    return null;
-  }
   // If the app launches in background, skip mounting UI until it becomes active.
   if (!hasBeenActive) {
     return null;
