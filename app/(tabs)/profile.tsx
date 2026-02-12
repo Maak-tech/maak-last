@@ -1394,23 +1394,6 @@ export default function ProfileScreen() {
           </View>
         ))}
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isRTL && { textAlign: "right" }]}>
-            Sentry
-          </Text>
-          <View style={styles.sectionItems}>
-            <View style={{ padding: 16 }}>
-              <Button
-                fullWidth
-                onPress={() => {
-                  Sentry.captureException(new Error("First error"));
-                }}
-                title="Try!"
-              />
-            </View>
-          </View>
-        </View>
-
         {/* Sign Out Button */}
         <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>
           <LogOut color="#EF4444" size={20} />
