@@ -17,9 +17,9 @@
 /* biome-ignore-all lint/correctness/noUnusedVariables: staged feature variables are intentionally retained. */
 /* biome-ignore-all lint/correctness/useHookAtTopLevel: false positives from service APIs named with use* are tolerated in this pass. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
 import * as Print from "expo-print";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
 import * as Sharing from "expo-sharing";
 import {
   Activity,
@@ -2026,6 +2026,13 @@ export default function FamilyScreen() {
     [familyMembers, loadMemberMetrics]
   );
 
+  // Refs for event handlers so effects only run when the EVENT changes, not when
+  // handlers are recreated (avoids processing the same event multiple times).
+  const handleRealtimeFamilyUpdateRef = useRef(handleRealtimeFamilyUpdate);
+  const handleTrendAlertRef = useRef(handleTrendAlert);
+  handleRealtimeFamilyUpdateRef.current = handleRealtimeFamilyUpdate;
+  handleTrendAlertRef.current = handleTrendAlert;
+
   useEffect(() => {
     if (isFocused) {
       setFamilyMemberIds(familyMemberIds);
@@ -2039,18 +2046,18 @@ export default function FamilyScreen() {
   }, [isFocused, setFamilyMemberIds]);
 
   useEffect(() => {
-    if (!familyUpdateEvent || !isFocused) {
+    if (!(familyUpdateEvent && isFocused)) {
       return;
     }
-    handleRealtimeFamilyUpdate(familyUpdateEvent.payload);
-  }, [familyUpdateEvent?.id, isFocused, handleRealtimeFamilyUpdate]);
+    handleRealtimeFamilyUpdateRef.current(familyUpdateEvent.payload);
+  }, [familyUpdateEvent?.id, isFocused]);
 
   useEffect(() => {
-    if (!trendAlertEvent || !isFocused) {
+    if (!(trendAlertEvent && isFocused)) {
       return;
     }
-    handleTrendAlert(trendAlertEvent.payload);
-  }, [trendAlertEvent?.id, isFocused, handleTrendAlert]);
+    handleTrendAlertRef.current(trendAlertEvent.payload);
+  }, [trendAlertEvent?.id, isFocused]);
 
   const handleElderlyEmergency = async () => {
     Alert.alert(

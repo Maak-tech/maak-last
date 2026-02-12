@@ -13,10 +13,7 @@ import {
   stopBackgroundDetection,
 } from "../../modules/expo-fall-detection";
 
-const safeCall = async <T>(
-  fn: () => Promise<T>,
-  fallback: T
-): Promise<T> => {
+const safeCall = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
   try {
     return await fn();
   } catch {

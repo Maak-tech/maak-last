@@ -237,7 +237,7 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const syncBackgroundState = async (nextState: string) => {
-      if (!isEnabled || !user?.id) {
+      if (!(isEnabled && user?.id)) {
         await backgroundFallDetectionService.stop();
         return;
       }

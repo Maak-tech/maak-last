@@ -422,8 +422,8 @@ export default function AlertsCard({
             return (
               <TouchableOpacity
                 activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 disabled={isResolving}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 onPress={() => handleResolve(item.id)}
                 style={[
                   styles.actionButton,

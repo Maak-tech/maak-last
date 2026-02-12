@@ -8,9 +8,9 @@
 /* biome-ignore-all lint/correctness/noUnusedVariables: multiple staged feature flags/helpers are intentionally retained. */
 /* biome-ignore-all lint/nursery/noShadow: local naming overlap in event handlers will be cleaned up later. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useIsFocused } from "@react-navigation/native";
 import * as Sentry from "@sentry/react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useIsFocused } from "@react-navigation/native";
 import {
   Activity,
   AlertTriangle,
@@ -205,6 +205,9 @@ export default function ProfileScreen() {
     }
   }, []);
 
+  const checkSyncStatusRef = useRef(checkSyncStatus);
+  checkSyncStatusRef.current = checkSyncStatus;
+
   // Helper function to convert Western numerals to Arabic numerals
   const toArabicNumerals = (num: number): string => {
     const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
@@ -264,7 +267,7 @@ export default function ProfileScreen() {
   }, [params.openCalendar]);
 
   useEffect(() => {
-    if (!trendAlertEvent || !isFocused) {
+    if (!(trendAlertEvent && isFocused)) {
       return;
     }
     if (loadHealthDataTimeoutRef.current) {
@@ -280,18 +283,18 @@ export default function ProfileScreen() {
   }, [trendAlertEvent?.id, isFocused]);
 
   useEffect(() => {
-    if (!alertCreatedEvent || !isFocused) {
+    if (!(alertCreatedEvent && isFocused)) {
       return;
     }
-    checkSyncStatus();
-  }, [alertCreatedEvent?.id, isFocused, checkSyncStatus]);
+    checkSyncStatusRef.current();
+  }, [alertCreatedEvent?.id, isFocused]);
 
   useEffect(() => {
-    if (!alertResolvedEvent || !isFocused) {
+    if (!(alertResolvedEvent && isFocused)) {
       return;
     }
-    checkSyncStatus();
-  }, [alertResolvedEvent?.id, isFocused, checkSyncStatus]);
+    checkSyncStatusRef.current();
+  }, [alertResolvedEvent?.id, isFocused]);
 
   useEffect(() => {
     // Load settings immediately
