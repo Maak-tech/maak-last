@@ -60,6 +60,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Sentry from "@sentry/react-native";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import GlobalSearch from "@/app/components/GlobalSearch";
 import Avatar from "@/components/Avatar";
@@ -1392,6 +1393,23 @@ export default function ProfileScreen() {
             </View>
           </View>
         ))}
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, isRTL && { textAlign: "right" }]}>
+            Sentry
+          </Text>
+          <View style={styles.sectionItems}>
+            <View style={{ padding: 16 }}>
+              <Button
+                fullWidth
+                onPress={() => {
+                  Sentry.captureException(new Error("First error"));
+                }}
+                title="Try!"
+              />
+            </View>
+          </View>
+        </View>
 
         {/* Sign Out Button */}
         <TouchableOpacity onPress={handleLogout} style={styles.signOutButton}>

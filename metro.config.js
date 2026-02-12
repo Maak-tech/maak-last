@@ -1,8 +1,10 @@
-const { getDefaultConfig } = require("expo/metro-config");
 const path = require("node:path");
+const {
+  getSentryExpoConfig
+} = require("@sentry/react-native/metro");
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 // Fix for Firebase + Expo SDK 53 "Component auth has not been registered yet" error
 config.resolver.sourceExts.push("cjs");

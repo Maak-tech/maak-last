@@ -70,3 +70,5 @@ google-services.json
 # Logs
 *.log
 pglite-debug.log
+
+.env.local
