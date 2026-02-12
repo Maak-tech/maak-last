@@ -40,6 +40,26 @@ import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
 import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { revenueCatService } from "@/lib/services/revenueCatService";
 import { logger } from "@/lib/utils/logger";
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://3c10b6c7baa9d0cd68ececd5fc353a0b@o4510873580470272.ingest.us.sentry.io/4510873582501888',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 const ENABLE_NOTIFICATIONS_BOOTSTRAP =
   process.env.EXPO_PUBLIC_ENABLE_NOTIFICATIONS_BOOTSTRAP === "true";
@@ -83,7 +103,7 @@ if (!globalWithWarnFilter.__maakWarnFilterInstalled) {
   globalWithWarnFilter.__maakWarnFilterInstalled = true;
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   const [isAppActive, setIsAppActive] = useState(
     AppState.currentState === "active"
   );
@@ -250,4 +270,4 @@ export default function RootLayout() {
       </SafeAreaProvider>
     </ErrorBoundary>
   );
-}
+});

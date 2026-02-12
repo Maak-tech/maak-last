@@ -116,7 +116,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.maaktech.maak",
-      buildNumber: "40",
+      buildNumber: "41",
       jsEngine: "jsc",
       ...(fs.existsSync("./GoogleService-Info.plist") &&
       isValidPlist("./GoogleService-Info.plist")
@@ -164,7 +164,7 @@ export default {
         backgroundColor: "#2563EB",
       },
       package: "com.maaktech.maak",
-      versionCode: 4,
+      versionCode: 5,
       jsEngine: "hermes",
       googleServicesFile: "./google-services.json",
       splash: {
@@ -214,6 +214,14 @@ export default {
     plugins: [
       "expo-router",
       "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          url: "https://sentry.io/",
+          project: "react-native",
+          organization: "maak-tech",
+        },
+      ],
       [
         "expo-av",
         {
