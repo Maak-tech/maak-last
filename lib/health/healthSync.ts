@@ -11,7 +11,12 @@ import {
   getProviderStorageKey,
   saveProviderConnection,
 } from "./providerConnections";
-export { getProviderConnection, saveProviderConnection } from "./providerConnections";
+
+export {
+  getProviderConnection,
+  saveProviderConnection,
+} from "./providerConnections";
+
 // Import services
 // Lazy import to prevent early native module loading
 // import { appleHealthService } from "../services/appleHealthService";

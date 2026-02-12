@@ -122,6 +122,13 @@ service cloud.firestore {
         // Chat sessions - owner only access
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /clinicalIntegrationRequests/{requestId} {
+        // PHI access control: allow user and family admin to manage clinical integration requests
+        allow create: if canWritePHI(userId);
+        allow read: if canReadPHI(userId);
+        allow update, delete: if canWritePHI(userId);
+      }
     }
 
     // Symptoms collection - PHI protected (used by Zeina healthContextService)
@@ -271,6 +278,16 @@ service cloud.firestore {
         request.resource.data.timestamp == resource.data.timestamp
       );
       allow delete: if canWritePHI(resource.data.userId);
+    }
+
+    // Escalations collection - PHI protected (alert escalation workflow)
+    match /escalations/{escalationId} {
+      // Allow creating escalation for the target user (self or family admin)
+      allow create: if canWritePHI(request.resource.data.userId);
+      // Allow reading escalation records for the target user
+      allow read: if canReadPHI(resource.data.userId);
+      // Allow updating/deleting escalation records for the target user
+      allow update, delete: if canWritePHI(resource.data.userId);
     }
 
     // Families collection - Family-scoped access

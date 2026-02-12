@@ -1,0 +1,22 @@
+{
+  "name": "expo-fall-detection",
+  "version": "1.0.0",
+  "description": "Expo module for background fall detection",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {},
+  "keywords": [
+    "expo",
+    "fall-detection",
+    "background",
+    "sensors"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "expo-modules-core": "~3.0.29"
+  },
+  "devDependencies": {
+    "expo-module-scripts": "^3.0.0"
+  }
+}

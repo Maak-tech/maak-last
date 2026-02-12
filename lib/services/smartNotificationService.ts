@@ -4071,8 +4071,9 @@ class SmartNotificationService {
     const t = i18n.t.bind(i18n);
 
     if (
-      !userStats.hasMedicationSchedule ||
-      !userStats.userProfile?.medications ||
+      !(
+        userStats.hasMedicationSchedule && userStats.userProfile?.medications
+      ) ||
       userStats.recentCompliance >= 80
     ) {
       return notifications;
@@ -4563,6 +4564,10 @@ export class NotificationResponseHandler {
           break;
 
         case "confirm_medications":
+          await NotificationResponseHandler.markMedicationTakenFromNotification(
+            userId,
+            data
+          );
           await NotificationResponseHandler.confirmMedicationTaken(userId);
           await NotificationResponseHandler.showFeedback(
             "Medications confirmed!"
@@ -4652,6 +4657,10 @@ export class NotificationResponseHandler {
 
         // Phase 2: Medication Adherence Actions
         case "confirm_medication":
+          await NotificationResponseHandler.markMedicationTakenFromNotification(
+            userId,
+            data
+          );
           await NotificationResponseHandler.confirmMedicationTaken(userId);
           await NotificationResponseHandler.showFeedback(
             "Medication confirmed!"
@@ -4660,6 +4669,10 @@ export class NotificationResponseHandler {
 
         // Medication confirmation responses
         case "medication_taken_yes":
+          await NotificationResponseHandler.markMedicationTakenFromNotification(
+            userId,
+            data
+          );
           await NotificationResponseHandler.logMedicationAdherence(
             userId,
             data,
@@ -4918,6 +4931,32 @@ export class NotificationResponseHandler {
 
   private static confirmMedicationTaken(_userId: string): Promise<void> {
     return Promise.resolve();
+  }
+
+  private static async markMedicationTakenFromNotification(
+    userId: string,
+    data: unknown
+  ): Promise<void> {
+    try {
+      const payload = asRecord(data);
+      const medicationId =
+        typeof payload?.medicationId === "string"
+          ? payload.medicationId
+          : undefined;
+      const reminderId =
+        typeof payload?.reminderId === "string"
+          ? payload.reminderId
+          : undefined;
+
+      if (!(medicationId && reminderId)) {
+        return;
+      }
+
+      const { medicationService } = await import("./medicationService");
+      await medicationService.markMedicationTaken(medicationId, reminderId);
+    } catch (_error) {
+      /* no-op */
+    }
   }
 
   private static async logMedicationAdherence(

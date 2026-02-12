@@ -9,7 +9,8 @@ const rootCandidates = ["dist", "public"];
 const webRoot =
   rootCandidates
     .map((dir) => path.resolve(process.cwd(), dir))
-    .find((dir) => fs.existsSync(dir) && fs.statSync(dir).isDirectory()) || null;
+    .find((dir) => fs.existsSync(dir) && fs.statSync(dir).isDirectory()) ||
+  null;
 
 if (!webRoot) {
   console.warn(
@@ -38,7 +39,7 @@ const mimeTypes = {
 const indexFile = webRoot ? path.join(webRoot, "index.html") : null;
 
 function sendFile(filePath, res) {
-  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+  if (!(fs.existsSync(filePath) && fs.statSync(filePath).isFile())) {
     return false;
   }
 
@@ -63,23 +64,25 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (!webRoot || !indexFile) {
+  if (!(webRoot && indexFile)) {
     res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Maak Health web runtime started");
     return;
   }
 
-  const safePath = path.normalize(decodeURIComponent(requestPath)).replace(/^(\.\.[/\\])+/, "");
+  const safePath = path
+    .normalize(decodeURIComponent(requestPath))
+    .replace(/^(\.\.[/\\])+/, "");
   const absolutePath = path.join(webRoot, safePath);
 
-  if (
-    absolutePath.startsWith(webRoot) &&
-    sendFile(absolutePath, res)
-  ) {
+  if (absolutePath.startsWith(webRoot) && sendFile(absolutePath, res)) {
     return;
   }
 
-  if (absolutePath.startsWith(webRoot) && sendFile(`${absolutePath}.html`, res)) {
+  if (
+    absolutePath.startsWith(webRoot) &&
+    sendFile(`${absolutePath}.html`, res)
+  ) {
     return;
   }
 

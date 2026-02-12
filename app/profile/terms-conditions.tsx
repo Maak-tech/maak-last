@@ -1,9 +1,7 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Large screen composed of multiple localized UI states. */
 /* biome-ignore-all lint/correctness/noNestedComponentDefinitions: Local section renderer intentionally captures `isRTL`. */
 /* biome-ignore-all lint/style/noNestedTernary: State rendering is explicit and localized. */
-import {
-  useNavigation,
-  useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -11,11 +9,8 @@ import {
   FileText,
   Info,
   Shield,
-  } from "lucide-react-native";
-import { useCallback,
-  useEffect,
-  useLayoutEffect,
-  useState } from "react";
+} from "lucide-react-native";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,

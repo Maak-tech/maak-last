@@ -19,7 +19,9 @@ const getExpoClipboard = (): ExpoClipboardModule | null => {
 
 const getLegacyClipboard = (): ReactNativeClipboardModule | null => {
   try {
-    const rn = require("react-native") as { Clipboard?: ReactNativeClipboardModule };
+    const rn = require("react-native") as {
+      Clipboard?: ReactNativeClipboardModule;
+    };
     return rn.Clipboard ?? null;
   } catch {
     return null;
@@ -61,4 +63,3 @@ export const setClipboardString = async (text: string): Promise<boolean> => {
 
   return false;
 };
-

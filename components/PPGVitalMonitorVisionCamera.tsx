@@ -31,10 +31,7 @@
 // No need to import reanimated setup here - it's already loaded at app startup
 
 import * as Brightness from "expo-brightness";
-import {
-  addDoc,
-  collection,
-  Timestamp } from "firebase/firestore";
+import { addDoc, collection, Timestamp } from "firebase/firestore";
 import {
   CheckCircle,
   ChevronLeft,
@@ -43,11 +40,8 @@ import {
   Heart,
   Lightbulb,
   X,
-  } from "lucide-react-native";
-import { useCallback,
-  useEffect,
-  useRef,
-  useState } from "react";
+} from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -68,6 +62,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Camera,
+  runAtTargetFps,
   useCameraDevice,
   useCameraFormat,
   useCameraPermission,
@@ -80,7 +75,10 @@ import {
   type PPGResult,
   processPPGSignalWithML,
 } from "@/lib/utils/BiometricUtils";
-import { extractRedChannelAverage } from "@/lib/utils/PPGPixelExtractor";
+import {
+  calculateRealTimeSignalQuality,
+  extractRedChannelAverage,
+} from "@/lib/utils/PPGPixelExtractor";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 interface PPGVitalMonitorProps {
@@ -118,7 +116,7 @@ export default function PPGVitalMonitorVisionCamera({
 
   const format = useCameraFormat(device, [
     { fps: PREFERRED_FPS }, // Use preferred FPS (format will fallback to closest available)
-    { videoResolution: { width: 640, height: 480 } }, // Lower resolution is fine for PPG (faster processing)
+    { videoResolution: { width: 320, height: 240 } }, // Lower resolution is fine for PPG (faster processing)
   ]);
 
   const [status, setStatus] = useState<
@@ -133,6 +131,7 @@ export default function PPGVitalMonitorVisionCamera({
   const [respiratoryRate, setRespiratoryRate] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [signalQuality, setSignalQuality] = useState<number | null>(null);
+  const [qualityHint, setQualityHint] = useState<string | null>(null);
   const [mlConfidence, setMLConfidence] = useState<number | null>(null);
   const [fingerDetected, setFingerDetected] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -188,12 +187,16 @@ export default function PPGVitalMonitorVisionCamera({
   const consecutiveFrameFailures = useRef(0); // Track consecutive frame extraction failures
   const totalFrameFailures = useRef(0); // Track total failures
   const hasLoggedFrameProcessor = useRef(false); // Track if we've logged frame processor status
+  const quickFinishTriggeredRef = useRef(false);
+  const qualityStableSecondsRef = useRef(0);
+  const isQuickMeasurementRef = useRef(false);
 
   // Worklet-safe state for the frame processor.
   const isCapturingSV = useSharedValue(false);
-  const lastFrameTimeSV = useSharedValue(0);
   const frameCountSV = useSharedValue(0);
   const frameProcessorInitializedSV = useSharedValue(false);
+  const frameBatchSV = useSharedValue<number[]>([]);
+  const frameBatchStartIndexSV = useSharedValue(0);
 
   // Debug flags - set to false in production to reduce console spam
   const DEBUG_FRAME_PROCESSOR = __DEV__; // Only debug in development mode
@@ -207,9 +210,13 @@ export default function PPGVitalMonitorVisionCamera({
   // We use the camera's actual supported fps, preferring 30 fps when available
   const actualFps = format?.maxFps ?? PREFERRED_FPS;
   const TARGET_FPS = Math.max(MIN_ACCEPTABLE_FPS, Math.min(actualFps, 60)); // Clamp between 14-60 fps
-  const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
   const MEASUREMENT_DURATION = 60; // 60 seconds - clinical standard for comprehensive vitals
   const TARGET_FRAMES = TARGET_FPS * MEASUREMENT_DURATION;
+  const QUICK_HR_MIN_SECONDS = 20;
+  const QUICK_HR_MAX_SECONDS = 30;
+  const QUICK_HR_MIN_QUALITY = 0.7;
+  const QUICK_HR_STABLE_SECONDS = 5;
+  const FRAME_BATCH_SIZE = 10;
 
   // Progress milestones for 60s capture
   const progressMilestones: Record<
@@ -687,6 +694,7 @@ export default function PPGVitalMonitorVisionCamera({
     setRespiratoryRate(null); // Reset respiratory rate state
     setProgress(0);
     setSignalQuality(null);
+    setQualityHint(null);
     setMLConfidence(null);
     setFingerDetected(false);
     fingerDetectedRef.current = false;
@@ -695,6 +703,8 @@ export default function PPGVitalMonitorVisionCamera({
     isCapturingSV.value = false;
     frameCountRef.current = 0;
     frameCountSV.value = 0;
+    frameBatchSV.value = [];
+    frameBatchStartIndexSV.value = 0;
     ppgSignalRef.current = [];
     setFramesCaptured(0);
     setFrameProcessorCalled(false);
@@ -708,7 +718,9 @@ export default function PPGVitalMonitorVisionCamera({
     consecutiveNoFingerFrames.current = 0;
     consecutiveFrameFailures.current = 0;
     totalFrameFailures.current = 0;
-    lastFrameTimeSV.value = 0;
+    quickFinishTriggeredRef.current = false;
+    qualityStableSecondsRef.current = 0;
+    isQuickMeasurementRef.current = false;
     frameProcessorInitializedSV.value = false;
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
@@ -883,9 +895,10 @@ export default function PPGVitalMonitorVisionCamera({
 
     frameCountRef.current = 0;
     frameCountSV.value = 0;
+    frameBatchSV.value = [];
+    frameBatchStartIndexSV.value = 0;
     ppgSignalRef.current = [];
     startTimeRef.current = Date.now();
-    lastFrameTimeSV.value = Date.now();
     setProgress(0);
     setRecordingTime(0);
     setBeatsDetected(0);
@@ -894,6 +907,10 @@ export default function PPGVitalMonitorVisionCamera({
     isCapturingRef.current = true;
     isCapturingSV.value = true;
     setFramesCaptured(0);
+    setQualityHint(null);
+    quickFinishTriggeredRef.current = false;
+    qualityStableSecondsRef.current = 0;
+    isQuickMeasurementRef.current = false;
 
     // Start timer for recording time and milestones
     timerIntervalRef.current = setInterval(() => {
@@ -917,146 +934,177 @@ export default function PPGVitalMonitorVisionCamera({
   };
 
   // Define stopPPGCapture first since handleFrameProcessingError needs it
-  const stopPPGCapture = useCallback(async () => {
-    setIsCapturing(false);
-    isCapturingRef.current = false;
-    isCapturingSV.value = false;
-
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-
-    if (fingerDetectionFailed) {
-      setError(t("fingerNotDetected"));
-      setStatus("error");
-      return;
-    }
-
-    setCurrentMilestone(progressMilestones[60]);
-    setStatus("processing");
-    setProgress(1);
-
-    // Validate we have enough frames
-    if (ppgSignalRef.current.length < TARGET_FRAMES * 0.5) {
-      setError(
-        t("insufficientFramesCaptured", {
-          captured: ppgSignalRef.current.length,
-          target: TARGET_FRAMES,
-        })
-      );
-      setStatus("error");
-      return;
-    }
-
-    // Do not hard-fail on this flag: if frames are being captured, we have data to process.
-
-    // Validate signal quality with enhanced checks
-    const signalMean =
-      ppgSignalRef.current.reduce((a, b) => a + b, 0) /
-      ppgSignalRef.current.length;
-    const signalVariance =
-      ppgSignalRef.current.reduce(
-        (sum, val) => sum + (val - signalMean) ** 2,
-        0
-      ) / ppgSignalRef.current.length;
-    const signalStdDev = Math.sqrt(signalVariance);
-
-    // Check for NaN or invalid values in signal
-    const invalidValues = ppgSignalRef.current.filter(
-      (val) => isNaN(val) || val < 0 || val > 255
-    );
-    if (invalidValues.length > ppgSignalRef.current.length * 0.1) {
-      setError(t("signalContainsInvalidValues"));
-      setStatus("error");
-      return;
-    }
-
-    // Do not gate on raw std-dev of 0-255 frame averages.
-    // Real fingertip PPG often has small amplitude in raw pixel averages; we rely on
-    // `processPPGSignalEnhanced()` for quality gating after normalization/filtering.
-
-    // CRITICAL: Check for excessive frame processing errors
-    // If more than 15% of frames failed, we don't have enough real camera data
-    // This is stricter because we must ensure only REAL data is used
-    const totalAttempts =
-      ppgSignalRef.current.length + totalFrameFailures.current;
-    const failureRate =
-      totalAttempts > 0 ? totalFrameFailures.current / totalAttempts : 1;
-    if (failureRate > 0.15) {
-      setError(
-        t("unableToExtractCameraData", {
-          rate: Math.round((1 - failureRate) * 100),
-          captured: ppgSignalRef.current.length,
-          attempts: totalAttempts,
-        })
-      );
-      setStatus("error");
-      return;
-    }
-
-    // Also check if we have enough real frames (at least 50% of target)
-    const realFramesRatio = ppgSignalRef.current.length / TARGET_FRAMES;
-    if (realFramesRatio < 0.5) {
-      setError(
-        t("insufficientRealCameraData", {
-          captured: ppgSignalRef.current.length,
-          target: TARGET_FRAMES,
-        })
-      );
-      setStatus("error");
-      return;
-    }
-
-    // Process PPG signal using ML models (PaPaGei) with fallback to traditional processing
-    // ML processing provides better accuracy and robustness, especially for noisy signals
-    const ppgResult = await processPPGSignalWithML(
-      ppgSignalRef.current,
-      TARGET_FPS,
-      true, // Use ML processing
-      userId
-    );
-
-    if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
-      const heartRate = ppgResult.heartRate as number;
-      setHeartRate(heartRate);
-      setHeartRateVariability(ppgResult.heartRateVariability || null);
-      setRespiratoryRate(ppgResult.respiratoryRate || null);
-      setSignalQuality(ppgResult.signalQuality);
-      setMLConfidence(
-        Number.isFinite(ppgResult.confidence) ? ppgResult.confidence! : null
-      );
-
-      const shouldSave = !ppgResult.isEstimate;
-      const saveSuccess = shouldSave
-        ? await saveVitalToFirestore(
-            heartRate,
-            ppgResult.signalQuality,
-            ppgResult.heartRateVariability,
-            ppgResult.respiratoryRate
-          )
-        : true;
-
-      if (ppgResult.isEstimate) {
-        setSaveFailed(true);
-        setError(t("ppgEstimateWarning"));
-      } else if (!saveSuccess) {
-        // Measurement succeeded but save failed - show warning but still show success
-        setSaveFailed(true);
-        setError(t("measurementCompletedButSaveFailed"));
-        // Still show success status since measurement itself was successful
+  const stopPPGCapture = useCallback(
+    async (options?: { quick?: boolean }) => {
+      const isQuick = options?.quick ?? false;
+      if (isQuick) {
+        isQuickMeasurementRef.current = true;
       }
 
-      setStatus("success");
-      onMeasurementComplete?.({
-        ...ppgResult,
-        heartRate: ppgResult.heartRate,
-      } as ExtendedPPGResult);
-    } else {
-      setError(getPPGErrorMessage(ppgResult.error));
-      setStatus("error");
-    }
-  }, [fingerDetectionFailed, frameProcessingErrors, onMeasurementComplete]);
+      const measurementDurationSeconds = Math.max(
+        1,
+        Math.round((Date.now() - startTimeRef.current) / 1000)
+      );
+
+      const minFramesRequired = isQuick
+        ? Math.floor(TARGET_FPS * QUICK_HR_MIN_SECONDS)
+        : Math.floor(TARGET_FRAMES * 0.5);
+
+      setIsCapturing(false);
+      isCapturingRef.current = false;
+      isCapturingSV.value = false;
+
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+
+      if (fingerDetectionFailed) {
+        setError(t("fingerNotDetected"));
+        setStatus("error");
+        return;
+      }
+
+      setCurrentMilestone(progressMilestones[60]);
+      setStatus("processing");
+      setProgress(1);
+
+      // Validate we have enough frames
+      if (ppgSignalRef.current.length < minFramesRequired) {
+        setError(
+          t("insufficientFramesCaptured", {
+            captured: ppgSignalRef.current.length,
+            target: isQuick ? minFramesRequired : TARGET_FRAMES,
+          })
+        );
+        setStatus("error");
+        return;
+      }
+
+      // Do not hard-fail on this flag: if frames are being captured, we have data to process.
+
+      // Validate signal quality with enhanced checks
+      const signalMean =
+        ppgSignalRef.current.reduce((a, b) => a + b, 0) /
+        ppgSignalRef.current.length;
+      const signalVariance =
+        ppgSignalRef.current.reduce(
+          (sum, val) => sum + (val - signalMean) ** 2,
+          0
+        ) / ppgSignalRef.current.length;
+      const signalStdDev = Math.sqrt(signalVariance);
+
+      // Check for NaN or invalid values in signal
+      const invalidValues = ppgSignalRef.current.filter(
+        (val) => isNaN(val) || val < 0 || val > 255
+      );
+      if (invalidValues.length > ppgSignalRef.current.length * 0.1) {
+        setError(t("signalContainsInvalidValues"));
+        setStatus("error");
+        return;
+      }
+
+      // Do not gate on raw std-dev of 0-255 frame averages.
+      // Real fingertip PPG often has small amplitude in raw pixel averages; we rely on
+      // `processPPGSignalEnhanced()` for quality gating after normalization/filtering.
+
+      // CRITICAL: Check for excessive frame processing errors
+      // If more than 15% of frames failed, we don't have enough real camera data
+      // This is stricter because we must ensure only REAL data is used
+      const totalAttempts =
+        ppgSignalRef.current.length + totalFrameFailures.current;
+      const failureRate =
+        totalAttempts > 0 ? totalFrameFailures.current / totalAttempts : 1;
+      if (failureRate > 0.15) {
+        setError(
+          t("unableToExtractCameraData", {
+            rate: Math.round((1 - failureRate) * 100),
+            captured: ppgSignalRef.current.length,
+            attempts: totalAttempts,
+          })
+        );
+        setStatus("error");
+        return;
+      }
+
+      // Also check if we have enough real frames (at least 50% of target)
+      if (!isQuick) {
+        const realFramesRatio = ppgSignalRef.current.length / TARGET_FRAMES;
+        if (realFramesRatio < 0.5) {
+          setError(
+            t("insufficientRealCameraData", {
+              captured: ppgSignalRef.current.length,
+              target: TARGET_FRAMES,
+            })
+          );
+          setStatus("error");
+          return;
+        }
+      }
+
+      // Process PPG signal using ML models (PaPaGei) with fallback to traditional processing
+      // ML processing provides better accuracy and robustness, especially for noisy signals
+      const ppgResult = await processPPGSignalWithML(
+        ppgSignalRef.current,
+        TARGET_FPS,
+        true, // Use ML processing
+        userId
+      );
+
+      if (ppgResult.success && Number.isFinite(ppgResult.heartRate)) {
+        const heartRate = ppgResult.heartRate as number;
+        setHeartRate(heartRate);
+        setHeartRateVariability(
+          isQuick ? null : ppgResult.heartRateVariability || null
+        );
+        setRespiratoryRate(isQuick ? null : ppgResult.respiratoryRate || null);
+        setSignalQuality(ppgResult.signalQuality);
+        setMLConfidence(
+          Number.isFinite(ppgResult.confidence) ? ppgResult.confidence! : null
+        );
+
+        const shouldSave = !ppgResult.isEstimate;
+        const hrvToSave = isQuick ? undefined : ppgResult.heartRateVariability;
+        const respiratoryToSave = isQuick
+          ? undefined
+          : ppgResult.respiratoryRate;
+        const saveSuccess = shouldSave
+          ? await saveVitalToFirestore(
+              heartRate,
+              ppgResult.signalQuality,
+              hrvToSave,
+              respiratoryToSave,
+              {
+                measurementDuration: measurementDurationSeconds,
+                isQuick,
+              }
+            )
+          : true;
+
+        if (ppgResult.isEstimate) {
+          setSaveFailed(true);
+          setError(t("ppgEstimateWarning"));
+        } else if (!saveSuccess) {
+          // Measurement succeeded but save failed - show warning but still show success
+          setSaveFailed(true);
+          setError(t("measurementCompletedButSaveFailed"));
+          // Still show success status since measurement itself was successful
+        }
+
+        setStatus("success");
+        onMeasurementComplete?.({
+          ...ppgResult,
+          heartRate: ppgResult.heartRate,
+          heartRateVariability: hrvToSave,
+          respiratoryRate: respiratoryToSave,
+        } as ExtendedPPGResult);
+      } else {
+        setError(getPPGErrorMessage(ppgResult.error));
+        setStatus("error");
+      }
+    },
+    [fingerDetectionFailed, frameProcessingErrors, onMeasurementComplete]
+  );
 
   const handleFrameProcessingError = useCallback(
     (frameIndex: number) => {
@@ -1122,38 +1170,83 @@ export default function PPGVitalMonitorVisionCamera({
       setProgress(Math.min(1, elapsed / MEASUREMENT_DURATION));
 
       // Enhanced real-time signal quality validation following research guidance
+      const qualitySampleInterval = Math.max(10, Math.round(TARGET_FPS));
       if (
-        ppgSignalRef.current.length >= 30 &&
-        ppgSignalRef.current.length % 30 === 0
+        ppgSignalRef.current.length >= qualitySampleInterval &&
+        ppgSignalRef.current.length % qualitySampleInterval === 0
       ) {
-        const recentSignal = ppgSignalRef.current.slice(-(TARGET_FPS * 5)); // Use last 5 seconds for quality assessment
+        const recentSignal = ppgSignalRef.current.slice(
+          -Math.max(qualitySampleInterval * 5, 30)
+        ); // Use last ~5 seconds for quality assessment
 
-        // Calculate comprehensive signal quality metrics
-        // Simple signal quality calculation based on variance and mean
-        const calculateRealTimeSignalQuality = (signal: number[]): number => {
-          if (signal.length < 30) return 0;
-          const mean = signal.reduce((a, b) => a + b, 0) / signal.length;
-          const variance =
-            signal.reduce((sum, val) => sum + (val - mean) ** 2, 0) /
-            signal.length;
-          const stdDev = Math.sqrt(variance);
-          // Normalize quality score (0-1) based on signal variation
-          // Higher variation (relative to mean) indicates better signal quality for PPG
-          const quality = Math.min(stdDev / (mean || 1), 1);
-          return Math.max(0, Math.min(1, quality));
-        };
-        const signalQuality = calculateRealTimeSignalQuality(recentSignal);
+        const signalQualityScore = calculateRealTimeSignalQuality(recentSignal);
 
         // Update signal quality state
-        setSignalQuality(signalQuality);
+        setSignalQuality(signalQualityScore);
 
-        // Do not stop the measurement early based on real-time quality heuristics.
+        // Actionable quality hints
+        let nextHint: string | null = null;
+        const mean =
+          recentSignal.reduce((sum, value) => sum + value, 0) /
+          recentSignal.length;
+        const min = Math.min(...recentSignal);
+        const max = Math.max(...recentSignal);
+        const range = max - min;
+        const normalized =
+          range > 0 ? recentSignal.map((value) => (value - min) / range) : [];
+        const clippedRatio =
+          normalized.length > 0
+            ? normalized.filter((value) => value <= 0.02 || value >= 0.98)
+                .length / normalized.length
+            : 0;
+
+        if (clippedRatio > 0.2) {
+          nextHint = t("tipDontPressHard");
+        } else if (range < 1 || mean < 70) {
+          nextHint = t("instructionCoverCamera");
+        } else if (mean < 110) {
+          nextHint = t("tipFingerWarm");
+        } else if (signalQualityScore < 0.5) {
+          nextHint = t("tipKeepHandSteady");
+        }
+
+        setQualityHint((prev) => (prev === nextHint ? prev : nextHint));
+
+        // Do not stop the measurement early based on low quality heuristics.
         // Real signals can be low-amplitude but still recoverable after filtering; early-stop was
         // preventing users from ever reaching a score.
-        if (signalQuality < 0.3) {
-          consecutiveNoFingerFrames.current += 30;
+        if (signalQualityScore < 0.3) {
+          consecutiveNoFingerFrames.current += qualitySampleInterval;
         } else {
           consecutiveNoFingerFrames.current = 0;
+        }
+
+        // Early finish for quick HR mode (20-30s) when quality is stable
+        const elapsedSeconds = (Date.now() - startTimeRef.current) / 1000;
+        if (signalQualityScore >= QUICK_HR_MIN_QUALITY) {
+          qualityStableSecondsRef.current += 1;
+        } else {
+          qualityStableSecondsRef.current = 0;
+        }
+
+        if (
+          !quickFinishTriggeredRef.current &&
+          elapsedSeconds >= QUICK_HR_MIN_SECONDS &&
+          qualityStableSecondsRef.current >= QUICK_HR_STABLE_SECONDS
+        ) {
+          quickFinishTriggeredRef.current = true;
+          stopPPGCapture({ quick: true });
+          return;
+        }
+
+        if (
+          !quickFinishTriggeredRef.current &&
+          elapsedSeconds >= QUICK_HR_MAX_SECONDS &&
+          signalQualityScore >= QUICK_HR_MIN_QUALITY
+        ) {
+          quickFinishTriggeredRef.current = true;
+          stopPPGCapture({ quick: true });
+          return;
         }
       }
 
@@ -1191,7 +1284,16 @@ export default function PPGVitalMonitorVisionCamera({
         }
       }
     },
-    [stopPPGCapture, handleFrameProcessingError]
+    [stopPPGCapture, handleFrameProcessingError, t, TARGET_FPS]
+  );
+
+  const processPPGFrameBatchData = useCallback(
+    (batch: number[], startFrameIndex: number) => {
+      for (let i = 0; i < batch.length; i++) {
+        processPPGFrameData(batch[i], startFrameIndex + i);
+      }
+    },
+    [processPPGFrameData]
   );
 
   // Create worklet-safe "hop back to JS" wrappers AFTER the callbacks exist.
@@ -1205,8 +1307,8 @@ export default function PPGVitalMonitorVisionCamera({
   const resetFrameFailureCounterOnJS = useRunOnJS(resetFrameFailureCounter, [
     resetFrameFailureCounter,
   ]);
-  const processPPGFrameDataOnJS = useRunOnJS(processPPGFrameData, [
-    processPPGFrameData,
+  const processPPGFrameBatchDataOnJS = useRunOnJS(processPPGFrameBatchData, [
+    processPPGFrameBatchData,
   ]);
   const setFrameMetaOnJS = useRunOnJS(setFrameMetaFromWorklet, [
     setFrameMetaFromWorklet,
@@ -1228,62 +1330,78 @@ export default function PPGVitalMonitorVisionCamera({
 
       // Only process frames if we're capturing
       if (!isCapturingSV.value) {
-        return;
-      }
-
-      const now = Date.now();
-
-      // Throttle to TARGET_FPS (dynamically set based on camera capabilities)
-      if (now - lastFrameTimeSV.value < FRAME_INTERVAL_MS) {
-        return;
-      }
-
-      lastFrameTimeSV.value = now;
-
-      try {
-        // Validate frame dimensions
-        if (
-          !(frame.width && frame.height) ||
-          frame.width <= 0 ||
-          frame.height <= 0
-        ) {
-          // Invalid frame - track failure and skip (don't add fake data)
-          handleFrameProcessingErrorOnJS(frameCountSV.value);
-          return; // Skip this frame - don't add any data
+        // Flush any remaining frames in the batch before clearing (avoids data loss)
+        const remaining = frameBatchSV.value;
+        if (remaining.length > 0) {
+          processPPGFrameBatchDataOnJS(remaining, frameBatchStartIndexSV.value);
         }
-
-        // Extract red channel average from center of frame using pixel extractor
-        // CRITICAL: extractRedChannelAverage returns -1 if extraction fails
-        const redAverage = extractRedChannelAverage(frame);
-
-        // Validate extracted value - must be valid real data (0-255 range)
-        // -1 indicates extraction failure - DO NOT treat as valid data
-        if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
-          // Invalid value - track failure and skip (don't add fake data)
-          // This includes -1 (extraction failed) and any out-of-range values
-          handleFrameProcessingErrorOnJS(frameCountSV.value);
-          return; // Skip this frame - don't add any data
-        }
-
-        // Only process if we have REAL valid data from the camera
-        // Reset failure counter on success
-        resetFrameFailureCounterOnJS();
-
-        // Call JS function to process the frame data
-        processPPGFrameDataOnJS(redAverage, frameCountSV.value);
-        frameCountSV.value = frameCountSV.value + 1;
-      } catch (error) {
-        // Handle frame processing errors - track failure but don't add fake data
-        handleFrameProcessingErrorOnJS(frameCountSV.value);
-        // Don't add any data - skip this frame entirely
+        frameBatchSV.value = [];
+        frameBatchStartIndexSV.value = 0;
         return;
       }
+
+      runAtTargetFps(TARGET_FPS, () => {
+        "worklet";
+        try {
+          // Validate frame dimensions
+          if (
+            !(frame.width && frame.height) ||
+            frame.width <= 0 ||
+            frame.height <= 0
+          ) {
+            // Invalid frame - track failure and skip (don't add fake data)
+            handleFrameProcessingErrorOnJS(frameCountSV.value);
+            return; // Skip this frame - don't add any data
+          }
+
+          // Extract red channel average from center of frame using pixel extractor
+          // CRITICAL: extractRedChannelAverage returns -1 if extraction fails
+          const redAverage = extractRedChannelAverage(frame);
+
+          // Validate extracted value - must be valid real data (0-255 range)
+          // -1 indicates extraction failure - DO NOT treat as valid data
+          if (redAverage < 0 || redAverage > 255 || isNaN(redAverage)) {
+            // Invalid value - track failure and skip (don't add fake data)
+            // This includes -1 (extraction failed) and any out-of-range values
+            handleFrameProcessingErrorOnJS(frameCountSV.value);
+            return; // Skip this frame - don't add any data
+          }
+
+          // Only process if we have REAL valid data from the camera
+          // Reset failure counter on success
+          resetFrameFailureCounterOnJS();
+
+          const batch = frameBatchSV.value;
+          if (batch.length === 0) {
+            frameBatchStartIndexSV.value = frameCountSV.value;
+          }
+          frameBatchSV.value = [...batch, redAverage];
+          frameCountSV.value = frameCountSV.value + 1;
+
+          const newBatch = frameBatchSV.value;
+          if (newBatch.length >= FRAME_BATCH_SIZE) {
+            processPPGFrameBatchDataOnJS(
+              newBatch,
+              frameBatchStartIndexSV.value
+            );
+            frameBatchSV.value = [];
+          }
+        } catch (error) {
+          // Handle frame processing errors - track failure but don't add fake data
+          handleFrameProcessingErrorOnJS(frameCountSV.value);
+          // Don't add any data - skip this frame entirely
+          return;
+        }
+      });
     },
     [
-      FRAME_INTERVAL_MS,
+      FRAME_BATCH_SIZE,
+      TARGET_FPS,
+      frameBatchSV,
+      frameBatchStartIndexSV,
       handleFrameProcessingErrorOnJS,
       markFrameProcessorCalledOnJS,
-      processPPGFrameDataOnJS,
+      processPPGFrameBatchDataOnJS,
       resetFrameFailureCounterOnJS,
       setFrameMetaOnJS, // IMPORTANT: Included to prevent stale closures when setFrameMetaFromWorklet changes
     ]
@@ -1293,13 +1411,18 @@ export default function PPGVitalMonitorVisionCamera({
     heartRate: number,
     signalQuality: number,
     hrv?: number,
-    respiratoryRate?: number
+    respiratoryRate?: number,
+    options?: { measurementDuration?: number; isQuick?: boolean }
   ): Promise<boolean> => {
     try {
       const currentUserId = auth.currentUser?.uid;
       if (!currentUserId) {
         return false;
       }
+
+      const measurementDuration =
+        options?.measurementDuration ?? MEASUREMENT_DURATION;
+      const measurementMode = options?.isQuick ? "quick_hr" : "full_hrv";
 
       const heartRateData = {
         userId: currentUserId,
@@ -1310,10 +1433,11 @@ export default function PPGVitalMonitorVisionCamera({
         source: "ppg_camera_real",
         signalQuality,
         metadata: {
-          measurementDuration: MEASUREMENT_DURATION,
+          measurementDuration,
           frameRate: TARGET_FPS,
           framesCaptured: ppgSignalRef.current.length,
           method: "vision-camera-ppg",
+          mode: measurementMode,
         },
       };
       await addDoc(collection(db, "vitals"), heartRateData);
@@ -1833,6 +1957,22 @@ export default function PPGVitalMonitorVisionCamera({
                     >
                       {t("sixtySecondsAccuracy")}
                     </Text>
+                    {qualityHint && (
+                      <Text
+                        style={
+                          [
+                            styles.instructionText as StyleProp<TextStyle>,
+                            {
+                              marginTop: 6,
+                              color: theme.colors.secondary.dark,
+                              fontSize: 13,
+                            },
+                          ] as StyleProp<TextStyle>
+                        }
+                      >
+                        {qualityHint}
+                      </Text>
+                    )}
                     <Text
                       style={
                         [

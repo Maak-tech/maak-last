@@ -8,7 +8,9 @@
 /* biome-ignore-all lint/correctness/noUnusedVariables: multiple staged feature flags/helpers are intentionally retained. */
 /* biome-ignore-all lint/nursery/noShadow: local naming overlap in event handlers will be cleaned up later. */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Sentry from "@sentry/react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import {
   Activity,
   AlertTriangle,
@@ -30,11 +32,9 @@ import {
   Lock,
   LogOut,
   MapPin,
-  Moon,
   Plus,
   RefreshCw,
   Shield,
-  Sun,
   TestTube,
   TrendingUp,
   User,
@@ -60,7 +60,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as Sentry from "@sentry/react-native";
 import { AIInsightsDashboard } from "@/app/components/AIInsightsDashboard";
 import GlobalSearch from "@/app/components/GlobalSearch";
 import Avatar from "@/components/Avatar";
@@ -74,8 +73,8 @@ import {
 import { Badge } from "@/components/design-system/AdditionalComponents";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
+import { useRealtimeHealthContext } from "@/contexts/RealtimeHealthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useRealtimeHealth } from "@/hooks/useRealtimeHealth";
 import { calendarService } from "@/lib/services/calendarService";
 import {
   calculateHealthScoreFromData,
@@ -126,7 +125,10 @@ export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuth();
   const { isEnabled: fallDetectionEnabled, toggleFallDetection } =
     useFallDetectionContext();
-  const { themeMode, setThemeMode, isDark, theme } = useTheme();
+  const { isDark, theme } = useTheme();
+  const isFocused = useIsFocused();
+  const { trendAlertEvent, alertCreatedEvent, alertResolvedEvent } =
+    useRealtimeHealthContext();
   const router = useRouter();
   const params = useLocalSearchParams();
   const calendarOpenedFromParam = useRef(false);
@@ -261,44 +263,35 @@ export default function ProfileScreen() {
     }
   }, [params.openCalendar]);
 
-  // Subscribe to real-time health updates (replaces polling)
-  useRealtimeHealth({
-    userId: user?.id,
-    familyId: user?.familyId,
-    familyMemberIds: user?.familyId
-      ? [] // Will be populated when family members are loaded
-      : [],
-    onTrendAlert: (alert) => {
-      // Show notification for critical trend alerts
-      if (alert.severity === "critical") {
-        Alert.alert(
-          isRTL ? "تنبيه صحي حرج" : "Critical Health Alert",
-          alert.trendAnalysis.message,
-          [{ text: isRTL ? "موافق" : "OK" }]
-        );
+  useEffect(() => {
+    if (!trendAlertEvent || !isFocused) {
+      return;
+    }
+    if (loadHealthDataTimeoutRef.current) {
+      clearTimeout(loadHealthDataTimeoutRef.current);
+    }
+    loadHealthDataTimeoutRef.current = setTimeout(() => {
+      if (!loadHealthDataRef.current) {
+        loadHealthDataFnRef.current(false).catch(() => {
+          // Silently handle errors
+        });
       }
-      // Debounce health data refresh to prevent excessive reloads
-      if (loadHealthDataTimeoutRef.current) {
-        clearTimeout(loadHealthDataTimeoutRef.current);
-      }
-      loadHealthDataTimeoutRef.current = setTimeout(() => {
-        if (!loadHealthDataRef.current) {
-          loadHealthDataFnRef.current(false).catch(() => {
-            // Silently handle errors
-          });
-        }
-      }, 1000); // 1 second debounce for real-time updates
-    },
-    onAlertCreated: (_alert) => {
-      // Refresh sync status when alerts are created
-      checkSyncStatus();
-    },
-    onAlertResolved: () => {
-      // Refresh sync status when alerts are resolved
-      checkSyncStatus();
-    },
-    enabled: !!user?.id,
-  });
+    }, 1000);
+  }, [trendAlertEvent?.id, isFocused]);
+
+  useEffect(() => {
+    if (!alertCreatedEvent || !isFocused) {
+      return;
+    }
+    checkSyncStatus();
+  }, [alertCreatedEvent?.id, isFocused, checkSyncStatus]);
+
+  useEffect(() => {
+    if (!alertResolvedEvent || !isFocused) {
+      return;
+    }
+    checkSyncStatus();
+  }, [alertResolvedEvent?.id, isFocused, checkSyncStatus]);
 
   useEffect(() => {
     // Load settings immediately
@@ -314,7 +307,7 @@ export default function ProfileScreen() {
     });
 
     // Note: Removed polling interval - now using real-time WebSocket subscriptions
-    // Real-time updates are handled by useRealtimeHealth hook above
+    // Real-time updates are handled by RealtimeHealthProvider
 
     return () => {
       unsubscribe();
@@ -322,10 +315,7 @@ export default function ProfileScreen() {
         clearTimeout(loadHealthDataTimeoutRef.current);
       }
     };
-  }, [
-    checkSyncStatus,
-    user?.id,
-  ]);
+  }, [checkSyncStatus, user?.id]);
 
   const handleSync = async () => {
     if (syncing || !syncStatus.isOnline) {
@@ -1075,16 +1065,7 @@ export default function ProfileScreen() {
                   router.push("/profile/health-integrations" as any),
               },
             ]),
-        // Theme and language for all users
-        {
-          icon: isDark ? Sun : Moon,
-          label: t("darkMode"),
-          hasSwitch: true,
-          switchValue: isDark,
-          onSwitchChange: (value: boolean) => {
-            setThemeMode(value ? "dark" : "light");
-          },
-        },
+        // Language for all users
         {
           icon: Globe,
           label: t("language"),

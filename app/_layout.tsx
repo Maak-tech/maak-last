@@ -28,19 +28,20 @@ if (Platform.OS !== "web") {
   }
 }
 
+import * as Sentry from "@sentry/react-native";
 import { I18nextProvider } from "react-i18next";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FallDetectionProvider } from "@/contexts/FallDetectionContext";
+import { RealtimeHealthProvider } from "@/contexts/RealtimeHealthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { isFirebaseReady } from "@/lib/firebase";
 import i18n from "@/lib/i18n";
 import { initializeCrashlytics } from "@/lib/services/crashlyticsService";
-import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { revenueCatService } from "@/lib/services/revenueCatService";
+import { initializeErrorHandlers } from "@/lib/utils/errorHandler";
 import { logger } from "@/lib/utils/logger";
-import * as Sentry from "@sentry/react-native";
 
 const routingInstrumentation = Sentry.reactNavigationIntegration();
 
@@ -55,15 +56,13 @@ const sanitizeTransactionName = (name: string | undefined): string => {
   return trimmed.replace(/\s+/g, " ").slice(0, 200);
 };
 
-Sentry.addGlobalEventProcessor((event) => {
-  if (event.type === "transaction") {
-    event.transaction = sanitizeTransactionName(event.transaction);
-  }
-  return event;
-});
-
 Sentry.init({
-  dsn: 'https://3c10b6c7baa9d0cd68ececd5fc353a0b@o4510873580470272.ingest.us.sentry.io/4510873582501888',
+  dsn: "https://3c10b6c7baa9d0cd68ececd5fc353a0b@o4510873580470272.ingest.us.sentry.io/4510873582501888",
+
+  beforeSendTransaction(event) {
+    event.transaction = sanitizeTransactionName(event.transaction);
+    return event;
+  },
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
@@ -277,29 +276,34 @@ function RootLayout() {
         <I18nextProvider i18n={i18n}>
           <ThemeProvider>
             <AuthProvider>
-              <FallDetectionProvider>
-                <StatusBar style="auto" />
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" options={{ headerShown: false }} />
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="profile"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="onboarding"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="(auth)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen name="+not-found" />
-                </Stack>
-              </FallDetectionProvider>
+              <RealtimeHealthProvider>
+                <FallDetectionProvider>
+                  <StatusBar style="auto" />
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen
+                      name="index"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="profile"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="onboarding"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="(auth)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen name="+not-found" />
+                  </Stack>
+                </FallDetectionProvider>
+              </RealtimeHealthProvider>
             </AuthProvider>
           </ThemeProvider>
         </I18nextProvider>

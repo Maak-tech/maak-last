@@ -36,9 +36,7 @@ export async function getUserTokens(userId: string): Promise<string[]> {
     // Check new format first: fcmTokens map with device IDs
     if (userData.fcmTokens && typeof userData.fcmTokens === "object") {
       for (const deviceId in userData.fcmTokens) {
-        if (
-          !Object.prototype.hasOwnProperty.call(userData.fcmTokens, deviceId)
-        ) {
+        if (!Object.hasOwn(userData.fcmTokens, deviceId)) {
           continue;
         }
         const deviceToken = userData.fcmTokens[deviceId];

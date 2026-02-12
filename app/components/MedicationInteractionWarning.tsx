@@ -1,13 +1,8 @@
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Interaction warning UI intentionally handles multiple safety states and detailed modal rendering in one component. */
 /* biome-ignore-all lint/nursery/noShadow: Themed style callback naming follows existing project pattern in this file. */
 /* biome-ignore-all lint/suspicious/noExplicitAny: Legacy themed style helper returns broad types; narrowed incrementally elsewhere. */
-import {
-  AlertTriangle,
-  X } from "lucide-react-native";
-import { useCallback,
-  useEffect,
-  useMemo,
-  useState } from "react";
+import { AlertTriangle, X } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Modal,

@@ -1222,8 +1222,7 @@ function CompactInsightsView({
 
   let prioritizedInsights = "Your health data looks good";
   if (isRTL && insightsSummary.highPriorityItems > 0) {
-    prioritizedInsights =
-      "هناك عناصر ذات أولوية عالية تحتاج إلى الاهتمام";
+    prioritizedInsights = "هناك عناصر ذات أولوية عالية تحتاج إلى الاهتمام";
   } else if (isRTL) {
     prioritizedInsights = "بياناتك الصحية تبدو جيدة";
   } else if (insightsSummary.highPriorityItems > 0) {
@@ -1250,8 +1249,7 @@ function CompactInsightsView({
               {insights?.riskAssessment?.riskLevel || "low"}
             </Badge>
             <Text style={[styles.textSm, styles.textMuted, styles.ml2]}>
-              {insightsSummary.totalInsights}{" "}
-              {isRTL ? "تحليل صحي" : "insights"}
+              {insightsSummary.totalInsights} {isRTL ? "تحليل صحي" : "insights"}
             </Text>
           </View>
         </View>

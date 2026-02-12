@@ -46,7 +46,7 @@ import { safeFormatDate, safeFormatTime } from "@/utils/dateFormat";
 import { createThemedStyles, getTextStyle } from "@/utils/styles";
 
 const TRACK_DATA_STALE_MS = 45_000;
-const TRACK_QUERY_TIMEOUT_MS = 7_000;
+const TRACK_QUERY_TIMEOUT_MS = 7000;
 
 const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -373,8 +373,7 @@ export default function TrackScreen() {
 
       const now = Date.now();
       const isDataFresh =
-        !force &&
-        !isRefresh &&
+        !(force || isRefresh) &&
         lastTrackingLoadAtRef.current !== null &&
         now - lastTrackingLoadAtRef.current < TRACK_DATA_STALE_MS;
 
@@ -428,14 +427,17 @@ export default function TrackScreen() {
         ]);
 
         const medications =
-          medicationsResult.status === "fulfilled" ? medicationsResult.value : [];
+          medicationsResult.status === "fulfilled"
+            ? medicationsResult.value
+            : [];
         const symptoms =
           symptomsResult.status === "fulfilled" ? symptomsResult.value : null;
         const medicalHistory =
           medicalHistoryResult.status === "fulfilled"
             ? medicalHistoryResult.value
             : null;
-        const moods = moodsResult.status === "fulfilled" ? moodsResult.value : null;
+        const moods =
+          moodsResult.status === "fulfilled" ? moodsResult.value : null;
         const allergies =
           allergiesResult.status === "fulfilled" ? allergiesResult.value : null;
 
@@ -457,8 +459,9 @@ export default function TrackScreen() {
 
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const symptomsThisWeek = symptoms
-          ? symptoms.filter((s) => new Date(s.timestamp).getTime() > sevenDaysAgo)
-              .length
+          ? symptoms.filter(
+              (s) => new Date(s.timestamp).getTime() > sevenDaysAgo
+            ).length
           : null;
 
         // Single pass for medication reminders calculation
@@ -480,7 +483,9 @@ export default function TrackScreen() {
         const recentMoodsInRange = moods
           ? moods.filter((m) => m.timestamp.getTime() >= sevenDaysAgo)
           : null;
-        const moodsThisWeek = recentMoodsInRange ? recentMoodsInRange.length : null;
+        const moodsThisWeek = recentMoodsInRange
+          ? recentMoodsInRange.length
+          : null;
         const avgMoodIntensity =
           recentMoodsInRange && recentMoodsInRange.length > 0
             ? recentMoodsInRange.reduce((sum, m) => sum + m.intensity, 0) /
@@ -497,7 +502,9 @@ export default function TrackScreen() {
           medicationCompliance: Math.round(compliance),
           upcomingMedications,
           totalConditions:
-            totalConditions !== null ? totalConditions : previous.totalConditions,
+            totalConditions !== null
+              ? totalConditions
+              : previous.totalConditions,
           moodsThisWeek:
             moodsThisWeek !== null ? moodsThisWeek : previous.moodsThisWeek,
           avgMoodIntensity:

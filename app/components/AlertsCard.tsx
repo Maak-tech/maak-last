@@ -32,7 +32,11 @@ export default function AlertsCard({
   const [loading, setLoading] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
+  const [resolvingAlertIds, setResolvingAlertIds] = useState<Set<string>>(
+    new Set()
+  );
   const alertsLoadInFlightRef = useRef(false);
+  const resolvingAlertIdsRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
 
   const isRTL = i18n.language === "ar";
@@ -203,10 +207,19 @@ export default function AlertsCard({
     if (!user?.id) {
       return;
     }
+    if (resolvingAlertIdsRef.current.has(alertId)) {
+      return;
+    }
 
     const startTime = Date.now();
 
     try {
+      resolvingAlertIdsRef.current.add(alertId);
+      setResolvingAlertIds((prev) => {
+        const next = new Set(prev);
+        next.add(alertId);
+        return next;
+      });
       logger.info(
         "User resolving emergency alert",
         {
@@ -263,6 +276,16 @@ export default function AlertsCard({
       Alert.alert(t("error", "Error"), displayMessage, [
         { text: t("ok", "OK") },
       ]);
+    } finally {
+      resolvingAlertIdsRef.current.delete(alertId);
+      setResolvingAlertIds((prev) => {
+        if (!prev.has(alertId)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.delete(alertId);
+        return next;
+      });
     }
   };
 
@@ -390,22 +413,41 @@ export default function AlertsCard({
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            onPress={() => handleResolve(item.id)}
-            style={[styles.actionButton, styles.resolveButton]}
-          >
-            <CheckCircle color="#10B981" size={16} />
-            <Text
-              style={[
-                styles.actionButtonTextSecondary,
-                isRTL && styles.rtlText,
-              ]}
-            >
-              {isRTL ? "حل التنبيه الصحي" : "Resolve the alert"}
-            </Text>
-          </TouchableOpacity>
+          {/*
+            Disable resolve button while the request is in flight to avoid
+            duplicate resolve calls and repeated success alerts.
+          */}
+          {(() => {
+            const isResolving = resolvingAlertIds.has(item.id);
+            return (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                disabled={isResolving}
+                onPress={() => handleResolve(item.id)}
+                style={[
+                  styles.actionButton,
+                  styles.resolveButton,
+                  isResolving && styles.resolveButtonDisabled,
+                ]}
+              >
+                {isResolving ? (
+                  <ActivityIndicator color="#10B981" size="small" />
+                ) : (
+                  <CheckCircle color="#10B981" size={16} />
+                )}
+                <Text
+                  style={[
+                    styles.actionButtonTextSecondary,
+                    isRTL && styles.rtlText,
+                    isResolving && styles.resolveButtonTextDisabled,
+                  ]}
+                >
+                  {isRTL ? "حل التنبيه الصحي" : "Resolve the alert"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
         </View>
       </View>
     );
@@ -592,6 +634,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D1D5DB",
   },
+  resolveButtonDisabled: {
+    backgroundColor: "#E5E7EB",
+    borderColor: "#E5E7EB",
+  },
   actionButtonText: {
     fontSize: 14,
     fontWeight: "600",
@@ -601,6 +647,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#10B981",
+  },
+  resolveButtonTextDisabled: {
+    color: "#6B7280",
   },
   rtlText: {
     textAlign: "right",

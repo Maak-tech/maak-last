@@ -185,6 +185,27 @@ export type VitalSign = {
   source: "manual" | "device" | "clinic";
 };
 
+export type ClinicalIntegrationType = "clinic" | "lab" | "radiology";
+
+export type ClinicalIntegrationStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "connected";
+
+export type ClinicalIntegrationRequest = {
+  id: string;
+  userId: string;
+  type: ClinicalIntegrationType;
+  providerName: string;
+  portalUrl?: string;
+  patientId?: string;
+  notes?: string;
+  status: ClinicalIntegrationStatus;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type EmergencyAlert = {
   id: string;
   userId: string;

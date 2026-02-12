@@ -20,6 +20,27 @@ import type { Mood } from "@/types";
 import { offlineService } from "./offlineService";
 import { userService } from "./userService";
 
+const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(timeoutMessage)),
+        timeoutMs
+      );
+    });
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
 const getErrorCode = (error: unknown): string => {
   if (
     typeof error === "object" &&
@@ -152,7 +173,11 @@ export const moodService = {
           limit(limitCount)
         );
 
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await withTimeout(
+          getDocs(q),
+          10_000,
+          "Moods query timeout"
+        );
         const moods: Mood[] = [];
 
         querySnapshot.forEach((itemDoc) => {
@@ -250,7 +275,11 @@ export const moodService = {
         orderBy("timestamp", "desc")
       );
 
-      const querySnapshot = await getDocs(moodsQuery);
+      const querySnapshot = await withTimeout(
+        getDocs(moodsQuery),
+        10_000,
+        "Family moods query timeout"
+      );
       querySnapshot.forEach((itemDoc) => {
         const data = itemDoc.data();
         allMoods.push({
@@ -536,7 +565,11 @@ export const moodService = {
         where("timestamp", ">=", Timestamp.fromDate(startDate))
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await withTimeout(
+        getDocs(q),
+        10_000,
+        "Mood stats query timeout"
+      );
       const moods: Mood[] = [];
 
       querySnapshot.forEach((itemDoc) => {
@@ -657,7 +690,11 @@ export const moodService = {
         where("timestamp", ">=", Timestamp.fromDate(startDate))
       );
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await withTimeout(
+        getDocs(q),
+        10_000,
+        "Member mood stats query timeout"
+      );
       const moods: Mood[] = [];
 
       querySnapshot.forEach((itemDoc) => {

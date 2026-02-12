@@ -14,7 +14,6 @@ import {
   getMetricByKey,
   getSamsungHealthScopesForMetrics,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/providerConnections";
 import {
   HEALTH_STORAGE_KEYS,
   type MetricSample,
@@ -22,6 +21,7 @@ import {
   type ProviderAvailability,
   type SamsungHealthTokens,
 } from "../health/healthTypes";
+import { saveProviderConnection } from "../health/providerConnections";
 
 // Samsung Health OAuth configuration
 const SAMSUNG_HEALTH_CLIENT_ID =

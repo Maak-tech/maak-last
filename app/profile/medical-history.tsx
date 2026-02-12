@@ -1,8 +1,6 @@
 /* biome-ignore-all lint/style/noNestedTernary: Legacy screen with dense conditional UI branches. */
 /* biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Refactor will be done in a dedicated pass. */
-import {
-  useNavigation,
-  useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import {
   ArrowLeft,
   FileText,
@@ -11,11 +9,8 @@ import {
   Save,
   Trash2,
   X,
-  } from "lucide-react-native";
-import { useCallback,
-  useEffect,
-  useLayoutEffect,
-  useState } from "react";
+} from "lucide-react-native";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,

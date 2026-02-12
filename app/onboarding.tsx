@@ -1,5 +1,4 @@
-﻿import {
-  useRouter } from "expo-router";
+﻿import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -31,8 +30,7 @@ const getOnboardingSteps = (userRole: string) => {
         titleAr: "مرحباً بك في معك",
         descEn:
           "Your family health companion. Keep track of your loved ones health and stay connected.",
-        descAr:
-          "رفيقك الصحي للعائلة. تابع صحة أحبائك وابقَ على تواصل معهم.",
+        descAr: "رفيقك الصحي للعائلة. تابع صحة أحبائك وابقَ على تواصل معهم.",
         onelinerEn: '"Health starts at home"',
         onelinerAr: '"خليهم دائماً معك"',
       },
@@ -71,8 +69,7 @@ const getOnboardingSteps = (userRole: string) => {
       titleAr: "مرحباً بك في معك",
       descEn:
         "Your personal health companion. Track symptoms, medications, and get health insights.",
-      descAr:
-        "رفيقك الصحي الشخصي. تابع الأعراض والأدوية واحصل على رؤى صحية.",
+      descAr: "رفيقك الصحي الشخصي. تابع الأعراض والأدوية واحصل على رؤى صحية.",
       onelinerEn: '"Health starts at home"',
       onelinerAr: '"الصحة تبدأ من المنزل"',
     },
@@ -83,8 +80,7 @@ const getOnboardingSteps = (userRole: string) => {
       titleAr: "تابع صحتك",
       descEn:
         "Easily log symptoms, manage medications, and monitor your vital signs.",
-      descAr:
-        "سجل الأعراض بسهولة، أدر الأدوية، وراقب العلامات الحيوية.",
+      descAr: "سجل الأعراض بسهولة، أدر الأدوية، وراقب العلامات الحيوية.",
       onelinerEn: '"Stay on top of your health"',
       onelinerAr: '"ابقَ على اطلاع بصحتك"',
     },
@@ -294,13 +290,9 @@ export default function OnboardingScreen() {
   const isLastStep = currentStep === onboardingSteps.length - 1;
   let primaryButtonLabel = isRTL ? "التالي" : "Next";
   if (isLastStep && isCompleting) {
-    primaryButtonLabel = isRTL
-      ? "جاري التحميل..."
-      : "Loading...";
+    primaryButtonLabel = isRTL ? "جاري التحميل..." : "Loading...";
   } else if (isLastStep) {
-    primaryButtonLabel = isRTL
-      ? "ابدأ الآن"
-      : "Get Started";
+    primaryButtonLabel = isRTL ? "ابدأ الآن" : "Get Started";
   }
 
   return (

@@ -9,7 +9,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -82,6 +82,11 @@ export default function MoodsScreen() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const emptyStats = {
+    totalMoods: 0,
+    avgIntensity: 0,
+    moodDistribution: [] as { mood: string; count: number }[],
+  };
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedMood, setSelectedMood] = useState<MoodType | "">("");
   const [intensity, setIntensity] = useState(1);
@@ -89,11 +94,7 @@ export default function MoodsScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [moods, setMoods] = useState<Mood[]>([]);
-  const [stats, setStats] = useState({
-    totalMoods: 0,
-    avgIntensity: 0,
-    moodDistribution: [] as { mood: string; count: number }[],
-  });
+  const [stats, setStats] = useState(emptyStats);
   const [editingMood, setEditingMood] = useState<Mood | null>(null);
   const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
   const [familyMembers, setFamilyMembers] = useState<UserType[]>([]);
@@ -116,6 +117,7 @@ export default function MoodsScreen() {
 
       const startTime = Date.now();
       let dataLoaded = false;
+      let loadedMoodCount = 0;
 
       try {
         if (isRefresh) {
@@ -135,107 +137,86 @@ export default function MoodsScreen() {
           "MoodsScreen"
         );
 
-        // Always load family members first if user has family
-        let members: UserType[] = [];
-        if (user.familyId) {
-          members = await userService.getFamilyMembers(user.familyId);
-          setFamilyMembers(members);
+        const shouldLoadFamilyMembers = Boolean(user.familyId) && isAdmin;
+        if (shouldLoadFamilyMembers && user.familyId) {
+          userService
+            .getFamilyMembers(user.familyId)
+            .then((members: UserType[]) => {
+              setFamilyMembers(members);
+            })
+            .catch(() => {
+              // Non-blocking: family list is only needed for filters / labels.
+            });
+        } else {
+          setFamilyMembers([]);
         }
 
         // Load data based on selected filter
-        // Use Promise.allSettled to handle partial failures gracefully
+        // Load moods first; stats can load in the background to keep UI responsive.
+        let moodsPromise: Promise<Mood[]>;
+        let statsPromise: Promise<{
+          totalMoods: number;
+          avgIntensity: number;
+          moodDistribution: { mood: string; count: number }[];
+        }>;
+
         if (selectedFilter.type === "family" && user.familyId && isAdmin) {
-          // Load family moods and stats (admin only)
-          const [moodsResult, statsResult] = await Promise.allSettled([
-            moodService.getFamilyMoods(user.id, user.familyId, 50),
-            moodService.getFamilyMoodStats(user.id, user.familyId, 7),
-          ]);
-
-          if (moodsResult.status === "fulfilled") {
-            setMoods(moodsResult.value);
-            dataLoaded = true;
-          } else {
-            logger.error(
-              "Failed to load family moods",
-              moodsResult.reason,
-              "MoodsScreen"
-            );
-            setMoods([]);
-          }
-
-          if (statsResult.status === "fulfilled") {
-            setStats(statsResult.value);
-          } else {
-            logger.error(
-              "Failed to load family mood stats",
-              statsResult.reason,
-              "MoodsScreen"
-            );
-            setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
-          }
+          moodsPromise = moodService.getFamilyMoods(user.id, user.familyId, 50);
+          statsPromise = moodService.getFamilyMoodStats(
+            user.id,
+            user.familyId,
+            7
+          );
         } else if (
           selectedFilter.type === "member" &&
           selectedFilter.memberId &&
           isAdmin
         ) {
-          // Load specific member moods and stats (admin only)
-          const [moodsResult, statsResult] = await Promise.allSettled([
-            moodService.getMemberMoods(selectedFilter.memberId, 50),
-            moodService.getMemberMoodStats(selectedFilter.memberId, 7),
-          ]);
-
-          if (moodsResult.status === "fulfilled") {
-            setMoods(moodsResult.value);
-            dataLoaded = true;
-          } else {
-            logger.error(
-              "Failed to load member moods",
-              moodsResult.reason,
-              "MoodsScreen"
-            );
-            setMoods([]);
-          }
-
-          if (statsResult.status === "fulfilled") {
-            setStats(statsResult.value);
-          } else {
-            logger.error(
-              "Failed to load member mood stats",
-              statsResult.reason,
-              "MoodsScreen"
-            );
-            setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
-          }
+          moodsPromise = moodService.getMemberMoods(
+            selectedFilter.memberId,
+            50
+          );
+          statsPromise = moodService.getMemberMoodStats(
+            selectedFilter.memberId,
+            7
+          );
         } else {
-          // Load personal moods and stats (default)
-          const [moodsResult, statsResult] = await Promise.allSettled([
-            moodService.getUserMoods(user.id, 50),
-            moodService.getMoodStats(user.id, 7),
-          ]);
+          moodsPromise = moodService.getUserMoods(user.id, 50);
+          statsPromise = moodService.getMoodStats(user.id, 7);
+        }
 
-          if (moodsResult.status === "fulfilled") {
-            setMoods(moodsResult.value);
-            dataLoaded = true;
-          } else {
-            logger.error(
-              "Failed to load user moods",
-              moodsResult.reason,
-              "MoodsScreen"
-            );
-            setMoods([]);
-          }
+        try {
+          const moodsResult = await moodsPromise;
+          setMoods(moodsResult);
+          dataLoaded = true;
+          loadedMoodCount = moodsResult.length;
+        } catch (moodsError: unknown) {
+          const context =
+            selectedFilter.type === "family"
+              ? "family"
+              : selectedFilter.type === "member"
+                ? "member"
+                : "user";
+          logger.error(
+            `Failed to load ${context} moods`,
+            moodsError,
+            "MoodsScreen"
+          );
+          setMoods([]);
+        }
 
-          if (statsResult.status === "fulfilled") {
-            setStats(statsResult.value);
-          } else {
+        statsPromise
+          .then((statsResult) => {
+            setStats(statsResult);
+          })
+          .catch((statsError: unknown) => {
             logger.error(
               "Failed to load mood stats",
-              statsResult.reason,
+              statsError,
               "MoodsScreen"
             );
-            setStats({ totalMoods: 0, avgIntensity: 0, moodDistribution: [] });
-          }
-        }
+            setStats(emptyStats);
+          });
 
         const durationMs = Date.now() - startTime;
         logger.info(
@@ -243,8 +224,7 @@ export default function MoodsScreen() {
           {
             userId: user.id,
             filterType: selectedFilter.type,
-            moodCount: moods.length,
-            statsLoaded: stats.totalMoods > 0 || stats.avgIntensity > 0,
+            moodCount: loadedMoodCount,
             durationMs,
           },
           "MoodsScreen"
@@ -320,15 +300,7 @@ export default function MoodsScreen() {
         setRefreshing(false);
       }
     },
-    [
-      user,
-      selectedFilter,
-      isAdmin,
-      isRTL,
-      moods.length,
-      stats.totalMoods,
-      stats.avgIntensity,
-    ]
+    [user, selectedFilter, isAdmin, isRTL]
   );
 
   // Refresh data when tab is focused
@@ -337,10 +309,6 @@ export default function MoodsScreen() {
       loadMoods();
     }, [loadMoods])
   );
-
-  useEffect(() => {
-    loadMoods();
-  }, [loadMoods]);
 
   const handleFilterChange = (filter: FilterOption) => {
     setSelectedFilter(filter);

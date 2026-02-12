@@ -80,13 +80,30 @@ export const useNotifications = () => {
         try {
           Notifications.setNotificationHandler({
             handleNotification: async () => ({
-              shouldShowAlert: true,
               shouldShowBanner: true,
               shouldShowList: true,
               shouldPlaySound: true,
               shouldSetBadge: false,
             }),
           });
+
+          // Configure medication reminder actions
+          try {
+            await Notifications.setNotificationCategoryAsync("MEDICATION", [
+              {
+                identifier: "medication_taken_yes",
+                buttonTitle: "Taken",
+                options: { opensAppToForeground: false },
+              },
+              {
+                identifier: "medication_taken_no",
+                buttonTitle: "Snooze",
+                options: { opensAppToForeground: false },
+              },
+            ]);
+          } catch {
+            // Silently handle category setup error
+          }
         } catch (handlerError) {
           logger.warn(
             "Failed to set notification handler",
@@ -288,7 +305,12 @@ export const useNotifications = () => {
   );
 
   const scheduleRecurringMedicationReminder = useCallback(
-    async (medicationName: string, dosage: string, reminderTime: string) => {
+    async (
+      medicationName: string,
+      dosage: string,
+      reminderTime: string,
+      options?: { medicationId?: string; reminderId?: string }
+    ) => {
       if (Platform.OS === "web") {
         return { success: false, error: "Not supported on web" };
       }
@@ -342,7 +364,6 @@ export const useNotifications = () => {
             try {
               Notifications.setNotificationHandler({
                 handleNotification: async () => ({
-                  shouldShowAlert: true,
                   shouldShowBanner: true,
                   shouldShowList: true,
                   shouldPlaySound: true,
@@ -435,7 +456,10 @@ export const useNotifications = () => {
         }
 
         // Create a unique key for this medication+time combination to prevent duplicates
-        const notificationKey = `med_${medicationName.toLowerCase().replace(/\s+/g, "_")}_${reminderTime}`;
+        const notificationKey = `med_${
+          options?.medicationId ||
+          medicationName.toLowerCase().replace(/\s+/g, "_")
+        }_${options?.reminderId || reminderTime}`;
 
         // Cancel any existing notification with the same key to prevent duplicates
         const existingNotificationId =
@@ -456,8 +480,22 @@ export const useNotifications = () => {
             await Notifications.getAllScheduledNotificationsAsync();
           const duplicates = allScheduled.filter((n: any) => {
             const data = n.content?.data;
+            if (data?.type !== "medication_reminder") {
+              return false;
+            }
+            if (
+              options?.reminderId &&
+              data?.reminderId === options.reminderId
+            ) {
+              return true;
+            }
+            if (
+              options?.medicationId &&
+              data?.medicationId === options.medicationId
+            ) {
+              return data?.reminderTime === reminderTime;
+            }
             return (
-              data?.type === "medication_reminder" &&
               data?.medicationName === medicationName &&
               data?.reminderTime === reminderTime
             );
@@ -498,7 +536,7 @@ export const useNotifications = () => {
 
         // For Android, also add channelId
         if (Platform.OS === "android") {
-          trigger.channelId = "default";
+          trigger.channelId = "medication";
         }
 
         const notificationConfig = {
@@ -506,8 +544,12 @@ export const useNotifications = () => {
             title: "💊 Medication Reminder",
             body: `Time to take ${medicationName}${dosage ? ` (${dosage})` : ""}`,
             sound: "default",
+            channelId: "medication",
+            categoryIdentifier: "MEDICATION",
             data: {
               type: "medication_reminder",
+              medicationId: options?.medicationId,
+              reminderId: options?.reminderId,
               medicationName,
               dosage,
               reminderTime,
@@ -786,6 +828,13 @@ async function registerForPushNotificationsAsync(
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: "#FF231F7C",
+      });
+      await Notifications.setNotificationChannelAsync("medication", {
+        name: "Medication Reminders",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 500, 500],
+        lightColor: "#10B981",
+        sound: "default",
       });
     }
 

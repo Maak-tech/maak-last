@@ -10,6 +10,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
+import { Platform } from "react-native";
 import { db } from "@/lib/firebase";
 import { healthTimelineService } from "@/lib/observability";
 import type { Medication } from "@/types";
@@ -62,6 +63,73 @@ const fetchFamilyMedicationsByMembers = async (
   return allMedicationsArrays
     .flat()
     .sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+};
+
+const dismissMedicationReminderNotifications = async (options: {
+  medicationId?: string;
+  medicationName?: string;
+  reminderId?: string;
+  reminderTime?: string;
+}): Promise<void> => {
+  if (Platform.OS === "web") {
+    return;
+  }
+
+  try {
+    const Notifications = await import("expo-notifications");
+    const getPresented =
+      Notifications.getPresentedNotificationsAsync ||
+      Notifications.getDeliveredNotificationsAsync;
+    const dismiss = Notifications.dismissNotificationAsync;
+
+    if (!(getPresented && dismiss)) {
+      return;
+    }
+
+    const presented = await getPresented();
+    for (const notification of presented as any[]) {
+      const request = notification.request || notification;
+      const content = request?.content || notification.content;
+      const data = content?.data;
+
+      if (data?.type !== "medication_reminder") {
+        continue;
+      }
+
+      const matchesMedication =
+        (options.medicationId && data?.medicationId === options.medicationId) ||
+        (!options.medicationId &&
+          options.medicationName &&
+          data?.medicationName === options.medicationName);
+
+      if (!matchesMedication) {
+        continue;
+      }
+
+      if (options.reminderId && data?.reminderId !== options.reminderId) {
+        continue;
+      }
+
+      if (
+        options.reminderTime &&
+        data?.reminderTime &&
+        data?.reminderTime !== options.reminderTime
+      ) {
+        continue;
+      }
+
+      const identifier = notification.identifier || request?.identifier;
+      if (identifier) {
+        try {
+          await dismiss(identifier);
+        } catch {
+          // Silently handle dismissal error
+        }
+      }
+    }
+  } catch {
+    // Silently handle notification dismissal error
+  }
 };
 
 const fetchFamilyMedicationsByInQuery = async (
@@ -331,6 +399,17 @@ export const medicationService = {
     await updateDoc(doc(db, "medications", medicationId), {
       reminders: updatedReminders,
     });
+
+    if (newTakenState) {
+      dismissMedicationReminderNotifications({
+        medicationId,
+        medicationName: medication.name,
+        reminderId,
+        reminderTime: reminder.time,
+      }).catch(() => {
+        // Silently handle dismissal errors
+      });
+    }
 
     await healthTimelineService.addEvent({
       userId: medication.userId,

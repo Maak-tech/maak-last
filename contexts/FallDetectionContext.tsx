@@ -6,19 +6,23 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert } from "react-native";
+import { Alert, AppState } from "react-native";
 import { useFallDetection } from "@/hooks/useFallDetection";
 import { auth } from "@/lib/firebase";
 import { alertService } from "@/lib/services/alertService";
+import { backgroundFallDetectionService } from "@/lib/services/backgroundFallDetectionService";
 import { logFallDetectionDiagnostics } from "@/lib/utils/fallDetectionDiagnostics";
 import { useAuth } from "./AuthContext";
 
 const LEGACY_FALL_DETECTION_STORAGE_KEY = "fall_detection_enabled";
 const getFallDetectionStorageKey = (userId: string | null | undefined) =>
-  userId ? `fall_detection_enabled_${userId}` : LEGACY_FALL_DETECTION_STORAGE_KEY;
+  userId
+    ? `fall_detection_enabled_${userId}`
+    : LEGACY_FALL_DETECTION_STORAGE_KEY;
 
 type FallDetectionContextType = {
   isEnabled: boolean;
@@ -60,6 +64,8 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     alertId: string;
     timestamp: Date;
   } | null>(null);
+  const pendingBackgroundCheckRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
 
   // Handle fall detection events
   const handleFallDetected = useCallback(
@@ -122,6 +128,48 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     [user?.id, t]
   );
 
+  const processPendingBackgroundFalls = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    if (pendingBackgroundCheckRef.current) {
+      return;
+    }
+
+    pendingBackgroundCheckRef.current = true;
+    try {
+      const events = await backgroundFallDetectionService.getPendingEvents();
+      if (events.length === 0) {
+        return;
+      }
+
+      await backgroundFallDetectionService.clearPendingEvents();
+
+      const latestEvent = events
+        .filter((event) => typeof event.timestamp === "number")
+        .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+      if (!latestEvent) {
+        return;
+      }
+
+      const lastAlertAt = lastAlert?.timestamp?.getTime() || 0;
+      if (latestEvent.timestamp <= lastAlertAt) {
+        return;
+      }
+
+      try {
+        const alertId = await alertService.createFallAlert(user.id);
+        handleFallDetected(alertId);
+      } catch (_error) {
+        handleFallDetected("error-alert");
+      }
+    } finally {
+      pendingBackgroundCheckRef.current = false;
+    }
+  }, [handleFallDetected, lastAlert?.timestamp, user?.id]);
+
   // Initialize fall detection hook
   const fallDetection = useFallDetection(user?.id || null, handleFallDetected);
 
@@ -182,9 +230,50 @@ export const FallDetectionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [isSettingLoaded, isEnabled, user?.id, isActive, startFallDetection]);
 
+  // Manage background fall detection service based on app state.
+  useEffect(() => {
+    if (!isSettingLoaded) {
+      return;
+    }
+
+    const syncBackgroundState = async (nextState: string) => {
+      if (!isEnabled || !user?.id) {
+        await backgroundFallDetectionService.stop();
+        return;
+      }
+
+      if (nextState === "active") {
+        await backgroundFallDetectionService.stop();
+        await processPendingBackgroundFalls();
+      } else {
+        await backgroundFallDetectionService.start();
+      }
+    };
+
+    // Run once for current state.
+    syncBackgroundState(appStateRef.current).catch(() => {});
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
+      syncBackgroundState(nextState).catch(() => {});
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isEnabled, isSettingLoaded, processPendingBackgroundFalls, user?.id]);
+
+  useEffect(() => {
+    if (!isEnabled) {
+      backgroundFallDetectionService.stop().catch(() => {});
+    }
+  }, [isEnabled]);
+
   // Retry once shortly after enabling if sensor initialization is delayed.
   useEffect(() => {
-    if (!(isSettingLoaded && isEnabled && user?.id && !fallDetection.isActive)) {
+    if (
+      !(isSettingLoaded && isEnabled && user?.id && !fallDetection.isActive)
+    ) {
       return;
     }
 

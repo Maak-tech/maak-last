@@ -3,16 +3,9 @@
  * Allows users to change their password
  */
 
-import {
-  useNavigation,
-  useRouter } from "expo-router";
-import { ArrowLeft,
-  Eye,
-  EyeOff,
-  Lock,
-  Save } from "lucide-react-native";
-import { useLayoutEffect,
-  useState } from "react";
+import { useNavigation, useRouter } from "expo-router";
+import { ArrowLeft, Eye, EyeOff, Lock, Save } from "lucide-react-native";
+import { useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -139,9 +132,7 @@ export default function ChangePasswordScreen() {
       }
     } else {
       Alert.alert(
-        isRTL
-          ? "إعادة تعيين كلمة المرور"
-          : "Reset Password",
+        isRTL ? "إعادة تعيين كلمة المرور" : "Reset Password",
         message,
         [
           {
@@ -176,23 +167,17 @@ export default function ChangePasswordScreen() {
         window.alert(successMessage);
         router.back();
       } else {
-        Alert.alert(
-          isRTL ? "تم الإرسال" : "Email Sent",
-          successMessage,
-          [
-            {
-              text: isRTL ? "موافق" : "OK",
-              onPress: () => router.back(),
-            },
-          ]
-        );
+        Alert.alert(isRTL ? "تم الإرسال" : "Email Sent", successMessage, [
+          {
+            text: isRTL ? "موافق" : "OK",
+            onPress: () => router.back(),
+          },
+        ]);
       }
     } catch (error: unknown) {
       const errorMessage =
         (error as { message?: string }).message ||
-        (isRTL
-          ? "فشل إرسال البريد الإلكتروني"
-          : "Failed to send email");
+        (isRTL ? "فشل إرسال البريد الإلكتروني" : "Failed to send email");
 
       if (Platform.OS === "web") {
         // biome-ignore lint/suspicious/noAlert: Temporary web fallback.
@@ -243,9 +228,7 @@ export default function ChangePasswordScreen() {
       // Extract error message
       let errorMessage =
         (error as { message?: string }).message ||
-        (isRTL
-          ? "فشل تغيير كلمة المرور"
-          : "Failed to change password");
+        (isRTL ? "فشل تغيير كلمة المرور" : "Failed to change password");
 
       // Provide more helpful error messages based on error content
       if (
@@ -337,9 +320,7 @@ export default function ChangePasswordScreen() {
                 isRTL && styles.rtlText,
               ]}
             >
-              {isRTL
-                ? "كلمة المرور الحالية"
-                : "Current Password"}
+              {isRTL ? "كلمة المرور الحالية" : "Current Password"}
             </Text>
             <View style={styles.inputContainer}>
               <TextInput
@@ -354,9 +335,7 @@ export default function ChangePasswordScreen() {
                 }}
                 passwordRules=""
                 placeholder={
-                  isRTL
-                    ? "أدخل كلمة المرور الحالية"
-                    : "Enter current password"
+                  isRTL ? "أدخل كلمة المرور الحالية" : "Enter current password"
                 }
                 placeholderTextColor={theme.colors.text.secondary}
                 secureTextEntry={!showCurrentPassword}
@@ -407,9 +386,7 @@ export default function ChangePasswordScreen() {
                   isRTL && styles.rtlText,
                 ]}
               >
-                {isRTL
-                  ? "نسيت كلمة المرور؟"
-                  : "Forgot Password?"}
+                {isRTL ? "نسيت كلمة المرور؟" : "Forgot Password?"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -438,9 +415,7 @@ export default function ChangePasswordScreen() {
                 }}
                 passwordRules=""
                 placeholder={
-                  isRTL
-                    ? "أدخل كلمة المرور الجديدة"
-                    : "Enter new password"
+                  isRTL ? "أدخل كلمة المرور الجديدة" : "Enter new password"
                 }
                 placeholderTextColor={theme.colors.text.secondary}
                 secureTextEntry={!showNewPassword}
@@ -497,9 +472,7 @@ export default function ChangePasswordScreen() {
                 isRTL && styles.rtlText,
               ]}
             >
-              {isRTL
-                ? "تأكيد كلمة المرور الجديدة"
-                : "Confirm New Password"}
+              {isRTL ? "تأكيد كلمة المرور الجديدة" : "Confirm New Password"}
             </Text>
             <View style={styles.inputContainer}>
               <TextInput

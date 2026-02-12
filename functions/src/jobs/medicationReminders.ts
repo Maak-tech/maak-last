@@ -23,6 +23,7 @@ type ReminderPayload = {
   userId: string;
   reminderId: string;
   reminderIndex: number;
+  reminderTime: string;
 };
 
 /**
@@ -114,6 +115,7 @@ export const scheduledMedicationReminders = onSchedule(
               userId: medication.userId,
               reminderId: reminder.id,
               reminderIndex,
+              reminderTime,
             });
           }
         }

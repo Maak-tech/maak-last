@@ -1,6 +1,4 @@
-import {
-  useNavigation,
-  useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import type { LucideIcon } from "lucide-react-native";
 import {
   ArrowLeft,
@@ -13,7 +11,7 @@ import {
   MapPin,
   Phone,
   Video,
-  } from "lucide-react-native";
+} from "lucide-react-native";
 import { useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {

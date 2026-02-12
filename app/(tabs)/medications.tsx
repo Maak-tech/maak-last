@@ -846,7 +846,11 @@ export default function MedicationsScreen() {
               const result = await scheduleRecurringMedicationReminder(
                 newMedication.name,
                 newMedication.dosage,
-                reminder.time
+                reminder.time,
+                {
+                  medicationId: editingMedication?.id,
+                  reminderId: reminder.id,
+                }
               );
               schedulingResults.push(result || { success: false });
             }
@@ -924,15 +928,17 @@ export default function MedicationsScreen() {
           isActive: true,
         };
 
+        let savedMedicationId: string | null = null;
         if (isAdmin && targetUserIdForSave !== user.id) {
           // Admin adding medication for another family member
-          await medicationService.addMedicationForUser(
+          savedMedicationId = await medicationService.addMedicationForUser(
             medicationData,
             targetUserIdForSave
           );
         } else {
           // User adding medication for themselves
-          await medicationService.addMedication(medicationData);
+          savedMedicationId =
+            await medicationService.addMedication(medicationData);
         }
 
         // Schedule notifications for reminders (only for current user's medications)
@@ -946,7 +952,11 @@ export default function MedicationsScreen() {
               const result = await scheduleRecurringMedicationReminder(
                 newMedication.name,
                 newMedication.dosage,
-                reminder.time
+                reminder.time,
+                {
+                  medicationId: savedMedicationId || undefined,
+                  reminderId: reminder.id,
+                }
               );
               schedulingResults.push(result || { success: false });
             }

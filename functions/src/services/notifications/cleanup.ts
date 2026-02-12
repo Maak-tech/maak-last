@@ -106,9 +106,7 @@ export async function cleanupInvalidTokens(
         let hasChanges = false;
 
         for (const deviceId in updatedTokens) {
-          if (
-            !Object.prototype.hasOwnProperty.call(updatedTokens, deviceId)
-          ) {
+          if (!Object.hasOwn(updatedTokens, deviceId)) {
             continue;
           }
           const deviceToken = updatedTokens[deviceId];

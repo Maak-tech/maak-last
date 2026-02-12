@@ -326,84 +326,204 @@ export async function saveIntegrationVitalsToFirestore(
     throw new Error("User ID is required");
   }
 
-  let savedCount = 0;
+  const syncId = `health-sync-${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 9)}`;
+  const syncStart = Date.now();
+  const totalSamples = metrics.reduce(
+    (count, metric) => count + metric.samples.length,
+    0
+  );
 
-  for (const metric of metrics) {
-    const vitalType = METRIC_TO_VITAL_TYPE[metric.metricKey];
-    if (!vitalType) {
-      // Skip metrics that don't map to vital types
-      continue;
+  await observabilityEmitter.emitHealthEvent(
+    "health_sync_started",
+    "Health metrics sync started",
+    {
+      userId,
+      status: "pending",
+      metadata: {
+        provider,
+        metricCount: metrics.length,
+        sampleCount: totalSamples,
+        syncId,
+      },
     }
+  );
 
-    const unit = getVitalUnit(vitalType);
+  let savedCount = 0;
+  let invalidCount = 0;
+  let skippedMetricCount = 0;
 
-    // Process each sample
-    for (const sample of metric.samples) {
-      try {
-        // Handle different value types
-        let value: number;
-        if (typeof sample.value === "number") {
-          value = sample.value;
-        } else if (typeof sample.value === "string") {
-          value = Number.parseFloat(sample.value);
-          if (Number.isNaN(value)) {
-            continue; // Skip invalid values
+  try {
+    for (const metric of metrics) {
+      const vitalType = METRIC_TO_VITAL_TYPE[metric.metricKey];
+      if (!vitalType) {
+        // Skip metrics that don't map to vital types
+        skippedMetricCount += 1;
+        continue;
+      }
+
+      const unit = getVitalUnit(vitalType);
+
+      // Process each sample
+      for (const sample of metric.samples) {
+        try {
+          // Handle different value types
+          let value: number;
+          if (typeof sample.value === "number") {
+            value = sample.value;
+          } else if (typeof sample.value === "string") {
+            value = Number.parseFloat(sample.value);
+            if (Number.isNaN(value)) {
+              invalidCount += 1;
+              continue; // Skip invalid values
+            }
+          } else {
+            invalidCount += 1;
+            continue; // Skip non-numeric values
           }
-        } else {
-          continue; // Skip non-numeric values
-        }
 
-        // Handle blood pressure separately (has systolic/diastolic)
-        const sampleMetadata = getSampleMetadata(sample);
-        if (vitalType === "bloodPressure" && sampleMetadata) {
-          const systolic =
-            typeof sampleMetadata.systolic === "number"
-              ? sampleMetadata.systolic
-              : value;
-          const diastolic =
-            typeof sampleMetadata.diastolic === "number"
-              ? sampleMetadata.diastolic
-              : undefined;
+          // Handle blood pressure separately (has systolic/diastolic)
+          const sampleMetadata = getSampleMetadata(sample);
+          if (vitalType === "bloodPressure" && sampleMetadata) {
+            const systolic =
+              typeof sampleMetadata.systolic === "number"
+                ? sampleMetadata.systolic
+                : value;
+            const diastolic =
+              typeof sampleMetadata.diastolic === "number"
+                ? sampleMetadata.diastolic
+                : undefined;
 
-          if (diastolic !== undefined) {
-            // Save systolic value with metadata
+            if (diastolic !== undefined) {
+              // Save systolic value with metadata
+              await saveVitalSample(
+                userId,
+                "bloodPressure",
+                systolic,
+                unit,
+                new Date(sample.startDate),
+                provider,
+                {
+                  systolic,
+                  diastolic,
+                  ...sampleMetadata,
+                }
+              );
+              savedCount += 1;
+            }
+          } else {
+            // Regular vital sign
+            const timestamp = sample.startDate
+              ? new Date(sample.startDate)
+              : new Date();
+
             await saveVitalSample(
               userId,
-              "bloodPressure",
-              systolic,
+              vitalType,
+              value,
               unit,
-              new Date(sample.startDate),
+              timestamp,
               provider,
-              {
-                systolic,
-                diastolic,
-                ...sampleMetadata,
-              }
+              sampleMetadata
             );
             savedCount += 1;
           }
-        } else {
-          // Regular vital sign
-          const timestamp = sample.startDate
-            ? new Date(sample.startDate)
-            : new Date();
-
-          await saveVitalSample(
-            userId,
-            vitalType,
-            value,
-            unit,
-            timestamp,
-            provider,
-            sampleMetadata
-          );
-          savedCount += 1;
+        } catch (_error) {
+          // Continue with next sample
         }
-      } catch (_error) {
-        // Continue with next sample
       }
     }
+  } catch (error) {
+    const durationMs = Date.now() - syncStart;
+    await observabilityEmitter.emitHealthEvent(
+      "health_sync_failed",
+      "Health metrics sync failed",
+      {
+        userId,
+        severity: "error",
+        status: "failure",
+        metadata: {
+          provider,
+          metricCount: metrics.length,
+          sampleCount: totalSamples,
+          savedCount,
+          invalidCount,
+          skippedMetricCount,
+          durationMs,
+          syncId,
+        },
+      }
+    );
+    await observabilityEmitter.recordMetric(
+      "health_sync_latency",
+      durationMs,
+      "ms",
+      "health_data",
+      { provider, status: "failure" }
+    );
+    throw error;
   }
+
+  const durationMs = Date.now() - syncStart;
+  await observabilityEmitter.emitHealthEvent(
+    "health_sync_completed",
+    "Health metrics sync completed",
+    {
+      userId,
+      status: "success",
+      metadata: {
+        provider,
+        metricCount: metrics.length,
+        sampleCount: totalSamples,
+        savedCount,
+        invalidCount,
+        skippedMetricCount,
+        durationMs,
+        syncId,
+      },
+    }
+  );
+  await observabilityEmitter.recordMetric(
+    "health_sync_latency",
+    durationMs,
+    "ms",
+    "health_data",
+    { provider, status: "success" }
+  );
+  await observabilityEmitter.recordMetric(
+    "health_sync_samples_total",
+    totalSamples,
+    "count",
+    "health_data",
+    { provider }
+  );
+  await observabilityEmitter.recordMetric(
+    "health_sync_samples_saved",
+    savedCount,
+    "count",
+    "health_data",
+    { provider }
+  );
+  if (invalidCount > 0) {
+    await observabilityEmitter.recordMetric(
+      "health_sync_samples_invalid",
+      invalidCount,
+      "count",
+      "health_data",
+      { provider }
+    );
+  }
+  if (skippedMetricCount > 0) {
+    await observabilityEmitter.recordMetric(
+      "health_sync_metrics_skipped",
+      skippedMetricCount,
+      "count",
+      "health_data",
+      { provider }
+    );
+  }
+
   return savedCount;
 }
 

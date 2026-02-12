@@ -16,7 +16,6 @@ import {
   getMetricByKey,
   getWithingsScopesForMetrics,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/providerConnections";
 import {
   HEALTH_STORAGE_KEYS,
   type MetricSample,
@@ -24,6 +23,7 @@ import {
   type ProviderAvailability,
   type WithingsTokens,
 } from "../health/healthTypes";
+import { saveProviderConnection } from "../health/providerConnections";
 
 // Withings OAuth configuration
 const WITHINGS_CLIENT_ID =

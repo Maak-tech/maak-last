@@ -1389,7 +1389,9 @@ class HealthInsightsService {
       return 0;
     }
 
-    const averageSleep = this.getMean(sleepReadings.map((reading) => reading.value));
+    const averageSleep = this.getMean(
+      sleepReadings.map((reading) => reading.value)
+    );
     if (averageSleep >= 7) {
       return 0;
     }
@@ -1467,7 +1469,7 @@ class HealthInsightsService {
       end
     );
     const medicationRisk = this.clamp(
-      (100 - compliance) + Math.min(20, missedDoses * 2),
+      100 - compliance + Math.min(20, missedDoses * 2),
       0,
       100
     );
@@ -1495,9 +1497,11 @@ class HealthInsightsService {
     );
 
     const evidencePoints =
-      symptoms.filter((symptom) => symptom.timestamp >= start && symptom.timestamp < end)
+      symptoms.filter(
+        (symptom) => symptom.timestamp >= start && symptom.timestamp < end
+      ).length +
+      moods.filter((mood) => mood.timestamp >= start && mood.timestamp < end)
         .length +
-      moods.filter((mood) => mood.timestamp >= start && mood.timestamp < end).length +
       vitals.length +
       medications.length * 2;
     const confidence = Math.round(
@@ -1628,9 +1632,7 @@ class HealthInsightsService {
       const leftScore =
         left.confidence + (left.actionable ? 6 : 0) + typeWeights[left.type];
       const rightScore =
-        right.confidence +
-        (right.actionable ? 6 : 0) +
-        typeWeights[right.type];
+        right.confidence + (right.actionable ? 6 : 0) + typeWeights[right.type];
       return rightScore - leftScore;
     });
   }

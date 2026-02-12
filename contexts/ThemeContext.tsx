@@ -7,7 +7,6 @@ import {
   useEffect,
   useState,
 } from "react";
-import { useColorScheme } from "react-native";
 import { Theme } from "@/constants/theme";
 
 type ThemeMode = "light" | "dark" | "system";
@@ -39,33 +38,19 @@ type ThemeProviderProps = {
 const THEME_STORAGE_KEY = "@maak_theme_mode";
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const systemColorScheme = useColorScheme();
-  // Initialize with "light" as default to prevent dark mode flash
-  // Will be updated from AsyncStorage once loaded
+  // Dark mode is disabled. Keep light mode only.
   const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Determine if dark mode should be active
-  const isDark =
-    themeMode === "dark" ||
-    (themeMode === "system" && systemColorScheme === "dark");
-
-  // Get current theme
-  const theme = isDark ? Theme.dark : Theme.light;
+  const isDark = false;
+  const theme = Theme.light;
 
   // Load saved theme preference on mount
   useEffect(() => {
     const loadThemeMode = async () => {
       try {
-        const savedMode = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (savedMode && ["light", "dark", "system"].includes(savedMode)) {
-          setThemeModeState(savedMode as ThemeMode);
-        } else {
-          // If no saved preference, default to "light" (not "system")
-          // This ensures users who turn off dark mode stay in light mode
-          setThemeModeState("light");
-          await AsyncStorage.setItem(THEME_STORAGE_KEY, "light");
-        }
+        setThemeModeState("light");
+        await AsyncStorage.setItem(THEME_STORAGE_KEY, "light");
       } catch (_error) {
         // Silently handle error, but ensure we have a valid state
         setThemeModeState("light");
@@ -78,10 +63,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, []);
 
   // Save theme preference
-  const setThemeMode = async (mode: ThemeMode) => {
+  const setThemeMode = async (_mode: ThemeMode) => {
     try {
-      setThemeModeState(mode);
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
+      setThemeModeState("light");
+      await AsyncStorage.setItem(THEME_STORAGE_KEY, "light");
     } catch (_error) {
       // Silently handle error
     }
@@ -89,8 +74,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Toggle between light and dark (ignoring system)
   const toggleTheme = () => {
-    const newMode = isDark ? "light" : "dark";
-    setThemeMode(newMode);
+    setThemeMode("light");
   };
 
   // Don't render until theme is loaded

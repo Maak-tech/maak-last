@@ -136,16 +136,23 @@ export default function AllergiesScreen() {
           setLoading(true);
         }
 
-        // Load family members if user has family
-        if (user.familyId) {
-          const members = await userService.getFamilyMembers(user.familyId);
-          setFamilyMembers(members);
+        const shouldLoadFamilyMembers = user.familyId && user.role === "admin";
+
+        // Load allergies first to keep the screen responsive.
+        const allergiesPromise = allergyService.getUserAllergies(user.id, 50);
+
+        if (shouldLoadFamilyMembers) {
+          userService
+            .getFamilyMembers(user.familyId)
+            .then((members) => setFamilyMembers(members))
+            .catch(() => {
+              // Non-blocking: family list is only needed for admin modal.
+            });
+        } else {
+          setFamilyMembers([]);
         }
 
-        const userAllergies = await allergyService.getUserAllergies(
-          user.id,
-          50
-        );
+        const userAllergies = await allergiesPromise;
         setAllergies(userAllergies);
       } catch (_error) {
         Alert.alert(t("error"), t("errorLoadingData"));

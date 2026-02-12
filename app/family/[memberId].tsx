@@ -139,7 +139,7 @@ const getAllergySeverityLabel = (
 };
 
 const INSIGHTS_CACHE_TTL_MS = 5 * 60 * 1000;
-const INSIGHTS_TIMEOUT_MS = 12000;
+const INSIGHTS_TIMEOUT_MS = 12_000;
 
 const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
   new Promise<T>((resolve, reject) => {
@@ -992,7 +992,9 @@ export default function FamilyMemberHealthView() {
                 <Text style={styles.insightSummaryValue}>
                   {insightsSummary.medications.compliance}%
                 </Text>
-                <Text style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}>
+                <Text
+                  style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}
+                >
                   {isRTL ? "الالتزام" : "Adherence"}
                 </Text>
               </View>
@@ -1000,7 +1002,9 @@ export default function FamilyMemberHealthView() {
                 <Text style={styles.insightSummaryValue}>
                   {insightsSummary.symptoms.total}
                 </Text>
-                <Text style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}>
+                <Text
+                  style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}
+                >
                   {isRTL ? "الأعراض" : "Symptoms"}
                 </Text>
               </View>
@@ -1008,7 +1012,9 @@ export default function FamilyMemberHealthView() {
                 <Text style={styles.insightSummaryValue}>
                   {predictiveInsight?.data?.riskScore ?? "--"}
                 </Text>
-                <Text style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}>
+                <Text
+                  style={[styles.insightSummaryLabel, isRTL && styles.rtlText]}
+                >
                   {isRTL ? "مخاطر" : "Risk"}
                 </Text>
               </View>
@@ -1018,18 +1024,27 @@ export default function FamilyMemberHealthView() {
           {insightsLoading && insights.length === 0 ? (
             <View style={styles.insightsLoadingContainer}>
               <ActivityIndicator color="#7C3AED" size="small" />
-              <Text style={[styles.insightsLoadingText, isRTL && styles.rtlText]}>
-                {isRTL ? "جارٍ تحليل الرؤى الصحية..." : "Analyzing health insights..."}
+              <Text
+                style={[styles.insightsLoadingText, isRTL && styles.rtlText]}
+              >
+                {isRTL
+                  ? "جارٍ تحليل الرؤى الصحية..."
+                  : "Analyzing health insights..."}
               </Text>
             </View>
           ) : insights.length > 0 ? (
             <View style={styles.insightsList}>
               {insights.map((insight, index) => (
-                <View key={`${insight.type}-${index}`} style={styles.insightItem}>
+                <View
+                  key={`${insight.type}-${index}`}
+                  style={styles.insightItem}
+                >
                   <View style={styles.insightHeader}>
                     <View style={styles.insightTitleRow}>
                       {getInsightIcon(insight.type)}
-                      <Text style={[styles.insightTitle, isRTL && styles.rtlText]}>
+                      <Text
+                        style={[styles.insightTitle, isRTL && styles.rtlText]}
+                      >
                         {insight.title}
                       </Text>
                     </View>
@@ -1049,11 +1064,18 @@ export default function FamilyMemberHealthView() {
                       </Text>
                     </View>
                   </View>
-                  <Text style={[styles.insightDescription, isRTL && styles.rtlText]}>
+                  <Text
+                    style={[styles.insightDescription, isRTL && styles.rtlText]}
+                  >
                     {insight.description}
                   </Text>
                   {insight.recommendation ? (
-                    <Text style={[styles.insightRecommendation, isRTL && styles.rtlText]}>
+                    <Text
+                      style={[
+                        styles.insightRecommendation,
+                        isRTL && styles.rtlText,
+                      ]}
+                    >
                       {isRTL ? "التوصية: " : "Recommendation: "}
                       {insight.recommendation}
                     </Text>

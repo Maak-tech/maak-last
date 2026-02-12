@@ -41,11 +41,7 @@ async function run() {
     `Generating ${DURATION_SECONDS}s synthetic PPG at ${TARGET_BPM} BPM (${FRAME_RATE} fps)`
   );
 
-  const signal = generateSyntheticPPG(
-    FRAME_RATE,
-    DURATION_SECONDS,
-    TARGET_BPM
-  );
+  const signal = generateSyntheticPPG(FRAME_RATE, DURATION_SECONDS, TARGET_BPM);
 
   const enhanced = processPPGSignalEnhanced(signal, FRAME_RATE);
   console.log("Enhanced processing result:", enhanced);

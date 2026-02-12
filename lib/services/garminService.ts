@@ -13,7 +13,6 @@ import {
   getAvailableMetricsForProvider,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/providerConnections";
 import {
   type GarminTokens,
   HEALTH_STORAGE_KEYS,
@@ -21,6 +20,7 @@ import {
   type NormalizedMetricPayload,
   type ProviderAvailability,
 } from "../health/healthTypes";
+import { saveProviderConnection } from "../health/providerConnections";
 
 // Garmin OAuth configuration
 const GARMIN_CLIENT_ID =

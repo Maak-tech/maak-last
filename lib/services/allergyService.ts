@@ -4,6 +4,8 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  limit,
+  orderBy,
   query,
   Timestamp,
   updateDoc,
@@ -130,13 +132,24 @@ export const allergyService = {
 
     try {
       if (isOnline) {
-        // Query without orderBy to avoid index requirement, then sort in memory
-        const q = query(
-          collection(db, "allergies"),
-          where("userId", "==", userId)
-        );
-
-        const querySnapshot = await getDocs(q);
+        // Prefer indexed query: most recent first, limited.
+        // Fallback to un-ordered query if index isn't ready yet.
+        let querySnapshot;
+        try {
+          const orderedQuery = query(
+            collection(db, "allergies"),
+            where("userId", "==", userId),
+            orderBy("timestamp", "desc"),
+            limit(limitCount)
+          );
+          querySnapshot = await getDocs(orderedQuery);
+        } catch (_error) {
+          const fallbackQuery = query(
+            collection(db, "allergies"),
+            where("userId", "==", userId)
+          );
+          querySnapshot = await getDocs(fallbackQuery);
+        }
         const allergies: Allergy[] = [];
 
         for (const snapshotDoc of querySnapshot.docs) {

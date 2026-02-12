@@ -19,13 +19,13 @@ import {
   getFitbitScopesForMetrics,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/providerConnections";
 import {
   type FitbitTokens,
   HEALTH_STORAGE_KEYS,
   type NormalizedMetricPayload,
   type ProviderAvailability,
 } from "../health/healthTypes";
+import { saveProviderConnection } from "../health/providerConnections";
 
 // Fitbit OAuth configuration
 // Note: These should be set as environment variables in production

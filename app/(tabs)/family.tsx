@@ -19,6 +19,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Print from "expo-print";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import * as Sharing from "expo-sharing";
 import {
   Activity,
@@ -50,7 +51,7 @@ import {
   Users,
   X,
 } from "lucide-react-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
@@ -87,8 +88,8 @@ import {
 import { RevenueCatPaywall } from "@/components/RevenueCatPaywall";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFallDetectionContext } from "@/contexts/FallDetectionContext";
+import { useRealtimeHealthContext } from "@/contexts/RealtimeHealthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useRealtimeHealth } from "@/hooks/useRealtimeHealth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { alertService } from "@/lib/services/alertService";
 import { allergyService } from "@/lib/services/allergyService";
@@ -186,6 +187,9 @@ export default function FamilyScreen() {
   const { t, i18n } = useTranslation();
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
+  const isFocused = useIsFocused();
+  const { trendAlertEvent, familyUpdateEvent, setFamilyMemberIds } =
+    useRealtimeHealthContext();
   const router = useRouter();
   const params = useLocalSearchParams<{ tour?: string }>();
   const {
@@ -325,6 +329,8 @@ export default function FamilyScreen() {
   const refreshingElderlyDashboardRef = useRef(false);
   const medicationScheduleRequestInFlightRef = useRef(false);
   const focusLoadInFlightRef = useRef(false);
+  const lastRealtimeEventsRefreshRef = useRef(0);
+  const lastRealtimeMetricsRefreshRef = useRef(0);
   const [selectedFilter, setSelectedFilter] = useState<FilterOption>({
     id: "personal",
     type: "personal",
@@ -1944,30 +1950,47 @@ export default function FamilyScreen() {
     ])
   );
 
-  // Subscribe to real-time family member updates (replaces polling)
-  useRealtimeHealth({
-    userId: user?.id,
-    familyId: user?.familyId,
-    familyMemberIds: familyMembers.map((m) => m.id),
-    onFamilyMemberUpdate: (update) => {
-      // Refresh member metrics when updates occur
+  const familyMemberIds = useMemo(
+    () => familyMembers.map((member) => member.id),
+    [familyMembers]
+  );
+
+  const handleRealtimeFamilyUpdate = useCallback(
+    (update: { updateType: string }) => {
+      const now = Date.now();
+
+      // Refresh member metrics when updates occur (throttled).
       if (familyMembers.length > 0) {
-        loadMemberMetrics(familyMembers).catch(() => {
-          // Error refreshing member metrics
-        });
+        const metricsRefreshIntervalMs = 10_000;
+        if (
+          now - lastRealtimeMetricsRefreshRef.current >=
+          metricsRefreshIntervalMs
+        ) {
+          lastRealtimeMetricsRefreshRef.current = now;
+          loadMemberMetrics(familyMembers).catch(() => {
+            // Error refreshing member metrics
+          });
+        }
       }
 
-      // Refresh events if alert-related
+      // Refresh events if alert-related (throttled).
       if (
         update.updateType === "alert_created" ||
         update.updateType === "alert_resolved"
       ) {
-        loadEvents(false, familyMembers).catch(() => {
-          // Silently handle errors
-        });
+        const eventsRefreshIntervalMs = 5000;
+        if (
+          now - lastRealtimeEventsRefreshRef.current >=
+          eventsRefreshIntervalMs
+        ) {
+          lastRealtimeEventsRefreshRef.current = now;
+          loadEvents(false, familyMembers).catch(() => {
+            // Silently handle errors
+          });
+        }
       }
 
-      // Refresh dashboard if in dashboard view
+      // Refresh dashboard if in dashboard view.
       if (viewMode === "dashboard") {
         if (isAdmin) {
           loadCaregiverDashboard().catch(() => {
@@ -1980,15 +2003,19 @@ export default function FamilyScreen() {
         }
       }
     },
-    onTrendAlert: (alert) => {
-      // Show notification for critical trend alerts
-      if (alert.severity === "critical") {
-        Alert.alert(
-          isRTL ? "تنبيه صحي حرج" : "Critical Health Trend",
-          alert.trendAnalysis.message,
-          [{ text: isRTL ? "موافق" : "OK" }]
-        );
-      }
+    [
+      familyMembers,
+      isAdmin,
+      loadCaregiverDashboard,
+      loadElderlyDashboard,
+      loadEvents,
+      loadMemberMetrics,
+      viewMode,
+    ]
+  );
+
+  const handleTrendAlert = useCallback(
+    (alert: { severity: string; trendAnalysis: { message: string } }) => {
       // Refresh member metrics to show updated trends
       if (familyMembers.length > 0) {
         loadMemberMetrics(familyMembers).catch(() => {
@@ -1996,8 +2023,34 @@ export default function FamilyScreen() {
         });
       }
     },
-    enabled: !!user?.id && !!user?.familyId && familyMembers.length > 0,
-  });
+    [familyMembers, loadMemberMetrics]
+  );
+
+  useEffect(() => {
+    if (isFocused) {
+      setFamilyMemberIds(familyMemberIds);
+    }
+  }, [isFocused, familyMemberIds, setFamilyMemberIds]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setFamilyMemberIds([]);
+    }
+  }, [isFocused, setFamilyMemberIds]);
+
+  useEffect(() => {
+    if (!familyUpdateEvent || !isFocused) {
+      return;
+    }
+    handleRealtimeFamilyUpdate(familyUpdateEvent.payload);
+  }, [familyUpdateEvent?.id, isFocused, handleRealtimeFamilyUpdate]);
+
+  useEffect(() => {
+    if (!trendAlertEvent || !isFocused) {
+      return;
+    }
+    handleTrendAlert(trendAlertEvent.payload);
+  }, [trendAlertEvent?.id, isFocused, handleTrendAlert]);
 
   const handleElderlyEmergency = async () => {
     Alert.alert(

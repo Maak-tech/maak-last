@@ -4,12 +4,16 @@
  */
 
 import { type Href, useNavigation, useRouter } from "expo-router";
+import type { LucideIcon } from "lucide-react-native";
 import {
   AlertCircle,
   ArrowLeft,
+  Calendar,
   Check,
   ChevronRight,
   Heart,
+  TestTube,
+  Video,
 } from "lucide-react-native";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,12 +28,19 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { HealthProvider } from "@/lib/health/healthMetricsCatalog";
 import { getProviderConnection } from "@/lib/health/healthSync";
 import type { ProviderConnection } from "@/lib/health/healthTypes";
+import { clinicalIntegrationService } from "@/lib/services/clinicalIntegrationService";
 import { fitbitService } from "@/lib/services/fitbitService";
 import { withingsService } from "@/lib/services/withingsService";
+import type {
+  ClinicalIntegrationRequest,
+  ClinicalIntegrationStatus,
+  ClinicalIntegrationType,
+} from "@/types";
 
 type ProviderOption = {
   id: HealthProvider;
@@ -42,6 +53,14 @@ type ProviderOption = {
   route: string;
 };
 
+type ClinicalProviderOption = {
+  id: ClinicalIntegrationType;
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  route: string;
+};
+
 export const options = {
   headerShown: false,
 };
@@ -50,6 +69,7 @@ export const options = {
 export default function HealthIntegrationsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const { user } = useAuth();
   const { theme, isDark } = useTheme();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === "ar";
@@ -60,6 +80,9 @@ export default function HealthIntegrationsScreen() {
   );
   const [connections, setConnections] = useState<
     Map<HealthProvider, ProviderConnection>
+  >(new Map());
+  const [clinicalRequests, setClinicalRequests] = useState<
+    Map<ClinicalIntegrationType, ClinicalIntegrationRequest>
   >(new Map());
 
   // Hide the default header to prevent duplicate headers
@@ -152,6 +175,30 @@ export default function HealthIntegrationsScreen() {
     },
   ];
 
+  const clinicalProviders: ClinicalProviderOption[] = [
+    {
+      id: "clinic",
+      name: t("clinicIntegration"),
+      description: t("clinicIntegrationDesc"),
+      icon: Calendar,
+      route: "/profile/health/clinical/clinic",
+    },
+    {
+      id: "lab",
+      name: t("labIntegration"),
+      description: t("labIntegrationDesc"),
+      icon: TestTube,
+      route: "/profile/health/clinical/lab",
+    },
+    {
+      id: "radiology",
+      name: t("radiologyIntegration"),
+      description: t("radiologyIntegrationDesc"),
+      icon: Video,
+      route: "/profile/health/clinical/radiology",
+    },
+  ];
+
   // Static list of all provider IDs to check connections for
   const allProviderIds: HealthProvider[] = [
     "apple_health",
@@ -163,6 +210,12 @@ export default function HealthIntegrationsScreen() {
     "oura",
     "dexcom",
     "freestyle_libre",
+  ];
+
+  const clinicalProviderIds: ClinicalIntegrationType[] = [
+    "clinic",
+    "lab",
+    "radiology",
   ];
 
   const loadConnections = useCallback(async () => {
@@ -188,6 +241,26 @@ export default function HealthIntegrationsScreen() {
       }
 
       setConnections(connectionsMap);
+
+      if (user?.id) {
+        const requestsMap = new Map<
+          ClinicalIntegrationType,
+          ClinicalIntegrationRequest
+        >();
+        for (const providerId of clinicalProviderIds) {
+          const request =
+            await clinicalIntegrationService.getLatestIntegrationRequest(
+              user.id,
+              providerId
+            );
+          if (request) {
+            requestsMap.set(providerId, request);
+          }
+        }
+        setClinicalRequests(requestsMap);
+      } else {
+        setClinicalRequests(new Map());
+      }
     } catch (_error) {
       // Set to false on error so they show as "Coming Soon" instead of platform error
       setFitbitAvailable(false);
@@ -195,7 +268,7 @@ export default function HealthIntegrationsScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadConnections();
@@ -233,20 +306,37 @@ export default function HealthIntegrationsScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView
-        style={[
-          styles.container,
-          { backgroundColor: theme.colors.background.primary },
-        ]}
-      >
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.primary.main} size="large" />
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const handleClinicalProviderPress = (provider: ClinicalProviderOption) => {
+    router.push(provider.route as Href);
+  };
+
+  const getClinicalStatusLabel = (status: ClinicalIntegrationStatus) => {
+    switch (status) {
+      case "connected":
+        return t("integrationStatusConnected");
+      case "approved":
+        return t("integrationStatusApproved");
+      case "rejected":
+        return t("integrationStatusRejected");
+      case "pending":
+      default:
+        return t("integrationStatusPending");
+    }
+  };
+
+  const getClinicalStatusColor = (status: ClinicalIntegrationStatus) => {
+    switch (status) {
+      case "connected":
+        return theme.colors.accent.success;
+      case "approved":
+        return theme.colors.primary.main;
+      case "rejected":
+        return theme.colors.accent.error;
+      case "pending":
+      default:
+        return theme.colors.accent.warning;
+    }
+  };
 
   // Header styles with proper border color
   const headerBackgroundColor = isDark
@@ -269,6 +359,7 @@ export default function HealthIntegrationsScreen() {
       {/* Header */}
       <View style={[styles.header, headerStyles]}>
         <TouchableOpacity
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           onPress={() => router.back()}
           style={[styles.backButton, isRTL && styles.backButtonRTL]}
         >
@@ -292,218 +383,314 @@ export default function HealthIntegrationsScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
-        {/* Welcome Section */}
-        <View
-          style={[
-            styles.welcomeSection,
-            {
-              backgroundColor: isDark
-                ? theme.colors.background.secondary
-                : "#FFFFFF",
-            },
-          ]}
-        >
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={theme.colors.primary.main} size="large" />
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+          {/* Welcome Section */}
           <View
             style={[
-              styles.welcomeIcon,
-              { backgroundColor: `${theme.colors.primary.main}20` },
+              styles.welcomeSection,
+              {
+                backgroundColor: isDark
+                  ? theme.colors.background.secondary
+                  : "#FFFFFF",
+              },
             ]}
           >
-            <Heart color={theme.colors.primary.main} size={40} />
+            <View
+              style={[
+                styles.welcomeIcon,
+                { backgroundColor: `${theme.colors.primary.main}20` },
+              ]}
+            >
+              <Heart color={theme.colors.primary.main} size={40} />
+            </View>
+            <Text
+              style={[
+                styles.welcomeTitle,
+                { color: theme.colors.text.primary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {isRTL ? "تكاملات البيانات الصحية " : "Health Integrations"}
+            </Text>
+            <Text
+              style={[
+                styles.welcomeDescription,
+                { color: theme.colors.text.secondary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {isRTL
+                ? "قم بتوصيل مصادر البيانات الصحية لتوفير تحليلات أفضل ورعاية محسّنة"
+                : "Connect health data sources to provide better insights and care"}
+            </Text>
           </View>
-          <Text
-            style={[
-              styles.welcomeTitle,
-              { color: theme.colors.text.primary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
-            {isRTL ? "تكاملات البيانات الصحية " : "Health Integrations"}
-          </Text>
-          <Text
-            style={[
-              styles.welcomeDescription,
-              { color: theme.colors.text.secondary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
-            {isRTL
-              ? "قم بتوصيل مصادر البيانات الصحية لتوفير تحليلات أفضل ورعاية محسّنة"
-              : "Connect health data sources to provide better insights and care"}
-          </Text>
-        </View>
 
-        {/* Providers List */}
-        <View style={styles.providersSection}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: theme.colors.text.primary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
-            {t("availableProviders")}
-          </Text>
+          {/* Providers List */}
+          <View style={styles.providersSection}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: theme.colors.text.primary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {t("availableProviders")}
+            </Text>
 
-          {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: rendering cards keeps UI state colocated with labels/badges. */}
-          {providers.map((provider) => {
-            const connection = connections.get(provider.id);
-            const isConnected = connection?.connected === true;
-            const canInteract =
-              provider.available || provider.comingSoon === true;
+            {/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: rendering cards keeps UI state colocated with labels/badges. */}
+            {providers.map((provider) => {
+              const connection = connections.get(provider.id);
+              const isConnected = connection?.connected === true;
+              const canInteract =
+                provider.available || provider.comingSoon === true;
 
-            return (
-              <TouchableOpacity
-                disabled={!canInteract}
-                key={provider.id}
-                onPress={() => handleProviderPress(provider)}
-                style={[
-                  styles.providerCard,
-                  {
-                    backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
-                    borderColor: isDark ? "#334155" : "#E2E8F0",
-                    opacity: canInteract ? 1 : 0.5,
-                  },
-                ]}
-              >
-                <View style={styles.providerIconContainer}>
-                  <provider.icon
-                    color={
-                      isConnected
-                        ? theme.colors.accent.success
-                        : theme.colors.primary.main
-                    }
-                    size={24}
-                  />
-                </View>
-
-                <View style={styles.providerContent}>
-                  <View style={styles.providerHeader}>
-                    <Text
-                      style={[
-                        styles.providerName,
-                        { color: theme.colors.text.primary },
-                      ]}
-                    >
-                      {provider.name}
-                    </Text>
-                    {provider.recommended === true ? (
-                      <View
-                        style={[
-                          styles.badge,
-                          { backgroundColor: `${theme.colors.primary.main}20` },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.badgeText,
-                            { color: theme.colors.primary.main },
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
-                          {t("recommended")}
-                        </Text>
-                      </View>
-                    ) : null}
-                    {provider.comingSoon === true ? (
-                      <View
-                        style={[styles.badge, { backgroundColor: "#FF6B3520" }]}
-                      >
-                        <Text
-                          style={[
-                            styles.badgeText,
-                            { color: "#FF6B35" },
-                            isRTL && { textAlign: "left" },
-                          ]}
-                        >
-                          {isRTL ? "قريباً" : "Coming Soon"}
-                        </Text>
-                      </View>
-                    ) : null}
+              return (
+                <TouchableOpacity
+                  disabled={!canInteract}
+                  key={provider.id}
+                  onPress={() => handleProviderPress(provider)}
+                  style={[
+                    styles.providerCard,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                      opacity: canInteract ? 1 : 0.5,
+                    },
+                  ]}
+                >
+                  <View style={styles.providerIconContainer}>
+                    <provider.icon
+                      color={
+                        isConnected
+                          ? theme.colors.accent.success
+                          : theme.colors.primary.main
+                      }
+                      size={24}
+                    />
                   </View>
 
-                  <Text
-                    style={[
-                      styles.providerDesc,
-                      { color: theme.colors.text.secondary },
-                      isRTL && { textAlign: "left" },
-                    ]}
-                  >
-                    {provider.description}
-                  </Text>
-
-                  {isConnected ? (
-                    <View style={styles.statusRow}>
-                      <Check color={theme.colors.accent.success} size={16} />
+                  <View style={styles.providerContent}>
+                    <View style={styles.providerHeader}>
                       <Text
                         style={[
-                          styles.statusText,
-                          { color: theme.colors.accent.success },
-                          isRTL && { textAlign: "left" },
+                          styles.providerName,
+                          { color: theme.colors.text.primary },
                         ]}
                       >
-                        {t("connected")} • {connection.selectedMetrics.length}{" "}
-                        {t("metrics")}
+                        {provider.name}
                       </Text>
+                      {provider.recommended === true ? (
+                        <View
+                          style={[
+                            styles.badge,
+                            {
+                              backgroundColor: `${theme.colors.primary.main}20`,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.badgeText,
+                              { color: theme.colors.primary.main },
+                              isRTL && { textAlign: "left" },
+                            ]}
+                          >
+                            {t("recommended")}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {provider.comingSoon === true ? (
+                        <View
+                          style={[
+                            styles.badge,
+                            { backgroundColor: "#FF6B3520" },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.badgeText,
+                              { color: "#FF6B35" },
+                              isRTL && { textAlign: "left" },
+                            ]}
+                          >
+                            {isRTL ? "قريباً" : "Coming Soon"}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
+
+                    <Text
+                      style={[
+                        styles.providerDesc,
+                        { color: theme.colors.text.secondary },
+                        isRTL && { textAlign: "left" },
+                      ]}
+                    >
+                      {provider.description}
+                    </Text>
+
+                    {isConnected ? (
+                      <View style={styles.statusRow}>
+                        <Check color={theme.colors.accent.success} size={16} />
+                        <Text
+                          style={[
+                            styles.statusText,
+                            { color: theme.colors.accent.success },
+                            isRTL && { textAlign: "left" },
+                          ]}
+                        >
+                          {t("connected")} • {connection.selectedMetrics.length}{" "}
+                          {t("metrics")}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {!(provider.available || provider.comingSoon) && (
+                      <View style={styles.statusRow}>
+                        <AlertCircle
+                          color={theme.colors.text.secondary}
+                          size={16}
+                        />
+                        <Text
+                          style={[
+                            styles.statusText,
+                            { color: theme.colors.text.secondary },
+                            isRTL && { textAlign: "left" },
+                          ]}
+                        >
+                          {t("notAvailableOnPlatform")}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {canInteract ? (
+                    <ChevronRight
+                      color={theme.colors.text.secondary}
+                      size={20}
+                    />
                   ) : null}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-                  {!(provider.available || provider.comingSoon) && (
+          {/* Clinical Integrations */}
+          <View style={styles.providersSection}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: theme.colors.text.primary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {t("clinicalIntegrations")}
+            </Text>
+
+            {clinicalProviders.map((provider) => {
+              const request = clinicalRequests.get(provider.id);
+              const statusLabel = request
+                ? getClinicalStatusLabel(request.status)
+                : t("integrationStatusNone");
+              const statusColor = request
+                ? getClinicalStatusColor(request.status)
+                : theme.colors.text.secondary;
+
+              return (
+                <TouchableOpacity
+                  key={provider.id}
+                  onPress={() => handleClinicalProviderPress(provider)}
+                  style={[
+                    styles.providerCard,
+                    {
+                      backgroundColor: isDark ? "#1E293B" : "#FFFFFF",
+                      borderColor: isDark ? "#334155" : "#E2E8F0",
+                    },
+                  ]}
+                >
+                  <View style={styles.providerIconContainer}>
+                    <provider.icon
+                      color={theme.colors.primary.main}
+                      size={24}
+                    />
+                  </View>
+
+                  <View style={styles.providerContent}>
+                    <View style={styles.providerHeader}>
+                      <Text
+                        style={[
+                          styles.providerName,
+                          { color: theme.colors.text.primary },
+                        ]}
+                      >
+                        {provider.name}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.providerDesc,
+                        { color: theme.colors.text.secondary },
+                        isRTL && { textAlign: "left" },
+                      ]}
+                    >
+                      {provider.description}
+                    </Text>
+
                     <View style={styles.statusRow}>
-                      <AlertCircle
-                        color={theme.colors.text.secondary}
-                        size={16}
-                      />
+                      <AlertCircle color={statusColor} size={16} />
                       <Text
                         style={[
                           styles.statusText,
-                          { color: theme.colors.text.secondary },
+                          { color: statusColor },
                           isRTL && { textAlign: "left" },
                         ]}
                       >
-                        {t("notAvailableOnPlatform")}
+                        {statusLabel}
                       </Text>
                     </View>
-                  )}
-                </View>
+                  </View>
 
-                {canInteract ? (
                   <ChevronRight color={theme.colors.text.secondary} size={20} />
-                ) : null}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
-        {/* Info Section */}
-        <View style={styles.infoSection}>
-          <Text
-            style={[
-              styles.infoTitle,
-              { color: theme.colors.text.primary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
-            {t("aboutHealthIntegrations")}
-          </Text>
-          <Text
-            style={[
-              styles.infoText,
-              { color: theme.colors.text.secondary },
-              isRTL && { textAlign: "left" },
-            ]}
-          >
-            {t("healthDataReadOnly")}
-            {"\n"}
-            {t("chooseMetricsToShare")}
-            {"\n"}
-            {t("dataEncrypted")}
-            {"\n"}
-            {t("disconnectAnytime")}
-          </Text>
-        </View>
-      </ScrollView>
+          {/* Info Section */}
+          <View style={styles.infoSection}>
+            <Text
+              style={[
+                styles.infoTitle,
+                { color: theme.colors.text.primary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {t("aboutHealthIntegrations")}
+            </Text>
+            <Text
+              style={[
+                styles.infoText,
+                { color: theme.colors.text.secondary },
+                isRTL && { textAlign: "left" },
+              ]}
+            >
+              {t("healthDataReadOnly")}
+              {"\n"}
+              {t("chooseMetricsToShare")}
+              {"\n"}
+              {t("dataEncrypted")}
+              {"\n"}
+              {t("disconnectAnytime")}
+            </Text>
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

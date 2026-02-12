@@ -12,10 +12,8 @@ import {
   type CameraMountError,
   CameraView,
   useCameraPermissions,
-  } from "expo-camera";
-import { addDoc,
-  collection,
-  Timestamp } from "firebase/firestore";
+} from "expo-camera";
+import { addDoc, collection, Timestamp } from "firebase/firestore";
 import {
   CheckCircle,
   ChevronLeft,
@@ -25,11 +23,8 @@ import {
   Lightbulb,
   X,
   Zap,
-  } from "lucide-react-native";
-import { useEffect,
-  useMemo,
-  useRef,
-  useState } from "react";
+} from "lucide-react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,

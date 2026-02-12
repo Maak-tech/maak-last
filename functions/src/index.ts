@@ -683,7 +683,14 @@ export const sendEmergencySms = onCall(
 // Function to send medication reminder
 export const sendMedicationReminder = functions.https.onCall(
   async (data: any, context: any) => {
-    const { medicationId, medicationName, dosage, userId } = data;
+    const {
+      medicationId,
+      medicationName,
+      dosage,
+      userId,
+      reminderId,
+      reminderTime,
+    } = data;
 
     if (!context.auth) {
       throw new functions.https.HttpsError(
@@ -697,15 +704,18 @@ export const sendMedicationReminder = functions.https.onCall(
         title: "💊 Medication Reminder",
         body: `Time to take ${medicationName} (${dosage})`,
         priority: "high",
-        sound: "reminder",
+        sound: "default",
         data: {
           type: "medication_reminder",
           medicationId,
           medicationName,
           dosage,
+          reminderId,
+          reminderTime,
         },
         clickAction: "OPEN_MEDICATIONS",
         color: "#10B981",
+        tag: reminderId ? `medication_reminder_${reminderId}` : undefined,
       };
 
       // Send to the user

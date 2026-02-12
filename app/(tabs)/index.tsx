@@ -718,7 +718,11 @@ export default function DashboardScreen() {
                   await scheduleRecurringMedicationReminder(
                     medication.name,
                     medication.dosage,
-                    reminder.time
+                    reminder.time,
+                    {
+                      medicationId: medication.id,
+                      reminderId: reminder.id,
+                    }
                   ).catch(() => {
                     // Silently handle scheduling errors - don't block dashboard load
                   });

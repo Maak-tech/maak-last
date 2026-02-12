@@ -137,7 +137,9 @@ class SharedMedicationScheduleService {
 
         // Get medications for all family members in parallel
         const medicationResults = await Promise.allSettled(
-          familyMembers.map((member) => medicationService.getUserMedications(member.id))
+          familyMembers.map((member) =>
+            medicationService.getUserMedications(member.id)
+          )
         );
 
         const scheduleEntries: MedicationScheduleEntry[] = [];

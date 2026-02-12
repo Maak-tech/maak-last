@@ -1,9 +1,5 @@
-import {
-  router } from "expo-router";
-import { ChevronDown,
-  Plus,
-  Trash2,
-  X } from "lucide-react-native";
+import { router } from "expo-router";
+import { ChevronDown, Plus, Trash2, X } from "lucide-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {

@@ -15,7 +15,6 @@ import {
   getMetricByKey,
   getOuraScopesForMetrics,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/providerConnections";
 import {
   HEALTH_STORAGE_KEYS,
   type MetricSample,
@@ -23,6 +22,7 @@ import {
   type OuraTokens,
   type ProviderAvailability,
 } from "../health/healthTypes";
+import { saveProviderConnection } from "../health/providerConnections";
 
 // Oura OAuth configuration
 const OURA_CLIENT_ID =

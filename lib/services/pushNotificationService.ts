@@ -22,6 +22,8 @@ export type PushNotificationData = {
     alertId?: string;
     userId?: string;
     medicationId?: string;
+    reminderId?: string;
+    reminderTime?: string;
     medicationName?: string;
     symptomType?: string;
     severity?: "low" | "medium" | "high" | "critical";
@@ -86,6 +88,8 @@ export const pushNotificationService = {
 
       // Fallback to local notifications (for Expo Go or when FCM fails)
       const Notifications = await import("expo-notifications");
+      const isMedicationReminder =
+        notification.data?.type === "medication_reminder";
 
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -96,6 +100,8 @@ export const pushNotificationService = {
           priority: notification.priority === "high" ? "high" : "normal",
           badge: notification.badge || 1,
           color: notification.color || "#2563EB",
+          channelId: isMedicationReminder ? "medication" : undefined,
+          categoryIdentifier: isMedicationReminder ? "MEDICATION" : undefined,
         },
         trigger: null, // Send immediately
       });

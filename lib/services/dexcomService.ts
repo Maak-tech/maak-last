@@ -12,13 +12,13 @@ import {
   getDexcomScopesForMetrics,
   getMetricByKey,
 } from "../health/healthMetricsCatalog";
-import { saveProviderConnection } from "../health/providerConnections";
 import {
   type DexcomTokens,
   HEALTH_STORAGE_KEYS,
   type NormalizedMetricPayload,
   type ProviderAvailability,
 } from "../health/healthTypes";
+import { saveProviderConnection } from "../health/providerConnections";
 
 // Dexcom OAuth configuration
 const DEXCOM_CLIENT_ID =

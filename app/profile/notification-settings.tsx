@@ -1,8 +1,5 @@
-import {
-  useNavigation,
-  useRouter } from "expo-router";
-import { getFunctions,
-  httpsCallable } from "firebase/functions";
+import { useNavigation, useRouter } from "expo-router";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -14,12 +11,9 @@ import {
   Smartphone,
   Users,
   Volume2,
-  } from "lucide-react-native";
+} from "lucide-react-native";
 import type React from "react";
-import { useCallback,
-  useEffect,
-  useLayoutEffect,
-  useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,

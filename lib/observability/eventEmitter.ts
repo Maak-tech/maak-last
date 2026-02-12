@@ -23,6 +23,15 @@ const METRICS_COLLECTION = "observability_metrics";
 const ALERT_AUDITS_COLLECTION = "alert_audits";
 
 const ALLOWED_METADATA_KEYS = new Set([
+  "provider",
+  "metricKey",
+  "metricCount",
+  "sampleCount",
+  "savedCount",
+  "invalidCount",
+  "skippedMetricCount",
+  "durationMs",
+  "syncId",
   "vitalType",
   "unit",
   "isAbnormal",
@@ -149,11 +158,16 @@ class ObservabilityEventEmitter {
   private flushInterval: ReturnType<typeof setInterval> | null = null;
   private maxBufferSize = 50;
   private flushIntervalMs = 10_000;
+  private metricsBuffer: PlatformMetric[] = [];
+  private metricsFlushInterval: ReturnType<typeof setInterval> | null = null;
+  private maxMetricsBufferSize = 100;
+  private metricsFlushIntervalMs = 15_000;
   private isEnabled = true;
   private appStateSubscription: { remove: () => void } | null = null;
 
   constructor() {
     this.startFlushInterval();
+    this.startMetricsFlushInterval();
     this.setupAppStateListener();
   }
 
@@ -189,7 +203,14 @@ class ObservabilityEventEmitter {
     }, this.flushIntervalMs);
   }
 
-  private async flush(): Promise<void> {
+  private startMetricsFlushInterval(): void {
+    if (this.metricsFlushInterval) return;
+    this.metricsFlushInterval = setInterval(() => {
+      this.flush();
+    }, this.metricsFlushIntervalMs);
+  }
+
+  private async flushEvents(): Promise<void> {
     if (this.buffer.length === 0) return;
 
     const eventsToFlush = [...this.buffer];
@@ -210,6 +231,33 @@ class ObservabilityEventEmitter {
         "ObservabilityEmitter"
       );
     }
+  }
+
+  private async flushMetrics(): Promise<void> {
+    if (this.metricsBuffer.length === 0) return;
+
+    const metricsToFlush = [...this.metricsBuffer];
+    this.metricsBuffer = [];
+
+    try {
+      const batch = metricsToFlush.map((metric) =>
+        addDoc(
+          collection(db, METRICS_COLLECTION),
+          sanitizeForFirestore(metric as Record<string, unknown>)
+        )
+      );
+      await Promise.allSettled(batch);
+    } catch (error) {
+      logger.error(
+        "Failed to flush observability metrics",
+        error,
+        "ObservabilityEmitter"
+      );
+    }
+  }
+
+  private async flush(): Promise<void> {
+    await Promise.allSettled([this.flushEvents(), this.flushMetrics()]);
   }
 
   async emit(
@@ -451,27 +499,10 @@ class ObservabilityEventEmitter {
       tags,
     };
 
-    try {
-      await addDoc(
-        collection(db, METRICS_COLLECTION),
-        sanitizeForFirestore(metric as Record<string, unknown>)
-      );
-    } catch (error) {
-      // Firestore client can occasionally retry a successful "create" and get ALREADY_EXISTS.
-      // This is safe to ignore because the metric doc was already written.
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        (error as { code?: string }).code === "already-exists"
-      ) {
-        return;
-      }
-      logger.error(
-        "Failed to record metric",
-        { metricName, error },
-        "ObservabilityEmitter"
-      );
+    this.metricsBuffer.push(metric);
+
+    if (this.metricsBuffer.length >= this.maxMetricsBufferSize) {
+      await this.flushMetrics();
     }
   }
 
@@ -519,6 +550,10 @@ class ObservabilityEventEmitter {
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
       this.flushInterval = null;
+    }
+    if (this.metricsFlushInterval) {
+      clearInterval(this.metricsFlushInterval);
+      this.metricsFlushInterval = null;
     }
     if (this.appStateSubscription) {
       this.appStateSubscription.remove();

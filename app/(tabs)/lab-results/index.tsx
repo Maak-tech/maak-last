@@ -1,16 +1,13 @@
 /* biome-ignore-all lint/style/noNestedTernary: preserving existing conditional layout flow while iterating in batches. */
-import {
-  router } from "expo-router";
+import { router } from "expo-router";
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
   TestTube,
   X,
-  } from "lucide-react-native";
-import { useCallback,
-  useEffect,
-  useState } from "react";
+} from "lucide-react-native";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
